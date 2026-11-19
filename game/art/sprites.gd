@@ -4,6 +4,13 @@ class_name Sprites
 ## To change art, edit the maps below: one character per pixel, "." = clear.
 
 static var _tex := {}
+## Every sprite (and its white flash copy) packed into one texture, so a frame of hundreds of different sprites
+## batches into a few draw calls instead of one per texture switch. key -> region in _atlas.
+static var _atlas: ImageTexture
+static var _region := {}
+static var _imgs := {}
+const ATLAS_W := 256
+const ATLAS_PAD := 1
 
 const OUTLINE := Color("1a0f24")
 
@@ -449,6 +456,36 @@ static func build_all() -> void:
 	}
 	for k in tome_cols:
 		_add(k, TOME, {"K": OUTLINE, "C": tome_cols[k][0], "c": tome_cols[k][1], "W": Color("fff6e0")})
+	_pack()
+
+## Shelf-packs every sprite image into one atlas texture, tallest first.
+static func _pack() -> void:
+	var keys: Array = _imgs.keys()
+	keys.sort_custom(func(a: String, b: String) -> bool:
+		var ha: int = (_imgs[a] as Image).get_height()
+		var hb: int = (_imgs[b] as Image).get_height()
+		return ha > hb if ha != hb else a < b)
+	var x := ATLAS_PAD
+	var y := ATLAS_PAD
+	var shelf := 0
+	var spots := {}
+	for k: String in keys:
+		var img: Image = _imgs[k]
+		if x + img.get_width() + ATLAS_PAD > ATLAS_W:
+			x = ATLAS_PAD
+			y += shelf + ATLAS_PAD
+			shelf = 0
+		spots[k] = Vector2i(x, y)
+		x += img.get_width() + ATLAS_PAD
+		shelf = maxi(shelf, img.get_height())
+	var h := y + shelf + ATLAS_PAD
+	var atlas := Image.create(ATLAS_W, h, false, Image.FORMAT_RGBA8)
+	for k: String in keys:
+		var img: Image = _imgs[k]
+		atlas.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), spots[k])
+		_region[k] = Rect2(spots[k], img.get_size())
+	_atlas = ImageTexture.create_from_image(atlas)
+	_imgs.clear()
 
 static func _add(key: String, rows: Array, pal: Dictionary) -> void:
 	var w := 0
@@ -467,6 +504,8 @@ static func _add(key: String, rows: Array, pal: Dictionary) -> void:
 			white.set_pixel(x, y, Color.WHITE)
 	_tex[key] = ImageTexture.create_from_image(img)
 	_tex[key + "!"] = ImageTexture.create_from_image(white)
+	_imgs[key] = img
+	_imgs[key + "!"] = white
 
 static func get_tex(key: String, flash: bool = false) -> Texture2D:
 	if flash:
@@ -476,14 +515,11 @@ static func get_tex(key: String, flash: bool = false) -> Texture2D:
 ## Draws a sprite centred on its feet point (bottom-centre), pixel-snapped.
 static func draw_at(ci: CanvasItem, key: String, feet: Vector2, flip: bool = false,
 		flash: bool = false, modulate: Color = Color.WHITE, scale: float = 1.0) -> void:
-	var t := get_tex(key, flash)
-	if t == null:
+	var src: Rect2 = _region.get(key + "!" if flash else key, Rect2())
+	if src.size == Vector2.ZERO:
 		return
-	var sz := Vector2(t.get_width(), t.get_height()) * scale
+	var sz := src.size * scale
 	var p := (feet - Vector2(sz.x / 2.0, sz.y)).round()
-	if flip:
-		ci.draw_set_transform(Vector2(p.x + sz.x, p.y), 0.0, Vector2(-1, 1))
-		ci.draw_texture_rect(t, Rect2(Vector2.ZERO, sz), false, modulate)
-		ci.draw_set_transform(Vector2.ZERO)
-	else:
-		ci.draw_texture_rect(t, Rect2(p, sz), false, modulate)
+	# A negative width mirrors the sprite without a transform change, which would split the batch.
+	var dst := Rect2(p.x + sz.x, p.y, -sz.x, sz.y) if flip else Rect2(p, sz)
+	ci.draw_texture_rect_region(_atlas, dst, src, modulate, false, false)

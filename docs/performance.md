@@ -92,3 +92,26 @@ per-match hitches (a slow match start, a first-use shader compile) that a single
 
 ## This project's numbers
 <!-- One table per pass: before/after per quality level, the scripted worst case, and what was changed. -->
+
+### Pass 1, 19 Nov 2026: the horde at 12:00
+
+`xvfb-run -a godot --path . -- --autotest=12 --seed=5 --perf` waits for 180+ enemies, then times 300 frames per
+system (`PerfMeter`) and counts draw calls. `--perf-hide=decal_layer` (or `ent_layer`, `hud`, `fx`...) hides one
+layer to read its share. Cloud box, llvmpipe, so read draw calls and script ms, not frame ms.
+
+| | before | after |
+| --- | --- | --- |
+| enemies at peak (cap 260) | 392 | 267 to 275 |
+| draw calls per frame | 1005 | 235 to 274 |
+| frame ms p50 / p95 (software GL) | 38.5 / 68.6 | 18.7 / 33.5 |
+| world step ms | 5.9 | 2.0 to 2.4 |
+| entities draw ms | 2.2 | 1.5 to 1.6 |
+| decals draw ms | 1.8 | 0.1 |
+
+What changed:
+- The enemy cap counts queued enemies too, so the field stops near the cap instead of 1.5x it.
+- Every sprite is packed in one atlas (`Sprites._pack`), and flips use a negative width rather than a transform,
+  so the whole horde is one texture and batches.
+- Blood decals are rect blobs, not circles (each circle was its own draw call).
+- Elite glows and health bars are drawn in their own passes before and after the sprites.
+

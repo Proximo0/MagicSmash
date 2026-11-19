@@ -34,9 +34,17 @@ func _ready() -> void:
 	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	add_layer.material = m
 	add_child(add_layer)
-	add_layer.draw.connect(_draw_add)
+	add_layer.draw.connect(func() -> void:
+		var t0 := Time.get_ticks_usec()
+		_draw_add()
+		PerfMeter.since("fx_draw_add", t0))
 
 func _process(delta: float) -> void:
+	var t0 := Time.get_ticks_usec()
+	_step(delta)
+	PerfMeter.since("fx_process", t0)
+
+func _step(delta: float) -> void:
 	for p in parts:
 		p.life -= delta
 		p.vel *= maxf(0.0, 1.0 - p.drag * delta)
@@ -205,6 +213,11 @@ static func jag(a: Vector2, b: Vector2, rng: RandomNumberGenerator, amp := 5.0) 
 
 # ------------------------------------------------------------------ draw --
 func _draw() -> void:
+	var t0 := Time.get_ticks_usec()
+	_draw_main()
+	PerfMeter.since("fx_draw", t0)
+
+func _draw_main() -> void:
 	for p in parts:
 		if p.add:
 			continue

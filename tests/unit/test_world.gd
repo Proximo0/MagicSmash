@@ -415,7 +415,7 @@ func test_enemy_cap_holds_the_horde() -> void:
 	var w := _fighting(t, 0.0)
 	for _i: int in range(60 * 10):
 		w.step(DT, {})
-		assert_true(_fielded(w) <= 30 + 20, "fielded %d over a cap of 30" % _fielded(w))
+		assert_true(_fielded(w) <= 30 + 12, "fielded %d over a cap of 30" % _fielded(w))
 	assert_true(_fielded(w) >= 30, "the horde should reach the cap")
 
 

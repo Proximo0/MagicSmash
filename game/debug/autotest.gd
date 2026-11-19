@@ -13,6 +13,13 @@ var _arch_shot := false
 var _victory_shot := false
 var end_at := -1.0 # --end=SECONDS[:win] ends the run then (as a win with :win) to capture the results screen
 var end_win := false
+var perf := false # --perf: once the horde is big, time 300 frames per system and print a table, then quit
+var _perf_frames: Array = []
+var perf_hide := "" # --perf-hide=name hides one arena layer (decal_layer, ent_layer, hud, fx...) while measuring
+var _perf_draws := 0
+var _perf_peak := 0
+const PERF_FRAMES := 300
+const PERF_ENEMIES := 180
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
 var _results_shot := false
 var quit_at := 60.0
@@ -38,6 +45,11 @@ func _ready() -> void:
 			quit_at = maxf(quit_at, end_at + 8.0)
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--perf-hide="):
+			perf_hide = a.substr(12)
+		if a == "--perf":
+			perf = true
+			quit_at = 240.0
 		if a == "--passive":
 			PlayerInput.bot_passive = true
 		if a.begins_with("--net="):
@@ -56,6 +68,8 @@ func _process(delta: float) -> void:
 	if net == "host" and not shots.is_empty() and shots[0][1] == "@play" and Net.roster.size() < 2:
 		return
 	t += delta
+	if perf:
+		_perf_tick()
 	# State-keyed shot: the first level-up pick screen, once it has been up for a moment.
 	var cur = G.main.current if G.main else null
 	if not _pick_shot and cur and cur.has_method("_anyone_picking") and cur._anyone_picking():
@@ -98,6 +112,8 @@ func _process(delta: float) -> void:
 			cur.world.won = true
 			cur.world.emit(World.EV_VICTORY, 240, 140, 0, 0)
 		cur.world._end_run()
+	if perf and _perf_frames.size() >= PERF_FRAMES:
+		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
 		_results_shot = true
 		get_viewport().get_texture().get_image().save_png("%s/results.png" % out_dir)
@@ -139,3 +155,42 @@ func _process(delta: float) -> void:
 				" particles=", (G.main.current.fx.parts.size() if "fx" in G.main.current else 0))
 	if t > quit_at:
 		get_tree().quit()
+
+
+## Waits for a big horde, then books PERF_FRAMES frames: wall frame time, each system's script time (PerfMeter)
+## and draw calls. Prints one PERF line per system and quits.
+func _perf_tick() -> void:
+	var cur = G.main.current if G.main else null
+	if cur == null or not ("world" in cur) or cur.world == null:
+		return
+	var n: int = cur.world.enemies.size()
+	if not PerfMeter.on:
+		if n >= PERF_ENEMIES or t > quit_at - 20.0:
+			PerfMeter.reset()
+			PerfMeter.on = true
+			if perf_hide != "" and perf_hide in cur:
+				(cur.get(perf_hide) as CanvasItem).visible = false
+			_perf_frames.clear()
+		return
+	_perf_frames.append(Time.get_ticks_usec())
+	_perf_draws += int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	_perf_peak = maxi(_perf_peak, n)
+	if _perf_frames.size() < PERF_FRAMES:
+		return
+	PerfMeter.on = false
+	var gaps: Array = []
+	for i in range(1, _perf_frames.size()):
+		gaps.append(float(_perf_frames[i] - _perf_frames[i - 1]) / 1000.0)
+	gaps.sort()
+	var f := float(gaps.size())
+	print("PERF frames=%d enemies_peak=%d particles=%d draw_calls=%.0f frame_ms p50=%.1f p95=%.1f" % [
+		PERF_FRAMES, _perf_peak, cur.fx.parts.size(), float(_perf_draws) / PERF_FRAMES, gaps[int(f * 0.5)], gaps[int(f * 0.95)]])
+	var names: Array = PerfMeter.acc.keys()
+	names.sort_custom(func(a: String, b: String) -> bool: return PerfMeter.acc[a] > PerfMeter.acc[b])
+	var total := 0.0
+	for k: String in names:
+		var ms: float = float(PerfMeter.acc[k]) / 1000.0 / PERF_FRAMES
+		total += ms
+		print("PERF %-14s %6.2f ms/frame" % [k, ms])
+	print("PERF %-14s %6.2f ms/frame" % ["total_script", total])
+	get_tree().quit()
