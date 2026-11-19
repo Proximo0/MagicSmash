@@ -3,9 +3,9 @@ extends Node2D
 ## a twilight sky, a castle on the hill, an animated logo and four wizards
 ## launching fireworks.
 
-enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA }
+enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE }
 
-const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "HOW TO PLAY", "OPTIONS", "QUIT"]
+const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "QUIT"]
 
 var state := S.INTRO
 var t := 0.0
@@ -27,6 +27,11 @@ var message_t := 0.0
 var options := OptionsPanel.new()
 var ouija := Ouija.new()
 var planchette := Vector2(240, 150)
+## The prologue page on screen, when it was turned, and the menu item to carry on to after it.
+var tale_page := 0
+var tale_t := 0.0
+var tale_then := ""
+var tale_dev := 0
 var menu_items: Array = []
 var rng := RandomNumberGenerator.new()
 var _landed := {}
@@ -251,6 +256,8 @@ func _draw_front() -> void:
 			_draw_unlocks(ci)
 		S.OPTIONS:
 			options.draw(ci, t)
+		S.TALE:
+			_draw_tale(ci)
 		S.OUIJA:
 			_draw_join(ci)
 			_draw_ouija(ci)
@@ -345,7 +352,7 @@ func _draw_menu(ci: CanvasItem) -> void:
 	if a <= 0.0:
 		return
 	for i in items.size():
-		var y := 146 + i * 14
+		var y := 145 + i * 13
 		var s := i == sel
 		var label: String = items[i]
 		var c := Color("ffd94d") if s else Color("b8a8d8")
@@ -577,6 +584,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		S.OPTIONS:
 			if options.handle(event):
 				state = S.MAIN
+		S.TALE:
+			if back:
+				_end_tale()
+			elif dev != -99 or tap:
+				_turn_page()
 		S.JOINING:
 			if back:
 				Net.shutdown()
@@ -604,7 +616,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _activate(item: String, dev: int) -> void:
 	Sfx.play("menu_select")
+	if item == "PLAY" and not Save.settings.seen_prologue:
+		_start_tale("PLAY", dev)
+		return
 	match item:
+		"THE TALE":
+			_start_tale("", dev)
 		"PLAY":
 			G.local_devices = [dev]
 			Net.start_offline()
@@ -648,11 +665,138 @@ func _join(ip: String) -> void:
 	state = S.JOINING
 	Net.join_game(ip)
 
+func _start_tale(then: String, dev: int) -> void:
+	tale_page = 0
+	tale_t = t
+	tale_then = then
+	tale_dev = dev
+	state = S.TALE
+	Sfx.play("page_turn")
+
+
+func _turn_page() -> void:
+	if t - tale_t < 0.35:
+		return
+	if tale_page + 1 >= Lore.PROLOGUE.size():
+		_end_tale()
+		return
+	tale_page += 1
+	tale_t = t
+	Sfx.play("page_turn")
+
+
+## Leaves the prologue: back to the menu, or on to PLAY when it opened from there. It is shown once.
+func _end_tale() -> void:
+	Save.settings.seen_prologue = true
+	Save.write_settings()
+	state = S.MAIN
+	if tale_then != "":
+		_activate(tale_then, tale_dev)
+	else:
+		Sfx.play("menu_select")
+
+
+## A page of the prologue: an illuminated panel with a scene, the heading and the text, typed in.
+func _draw_tale(ci: CanvasItem) -> void:
+	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.02, 0.0, 0.05, 0.85))
+	var page: Array = Lore.PROLOGUE[tale_page]
+	var r := Rect2(36, 18, 408, 228)
+	Occult.frame(ci, r, t)
+	var art := Rect2(r.position.x + 24, r.position.y + 30, r.size.x - 48, 136)
+	_draw_tale_art(ci, art, tale_page)
+	PixelFont.draw_centered(ci, "%s" % page[0], 240, r.position.y + 10, 2, Occult.GOLD, Occult.INK)
+	var shown := mini(String(page[1]).length(), int((t - tale_t) * 45.0))
+	TarotArt._wrap_centered(ci, String(page[1]).left(shown), 240, art.end.y + 10, r.size.x - 40, Occult.BONE)
+	for i in Lore.PROLOGUE.size():
+		ci.draw_rect(Rect2(240 - Lore.PROLOGUE.size() * 5 + i * 10, r.end.y - 14, 6, 2),
+			Occult.GOLD if i == tale_page else Color("3a2f55"))
+	PixelFont.draw_centered(ci, "ENTER/A: NEXT    ESC/B: SKIP", 240, r.end.y + 8, 1, Color(1, 1, 1, 0.45), Occult.INK)
+
+
+## The scene for each prologue page, drawn into `a`.
+func _draw_tale_art(ci: CanvasItem, a: Rect2, page: int) -> void:
+	ci.draw_rect(a, Color("0a0618"))
+	for b in 4:
+		ci.draw_rect(Rect2(a.position.x, a.position.y + a.size.y * (0.4 + b * 0.15), a.size.x, a.size.y * 0.15 + 1),
+			[Color("150c2a"), Color("23123a"), Color("3a1a40"), Color("4a2040")][b])
+	for i in 40:
+		var sx := a.position.x + fposmod(i * 53.0, a.size.x)
+		var sy := a.position.y + fposmod(i * 29.0, a.size.y * 0.5)
+		ci.draw_rect(Rect2(sx, sy, 1, 1), Color(1, 1, 1, 0.3 + 0.5 * absf(sin(t * 1.5 + i))))
+	var ground := a.end.y - 14
+	var k := t - tale_t
+	match page:
+		0:
+			# The black comet over Aldermoor: a dark head with a burning tail, the village and its graves.
+			var head := a.position + Vector2(a.size.x * 0.72 - k * 6.0, 26 + k * 2.0)
+			for i in 30:
+				var q := head + Vector2(i * 4.0, -i * 1.6)
+				ci.draw_circle(q, 6.0 - i * 0.18, Color(1.0, 0.3 + i * 0.01, 0.6, 0.5 - i * 0.016))
+			ci.draw_circle(head, 6.0, Color("1a0f24"))
+			ci.draw_arc(head, 6.0, 0, TAU, 16, Color("ff4df2"), 1.0)
+			for i in 9:
+				var hx := a.position.x + 20 + i * 38
+				var hh := 12 + (i * 7) % 10
+				ci.draw_rect(Rect2(hx, ground - hh, 22, hh), Color("0b0716"))
+				ci.draw_colored_polygon(PackedVector2Array([Vector2(hx - 2, ground - hh), Vector2(hx + 11, ground - hh - 8),
+					Vector2(hx + 24, ground - hh)]), Color("0b0716"))
+				if (i + int(t * 0.5)) % 3 != 0:
+					ci.draw_rect(Rect2(hx + 8, ground - hh + 4, 3, 3), Color("ffcf5a"))
+			for i in 6:
+				var gx := a.position.x + 40 + i * 58
+				ci.draw_rect(Rect2(gx, ground + 4, 5, 7), Color("6c6480"))
+				ci.draw_rect(Rect2(gx - 1, ground + 6, 7, 2), Color("6c6480"))
+		1:
+			# Morvane reads the ninth page: the Lich over a burning book.
+			var c := Vector2(a.get_center().x, ground + 8)
+			ci.draw_circle(c + Vector2(0, -34), 34.0, Color(0.5, 0.1, 0.8, 0.12 + 0.05 * sin(t * 3.0)))
+			Sprites.draw_at(ci, "lich", c, false, false, Color.WHITE, 2.0)
+			var book := Rect2(c.x - 22, c.y - 10, 44, 12)
+			ci.draw_rect(book.grow(1), Color("1a0f24"))
+			ci.draw_rect(book, Color("e8dcc0"))
+			ci.draw_rect(Rect2(book.get_center().x, book.position.y, 1, book.size.y), Color("8a7a60"))
+			for l in 3:
+				ci.draw_rect(Rect2(book.position.x + 3, book.position.y + 3 + l * 3, 16, 1), Color("8a1a2a"))
+			for i in 6:
+				var f := fposmod(t * 30.0 + i * 13.0, 40.0)
+				ci.draw_rect(Rect2(book.position.x + 6 + i * 6, book.position.y - f * 0.6, 1, 2), Color(1.0, 0.6, 0.2, 1.0 - f / 40.0))
+		2:
+			# The tower and the horde climbing it.
+			var tx := a.get_center().x
+			ci.draw_rect(Rect2(tx - 22, a.position.y + 14, 44, ground - a.position.y - 14), Color("1e1830"))
+			ci.draw_colored_polygon(PackedVector2Array([Vector2(tx - 28, a.position.y + 16), Vector2(tx, a.position.y - 2),
+				Vector2(tx + 28, a.position.y + 16)]), Color("2a1650"))
+			for wy in 4:
+				ci.draw_rect(Rect2(tx - 3, a.position.y + 26 + wy * 20, 6, 8), Color("ffcf5a") if wy != int(t) % 4 else Color("ff4df2"))
+			for i in 10:
+				var u := fposmod(i * 0.1 + t * 0.05, 1.0)
+				var side := -1.0 if i % 2 == 0 else 1.0
+				var p := Vector2(tx + side * (60.0 + (1.0 - u) * 100.0), ground)
+				Sprites.draw_at(ci, "skeleton_a" if int(t * 4.0 + i) % 2 == 0 else "skeleton_b", p, side > 0)
+		3:
+			# The last coven, with the cards drawn over their heads.
+			for w in 4:
+				var p := Vector2(a.position.x + a.size.x * (0.2 + w * 0.2), ground + 6)
+				Sprites.draw_at(ci, "wiz%d_down_a" % w if int(t * 2.0 + w) % 2 == 0 else "wiz%d_down_b" % w, p, false, false,
+					Color.WHITE, 2.0)
+				var cr := Rect2(p.x - 8, a.position.y + 8 + sin(t * 2.0 + w) * 2.0, 16, 26)
+				TarotArt.draw_back(ci, cr)
+				ci.draw_circle(cr.get_center(), 12.0, Color(Sprites.PLAYER_COLORS[w].fx, 0.12))
+	_box_px(ci, a, Color("4b2ab8"))
+
+
+func _box_px(ci: CanvasItem, r: Rect2, c: Color) -> void:
+	ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), c)
+	ci.draw_rect(Rect2(Vector2(r.position.x, r.end.y - 1), Vector2(r.size.x, 1)), c)
+	ci.draw_rect(Rect2(r.position, Vector2(1, r.size.y)), c)
+	ci.draw_rect(Rect2(Vector2(r.end.x - 1, r.position.y), Vector2(1, r.size.y)), c)
+
+
 func _open_ouija() -> void:
 	ouija = Ouija.new()
 	planchette = _ouija_pos(ouija.row, ouija.col)
 	state = S.OUIJA
-	Sfx.play("teleport", -6.0)
+	Sfx.play("whisper")
 
 
 func _submit_ouija() -> void:
@@ -692,12 +836,12 @@ func _ouija_input(event: InputEvent, tap: bool, tap_pos: Vector2) -> void:
 	var dx := int(PlayerInput.menu_side(event)[1])
 	if dx != 0 or dy != 0:
 		ouija.move(dx, dy)
-		Sfx.play("menu_move", -4.0)
+		Sfx.play("planchette")
 		return
 	if event is InputEventMouseMotion:
 		var hit: Vector2i = _ouija_hit(event.position)
-		if hit.x >= 0 and ouija.point_at(hit.x, hit.y):
-			pass
+		if hit.x >= 0 and (hit.x != ouija.row or hit.y != ouija.col) and ouija.point_at(hit.x, hit.y):
+			Sfx.play("planchette", -6.0)
 		return
 	if tap:
 		var hit: Vector2i = _ouija_hit(tap_pos)
