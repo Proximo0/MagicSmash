@@ -144,6 +144,9 @@ func _ready() -> void:
 	bg = Sprite2D.new()
 	bg.centered = false
 	bg.texture = ArenaBg.build(ArenaBg.OSSUARY)
+	# The bigger arena takes a moment to bake; do the later acts now, during the run's intro, not mid-fight.
+	(func() -> void: ArenaBg.build(ArenaBg.LIBRARY)).call_deferred()
+	(func() -> void: ArenaBg.build(ArenaBg.SANCTUM)).call_deferred()
 	root.add_child(bg)
 	bg_next = Sprite2D.new()
 	bg_next.centered = false
@@ -1748,11 +1751,7 @@ func _draw_offscreen(ci: CanvasItem) -> void:
 		var tip := at
 		var pts := PackedVector2Array([tip, tip - dir * 7.0 + side * 4.0, tip - dir * 7.0 - side * 4.0])
 		ci.draw_colored_polygon(pts, Color(col, pulse))
-		ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(dark_ink(), 0.9), 1.0)
-
-
-func dark_ink() -> Color:
-	return Color("0b0716")
+		ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(Occult.INK, 0.9), 1.0)
 
 
 ## An act card: a rune-framed band with the act's numeral, its name in large letters and its subtitle, fading in.
