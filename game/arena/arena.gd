@@ -629,6 +629,8 @@ func _handle_events(evs: Array) -> void:
 				final_score = int(ev[3])
 				run_t = float(ev[1])
 				crystals_earned = G.finish_run(final_score, float(ev[1]), int(ev[2]), int(ev[4]), victory)
+				if is_host:
+					Platform.finish_run(results, victory, float(ev[1]))
 				if not victory:
 					Sfx.music("music_gameover")
 			World.EV_LEVELUP:

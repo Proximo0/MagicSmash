@@ -211,8 +211,14 @@ and numbers go in `Tuning` or data tables.
     at player index 10, and `G.wizard_of(slot)` colours everything a slot draws (robe, HUD, spell fx).
   - A slot with no pick (tests, sims, the bot) plays the wizard of its own colour, so 4-bot runs cover all four.
   - `--autotest --wizard=2` steps the first player two wizards right before the run.
-- Step 6 is done. Next is step 7, Steam: GodotSteam, achievements, Remote Play Together, the store page and the
-  capsule art. Ask Curtis before any store action, payment or upload.
+- Step 6 is done.
+
+## Step 7 notes (Steam)
+
+- See `docs/steam.md`: what the code does with Steam and the Steamworks checklist for Curtis.
+- 7a: the achievements (`Achievements`) and the `Platform` autoload, a no-op until GodotSteam and an App ID are
+  in. Asked Curtis on 19 Nov for the App ID and whether the app fee is paid (it was due 18 Nov for 18 Dec).
+- Ask Curtis before any store action, payment or upload.
 
 ## Checks and tools
 
