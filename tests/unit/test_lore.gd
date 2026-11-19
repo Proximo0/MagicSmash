@@ -52,3 +52,8 @@ func test_minute_lines_and_endings() -> void:
 	assert_eq(Lore.minute_line(40), Lore.minute_line(Lore.MINUTES.size() - 1))
 	assert_true(Lore.VICTORY_LINES.has(Lore.ending(true, 7)))
 	assert_true(Lore.DEFEAT_LINES.has(Lore.ending(false, -3)))
+
+
+func test_elite_epithets_are_stable_and_cover_negatives() -> void:
+	assert_eq(Lore.elite_epithet(3), Lore.elite_epithet(3 + Lore.ELITE_EPITHETS.size()))
+	assert_true(not Lore.elite_epithet(-5).is_empty(), "a negative number still names an elite")
