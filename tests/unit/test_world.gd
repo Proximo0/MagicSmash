@@ -836,16 +836,23 @@ func test_no_lich_visits_after_the_final_minute() -> void:
 	var t := Tuning.new()
 	t.run_minutes = 3.0 # the Archlich comes at 3:00
 	t.boss_every_min = 1.0 # so 4:00 would otherwise bring a Lich
+	t.enemy_cap = 20.0 # the horde is not under test: a small one makes 70 s of simulation take 1 s, not 20
 	var w := World.new([0], 3, t)
 	w.phase = World.PH_FIGHT
 	w.wave = 3
 	w.wave_time = 3 * 60.0 - 0.5
 	_player(w).invuln = 99999.0
+	var lich_minutes: int = 0
 	for _i: int in range(60 * 70):
 		_player(w).choices.clear() # skip level-up picks so the clock keeps running
 		_player(w).pending = 0
 		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_WAVE and int(ev[4]) == 1:
+				lich_minutes += 1
 	assert_true(w.wave >= 5, "the clock did not reach 4:00")
+	# While the Archlich stands no other Lich can come anyway, so the announcement is what shows the rule held.
+	assert_eq(lich_minutes, 0, "4:00 was announced as a Lich minute after the Archlich's minute")
 	var liches: int = 0
 	for e: World.Enemy in w.enemies:
 		if e.type == World.LICH:

@@ -7,12 +7,16 @@ decisions already made and the loot/gambling rules. 480x270 pixel art drawn from
 audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility on every platform.
 
 ## Commands
-- `tools/run_tests.sh [test_name]`: headless unit tests (`tests/unit/test_*.gd`). Prints failures only.
+- `tools/run_tests.sh [test_name]`: headless unit tests (`tests/unit/test_*.gd`); one process per CPU, sharing one queue
+  of test methods (~3 s for all, ~0.7 s for one file). A pass prints one `TESTS` line; a failure prints that process's
+  output. A test also fails if the engine logs an error while it runs, if it runs no assert, or if it takes over 10 s.
 - `tools/lint.sh`: parse and static checks for every script. Ends with `LINT problems=<n>`.
 - `tools/run_sims.sh [sim_name ...]`: regression sims (`tests/sim/sim_*.gd`, listed in `tests/sim/sim_suite.gd`), one
-  process per sim file, all in parallel (about 60 s). `sim_horde` asserts a time budget: if only it fails while the
-  CPU is busy, rerun `tools/run_sims.sh sim_horde` alone. CI gives it its own runner (`sims-horde`).
+  process per sim file, all in parallel (about 60 s). `sim_horde` asserts a step budget in CPU time. CI gives it its
+  own runner (`sims-horde`), which holds the real budget; `check_all` shares the CPU, so it doubles the budget.
 - `tools/check_all.sh`: everything at once (unit, sims, lint, plus the bot and lab if their scenes exist).
+- `tools/import.sh`: the shared import step every tool calls; skipped unless something an import needs changed (a new
+  file, a `class_name` line, an asset), so editing a function body costs nothing. `FORCE_IMPORT=1` forces it.
 - `godot --headless --path . -s tools/full_run.gd -- --wizards=4`: bots play a whole run (to the Archlich) and
   print a line per minute. For balancing; too slow for check_all.
 - `tools/export_windows.sh`: Windows build zip in `build/`. `tools/export_android.sh`: debug APK in `build/`.
