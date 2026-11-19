@@ -1401,7 +1401,8 @@ func _draw_hud() -> void:
 		# XP bar and level
 		var xf := clampf(float(p.xp) / float(p.xp_need), 0.0, 1.0)
 		PixelFont.draw(ci, "LV%d" % p.level, Vector2(x, 17), 1, Color("5dff7a"), dark)
-		PixelFont.draw(ci, "%dG" % p.get("gold", 0), Vector2(x + 78, 17), 1, Color("ffd23d"), dark)
+		Sprites.draw_at(ci, "coin", Vector2(x + 80, 23))
+		PixelFont.draw(ci, "%d" % p.get("gold", 0), Vector2(x + 85, 17), 1, Color("ffd23d"), dark)
 		ci.draw_rect(Rect2(x + 24, 19, 50, 3), dark)
 		ci.draw_rect(Rect2(x + 25, 20, 48 * xf, 1), Color("5dff7a"))
 	# Wave label on the top wall
@@ -1412,8 +1413,19 @@ func _draw_hud() -> void:
 		var bw := 300.0
 		var bx := 240 - bw / 2
 		PixelFont.draw_centered(ci, Lore.ARCHLICH_NAME if boss_final else Lore.LICH_NAME, 240, 249, 1, Color("ff4df2") if boss_final else Color("4dfff0"), dark)
-		ci.draw_rect(Rect2(bx - 2, 258, bw + 4, 8), dark)
+		var rim := Color("ff4df2") if boss_final else Color("4dfff0")
+		ci.draw_rect(Rect2(bx - 3, 257, bw + 6, 10), dark)
+		ci.draw_rect(Rect2(bx - 2, 258, bw + 4, 1), rim)
+		ci.draw_rect(Rect2(bx - 2, 265, bw + 4, 1), rim)
 		ci.draw_rect(Rect2(bx, 260, bw, 4), Color("2c0d4d"))
+		# A sigil at each end and runes either side of the name: Morvane's seal on his bar.
+		Occult.sigil(ci, Vector2(bx - 8, 262), 5.0, time)
+		Occult.sigil(ci, Vector2(bx + bw + 8, 262), 5.0, time)
+		var nw := PixelFont.text_width(Lore.ARCHLICH_NAME if boss_final else Lore.LICH_NAME, 1)
+		for k in 3:
+			var glow := Color(rim, 0.55 + 0.45 * maxf(0.0, sin(time * 3.0 - k)))
+			Occult.rune(ci, Vector2(240 - nw / 2.0 - 12 - k * 7, 249), k + 2, glow)
+			Occult.rune(ci, Vector2(240 + nw / 2.0 + 8 + k * 7, 249), k + 5, glow)
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 1), Color.WHITE)
 	_draw_reveals(ci, dark)

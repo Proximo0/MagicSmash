@@ -220,6 +220,31 @@ and numbers go in `Tuning` or data tables.
 - 7b: `tools/capsules.gd` draws draft store and library capsules (see `docs/steam.md`).
 - Ask Curtis before any store action, payment or upload.
 
+## Polish rounds (19 Nov 2026, "a Steam-worthy product")
+
+Curtis set Steam aside and gave creative control: occult accents and menus, a ouija board for typed text, tarot,
+runes and magic books, fantasy mixed with history and myth, and no placeholder text or UI. What went in (PRs
+#16 to #24 and the spell PR):
+
+- **Menus:** `Occult` (`game/ui/occult.gd`) draws the frames, runes, pentagrams, candles and the menu cursor.
+  `OptionsPanel` + `Settings` (music, sound, window, screen shake; saved in `user://settings.json` by `Save`).
+  Typed text (names, LAN addresses) goes through the ouija board (`Ouija` logic, drawn in `title.gd`). The lobby's
+  empty seats show the wizard's shadow between candles.
+- **Tarot level-ups:** `TarotArt` draws the cards (16x16 ASCII emblems); passives are Major Arcana
+  (`Upgrades`), spells are grimoires.
+- **Story:** `Lore` holds the prologue (THE TALE on the title, shown once before the first PLAY), the three acts
+  (I The Ossuary, II The Burning Library from 5:00, III The Starless Sanctum from 10:00), a line per minute,
+  Morvane's names, omens, elite epithets and the endings. World waves count from 1; Lore minutes from 0.
+- **Acts:** `ArenaBg.build(act)` draws each act's floor and walls; the arena crossfades them and changes the
+  music (`music_battle`, `music_library`, `music_sanctum`) and ambient particles.
+- **Gambling dressed up:** solo shrines are rune altars (three rune stones), the team shrine is the fate card
+  (The Sun or Death).
+- **Horde:** wraith (phases out, spells pass through), cursed tome (circles, dashes), bone priest (raises
+  skeletons), gargoyle (stone takes 25% damage, swoops). Omens (`World.OMENS`) at 3:00, 8:00 and 13:00.
+- **Names:** mythic loot (Gauntlets of Tyr, Hermes' Sandals, Eye of Odin...) and unlocks; achievement texts
+  match. Version 0.9.0.
+- **Sound:** 14 occult SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
+
 ## Checks and tools
 
 - `tools/check_all.sh`: unit, sims, lint and 3 bot shards in about 80 s (the horde sims are most of it).
@@ -238,4 +263,3 @@ and numbers go in `Tuning` or data tables.
 - `Tuning` holds the rework's first numbers (step 1, done). The XP curve rows are in place but nothing uses them until step 2.
 - Most of `arena.gd`, `title.gd` and `net.gd` are untyped (only `game/logic` is strict in spirit). Lint passes
   because its rules are narrow. Type things as you touch them.
-- `README.md` still says Godot 4.3 and describes v0.2.0 play; update it once the survivors loop exists.
