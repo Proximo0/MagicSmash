@@ -29,6 +29,9 @@ var ve := {}  # id -> Dictionary
 var vs: Array = []  # [spell, pos, vel, owner, evolved]
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
+var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction, cost]
+var _bets: Array = [] # shrine reels: {slot, pos, kind, outcome, t, spin, shown}
+const SHRINE_COLORS := [Color("ffd23d"), Color("ff4df2")]
 var wave := 1
 var phase := 0
 var phase_t := 0.0
@@ -217,6 +220,7 @@ func _process(dt: float) -> void:
 	if banner.t > 0.0:
 		banner.t -= dt
 	_update_reveals(dt)
+	_update_bets(dt)
 	screen_flash.a = maxf(0.0, screen_flash.a - dt * 3.0)
 	shake = maxf(0.0, shake - dt * 18.0)
 	var so := Vector2.ZERO
@@ -273,7 +277,8 @@ func _bot_input(slot: int) -> PackedFloat32Array:
 	var pk: Array[Vector2] = []
 	for k: Array in vk:
 		pk.append(k[1])
-	return _bots[slot].decide(slot, vp[slot].pos, G.ARENA.get_center(), time, en, es, pk)
+	var goal := SmashBot.shrine_goal(vp[slot].pos, float(vp[slot].get("gold", 0)), vsh)
+	return _bots[slot].decide(slot, vp[slot].pos, G.ARENA.get_center(), time, en, es, pk, goal)
 
 func _smooth(dt: float) -> void:
 	var k := 1.0 - exp(-dt * 20.0)
@@ -383,6 +388,12 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	while i + 5 <= es.size():
 		ves.append([int(es[i]), Vector2(es[i + 1], es[i + 2]), Vector2(es[i + 3], es[i + 4])])
 		i += 5
+	vsh.clear()
+	var shp: PackedFloat32Array = snap.get("sh", PackedFloat32Array())
+	i = 0
+	while i + 6 <= shp.size():
+		vsh.append([int(shp[i]), shp[i + 1], shp[i + 2], shp[i + 3], shp[i + 4], int(shp[i + 5])])
+		i += 6
 	vk.clear()
 	var pk: PackedFloat32Array = snap.k
 	i = 0
@@ -519,6 +530,39 @@ func _handle_events(evs: Array) -> void:
 				var code := int(ev[4])
 				_reveals.append({"slot": int(ev[3]), "pos": pos, "item": code / 8, "tier": code % 8, "t": 0.0, "shown": false})
 				Sfx.play("door", -6.0, 1.4)
+			World.EV_SHRINE_UP:
+				var sk := int(ev[3])
+				fx.ring(pos, 2.0, 30.0, 0.6, SHRINE_COLORS[sk], 2.0)
+				fx.sparkle(pos, SHRINE_COLORS[sk], 14)
+				if sk == Gamble.TEAM:
+					_banner("TEAM SHRINE", "ONE WIZARD BETS FOR THE WHOLE PARTY", SHRINE_COLORS[sk], 2.4)
+					Sfx.play("boss_roar", -8.0, 1.4)
+				else:
+					fx.text(pos + Vector2(0, -20), "GAMBLE SHRINE", SHRINE_COLORS[sk], 1.2, 1)
+					Sfx.play("powerup", -6.0, 0.8)
+			World.EV_SHRINE:
+				var code := int(ev[4])
+				var bk := code / 16
+				var spin: float = Tuning.shared().team_reel if bk == Gamble.TEAM else Tuning.shared().shrine_reel
+				_bets.append({"slot": int(ev[3]), "pos": pos, "kind": bk, "outcome": code % 16, "t": 0.0, "spin": spin, "shown": false})
+				Sfx.play("coin", -2.0, 0.8)
+				if bk == Gamble.TEAM:
+					Sfx.music("music_boss")
+			World.EV_GAMBLE:
+				var code := int(ev[4])
+				var gk := code / 16
+				var good := Gamble.is_good(gk, code % 16)
+				var col := Color("8bff9e") if good else Color("ff3b5c")
+				if gk == Gamble.TEAM:
+					for q: Dictionary in vp.values():
+						fx.burst(q.pos + Vector2(0, -8), 24, 120.0, 0.8, 2.0, Color.WHITE, col, true, 40.0, true)
+					screen_flash = Color(col.r, col.g, col.b, 0.35)
+					_add_shake(6.0 if good else 10.0)
+					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
+					Sfx.music("music_battle")
+				else:
+					fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
+					Sfx.play("powerup" if good else "hurt", -2.0)
 			World.EV_WARD:
 				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
 				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
@@ -606,6 +650,70 @@ func _update_reveals(dt: float) -> void:
 					fx.ring(at, 4.0, 40.0 + 20.0 * (r.tier - Loot.LEGENDARY), 0.6, col, 2.0)
 					_add_shake(3.0 * (r.tier - Loot.EPIC))
 	_reveals = _reveals.filter(func(r: Dictionary) -> bool: return r.t < REEL_SPIN + REEL_SHOW)
+
+## Shrines: a glowing altar in the shrine's colour, its price above, and a ring that fills while a wizard bets.
+func _draw_shrines(ci: CanvasItem) -> void:
+	var dark := Color("0b0716")
+	for r: Array in vsh:
+		var kind: int = r[0]
+		var at := Vector2(r[1], r[2])
+		var life: float = r[3]
+		if life < 4.0 and int(life * 8.0) % 2 == 0:
+			continue
+		var col: Color = SHRINE_COLORS[kind]
+		var big := 1.5 if kind == Gamble.TEAM else 1.0
+		var pulse := 0.5 + 0.5 * sin(time * 4.0)
+		ci.draw_circle(at, 14.0 * big, Color(col.r, col.g, col.b, 0.10 + 0.08 * pulse))
+		ci.draw_arc(at, 12.0 * big, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.5), 1.0)
+		# Altar: a stone block with a floating gem.
+		var w := 10.0 * big
+		ci.draw_rect(Rect2((at + Vector2(-w / 2.0, -2)).floor(), Vector2(w, 5)), Color("3a2f55"))
+		ci.draw_rect(Rect2((at + Vector2(-w / 2.0, -2)).floor(), Vector2(w, 1)), Color("7a6aa0"))
+		var gem := at + Vector2(0, -10 - 2.0 * sin(time * 3.0)) * big
+		ci.draw_colored_polygon(PackedVector2Array([gem + Vector2(0, -4) * big, gem + Vector2(3, 0) * big,
+			gem + Vector2(0, 4) * big, gem + Vector2(-3, 0) * big]), col)
+		var charge: float = r[4]
+		if charge > 0.0:
+			ci.draw_arc(at, 15.0 * big, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 32, Color.WHITE, 2.0)
+		PixelFont.draw_centered(ci, "%dG" % int(r[5]), at.x, at.y - 26.0 * big, 1, col, dark)
+
+func _update_bets(dt: float) -> void:
+	for b: Dictionary in _bets:
+		var prev: float = b.t
+		b.t += dt
+		# The reel ticks slower as it runs down, like a wheel.
+		var rate := 16.0 * (1.0 - 0.7 * clampf(b.t / b.spin, 0.0, 1.0))
+		if b.t < b.spin and int(b.t * rate) != int(prev * rate):
+			Sfx.play("menu_move", -8.0 if b.kind == Gamble.TEAM else -12.0, 0.9 + b.t / b.spin * 0.5)
+		if not b.shown and b.t >= b.spin:
+			b.shown = true
+	_bets = _bets.filter(func(b: Dictionary) -> bool: return b.t < b.spin + REEL_SHOW)
+
+## Shrine reels: a solo bet spins over its shrine; the team bet spins large in the middle of the screen.
+func _draw_bets(ci: CanvasItem, dark: Color) -> void:
+	for b: Dictionary in _bets:
+		var outs: Array = Gamble.outcomes(b.kind)
+		var spinning: bool = b.t < b.spin
+		var rate := 16.0 * (1.0 - 0.35 * clampf(b.t / b.spin, 0.0, 1.0))
+		var idx: int = (int(b.t * rate) + b.slot) % outs.size() if spinning else b.outcome
+		var good: bool = Gamble.is_good(b.kind, idx)
+		var col := Color("8bff9e") if good else Color("ff3b5c")
+		var text: String = Gamble.outcome_name(b.kind, idx)
+		if b.kind == Gamble.TEAM:
+			var who := "P%d BETS FOR ALL" % (int(b.slot) + 1)
+			var tw := PixelFont.text_width(text, 2) + 24.0
+			var box := Rect2(Vector2(240 - tw / 2.0, 52), Vector2(tw, 34))
+			ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
+			ci.draw_rect(box, SHRINE_COLORS[Gamble.TEAM] if spinning else col, false, 2.0)
+			PixelFont.draw_centered(ci, who, 240, 56, 1, G.player_color(b.slot), dark)
+			PixelFont.draw_centered(ci, text, 240, 68, 2, Color.WHITE if spinning else col, dark)
+		else:
+			var at: Vector2 = (b.pos as Vector2) + Vector2(0, -40)
+			var w := PixelFont.text_width(text, 1) + 8.0
+			var box := Rect2((at - Vector2(w / 2.0, 5)).floor(), Vector2(w, 11))
+			ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
+			ci.draw_rect(box, SHRINE_COLORS[Gamble.SOLO] if spinning else col, false, 1.0)
+			PixelFont.draw_centered(ci, text, at.x, box.position.y + 2, 1, Color.WHITE if spinning else col, dark)
 
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
 func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
@@ -791,6 +899,7 @@ func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
 
 func _draw_entities() -> void:
 	var ci := ent_layer
+	_draw_shrines(ci)
 	# Pickups
 	for k in vk:
 		var kind: int = k[0]
@@ -1054,6 +1163,7 @@ func _draw_hud() -> void:
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 1), Color.WHITE)
 	_draw_reveals(ci, dark)
+	_draw_bets(ci, dark)
 	# Banner
 	if banner.t > 0.0:
 		var k: float = 1.0 - banner.t / banner.max

@@ -29,6 +29,20 @@ const FIELDS: Array = [
 	["chest_life", 40.0, 5.0, 300.0, 5.0, "Loot", "Seconds a chest stays on the floor."],
 	["elite_chest_luck", 1.0, 0.0, 5.0, 1.0, "Loot", "Luck of an elite's chest (each point moves a fifth of the common odds up the tiers)."],
 	["boss_chest_luck", 3.0, 0.0, 5.0, 1.0, "Loot", "Luck of the chests the Lich drops, one per wizard."],
+	["shrine_first", 40.0, 0.0, 600.0, 5.0, "Shrines", "Seconds of fighting before the first gamble shrine."],
+	["shrine_interval", 60.0, 5.0, 600.0, 5.0, "Shrines", "Seconds between gamble shrines."],
+	["shrine_life", 30.0, 5.0, 120.0, 1.0, "Shrines", "Seconds a shrine waits for a bet before it fades."],
+	["shrine_cost_base", 15.0, 0.0, 500.0, 1.0, "Shrines", "Gold a shrine costs in minute 1."],
+	["shrine_cost_per_min", 6.0, 0.0, 100.0, 1.0, "Shrines", "Gold added to shrine costs per minute of the run."],
+	["shrine_hold", 1.0, 0.2, 5.0, 0.1, "Shrines", "Seconds a wizard who can pay stands on a shrine to bet."],
+	["shrine_radius", 14.0, 6.0, 40.0, 1.0, "Shrines", "How close a wizard must stand to use a shrine, px."],
+	["shrine_min_dist", 50.0, 0.0, 200.0, 5.0, "Shrines", "Shrines appear at least this far from every wizard, px."],
+	["shrine_reel", 1.2, 0.3, 5.0, 0.1, "Shrines", "Seconds a solo shrine's reel spins before the outcome lands."],
+	["team_shrine_first", 120.0, 0.0, 900.0, 5.0, "Shrines", "Seconds of fighting before the first team shrine."],
+	["team_shrine_interval", 150.0, 10.0, 900.0, 5.0, "Shrines", "Seconds between team shrines."],
+	["team_shrine_life_mul", 1.5, 1.0, 5.0, 0.1, "Shrines", "A team shrine waits this many times as long as a solo one."],
+	["team_cost_mul", 2.5, 1.0, 10.0, 0.1, "Shrines", "A team shrine costs this many times a solo one; one wizard pays it all."],
+	["team_reel", 3.0, 0.5, 8.0, 0.1, "Shrines", "Seconds the team shrine's reel spins while everyone watches."],
 	["boss_every_min", 5.0, 1.0, 20.0, 1.0, "Spawning", "The Lich arrives at the start of every this-many-th minute."],
 	["enemy_hp_per_min", 0.35, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
 	["enemy_speed_per_min", 0.03, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
@@ -67,6 +81,20 @@ var elite_hp_mul: float
 var chest_life: float
 var elite_chest_luck: float
 var boss_chest_luck: float
+var shrine_first: float
+var shrine_interval: float
+var shrine_life: float
+var shrine_cost_base: float
+var shrine_cost_per_min: float
+var shrine_hold: float
+var shrine_radius: float
+var shrine_min_dist: float
+var shrine_reel: float
+var team_shrine_first: float
+var team_shrine_interval: float
+var team_shrine_life_mul: float
+var team_cost_mul: float
+var team_reel: float
 var boss_every_min: float
 var enemy_hp_per_min: float
 var enemy_speed_per_min: float

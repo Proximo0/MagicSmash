@@ -20,7 +20,7 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 - `game/logic/`: `World` (the whole authoritative simulation: the timed horde, enemies, spells, pickups, snapshots; seeded
   with `World.new(slots, seed)`), `SmashBot` (play-bot brain shared by the arena and the sims), `Upgrades` (level-up catalogue, seeded offer
   roll and effect values), `Spells` (spell weapon stats per level and the evolutions),
-  `Loot` (rarity tiers, chest items, armor stats, run gold).
+  `Loot` (rarity tiers, chest items, armor stats, run gold), `Gamble` (shrine outcomes and costs).
 - `game/arena/` (renders snapshots, fx, sound cues), `game/ui/` (title, lobby, font, touch), `game/input/`,
   `game/art/`. Autoloads `G` (constants, scene switch), `Sfx`, `Net` (LAN roster, inputs, snapshots).
 - `game/debug/autotest.gd`: `godot --path . -- --autotest[=wave] [--out=dir]` plays with bots and saves screenshots

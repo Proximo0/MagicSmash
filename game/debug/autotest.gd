@@ -7,6 +7,7 @@ var shots := []
 var out_dir := ""
 var start_wave := 1
 var _chest_shot := false
+var _team_shot := false
 var quit_at := 60.0
 var net := ""
 var _pick_seen := 0.0
@@ -56,6 +57,14 @@ func _process(delta: float) -> void:
 				_chest_shot = true
 				get_viewport().get_texture().get_image().save_png("%s/chest.png" % out_dir)
 				print("shot chest")
+				break
+	# State-keyed shot: the team shrine's reel halfway through its spin, the clip moment.
+	if not _team_shot and cur and "_bets" in cur:
+		for b: Dictionary in cur._bets:
+			if b.kind == Gamble.TEAM and b.t > b.spin * 0.5:
+				_team_shot = true
+				get_viewport().get_texture().get_image().save_png("%s/team_shrine.png" % out_dir)
+				print("shot team_shrine")
 				break
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()

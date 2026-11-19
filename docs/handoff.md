@@ -154,7 +154,20 @@ and numbers go in `Tuning` or data tables.
   - Coins and gems give run gold (`Player.gold`) as well as score. Gold is per wizard and only lives inside a
     run; shrines (5b) spend it.
   - `--autotest --tune=elite_interval:8` saves `chest.png` at the first reel.
-- Next: 5b, the gamble shrines and the team shrine. Then 5c, meta unlocks between runs and the save module.
+- 5b, gamble shrines (tables in `game/logic/gamble.gd`, `Gamble`; timers and costs in `Tuning`, Shrines group):
+  - A solo shrine appears every `shrine_interval` s, from 0:40, away from the wizards, and fades after
+    `shrine_life`. Its price grows each minute.
+  - To bet, a wizard who can pay stands on a shrine for `shrine_hold` s while a ring fills. The gold goes at
+    once, a reel spins over the shrine, and the outcome lands when it stops: jackpot chest, chest, double gold
+    back, nothing, or a curse (lose a heart, never the last).
+  - The team shrine (the clip moment) appears every `team_shrine_interval` s, from 2:00, with a banner. It costs
+    `team_cost_mul` x a solo shrine, and one wizard pays it all. A 3 s reel spins in the middle of the screen
+    for everyone, with boss music. It lands on a coin flip:
+    - Blessed: every wizard gains 2 levels.
+    - Cursed: every wizard loses a heart (never the last), and an elite comes for each of them.
+  - Bots walk to shrines they can afford (`SmashBot.shrine_goal`); `sim_waves` checks they bet.
+  - `--autotest --tune=team_shrine_first:12,shrine_cost_base:2,shrine_cost_per_min:0` saves `team_shrine.png`.
+- Next: 5c, meta unlocks between runs and the save module.
 
 ## Checks and tools
 
