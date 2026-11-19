@@ -32,6 +32,10 @@ var vk: Array = []  # [kind, pos, life]
 var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction, cost]
 var _bets: Array = [] # shrine reels: {slot, pos, kind, outcome, t, spin, shown}
 const SHRINE_COLORS := [Color("ffd23d"), Color("ff4df2")]
+## The rune a solo altar's cast lands on, per Gamble.SOLO_OUTCOMES (-1: a blank stone).
+const OUTCOME_RUNES := [0, 5, 3, -1, 2]
+## The fate card the team altar turns over, per Gamble.TEAM_OUTCOMES.
+const FATE_CARDS := ["sun", "death"]
 var wave := 1
 var phase := 0
 var phase_t := 0.0
@@ -165,7 +169,7 @@ func _ready() -> void:
 			slots.append(0)
 		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks())
 		world.apply_meta(Save.run_bonuses())
-	Sfx.music("music_battle")
+	Sfx.music(_act_music())
 
 ## Runs a draw callback and books its script time with PerfMeter (when the perf harness is on).
 func _timed(label: String, fn: Callable) -> void:
@@ -576,7 +580,8 @@ func _handle_events(evs: Array) -> void:
 				else:
 					_act_card(0)
 					Sfx.play("wave_start")
-				Sfx.music("music_battle")
+				if int(ev[4]) == 0 and boss_f <= 0.0:
+					Sfx.music(_act_music())
 			World.EV_RIFT:
 				# A shrinking ring and a dark core warn where the group will burst out.
 				var life := float(ev[4])
@@ -592,11 +597,11 @@ func _handle_events(evs: Array) -> void:
 				fx.ring(pos, 2.0, 30.0, 0.6, SHRINE_COLORS[sk], 2.0)
 				fx.sparkle(pos, SHRINE_COLORS[sk], 14)
 				if sk == Gamble.TEAM:
-					_banner("TEAM SHRINE", "ONE WIZARD BETS FOR THE WHOLE PARTY", SHRINE_COLORS[sk], 2.4)
-					Sfx.play("boss_roar", -8.0, 1.4)
+					_banner("THE FATE CARD", "ONE WIZARD DRAWS FOR THE WHOLE PARTY", SHRINE_COLORS[sk], 2.4)
+					Sfx.play("portal", -4.0)
 				else:
-					fx.text(pos + Vector2(0, -20), "GAMBLE SHRINE", SHRINE_COLORS[sk], 1.2, 1)
-					Sfx.play("powerup", -6.0, 0.8)
+					fx.text(pos + Vector2(0, -20), "RUNE ALTAR", SHRINE_COLORS[sk], 1.2, 1)
+					Sfx.play("candle", -2.0)
 			World.EV_SHRINE:
 				var code := int(ev[4])
 				var bk := code / 16
@@ -604,7 +609,11 @@ func _handle_events(evs: Array) -> void:
 				_bets.append({"slot": int(ev[3]), "pos": pos, "kind": bk, "outcome": code % 16, "t": 0.0, "spin": spin, "shown": false})
 				Sfx.play("coin", -2.0, 0.8)
 				if bk == Gamble.TEAM:
+					Sfx.play("card_deal")
+					Sfx.play("whisper", -2.0)
 					Sfx.music("music_boss")
+				else:
+					Sfx.play("rune_cast")
 			World.EV_GAMBLE:
 				var code := int(ev[4])
 				var gk := code / 16
@@ -615,11 +624,12 @@ func _handle_events(evs: Array) -> void:
 						fx.burst(q.pos + Vector2(0, -8), 24, 120.0, 0.8, 2.0, Color.WHITE, col, true, 40.0, true)
 					screen_flash = Color(col.r, col.g, col.b, 0.35)
 					_add_shake(6.0 if good else 10.0)
+					Sfx.play("gong")
 					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
-					Sfx.music("music_battle")
+					Sfx.music(_act_music())
 				else:
 					fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
-					Sfx.play("powerup" if good else "hurt", -2.0)
+					Sfx.play("rune_good" if good else "rune_bad", -2.0)
 			World.EV_WARD:
 				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
 				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
@@ -662,6 +672,7 @@ func _handle_events(evs: Array) -> void:
 					_banner("ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
 				else:
 					_banner("LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
+					Sfx.music(_act_music())
 			World.EV_VICTORY:
 				victory = true
 				Sfx.play("wave_clear", 0.0, 0.8)
@@ -727,7 +738,8 @@ func _update_reveals(dt: float) -> void:
 					_add_shake(3.0 * (r.tier - Loot.EPIC))
 	_reveals = _reveals.filter(func(r: Dictionary) -> bool: return r.t < REEL_SPIN + REEL_SHOW)
 
-## Shrines: a glowing altar in the shrine's colour, its price above, and a ring that fills while a wizard bets.
+## Altars: a rune altar (solo) with three rune stones circling it, or the fate altar (team) with a tarot card
+## turning over it. The price floats above and a ring fills while a wizard bets.
 func _draw_shrines(ci: CanvasItem) -> void:
 	var dark := Color("0b0716")
 	for r: Array in vsh:
@@ -739,19 +751,47 @@ func _draw_shrines(ci: CanvasItem) -> void:
 		var col: Color = SHRINE_COLORS[kind]
 		var big := 1.5 if kind == Gamble.TEAM else 1.0
 		var pulse := 0.5 + 0.5 * sin(time * 4.0)
-		ci.draw_circle(at, 14.0 * big, Color(col.r, col.g, col.b, 0.10 + 0.08 * pulse))
-		ci.draw_arc(at, 12.0 * big, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.5), 1.0)
-		# Altar: a stone block with a floating gem.
-		var w := 10.0 * big
-		ci.draw_rect(Rect2((at + Vector2(-w / 2.0, -2)).floor(), Vector2(w, 5)), Color("3a2f55"))
-		ci.draw_rect(Rect2((at + Vector2(-w / 2.0, -2)).floor(), Vector2(w, 1)), Color("7a6aa0"))
-		var gem := at + Vector2(0, -10 - 2.0 * sin(time * 3.0)) * big
-		ci.draw_colored_polygon(PackedVector2Array([gem + Vector2(0, -4) * big, gem + Vector2(3, 0) * big,
-			gem + Vector2(0, 4) * big, gem + Vector2(-3, 0) * big]), col)
+		ci.draw_circle(at, 15.0 * big, Color(col.r, col.g, col.b, 0.10 + 0.08 * pulse))
+		Occult.pentagram(ci, at + Vector2(0, 2), 11.0 * big, Color(col.r, col.g, col.b, 0.35 + 0.2 * pulse), time * 0.3)
+		ci.draw_arc(at + Vector2(0, 2), 12.0 * big, 0.0, TAU, 24, Color(col.r, col.g, col.b, 0.45), 1.0)
+		# The altar stone with two candles.
+		var w := 12.0 * big
+		var top := (at + Vector2(-w / 2.0, -3)).floor()
+		ci.draw_rect(Rect2(top + Vector2(0, 1), Vector2(w, 6)), Color("2a2140"))
+		ci.draw_rect(Rect2(top, Vector2(w, 2)), Color("7a6aa0"))
+		ci.draw_rect(Rect2(top + Vector2(2, 2), Vector2(w - 4, 4)), Color("3a2f55"))
+		Occult.candle(ci, top + Vector2(1, 0), time, at.x, 4)
+		Occult.candle(ci, top + Vector2(w - 1, 0), time, at.y, 4)
+		if kind == Gamble.TEAM:
+			var turn := absf(cos(time * 1.6))
+			var cw := maxf(1.0, 14.0 * turn)
+			var cr := Rect2(at.x - cw / 2.0, at.y - 30.0 - 2.0 * sin(time * 2.0), cw, 20)
+			TarotArt.draw_back(ci, cr)
+		else:
+			for k in 3:
+				var ang := time * 1.4 + k * TAU / 3.0
+				var sp := at + Vector2(cos(ang) * 10.0, -13.0 + sin(ang) * 4.0)
+				_rune_stone(ci, sp.floor(), (k * 3 + int(time * 0.5)) % Occult.RUNES.size(), col, 1.0)
 		var charge: float = r[4]
 		if charge > 0.0:
-			ci.draw_arc(at, 15.0 * big, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 32, Color.WHITE, 2.0)
-		PixelFont.draw_centered(ci, "%dG" % int(r[5]), at.x, at.y - 26.0 * big, 1, col, dark)
+			ci.draw_arc(at, 16.0 * big, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 32, Color.WHITE, 2.0)
+		PixelFont.draw_centered(ci, "%dG" % int(r[5]), at.x, at.y - (32.0 if kind == Gamble.SOLO else 50.0), 1, col, dark)
+
+
+## A rune stone: a pale pebble with a rune cut into it (`rune` -1 for a blank stone).
+func _rune_stone(ci: CanvasItem, p: Vector2, rune: int, glow: Color, a: float) -> void:
+	ci.draw_rect(Rect2(p + Vector2(-3, -4), Vector2(7, 9)), Color(0.04, 0.0, 0.1, a))
+	ci.draw_rect(Rect2(p + Vector2(-2, -4), Vector2(5, 9)), Color(0.85, 0.82, 0.74, a))
+	ci.draw_rect(Rect2(p + Vector2(-3, -3), Vector2(7, 7)), Color(0.85, 0.82, 0.74, a))
+	ci.draw_rect(Rect2(p + Vector2(-3, 3), Vector2(7, 1)), Color(0.6, 0.56, 0.5, a))
+	if rune >= 0:
+		Occult.rune(ci, p + Vector2(-2, -3), rune, Color(glow.r * 0.5, glow.g * 0.3, glow.b * 0.2, a))
+
+
+## The act's own battle music (Act I's until a track for the act is in).
+func _act_music() -> String:
+	var n: String = ["music_battle", "music_library", "music_sanctum"][clampi(act, 0, 2)]
+	return n if Sfx.has_music(n) else "music_battle"
 
 func _update_bets(dt: float) -> void:
 	for b: Dictionary in _bets:
@@ -765,31 +805,50 @@ func _update_bets(dt: float) -> void:
 			b.shown = true
 	_bets = _bets.filter(func(b: Dictionary) -> bool: return b.t < b.spin + REEL_SHOW)
 
-## Shrine reels: a solo bet spins over its shrine; the team bet spins large in the middle of the screen.
+## Altar casts: a solo cast throws three rune stones over the altar and the middle one lands on the outcome's
+## rune; the team bet turns a fate card in the middle of the screen, The Sun or Death.
 func _draw_bets(ci: CanvasItem, dark: Color) -> void:
 	for b: Dictionary in _bets:
-		var outs: Array = Gamble.outcomes(b.kind)
 		var spinning: bool = b.t < b.spin
-		var rate := 16.0 * (1.0 - 0.35 * clampf(b.t / b.spin, 0.0, 1.0))
-		var idx: int = (int(b.t * rate) + b.slot) % outs.size() if spinning else b.outcome
-		var good: bool = Gamble.is_good(b.kind, idx)
+		var good: bool = Gamble.is_good(b.kind, b.outcome)
 		var col := Color("8bff9e") if good else Color("ff3b5c")
-		var text: String = Gamble.outcome_name(b.kind, idx)
+		var text: String = Gamble.outcome_name(b.kind, b.outcome)
 		if b.kind == Gamble.TEAM:
-			var who := "P%d BETS FOR ALL" % (int(b.slot) + 1)
-			var tw := PixelFont.text_width(text, 2) + 24.0
-			var box := Rect2(Vector2(240 - tw / 2.0, 52), Vector2(tw, 34))
-			ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
-			ci.draw_rect(box, SHRINE_COLORS[Gamble.TEAM] if spinning else col, false, 2.0)
-			PixelFont.draw_centered(ci, who, 240, 56, 1, G.player_color(b.slot), dark)
-			PixelFont.draw_centered(ci, text, 240, 68, 2, Color.WHITE if spinning else col, dark)
-		else:
-			var at: Vector2 = (b.pos as Vector2) + Vector2(0, -40)
-			var w := PixelFont.text_width(text, 1) + 8.0
-			var box := Rect2((at - Vector2(w / 2.0, 5)).floor(), Vector2(w, 11))
-			ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
-			ci.draw_rect(box, SHRINE_COLORS[Gamble.SOLO] if spinning else col, false, 1.0)
-			PixelFont.draw_centered(ci, text, at.x, box.position.y + 2, 1, Color.WHITE if spinning else col, dark)
+			_draw_fate(ci, b, spinning, col, text, dark)
+			continue
+		var at: Vector2 = (b.pos as Vector2) + Vector2(0, -30)
+		var k := clampf(b.t / b.spin, 0.0, 1.0)
+		for n in 3:
+			# Each stone flies up and tumbles down; the middle one lands last, on the outcome.
+			var land := 0.5 + n * 0.25 if n != 1 else 1.0
+			var u := clampf(k / land, 0.0, 1.0)
+			var p := at + Vector2((n - 1) * 11.0, -sin(u * PI) * 16.0)
+			var rune: int = (int(b.t * 12.0) + n * 3 + int(b.slot)) % Occult.RUNES.size()
+			if u >= 1.0:
+				rune = OUTCOME_RUNES[b.outcome] if n == 1 else (n * 5 + int(b.slot)) % Occult.RUNES.size()
+			_rune_stone(ci, p.floor(), rune, col if (u >= 1.0 and n == 1) else Color("d8b04a"), 1.0 if n == 1 or not spinning else 0.7)
+		if not spinning:
+			var lift := minf(1.0, (b.t - b.spin) * 6.0)
+			ci.draw_circle(at, 9.0, Color(col.r, col.g, col.b, 0.25 * lift))
+			PixelFont.draw_centered(ci, text, at.x, at.y - 22, 1, col, dark)
+
+
+## The team bet: the bettor's fate card shuffles between The Sun and Death, then turns face up.
+func _draw_fate(ci: CanvasItem, b: Dictionary, spinning: bool, col: Color, text: String, dark: Color) -> void:
+	var r := Rect2(240 - 34, 40, 68, 90)
+	ci.draw_rect(Rect2(0, 34, 480, 132), Color(0.02, 0.0, 0.05, 0.55))
+	PixelFont.draw_centered(ci, "P%d DRAWS FOR ALL" % (int(b.slot) + 1), 240, r.position.y - 2 + 112, 1, G.player_color(b.slot), dark)
+	if spinning:
+		var k: float = b.t / b.spin
+		var turn := absf(cos(b.t * (6.0 + 10.0 * (1.0 - k))))
+		var w := r.size.x * turn
+		TarotArt.draw_back(ci, Rect2(240 - w / 2.0, r.position.y, w, r.size.y))
+		return
+	var key: String = FATE_CARDS[b.outcome]
+	var title: String = TarotArt.ARCANA[key][1]
+	TarotArt.draw_card(ci, r, key, title, "", "", true, col, time)
+	PixelFont.draw_centered(ci, text, 240, r.end.y + 16, 2, col, dark)
+
 
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
 func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
