@@ -12,7 +12,15 @@ are done by Curtis (or with his explicit go-ahead), never by an agent on its own
 - With Remote Play Together only the host runs the game, so achievements go to the host's account.
 - `game/logic/achievements.gd` (`Achievements`) holds the catalogue. `Achievements.earned` reads the run's
   `Results` record when the run ends; the arena calls `Platform.finish_run` on the host.
-- Not in yet: the GodotSteam extension itself (needs the App ID to test), and the store assets.
+- Not in yet: the GodotSteam extension itself (needs the App ID to test).
+
+## Store and library art
+
+`xvfb-run -a godot --path . -s tools/capsules.gd -- --out=build/capsules` draws draft capsules at Steam's sizes
+from the game's own sprites: header 920x430, small 462x174, main 1232x706, vertical 748x896, library capsule
+600x900, library hero 3840x1240 (no logo, as Steam asks) and the transparent library logo 1280x720. Each is drawn
+small and scaled up by a whole number, so the pixels stay crisp. They are drafts: a hand-made key art pass
+would beat them, but they are usable as they are.
 
 ## Achievements for the Steamworks admin page
 
