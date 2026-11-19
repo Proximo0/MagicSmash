@@ -1121,3 +1121,25 @@ func test_an_urn_card_is_marked_as_from_an_urn() -> void:
 		if ev[0] == World.EV_CARD:
 			assert_true(int(ev[3]) < Cards.count(), "card index carries the urn mark")
 			assert_true(int(ev[4]) >= 8, "the event does not say it came from an urn")
+
+
+func test_wizards_stay_on_one_screen() -> void:
+	var w := World.new([0, 1], 3)
+	var a := _player(w, 0)
+	var b := _player(w, 1)
+	b.pos = Vector2(G.ARENA.position.x + 10, 200)
+	a.pos = b.pos
+	for _i: int in range(600):
+		w._update_player(a, 1.0 / 60.0, PackedFloat32Array([1, 0, 0, 0, 0, 0]))
+	assert_true(a.pos.x - b.pos.x <= w.tune.leash_x + 0.01, "a wizard walked off the shared screen")
+	assert_true(a.pos.x - b.pos.x > w.tune.leash_x - 5.0, "the leash held too short")
+
+
+func test_rifts_open_near_the_party_not_across_the_arena() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	p.pos = G.ARENA.position + Vector2(60, 60)
+	for _i: int in range(20):
+		var at := w._spot_near_party(w.tune.rift_min_dist, w.tune.rift_max_dist, 22.0)
+		var d := at.distance_to(p.pos)
+		assert_true(d >= w.tune.rift_min_dist - 0.5 and d <= w.tune.rift_max_dist + 1.0, "rift %d px away" % d)

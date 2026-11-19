@@ -3,8 +3,12 @@ extends Node
 
 const VERSION := "0.9.0"
 const SCREEN := Vector2(480, 270)
+## The whole arena image, walls included: bigger than the screen, so the camera follows the party around it.
+const WORLD := Vector2(800, 450)
 ## Playfield (inside the walls).
-const ARENA := Rect2(20, 38, 440, 220)
+const ARENA := Rect2(20, 38, 760, 400)
+## The top of the screen the HUD covers.
+const HUD_H := 27.0
 const MAX_PLAYERS := 4
 
 ## Device id -1 is keyboard + mouse + touch, 0..7 are gamepads.
