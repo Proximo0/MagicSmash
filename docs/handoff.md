@@ -218,6 +218,7 @@ and numbers go in `Tuning` or data tables.
 - See `docs/steam.md`: what the code does with Steam and the Steamworks checklist for Curtis.
 - 7a: the achievements (`Achievements`) and the `Platform` autoload, a no-op until GodotSteam and an App ID are
   in. Asked Curtis on 19 Nov for the App ID and whether the app fee is paid (it was due 18 Nov for 18 Dec).
+- 7b: `tools/capsules.gd` draws draft store and library capsules (see `docs/steam.md`).
 - Ask Curtis before any store action, payment or upload.
 
 ## Checks and tools
