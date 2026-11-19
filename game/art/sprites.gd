@@ -312,6 +312,130 @@ const MAGE_B := [
 	".KPpPpPpK.",
 	"..KKKKKK..",
 ]
+const WRAITH_A := [
+	"...KKKK...",
+	"..KGGGGK..",
+	".KGgggGGK.",
+	".KgEKKEgK.",
+	".KgKKKKgK.",
+	"KGgKKKKgGK",
+	"KGGgKKgGGK",
+	"KWGGGGGGWK",
+	".KWGGGGGK.",
+	".KGGGGGGK.",
+	"..KGgGGgK.",
+	"..KGK.KgK.",
+	"...K..KgK.",
+	".......K..",
+]
+const WRAITH_B := [
+	"...KKKK...",
+	"..KGGGGK..",
+	".KGgggGGK.",
+	".KgEKKEgK.",
+	".KgKKKKgK.",
+	"KGgKKKKgGK",
+	"KWGgKKgGWK",
+	".KWGGGGGK.",
+	".KGGGGGGK.",
+	".KGGGGGGK.",
+	".KgGGgGK..",
+	".KgK.KGK..",
+	".KgK..K...",
+	"..K.......",
+]
+const TOME_A := [
+	"............",
+	".KKKKKKKKKK.",
+	"KRRRRRRRRRRK",
+	"KRYYRKKRYYRK",
+	"KRRKWEEWKRRK",
+	"KRRKWEEWKRRK",
+	"KRRRKKKKRRRK",
+	"KRWKWKWKWKRK",
+	"KRKPPPPPPKRK",
+	"KRWKWKWKWRRK",
+	"KrrrrrrrrrrK",
+	".KLLLLLLLLK.",
+]
+const TOME_B := [
+	".KKKKKKKKKK.",
+	"KRRRRRRRRRRK",
+	"KRYYRKKRYYRK",
+	"KRRKWEEWKRRK",
+	"KRRKWEEWKRRK",
+	"KRRRKKKKRRRK",
+	"KRWKWKWKWKRK",
+	"KRKPPPPPPKRK",
+	"KRKPPPPPPKRK",
+	"KRWKWKWKWRRK",
+	"KrrrrrrrrrrK",
+	".KLLLLLLLLK.",
+]
+const GARGOYLE_A := [
+	"..K........K..",
+	".KSK......KSK.",
+	".KSSK.KK.KSSK.",
+	"KSsSSKSSKSSsSK",
+	"KSssSSRRSSssSK",
+	"KSsKSSSSSSKsSK",
+	"KSK.KSSSSK.KSK",
+	"KK..KSsSsK..KK",
+	"....KSSSSK....",
+	"...KSsSSsSK...",
+	"...KSSKKSSK...",
+	"..KSsK..KsSK..",
+	"..KSK....KSK..",
+	"..KK......KK..",
+]
+const GARGOYLE_B := [
+	"..............",
+	"K............K",
+	"KSK...KK...KSK",
+	"KSSK.KSSK.KSSK",
+	"KSsSKSRRSKSsSK",
+	".KSsSSSSSSsSK.",
+	"..KSSSSSSSSK..",
+	"...KKSsSsKK...",
+	"....KSSSSK....",
+	"...KSsSSsSK...",
+	"...KSSKKSSK...",
+	"..KSsK..KsSK..",
+	"..KSK....KSK..",
+	"..KK......KK..",
+]
+const PRIEST_A := [
+	"....KKK..Y",
+	"...KWWWKKY",
+	"..KWKWKWKb",
+	"..KWWWWWKb",
+	"...KWKWK.b",
+	"..KPPPPPKb",
+	".KPRPPPRPb",
+	".KPPRPRPPb",
+	".KPPPRPPPb",
+	".KPpPPPpPb",
+	".KPpPPPpKb",
+	".KPpPPPpK.",
+	".KpPpPpPK.",
+	"..KKKKKK..",
+]
+const PRIEST_B := [
+	"....KKK.Y.",
+	"...KWWWKYK",
+	"..KWKWKWKb",
+	"..KWWWWWKb",
+	"...KWKWK.b",
+	"..KPPPPPKb",
+	".KPRPPPRPb",
+	".KPPRPRPPb",
+	".KPPPRPPPb",
+	".KPpPPPpPb",
+	".KPpPPPpKb",
+	".KPpPPPpK.",
+	".KPpPpPpK.",
+	"..KKKKKK..",
+]
 const LICH_A := [
 	"......Y..Y..Y..Y........",
 	"......YK.YK.YK.YK.......",
@@ -441,6 +565,14 @@ static func build_all() -> void:
 	_add("mage_a", MAGE_A, mage); _add("mage_b", MAGE_B, mage)
 	var lich := {"K": OUTLINE, "Y": Color("ffd23d"), "y": Color("b8860b"), "W": Color("efe7d2"), "w": Color("a99f86"), "C": Color("4dfff0"), "P": Color("4a1a7a"), "p": Color("2c0d4d")}
 	_add("lich", LICH_A, lich)
+	var wraith := {"K": OUTLINE, "G": Color("a8f0e0"), "g": Color("4f9a94"), "W": Color("f2fffb"), "E": Color("ff4d6a")}
+	_add("wraith_a", WRAITH_A, wraith); _add("wraith_b", WRAITH_B, wraith)
+	var tome := {"K": OUTLINE, "R": Color("8a1f2c"), "r": Color("4e0f18"), "Y": Color("ffd23d"), "W": Color("fffbe8"), "E": Color("ff3a3a"), "P": Color("2a0510"), "L": Color("efe2c0")}
+	_add("tome_a", TOME_A, tome); _add("tome_b", TOME_B, tome)
+	var garg := {"K": OUTLINE, "S": Color("8d8a9e"), "s": Color("57546a"), "R": Color("ff5a2a")}
+	_add("gargoyle_a", GARGOYLE_A, garg); _add("gargoyle_b", GARGOYLE_B, garg)
+	var priest := {"K": OUTLINE, "W": Color("efe7d2"), "P": Color("2e1a12"), "p": Color("170c08"), "R": Color("c81e3a"), "Y": Color("6dff9a"), "b": Color("8a6a3a")}
+	_add("priest_a", PRIEST_A, priest); _add("priest_b", PRIEST_B, priest)
 	_add("potion", POTION, {"K": OUTLINE, "R": Color("ff3b6b"), "r": Color("a3133c"), "L": Color("ffd0dc"), "w": Color("c8a070")})
 	_add("gem", GEM, {"K": OUTLINE, "C": Color("4df0ff"), "c": Color("1a8fb8"), "L": Color("ffffff")})
 	_add("xp", XP_SHARD, {"K": OUTLINE, "G": Color("5dff7a"), "g": Color("1f9e4a"), "L": Color("eaffd8")})
