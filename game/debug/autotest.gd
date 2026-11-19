@@ -26,6 +26,7 @@ var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
 var quit_at := 60.0
+var _quit_override := -1.0
 var net := ""
 var _pick_seen := 0.0
 var _pick_shot := false
@@ -46,6 +47,9 @@ func _ready() -> void:
 			end_at = float(spec[0])
 			end_win = spec.size() > 1 and spec[1] == "win"
 			quit_at = maxf(quit_at, end_at + 8.0)
+		# --quit=SECONDS stops the run early (art and UI loops that only need the first shots).
+		if a.begins_with("--quit="):
+			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--players="):
@@ -222,7 +226,7 @@ func _process(delta: float) -> void:
 			img.save_png("%s/%s.png" % [out_dir, name])
 			print("shot ", name, " fps=", Engine.get_frames_per_second(),
 				" particles=", (G.main.current.fx.parts.size() if "fx" in G.main.current else 0))
-	if t > quit_at:
+	if t > (_quit_override if _quit_override > 0.0 else quit_at):
 		get_tree().quit()
 
 

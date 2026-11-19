@@ -33,6 +33,8 @@ contracts other modules already provide. Use the contracts; do not change them.
      60 Hz Jolt, layers 1 arena, 2 bodies, 3 weapons. -->
 
 ## Contracts
+- The big push (wave 1, 19 Nov 2026): `docs/push_brief.md` holds the ownership table and the contracts for shared
+  XP, the bots and the art.
 <!-- One section per module other workers depend on: class, readable fields, signals, methods, data keys, taken
      input keys. When a build step has its own brief (`docs/<step>_brief.md`, see `docs/playbook.md`), point at it
      here instead of copying it. Workers code against the contract at the same time; they never change it. -->
