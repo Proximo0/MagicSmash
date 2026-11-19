@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_one_stat_row_and_evolution_per_spell() -> void:
-	assert_eq(Spells.COUNT, World.SP_STAR + 1)
+	assert_eq(Spells.COUNT, World.SP_RUNE + 1)
 	assert_eq(Spells.STATS.size(), Spells.COUNT)
 	assert_eq(Spells.EVOS.size(), Spells.COUNT)
 
@@ -37,3 +37,26 @@ func test_catalog_matches_spells() -> void:
 		assert_true(Spells.partner(sp) != sp, Spells.spell_name(sp) + " partners itself")
 		assert_eq(Upgrades.CATALOG[e][5], [[w, Spells.MAX_LEVEL], [Upgrades.weapon_entry(Spells.partner(sp)), 1]],
 			Spells.spell_name(sp) + " evolution requirements do not match its partner")
+
+
+func test_rune_circle_grows_with_level_and_evolution() -> void:
+	for lv: int in range(2, Spells.MAX_LEVEL + 1):
+		assert_true(Spells.level_value(World.SP_RUNE, "r", lv, false) >= Spells.level_value(World.SP_RUNE, "r", lv - 1, false))
+		assert_true(Spells.level_value(World.SP_RUNE, "life", lv, false) >= Spells.level_value(World.SP_RUNE, "life", lv - 1, false))
+	var top_r: float = Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, false)
+	var top_life: float = Spells.level_value(World.SP_RUNE, "life", Spells.MAX_LEVEL, false)
+	assert_true(Spells.level_value(World.SP_RUNE, "r", 0, true) > top_r, "the seal is not bigger")
+	assert_true(Spells.level_value(World.SP_RUNE, "life", 0, true) > top_life, "the seal does not last longer")
+	assert_true(Spells.evo_value(World.SP_RUNE, "pull", 0.0) > 0.0, "the seal does not pull")
+	assert_eq(Spells.partner(World.SP_RUNE), World.SP_STAR)
+	assert_eq(Spells.level_value(World.SP_STAR, "speed", 3, false), Spells.stat(World.SP_STAR, "speed"))
+
+
+## A rune circle trades single-target damage for area: what one circle deals to one enemy standing in it, per
+## second of cooldown, stays under Starfall's at every level (the horde-level balance is checked in sims).
+func test_rune_circle_trades_focus_for_area() -> void:
+	for lv: int in range(1, Spells.MAX_LEVEL + 1):
+		var ticks: float = 1.0 + floorf((Spells.level_value(World.SP_RUNE, "life", lv, false) - Spells.RUNE_ARM) / Spells.RUNE_TICK)
+		var rune: float = Spells.damage(World.SP_RUNE, lv, false) * ticks / Spells.cooldown(World.SP_RUNE, lv, false)
+		var star: float = Spells.damage(World.SP_STAR, lv, false) * Spells.count(World.SP_STAR, lv, false) / Spells.cooldown(World.SP_STAR, lv, false)
+		assert_true(rune < star, "level %d: rune %.2f vs starfall %.2f" % [lv, rune, star])

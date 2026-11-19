@@ -4,13 +4,22 @@ extends Node2D
 
 const SNAP_EVERY := 2 # physics frames between snapshots sent to clients
 
-const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6")]
+const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6"), Color("ff4d6d")]
+## A rune circle's glyphs and the Seal of Solomon's hexagram.
+const RUNE_GOLD := Color("ffd94d")
+const SEAL_WHITE := Color("fff2c0")
+const SEAL_RING := Color("ffb347")
+## Seconds a rune circle takes to draw itself in and to fade out.
+const RUNE_DRAW_IN := 0.25
+const RUNE_FADE := 0.4
 const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich", "wraith", "tome", "gargoyle", "priest"]
 ## Shadow width under each enemy type (bats and wraiths float without one).
 const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
-const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest"]
-const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", ""]
+const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
+	"tome_rune"]
+const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", "",
+	"RUNE CIRCLE!"]
 ## Loot tier colours (Loot.COMMON .. Loot.ULTRA): readable in 3 seconds with the sound off.
 const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color("ffb84d"), Color("ff4df2")]
 ## Seconds a chest reel spins before it shows the item, and how long the item stays up after.
@@ -29,6 +38,7 @@ var pending_events: Array = []
 var vp := {}  # slot -> Dictionary
 var ve := {}  # id -> Dictionary
 var vs: Array = []  # [spell, pos, vel, owner, evolved]
+var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved]
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
 var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction, cost]
@@ -398,10 +408,10 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.choice_lv = lv
 		var wl: Array[int] = []
 		for sp in Spells.COUNT:
-			wl.append(int(pl[i + 29 + sp]))
+			wl.append(int(pl[i + World.PLAYER_WEAPONS + sp]))
 		p.weapons = wl
-		p.gold = int(pl[i + 34])
-		p.max_hp = int(pl[i + 35])
+		p.gold = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT])
+		p.max_hp = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT + 1])
 		if not p.alive:
 			p.pos = p.target
 		i += World.PLAYER_FLOATS
@@ -438,6 +448,12 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		var sk := int(sh[i])
 		vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
 		i += 6
+	vr.clear()
+	var rn: PackedFloat32Array = snap.get("r", PackedFloat32Array())
+	i = 0
+	while i + World.RUNE_FLOATS <= rn.size():
+		vr.append([Vector2(rn[i], rn[i + 1]), rn[i + 2], rn[i + 3], rn[i + 4], int(rn[i + 5]), rn[i + 6] > 0.5])
+		i += World.RUNE_FLOATS
 	ves.clear()
 	var es: PackedFloat32Array = snap.es
 	i = 0
@@ -490,6 +506,14 @@ func _handle_events(evs: Array) -> void:
 					World.SP_FIRE: Sfx.play("shoot_fire", -3.0, 1.0, 0.08)
 					World.SP_FROST: Sfx.play("shoot_frost", -5.0, 1.0, 0.08)
 					World.SP_STAR: Sfx.play("star", -6.0, 1.0, 0.08)
+					World.SP_RUNE: Sfx.play("rune_cast", -5.0, _fx_rng.randf_range(0.95, 1.1), 0.12)
+			World.EV_RUNE:
+				var evo := int(ev[4]) >= 8
+				var rc := _spell_color(World.SP_RUNE, 0)
+				fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, SEAL_WHITE if evo else rc, 1.0)
+				fx.burst(pos, 8, 40.0, 0.5, 1.0, RUNE_GOLD, rc, true, -30.0)
+				if evo:
+					Sfx.play("portal", -9.0, 1.4, 0.25)
 			World.EV_HIT:
 				fx.hit_spark(pos, Color(1, 1, 1) if int(ev[4]) < 0 else G.player_fx(int(ev[4])))
 				Sfx.play("hit", -8.0, _fx_rng.randf_range(0.9, 1.2), 0.04)
@@ -986,6 +1010,7 @@ func _pickup_color(k: int) -> Color:
 		World.PK_TOME_FROST: return SPELL_COLORS[2]
 		World.PK_TOME_STORM: return SPELL_COLORS[3]
 		World.PK_TOME_STAR: return SPELL_COLORS[4]
+		World.PK_TOME_RUNE: return SPELL_COLORS[5]
 		World.PK_BOOTS: return Color("4dc8ff")
 		World.PK_ORBIT: return Color("8bff9e")
 		World.PK_XP: return Color("5dff7a")
@@ -1011,6 +1036,10 @@ func _emit_trails(dt: float) -> void:
 					fx.spawn(p, Vector2(_fx_rng.randf_range(-15, 15), _fx_rng.randf_range(-15, 15)), 0.3, 1.0, Color.WHITE, col, true, 2.0)
 			World.SP_STAR:
 				fx.spawn(p, Vector2(_fx_rng.randf_range(-20, 20), _fx_rng.randf_range(-20, 20)), 0.4, 1.0, Color.WHITE, col, true, 2.0, 30.0)
+	for c: Array in vr:
+		if _fx_rng.randf() < (0.5 if c[5] else 0.3):
+			var at: Vector2 = c[0] + Vector2.from_angle(_fx_rng.randf() * TAU) * float(c[1])
+			fx.spawn(at, Vector2(0, _fx_rng.randf_range(-22, -8)), 0.5, 1.0, RUNE_GOLD, SPELL_COLORS[World.SP_RUNE], true, 1.0)
 	for e in ve.values():
 		if e.type == World.LICH and _fx_rng.randf() < 0.6:
 			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-14, 14), _fx_rng.randf_range(-24, 0)), Vector2(0, _fx_rng.randf_range(-30, -10)),
@@ -1079,6 +1108,10 @@ func _draw_env() -> void:
 				ci.draw_rect(Rect2(x0, y - 1, w, 2), Color("6b6280"))
 		# Stone frame
 		ci.draw_rect(Rect2(r.position - Vector2(3, 3), Vector2(r.size.x + 6, 2)), Color("7a68a8"))
+	# Rune circles: a dark scorched disc under the glow, so the ring reads on any floor.
+	for c: Array in vr:
+		var k := _rune_alpha(c)
+		ci.draw_circle(c[0], float(c[1]) * _rune_grow(c) + 1.0, Color(0.06, 0.0, 0.05, 0.45 * k))
 	# Torch brackets
 	for tp in torch_pos:
 		ci.draw_rect(Rect2(tp + Vector2(-2, 0), Vector2(4, 5)), Color("2b1d12"))
@@ -1100,6 +1133,7 @@ func _draw_env_add() -> void:
 		var a := i * TAU / 12 + time * 0.3
 		var p := c + Vector2(cos(a), sin(a) * 0.62) * 41.0
 		ci.draw_rect(Rect2(p.floor(), Vector2(1, 1)), Color(0.4, 0.9, 1.0, 0.4 + 0.4 * sin(time * 3 + i)))
+	_draw_runes(ci)
 	# Torch light pools
 	for tp in torch_pos:
 		var f := 0.85 + 0.15 * sin(time * 13.0 + tp.x) * sin(time * 7.3 + tp.y)
@@ -1109,6 +1143,55 @@ func _draw_env_add() -> void:
 	for i in 4:
 		if door_anim[i] > 0.0:
 			ci.draw_circle(World.DOORS[i], 24.0, Color(1.0, 0.2, 0.3, 0.12 * door_anim[i]))
+
+## How far a rune circle has drawn itself in (0..1), from its age.
+func _rune_grow(c: Array) -> float:
+	return clampf(float(c[2]) / RUNE_DRAW_IN, 0.0, 1.0)
+
+
+## A rune circle's brightness: up while it draws in, down over its last RUNE_FADE seconds.
+func _rune_alpha(c: Array) -> float:
+	return clampf((float(c[3]) - float(c[2])) / RUNE_FADE, 0.0, 1.0) * (0.4 + 0.6 * _rune_grow(c))
+
+
+## Active rune circles on the additive floor layer: a double ring with gold runes turning between, a pentagram
+## inside (a hexagram for the Seal of Solomon, with motes drawn inward), flaring on every damage tick.
+func _draw_runes(ci: CanvasItem) -> void:
+	for c: Array in vr:
+		var at: Vector2 = c[0]
+		var evo: bool = c[5]
+		var r: float = float(c[1]) * (0.6 + 0.4 * _rune_grow(c))
+		var k := _rune_alpha(c)
+		var since := fposmod(float(c[2]) - Spells.RUNE_ARM, Spells.RUNE_TICK)
+		var flare := clampf(1.0 - since / (Spells.RUNE_TICK * 0.5), 0.0, 1.0) if float(c[2]) >= Spells.RUNE_ARM else 0.0
+		var col: Color = SEAL_RING if evo else SPELL_COLORS[World.SP_RUNE]
+		var glyph: Color = SEAL_WHITE if evo else RUNE_GOLD
+		var turn := (time * 0.6 + float(c[4])) * (1.0 if int(c[4]) % 2 == 0 else -1.0)
+		ci.draw_circle(at, r, Color(col.r, col.g, col.b, (0.05 + 0.08 * flare) * k))
+		var segs := 48 if r > 24.0 else 32
+		ci.draw_arc(at, r, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.75 + 0.25 * flare) * k), 1.0)
+		ci.draw_arc(at, r - 7.0, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.5 + 0.3 * flare) * k), 1.0)
+		var n := maxi(5, int(TAU * (r - 3.5) / 9.0))
+		for g in n:
+			var a := turn + g * TAU / n
+			var gp := at + Vector2.from_angle(a) * (r - 3.5) - Vector2(2, 3)
+			Occult.rune(ci, gp.round(), g * 3 + int(c[4]), Color(glyph.r, glyph.g, glyph.b, (0.55 + 0.35 * flare) * k))
+		var inner := r - 8.0
+		if evo:
+			# The Seal of Solomon: two interlaced triangles, and motes pulled toward the centre.
+			for t in 2:
+				var tri := PackedVector2Array()
+				for v in 4:
+					tri.append(at + Vector2.from_angle(-turn * 0.5 + t * PI + v * TAU / 3.0 - PI / 2.0) * inner)
+				ci.draw_polyline(tri, Color(SEAL_WHITE.r, SEAL_WHITE.g, SEAL_WHITE.b, (0.6 + 0.4 * flare) * k), 1.0)
+			var reach := float(c[1]) * Spells.SEAL_REACH
+			for m in 10:
+				var f := fposmod(time * 0.8 + m * 0.37, 1.0)
+				var mp := at + Vector2.from_angle(m * 2.4 + turn * 0.3) * lerpf(reach, r * 0.3, f)
+				ci.draw_rect(Rect2(mp.floor(), Vector2(1, 1)), Color(SEAL_WHITE.r, SEAL_WHITE.g, SEAL_WHITE.b, 0.7 * k * (1.0 - f * 0.5)))
+		else:
+			Occult.pentagram(ci, at, inner, Color(col.r, col.g, col.b, (0.45 + 0.4 * flare) * k), -turn * 0.5)
+
 
 func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
 	var c := Color(0.05, 0.0, 0.1, 0.45)
@@ -1390,9 +1473,9 @@ func _draw_hud() -> void:
 			var wlv: int = wl[sp]
 			if wlv <= 0:
 				continue
-			var px := x + 64 + sp * 10
-			ci.draw_rect(Rect2(px, 3, 9, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
-			ci.draw_rect(Rect2(px + 1, 4, 7.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), SPELL_COLORS[sp])
+			var px := x + 64 + sp * 9
+			ci.draw_rect(Rect2(px, 3, 8, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
+			ci.draw_rect(Rect2(px + 1, 4, 6.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), SPELL_COLORS[sp])
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(time * 8) % 2 == 0 else G.player_fx(slot)
 			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x + 96, 10), 1, cc, dark)

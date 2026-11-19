@@ -357,10 +357,145 @@ func test_snapshot_sends_weapon_levels() -> void:
 	var p := _player(w)
 	p.upgrades[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL
 	p.upgrades[Upgrades.evo_entry(World.SP_FIRE)] = 1
+	p.upgrades[Upgrades.weapon_entry(World.SP_RUNE)] = 2
 	var pl: PackedFloat32Array = w.snapshot()["p"]
-	assert_eq(int(pl[29 + World.SP_ARCANE]), 1)
-	assert_eq(int(pl[29 + World.SP_FIRE]), Spells.MAX_LEVEL + 1)
-	assert_eq(int(pl[29 + World.SP_STAR]), 0)
+	assert_eq(pl.size(), World.PLAYER_FLOATS)
+	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_ARCANE]), 1)
+	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_FIRE]), Spells.MAX_LEVEL + 1)
+	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_STAR]), 0)
+	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_RUNE]), 2)
+	assert_eq(int(pl[World.PLAYER_WEAPONS + Spells.COUNT + 1]), p.max_hp, "max hearts come last")
+
+
+## A world with one wizard and a rune circle inscribed at `at` (Rune Circle at `lv`, or the Seal when `evo`).
+func _rune_world(at: Vector2, lv: int, evo: bool) -> World:
+	var w := World.new([0], 3)
+	var c := World.Rune.new()
+	c.pos = at
+	c.r = Spells.level_value(World.SP_RUNE, "r", lv, evo)
+	c.life = Spells.level_value(World.SP_RUNE, "life", lv, evo)
+	c.tick = Spells.RUNE_ARM
+	c.dmg = Spells.damage(World.SP_RUNE, lv, evo)
+	c.evo = evo
+	c.pull = Spells.evo_value(World.SP_RUNE, "pull", 0.0) if evo else 0.0
+	w.runes.append(c)
+	return w
+
+
+func _tick_runes(w: World, seconds: float) -> void:
+	for _i: int in range(int(seconds / DT)):
+		w._build_grid()
+		w._update_runes(DT)
+		w.runes = w.runes.filter(func(c: World.Rune) -> bool: return c.age < c.life)
+
+
+func test_rune_circle_hurts_only_what_stands_in_it() -> void:
+	var w := _rune_world(Vector2(200, 140), 1, false)
+	var inside: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(205, 142))
+	var outside: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(260, 140))
+	inside.entering = false
+	outside.entering = false
+	_tick_runes(w, 1.0)
+	assert_true(inside.hp < inside.maxhp, "the orc in the circle was not hurt")
+	assert_eq(outside.hp, outside.maxhp, "the orc outside the circle was hurt")
+	assert_true(inside.pos.distance_to(Vector2(205, 142)) < 0.01, "a plain rune circle moved the orc")
+
+
+func test_rune_circle_ticks_then_expires() -> void:
+	var w := _rune_world(Vector2(200, 140), 1, false)
+	var orc: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200, 140))
+	orc.entering = false
+	var life: float = w.runes[0].life
+	_tick_runes(w, life + 0.2)
+	assert_true(w.runes.is_empty(), "the circle outlived its life")
+	var ticks: int = 1 + int((life - Spells.RUNE_ARM) / Spells.RUNE_TICK)
+	assert_near(orc.maxhp - orc.hp, ticks * Spells.damage(World.SP_RUNE, 1, false), 0.01)
+	var hp: float = orc.hp
+	_tick_runes(w, 1.0)
+	assert_eq(orc.hp, hp, "an expired circle still hurts")
+
+
+func test_seal_of_solomon_pulls_enemies_in() -> void:
+	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, true)
+	var r: float = w.runes[0].r
+	var near: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200 + r * 1.3, 140))
+	var far: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200 + r * Spells.SEAL_REACH + 20.0, 140))
+	near.entering = false
+	far.entering = false
+	var d0: float = near.pos.distance_to(Vector2(200, 140))
+	var far0: Vector2 = far.pos
+	_tick_runes(w, 0.5)
+	assert_true(near.pos.distance_to(Vector2(200, 140)) < d0 - 1.0, "the seal did not pull the orc in")
+	assert_eq(far.pos, far0, "the seal pulled an orc out of its reach")
+	var plain := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, false)
+	var still: World.Enemy = plain.spawn_enemy(World.ORC, 0, Vector2(200 + r * 1.3, 140))
+	still.entering = false
+	_tick_runes(plain, 0.5)
+	assert_eq(still.pos, Vector2(200 + r * 1.3, 140), "an unevolved circle pulled")
+
+
+func test_rune_circle_goes_on_the_densest_cluster() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	var lone: World.Enemy = w.spawn_enemy(World.ORC, 0, p.pos + Vector2(-40, 0))
+	lone.entering = false
+	var pack := p.pos + Vector2(80, 30)
+	for i: int in range(4):
+		var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, pack + Vector2(i * 4 - 6, (i % 2) * 4))
+		e.entering = false
+	w._build_grid()
+	w.take_events()
+	w._cast(p, World.SP_RUNE, 1, false, Vector2.RIGHT)
+	assert_eq(w.runes.size(), 1)
+	assert_true(w.runes[0].pos.distance_to(pack) < 8.0, "circle at %s, not on the pack at %s" % [w.runes[0].pos, pack])
+	var inscribed: int = 0
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_RUNE:
+			inscribed += 1
+	assert_eq(inscribed, 1)
+
+
+func test_rune_circles_of_one_cast_spread_out() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	for spot: Vector2 in [Vector2(-60, 0), Vector2(60, 0), Vector2(0, 60)]:
+		for i: int in range(3):
+			var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, p.pos + spot + Vector2(i * 3, 0))
+			e.entering = false
+	w._build_grid()
+	w._cast(p, World.SP_RUNE, Spells.MAX_LEVEL, false, Vector2.RIGHT)
+	assert_eq(w.runes.size(), Spells.count(World.SP_RUNE, Spells.MAX_LEVEL, false))
+	for a: int in range(w.runes.size()):
+		for b: int in range(a + 1, w.runes.size()):
+			assert_true(w.runes[a].pos.distance_to(w.runes[b].pos) > w.runes[a].r, "two circles of one cast overlap")
+
+
+func test_rune_circle_with_nothing_in_range_goes_ahead() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	w._build_grid()
+	w._cast(p, World.SP_RUNE, 3, false, Vector2.RIGHT)
+	assert_eq(w.runes.size(), 1)
+	assert_true(w.runes[0].pos.distance_to(p.pos + Vector2.RIGHT * Spells.RUNE_AIM_DIST) < 0.5)
+
+
+func test_snapshot_sends_rune_circles() -> void:
+	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, true)
+	var rn: PackedFloat32Array = w.snapshot()["r"]
+	assert_eq(rn.size(), World.RUNE_FLOATS)
+	assert_eq(Vector2(rn[0], rn[1]), Vector2(200, 140))
+	assert_eq(rn[2], Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, true))
+	assert_true(rn[6] > 0.5, "the seal is not marked evolved")
+
+
+func test_rune_tome_grants_rune_circle() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	var tome := World.Pickup.new()
+	tome.kind = World.PK_TOME_RUNE
+	w._collect(p, tome)
+	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_RUNE), 1)
+	assert_eq(p.cds.size(), Spells.COUNT)
 
 
 ## A world past its intro whose wizards cannot be hurt, so only the horde changes.
@@ -413,8 +548,12 @@ func test_enemy_cap_holds_the_horde() -> void:
 	t.set_value("horde_rate_base", 40.0)
 	t.set_value("enemy_cap", 30.0)
 	var w := _fighting(t, 0.0)
+	# Unarmed and unable to pick anything up, so only the horde changes the count (not a lucky tome).
+	_player(w).upgrades.clear()
+	w.powerup_timer = INF
 	for _i: int in range(60 * 10):
 		w.step(DT, {})
+		w.pickups.clear()
 		assert_true(_fielded(w) <= 30 + 12, "fielded %d over a cap of 30" % _fielded(w))
 	assert_true(_fielded(w) >= 30, "the horde should reach the cap")
 
