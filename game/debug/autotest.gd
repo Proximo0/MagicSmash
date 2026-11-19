@@ -67,6 +67,10 @@ func _ready() -> void:
 	shots = [[1.2, "title_intro"], [4.0, "title_menu"], [4.5, "@lobby"], [5.0, "lobby"], [5.5, "@play"],
 		[7.0, "game_wave_banner"], [12.0, "game_a"], [16.0, "game_b"], [22.0, "game_c"], [28.0, "game_d"],
 		[36.0, "game_e"], [44.0, "game_f"], [52.0, "game_g"], [58.0, "game_h"]]
+	# --sanctum: walk into the Sanctum from the title, shoot the room, then the opened alcove, then stop.
+	if "--sanctum" in OS.get_cmdline_user_args():
+		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]
+		quit_at = 6.0
 	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
 	if "--album" in OS.get_cmdline_user_args():
 		shots.insert(2, [4.1, "@album"])
@@ -144,6 +148,17 @@ func _process(delta: float) -> void:
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
+		if name == "@sanctum":
+			G.local_devices = [G.DEV_KBM]
+			G.goto_sanctum()
+		elif name == "@alcove":
+			var view = G.main.current
+			view.room.crack_open = true
+			view.room.pos = Vector2(404, 48)
+			view.room.facing = Vector2.RIGHT
+			view.room.in_alcove = true
+			view.room._break_pot(0)
+			view.room._break_pot(1)
 		if name == "@album":
 			for i: int in [0, 1, 4, 5, 7, 8, 10]:
 				Save.profile.add_card(i)

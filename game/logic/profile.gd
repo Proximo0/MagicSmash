@@ -43,6 +43,8 @@ var best_time := 0.0
 var unlocks := {} # META key -> level bought
 var cards := {} # Cards key -> how many found
 var sockets: Array[String] = ["", "", ""] # Cards key socketed in the hat, robe and staff ("" for empty)
+var secrets := {} # secret key -> true, once found (the Sanctum alcove, title easter eggs, Ouija words)
+var pots_run := -1 # the run count when the Sanctum's pots were last smashed; they refill after the next run
 
 
 static func meta_index(key: String) -> int:
@@ -126,6 +128,31 @@ func socket_card(idx: int) -> bool:
 	return true
 
 
+## Marks a secret found. Returns true the first time.
+func find_secret(k: String) -> bool:
+	if secrets.has(k):
+		return false
+	secrets[k] = true
+	return true
+
+
+func has_secret(k: String) -> bool:
+	return secrets.has(k)
+
+
+## True if the Sanctum's pots were already smashed since the last run.
+func pots_smashed() -> bool:
+	return pots_run == runs
+
+
+## Spends `cost` crystals. False (and nothing spent) if there are too few.
+func spend(cost: int) -> bool:
+	if cost > crystals:
+		return false
+	crystals -= cost
+	return true
+
+
 func unsocket(s: int) -> void:
 	if s >= 0 and s < Cards.SOCKETS:
 		sockets[s] = ""
@@ -149,7 +176,7 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
-		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate()}
+		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -172,6 +199,11 @@ static func from_dict(d: Dictionary) -> Profile:
 		for key: Variant in c:
 			if Cards.index_of(str(key)) >= 0 and int(c[key]) > 0:
 				p.cards[str(key)] = int(c[key])
+	var se: Variant = d.get("secrets", [])
+	if se is Array:
+		for k: Variant in se:
+			p.secrets[str(k)] = true
+	p.pots_run = int(d.get("pots_run", -1))
 	var so: Variant = d.get("sockets", [])
 	if so is Array:
 		for s: int in range(mini((so as Array).size(), Cards.SOCKETS)):

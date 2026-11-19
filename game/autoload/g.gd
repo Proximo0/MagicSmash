@@ -36,6 +36,18 @@ func goto_title() -> void:
 	if main:
 		main.show_title()
 
+## The Sanctum between runs (offline play only).
+func goto_sanctum() -> void:
+	if main:
+		main.show_sanctum()
+
+## Back to the title, straight into the lobby with `device` already in (the Sanctum's portal).
+var title_lobby_device := -99
+
+func goto_title_lobby(device: int) -> void:
+	title_lobby_device = device
+	goto_title()
+
 func goto_game() -> void:
 	if main:
 		main.show_game()

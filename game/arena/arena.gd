@@ -1961,7 +1961,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			var clicked = event is InputEventMouseButton and event.pressed
 			if PlayerInput.confirm_device(event) != -99 or tapped or clicked or \
 					(event is InputEventKey and event.pressed and event.physical_keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]):
-				_quit_to_title()
+				if Net.mode == Net.Mode.OFFLINE:
+					Engine.time_scale = 1.0
+					Net.shutdown()
+					G.goto_sanctum()
+				else:
+					_quit_to_title()
 		return
 	var start = (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ESCAPE, KEY_P]) \
 		or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)

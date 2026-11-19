@@ -1,0 +1,217 @@
+class_name Sanctum
+extends RefCounted
+## The Sanctum: the tower room a wizard walks around between runs. Pure logic (the view in game/sanctum draws
+## it and feeds it input): walking, walls, pots that shatter when walked into, the things to use (the portal,
+## the card altar, the reliquary, the music box, the wishing well) and a secret alcove behind a cracked wall.
+## It emits events; the view books crystals and cards in the profile and plays the effects.
+
+## The floor a wizard can walk on, and the alcove hidden in the top wall (open once the crack gives way).
+const ROOM := Rect2(26, 60, 428, 190)
+const ALCOVE := Rect2(390, 30, 44, 30)
+## The cracked stretch of the top wall that opens into the alcove, and how long a wizard must push on it.
+const CRACK_X := Vector2(396, 428)
+const CRACK_PUSH := 1.2
+const SPEED := 72.0
+const REACH := 20.0 # how near a thing must be to use it
+const POT_R := 6.0
+
+## Things to use: [key, position, prompt].
+const PORTAL := 0
+const ALTAR := 1
+const RELIQUARY := 2
+const MUSIC := 3
+const WELL := 4
+const CAT := 5
+const THINGS: Array = [
+	["portal", Vector2(240, 82), "ENTER THE TOWER"],
+	["altar", Vector2(84, 118), "THE CARD ALBUM"],
+	["reliquary", Vector2(396, 118), "SEALED DECK  %d CRYSTALS"],
+	["music", Vector2(70, 222), "MUSIC BOX"],
+	["well", Vector2(410, 222), "WISHING WELL  1 CRYSTAL"],
+	["cat", Vector2(420, 44), "PET THE CAT"],
+]
+
+## Pots along the walls. Broken pots stay broken until the next run is played.
+const POTS: Array = [
+	Vector2(36, 70), Vector2(50, 70), Vector2(150, 68), Vector2(330, 68), Vector2(444, 70),
+	Vector2(36, 160), Vector2(444, 150), Vector2(444, 164), Vector2(150, 242), Vector2(176, 242),
+	Vector2(300, 242), Vector2(326, 242),
+]
+## What a pot holds: chance of a monster card (ultra rare), of a crystal cache, of one crystal.
+const POT_CARD := 0.01
+const POT_CACHE := 0.06
+const POT_CACHE_CRYSTALS := 5
+const POT_CRYSTAL := 0.35
+
+## A sealed deck draws one card; the Lich card is ten times rarer than the rest.
+const DECK_COST := 40
+const LICH_WEIGHT := 1.0
+const CARD_WEIGHT := 10.0
+## The wishing well: a crystal in, a fortune out, and now and then the well pays back.
+const WELL_PAYOUT := 0.08
+const WELL_CRYSTALS := 12
+## Crystals in the alcove the first time anyone finds it.
+const ALCOVE_CRYSTALS := 50
+
+## Events: [code, a, b].
+const EV_POT := 0 # a = pot index, b = [what, amount]: what is "card", "crystals" or ""
+const EV_USE := 1 # a = THINGS index
+const EV_CRACK := 2 # the wall gave way
+const EV_ALCOVE := 3 # stepped into the alcove for the first time this visit
+
+var pos := Vector2(240, 200)
+var facing := Vector2.DOWN
+var moving := false
+var walk_t := 0.0
+var broken: Array[bool] = []
+var crack_open := false
+var crack_t := 0.0
+var in_alcove := false
+var rng := RandomNumberGenerator.new()
+var events: Array = []
+
+
+## `pots_broken`: pots start broken (a visit since the last run already smashed them). `crack_open`: the alcove was
+## found before, so the wall stays open.
+func _init(seed_value: int = 0, pots_broken: bool = false, alcove_found: bool = false) -> void:
+	rng.seed = seed_value
+	for i: int in range(POTS.size()):
+		broken.append(pots_broken)
+	crack_open = alcove_found
+
+
+func take_events() -> Array:
+	var e := events
+	events = []
+	return e
+
+
+## Moves the wizard by `move` (a stick direction, length up to 1) for `dt` seconds, breaking pots it walks into.
+func step(dt: float, move: Vector2) -> void:
+	moving = move.length() > 0.2
+	if not moving:
+		crack_t = 0.0
+		return
+	if move.length() > 1.0:
+		move = move.normalized()
+	facing = move.normalized()
+	walk_t += dt * 8.0
+	var want := pos + move * SPEED * dt
+	pos = _walk(want, move, dt)
+	for i: int in range(POTS.size()):
+		if not broken[i] and pos.distance_to(POTS[i]) < POT_R + 4.0:
+			_break_pot(i)
+	var now_in := ALCOVE.has_point(pos)
+	if now_in and not in_alcove:
+		events.append([EV_ALCOVE, 0, 0])
+	in_alcove = now_in
+
+
+## Where the wizard ends up trying to go to `want`: inside the room, or the alcove once it is open, and pushing on
+## the cracked wall long enough opens it.
+func _walk(want: Vector2, move: Vector2, dt: float) -> Vector2:
+	if _walkable(want):
+		crack_t = 0.0
+		return want
+	var at_crack := pos.y <= ROOM.position.y + 2.0 and pos.x >= CRACK_X.x and pos.x <= CRACK_X.y and move.y < -0.5
+	if at_crack and not crack_open:
+		crack_t += dt
+		if crack_t >= CRACK_PUSH:
+			crack_open = true
+			events.append([EV_CRACK, 0, 0])
+	# Slide along walls: keep whichever axis still fits.
+	var slide_x := Vector2(want.x, pos.y)
+	if _walkable(slide_x):
+		return slide_x
+	var slide_y := Vector2(pos.x, want.y)
+	if _walkable(slide_y):
+		return slide_y
+	return pos
+
+
+func _walkable(p: Vector2) -> bool:
+	if ROOM.has_point(p):
+		return true
+	if not crack_open:
+		return false
+	# The alcove, and the gap in the wall between it and the room.
+	if ALCOVE.has_point(p):
+		return true
+	return p.x >= CRACK_X.x and p.x <= CRACK_X.y and p.y >= ALCOVE.end.y - 1.0 and p.y <= ROOM.position.y + 1.0
+
+
+func _break_pot(i: int) -> void:
+	broken[i] = true
+	var r := rng.randf()
+	var what := ""
+	var amount := 0
+	if r < POT_CARD:
+		what = "card"
+		amount = roll_card(rng)
+	elif r < POT_CARD + POT_CACHE:
+		what = "crystals"
+		amount = POT_CACHE_CRYSTALS
+	elif r < POT_CARD + POT_CACHE + POT_CRYSTAL:
+		what = "crystals"
+		amount = 1
+	events.append([EV_POT, i, [what, amount]])
+
+
+## The thing within reach of the wizard (THINGS index), or -1. The cat is only within reach from the alcove.
+func near_thing() -> int:
+	var best := -1
+	var bd := REACH
+	for i: int in range(THINGS.size()):
+		if i == CAT and not in_alcove:
+			continue
+		var d: float = pos.distance_to(THINGS[i][1])
+		if d < bd:
+			bd = d
+			best = i
+	return best
+
+
+## Uses whatever is in reach. Returns its THINGS index, or -1.
+func use() -> int:
+	var i := near_thing()
+	if i >= 0:
+		events.append([EV_USE, i, 0])
+	return i
+
+
+## A card drawn from a sealed deck or found in a pot: any card, the Lich card far rarer.
+static func roll_card(r: RandomNumberGenerator) -> int:
+	var total := 0.0
+	for i: int in range(Cards.count()):
+		total += LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
+	var x := r.randf() * total
+	for i: int in range(Cards.count()):
+		x -= LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
+		if x < 0.0:
+			return i
+	return Cards.count() - 1
+
+
+## A toss into the wishing well: the crystals it pays back (0 most of the time).
+static func wish(r: RandomNumberGenerator) -> int:
+	return WELL_CRYSTALS if r.randf() < WELL_PAYOUT else 0
+
+## What the wishing well says back. Old proverbs, myth and a little tower gossip.
+const FORTUNES := [
+	"THE TOWER REMEMBERS EVERY WIZARD.",
+	"WHAT HERMES HID, PATIENCE FINDS.",
+	"THE NINTH WAVE IS THE STRONGEST.",
+	"A LICH FEARS ONLY BEING FORGOTTEN.",
+	"SOLOMON SEALED SEVENTY-TWO. NOT ALL.",
+	"LOOK UP. SOME WALLS ARE TIRED.",
+	"THE CAT KNOWS. THE CAT ALWAYS KNOWS.",
+	"FORTUNE FAVOURS THE SECOND TRY.",
+	"ODIN GAVE AN EYE. YOU GAVE A CRYSTAL.",
+	"THE ORACLE SAYS: DODGE LEFT.",
+	"WHAT IS BROKEN MAY HOLD A CARD.",
+	"THE MOON IS LISTENING TONIGHT.",
+]
+
+
+static func fortune(r: RandomNumberGenerator) -> String:
+	return FORTUNES[r.randi() % FORTUNES.size()]
