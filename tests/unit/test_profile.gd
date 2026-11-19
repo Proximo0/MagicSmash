@@ -105,3 +105,21 @@ func test_saved_sockets_drop_cards_not_owned_or_misplaced() -> void:
 	assert_eq(p.card_count(World.ORC), 1)
 	assert_eq(p.cards_owned(), 1)
 	assert_eq(p.socket_indices(), [-1, -1, World.ORC] as Array[int])
+
+
+func test_secrets_pots_and_spending_save() -> void:
+	var p := Profile.new()
+	assert_true(p.find_secret("alcove"))
+	assert_false(p.find_secret("alcove"))
+	assert_false(p.pots_smashed())
+	p.pots_run = p.runs
+	assert_true(p.pots_smashed())
+	p.crystals = 5
+	assert_false(p.spend(6))
+	assert_true(p.spend(5))
+	assert_eq(p.crystals, 0)
+	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
+	assert_true(back.has_secret("alcove"))
+	assert_true(back.pots_smashed())
+	back.finish_run(10, 30.0, 0, 0)
+	assert_false(back.pots_smashed(), "pots did not refill after a run")

@@ -69,6 +69,14 @@ func _ready() -> void:
 	if Net.mode != Net.Mode.OFFLINE:
 		Net.shutdown()
 	G.local_devices.clear()
+	if G.title_lobby_device != -99:
+		# Through the Sanctum's portal: the lobby, with that wizard already in.
+		G.local_devices = [G.title_lobby_device]
+		G.title_lobby_device = -99
+		Net.start_offline()
+		state = S.LOBBY
+		t = 4.0
+		_flash_burst()
 
 func _msg(s: String) -> void:
 	message = s
@@ -633,10 +641,9 @@ func _activate(item: String, dev: int) -> void:
 		"THE TALE":
 			_start_tale("", dev)
 		"PLAY":
+			# Play goes through the Sanctum; its portal leads on to the lobby.
 			G.local_devices = [dev]
-			Net.start_offline()
-			state = S.LOBBY
-			_flash_burst()
+			G.goto_sanctum()
 		"HOST LAN GAME":
 			G.local_devices = [dev]
 			if Net.host_game():

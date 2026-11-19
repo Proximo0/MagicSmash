@@ -23,5 +23,9 @@ func show_title() -> void:
 	Engine.time_scale = 1.0
 	_swap(preload("res://game/ui/title.gd").new())
 
+func show_sanctum() -> void:
+	Engine.time_scale = 1.0
+	_swap(preload("res://game/sanctum/sanctum_view.gd").new())
+
 func show_game() -> void:
 	_swap(preload("res://game/arena/arena.gd").new())
