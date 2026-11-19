@@ -27,6 +27,8 @@ var _rng := RandomNumberGenerator.new()
 var _leaving := -1.0
 var _room_tex: ImageTexture
 var _alcove_tex: ImageTexture
+## The use prompt for the thing in reach ([text, centre]), drawn last so nothing in the room covers it.
+var _prompt: Array = []
 
 
 func _ready() -> void:
@@ -234,6 +236,9 @@ func _draw() -> void:
 	_draw_wizard()
 	for s: Array in _shards:
 		draw_rect(Rect2((s[0] as Vector2).floor(), Vector2(2, 2)), s[3])
+	# The prompt goes over everything in the room, so pots and the wizard never cover it.
+	if not _prompt.is_empty():
+		PixelFont.draw_centered(self, _prompt[0], _prompt[1].x, _prompt[1].y, 1, Occult.GOLD, Occult.INK)
 	draw_set_transform(Vector2.ZERO)
 	_draw_hud()
 	if not _deck.is_empty():
@@ -267,6 +272,7 @@ func _candles() -> Array[Vector2]:
 
 
 func _draw_things() -> void:
+	_prompt = []
 	var near := room.near_thing()
 	for i: int in range(Sanctum.THINGS.size()):
 		var p: Vector2 = Sanctum.THINGS[i][1]
@@ -334,7 +340,7 @@ func _draw_things() -> void:
 			var half := PixelFont.text_width(text) / 2.0
 			var px := clampf(p.x, half + 4.0, 476.0 - half)
 			var py := maxf(p.y - 34.0, 64.0) + sin(t * 4.0)
-			PixelFont.draw_centered(self, text, px, py, 1, Occult.GOLD, Occult.INK)
+			_prompt = [text, Vector2(px, py)]
 
 
 ## The cauldron by the front wall bubbles away.
@@ -399,7 +405,7 @@ func _draw_glow() -> void:
 func _draw_hud() -> void:
 	var prof: Profile = Save.profile
 	Sprites.draw_at(self, "gem", Vector2(14, 268))
-	PixelFont.draw(self, "%d CRYSTALS" % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
+	PixelFont.draw(self, ("%d CRYSTAL" if prof.crystals == 1 else "%d CRYSTALS") % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
 	PixelFont.draw(self, "CARDS %d/%d" % [prof.cards_owned(), Cards.count()], Vector2(110, 261), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(self, "SECRETS %d/%d" % [Secrets.found(prof), Secrets.count()], Vector2(190, 261), 1, Color("ff8af0"), Occult.INK)
 	var keys := "WASD WALK  ENTER USE  ESC TITLE" if device == G.DEV_KBM else "STICK WALK  A USE  B TITLE"
