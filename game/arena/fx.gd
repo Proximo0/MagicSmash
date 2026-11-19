@@ -169,9 +169,13 @@ func death(pos: Vector2, type: int) -> void:
 		[Color("c8e070"), Color("4d5166")],  # orc
 		[Color("ff4df2"), Color("3b1f6e")],  # mage
 		[Color("4dfff0"), Color("4a1a7a")],  # lich
+		[Color("d8fff6"), Color("4f9a94")],  # wraith
+		[Color("efe2c0"), Color("8a1f2c")],  # cursed tome
+		[Color("c8c4d8"), Color("57546a")],  # gargoyle
+		[Color("6dff9a"), Color("2e1a12")],  # bone priest
 	]
 	var c: Array = cols[clampi(type, 0, cols.size() - 1)]
-	var big := type == 5 or type == 7
+	var big := type == 5 or type == 7 or type == 10
 	flash(pos, 14.0 if big else 9.0, c[0], 0.1)
 	ring(pos, 2.0, 18.0 if big else 12.0, 0.22, c[0], 1.0)
 	# Chunky gibs that fall with gravity (normal blend)

@@ -5,8 +5,10 @@ extends Node2D
 const SNAP_EVERY := 2 # physics frames between snapshots sent to clients
 
 const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6")]
-const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich"]
-const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0]
+const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich", "wraith", "tome", "gargoyle", "priest"]
+## Shadow width under each enemy type (bats and wraiths float without one).
+const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
+const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest"]
 const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", ""]
 ## Loot tier colours (Loot.COMMON .. Loot.ULTRA): readable in 3 seconds with the sound off.
@@ -14,7 +16,7 @@ const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color
 ## Seconds a chest reel spins before it shows the item, and how long the item stays up after.
 const REEL_SPIN := 1.0
 const REEL_SHOW := 1.6
-const ENEMY_NAMES := ["GOBLIN", "SKELETON", "SLIME", "SLIMELING", "BAT", "ORC BRUTE", "DARK MAGE", "LICH LORD"]
+const ENEMY_NAMES := ["GOBLIN", "SKELETON", "SLIME", "SLIMELING", "BAT", "ORC BRUTE", "DARK MAGE", "LICH LORD", "WRAITH", "CURSED TOME", "GARGOYLE", "BONE PRIEST"]
 
 ## Cosmetic randomness only (particles, shake, pitch). Gameplay randomness lives in World.rng.
 var _fx_rng := RandomNumberGenerator.new()
@@ -496,8 +498,13 @@ func _handle_events(evs: Array) -> void:
 				fx.death(pos, t)
 				Sfx.play("enemy_die", -2.0, _fx_rng.randf_range(0.85, 1.15), 0.04)
 				_add_shake(1.5 if t != World.ORC else 3.0)
-				var gc := [Color("2f7a2a"), Color("b7a98e"), Color("158f86"), Color("158f86"), Color("5a1a8a"), Color("4d5166"), Color("3b1f6e"), Color("4a1a7a")]
-				_decal(pos + Vector2(0, 4), gc[clampi(t, 0, 7)], 4.0 if t != World.ORC else 7.0)
+				var gc := [Color("2f7a2a"), Color("b7a98e"), Color("158f86"), Color("158f86"), Color("5a1a8a"), Color("4d5166"), Color("3b1f6e"), Color("4a1a7a"), Color("4f9a94"), Color("4e0f18"), Color("57546a"), Color("2e1a12")]
+				if t == World.TOME:
+					fx.burst(pos + Vector2(0, -6), 10, 70.0, 0.7, 1.5, Color("efe2c0"), Color("8a1f2c"), false, 60.0)
+					Sfx.play("page_turn", -4.0, _fx_rng.randf_range(0.9, 1.2), 0.1)
+				elif t == World.WRAITH:
+					Sfx.play("ghost", -8.0, _fx_rng.randf_range(0.9, 1.3), 0.15)
+				_decal(pos + Vector2(0, 4), gc[clampi(t, 0, gc.size() - 1)], 4.0 if t != World.ORC else 7.0)
 			World.EV_EXPLODE:
 				fx.explosion(pos, float(ev[3]))
 				Sfx.play("explode", -2.0, _fx_rng.randf_range(0.9, 1.1), 0.05)
@@ -634,6 +641,11 @@ func _handle_events(evs: Array) -> void:
 				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
 				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
 				Sfx.play("orbit", -4.0, 1.3)
+			World.EV_RAISE:
+				fx.ring(pos, 4.0, 26.0, 0.5, Color("6dff9a"), 2.0)
+				fx.burst(pos + Vector2(0, -4), 14, 60.0, 0.6, 1.5, Color("6dff9a"), Color("efe7d2"), true, -40.0)
+				fx.text(pos + Vector2(0, -20), "RISE!", Color("6dff9a"), 0.8, 1)
+				Sfx.play("portal", -6.0, 1.3, 0.2)
 			World.EV_ELITE:
 				fx.text(pos + Vector2(0, -16), "ELITE!", Color("ffb84d"), 1.2, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
@@ -1114,8 +1126,8 @@ func _draw_entities() -> void:
 			_shadow(ci, it[2].pos, 10)
 		else:
 			var e: Dictionary = it[2]
-			if e.type != World.BAT:
-				_shadow(ci, e.pos, [10, 10, 12, 8, 8, 14, 10, 26][e.type])
+			if ENEMY_SHADOW[e.type] > 0 and e.type != World.BAT and not (e.type == World.GARGOYLE and e.state == 1):
+				_shadow(ci, e.pos, ENEMY_SHADOW[e.type])
 	# Glows under the elites and the Archlich go before the sprites, in one pass, so sprites batch together.
 	for e: Dictionary in ve.values():
 		if e.get("final", false):
@@ -1180,6 +1192,8 @@ func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 		var fr := "a"
 		if t == World.SLIME:
 			fr = "b" if e.state == 1 else "a"
+		elif t == World.GARGOYLE and e.state == 0:
+			fr = "a"
 		elif int(e.t * ENEMY_ANIM[t]) % 2 == 1:
 			fr = "b"
 		key = base + "_" + fr
@@ -1211,6 +1225,24 @@ func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 		World.MAGE:
 			if e.state == 1:
 				mod = Color(1.4, 0.8, 1.4)
+		World.WRAITH:
+			# Faded: a thin ghost the spells pass through.
+			feet.y -= 3.0 + floorf(sin(e.t * 3.0) * 1.5)
+			mod.a = 0.25 + 0.1 * sin(time * 20.0) if e.state == 1 else 0.85
+		World.TOME:
+			feet.y -= 4.0 + floorf(sin(e.t * 6.0) * 1.5)
+			if e.state == 1:
+				feet.x += _fx_rng.randf_range(-1.0, 1.0)
+				mod = Color(1.5, 0.7, 0.7)
+		World.GARGOYLE:
+			if e.state == 0:
+				mod = Color(0.75, 0.75, 0.8)
+			else:
+				feet.y -= 8.0
+				mod = Color(1.2, 1.0, 1.0)
+		World.PRIEST:
+			if e.state == 1:
+				mod = Color(0.9, 1.5, 1.0)
 	if e.get("final", false):
 		# The Archlich: a darker violet robe (its glow is drawn under the sprites in _draw_entities).
 		mod = mod * Color(1.3, 0.75, 1.35)

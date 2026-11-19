@@ -793,3 +793,60 @@ func test_game_over_sends_the_record_first() -> void:
 					assert_eq(back.stat(0, "deaths"), 1.0)
 					assert_eq(back.stat(0, "level"), 1.0)
 	assert_eq(codes, [World.EV_RESULTS, World.EV_GAMEOVER])
+
+
+func test_enemy_tables_cover_every_type() -> void:
+	assert_eq(World.XP_VALUES.size(), World.STATS.size(), "an XP value per enemy type")
+	for row: Array in World.HORDE:
+		assert_true(int(row[0]) < World.STATS.size(), "horde row for an unknown type")
+
+
+func test_a_faded_wraith_cannot_be_hurt() -> void:
+	var w := _fighting(null, 0.0)
+	var e: World.Enemy = w.spawn_enemy(World.WRAITH, 0, Vector2(100, 100))
+	var hp: float = e.hp
+	e.state = 1
+	w._damage_enemy(e, 1.0, 0, Vector2.ZERO)
+	assert_eq(e.hp, hp, "a faded wraith took damage")
+	e.state = 0
+	w._damage_enemy(e, 1.0, 0, Vector2.ZERO)
+	assert_true(e.hp < hp, "a solid wraith should take damage")
+
+
+func test_a_wraith_fades_on_its_cycle() -> void:
+	var w := _fighting(null, 0.0)
+	var e: World.Enemy = w.spawn_enemy(World.WRAITH, 0, Vector2(100, 100))
+	e.hp = 99999.0 # out of reach of the wizard's spells
+	var faded := false
+	var solid := false
+	for _i: int in range(int(60 * (World.WRAITH_SOLID + World.WRAITH_FADED) * 1.2)):
+		w.step(DT, {})
+		faded = faded or e.state == 1
+		solid = solid or e.state == 0
+	assert_true(faded and solid, "a wraith should be both solid and faded in one cycle")
+
+
+func test_stone_gargoyle_shrugs_off_damage() -> void:
+	var w := _fighting(null, 0.0)
+	var stone: World.Enemy = w.spawn_enemy(World.GARGOYLE, 0, Vector2(100, 100))
+	var flying: World.Enemy = w.spawn_enemy(World.GARGOYLE, 0, Vector2(300, 100))
+	stone.state = 0
+	flying.state = 1
+	var hp: float = stone.hp
+	w._damage_enemy(stone, 2.0, 0, Vector2.ZERO)
+	w._damage_enemy(flying, 2.0, 0, Vector2.ZERO)
+	assert_near(hp - stone.hp, (hp - flying.hp) * World.STONE_DAMAGE, 0.001)
+
+
+func test_bone_priest_raises_skeletons() -> void:
+	var w := _fighting(null, 0.0)
+	var priest: World.Enemy = w.spawn_enemy(World.PRIEST, 0, Vector2(120, 120))
+	priest.hp = 99999.0
+	var raised := 0
+	for _i: int in range(int(60 * (World.PRIEST_RAISE + 0.5))):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if int(ev[0]) == World.EV_RAISE:
+				raised += int(ev[3])
+	assert_true(not priest.dead, "the priest should still stand")
+	assert_eq(raised, World.PRIEST_RAISED, "one raising in one cycle")

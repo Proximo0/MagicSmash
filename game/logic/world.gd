@@ -13,6 +13,11 @@ const BAT := 4
 const ORC := 5
 const MAGE := 6
 const LICH := 7
+## The later acts' horde (appended so snapshot type ids stay put).
+const WRAITH := 8 # drifts through the crowd and phases out: spells pass through it while it is faded
+const TOME := 9 # a cursed grimoire that circles a wizard and dashes through
+const GARGOYLE := 10 # sits as stone (hard to hurt), then swoops
+const PRIEST := 11 # the bone priest: keeps its distance and raises skeletons
 
 # Spells
 const SP_ARCANE := 0
@@ -79,6 +84,7 @@ const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcom
 const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
 const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
+const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -90,6 +96,10 @@ const STATS := [
 	[18.0, 30.0, 8.0, 300, 2],   # orc
 	[6.0,  22.0, 5.0, 250, 1],   # dark mage
 	[380.0, 26.0, 14.0, 5000, 2],# lich
+	[4.0,  44.0, 5.0, 120, 1],   # wraith
+	[3.0,  64.0, 5.0, 90,  1],   # cursed tome
+	[12.0, 30.0, 7.0, 260, 1],   # gargoyle
+	[9.0,  24.0, 5.0, 300, 1],   # bone priest
 ]
 
 ## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then xp,
@@ -110,7 +120,21 @@ const HORDE := [
 	[SKELETON, 3.0, 60.0,  1, 2, 5,  0],
 	[ORC,      9.0, 150.0, 1, 1, 1,  0],
 	[MAGE,     6.0, 210.0, 1, 1, 2,  0],
+	[WRAITH,   2.0, 240.0, 1, 2, 4,  0],
+	[TOME,     2.0, 300.0, 2, 3, 6,  0],
+	[PRIEST,   8.0, 420.0, 1, 1, 1,  0],
+	[GARGOYLE, 7.0, 600.0, 1, 1, 2,  0],
 ]
+## How long a wraith stays solid and faded, s; how long a gargoyle sits as stone and swoops, s; and the share of
+## damage stone takes.
+const WRAITH_SOLID := 1.6
+const WRAITH_FADED := 0.9
+const GARGOYLE_PERCH := 2.2
+const GARGOYLE_SWOOP := 1.1
+const STONE_DAMAGE := 0.25
+## Seconds between a bone priest's raisings and how many skeletons rise each time.
+const PRIEST_RAISE := 6.0
+const PRIEST_RAISED := 2
 ## Seconds between enemies of one group walking through a door.
 const DOOR_STAGGER := 0.1
 ## Elite multipliers on score and XP, and what an elite drops.
@@ -121,7 +145,7 @@ const FINAL_RAGE := 0.66
 const ELITE_GEMS := 6
 
 ## XP a gem dropped by each enemy type is worth (same order as STATS).
-const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25]
+const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25, 2, 2, 4, 5]
 
 const DOORS := [Vector2(240, 30), Vector2(240, 266), Vector2(12, 148), Vector2(468, 148)]
 const DOOR_DIRS := [Vector2(0, 1), Vector2(0, -1), Vector2(1, 0), Vector2(-1, 0)]
@@ -582,8 +606,13 @@ func _horde_row(type: int) -> Array:
 ## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome.
 func _spawn_elite() -> void:
 	var type := SKELETON
-	if wave >= 4:
-		type = ORC if rng.randf() < 0.6 else MAGE
+	var roll := rng.randf()
+	if wave >= 10:
+		type = GARGOYLE if roll < 0.4 else (PRIEST if roll < 0.7 else ORC)
+	elif wave >= 6:
+		type = PRIEST if roll < 0.35 else (ORC if roll < 0.7 else MAGE)
+	elif wave >= 4:
+		type = ORC if roll < 0.6 else MAGE
 	elif wave >= 2:
 		type = ORC
 	var e := spawn_enemy(type, rng.randi_range(0, 3))
@@ -988,12 +1017,77 @@ func _update_enemy(e: Enemy, dt: float) -> void:
 						emit(EV_ESHOT, e.pos.x, e.pos.y - 8, ES_ORB, 0)
 		LICH:
 			desired = _update_lich(e, dt, tgt, dirv, dist)
+		WRAITH:
+			# Straight through the crowd, fading out (state 1) for a moment in every cycle.
+			var cyc := fmod(e.t, WRAITH_SOLID + WRAITH_FADED)
+			e.state = 1 if cyc >= WRAITH_SOLID else 0
+			desired = (dirv + dirv.orthogonal() * sin(e.t * 2.0 + e.id) * 0.25).normalized() * e.spd
+		TOME:
+			match e.state:
+				0:
+					# Circle the wizard at a reading distance, then rear up and dash through.
+					var side := 1.0 if e.id % 2 == 0 else -1.0
+					var ring := dirv * (dist - 70.0) * 0.04 + dirv.orthogonal() * side
+					desired = ring.normalized() * e.spd
+					e.timer -= dt
+					if e.timer <= 0.0 and tgt and dist < 140:
+						e.state = 1
+						e.timer2 = 0.4
+						e.dir = dirv
+				1:
+					e.timer2 -= dt
+					desired = -e.dir * 20.0
+					if e.timer2 <= 0.0:
+						e.state = 2
+						e.timer2 = 0.55
+				2:
+					e.timer2 -= dt
+					desired = e.dir * 210.0
+					if e.timer2 <= 0.0:
+						e.state = 0
+						e.timer = rng.randf_range(2.4, 3.6)
+		GARGOYLE:
+			# Perched as stone (state 0), then a swoop at the wizard (state 1).
+			e.timer -= dt
+			if e.state == 0:
+				desired = Vector2.ZERO
+				if e.timer <= 0.0 and tgt:
+					e.state = 1
+					e.timer = GARGOYLE_SWOOP
+					e.dir = dirv
+					emit(EV_CHARGE, e.pos.x, e.pos.y - 10, e.id, 0)
+			else:
+				e.dir = e.dir.lerp(dirv, minf(1.0, dt * 2.5)).normalized()
+				desired = e.dir * 150.0
+				if e.timer <= 0.0:
+					e.state = 0
+					e.timer = GARGOYLE_PERCH
+		PRIEST:
+			if dist > 150:
+				desired = dirv * e.spd
+			elif dist < 105:
+				desired = -dirv * e.spd
+			else:
+				desired = dirv.orthogonal() * e.spd * (1.0 if e.id % 2 == 0 else -1.0)
+			e.timer2 += dt
+			e.state = 1 if fmod(e.timer2, PRIEST_RAISE) > PRIEST_RAISE - 0.6 else 0
+			if e.timer2 >= PRIEST_RAISE:
+				e.timer2 -= PRIEST_RAISE
+				var room := int(tune.enemy_cap) - enemies.size() - spawn_queue.size()
+				var n := mini(PRIEST_RAISED, room)
+				for k in n:
+					var at := e.pos + Vector2.from_angle(rng.randf() * TAU) * 14.0
+					at.x = clampf(at.x, G.ARENA.position.x + 8, G.ARENA.end.x - 8)
+					at.y = clampf(at.y, G.ARENA.position.y + 8, G.ARENA.end.y - 4)
+					spawn_enemy(SKELETON, 0, at)
+				if n > 0:
+					emit(EV_RAISE, e.pos.x, e.pos.y, n, 0)
 	e.vel = e.vel.lerp(desired * sm, minf(1.0, dt * 10.0))
 	e.pos += (e.vel + e.knock) * dt
 	e.knock = e.knock.move_toward(Vector2.ZERO, dt * 600.0)
 	# Separation so hordes spread into a crowd instead of a single blob.
 	# Half the crowd separates each tick (alternating by id), at double strength: the same spread for half the cost.
-	if e.type != BAT and (e.id + _tick) % 2 == 0:
+	if e.type != BAT and e.type != WRAITH and (e.id + _tick) % 2 == 0:
 		_separate(e)
 	e.pos.x = clampf(e.pos.x, G.ARENA.position.x + e.r, G.ARENA.end.x - e.r)
 	e.pos.y = clampf(e.pos.y, G.ARENA.position.y + e.r, G.ARENA.end.y - 2)
@@ -1001,7 +1095,7 @@ func _update_enemy(e: Enemy, dt: float) -> void:
 	for p in players.values():
 		if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 			var dmg := e.contact
-			if e.type == ORC and e.state == 2:
+			if (e.type == ORC and e.state == 2) or (e.type == GARGOYLE and e.state == 1):
 				dmg = 2
 			hurt_player(p, dmg)
 
@@ -1117,16 +1211,22 @@ func _eshot(kind: int, pos: Vector2, vel: Vector2, r: float) -> void:
 	s.r = r
 	eshots.append(s)
 
+## A wraith phased out: shots fly through it and nothing hurts it.
+func _faded(e: Enemy) -> bool:
+	return e.type == WRAITH and e.state == 1
+
 func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
-	if e.dead:
+	if e.dead or _faded(e):
 		return
+	if e.type == GARGOYLE and e.state == 0:
+		dmg *= STONE_DAMAGE
 	var src: Player = players.get(slot)
 	if src:
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + meta_damage)
 	record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
-	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC else 1.0)
+	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC or e.type == GARGOYLE else 1.0)
 	e.knock += knock * km
 	emit(EV_HIT, e.pos.x, e.pos.y - e.r, e.type, slot)
 	if e.hp <= 0.0:
@@ -1270,7 +1370,7 @@ func _update_shots(dt: float) -> void:
 				_explode(s)
 			continue
 		for e in _query(s.pos, 20.0):
-			if e.dead or s.hits.has(e.id):
+			if e.dead or s.hits.has(e.id) or _faded(e):
 				continue
 			var hit_pos = e.pos + Vector2(0, -e.r * 0.8)
 			if s.pos.distance_to(hit_pos) < s.r + e.r + 1.0:
