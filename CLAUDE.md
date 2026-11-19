@@ -20,9 +20,11 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 - `game/logic/`: `World` (the whole authoritative simulation: the timed horde, enemies, spells, pickups, snapshots; seeded
   with `World.new(slots, seed)`), `SmashBot` (play-bot brain shared by the arena and the sims), `Upgrades` (level-up catalogue, seeded offer
   roll and effect values), `Spells` (spell weapon stats per level and the evolutions),
-  `Loot` (rarity tiers, chest items, armor stats, run gold), `Gamble` (shrine outcomes and costs).
+  `Loot` (rarity tiers, chest items, armor stats, run gold), `Gamble` (shrine outcomes and costs),
+  `Profile` (crystals and meta unlocks between runs).
 - `game/arena/` (renders snapshots, fx, sound cues), `game/ui/` (title, lobby, font, touch), `game/input/`,
-  `game/art/`. Autoloads `G` (constants, scene switch), `Sfx`, `Net` (LAN roster, inputs, snapshots).
+  `game/art/`. Autoloads `G` (constants, scene switch), `Save` (the only reader and writer of
+  player data, `user://profile.json`), `Sfx`, `Net` (LAN roster, inputs, snapshots).
 - `game/debug/autotest.gd`: `godot --path . -- --autotest[=wave] [--out=dir]` plays with bots and saves screenshots
   (needs a display: `xvfb-run -a godot ...`).
 - `tests/bot/bot.tscn`: boots the real game and lets bots play 75 s per shard (seed 101+shard, 1+shard%4 wizards).

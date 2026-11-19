@@ -227,6 +227,12 @@ var pickups: Array[Pickup] = []
 var shrines: Array[Shrine] = []
 var shrine_t := 0.0
 var team_shrine_t := 0.0
+## Meta unlock bonuses for this run (Profile.bonuses through apply_meta); all zero by default.
+var meta_damage := 0.0
+var meta_xp := 0.0
+var meta_gold := 0.0
+var meta_luck := 0
+var liches_slain := 0
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
@@ -271,6 +277,24 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 		p.upgrades[Upgrades.weapon_entry(SP_ARCANE)] = 1
 		players[s] = p
 	events.append([EV_WAVE, 0, 0, wave, 0])
+
+## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
+## and damage, XP, gold and chest luck bonuses. Call once, before the first step.
+func apply_meta(b: Dictionary) -> void:
+	meta_damage = float(b.get("damage", 0.0))
+	meta_xp = float(b.get("xp", 0.0))
+	meta_gold = float(b.get("gold", 0.0))
+	meta_luck = int(b.get("luck", 0.0))
+	for p: Player in players.values():
+		p.max_hp += int(b.get("hearts", 0.0))
+		p.hp = p.max_hp
+		p.bombs += int(b.get("novas", 0.0))
+
+func total_kills() -> int:
+	var n := 0
+	for p: Player in players.values():
+		n += p.kills
+	return n
 
 func pscale() -> float:
 	return 1.0 + tune.spawn_party_scale * (players.size() - 1)
@@ -328,7 +352,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 		if not any:
 			phase = PH_GAMEOVER
 			phase_t = 0.0
-			emit(EV_GAMEOVER, 0, 0, total_score(), 0)
+			emit(EV_GAMEOVER, wave_time, total_kills(), total_score(), liches_slain)
 
 # ============================================================ LEVEL-UPS ===
 ## Offers and applies level-up picks. Returns true while any player still has to pick: the whole world waits.
@@ -1030,7 +1054,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 		return
 	var src: Player = players.get(slot)
 	if src:
-		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT])
+		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + meta_damage)
 	e.hp -= dmg
 	e.flash = 0.07
 	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC else 1.0)
@@ -1066,6 +1090,7 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			emit(EV_SPLIT, e.pos.x, e.pos.y - 4, 0, 0)
 		LICH:
 			boss = null
+			liches_slain += 1
 			for o in enemies:
 				if not o.dead and o != e:
 					o.dead = true
@@ -1257,7 +1282,7 @@ func _magnet_xp(k: Pickup) -> void:
 
 func _collect(p: Player, k: Pickup) -> void:
 	if k.kind == PK_XP:
-		gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades))))
+		gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades) * (1.0 + meta_xp))))
 		emit(EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 		return
 	if k.kind == PK_CHEST:
@@ -1267,10 +1292,10 @@ func _collect(p: Player, k: Pickup) -> void:
 	match k.kind:
 		PK_COIN:
 			pts = 100
-			p.gold += Loot.GOLD_COIN * (1.0 + p.armor[Loot.ST_GREED])
+			p.gold += Loot.GOLD_COIN * (1.0 + p.armor[Loot.ST_GREED] + meta_gold)
 		PK_GEM:
 			pts = 500
-			p.gold += Loot.GOLD_GEM * (1.0 + p.armor[Loot.ST_GREED])
+			p.gold += Loot.GOLD_GEM * (1.0 + p.armor[Loot.ST_GREED] + meta_gold)
 		PK_POTION:
 			p.hp = mini(p.max_hp, p.hp + 2)
 		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR:
@@ -1293,7 +1318,7 @@ func _collect(p: Player, k: Pickup) -> void:
 ## A chest opens where it is touched: a tier (luck from the chest's value) and an item, applied at once. The
 ## arena plays the reel from EV_CHEST.
 func _open_chest(p: Player, k: Pickup) -> void:
-	var tier := Loot.roll_rarity(rng, float(k.value))
+	var tier := Loot.roll_rarity(rng, float(k.value + meta_luck))
 	var idx := Loot.roll_item(rng)
 	var v := Loot.value(idx, tier)
 	if Loot.kind(idx) == Loot.KIND_ARMOR:

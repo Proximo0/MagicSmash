@@ -43,6 +43,7 @@ var door_anim := [0.0, 0.0, 0.0, 0.0]
 var game_over := false
 var game_over_t := 0.0
 var final_score := 0
+var crystals_earned := 0
 
 var shake := 0.0
 var screen_flash := Color(0, 0, 0, 0)
@@ -139,6 +140,7 @@ func _ready() -> void:
 		if slots.is_empty():
 			slots.append(0)
 		world = World.new(slots, int(Flags.get_arg("seed", "0")))
+		world.apply_meta(Save.run_bonuses())
 	Sfx.music("music_battle")
 
 func _layer(additive: bool) -> Node2D:
@@ -602,7 +604,8 @@ func _handle_events(evs: Array) -> void:
 				game_over = true
 				game_over_t = 0.0
 				final_score = int(ev[3])
-				G.submit_score(final_score)
+				run_t = float(ev[1])
+				crystals_earned = G.finish_run(final_score, float(ev[1]), int(ev[2]), int(ev[4]))
 				Sfx.music("music_gameover")
 			World.EV_LEVELUP:
 				var col := G.player_fx(int(ev[3]))
@@ -1349,6 +1352,7 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	PixelFont.draw(ci, "BEST", Vector2(150, y), 1, Color("c9b8ff"))
 	PixelFont.draw(ci, "%07d" % G.high_score, Vector2(270, y), 1, Color("c9b8ff"))
 	PixelFont.draw_centered(ci, "SURVIVED " + _clock(run_t), 240, y + 18, 1, Color("8bff9e"))
+	PixelFont.draw_centered(ci, "+%d CRYSTALS  (%d TO SPEND)" % [crystals_earned, Save.profile.crystals], 240, y + 30, 1, Color("8bdcff"))
 	if game_over_t > 2.0 and int(time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if is_host else "WAITING FOR HOST..."
 		if G.touch_active and is_host:

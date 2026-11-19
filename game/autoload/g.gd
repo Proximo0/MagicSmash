@@ -24,7 +24,7 @@ func _ready() -> void:
 	is_mobile = OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 	touch_active = is_mobile
 	Sprites.build_all()
-	_load_high_score()
+	high_score = Save.profile.high_score
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 func _input(event: InputEvent) -> void:
@@ -40,21 +40,12 @@ func goto_game() -> void:
 	if main:
 		main.show_game()
 
-func submit_score(s: int) -> void:
-	last_score = s
-	if s > high_score:
-		high_score = s
-		if Flags.is_scripted_run():
-			return  # bots, sims and captures never write player data
-		var f := FileAccess.open("user://save.cfg", FileAccess.WRITE)
-		if f:
-			f.store_line(str(high_score))
-
-func _load_high_score() -> void:
-	if FileAccess.file_exists("user://save.cfg"):
-		var f := FileAccess.open("user://save.cfg", FileAccess.READ)
-		if f:
-			high_score = int(f.get_line())
+## Books a finished run in the profile (best score, crystals) through Save. Returns the crystals earned.
+func finish_run(score: int, seconds: float, kills: int, liches: int) -> int:
+	last_score = score
+	var earned := Save.finish_run(score, seconds, kills, liches)
+	high_score = Save.profile.high_score
+	return earned
 
 static func player_color(slot: int) -> Color:
 	return Sprites.PLAYER_COLORS[slot % 4].robe
