@@ -42,6 +42,15 @@ fi
 
 cd "${ROOT}"
 mkdir -p "$(dirname "${EXE_OUT}")"
+# Crash reports (docs/sentry.md): the addon is fetched, not in git. Without it the build still works, unreported.
+SENTRY="yes"
+if ! tools/fetch_sentry.sh >/dev/null; then
+	SENTRY="no"
+	echo "export_windows (${PROJECT_NAME}): sentry addon missing, this build sends no crash reports" >&2
+fi
+if [[ "${SENTRY}" == "yes" ]] && ! godot --headless --path . --import >/dev/null 2>&1; then
+	fail "godot import failed after fetching the sentry addon"
+fi
 
 if ! godot --headless --path . --export-release "Windows Desktop" "${EXE_OUT}" >/dev/null 2>&1; then
 	fail "godot export failed (rerun with godot directly for details)"
@@ -60,4 +69,4 @@ rm -f "${ZIP_OUT}"
 (cd build && zip -q -r "$(basename "${ZIP_OUT}")" windows) || fail "zip not produced"
 [[ -f "${ZIP_OUT}" ]] || fail "zip not produced"
 
-echo "export_windows: ok ${ZIP_OUT}"
+echo "export_windows: ok ${ZIP_OUT} sentry=${SENTRY}"

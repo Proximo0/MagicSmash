@@ -1,9 +1,10 @@
 class_name OptionsPanel
 extends RefCounted
-## The options panel the title and the pause menu both open: music and sound volume, the window, screen shake.
+## The options panel the title and the pause menu both open: music and sound volume, the window, screen shake,
+## crash reports.
 ## Changes apply at once and are saved when the panel closes.
 
-const RECT := Rect2(120, 142, 240, 98)
+const RECT := Rect2(120, 134, 240, 112)
 const ROW_H := 14
 
 var sel: int = 0

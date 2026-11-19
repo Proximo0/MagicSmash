@@ -1,6 +1,6 @@
 class_name Settings
 extends RefCounted
-## Player options: music and sound volume, the window, screen shake. Pure data plus the rules for stepping each
+## Player options: music and sound volume, the window, screen shake, crash reports. Pure data plus the rules for stepping each
 ## row left or right, so the title's and the pause menu's options panel share one model. The Save autoload reads
 ## and writes it (user://settings.json) and applies it.
 
@@ -13,12 +13,15 @@ const R_MUSIC := 0
 const R_SOUND := 1
 const R_DISPLAY := 2
 const R_SHAKE := 3
-const ROWS := ["MUSIC", "SOUND", "DISPLAY", "SCREEN SHAKE"]
+const R_CRASH := 4
+const ROWS := ["MUSIC", "SOUND", "DISPLAY", "SCREEN SHAKE", "CRASH REPORTS"]
 
 var music: int = 5
 var sound: int = 8
 var display: int = 1
 var shake: bool = true
+## Whether crashes and script errors are reported to the developer (the Crash autoload).
+var crash_reports: bool = true
 ## Whether the prologue has been shown once (it then plays only from THE TALE on the title).
 var seen_prologue: bool = false
 ## Whether the controls hint has been shown at the start of a first run.
@@ -43,6 +46,8 @@ func value_text(row: int) -> String:
 			return DISPLAY_NAMES[display]
 		R_SHAKE:
 			return "ON" if shake else "OFF"
+		R_CRASH:
+			return "ON" if crash_reports else "OFF"
 	return ""
 
 
@@ -55,7 +60,7 @@ func bar(row: int) -> float:
 	return -1.0
 
 
-## Steps `row` by `dir` (-1 or +1). Volumes stop at their ends; the display and shake wrap. Returns whether
+## Steps `row` by `dir` (-1 or +1). Volumes stop at their ends; the display wraps and the switches flip. Returns whether
 ## anything changed.
 func adjust(row: int, dir: int) -> bool:
 	match row:
@@ -74,6 +79,9 @@ func adjust(row: int, dir: int) -> bool:
 			return true
 		R_SHAKE:
 			shake = not shake
+			return true
+		R_CRASH:
+			crash_reports = not crash_reports
 			return true
 	return false
 
@@ -96,8 +104,8 @@ func window_scale() -> int:
 
 
 func to_dict() -> Dictionary:
-	return {"music": music, "sound": sound, "display": display, "shake": shake, "seen_prologue": seen_prologue,
-		"seen_tutorial": seen_tutorial}
+	return {"music": music, "sound": sound, "display": display, "shake": shake, "crash_reports": crash_reports,
+		"seen_prologue": seen_prologue, "seen_tutorial": seen_tutorial}
 
 
 ## Settings from a saved dictionary. Missing or broken values keep their defaults; numbers are clamped.
@@ -107,6 +115,7 @@ static func from_dict(d: Dictionary) -> Settings:
 	s.sound = clampi(int(d.get("sound", s.sound)), 0, VOL_MAX)
 	s.display = clampi(int(d.get("display", s.display)), 0, DISPLAY_NAMES.size() - 1)
 	s.shake = bool(d.get("shake", s.shake))
+	s.crash_reports = bool(d.get("crash_reports", s.crash_reports))
 	s.seen_prologue = bool(d.get("seen_prologue", false))
 	s.seen_tutorial = bool(d.get("seen_tutorial", false))
 	return s
