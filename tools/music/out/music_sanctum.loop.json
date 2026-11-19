@@ -1,0 +1,10 @@
+{
+ "name": "music_sanctum",
+ "samples": 4233600,
+ "sample_rate": 44100,
+ "loop": true,
+ "loop_begin": 0,
+ "loop_end": 4233600,
+ "bpm": 150,
+ "bars": 60
+}

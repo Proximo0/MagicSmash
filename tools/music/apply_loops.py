@@ -25,7 +25,7 @@ edit/loop_end={end}
 compress/mode=2
 """
 
-for name in ("music_title", "music_battle", "music_boss", "music_gameover"):
+for name in ("music_title", "music_battle", "music_library", "music_sanctum", "music_boss", "music_gameover"):
     meta_path = os.path.join(OUT, name + ".loop.json")
     imp = os.path.join(AUDIO, name + ".wav.import")
     if not os.path.exists(meta_path):
