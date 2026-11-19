@@ -67,6 +67,13 @@ var _pick_sent := {}
 const CARD_W := 140
 const CARD_H := 40
 const CARD_GAP := 8
+## One player picking: full tarot cards.
+const TAROT_W := 100
+const TAROT_H := 162
+const TAROT_GAP := 16
+const TAROT_TOP := 52
+## slot -> [offer, time it was dealt], for the deal animation.
+var _pick_dealt := {}
 const PICK_ROW_H := 52
 const PICK_TOP := 44
 const BOT_PICK_THINK := 0.9
@@ -1276,38 +1283,65 @@ func _local_pick_slots() -> Array[int]:
 	return out
 
 func _card_rect(row: int, c: int) -> Rect2:
+	if _local_pick_slots().size() == 1:
+		var bx := (480 - (TAROT_W * 3 + TAROT_GAP * 2)) / 2
+		return Rect2(bx + c * (TAROT_W + TAROT_GAP), TAROT_TOP, TAROT_W, TAROT_H)
 	var x0 := (480 - (CARD_W * 3 + CARD_GAP * 2)) / 2
 	return Rect2(x0 + c * (CARD_W + CARD_GAP), PICK_TOP + row * PICK_ROW_H + 9, CARD_W, CARD_H)
+
+
+## How far the dealt card `c` of `slot`'s offer has turned over: 0 face down, 1 face up.
+func _deal(slot: int, c: int) -> float:
+	var offer := int(vp[slot].offer)
+	var seen: Array = _pick_dealt.get(slot, [-1, 0.0])
+	if int(seen[0]) != offer:
+		seen = [offer, time]
+		_pick_dealt[slot] = seen
+	return clampf((time - float(seen[1]) - 0.1 * c) / 0.3, 0.0, 1.0)
 
 func _draw_levelup(ci: CanvasItem) -> void:
 	var dark := Color("0b0716")
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.72))
-	var tw := PixelFont.text_width("LEVEL UP!", 3)
-	PixelFont.draw_gradient(ci, "LEVEL UP!", Vector2(240 - tw / 2.0, 22), 3, Color.WHITE, Color("5dff7a"), time * 5.0, 1.5)
+	var tw := PixelFont.text_width("LEVEL UP", 3)
+	PixelFont.draw_gradient(ci, "LEVEL UP", Vector2(240 - tw / 2.0, 14), 3, Color.WHITE, Color("ffd94d"), time * 5.0, 1.5)
 	var rows := _local_pick_slots()
+	var big := rows.size() == 1
 	for row in rows.size():
 		var slot: int = rows[row]
 		var p: Dictionary = vp[slot]
 		var col := G.player_color(slot)
 		var sent: Array = _pick_sent.get(slot, [-1, -1])
 		var done := int(sent[1]) == int(p.offer)
-		var y0 := PICK_TOP + row * PICK_ROW_H
-		PixelFont.draw(ci, "P%d  LV%d  %s" % [slot + 1, p.level, "WAITING FOR THE OTHERS..." if done else "CHOOSE ONE"],
-			Vector2(_card_rect(row, 0).position.x, y0), 1, col, dark)
+		var y0 := (TAROT_TOP - 14) if big else PICK_TOP + row * PICK_ROW_H
+		var line := "P%d  LEVEL %d  -  %s" % [slot + 1, p.level, "WAITING FOR THE OTHERS" if done else "DRAW A CARD"]
+		if big:
+			PixelFont.draw_centered(ci, line, 240, y0, 1, col, dark)
+		else:
+			PixelFont.draw(ci, line, Vector2(_card_rect(row, 0).position.x, y0), 1, col, dark)
 		var choices: Array = p.choices
 		for c in choices.size():
 			var r := _card_rect(row, c)
 			var sel: bool = (int(sent[0]) == c) if done else (int(_pick_sel.get(slot, 0)) == c)
 			var idx: int = choices[c]
-			ci.draw_rect(r.grow(1), col if sel else Color("3a2a58"))
-			ci.draw_rect(r, Color("1d1233") if not sel else Color("2c1a4d"))
-			var cx := r.position.x + r.size.x / 2.0
-			PixelFont.draw_centered(ci, Upgrades.display_name(idx), cx, r.position.y + 5, 1,
-				Color("ffd94d") if sel else Color.WHITE, dark)
-			PixelFont.draw_centered(ci, Upgrades.description(idx), cx, r.position.y + 17, 1, Color("c9b8ff"), dark)
 			var lv: int = p.choice_lv[c]
-			PixelFont.draw_centered(ci, "NEW" if lv == 1 else "LV %d/%d" % [lv, Upgrades.max_level(idx)], cx,
-				r.position.y + 29, 1, Color("5dff7a"), dark)
+			var lv_text := "NEW" if lv == 1 else "LEVEL %d/%d" % [lv, Upgrades.max_level(idx)]
+			var k := _deal(slot, c)
+			if k < 0.5:
+				var w := r.size.x * (1.0 - k * 2.0)
+				TarotArt.draw_back(ci, Rect2(r.get_center().x - w / 2.0, r.position.y, w, r.size.y))
+				continue
+			if big and sel:
+				r.position.y -= 6
+			if big:
+				TarotArt.draw_card(ci, r, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
+					lv_text, sel, col, time)
+				if sel:
+					Occult.cursor(ci, Vector2(r.get_center().x, r.end.y + 12), time)
+			else:
+				TarotArt.draw_card_small(ci, r, Upgrades.key(idx), Upgrades.display_name(idx),
+					Upgrades.description(idx), lv_text, sel, col, time)
+			if k < 0.75:
+				ci.draw_rect(r, Color(1, 1, 1, (0.75 - k) * 3.0))
 	var waiting: Array[String] = []
 	for s in vp.keys():
 		if not rows.has(s) and not (vp[s].choices as Array).is_empty():

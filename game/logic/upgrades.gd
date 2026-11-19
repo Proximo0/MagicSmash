@@ -16,18 +16,19 @@ const LIFE := 7
 const W_FIRST := 8
 const EVO_FIRST := 13
 
-## [key, name, short description, weight, values per level, requires]. Indices are the constants above and are
+## [key, name, short description, weight, values per level, requires]. Passives are named for the Major Arcana
+## tarot card they are drawn as (TarotArt). Indices are the constants above and are
 ## sent in snapshots, so append new upgrades at the end. `requires` is a list of [entry, minimum level] that
 ## must all hold before the entry can be offered. Spell names and evolution names match Spells.
 const CATALOG: Array = [
-	["swift", "SWIFT FEET", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40], []],
-	["quick", "QUICK CAST", "CAST FASTER", 10.0, [0.92, 0.85, 0.79, 0.74, 0.70], []],
-	["power", "SPELL POWER", "MORE DAMAGE", 10.0, [1.15, 1.30, 1.45, 1.60, 1.80], []],
-	["regen", "REGENERATE", "HEAL OVER TIME", 6.0, [18.0, 12.0, 8.0], []],
-	["magnet", "MAGNET", "PULL XP FROM AFAR", 7.0, [1.6, 2.2, 3.0], []],
-	["wisdom", "WISDOM", "MORE XP", 7.0, [1.15, 1.30, 1.50], []],
-	["nova", "NOVA CHARGE", "+1 NOVA NOW", 5.0, [1.0, 1.0, 1.0, 1.0, 1.0], []],
-	["life", "SECOND WIND", "+1 LIFE NOW", 3.0, [1.0, 1.0], []],
+	["swift", "THE CHARIOT", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40], []],
+	["quick", "THE MAGICIAN", "CAST FASTER", 10.0, [0.92, 0.85, 0.79, 0.74, 0.70], []],
+	["power", "STRENGTH", "MORE DAMAGE", 10.0, [1.15, 1.30, 1.45, 1.60, 1.80], []],
+	["regen", "TEMPERANCE", "HEAL OVER TIME", 6.0, [18.0, 12.0, 8.0], []],
+	["magnet", "THE MOON", "PULL XP FROM AFAR", 7.0, [1.6, 2.2, 3.0], []],
+	["wisdom", "THE HERMIT", "MORE XP", 7.0, [1.15, 1.30, 1.50], []],
+	["nova", "THE TOWER", "+1 NOVA NOW", 5.0, [1.0, 1.0, 1.0, 1.0, 1.0], []],
+	["life", "JUDGEMENT", "+1 LIFE NOW", 3.0, [1.0, 1.0], []],
 	["w_arcane", "ARCANE BOLT", "AUTO-CAST BOLTS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
 	["w_fire", "FIREBALL", "EXPLODES ON HIT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
 	["w_frost", "FROST FAN", "SLOWS ENEMIES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
@@ -51,6 +52,10 @@ static func max_level(idx: int) -> int:
 
 static func display_name(idx: int) -> String:
 	return CATALOG[idx][1]
+
+
+static func key(idx: int) -> String:
+	return CATALOG[idx][0]
 
 
 static func description(idx: int) -> String:
