@@ -1,7 +1,7 @@
 # Magic Smash
 
 A Smash TV style twin-stick arena shooter with wizards. Up to 4 players on one
-machine (keyboard + gamepads) or over LAN. Built with **Godot 4.3** (GDScript),
+machine (keyboard + gamepads) or over LAN. Built with **Godot 4.7.2** (GDScript),
 so the same project exports to Windows, macOS, Linux, Android, iOS and Web.
 
 ## Play it
@@ -12,7 +12,7 @@ so the same project exports to Windows, macOS, Linux, Android, iOS and Web.
 | Linux | `magic-smash-builds/MagicSmash-Linux.tar.gz` | Extract, `./MagicSmash.x86_64` |
 | Android | `magic-smash-builds/MagicSmash-Android.apk` | Test build signed with a debug key, for sideloading on Android 7+. |
 
-To edit: install Godot 4.3+ (standard build, not .NET), choose *Import*, and pick
+To edit: install Godot 4.7.2 (standard build, not .NET), choose *Import*, and pick
 `project.godot` in this folder.
 
 ## Controls

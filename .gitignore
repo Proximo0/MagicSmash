@@ -1,8 +1,18 @@
-# Godot
-.godot/
-*.translation
-export_credentials.cfg
+
 # Builds and Python
+# Credentials for online services and signing (docs/online.md): never commit them
+# Godot
+# Godot cache and generated output
+*.jks
+*.keystore
+*.pyc
+*.translation
+*credentials*.cfg
+.godot/
+/build/
 /builds/
+/out/
 __pycache__/
+config/*credentials*
+export_credentials.cfg
 tools/music/out/candidates/
