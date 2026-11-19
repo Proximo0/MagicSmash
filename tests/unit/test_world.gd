@@ -553,3 +553,83 @@ func test_lich_drops_a_lucky_chest_per_wizard() -> void:
 			chests += 1
 			assert_eq(k.value, int(w.tune.boss_chest_luck))
 	assert_eq(chests, 3)
+
+
+func _shrine_world(slots: Array = [0]) -> World:
+	var w := World.new(slots, 3)
+	w.phase = World.PH_FIGHT
+	w.shrine_t = 99999.0
+	w.team_shrine_t = 99999.0
+	w.horde_budget = -99999.0 # keep the arena empty
+	for s: int in slots:
+		_player(w, s).invuln = 99999.0
+	return w
+
+
+func _stand_on(w: World, sh: World.Shrine, seconds: float) -> void:
+	for p: World.Player in w.players.values():
+		p.pos = sh.pos
+	for _i: int in range(int(seconds * 60.0)):
+		for p: World.Player in w.players.values():
+			p.pos = sh.pos
+		w.step(DT, {})
+
+
+func test_shrines_appear_on_their_timer() -> void:
+	var w := _shrine_world()
+	w.shrine_t = 0.5
+	for _i: int in range(60):
+		w.step(DT, {})
+	assert_eq(w.shrines.size(), 1)
+	assert_eq(w.shrines[0].kind, Gamble.SOLO)
+	assert_eq(w.shrines[0].cost, Gamble.cost(Gamble.SOLO, 1, w.tune.shrine_cost_base, w.tune.shrine_cost_per_min, w.tune.team_cost_mul))
+
+
+func test_a_wizard_without_gold_cannot_bet() -> void:
+	var w := _shrine_world()
+	w._place_shrine(Gamble.SOLO)
+	var sh: World.Shrine = w.shrines[0]
+	_stand_on(w, sh, 2.0)
+	assert_eq(w.shrines.size(), 1, "the shrine took a bet nobody could pay")
+
+
+func test_solo_bet_takes_gold_then_pays_after_the_reel() -> void:
+	var w := _shrine_world()
+	var p := _player(w)
+	w._place_shrine(Gamble.SOLO)
+	var sh: World.Shrine = w.shrines[0]
+	p.gold = 100.0
+	w.take_events()
+	_stand_on(w, sh, w.tune.shrine_hold + 0.1)
+	assert_true(w.shrines.is_empty(), "the shrine should be used")
+	assert_near(p.gold, 100.0 - sh.cost)
+	var done := false
+	for _i: int in range(int(w.tune.shrine_reel * 60.0) + 10):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_GAMBLE:
+				done = true
+	assert_true(done, "the outcome never landed")
+
+
+func test_team_blessing_levels_everyone() -> void:
+	var w := _shrine_world([0, 1, 2])
+	var levels: Array[int] = []
+	for s: int in [0, 1, 2]:
+		levels.append(_player(w, s).level)
+	w._resolve_gamble({"slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_BLESSING, "stake": 40, "pos": Vector2(200, 120)})
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).level, levels[s] + Gamble.BLESSING_LEVELS)
+
+
+func test_team_curse_hurts_but_never_kills() -> void:
+	var w := _shrine_world([0, 1])
+	_player(w, 0).hp = 1
+	var elites: int = 0
+	w._resolve_gamble({"slot": 1, "kind": Gamble.TEAM, "outcome": Gamble.TO_CURSE, "stake": 40, "pos": Vector2(200, 120)})
+	assert_eq(_player(w, 0).hp, 1)
+	assert_eq(_player(w, 1).hp, _player(w, 1).max_hp - 1)
+	for e: World.Enemy in w.enemies:
+		if e.elite:
+			elites += 1
+	assert_eq(elites, 2, "the curse sends an elite per wizard")

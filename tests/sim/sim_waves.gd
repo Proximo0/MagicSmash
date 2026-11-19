@@ -18,12 +18,16 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 	var peak: int = 0
 	var streak: int = 0
 	var longest: int = 0
+	var bets: int = 0
 	var t0: int = Time.get_ticks_usec()
 	for _i: int in range(ticks):
 		var inputs: Dictionary = {}
 		for s: int in slots:
 			inputs[s] = (bots[s] as SmashBot).decide_in_world(w, s)
 		w.step(DT, inputs)
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_SHRINE:
+				bets += 1
 		peak = maxi(peak, w.enemies.size())
 		streak = streak + 1 if w.is_picking() else 0
 		longest = maxi(longest, streak)
@@ -32,7 +36,7 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 	for p: World.Player in w.players.values():
 		lowest = mini(lowest, p.level)
 	return {"lowest_level": lowest, "pick_ticks": longest, "wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
-		"over": w.phase == World.PH_GAMEOVER}
+		"over": w.phase == World.PH_GAMEOVER, "bets": bets}
 
 
 func run() -> Array:
@@ -50,5 +54,6 @@ func run() -> Array:
 			"lowest_level=%d (need %d)" % [four.lowest_level, MIN_LEVEL]),
 		row("picks_resolve_4p", four.pick_ticks <= MAX_PICK_TICKS,
 			"longest_wait_ticks=%d (max %d)" % [four.pick_ticks, MAX_PICK_TICKS]),
+		row("shrines_used_4p", four.bets >= 1, "bets=%d (bots pay shrines they can afford)" % four.bets),
 		row("step_cost_4p", null, "peak_enemies=%d us_per_step=%.0f" % [four.peak, four.us]),
 	]

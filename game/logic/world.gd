@@ -74,6 +74,9 @@ const EV_ELITE := 26
 const EV_RIFT := 27
 const EV_CHEST := 28
 const EV_WARD := 29
+const EV_SHRINE_UP := 30 # a shrine appeared: a = kind
+const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcome; the reel starts
+const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -201,6 +204,14 @@ class EShot:
 	var r := 3.0
 	var dead := false
 
+class Shrine:
+	var kind := 0 # Gamble.SOLO or Gamble.TEAM
+	var pos := Vector2.ZERO
+	var life := 30.0
+	var cost := 0
+	var charge := 0.0 # seconds a wizard who can pay has stood on it
+	var who := -1
+
 class Pickup:
 	var kind := 0
 	var value := 0
@@ -213,6 +224,10 @@ var enemies: Array[Enemy] = []
 var shots: Array[Shot] = []
 var eshots: Array[EShot] = []
 var pickups: Array[Pickup] = []
+var shrines: Array[Shrine] = []
+var shrine_t := 0.0
+var team_shrine_t := 0.0
+var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
 var next_id := 1
@@ -241,6 +256,8 @@ var tune: Tuning
 func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
 	horde_budget = tune.horde_start_budget
+	shrine_t = tune.shrine_first
+	team_shrine_t = tune.team_shrine_first
 	if seed_value == 0:
 		rng.randomize()
 	else:
@@ -288,6 +305,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 			if powerup_timer <= 0.0:
 				powerup_timer = rng.randf_range(9.0, 14.0)
 				_spawn_random_powerup()
+			_update_shrines(dt)
 		PH_GAMEOVER:
 			phase_t += dt
 	_build_grid()
@@ -427,7 +445,17 @@ func _direct_horde(dt: float) -> void:
 ## A rift: a marker opens somewhere in the arena away from the wizards, and after tune.rift_warning the
 ## group bursts out of it in a clump, so the horde surrounds the party instead of queuing at the doors.
 func _queue_rift(type: int, n: int) -> void:
-	var area := G.ARENA.grow(-22)
+	var best := _spot_away(tune.rift_min_dist, 22.0)
+	var spread := 6.0 + 3.0 * sqrt(float(n))
+	emit(EV_RIFT, best.x, best.y, spread, tune.rift_warning)
+	for i in n:
+		var off := Vector2.from_angle(rng.randf() * TAU) * rng.randf() * spread
+		spawn_queue.append({"t": wave_time + tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
+
+## A random point in the arena (inset by `margin`) at least `min_dist` from every living wizard, or the farthest
+## of ten tries.
+func _spot_away(min_dist: float, margin: float) -> Vector2:
+	var area := G.ARENA.grow(-margin)
 	var best := area.get_center()
 	var best_d := -1.0
 	for tries in 10:
@@ -439,13 +467,9 @@ func _queue_rift(type: int, n: int) -> void:
 		if d > best_d:
 			best_d = d
 			best = c
-		if d >= tune.rift_min_dist:
+		if d >= min_dist:
 			break
-	var spread := 6.0 + 3.0 * sqrt(float(n))
-	emit(EV_RIFT, best.x, best.y, spread, tune.rift_warning)
-	for i in n:
-		var off := Vector2.from_angle(rng.randf() * TAU) * rng.randf() * spread
-		spawn_queue.append({"t": wave_time + tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
+	return best
 
 ## A weighted pick among the unlocked HORDE rows, with its group size: [type, count].
 func _roll_group() -> Array:
@@ -1299,6 +1323,89 @@ func _open_chest(p: Player, k: Pickup) -> void:
 				gain_xp(p, maxi(1, int(round(tune.xp_to_next(p.level) * v))))
 	emit(EV_CHEST, k.pos.x, k.pos.y, p.slot, idx * 8 + tier)
 
+# ============================================================= SHRINES ===
+## Shrines appear on timers. A wizard who can pay stands on one for tune.shrine_hold seconds to bet; the gold
+## goes at once, the reel plays, and the outcome lands when it stops. The team shrine bets for everybody.
+func _update_shrines(dt: float) -> void:
+	shrine_t -= dt
+	if shrine_t <= 0.0:
+		shrine_t += tune.shrine_interval
+		_place_shrine(Gamble.SOLO)
+	team_shrine_t -= dt
+	if team_shrine_t <= 0.0:
+		team_shrine_t += tune.team_shrine_interval
+		_place_shrine(Gamble.TEAM)
+	for sh: Shrine in shrines:
+		sh.life -= dt
+		var payer: Player = null
+		for p: Player in players.values():
+			if p.alive and p.gold >= sh.cost and p.pos.distance_to(sh.pos) < tune.shrine_radius:
+				payer = p
+				break
+		if payer == null:
+			sh.charge = maxf(0.0, sh.charge - dt * 2.0)
+			continue
+		if payer.slot != sh.who:
+			sh.who = payer.slot
+			sh.charge = 0.0
+		sh.charge += dt
+		if sh.charge >= tune.shrine_hold:
+			_bet(sh, payer)
+	shrines = shrines.filter(func(sh: Shrine) -> bool: return sh.life > 0.0)
+	while not _gambles.is_empty() and _gambles[0].t <= wave_time:
+		_resolve_gamble(_gambles.pop_front())
+
+## Shrine rows as the snapshot sends them: [kind, x, y, life, charge fraction, cost].
+func snapshot_shrines() -> Array:
+	var out: Array = []
+	for x: Shrine in shrines:
+		out.append([x.kind, x.pos.x, x.pos.y, x.life, x.charge / tune.shrine_hold, x.cost])
+	return out
+
+func _place_shrine(kind: int) -> void:
+	var sh := Shrine.new()
+	sh.kind = kind
+	sh.pos = _spot_away(tune.shrine_min_dist, 30.0)
+	sh.life = tune.shrine_life * (tune.team_shrine_life_mul if kind == Gamble.TEAM else 1.0)
+	sh.cost = Gamble.cost(kind, wave, tune.shrine_cost_base, tune.shrine_cost_per_min, tune.team_cost_mul)
+	shrines.append(sh)
+	emit(EV_SHRINE_UP, sh.pos.x, sh.pos.y, kind, sh.cost)
+
+func _bet(sh: Shrine, p: Player) -> void:
+	sh.life = 0.0
+	p.gold -= sh.cost
+	var outcome := Gamble.roll(rng, sh.kind)
+	var reel := tune.team_reel if sh.kind == Gamble.TEAM else tune.shrine_reel
+	_gambles.append({"t": wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
+	_gambles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.t < b.t)
+	emit(EV_SHRINE, sh.pos.x, sh.pos.y, p.slot, sh.kind * 16 + outcome)
+
+func _resolve_gamble(g: Dictionary) -> void:
+	var p: Player = players.get(g.slot)
+	var pos: Vector2 = g.pos
+	if g.kind == Gamble.TEAM:
+		for q: Player in players.values():
+			if g.outcome == Gamble.TO_BLESSING:
+				for i in Gamble.BLESSING_LEVELS:
+					gain_xp(q, maxi(1, tune.xp_to_next(q.level) - q.xp))
+			elif q.alive:
+				q.hp = maxi(1, q.hp - 1)
+				q.flash = 0.3
+				_spawn_elite()
+	elif p != null:
+		match int(g.outcome):
+			Gamble.SO_JACKPOT:
+				_drop(PK_CHEST, pos, Vector2.ZERO, tune.chest_life, int(tune.boss_chest_luck))
+			Gamble.SO_CHEST:
+				_drop(PK_CHEST, pos, Vector2.ZERO, tune.chest_life, int(tune.elite_chest_luck))
+			Gamble.SO_DOUBLE:
+				p.gold += g.stake * 2
+			Gamble.SO_CURSE:
+				if p.alive:
+					p.hp = maxi(1, p.hp - 1)
+					p.flash = 0.3
+	emit(EV_GAMBLE, pos.x, pos.y, g.slot, int(g.kind) * 16 + int(g.outcome))
+
 # ================================================================ GRID ===
 func _build_grid() -> void:
 	_grid.clear()
@@ -1361,7 +1468,10 @@ func snapshot() -> Dictionary:
 	var bf := -1.0
 	if boss and not boss.dead:
 		bf = boss.hp / boss.maxhp
+	var shr := PackedFloat32Array()
+	for row: Array in snapshot_shrines():
+		shr.append_array(row)
 	return {
-		"p": pl, "e": en, "s": sh, "es": es, "k": pk,
+		"p": pl, "e": en, "s": sh, "es": es, "k": pk, "sh": shr,
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time]),
 	}
