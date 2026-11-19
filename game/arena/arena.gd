@@ -1806,6 +1806,10 @@ func _draw_game_over(ci: CanvasItem) -> void:
 			msg = "TAP TO CONTINUE"
 		PixelFont.draw_centered(ci, msg, 240, 244, 1, Color.WHITE, dark)
 
+## The tarot card each award is read as on the results screen (TarotArt emblem keys); no award draws The Star.
+const AWARD_ARCANA := {"MVP": "power", "SLAYER": "death", "HIGH ROLLER": "magnet", "LUCKY": "sun",
+	"GOLD DIGGER": "quick", "UNTOUCHABLE": "life", "TEAM PLAYER": "regen"}
+
 ## One column per wizard: name, award, then score, level, kills, damage and gold, revealed one by one.
 func _draw_result_columns(ci: CanvasItem, dark: Color, y0: int) -> void:
 	var slots: Array = []
@@ -1828,11 +1832,19 @@ func _draw_result_columns(ci: CanvasItem, dark: Color, y0: int) -> void:
 		if show <= 0.0:
 			continue
 		var col := G.player_color(slot)
-		ci.draw_rect(Rect2(cx - colw / 2.0 + 4, y0 - 2, colw - 8, 86), Color(col.r, col.g, col.b, 0.12 * show))
-		PixelFont.draw_centered(ci, "P%d" % (slot + 1), cx, y0 + 2, 2, col, dark)
+		# Each wizard's reading: a card face with their award's arcana in the corner.
+		var card := Rect2(cx - colw / 2.0 + 4, y0 - 4, colw - 8, 88)
+		ci.draw_rect(card, Color(col.r * 0.25, col.g * 0.2, col.b * 0.3, 0.75 * show))
+		ci.draw_rect(card, Color(Occult.GOLD, 0.7 * show), false, 1.0)
+		ci.draw_rect(card.grow(-2), Color(col.r, col.g, col.b, 0.45 * show), false, 1.0)
 		var award: String = titles.get(slot, "")
+		var arcana: String = AWARD_ARCANA.get(award, "w_star")
+		var em := Rect2(card.position + Vector2(5, 4), Vector2(24, 24))
+		ci.draw_rect(em.grow(1), Color(dark, show))
+		ci.draw_texture_rect(TarotArt.emblem(arcana), em, false, Color(1, 1, 1, show))
+		PixelFont.draw_centered(ci, "P%d" % (slot + 1), cx + 14, y0 + 2, 2, col, dark)
 		if award != "":
-			PixelFont.draw_centered(ci, award, cx, y0 + 18, 1, Color("ffd94d"), dark)
+			PixelFont.draw_centered(ci, award, cx + 14, y0 + 18, 1, Color("ffd94d"), dark)
 		var y := y0 + 30
 		for r: Array in rows:
 			var v: float = float(vp[slot].score) if r[1] == "score" else (results.stat(slot, r[1]) if results != null else 0.0)
