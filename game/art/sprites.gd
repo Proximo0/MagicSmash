@@ -356,6 +356,15 @@ const GEM := [
 	"..KcK..",
 	"...K...",
 ]
+## Experience shard dropped by every enemy (World.PK_XP).
+const XP_SHARD := [
+	"..K..",
+	".KLK.",
+	"KLGgK",
+	"KGGgK",
+	".KgK.",
+	"..K..",
+]
 const COIN := [
 	".KKK.",
 	"KYLYK",
@@ -417,6 +426,7 @@ static func build_all() -> void:
 	_add("lich", LICH_A, lich)
 	_add("potion", POTION, {"K": OUTLINE, "R": Color("ff3b6b"), "r": Color("a3133c"), "L": Color("ffd0dc"), "w": Color("c8a070")})
 	_add("gem", GEM, {"K": OUTLINE, "C": Color("4df0ff"), "c": Color("1a8fb8"), "L": Color("ffffff")})
+	_add("xp", XP_SHARD, {"K": OUTLINE, "G": Color("5dff7a"), "g": Color("1f9e4a"), "L": Color("eaffd8")})
 	_add("coin", COIN, {"K": OUTLINE, "Y": Color("ffd23d"), "y": Color("c48a10"), "L": Color("fff6c0")})
 	_add("boot", BOOT, {"K": OUTLINE, "B": Color("4dc8ff"), "b": Color("2a6fb8")})
 	var tome_cols := {

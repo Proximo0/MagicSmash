@@ -8,6 +8,8 @@ var out_dir := ""
 var start_wave := 1
 var quit_at := 60.0
 var net := ""
+var _pick_seen := 0.0
+var _pick_shot := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -32,6 +34,14 @@ func _process(delta: float) -> void:
 	if net == "host" and not shots.is_empty() and shots[0][1] == "@play" and Net.roster.size() < 2:
 		return
 	t += delta
+	# State-keyed shot: the first level-up pick screen, once it has been up for a moment.
+	var cur = G.main.current if G.main else null
+	if not _pick_shot and cur and cur.has_method("_anyone_picking") and cur._anyone_picking():
+		_pick_seen += delta
+		if _pick_seen > 0.4:
+			_pick_shot = true
+			get_viewport().get_texture().get_image().save_png("%s/levelup.png" % out_dir)
+			print("shot levelup")
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]

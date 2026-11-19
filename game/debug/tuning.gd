@@ -31,6 +31,11 @@ const FIELDS: Array = [
 	["xp_first_level", 6.0, 1.0, 100.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
 	["xp_per_level", 3.0, 0.0, 50.0, 0.5, "XP", "Extra XP needed per level beyond the first (linear part)."],
 	["xp_growth", 1.12, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
+	["xp_gem_life", 30.0, 5.0, 120.0, 1.0, "XP", "Seconds an XP gem stays on the floor."],
+	["xp_magnet_radius", 24.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
+	["xp_magnet_speed", 170.0, 40.0, 500.0, 5.0, "XP", "Speed of an XP gem flying to a wizard, px/s."],
+	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the pick screen hold 3)."],
+	["maxed_level_score", 1000.0, 0.0, 10000.0, 50.0, "XP", "Score given instead of a pick when every upgrade is maxed."],
 ]
 
 static var _shared: Tuning = null
@@ -56,6 +61,11 @@ var boss_hp_per_cycle: float
 var xp_first_level: float
 var xp_per_level: float
 var xp_growth: float
+var xp_gem_life: float
+var xp_magnet_radius: float
+var xp_magnet_speed: float
+var level_choices: float
+var maxed_level_score: float
 
 
 func _init() -> void:

@@ -33,6 +33,7 @@ const PK_TOME_STORM := 5
 const PK_TOME_STAR := 6
 const PK_BOOTS := 7
 const PK_ORBIT := 8
+const PK_XP := 9
 
 # Enemy shot kinds
 const ES_ARROW := 0
@@ -70,6 +71,8 @@ const EV_BOSSDIE := 20
 const EV_GAMEOVER := 21
 const EV_FROST := 22
 const EV_SCORE := 23
+const EV_LEVELUP := 24
+const EV_PICK := 25
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -82,6 +85,13 @@ const STATS := [
 	[6.0,  22.0, 5.0, 250, 1],   # dark mage
 	[380.0, 26.0, 14.0, 5000, 2],# lich
 ]
+
+## Floats per player in snapshot()["p"]: 19 core values, then xp, xp needed, level, offer id,
+## and 3 x (offered upgrade index or -1, the level it would reach).
+const PLAYER_FLOATS := 29
+
+## XP a gem dropped by each enemy type is worth (same order as STATS).
+const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25]
 
 const DOORS := [Vector2(240, 30), Vector2(240, 266), Vector2(12, 148), Vector2(468, 148)]
 const DOOR_DIRS := [Vector2(0, 1), Vector2(0, -1), Vector2(1, 0), Vector2(-1, 0)]
@@ -112,6 +122,13 @@ class Player:
 	var last_bomb := -1
 	var moving := false
 	var kills := 0
+	var xp := 0
+	var level := 1
+	var upgrades := {} # Upgrades index -> level
+	var choices: Array[int] = [] # upgrades offered right now; the world waits while any player has some
+	var offer := 0 # id of the current offer; a pick input must name it
+	var pending := 0 # level-ups still to offer after the current one
+	var regen_t := 0.0
 
 class Enemy:
 	var id := 0
@@ -157,6 +174,7 @@ class EShot:
 
 class Pickup:
 	var kind := 0
+	var value := 0
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
 	var life := 10.0
@@ -212,6 +230,8 @@ func take_events() -> Array:
 
 # ================================================================= STEP ===
 func step(dt: float, inputs: Dictionary) -> void:
+	if phase != PH_GAMEOVER and _update_levelups(inputs):
+		return
 	time += dt
 	for i in 4:
 		door_open[i] = maxf(0.0, door_open[i] - dt)
@@ -267,6 +287,68 @@ func step(dt: float, inputs: Dictionary) -> void:
 			phase = PH_GAMEOVER
 			phase_t = 0.0
 			emit(EV_GAMEOVER, 0, 0, total_score(), 0)
+
+# ============================================================ LEVEL-UPS ===
+## Offers and applies level-up picks. Returns true while any player still has to pick: the whole world waits.
+func _update_levelups(inputs: Dictionary) -> bool:
+	var frozen := false
+	for p: Player in players.values():
+		if p.choices.is_empty() and p.pending > 0:
+			_offer(p)
+		if not p.choices.is_empty():
+			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
+			if inp.size() >= 8 and int(inp[7]) == p.offer:
+				var c := int(inp[6])
+				if c >= 0 and c < p.choices.size():
+					_pick(p, p.choices[c])
+		if not p.choices.is_empty():
+			frozen = true
+	if frozen:
+		# Presses made while the world waits (confirming a card with Space) must not fire a nova afterwards.
+		for p: Player in players.values():
+			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
+			if inp.size() >= 6:
+				p.last_bomb = int(inp[5])
+	return frozen
+
+func _offer(p: Player) -> void:
+	p.pending -= 1
+	p.offer += 1
+	p.choices = Upgrades.roll(rng, p.upgrades, int(tune.level_choices))
+	if p.choices.is_empty():
+		var pts := int(tune.maxed_level_score)
+		p.score += pts
+		emit(EV_SCORE, p.pos.x, p.pos.y - 14, pts, p.slot)
+
+func _pick(p: Player, idx: int) -> void:
+	p.choices = []
+	if not Upgrades.take(p.upgrades, idx):
+		return
+	match idx:
+		Upgrades.NOVA:
+			p.bombs += 1
+		Upgrades.LIFE:
+			p.lives += 1
+	emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
+	if p.pending > 0:
+		_offer(p)
+
+func gain_xp(p: Player, amount: int) -> void:
+	p.xp += amount
+	var need := tune.xp_to_next(p.level)
+	while p.xp >= need:
+		p.xp -= need
+		p.level += 1
+		p.pending += 1
+		emit(EV_LEVELUP, p.pos.x, p.pos.y - 14, p.slot, p.level)
+		need = tune.xp_to_next(p.level)
+
+## True while the world is waiting for level-up picks.
+func is_picking() -> bool:
+	for p: Player in players.values():
+		if not p.choices.is_empty():
+			return true
+	return false
 
 func total_score() -> int:
 	var s := 0
@@ -393,6 +475,14 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 				p.pos = G.ARENA.get_center() + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10))
 				emit(EV_SPAWN, p.pos.x, p.pos.y, p.slot, 0)
 		return
+	var regen := Upgrades.regen_interval(p.upgrades)
+	if regen > 0.0 and p.hp < 5:
+		p.regen_t += dt
+		if p.regen_t >= regen:
+			p.regen_t = 0.0
+			p.hp += 1
+	else:
+		p.regen_t = 0.0
 	var move := Vector2.ZERO
 	var aim := Vector2.ZERO
 	var fire := false
@@ -402,7 +492,7 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 		aim = Vector2(inp[2], inp[3])
 		fire = inp[4] > 0.5
 		bomb_count = int(inp[5])
-	var speed := tune.player_speed * (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
+	var speed := tune.player_speed * Upgrades.move_mul(p.upgrades) * (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	p.vel = move * speed
 	p.moving = move.length() > 0.1
 	p.pos += p.vel * dt
@@ -439,7 +529,7 @@ func staff_tip(p: Player) -> Vector2:
 	return p.pos + Vector2(0, -7) + p.aim * 9.0
 
 func _cast(p: Player) -> void:
-	var rate_mul := tune.haste_rate_mul if p.haste > 0.0 else 1.0
+	var rate_mul := (tune.haste_rate_mul if p.haste > 0.0 else 1.0) * Upgrades.cast_mul(p.upgrades)
 	var tip := staff_tip(p)
 	var dir := p.aim
 	match p.spell:
@@ -764,6 +854,9 @@ func _eshot(kind: int, pos: Vector2, vel: Vector2, r: float) -> void:
 func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 	if e.dead:
 		return
+	var src: Player = players.get(slot)
+	if src:
+		dmg *= Upgrades.damage_mul(src.upgrades)
 	e.hp -= dmg
 	e.flash = 0.07
 	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC else 1.0)
@@ -785,6 +878,7 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 		if COMBO_CALLS.has(p.combo):
 			emit(EV_COMBO, e.pos.x, e.pos.y, p.combo, slot)
 	emit(EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
+	_drop(PK_XP, e.pos, Vector2.from_angle(rng.randf() * TAU) * 25.0, tune.xp_gem_life, XP_VALUES[e.type])
 	match e.type:
 		SLIME:
 			for i in 2:
@@ -829,9 +923,10 @@ func _roll_drop(e: Enemy) -> void:
 	elif r < 0.33:
 		_drop(PK_ORBIT, e.pos, pop)
 
-func _drop(kind: int, pos: Vector2, vel: Vector2, life: float = 9.0) -> void:
+func _drop(kind: int, pos: Vector2, vel: Vector2, life: float = 9.0, value: int = 0) -> void:
 	var k := Pickup.new()
 	k.kind = kind
+	k.value = value
 	k.pos = pos
 	k.vel = vel
 	k.life = life
@@ -898,6 +993,8 @@ func _update_eshots(dt: float) -> void:
 func _update_pickups(dt: float) -> void:
 	for k in pickups:
 		k.life -= dt
+		if k.kind == PK_XP:
+			_magnet_xp(k)
 		k.pos += k.vel * dt
 		k.vel = k.vel.move_toward(Vector2.ZERO, dt * 120.0)
 		k.pos.x = clampf(k.pos.x, G.ARENA.position.x + 6, G.ARENA.end.x - 6)
@@ -909,7 +1006,25 @@ func _update_pickups(dt: float) -> void:
 				break
 	pickups = pickups.filter(func(k): return k.life > 0.0)
 
+## An XP gem near a wizard flies to the nearest one in reach.
+func _magnet_xp(k: Pickup) -> void:
+	var best: Player = null
+	var bd := INF
+	for p: Player in players.values():
+		if not p.alive:
+			continue
+		var d := p.pos.distance_to(k.pos)
+		if d < tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades) and d < bd:
+			bd = d
+			best = p
+	if best:
+		k.vel = (best.pos - k.pos).normalized() * tune.xp_magnet_speed
+
 func _collect(p: Player, k: Pickup) -> void:
+	if k.kind == PK_XP:
+		gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades))))
+		emit(EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
+		return
 	var pts := 0
 	match k.kind:
 		PK_COIN: pts = 100
@@ -966,7 +1081,12 @@ func snapshot() -> Dictionary:
 	for p in players.values():
 		pl.append_array([p.slot, p.pos.x, p.pos.y, p.aim.x, p.aim.y, p.hp, p.lives,
 			1.0 if p.alive else 0.0, p.invuln, p.spell, p.spell_time, p.bombs, p.score,
-			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0])
+			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0,
+			p.xp, tune.xp_to_next(p.level), p.level, p.offer])
+		for c in 3:
+			var idx: int = p.choices[c] if c < p.choices.size() else -1
+			pl.append(idx)
+			pl.append(Upgrades.level_of(p.upgrades, idx) + 1 if idx >= 0 else 0)
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow])

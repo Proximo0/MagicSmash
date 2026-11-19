@@ -34,3 +34,19 @@ func test_move_is_unit_length_at_most() -> void:
 	var en: Array[Vector2] = [CENTER + Vector2(3, 0), CENTER + Vector2(-3, 1), CENTER + Vector2(0, 4)]
 	var out: PackedFloat32Array = _decide(CENTER, en)
 	assert_true(Vector2(out[0], out[1]).length() <= 1.0001)
+
+
+func test_pick_policy_prefers_power() -> void:
+	var offer: Array[int] = [Upgrades.NOVA, Upgrades.POWER, Upgrades.SWIFT]
+	assert_eq(SmashBot.choose_pick(offer), 1)
+	var none: Array[int] = []
+	assert_eq(SmashBot.choose_pick(none), -1)
+
+
+func test_with_pick_appends_card_and_offer() -> void:
+	var offer: Array[int] = [Upgrades.SWIFT, Upgrades.LIFE]
+	var out: PackedFloat32Array = SmashBot.with_pick(PackedFloat32Array([0, 0, 0, 0, 0, 3]), offer, 7)
+	assert_eq(out.size(), 8)
+	assert_eq(int(out[6]), 0, "swift beats second wind")
+	assert_eq(int(out[7]), 7, "offer id")
+	assert_eq(int(out[5]), 3, "nova count kept")
