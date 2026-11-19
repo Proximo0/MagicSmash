@@ -41,7 +41,6 @@ const ES_SKULL := 2
 # Phases
 const PH_INTRO := 0
 const PH_FIGHT := 1
-const PH_CLEAR := 2
 const PH_GAMEOVER := 3
 
 # Events: [code, x, y, a, b]
@@ -60,7 +59,6 @@ const EV_SPLIT := 11
 const EV_TELE := 12
 const EV_CHARGE := 13
 const EV_WAVE := 14
-const EV_CLEAR := 15
 const EV_BOSS := 16
 const EV_COMBO := 17
 const EV_SPAWN := 18
@@ -71,6 +69,7 @@ const EV_FROST := 22
 const EV_SCORE := 23
 const EV_LEVELUP := 24
 const EV_PICK := 25
+const EV_ELITE := 26
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -88,6 +87,23 @@ const STATS := [
 ## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), and the 5 spell
 ## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved).
 const PLAYER_FLOATS := 34
+
+## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, elite.
+const ENEMY_FLOATS := 9
+
+## The horde: [type, budget cost, unlocks after this many seconds of fighting, weight, group min, group max,
+## extra group max per minute].
+const HORDE := [
+	[GOBLIN,   1.0, 0.0,   2, 6, 10, 1],
+	[BAT,      1.0, 0.0,   1, 4, 8,  0],
+	[SLIME,    3.0, 30.0,  1, 2, 4,  0],
+	[SKELETON, 3.0, 60.0,  1, 2, 5,  0],
+	[ORC,      9.0, 150.0, 1, 1, 1,  0],
+	[MAGE,     6.0, 210.0, 1, 1, 2,  0],
+]
+## Elite multipliers on score and XP, and what an elite drops.
+const ELITE_REWARD := 5
+const ELITE_GEMS := 6
 
 ## XP a gem dropped by each enemy type is worth (same order as STATS).
 const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25]
@@ -151,6 +167,7 @@ class Enemy:
 	var count := 0.0
 	var dead := false
 	var contact := 1
+	var elite := false
 
 class Shot:
 	var pos := Vector2.ZERO
@@ -189,23 +206,31 @@ var pickups: Array[Pickup] = []
 var events: Array = []
 var rng := RandomNumberGenerator.new()
 var next_id := 1
+## Minute of the run, from 1. Enemy scaling and the Lich's visits follow it.
 var wave := 1
 var phase := PH_INTRO
 var phase_t := 2.5
+## Seconds of fighting so far (the run clock).
 var wave_time := 0.0
 var spawn_queue: Array = []
+var horde_budget := 0.0
+var elite_t := 0.0
+var _next_group: Array = [] # [type, count] the horde is saving its budget for
+var _tick := 0
 var door_open := [0.0, 0.0, 0.0, 0.0]
 var boss: Enemy = null
 var powerup_timer := 8.0
 var time := 0.0
 var _grid := {}
 const CELL := 32.0
+const _NO_CELL: Array = []
 ## Gameplay numbers. Tuning.shared() unless a test or sim passes its own.
 var tune: Tuning
 
 ## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one.
 func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
+	horde_budget = tune.horde_start_budget
 	if seed_value == 0:
 		rng.randomize()
 	else:
@@ -236,6 +261,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if phase != PH_GAMEOVER and _update_levelups(inputs):
 		return
 	time += dt
+	_tick += 1
 	for i in 4:
 		door_open[i] = maxf(0.0, door_open[i] - dt)
 	match phase:
@@ -243,30 +269,15 @@ func step(dt: float, inputs: Dictionary) -> void:
 			phase_t -= dt
 			if phase_t <= 0.0:
 				phase = PH_FIGHT
-				wave_time = 0.0
-				_build_wave()
 		PH_FIGHT:
 			wave_time += dt
+			_tick_minute()
+			_direct_horde(dt)
 			_process_spawns()
 			powerup_timer -= dt
 			if powerup_timer <= 0.0:
 				powerup_timer = rng.randf_range(9.0, 14.0)
 				_spawn_random_powerup()
-			if spawn_queue.is_empty() and enemies.is_empty():
-				phase = PH_CLEAR
-				phase_t = 3.5
-				var bonus := 1000 * wave
-				for p in players.values():
-					if p.lives > 0:
-						p.score += bonus
-				emit(EV_CLEAR, 240, 140, wave, bonus)
-		PH_CLEAR:
-			phase_t -= dt
-			if phase_t <= 0.0:
-				wave += 1
-				phase = PH_INTRO
-				phase_t = 2.5
-				emit(EV_WAVE, 0, 0, wave, 1 if wave % 5 == 0 else 0)
 		PH_GAMEOVER:
 			phase_t += dt
 	_build_grid()
@@ -361,39 +372,79 @@ func total_score() -> int:
 	return s
 
 # ================================================================ WAVES ===
-func _build_wave() -> void:
-	spawn_queue.clear()
-	var t := 0.6
-	if wave % 5 == 0:
-		_queue_group(GOBLIN, 6, rng.randi_range(0, 3), t)
-		spawn_queue.append({"t": 2.5, "type": LICH, "door": 0})
-		_sort_queue()
+## A new minute: announce it. At every boss_every_min minute mark (5:00, 10:00, ...) the Lich comes, unless it is
+## still here.
+func _tick_minute() -> void:
+	var minute := int(wave_time / 60.0) + 1
+	if minute <= wave:
 		return
-	var budget := (tune.spawn_budget_base + wave * tune.spawn_budget_per_wave) * pscale()
-	var pool := [[GOBLIN, 1.0, 5], [BAT, 1.0, 3]]
-	if wave >= 2: pool.append([SLIME, 3.0, 3])
-	if wave >= 3: pool.append([SKELETON, 3.0, 3])
-	if wave >= 4: pool.append([ORC, 9.0, 1])
-	if wave >= 6: pool.append([MAGE, 6.0, 2])
-	if wave >= 7: pool.append([ORC, 9.0, 1])
-	pool.append([GOBLIN, 1.0, 5])
-	while budget > 0.0:
-		var pick: Array = pool[rng.randi() % pool.size()]
-		var n := 1
-		match pick[0]:
-			GOBLIN: n = rng.randi_range(6, 10 + wave)
-			BAT: n = rng.randi_range(4, 8)
-			SLIME: n = rng.randi_range(2, 4)
-			SKELETON: n = rng.randi_range(2, 5)
-			ORC: n = 1
-			MAGE: n = rng.randi_range(1, 2)
-		_queue_group(pick[0], n, rng.randi_range(0, 3), t)
-		budget -= pick[1] * n
-		# Sometimes two doors burst open at once.
-		if rng.randf() < 0.35:
+	wave = minute
+	var boss_minute := _lich_visits(wave) > _lich_visits(wave - 1)
+	emit(EV_WAVE, 0, 0, wave, 1 if boss_minute else 0)
+	if boss_minute and boss == null:
+		spawn_queue.append({"t": wave_time + 2.5, "type": LICH, "door": 0})
+		_sort_queue()
+
+## How many Lich visits are due by the start of `minute` (minute 1 starts at 0:00).
+func _lich_visits(minute: int) -> int:
+	return (minute - 1) / int(tune.boss_every_min)
+
+## The horde earns spawn budget every second (more each minute, scaled by party size, less while the Lich is
+## up) and spends it on the group it rolled, from a random door. At the enemy cap it holds.
+func _direct_horde(dt: float) -> void:
+	elite_t += dt
+	if elite_t >= tune.elite_interval:
+		elite_t -= tune.elite_interval
+		_spawn_elite()
+	if enemies.size() + spawn_queue.size() >= int(tune.enemy_cap):
+		return
+	var rate := (tune.horde_rate_base + tune.horde_rate_per_min * wave_time / 60.0) * pscale()
+	if boss != null:
+		rate *= tune.horde_boss_mul
+	horde_budget += rate * dt
+	if _next_group.is_empty():
+		_next_group = _roll_group()
+	var cost: float = _horde_row(_next_group[0])[1] * _next_group[1]
+	if horde_budget >= cost:
+		horde_budget -= cost
+		_queue_group(_next_group[0], _next_group[1], rng.randi_range(0, 3), wave_time)
+		_sort_queue()
+		_next_group = []
+
+## A weighted pick among the unlocked HORDE rows, with its group size: [type, count].
+func _roll_group() -> Array:
+	var total := 0
+	for row: Array in HORDE:
+		if wave_time >= row[2]:
+			total += int(row[3])
+	var r := rng.randi_range(1, total)
+	for row: Array in HORDE:
+		if wave_time < row[2]:
 			continue
-		t += rng.randf_range(0.7, 1.8) * maxf(tune.spawn_gap_min, 1.0 - wave * tune.spawn_gap_per_wave)
-	_sort_queue()
+		r -= int(row[3])
+		if r <= 0:
+			return [row[0], rng.randi_range(row[4], row[5] + row[6] * (wave - 1))]
+	return [GOBLIN, 1]
+
+func _horde_row(type: int) -> Array:
+	for row: Array in HORDE:
+		if row[0] == type:
+			return row
+	return HORDE[0]
+
+## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome.
+func _spawn_elite() -> void:
+	var type := SKELETON
+	if wave >= 4:
+		type = ORC if rng.randf() < 0.6 else MAGE
+	elif wave >= 2:
+		type = ORC
+	var e := spawn_enemy(type, rng.randi_range(0, 3))
+	e.elite = true
+	e.hp *= tune.elite_hp_mul
+	e.maxhp = e.hp
+	e.r += 2.0
+	emit(EV_ELITE, e.pos.x, e.pos.y, e.type, 0)
 
 func _queue_group(type: int, n: int, door: int, t: float) -> void:
 	for i in n:
@@ -413,12 +464,12 @@ func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	next_id += 1
 	e.type = type
 	var st: Array = STATS[type]
-	var hp_scale := 1.0 + tune.enemy_hp_per_wave * (wave - 1)
+	var hp_scale := 1.0 + tune.enemy_hp_per_min * (wave - 1)
 	if type == LICH:
-		hp_scale = (1.0 + tune.boss_hp_per_player * (players.size() - 1)) * (1.0 + tune.boss_hp_per_cycle * (wave / 5 - 1))
+		hp_scale = (1.0 + tune.boss_hp_per_player * (players.size() - 1)) * (1.0 + tune.boss_hp_per_cycle * maxi(0, _lich_visits(wave) - 1))
 	e.hp = st[0] * hp_scale
 	e.maxhp = e.hp
-	e.spd = st[1] * (1.0 + tune.enemy_speed_per_wave * minf(wave, tune.enemy_speed_wave_cap))
+	e.spd = st[1] * (1.0 + tune.enemy_speed_per_min * minf(wave, tune.enemy_speed_min_cap))
 	e.r = st[2]
 	e.contact = st[4]
 	e.t = rng.randf() * 10.0
@@ -785,16 +836,9 @@ func _update_enemy(e: Enemy, dt: float) -> void:
 	e.pos += (e.vel + e.knock) * dt
 	e.knock = e.knock.move_toward(Vector2.ZERO, dt * 600.0)
 	# Separation so hordes spread into a crowd instead of a single blob.
-	if e.type != BAT:
-		for o in _query(e.pos, 16.0):
-			if o == e or o.type == BAT or o.entering:
-				continue
-			var dv = e.pos - o.pos
-			var dd = dv.length()
-			var min_d = e.r + o.r
-			if dd < min_d and dd > 0.01:
-				var push = dv / dd * (min_d - dd) * (0.5 if o.type != LICH else 1.0)
-				e.pos += push * 0.5
+	# Half the crowd separates each tick (alternating by id), at double strength: the same spread for half the cost.
+	if e.type != BAT and (e.id + _tick) % 2 == 0:
+		_separate(e)
 	e.pos.x = clampf(e.pos.x, G.ARENA.position.x + e.r, G.ARENA.end.x - e.r)
 	e.pos.y = clampf(e.pos.y, G.ARENA.position.y + e.r, G.ARENA.end.y - 2)
 	# Contact damage
@@ -804,6 +848,24 @@ func _update_enemy(e: Enemy, dt: float) -> void:
 			if e.type == ORC and e.state == 2:
 				dmg = 2
 			hurt_player(p, dmg)
+
+## Pushes `e` out of the enemies it overlaps, reading the grid cells directly (this runs for half the horde
+## every tick, so it avoids _query's array).
+func _separate(e: Enemy) -> void:
+	var x0 := floori((e.pos.x - 16.0) / CELL)
+	var y0 := floori((e.pos.y - 16.0) / CELL)
+	for cx in range(x0, x0 + 2):
+		for cy in range(y0, y0 + 2):
+			var cell: Array = _grid.get(Vector2i(cx, cy), _NO_CELL)
+			for o: Enemy in cell:
+				if o == e or o.dead or o.type == BAT or o.entering:
+					continue
+				var dv: Vector2 = e.pos - o.pos
+				var min_d: float = e.r + o.r
+				var d2: float = dv.length_squared()
+				if d2 < min_d * min_d and d2 > 0.0001:
+					var dd: float = sqrt(d2)
+					e.pos += dv / dd * (min_d - dd) * (0.5 if o.type != LICH else 1.0)
 
 func _update_lich(e: Enemy, dt: float, tgt: Player, dirv: Vector2, dist: float) -> Vector2:
 	var rage := e.hp / e.maxhp < 0.5
@@ -914,7 +976,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 func _kill_enemy(e: Enemy, slot: int) -> void:
 	e.dead = true
 	var p: Player = players.get(slot)
-	var base: int = STATS[e.type][3]
+	var base: int = STATS[e.type][3] * (ELITE_REWARD if e.elite else 1)
 	if p:
 		p.combo += 1
 		p.combo_t = 2.5
@@ -924,7 +986,12 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 		if COMBO_CALLS.has(p.combo):
 			emit(EV_COMBO, e.pos.x, e.pos.y, p.combo, slot)
 	emit(EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
-	_drop(PK_XP, e.pos, Vector2.from_angle(rng.randf() * TAU) * 25.0, tune.xp_gem_life, XP_VALUES[e.type])
+	_drop_xp(e.pos, Vector2.from_angle(rng.randf() * TAU) * 25.0, XP_VALUES[e.type] * (ELITE_REWARD if e.elite else 1))
+	if e.elite:
+		for i in ELITE_GEMS:
+			_drop(PK_GEM if i % 2 == 0 else PK_COIN, e.pos, Vector2.from_angle(i * TAU / ELITE_GEMS) * 70.0)
+		_drop([PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR][rng.randi() % 4], e.pos, Vector2(0, 30), 15.0)
+		return
 	match e.type:
 		SLIME:
 			for i in 2:
@@ -944,6 +1011,8 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			_drop(PK_POTION, e.pos, Vector2(0, 40))
 			emit(EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 0)
 			spawn_queue.clear()
+			horde_budget = 0.0
+			_next_group = []
 			return
 	_roll_drop(e)
 
@@ -968,6 +1037,26 @@ func _roll_drop(e: Enemy) -> void:
 		_drop(PK_BOOTS, e.pos, pop)
 	elif r < 0.33:
 		_drop(PK_ORBIT, e.pos, pop)
+
+## Drops an XP gem, or, with tune.xp_gem_cap gems already down, adds its XP to the nearest one (and keeps that
+## one around), so a big horde cannot bury the floor in gems.
+func _drop_xp(pos: Vector2, vel: Vector2, value: int) -> void:
+	var count := 0
+	var near: Pickup = null
+	var nd := INF
+	for k in pickups:
+		if k.kind != PK_XP:
+			continue
+		count += 1
+		var d := k.pos.distance_squared_to(pos)
+		if d < nd:
+			nd = d
+			near = k
+	if count >= int(tune.xp_gem_cap) and near != null:
+		near.value += value
+		near.life = maxf(near.life, tune.xp_gem_life * 0.5)
+		return
+	_drop(PK_XP, pos, vel, tune.xp_gem_life, value)
 
 func _drop(kind: int, pos: Vector2, vel: Vector2, life: float = 9.0, value: int = 0) -> void:
 	var k := Pickup.new()
@@ -1154,7 +1243,7 @@ func _query(pos: Vector2, radius: float) -> Array:
 
 ## Summary of the whole simulation for determinism checks (same seed + same inputs = same hash).
 func state_hash() -> int:
-	return hash([snapshot(), wave, phase, total_score(), rng.state])
+	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget])
 
 # ============================================================ SNAPSHOT ===
 func snapshot() -> Dictionary:
@@ -1172,7 +1261,7 @@ func snapshot() -> Dictionary:
 			pl.append(_weapon_snap(p, sp))
 	var en := PackedFloat32Array()
 	for e in enemies:
-		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow])
+		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 1.0 if e.elite else 0.0])
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
@@ -1187,5 +1276,5 @@ func snapshot() -> Dictionary:
 		bf = boss.hp / boss.maxhp
 	return {
 		"p": pl, "e": en, "s": sh, "es": es, "k": pk,
-		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3]]),
+		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time]),
 	}

@@ -71,7 +71,7 @@ and numbers go in `Tuning` or data tables.
    policy so sims keep running.
 3. **(Done, see below.) Spell stacking and evolution.** Turn the five spells (arcane, fire, frost, storm, star) into levelled
    weapons that auto-cast, with evolutions at max level plus a pairing, for example fire + storm.
-4. **Continuous horde.** Replace wave clears with a timer-driven spawn budget that ramps up, with elites and
+4. **(Done, see below.) Continuous horde.** Replace wave clears with a timer-driven spawn budget that ramps up, with elites and
    the Lich as minute bosses. Raise the enemy cap. Add a sim that holds frame cost under budget at peak
    (`tests/sim/sim_waves.gd` already reports `us_per_step`).
 5. **Loot layer.** In-run chests, the gamble shrines, consumables and armor drops with rarity, plus meta
@@ -111,11 +111,33 @@ and numbers go in `Tuning` or data tables.
   minute 8, and the bots never lost a life by wave 27. Tomes level weapons fast, so balance belongs to step 4,
   where the horde ramps.
 
+## Step 4 notes (continuous horde)
+
+- No more wave clears. After a 2.5 s intro the run clock (`World.wave_time`) runs until game over, and
+  `World.wave` is now the minute of the run (1 from 0:00). The HUD shows the clock; each new minute gets a
+  short banner.
+- The horde earns spawn budget every second, `(horde_rate_base + horde_rate_per_min x minutes) x party scale`,
+  and spends it on groups rolled from `World.HORDE` (type, cost, unlock time, weight, group size). It holds at
+  `Tuning.enemy_cap` (260) and slows to `horde_boss_mul` while the Lich is up.
+- An elite every `elite_interval` s (a skeleton, then orcs and mages) has `elite_hp_mul` x HP, a gold aura and
+  pays 5x score and XP plus gems and a tome. The Lich arrives at 5:00, 10:00, ... (`boss_every_min`); killing
+  it still clears the arena and resets the horde's budget.
+- XP gems past `Tuning.xp_gem_cap` merge into the nearest gem, so the floor stays readable and cheap.
+- Cost: `tests/sim/sim_horde.gd` fills the arena to the cap with 4 wizards and asserts `World.step` stays under
+  4 ms. It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for
+  half the crowd per tick). Drawing is the next cost: under xvfb software rendering the autotest drops from
+  about 85 fps on main to about 40 fps with the horde, so batch enemy drawing (MultiMesh or per-type draws in
+  `arena.gd`) before Steam builds.
+- Balance is not done. Bot teams still never lose a life by 8:00 (`survival_4p` in `sim_horde` reports it),
+  and bots reach level 10 in the first minute, so picks pause the world often (a 3-player bot run spent about
+  a third of its time on pick screens). Next measure-fix loop: slow the XP curve, then raise
+  enemy pressure until `survival_4p` shows first deaths around 6 to 10 minutes.
+
 ## Checks and tools
 
-- `tools/check_all.sh`: unit, sims, lint and 3 bot shards in about 15 s.
+- `tools/check_all.sh`: unit, sims, lint and 3 bot shards in about 80 s (the horde sims are most of it).
 - Watch it play: `xvfb-run -a godot --path . -- --autotest --out=/tmp/shots` saves screenshots every few seconds.
-  Use `--autotest=5` to start at the boss wave.
+  Use `--autotest=5` to start at 5:00, when the Lich comes.
 - CI (`.github/workflows/checks.yml`) runs unit, lint, sims and bot-0..2 on every push and PR.
 - Music: `tools/music` renders the soundtrack (see `tools/music/SOUNDTRACK.md`). SFX come from
   `tools/gen_audio.py`.
