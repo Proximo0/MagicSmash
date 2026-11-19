@@ -71,6 +71,10 @@ func _ready() -> void:
 	if "--sanctum" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]
 		quit_at = 6.0
+	# --eclipse: click the moon and the castle window on the title, shoot the blood moon and the ghost.
+	if "--eclipse" in OS.get_cmdline_user_args():
+		shots = [[3.0, "@eclipse"], [5.2, "title_eclipse"]]
+		quit_at = 5.6
 	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
 	if "--album" in OS.get_cmdline_user_args():
 		shots.insert(2, [4.1, "@album"])
@@ -148,7 +152,12 @@ func _process(delta: float) -> void:
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
-		if name == "@sanctum":
+		if name == "@eclipse":
+			var tt = G.main.current
+			tt.state = tt.S.MAIN
+			tt._title_secret(tt.MOON)
+			tt._title_secret(tt.TOP_WINDOW.get_center())
+		elif name == "@sanctum":
 			G.local_devices = [G.DEV_KBM]
 			G.goto_sanctum()
 		elif name == "@alcove":
@@ -159,7 +168,7 @@ func _process(delta: float) -> void:
 			view.room.in_alcove = true
 			view.room._break_pot(0)
 			view.room._break_pot(1)
-		if name == "@album":
+		elif name == "@album":
 			for i: int in [0, 1, 4, 5, 7, 8, 10]:
 				Save.profile.add_card(i)
 			Save.profile.add_card(5)
@@ -171,7 +180,7 @@ func _process(delta: float) -> void:
 			album_title.state = album_title.S.CARDS
 		elif name == "@menu":
 			G.main.current.state = G.main.current.S.MAIN
-		if name == "@lobby":
+		elif name == "@lobby":
 			G.local_devices = [G.DEV_KBM]
 			var title = G.main.current
 			if net == "host":

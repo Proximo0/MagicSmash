@@ -1076,3 +1076,48 @@ func test_socketed_cards_reach_every_wizard() -> void:
 	for p: World.Player in w.players.values():
 		assert_near(float(p.armor[Loot.ST_MIGHT]), 0.1)
 		assert_eq(p.max_hp, hp0 + 2)
+
+
+func test_urns_stand_along_the_walls_each_minute() -> void:
+	var w := World.new([0], 3)
+	w._refill_urns()
+	assert_eq(w.urns.size(), int(w.tune.urn_count))
+	w.urns.clear()
+	w.wave_time = 60.0 * w.wave + 1.0
+	w._tick_minute()
+	assert_eq(w.urns.size(), int(w.tune.urn_count), "a new minute did not refill the urns")
+	var inner := G.ARENA.grow(-24.0)
+	for u: Vector2 in w.urns:
+		assert_true(G.ARENA.has_point(u), "urn outside the arena")
+		assert_false(inner.has_point(u), "urn in the middle of the floor at %s" % u)
+
+
+func test_walking_into_an_urn_breaks_it_and_announces_it() -> void:
+	var w := World.new([0], 3)
+	w.urns = [Vector2(100, 100)] as Array[Vector2]
+	var p := _player(w)
+	p.pos = Vector2(102, 100)
+	w.take_events()
+	w._update_urns()
+	assert_true(w.urns.is_empty(), "the urn did not break")
+	var seen := false
+	for ev: Array in w.take_events():
+		seen = seen or ev[0] == World.EV_URN
+	assert_true(seen, "no urn event")
+
+
+func test_an_urn_card_is_marked_as_from_an_urn() -> void:
+	var w := World.new([0], 3)
+	w.tune.urn_card_chance = 1.0
+	w._break_urn(Vector2(120, 120))
+	var card: World.Pickup = null
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CARD:
+			card = k
+	assert_true(card != null, "no card from the urn at chance 1")
+	w.take_events()
+	w._collect(_player(w), card)
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CARD:
+			assert_true(int(ev[3]) < Cards.count(), "card index carries the urn mark")
+			assert_true(int(ev[4]) >= 8, "the event does not say it came from an urn")

@@ -45,6 +45,7 @@ var vs: Array = []  # [spell, pos, vel, owner, evolved]
 var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved]
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
+var vu: Array[Vector2] = [] # urns from the snapshot
 var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction, cost]
 var _bets: Array = [] # shrine reels: {slot, pos, kind, outcome, t, spin, shown}
 const SHRINE_COLORS := [Color("ffd23d"), Color("ff4df2")]
@@ -488,6 +489,12 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	while i + 5 <= es.size():
 		ves.append([int(es[i]), Vector2(es[i + 1], es[i + 2]), Vector2(es[i + 3], es[i + 4])])
 		i += 5
+	vu.clear()
+	var up: PackedFloat32Array = snap.get("u", PackedFloat32Array())
+	i = 0
+	while i + 2 <= up.size():
+		vu.append(Vector2(up[i], up[i + 1]))
+		i += 2
 	vsh.clear()
 	var shp: PackedFloat32Array = snap.get("sh", PackedFloat32Array())
 	i = 0
@@ -653,8 +660,19 @@ func _handle_events(evs: Array) -> void:
 				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
 				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
 				fx.sparkle(pos, Color("ff4df2"), 8)
+			World.EV_URN:
+				for k: int in range(10):
+					fx.spawn(pos + Vector2(0, -4), Vector2.from_angle(_fx_rng.randf() * TAU) * _fx_rng.randf_range(30.0, 80.0)
+						+ Vector2(0, -30), 0.6, 1.5, Color("b0643a"), Color("7a3f22"), false, 1.0, 220.0)
+				Sfx.play("hit", -4.0, 0.7)
+				if int(ev[3]) >= World.URN_CHEST:
+					fx.sparkle(pos, Color("ff8af0") if int(ev[3]) == World.URN_CARD_DROP else Color("8fe3ff"), 14)
+					Sfx.play("powerup", -4.0, 1.3)
 			World.EV_CARD:
 				var cidx := int(ev[3])
+				if int(ev[4]) >= 8 and Save.profile.find_secret("urn_card"):
+					fx.text(pos + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
+				ev[4] = int(ev[4]) % 8
 				var first := Save.add_card(cidx)
 				_cards.append({"idx": cidx, "slot": int(ev[4]), "t": 0.0, "first": first})
 				fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
@@ -1312,6 +1330,9 @@ func _draw_treasure_glow(ci: CanvasItem, kind: int, pos: Vector2) -> void:
 func _draw_entities() -> void:
 	var ci := ent_layer
 	_draw_shrines(ci)
+	for u: Vector2 in vu:
+		_shadow(ci, u + Vector2(0, 1), 8)
+		Sprites.draw_at(ci, "urn", u + Vector2(0, 1))
 	# Pickups
 	for k in vk:
 		var kind: int = k[0]

@@ -513,6 +513,17 @@ const CHEST := [
 	"KWwwwwwWK",
 	".KKKKKKK.",
 ]
+const URN := [
+	"..KKKK..",
+	".KuuuuK.",
+	"..KUUK..",
+	".KUUUUK.",
+	"KUULUUUK",
+	"KUuuuuUK",
+	"KUUUUUUK",
+	".KUUUUK.",
+	"..KKKK..",
+]
 const CARD := [
 	"KKKKKKK",
 	"KYYYYYK",
@@ -590,6 +601,7 @@ static func build_all() -> void:
 	_add("chest", CHEST, {"K": OUTLINE, "W": Color("8a4b22"), "w": Color("b8682f"), "Y": Color("ffd23d"), "L": Color("fff6c0")})
 	_add("chest_rare", CHEST, {"K": OUTLINE, "W": Color("1c3f8a"), "w": Color("2f6fd0"), "Y": Color("8fe3ff"), "L": Color("ffffff")})
 	_add("chest_ultra", CHEST, {"K": OUTLINE, "W": Color("5a1a8a"), "w": Color("b03ad0"), "Y": Color("ff8af0"), "L": Color("ffffff")})
+	_add("urn", URN, {"K": OUTLINE, "U": Color("b0643a"), "u": Color("7a3f22"), "L": Color("f0b080")})
 	_add("card", CARD, {"K": OUTLINE, "Y": Color("ffd94d"), "P": Color("3a1a6a"), "L": Color("ff4df2")})
 	_add("coin", COIN, {"K": OUTLINE, "Y": Color("ffd23d"), "y": Color("c48a10"), "L": Color("fff6c0")})
 	_add("boot", BOOT, {"K": OUTLINE, "B": Color("4dc8ff"), "b": Color("2a6fb8")})

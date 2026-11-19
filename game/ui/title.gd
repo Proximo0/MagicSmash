@@ -36,6 +36,12 @@ var tale_dev := 0
 var menu_items: Array = []
 var rng := RandomNumberGenerator.new()
 var _landed := {}
+var eclipse := 0.0 # seconds left of the blood moon (click the moon)
+var ghost_t := -1.0 # seconds since the ghost left the tower's top window (click it), -1 when none
+const MOON := Vector2(410, 46)
+const TOP_WINDOW := Rect2(317, 163, 11, 10) # the lit window low on the right tower
+const ECLIPSE_LIFE := 8.0
+const GHOST_LIFE := 5.0
 
 const WIZ_X := [34, 74, 406, 446]
 
@@ -86,6 +92,11 @@ func _msg(s: String) -> void:
 func _process(delta: float) -> void:
 	t += delta
 	message_t = maxf(0.0, message_t - delta)
+	eclipse = maxf(0.0, eclipse - delta)
+	if ghost_t >= 0.0:
+		ghost_t += delta
+		if ghost_t > GHOST_LIFE:
+			ghost_t = -1.0
 	lightning = maxf(0.0, lightning - delta)
 	if state == S.INTRO and t > 3.2:
 		state = S.MAIN
@@ -182,12 +193,22 @@ func _draw() -> void:
 			draw_rect(Rect2(s[0] + Vector2(-1, 0), Vector2(3, 1)), Color(c.r, c.g, c.b, 0.5))
 			draw_rect(Rect2(s[0] + Vector2(0, -1), Vector2(1, 3)), Color(c.r, c.g, c.b, 0.5))
 		draw_rect(Rect2(s[0], Vector2(1, 1)), c)
-	# Moon
-	var mc := Vector2(410, 46)
-	draw_circle(mc, 20, Color("ffe9c4"))
-	draw_circle(mc + Vector2(5, -3), 4, Color("f0d4a8"))
-	draw_circle(mc + Vector2(-7, 6), 3, Color("f0d4a8"))
-	draw_circle(mc + Vector2(-2, -9), 2, Color("f0d4a8"))
+	# Moon (blood red, with the earth's shadow crossing it, while eclipsed)
+	var mc := MOON
+	var blood := clampf(minf(eclipse, ECLIPSE_LIFE - eclipse) / 1.2, 0.0, 1.0) if eclipse > 0.0 else 0.0
+	draw_circle(mc, 20, Color("ffe9c4").lerp(Color("b0202a"), blood))
+	draw_circle(mc + Vector2(5, -3), 4, Color("f0d4a8").lerp(Color("801820"), blood))
+	draw_circle(mc + Vector2(-7, 6), 3, Color("f0d4a8").lerp(Color("801820"), blood))
+	draw_circle(mc + Vector2(-2, -9), 2, Color("f0d4a8").lerp(Color("801820"), blood))
+	if eclipse > 0.0:
+		var k := 1.0 - eclipse / ECLIPSE_LIFE
+		draw_circle(mc + Vector2(lerpf(-44.0, 44.0, k), 0), 19, Color(0.04, 0.0, 0.08, 0.55 * blood))
+		draw_rect(Rect2(0, 0, 480, 270), Color(0.5, 0.0, 0.05, 0.12 * blood))
+		# Bats stream across the sky.
+		for i in 14:
+			var bx := fposmod(-60.0 + (ECLIPSE_LIFE - eclipse) * (70.0 + i * 9.0) + i * 37.0, 560.0) - 40.0
+			var by := 30.0 + fmod(i * 23.0, 90.0) + sin(t * 3.0 + i) * 6.0
+			Sprites.draw_at(self, "bat_a" if int(t * 12.0 + i) % 2 == 0 else "bat_b", Vector2(bx, by), i % 2 == 0)
 	# Distant mountains
 	for x in 480:
 		draw_rect(Rect2(x, mountains_a[x], 1, 270 - mountains_a[x]), Color("2a1048"))
@@ -225,8 +246,26 @@ func _draw_castle() -> void:
 		var f := 0.7 + 0.3 * sin(t * (3.0 + i) + i * 1.7)
 		draw_rect(Rect2(wins[i], Vector2(2, 3)), Color(1.0, 0.75 * f, 0.3 * f))
 
+## The tower's ghost: a pale wisp that slips out of the top window, sways up over the castle and fades.
+func _draw_ghost(ci: CanvasItem) -> void:
+	if ghost_t < 0.0:
+		return
+	var k := ghost_t / GHOST_LIFE
+	var a := clampf(minf(ghost_t * 2.0, (GHOST_LIFE - ghost_t) * 1.5), 0.0, 1.0) * 0.8
+	var p := Vector2(323 + sin(ghost_t * 2.2) * 10.0 + k * 30.0, 166 - k * 60.0).floor()
+	var c := Color(0.85, 0.95, 1.0, a)
+	ci.draw_rect(Rect2(p + Vector2(-3, -8), Vector2(7, 6)), c)
+	ci.draw_rect(Rect2(p + Vector2(-4, -3), Vector2(9, 7)), c)
+	for i in 3:
+		var wag := int(sin(ghost_t * 8.0 + i) * 1.5)
+		ci.draw_rect(Rect2(p + Vector2(-4 + i * 3, 4 + wag), Vector2(2, 2)), c)
+	ci.draw_rect(Rect2(p + Vector2(-1, -6), Vector2(1, 2)), Color(0.1, 0.0, 0.2, a))
+	ci.draw_rect(Rect2(p + Vector2(2, -6), Vector2(1, 2)), Color(0.1, 0.0, 0.2, a))
+
+
 func _draw_glow() -> void:
 	var ci := glow
+	_draw_ghost(ci)
 	ci.draw_circle(Vector2(410, 46), 34, Color(1.0, 0.85, 0.6, 0.08))
 	ci.draw_circle(Vector2(410, 46), 26, Color(1.0, 0.85, 0.6, 0.08))
 	ci.draw_circle(Vector2(292, 150), 70, Color(1.0, 0.5, 0.3, 0.04))
@@ -273,7 +312,7 @@ func _draw_front() -> void:
 			_draw_join(ci)
 			_draw_ouija(ci)
 	if message_t > 0.0:
-		PixelFont.draw_centered(ci, message, 240, 128, 1, Color("ff7a8a"), Color("0b0716"))
+		PixelFont.draw_centered(ci, message, 240, 6, 1, Color("ff7a8a"), Color("0b0716"))
 	PixelFont.draw(ci, "V" + G.VERSION, Vector2(3, 262), 1, Color(1, 1, 1, 0.3))
 	if G.high_score > 0:
 		var hs := "BEST %d" % G.high_score
@@ -527,6 +566,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var dev := PlayerInput.confirm_device(event)
 	var back := PlayerInput.back_pressed(event)
 	var dir := PlayerInput.menu_dir(event)
+	if tap and state == S.MAIN and t >= 2.6 and _title_secret(tap_pos):
+		return
 	match state:
 		S.INTRO:
 			if dev != -99 or tap:
@@ -631,6 +672,29 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			if dev != -99:
 				_buy_unlock(unlock_sel)
+
+## Clicks on the scenery: the moon turns to blood, a ghost leaves a lit window of the castle. Each is a secret the first time.
+func _title_secret(at: Vector2) -> bool:
+	var key := ""
+	if at.distance_to(MOON) < 20.0 and eclipse <= 0.0:
+		eclipse = ECLIPSE_LIFE
+		key = "eclipse"
+		Sfx.play("bell_toll")
+		Sfx.play("boss_roar", -14.0, 0.6)
+		_msg("THE MOON BLEEDS")
+	elif TOP_WINDOW.has_point(at) and ghost_t < 0.0:
+		ghost_t = 0.0
+		key = "ghost"
+		Sfx.play("ghost")
+		_msg("SOMEONE STILL LIVES IN THE CASTLE")
+	else:
+		return false
+	message_t = 3.0
+	if Save.profile.find_secret(key):
+		Save.write()
+		fx.text(at + Vector2(0, -12), "SECRET FOUND", Color("8bdcff"), 2.0)
+	return true
+
 
 func _activate(item: String, dev: int) -> void:
 	Sfx.play("menu_select")
@@ -813,7 +877,8 @@ func _box_px(ci: CanvasItem, r: Rect2, c: Color) -> void:
 
 
 func _open_ouija() -> void:
-	ouija = Ouija.new()
+	# Letters too: the spirits answer a few words besides addresses (Secrets.WORDS).
+	ouija = Ouija.new("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.")
 	planchette = _ouija_pos(ouija.row, ouija.col)
 	state = S.OUIJA
 	Sfx.play("whisper")
@@ -821,6 +886,10 @@ func _open_ouija() -> void:
 
 func _submit_ouija() -> void:
 	var ip := ouija.text.strip_edges()
+	var reply: Array = Secrets.answer(ip)
+	if not reply.is_empty():
+		_spirits_answer(reply)
+		return
 	if ip.is_valid_ip_address():
 		Sfx.play("powerup")
 		_join(ip)
@@ -830,6 +899,23 @@ func _submit_ouija() -> void:
 
 
 ## The ouija board takes the planchette (arrows, stick, d-pad, mouse) and typed digits on a keyboard.
+## The board answers a secret word: the reply on screen, a gust of candle sparks, and a secret (with crystals) the
+## first time.
+func _spirits_answer(reply: Array) -> void:
+	ouija.text = ""
+	_msg(String(reply[0]))
+	message_t = 4.0
+	Sfx.play("whisper")
+	Sfx.play("candle", -2.0, 0.8)
+	fx.burst(planchette, 24, 70.0, 0.8, 1.2, Occult.FLAME, Occult.BLOOD, true)
+	var key: String = reply[1]
+	if key != "" and Save.profile.find_secret(key):
+		Save.profile.crystals += int(reply[2])
+		Save.write()
+		fx.text(planchette + Vector2(0, -14), "SECRET FOUND  +%d CRYSTALS" % int(reply[2]), Color("8bdcff"), 2.0)
+		Sfx.play("wave_clear", -4.0, 1.3)
+
+
 func _ouija_input(event: InputEvent, tap: bool, tap_pos: Vector2) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var ch := String.chr(event.unicode) if event.unicode > 0 else ""

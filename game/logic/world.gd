@@ -94,7 +94,17 @@ const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict(
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
 const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b = slot + 8 when evolved
-const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot
+const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
+const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
+## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
+const URN_DUST := 0
+const URN_COIN := 1
+const URN_GEM := 2
+const URN_POTION := 3
+const URN_CHEST := 4
+const URN_CARD_DROP := 5
+const URN_CARD := 100
+const URN_R := 5.0
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -294,6 +304,7 @@ var runes: Array[Rune] = []
 var eshots: Array[EShot] = []
 var pickups: Array[Pickup] = []
 var cards_found: Array[int] = [] # Cards indices picked up this run, in order
+var urns: Array[Vector2] = [] # breakable urns along the walls (shots or a wizard walking in break them)
 var shrines: Array[Shrine] = []
 var shrine_t := 0.0
 var team_shrine_t := 0.0
@@ -406,6 +417,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 			phase_t -= dt
 			if phase_t <= 0.0:
 				phase = PH_FIGHT
+				_refill_urns()
 		PH_FIGHT:
 			if won:
 				victory_t -= dt
@@ -426,6 +438,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	_update_runes(dt)
 	_update_eshots(dt)
 	_update_pickups(dt)
+	_update_urns()
 	enemies = enemies.filter(func(e): return not e.dead)
 	shots = shots.filter(func(s): return not s.dead)
 	runes = runes.filter(func(c: Rune) -> bool: return c.age < c.life)
@@ -538,6 +551,7 @@ func _tick_minute() -> void:
 	if minute <= wave:
 		return
 	wave = minute
+	_refill_urns()
 	if wave >= final_minute() and not _final_called:
 		_final_called = true
 		emit(EV_WAVE, 0, 0, wave, 2)
@@ -1459,6 +1473,74 @@ func _roll_drop(e: Enemy) -> void:
 	elif r < 0.33:
 		_drop(PK_ORBIT, e.pos, pop)
 
+# ================================================================ URNS ===
+## Tops the urns back up to tune.urn_count, each in a band along a wall, clear of the wizards and of each other.
+func _refill_urns() -> void:
+	var band := G.ARENA.grow(-12.0)
+	var tries := 0
+	while urns.size() < int(tune.urn_count) and tries < 60:
+		tries += 1
+		var at := Vector2(rng.randf_range(band.position.x, band.end.x), rng.randf_range(band.position.y, band.end.y))
+		match rng.randi() % 4:
+			0: at.y = band.position.y + rng.randf() * 8.0
+			1: at.y = band.end.y - rng.randf() * 8.0
+			2: at.x = band.position.x + rng.randf() * 8.0
+			_: at.x = band.end.x - rng.randf() * 8.0
+		var clear := true
+		for p: Player in players.values():
+			if p.pos.distance_to(at) < 40.0:
+				clear = false
+		for u: Vector2 in urns:
+			if u.distance_to(at) < 18.0:
+				clear = false
+		if clear:
+			urns.append(at)
+
+
+## A wizard's shot or a wizard walking into an urn shatters it. Shots fly on through.
+func _update_urns() -> void:
+	var i := urns.size() - 1
+	while i >= 0:
+		var u: Vector2 = urns[i]
+		var hit := false
+		for p: Player in players.values():
+			if p.alive and p.pos.distance_to(u) < URN_R + 4.0:
+				hit = true
+		if not hit:
+			for s: Shot in shots:
+				if not s.dead and s.pos.distance_to(u + Vector2(0, -3)) < URN_R + s.r:
+					hit = true
+					break
+		if hit:
+			urns.remove_at(i)
+			_break_urn(u)
+		i -= 1
+
+
+## What falls out of a broken urn: usually coins or nothing, sometimes a gem or potion, rarely a rare chest, and
+## very rarely a monster card of any kind.
+func _break_urn(at: Vector2) -> void:
+	var r := rng.randf()
+	var pop := Vector2(0, 30)
+	var what := URN_DUST
+	if r < tune.urn_card_chance:
+		what = URN_CARD_DROP
+		_drop(PK_CARD, at, Vector2(0, -50), tune.chest_life, Sanctum.roll_card(rng) + URN_CARD)
+	elif r < tune.urn_card_chance + tune.urn_rare_chance:
+		what = URN_CHEST
+		_drop(PK_CHEST_RARE, at, pop, tune.chest_life, 2)
+	elif r < tune.urn_card_chance + tune.urn_rare_chance + 0.06:
+		what = URN_POTION
+		_drop(PK_POTION, at, pop)
+	elif r < tune.urn_card_chance + tune.urn_rare_chance + 0.24:
+		what = URN_GEM
+		_drop(PK_GEM, at, pop)
+	elif r < 0.75:
+		what = URN_COIN
+		for k in 2:
+			_drop(PK_COIN, at, Vector2.from_angle(rng.randf() * TAU) * 40.0)
+	emit(EV_URN, at.x, at.y, what, 0)
+
 ## Drops an XP gem, or, with tune.xp_gem_cap gems already down, adds its XP to the nearest one (and keeps that
 ## one around), so a big horde cannot bury the floor in gems.
 func _drop_xp(pos: Vector2, vel: Vector2, value: int) -> void:
@@ -1638,9 +1720,10 @@ func _collect(p: Player, k: Pickup) -> void:
 		_open_chest(p, k)
 		return
 	if k.kind == PK_CARD:
-		cards_found.append(k.value)
-		record.note(wave_time, Results.M_CARD, p.slot, k.value)
-		emit(EV_CARD, k.pos.x, k.pos.y, k.value, p.slot)
+		var idx := k.value % URN_CARD
+		cards_found.append(idx)
+		record.note(wave_time, Results.M_CARD, p.slot, idx)
+		emit(EV_CARD, k.pos.x, k.pos.y, idx, p.slot + (8 if k.value >= URN_CARD else 0))
 		return
 	var pts := 0
 	var greed: float = 1.0 + p.armor[Loot.ST_GREED] + meta_gold
@@ -1833,6 +1916,12 @@ func state_hash() -> int:
 	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget])
 
 # ============================================================ SNAPSHOT ===
+func _snapshot_urns() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	for u: Vector2 in urns:
+		out.append_array([u.x, u.y])
+	return out
+
 func snapshot() -> Dictionary:
 	var pl := PackedFloat32Array()
 	for p in players.values():
@@ -1870,7 +1959,7 @@ func snapshot() -> Dictionary:
 	for row: Array in snapshot_shrines():
 		shr.append_array(row)
 	return {
-		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr,
+		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
 			1.0 if boss != null and boss.final else 0.0]),
 	}
