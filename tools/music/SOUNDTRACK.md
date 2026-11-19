@@ -1,6 +1,6 @@
 # Magic Smash soundtrack bible
 
-Four tracks, one game. They share one leitmotif (the "Magic Smash theme"), one hero voice (`lead_pulse`), and one set of mix rules.
+Six tracks, one game. They share one leitmotif (the "Magic Smash theme"), one hero voice (`lead_pulse`), and one set of mix rules.
 The motif test lives in `songs/_motif_test.py`. It renders fast, title, boss and game-over versions to `out/candidates/`.
 All four have 0 semitone clashes. At battle speed, 0 of the lead's 30 notes on the beat are non-chord tones.
 
@@ -38,6 +38,8 @@ BASS   = "D2 D3 D2 D3 D2 D3 C3 A2 | G2 G3 G2 G3 A2 A3 A2 A3 | Bb1 Bb2 F2 Bb2 C2 
 |---|---|---|---|---|---|
 | `music_title` | D minor | 108 | 36–40 bars, 80–89 s | Mystery 12, heroic 16, coda 8–12 | A7sus4 → A7, timpani roll |
 | `music_battle` | E minor (`transpose=+2`) | 160 | 64 bars, 96 s | Intro riff 4, verse A 16, hook B 16, breakdown 8, build 4, climax B′ 16 | B7 with a tom fill |
+| `music_library` (Act II) | F minor (`transpose=+3`) | 168 | 64 bars, 91.4 s | Toccata 4, verse 8, fugato 4, calls 4, hook 8, pages 8, build 4, climax 8, inferno 8, tag 8 | C7 toccata run and toms |
+| `music_sanctum` (Act III) | B minor (`transpose=-3`), slides to C minor | 150 | 60 bars, 96 s | Vigil 4, procession 8, hymn 8, hook 8, eclipse 4, ascending 8, ascension 8, black comet 4, C minor pull 4, turnaround 4 | Gdim/Db Cm, G7 (Ger+6), F#7, tolls and toms |
 | `music_boss` | C minor (harmonic minor plus a Phrygian Db) | 176 | 56–60 bars, 76–82 s | Intro 4, A 16, B 16, half-time break 8, climax 12–16 | G7b9, toms and a riser |
 | `music_gameover` | D minor | 84 | 2 bars plus `no_loop(tail=2.0)`, about 7.7 s | One phrase | Final low D |
 
@@ -45,6 +47,7 @@ Why these keys:
 - The title and game over share the home key, D minor. A run starts and ends there.
 - The battle lifts a whole step to E minor, which is brighter and gives a punchy E1/E2 bass.
 - The boss falls to C minor, below home, with the Db/G tritone.
+- The acts climb toward it: E minor (Act I) → F minor (Act II, a half step up) → B minor (Act III, a tritone away, Morvane's interval) → C minor (boss, a half step up again). The Sanctum's last bars already slide into C minor.
 
 ## 3. Palette and production
 
@@ -150,6 +153,22 @@ GAMEOVER = "A5:3 A5:1 D5:4 F5:3 E5:1 Bb4:4 | Bb4:3 A4:1 G4:2 F4:2 E4:1 F4:1 E4:1
 ```
 
 Instruments: soft `lead_pulse` with a flute an octave up, a falling harp line, strings, and `timp_lo` on the last note.
+
+**Act tracks.** The run is three 5-minute acts: Act I THE OSSUARY keeps `music_battle`, Act II THE BURNING LIBRARY plays `music_library`, Act III THE STARLESS SANCTUM plays `music_sanctum`. Both new loops share the hero pulse, the mix rules and the level targets, and both measured 0 semitone clashes; the only flagged non-chord tones are the wink's flat-6 appoggiatura and the lament's suspensions.
+
+**Library (F minor, 168 bpm, `songs/music_library.py`).** A burning baroque grimoire.
+- Signature voice: a two-choir harpsichord (`HARPSI`: detuned saw pair plus a 4' octave, plucked envelope, quill click from the filter envelope). It spins bariolage (`0 3 2 3 1 3 2 3`, a ringing top pedal) in the toccata and the inferno, Alberti 16ths in the verse.
+- The organ (`organ()` as a melody voice) doubles and answers: it states x like a chapel stab, answers the harpsichord's fugue subject at the dominant (C minor), and sings the motif in augmentation in the half-time "pages" section.
+- Verse: a circle-of-fifths sequence (Fm Bbm Eb Ab Db Gm7b5 C7), x's rising 4th at the head of every bar, the wink over Gm7b5-C7. Calls: hero x up the scale, the harpsichord answers with winks (5 6 5 3 1).
+- The theme plays four times (hook x2, climax x2 with the organ an octave below and `HARM` on `lead_fm`). The inferno puts long burning hero lines over a double-time kit and full-tilt bariolage; x climbs to the F6 peak.
+- Ember crackle: seeded, sparse `hat_chip` ticks on their own quiet drum track in the intro and the pages section.
+
+**Sanctum (B minor, 150 bpm, `songs/music_sanctum.py`).** The grandest loop, building dread toward the Archlich.
+- Voices: church organ (melody doubling and low pads), formant choir pads ("oo" in the vigil and the eclipse, "ah" elsewhere), a staccato choir (`CHANT`) that chants the x rhythm on chords, an inharmonic FM toll bell (`TOLL`, `fm_ratio=2.76`), timpani on chord tones, gong, harp "stained glass" ripples, and O Fortuna style pumping `strings` 8ths (`STAC`) that keep battle energy under the slow theme.
+- The first statement is the theme in augmentation (`unit=0.5`, 8 bars) on the hero with the organ an octave below; chords `Bm Bm Em7 F# G A Bm:0.75 F#:0.25 Bm`. In the ascension the augmented theme moves to choir + organ + brass and the hero soars a descant of x cells above it.
+- Hymn: a D major chorale from x, harp ripples, brass in 3rds. Eclipse: lament bass B A# A G# G F#, the bell tolls x inverted.
+- Ascending: the hero's x (rising 4th) and Morvane's x (tritone, brass + organ + chant: F# F# C over F#dim/C, B B F over Bdim/F, C C F# over F#dim/C) trade bars, climbing to the Neapolitan C.
+- Black comet: the theme with the Neapolitan C in place of iv. The pull: the band slips a half step into C minor, the boss key. Turnaround: brass + organ state the boss call (G G Db over Gdim/Db), G7 works as the German 6th of B minor, the hero's x slides a half step down onto F#7 and the tolls hand back to the vigil.
 
 ## 5. Engine and integration gotchas
 

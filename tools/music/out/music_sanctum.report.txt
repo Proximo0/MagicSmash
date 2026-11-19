@@ -1,0 +1,49 @@
+== music_sanctum: 96.0s, 150 bpm, 60 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.94 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 11%  bass 60-250 30%  lowmid 250-800 29%  mid 800-3k 23%  presence 3k-8k 4%  air >8k 3%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -19.7 dB   38.9%
+   lead            -20.9 dB   29.8%
+   bass            -22.9 dB   18.6%
+   brass           -30.9 dB    3.0%
+   organ_lead      -31.2 dB    2.8%
+   choir_lead      -34.9 dB    1.2%
+   toll            -35.2 dB    1.1%
+   organ_pad       -36.0 dB    0.9%
+   strings_stac    -36.9 dB    0.8%
+   chant           -37.1 dB    0.7%
+   choir           -37.1 dB    0.7%
+   choir_oo        -37.4 dB    0.7%
+   harp            -40.3 dB    0.3%
+   fx              -41.0 dB    0.3%
+   bell            -41.3 dB    0.3%
+track lead: 254 notes, range F#4-E6, max leap 20 st, mean 2.7 st
+track organ_lead: 124 notes, range F#3-C6, max leap 16 st, mean 2.8 st
+track brass: 119 notes, range F#3-B5, max leap 18 st, mean 2.9 st
+track choir_lead: 27 notes, range F#4-B5, max leap 8 st, mean 2.6 st
+track chant: 117 notes, range F3-Bb4, max leap 15 st, mean 5.1 st
+track toll: 23 notes, range E3-B3, max leap 7 st, mean 2.4 st
+track bell: 23 notes, range F#4-D7, max leap 15 st, mean 4.0 st
+track harp: 192 notes, range D4-C#6, max leap 16 st, mean 4.9 st
+track strings_stac: 984 notes, range F#3-F4, max leap 10 st, mean 5.1 st
+track choir: 201 notes, range F#3-F4, max leap 11 st, mean 5.0 st
+track choir_oo: 36 notes, range F#3-E4, max leap 10 st, mean 4.9 st
+track organ_pad: 238 notes, range B2-Bb3, max leap 11 st, mean 5.0 st
+track bass: 737 notes, range F1-E3, max leap 12 st, mean 6.0 st
+non-chord tones on beats (>=8th long) in lead: 1/164 (1%) e.g. bar 8.2 D5 over F#
+non-chord tones on beats (>=8th long) in organ_lead: 2/82 (2%) e.g. bar 8.2 D4 over F#, bar 44.2 D5 over F#
+non-chord tones on beats (>=8th long) in brass: 1/79 (1%) e.g. bar 44.2 D4 over F#
+non-chord tones on beats (>=8th long) in choir_lead: 1/19 (5%) e.g. bar 44.2 D5 over F#
+non-chord tones on beats (>=8th long) in chant: 0/78 (0%)
+non-chord tones on beats (>=8th long) in toll: 0/23 (0%)
+non-chord tones on beats (>=8th long) in bell: 1/15 (7%) e.g. bar 30.1 E5 over Bm/A
+non-chord tones on beats (>=8th long) in choir: 0/201 (0%)
+non-chord tones on beats (>=8th long) in choir_oo: 0/36 (0%)
+non-chord tones on beats (>=8th long) in organ_pad: 0/238 (0%)
+non-chord tones on beats (>=8th long) in bass: 0/11 (0%)
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -21.3 dB -> loop start 50ms -14.3 dB, sample jump 0.007 (under ~0.1 is click-free)
+sections: bar 1 vigil, bar 5 procession (augmented), bar 13 hymn, bar 21 hook, bar 29 eclipse, bar 33 ascending (hero vs lich), bar 41 ascension, bar 49 black comet, bar 53 the pull (C minor), bar 57 turnaround
+loudness per 2 bars (dB): -19 -17 -13 -13 -13 -13 -14 -14 -14 -13 -13 -13 -13 -12 -16 -15 -14 -14 -14 -13 -12 -12 -12 -12 -12 -12 -12 -12 -14 -14

@@ -9,7 +9,7 @@ const SOUNDS := [
 	"card_deal", "card_flip", "card_pick", "planchette", "rune_cast", "rune_good",
 	"rune_bad", "gong", "whisper", "candle", "page_turn", "bell_toll", "portal", "ghost",
 ]
-const MUSIC := ["music_title", "music_battle", "music_boss", "music_gameover"]
+const MUSIC := ["music_title", "music_battle", "music_library", "music_sanctum", "music_boss", "music_gameover"]
 const POOL := 20
 
 ## Pitch jitter only.
