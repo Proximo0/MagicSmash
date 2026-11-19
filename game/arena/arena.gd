@@ -1171,11 +1171,11 @@ func _draw_runes(ci: CanvasItem) -> void:
 		var segs := 48 if r > 24.0 else 32
 		ci.draw_arc(at, r, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.75 + 0.25 * flare) * k), 1.0)
 		ci.draw_arc(at, r - 7.0, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.5 + 0.3 * flare) * k), 1.0)
-		var n := maxi(5, int(TAU * (r - 3.5) / 9.0))
+		var n := maxi(5, int(TAU * (r - 3.5) / 12.0))
 		for g in n:
 			var a := turn + g * TAU / n
 			var gp := at + Vector2.from_angle(a) * (r - 3.5) - Vector2(2, 3)
-			Occult.rune(ci, gp.round(), g * 3 + int(c[4]), Color(glyph.r, glyph.g, glyph.b, (0.55 + 0.35 * flare) * k))
+			Occult.rune(ci, gp.round(), g * 3 + int(c[4]), Color(glyph.r, glyph.g, glyph.b, (0.4 + 0.3 * flare) * k))
 		var inner := r - 8.0
 		if evo:
 			# The Seal of Solomon: two interlaced triangles, and motes pulled toward the centre.
@@ -1190,7 +1190,7 @@ func _draw_runes(ci: CanvasItem) -> void:
 				var mp := at + Vector2.from_angle(m * 2.4 + turn * 0.3) * lerpf(reach, r * 0.3, f)
 				ci.draw_rect(Rect2(mp.floor(), Vector2(1, 1)), Color(SEAL_WHITE.r, SEAL_WHITE.g, SEAL_WHITE.b, 0.7 * k * (1.0 - f * 0.5)))
 		else:
-			Occult.pentagram(ci, at, inner, Color(col.r, col.g, col.b, (0.45 + 0.4 * flare) * k), -turn * 0.5)
+			Occult.pentagram(ci, at, inner, Color(col.r, col.g, col.b, (0.3 + 0.35 * flare) * k), -turn * 0.5)
 
 
 func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
