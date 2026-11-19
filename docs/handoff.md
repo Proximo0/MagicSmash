@@ -66,7 +66,7 @@ and numbers go in `Tuning` or data tables.
 
 1. **Fill `Tuning`** with the numbers the rework will turn: player speed, cast rates, spawn budget, wave HP
    scaling and XP curve. Replace the template's `gravity` and `move_speed` rows and update `test_tuning.gd`.
-2. **XP and level-up picks.** Enemies drop XP gems. A level-up pauses for a pick of 1 of 3 upgrades, each player
+2. **(Done, see below.) XP and level-up picks.** Enemies drop XP gems. A level-up pauses for a pick of 1 of 3 upgrades, each player
    picking for themselves. Put it in a new `game/logic/upgrades.gd` with a seeded roll, and give the bot a pick
    policy so sims keep running.
 3. **Spell stacking and evolution.** Turn the five spells (arcane, fire, frost, storm, star) into levelled
@@ -82,6 +82,18 @@ and numbers go in `Tuning` or data tables.
 7. **Steam.** GodotSteam (achievements, Remote Play Together), the store page and the capsule art. After that,
    online lobbies if there is time.
 8. **Paid cosmetic boxes**, only after the decision above, following the rules in the previous section.
+
+## Step 2 notes (XP and level-ups)
+
+- Every kill drops an XP shard (`World.PK_XP`, value from `World.XP_VALUES`). Shards near a wizard fly to them
+  (`Tuning.xp_magnet_*`); the wizard who collects a shard gets its XP. Levels need `Tuning.xp_to_next(level)`.
+- A level-up opens an offer of `Tuning.level_choices` upgrades from `game/logic/upgrades.gd` (seeded by
+  `World.rng`). The whole world waits while any player has an offer open; each player picks their own card.
+  A pick is input fields 6 and 7, [card, offer id], so a held or late pick never applies to the next offer.
+- Bots pick by `SmashBot.PICK_PRIORITY`. In the arena (autotest, bot shards) they wait `BOT_PICK_THINK` so the
+  pick screen shows; `--autotest` saves `levelup.png` the first time it does.
+- Open question for Curtis: XP goes to whoever picks the shard up. Shared party XP (everyone levels together)
+  is kinder to a mixed-skill Remote Play group; it is a small change in `World._collect`.
 
 ## Checks and tools
 

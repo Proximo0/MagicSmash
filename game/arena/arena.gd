@@ -7,8 +7,8 @@ const SNAP_EVERY := 2 # physics frames between snapshots sent to clients
 const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6")]
 const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich"]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0]
-const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit"]
-const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!"]
+const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp"]
+const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", ""]
 const ENEMY_NAMES := ["GOBLIN", "SKELETON", "SLIME", "SLIMELING", "BAT", "ORC BRUTE", "DARK MAGE", "LICH LORD"]
 
 ## Cosmetic randomness only (particles, shake, pitch). Gameplay randomness lives in World.rng.
@@ -44,6 +44,16 @@ var time := 0.0
 var torch_pos := [Vector2(110, 26), Vector2(370, 26), Vector2(10, 92), Vector2(10, 204), Vector2(470, 92), Vector2(470, 204)]
 var _hitstop := 0.0
 var _last_aim := {}
+## Level-up pick screen, per local slot: highlighted card, and the [card, offer] confirmed and being sent.
+var _pick_sel := {}
+var _pick_sent := {}
+const CARD_W := 140
+const CARD_H := 40
+const CARD_GAP := 8
+const PICK_ROW_H := 52
+const PICK_TOP := 44
+const BOT_PICK_THINK := 0.9
+var _bot_pick_wait := {}
 
 var root := Node2D.new()
 var env_add: Node2D
@@ -148,6 +158,7 @@ func _physics_process(dt: float) -> void:
 				inp = PackedFloat32Array([0, 0, inp[2], inp[3], 1.0 if r.slot == 9 else 0.0, 0])
 		if paused:
 			inp = PackedFloat32Array([0, 0, 0, 0, 0, inp[5]])
+		inp = _with_pick(r.slot, inp)
 		inputs[r.slot] = inp
 		if not is_host:
 			Net.send_input(r.slot, inp)
@@ -215,6 +226,28 @@ func _process(dt: float) -> void:
 	env_add.queue_redraw()
 	hud.queue_redraw()
 
+## Adds the level-up pick fields [card, offer] (World reads input[6] and input[7]).
+func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
+	if not vp.has(slot):
+		return SmashBot.with_pick(inp, [] as Array[int], 0)
+	var p: Dictionary = vp[slot]
+	if PlayerInput.bot:
+		# Demo bots look at the cards for a moment, so watchers and captures see the pick screen.
+		if (p.choices as Array).is_empty():
+			_bot_pick_wait[slot] = 0.0
+		else:
+			_bot_pick_wait[slot] = float(_bot_pick_wait.get(slot, 0.0)) + get_physics_process_delta_time()
+		if float(_bot_pick_wait.get(slot, 0.0)) < BOT_PICK_THINK:
+			return SmashBot.with_pick(inp, [] as Array[int], p.offer)
+		return SmashBot.with_pick(inp, p.choices, p.offer)
+	var out: PackedFloat32Array = inp.duplicate()
+	var sent: Array = _pick_sent.get(slot, [-1, -1])
+	if int(sent[1]) == int(p.offer) and not (p.choices as Array).is_empty():
+		out.append_array([float(sent[0]), float(p.offer)])
+	else:
+		out.append_array([-1.0, float(p.offer)])
+	return out
+
 ## Simple demo AI used by the autotest harness: kite in circles and blast
 ## the nearest monster.
 var _bots := {}  # slot -> SmashBot
@@ -256,7 +289,7 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	var pl: PackedFloat32Array = snap.p
 	var seen := {}
 	var i := 0
-	while i + 19 <= pl.size():
+	while i + World.PLAYER_FLOATS <= pl.size():
 		var slot := int(pl[i])
 		seen[slot] = true
 		if not vp.has(slot):
@@ -280,9 +313,25 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.orbit_ang = pl[i + 16]
 		p.flash = pl[i + 17]
 		p.moving = pl[i + 18] > 0.5
+		p.xp = int(pl[i + 19])
+		p.xp_need = maxi(1, int(pl[i + 20]))
+		p.level = int(pl[i + 21])
+		var offer := int(pl[i + 22])
+		if offer != int(p.get("offer", -1)):
+			_pick_sel[slot] = 0
+		p.offer = offer
+		var ch: Array[int] = []
+		var lv: Array[int] = []
+		for c in 3:
+			var idx := int(pl[i + 23 + c * 2])
+			if idx >= 0:
+				ch.append(idx)
+				lv.append(int(pl[i + 24 + c * 2]))
+		p.choices = ch
+		p.choice_lv = lv
 		if not p.alive:
 			p.pos = p.target
-		i += 19
+		i += World.PLAYER_FLOATS
 	for s in vp.keys():
 		if not seen.has(s):
 			vp.erase(s)
@@ -387,6 +436,9 @@ func _handle_events(evs: Array) -> void:
 				_do_hitstop(0.08)
 			World.EV_PICKUP:
 				var k := int(ev[3])
+				if k == World.PK_XP:
+					Sfx.play("coin", -14.0, 1.5, 0.05)
+					continue
 				fx.sparkle(pos, _pickup_color(k))
 				match k:
 					World.PK_COIN: Sfx.play("coin", -4.0)
@@ -476,6 +528,16 @@ func _handle_events(evs: Array) -> void:
 				final_score = int(ev[3])
 				G.submit_score(final_score)
 				Sfx.music("music_gameover")
+			World.EV_LEVELUP:
+				var col := G.player_fx(int(ev[3]))
+				fx.text(pos, "LEVEL UP!", col, 1.4, 1)
+				fx.ring(pos + Vector2(0, 8), 1.0, 26.0, 0.5, col, 2.0)
+				Sfx.play("powerup", -2.0, 1.1)
+			World.EV_PICK:
+				var col := G.player_fx(int(ev[3]))
+				fx.text(pos, Upgrades.display_name(int(ev[4])) + "!", col, 1.4, 1)
+				fx.sparkle(pos + Vector2(0, 10), col, 16)
+				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_FROST:
 				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
 
@@ -518,6 +580,7 @@ func _pickup_color(k: int) -> Color:
 		World.PK_TOME_STAR: return SPELL_COLORS[4]
 		World.PK_BOOTS: return Color("4dc8ff")
 		World.PK_ORBIT: return Color("8bff9e")
+		World.PK_XP: return Color("5dff7a")
 	return Color.WHITE
 
 # ======================================================== AMBIENT FX ===
@@ -874,6 +937,11 @@ func _draw_hud() -> void:
 			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x + 96, 10), 1, cc, dark)
 		if not p.alive and p.lives > 0:
 			PixelFont.draw(ci, "...", Vector2(x + 96, 10), 1, col)
+		# XP bar and level
+		var xf := clampf(float(p.xp) / float(p.xp_need), 0.0, 1.0)
+		PixelFont.draw(ci, "LV%d" % p.level, Vector2(x, 17), 1, Color("5dff7a"), dark)
+		ci.draw_rect(Rect2(x + 24, 19, 66, 3), dark)
+		ci.draw_rect(Rect2(x + 25, 20, 64 * xf, 1), Color("5dff7a"))
 	# Wave label on the top wall
 	var wl := "WAVE %d" % wave
 	PixelFont.draw_centered(ci, wl, 240, 22, 1, Color("c9b8ff"), dark)
@@ -907,8 +975,124 @@ func _draw_hud() -> void:
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), screen_flash)
 	if game_over:
 		_draw_game_over(ci)
+	elif _anyone_picking():
+		_draw_levelup(ci)
 	elif paused:
 		_draw_pause(ci)
+
+# ======================================================== LEVEL-UP PICKS ===
+func _anyone_picking() -> bool:
+	for p: Dictionary in vp.values():
+		if not (p.get("choices", []) as Array).is_empty():
+			return true
+	return false
+
+## Local slots that have an offer open, in slot order: one row of cards each.
+func _local_pick_slots() -> Array[int]:
+	var out: Array[int] = []
+	for r in Net.my_slots():
+		if vp.has(r.slot) and not (vp[r.slot].choices as Array).is_empty():
+			out.append(r.slot)
+	out.sort()
+	return out
+
+func _card_rect(row: int, c: int) -> Rect2:
+	var x0 := (480 - (CARD_W * 3 + CARD_GAP * 2)) / 2
+	return Rect2(x0 + c * (CARD_W + CARD_GAP), PICK_TOP + row * PICK_ROW_H + 9, CARD_W, CARD_H)
+
+func _draw_levelup(ci: CanvasItem) -> void:
+	var dark := Color("0b0716")
+	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.72))
+	var tw := PixelFont.text_width("LEVEL UP!", 3)
+	PixelFont.draw_gradient(ci, "LEVEL UP!", Vector2(240 - tw / 2.0, 22), 3, Color.WHITE, Color("5dff7a"), time * 5.0, 1.5)
+	var rows := _local_pick_slots()
+	for row in rows.size():
+		var slot: int = rows[row]
+		var p: Dictionary = vp[slot]
+		var col := G.player_color(slot)
+		var sent: Array = _pick_sent.get(slot, [-1, -1])
+		var done := int(sent[1]) == int(p.offer)
+		var y0 := PICK_TOP + row * PICK_ROW_H
+		PixelFont.draw(ci, "P%d  LV%d  %s" % [slot + 1, p.level, "WAITING FOR THE OTHERS..." if done else "CHOOSE ONE"],
+			Vector2(_card_rect(row, 0).position.x, y0), 1, col, dark)
+		var choices: Array = p.choices
+		for c in choices.size():
+			var r := _card_rect(row, c)
+			var sel: bool = (int(sent[0]) == c) if done else (int(_pick_sel.get(slot, 0)) == c)
+			var idx: int = choices[c]
+			ci.draw_rect(r.grow(1), col if sel else Color("3a2a58"))
+			ci.draw_rect(r, Color("1d1233") if not sel else Color("2c1a4d"))
+			var cx := r.position.x + r.size.x / 2.0
+			PixelFont.draw_centered(ci, Upgrades.display_name(idx), cx, r.position.y + 5, 1,
+				Color("ffd94d") if sel else Color.WHITE, dark)
+			PixelFont.draw_centered(ci, Upgrades.description(idx), cx, r.position.y + 17, 1, Color("c9b8ff"), dark)
+			var lv: int = p.choice_lv[c]
+			PixelFont.draw_centered(ci, "NEW" if lv == 1 else "LV %d/%d" % [lv, Upgrades.max_level(idx)], cx,
+				r.position.y + 29, 1, Color("5dff7a"), dark)
+	var waiting: Array[String] = []
+	for s in vp.keys():
+		if not rows.has(s) and not (vp[s].choices as Array).is_empty():
+			waiting.append("P%d" % (s + 1))
+	if not waiting.is_empty():
+		PixelFont.draw_centered(ci, " ".join(waiting) + " CHOOSING...", 240, 258, 1, Color("c9b8ff"), dark)
+
+## Routes menu input to the pick rows of local players. Returns true if the event was used.
+func _pick_input(event: InputEvent) -> bool:
+	var rows := _local_pick_slots()
+	if rows.is_empty():
+		return false
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		var pos: Vector2 = event.position
+		for row in rows.size():
+			for c in (vp[rows[row]].choices as Array).size():
+				if _card_rect(row, c).has_point(pos):
+					_confirm_pick(rows[row], c)
+					return true
+		return true
+	for slot: int in rows:
+		var dev := -99
+		for r in Net.my_slots():
+			if r.slot == slot:
+				dev = r.device
+		var mine := (dev == G.DEV_KBM and (event is InputEventKey)) or \
+			(dev != G.DEV_KBM and (event is InputEventJoypadButton or event is InputEventJoypadMotion) and event.device == dev)
+		if not mine:
+			continue
+		var n: int = (vp[slot].choices as Array).size()
+		var d := _pick_dir(event)
+		if d != 0:
+			_pick_sel[slot] = wrapi(int(_pick_sel.get(slot, 0)) + d, 0, n)
+			Sfx.play("menu_move")
+			return true
+		if PlayerInput.confirm_device(event) != -99:
+			_confirm_pick(slot, int(_pick_sel.get(slot, 0)))
+			return true
+	return false
+
+func _confirm_pick(slot: int, c: int) -> void:
+	var sent: Array = _pick_sent.get(slot, [-1, -1])
+	if int(sent[1]) == int(vp[slot].offer):
+		return
+	_pick_sel[slot] = c
+	_pick_sent[slot] = [c, int(vp[slot].offer)]
+	Sfx.play("menu_select")
+
+## -1 left, +1 right, 0 none (keys, d-pad, or an edge of the left stick).
+func _pick_dir(event: InputEvent) -> int:
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_LEFT, KEY_A: return -1
+			KEY_RIGHT, KEY_D: return 1
+	if event is InputEventJoypadButton and event.pressed:
+		if event.button_index == JOY_BUTTON_DPAD_LEFT: return -1
+		if event.button_index == JOY_BUTTON_DPAD_RIGHT: return 1
+	if event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_X:
+		var key := "pickx%d" % event.device
+		var was: float = _pick_sel.get(key, 0.0)
+		_pick_sel[key] = event.axis_value
+		if event.axis_value < -0.6 and was >= -0.6: return -1
+		if event.axis_value > 0.6 and was <= 0.6: return 1
+	return 0
 
 func _heart(ci: CanvasItem, p: Vector2, full: bool) -> void:
 	var c := Color("ff3b5c") if full else Color("3a2240")
@@ -985,6 +1169,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)
 	if start:
 		_toggle_pause()
+		return
+	if not paused and _pick_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	if paused:
 		var d := PlayerInput.menu_dir(event)

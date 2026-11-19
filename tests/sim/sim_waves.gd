@@ -5,6 +5,9 @@ extends "res://tests/sim/sim_base.gd"
 const SEED: int = 7
 const MINUTES: float = 3.0
 const MIN_WAVE: int = 3
+## Every bot wizard should level up this many times in the run, and bots answer an offer within a few ticks.
+const MIN_LEVEL: int = 5
+const MAX_PICK_TICKS: int = 3
 
 
 func _play(slots: Array, ticks: int) -> Dictionary:
@@ -13,6 +16,8 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 	for s: int in slots:
 		bots[s] = SmashBot.new(SEED + s)
 	var peak: int = 0
+	var streak: int = 0
+	var longest: int = 0
 	var t0: int = Time.get_ticks_usec()
 	for _i: int in range(ticks):
 		var inputs: Dictionary = {}
@@ -20,8 +25,13 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 			inputs[s] = (bots[s] as SmashBot).decide_in_world(w, s)
 		w.step(DT, inputs)
 		peak = maxi(peak, w.enemies.size())
+		streak = streak + 1 if w.is_picking() else 0
+		longest = maxi(longest, streak)
 	var us: float = float(Time.get_ticks_usec() - t0) / ticks
-	return {"wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
+	var lowest: int = 1 << 30
+	for p: World.Player in w.players.values():
+		lowest = mini(lowest, p.level)
+	return {"lowest_level": lowest, "pick_ticks": longest, "wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
 		"over": w.phase == World.PH_GAMEOVER}
 
 
@@ -36,5 +46,9 @@ func run() -> Array:
 		row("deterministic_2p", a.hash == b.hash, "hash=%d" % a.hash),
 		row("waves_advance_4p", four.wave >= MIN_WAVE or four.over,
 			"wave=%d score=%d over=%s" % [four.wave, four.score, four.over]),
+		row("levels_up_4p", four.lowest_level >= MIN_LEVEL,
+			"lowest_level=%d (need %d)" % [four.lowest_level, MIN_LEVEL]),
+		row("picks_resolve_4p", four.pick_ticks <= MAX_PICK_TICKS,
+			"longest_wait_ticks=%d (max %d)" % [four.pick_ticks, MAX_PICK_TICKS]),
 		row("step_cost_4p", null, "peak_enemies=%d us_per_step=%.0f" % [four.peak, four.us]),
 	]
