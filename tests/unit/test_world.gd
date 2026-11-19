@@ -454,3 +454,26 @@ func test_xp_gems_merge_past_the_cap() -> void:
 			total += k.value
 	assert_eq(gems, 10)
 	assert_eq(total, 50, "merged gems must keep every point of XP")
+
+
+func test_rift_opens_away_from_wizards_then_spawns() -> void:
+	var w := _fighting(null, 0.0)
+	var p := _player(w)
+	w._queue_rift(World.GOBLIN, 5)
+	var rift: Array = []
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_RIFT:
+			rift = ev
+	assert_false(rift.is_empty(), "no rift marker")
+	var at := Vector2(rift[1], rift[2])
+	assert_true(at.distance_to(p.pos) >= w.tune.rift_min_dist, "rift %s too close to the wizard" % at)
+	var before: int = w.enemies.size()
+	w.wave_time += w.tune.rift_warning * 0.5
+	w._process_spawns()
+	assert_eq(w.enemies.size(), before, "spawned before the warning ran out")
+	w.wave_time += w.tune.rift_warning
+	w._process_spawns()
+	assert_eq(w.enemies.size(), before + 5)
+	for e: World.Enemy in w.enemies.slice(before):
+		assert_false(e.entering)
+		assert_true(e.pos.distance_to(at) < 30.0)
