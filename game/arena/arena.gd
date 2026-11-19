@@ -572,8 +572,9 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("charge", -3.0)
 			World.EV_WAVE:
 				var w := int(ev[3])
-				if Lore.opens_act(w):
-					_act_card(Lore.act_of(w))
+				# World waves count from 1 (wave 1 is 0:00 to 1:00); Lore counts run minutes from 0.
+				if Lore.opens_act(w - 1):
+					_act_card(Lore.act_of(w - 1))
 				if int(ev[4]) == 2:
 					_banner(Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
 					Sfx.play("boss_roar", 0.0, 0.7)
@@ -582,7 +583,7 @@ func _handle_events(evs: Array) -> void:
 					_banner("THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
 					Sfx.play("portal")
 				elif w > 1:
-					_banner("MINUTE %d" % w, Lore.minute_line(w), Color("ffd94d"), 1.8)
+					_banner("MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
 					Sfx.play("wave_start", -4.0)
 				else:
 					_act_card(0)
@@ -641,6 +642,19 @@ func _handle_events(evs: Array) -> void:
 				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
 				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
 				Sfx.play("orbit", -4.0, 1.3)
+			World.EV_OMEN:
+				var oi := int(ev[3])
+				var rr := float(ev[4])
+				_banner(Lore.omen_name(oi), Lore.omen_subtitle(oi), Color("ff6a4d"), 2.2, true)
+				Sfx.play("bell_toll", -3.0, 0.8)
+				Sfx.play("whisper", -4.0)
+				if rr > 0.0:
+					# The ring the horde will rise on: it tightens onto its radius before they arrive.
+					fx.ring(pos, rr + 40.0, rr, World.OMEN_WARN, Color("ff4d6a"), 2.0)
+					fx.ring(pos, rr + 60.0, rr, World.OMEN_WARN * 0.8, Color("ffd23d"), 1.0)
+				else:
+					for d: Vector2 in World.DOORS:
+						fx.flash(d, 24.0, Color("ff6a4d"), 0.6)
 			World.EV_RAISE:
 				fx.ring(pos, 4.0, 26.0, 0.5, Color("6dff9a"), 2.0)
 				fx.burst(pos + Vector2(0, -4), 14, 60.0, 0.6, 1.5, Color("6dff9a"), Color("efe7d2"), true, -40.0)
@@ -902,7 +916,7 @@ func _act_card(a: int) -> void:
 
 ## Fades the backdrop to the act the run minute is in.
 func _update_act(dt: float) -> void:
-	var want := Lore.act_of(wave)
+	var want := Lore.act_of(wave - 1)
 	if want != act and _act_fade < 0.0:
 		act = want
 		bg_next.texture = ArenaBg.build(act)

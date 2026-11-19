@@ -850,3 +850,32 @@ func test_bone_priest_raises_skeletons() -> void:
 				raised += int(ev[3])
 	assert_true(not priest.dead, "the priest should still stand")
 	assert_eq(raised, World.PRIEST_RAISED, "one raising in one cycle")
+
+
+func test_an_omen_rings_the_party_on_its_minute() -> void:
+	var w := _fighting(null, 0.0)
+	var omen: Array = World.OMENS[0]
+	w.wave = int(omen[0]) - 1
+	w.wave_time = (int(omen[0]) - 1) * 60.0 + 0.01
+	w.spawn_queue.clear()
+	w.take_events()
+	w._tick_minute()
+	var announced := false
+	for ev: Array in w.take_events():
+		announced = announced or int(ev[0]) == World.EV_OMEN
+	assert_true(announced, "the omen is announced")
+	var ringed := 0
+	var c: Vector2 = _player(w).pos
+	for q: Dictionary in w.spawn_queue:
+		if int(q.type) == int(omen[1]) and q.has("at"):
+			ringed += 1
+			assert_true((q.at as Vector2).distance_to(c) <= World.OMEN_RING_R + 0.5, "ring spawns stay on the ring")
+	assert_eq(ringed, int(omen[2]))
+
+
+func test_omens_have_lore_and_skip_lich_minutes() -> void:
+	assert_eq(Lore.OMENS.size(), World.OMENS.size())
+	var w := _fighting(null, 0.0)
+	for o: Array in World.OMENS:
+		var wave: int = o[0]
+		assert_true(w._lich_visits(wave) == w._lich_visits(wave - 1), "an omen shares a minute with the Lich")

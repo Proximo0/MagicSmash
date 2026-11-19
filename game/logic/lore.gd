@@ -37,6 +37,13 @@ const MINUTES: Array = [
 	"HE IS COMING",
 ]
 
+## [name, subtitle] of each omen, the set-piece horde in the middle of an act (World.OMENS, same order).
+const OMENS: Array = [
+	["THE DEAD ENCIRCLE", "BACK TO BACK, WIZARDS"],
+	["THE LIBRARY TAKES FLIGHT", "EVERY DOOR, EVERY BOOK"],
+	["THE PROCESSION OF WRAITHS", "THEY WALK THROUGH WALLS"],
+]
+
 const LICH_NAME := "MORVANE, LICH LORD"
 const ARCHLICH_NAME := "MORVANE ASCENDANT"
 const ARCHLICH_TITLE := "THE ARCHLICH"
@@ -102,3 +109,11 @@ static func ending(won: bool, seed_value: int) -> String:
 ## An elite's epithet, picked from a number every screen agrees on (such as where it appeared).
 static func elite_epithet(n: int) -> String:
 	return ELITE_EPITHETS[absi(n) % ELITE_EPITHETS.size()]
+
+
+static func omen_name(i: int) -> String:
+	return OMENS[clampi(i, 0, OMENS.size() - 1)][0]
+
+
+static func omen_subtitle(i: int) -> String:
+	return OMENS[clampi(i, 0, OMENS.size() - 1)][1]

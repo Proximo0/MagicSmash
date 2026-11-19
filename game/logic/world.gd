@@ -85,6 +85,7 @@ const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = ki
 const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
+const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -135,6 +136,16 @@ const STONE_DAMAGE := 0.25
 ## Seconds between a bone priest's raisings and how many skeletons rise each time.
 const PRIEST_RAISE := 6.0
 const PRIEST_RAISED := 2
+## Omens: one set-piece horde event in the middle of each act. [wave, enemy type, count, ring?]. A ring forms
+## around the party and closes in; otherwise the group pours from every door at once.
+const OMENS := [
+	[4, SKELETON, 14, true],
+	[9, TOME, 20, false],
+	[14, WRAITH, 24, true],
+]
+## Seconds between an omen's warning and the horde arriving; the ring's radius around the party, px.
+const OMEN_WARN := 2.0
+const OMEN_RING_R := 105.0
 ## Seconds between enemies of one group walking through a door.
 const DOOR_STAGGER := 0.1
 ## Elite multipliers on score and XP, and what an elite drops.
@@ -502,9 +513,39 @@ func _tick_minute() -> void:
 		return
 	var boss_minute := wave < final_minute() and _lich_visits(wave) > _lich_visits(wave - 1)
 	emit(EV_WAVE, 0, 0, wave, 1 if boss_minute else 0)
+	for i in OMENS.size():
+		if int(OMENS[i][0]) == wave:
+			_queue_omen(i)
 	if boss_minute and boss == null:
 		spawn_queue.append({"t": wave_time + 2.5, "type": LICH, "door": 0})
 		_sort_queue()
+
+## Starts omen `i`: announces it and queues its horde OMEN_WARN seconds out.
+func _queue_omen(i: int) -> void:
+	var o: Array = OMENS[i]
+	var type: int = o[1]
+	var n: int = o[2]
+	var t := wave_time + OMEN_WARN
+	if not o[3]:
+		emit(EV_OMEN, G.ARENA.get_center().x, G.ARENA.get_center().y, i, 0)
+		for d in DOORS.size():
+			_queue_group(type, n / DOORS.size(), d, t)
+		_sort_queue()
+		return
+	var c := Vector2.ZERO
+	var alive := 0
+	for p: Player in players.values():
+		if p.alive:
+			c += p.pos
+			alive += 1
+	c = c / alive if alive > 0 else G.ARENA.get_center()
+	emit(EV_OMEN, c.x, c.y, i, OMEN_RING_R)
+	var inner := G.ARENA.grow(-10.0)
+	for k in n:
+		var at := c + Vector2.from_angle(TAU * k / n) * OMEN_RING_R
+		at = Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y))
+		spawn_queue.append({"t": t + k * 0.02, "type": type, "door": 0, "at": at})
+	_sort_queue()
 
 ## The minute the Archlich comes: the one that starts at run_minutes:00. No Lich visits after it.
 func final_minute() -> int:
