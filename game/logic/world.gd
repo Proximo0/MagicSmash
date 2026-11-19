@@ -430,6 +430,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 		PH_GAMEOVER:
 			phase_t += dt
 	_build_grid()
+	_plist.assign(players.values())
 	for p in players.values():
 		_update_player(p, dt, inputs.get(p.slot, PackedFloat32Array()))
 	for e in enemies:
@@ -1099,17 +1100,27 @@ func hurt_player(p: Player, dmg: int) -> void:
 		emit(EV_PDIE, p.pos.x, p.pos.y - 6, p.slot, p.lives)
 
 # ================================================================ ENEMY ===
+## The wizards as a typed list, refreshed every step: `players.values()` builds a new untyped array on every call,
+## and the enemy update asked for it twice per enemy (5% of a whole step at the enemy cap).
+var _plist: Array[Player] = []
+
 func _nearest_player(pos: Vector2) -> Player:
+	if _plist.size() != players.size():
+		_plist.assign(players.values())
 	var best: Player = null
 	var bd := INF
-	for p in players.values():
+	for p: Player in _plist:
 		if not p.alive:
 			continue
-		var d = p.pos.distance_squared_to(pos)
+		var d := p.pos.distance_squared_to(pos)
 		if d < bd:
 			bd = d
 			best = p
 	return best
+
+## How near the nearest wizard must be at the start of an enemy's update for the contact test to run at all: the
+## 5 px touch distance plus far more than any enemy travels in one step (the fastest dash is 4 px).
+const CONTACT_REACH := 45.0
 
 func _update_enemy(e: Enemy, dt: float) -> void:
 	e.t += dt
@@ -1270,33 +1281,43 @@ func _update_enemy(e: Enemy, dt: float) -> void:
 	# Half the crowd separates each tick (alternating by id), at double strength: the same spread for half the cost.
 	if e.type != BAT and e.type != WRAITH and (e.id + _tick) % 2 == 0:
 		_separate(e)
-	e.pos.x = clampf(e.pos.x, G.ARENA.position.x + e.r, G.ARENA.end.x - e.r)
-	e.pos.y = clampf(e.pos.y, G.ARENA.position.y + e.r, G.ARENA.end.y - 2)
-	# Contact damage
-	for p in players.values():
-		if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
-			var dmg := e.contact
-			if (e.type == ORC and e.state == 2) or (e.type == GARGOYLE and e.state == 1):
-				dmg = 2
-			hurt_player(p, dmg)
+	var at: Vector2 = e.pos
+	var room: Rect2 = G.ARENA
+	at.x = clampf(at.x, room.position.x + e.r, room.end.x - e.r)
+	at.y = clampf(at.y, room.position.y + e.r, room.end.y - 2)
+	e.pos = at
+	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
+	# moves a few pixels a step. A mage and the Lich can teleport, so they always check.
+	if dist < e.r + CONTACT_REACH or e.type == MAGE or e.type == LICH:
+		for p: Player in _plist:
+			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
+				var dmg := e.contact
+				if (e.type == ORC and e.state == 2) or (e.type == GARGOYLE and e.state == 1):
+					dmg = 2
+				hurt_player(p, dmg)
 
 ## Pushes `e` out of the enemies it overlaps, reading the grid cells directly (this runs for half the horde
 ## every tick, so it avoids _query's array).
 func _separate(e: Enemy) -> void:
-	var x0 := floori((e.pos.x - 16.0) / CELL)
-	var y0 := floori((e.pos.y - 16.0) / CELL)
-	for cx in range(x0, x0 + 2):
-		for cy in range(y0, y0 + 2):
+	# The position lives in a local and is written back once: reading and writing a field of an object costs about
+	# twice a local, and this loop touched e.pos for every neighbour.
+	var pos: Vector2 = e.pos
+	var er: float = e.r
+	var x0 := floori((pos.x - 16.0) / CELL)
+	var y0 := floori((pos.y - 16.0) / CELL)
+	for cx: int in range(x0, x0 + 2):
+		for cy: int in range(y0, y0 + 2):
 			var cell: Array = _grid.get(Vector2i(cx, cy), _NO_CELL)
 			for o: Enemy in cell:
 				if o == e or o.dead or o.type == BAT or o.entering:
 					continue
-				var dv: Vector2 = e.pos - o.pos
-				var min_d: float = e.r + o.r
+				var dv: Vector2 = pos - o.pos
+				var min_d: float = er + o.r
 				var d2: float = dv.length_squared()
 				if d2 < min_d * min_d and d2 > 0.0001:
 					var dd: float = sqrt(d2)
-					e.pos += dv / dd * (min_d - dd) * (0.5 if o.type != LICH else 1.0)
+					pos += dv / dd * (min_d - dd) * (0.5 if o.type != LICH else 1.0)
+	e.pos = pos
 
 func _update_lich(e: Enemy, dt: float, tgt: Player, dirv: Vector2, dist: float) -> Vector2:
 	var rage := e.hp / e.maxhp < (FINAL_RAGE if e.final else 0.5)
