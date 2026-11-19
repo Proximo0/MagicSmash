@@ -67,3 +67,29 @@ func test_effect_values_follow_level() -> void:
 	assert_true(Upgrades.cast_mul(levels) < 1.0, "quick cast should shorten cooldowns")
 	Upgrades.take(levels, Upgrades.SWIFT)
 	assert_true(Upgrades.move_mul(levels) > 1.0)
+
+
+func test_evolution_needs_max_weapon_and_partner() -> void:
+	var levels: Dictionary = {}
+	var evo: int = Upgrades.evo_entry(World.SP_FIRE)
+	levels[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL - 1
+	levels[Upgrades.weapon_entry(World.SP_STORM)] = 1
+	assert_false(Upgrades.available(levels, evo), "offered before fireball is maxed")
+	levels[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL
+	levels.erase(Upgrades.weapon_entry(World.SP_STORM))
+	assert_false(Upgrades.available(levels, evo), "offered without chain lightning")
+	levels[Upgrades.weapon_entry(World.SP_STORM)] = 1
+	assert_true(Upgrades.available(levels, evo))
+	assert_true(Upgrades.take(levels, evo))
+	assert_true(Upgrades.evolved(levels, World.SP_FIRE))
+	assert_false(Upgrades.available(levels, evo), "an evolution is taken once")
+
+
+func test_new_weapons_are_offered() -> void:
+	var seen: Dictionary = {}
+	for s: int in range(1, 40):
+		for idx: int in Upgrades.roll(_rng(s), {}, 3):
+			if Upgrades.is_weapon(idx):
+				seen[idx] = true
+			assert_false(Upgrades.is_evolution(idx), "evolution offered from nothing")
+	assert_eq(seen.size(), Spells.COUNT, "weapons offered: %s" % [seen.keys()])

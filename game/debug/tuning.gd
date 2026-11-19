@@ -13,11 +13,8 @@ const FIELDS: Array = [
 	["player_speed", 102.0, 40.0, 220.0, 2.0, "Player", "Wizard walk speed, px/s (the arena is 480x270)."],
 	["haste_speed_mul", 1.45, 1.0, 2.5, 0.05, "Player", "Walk speed multiplier while Haste boots are active."],
 	["haste_rate_mul", 0.72, 0.3, 1.0, 0.02, "Player", "Cast cooldown multiplier while hasted (lower casts faster)."],
-	["cast_cd_arcane", 0.11, 0.03, 1.0, 0.01, "Casting", "Seconds between Arcane Bolt casts."],
-	["cast_cd_fire", 0.27, 0.05, 2.0, 0.01, "Casting", "Seconds between Fireball casts."],
-	["cast_cd_frost", 0.21, 0.05, 2.0, 0.01, "Casting", "Seconds between Frost Fan casts."],
-	["cast_cd_storm", 0.15, 0.05, 2.0, 0.01, "Casting", "Seconds between Chain Lightning casts."],
-	["cast_cd_star", 0.2, 0.05, 2.0, 0.01, "Casting", "Seconds between Starfall casts."],
+	["spell_cd_mul", 1.0, 0.2, 3.0, 0.05, "Casting", "Multiplier on every spell's cooldown (Spells.STATS); lower casts faster."],
+	["auto_aim_range", 200.0, 40.0, 480.0, 10.0, "Casting", "Spells auto-aim at the nearest enemy within this range, px, unless the player aims."],
 	["spawn_budget_base", 18.0, 0.0, 200.0, 1.0, "Spawning", "Spawn budget of a wave before wave and party scaling (a goblin costs 1, an orc 9)."],
 	["spawn_budget_per_wave", 9.0, 0.0, 100.0, 0.5, "Spawning", "Spawn budget added per wave."],
 	["spawn_party_scale", 0.55, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
@@ -43,11 +40,8 @@ static var _shared: Tuning = null
 var player_speed: float
 var haste_speed_mul: float
 var haste_rate_mul: float
-var cast_cd_arcane: float
-var cast_cd_fire: float
-var cast_cd_frost: float
-var cast_cd_storm: float
-var cast_cd_star: float
+var spell_cd_mul: float
+var auto_aim_range: float
 var spawn_budget_base: float
 var spawn_budget_per_wave: float
 var spawn_party_scale: float
@@ -83,20 +77,6 @@ static func shared() -> Tuning:
 func xp_to_next(level: int) -> int:
 	var l: int = maxi(level, 1) - 1
 	return int(round((xp_first_level + xp_per_level * l) * pow(xp_growth, l)))
-
-
-## Cast cooldown of a spell, by World.SP_* index (arcane, fire, frost, storm, star).
-func cast_cd(spell: int) -> float:
-	match spell:
-		World.SP_FIRE:
-			return cast_cd_fire
-		World.SP_FROST:
-			return cast_cd_frost
-		World.SP_STORM:
-			return cast_cd_storm
-		World.SP_STAR:
-			return cast_cd_star
-	return cast_cd_arcane
 
 
 static func field_names() -> PackedStringArray:

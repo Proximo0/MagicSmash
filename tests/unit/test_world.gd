@@ -194,3 +194,153 @@ func test_xp_gem_flies_to_a_near_wizard() -> void:
 func test_snapshot_player_block_size() -> void:
 	var w := World.new([0, 1], 3)
 	assert_eq((w.snapshot()["p"] as PackedFloat32Array).size(), World.PLAYER_FLOATS * 2)
+
+
+func _casts(w: World, ticks: int, inp: Dictionary = {}) -> int:
+	var n: int = 0
+	for _i: int in range(ticks):
+		w.step(DT, inp)
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_CAST:
+				n += 1
+	return n
+
+
+func test_wizards_start_with_arcane_bolt() -> void:
+	var w := World.new([0, 1], 3)
+	for s: int in [0, 1]:
+		assert_eq(Upgrades.weapon_level(_player(w, s).upgrades, World.SP_ARCANE), 1)
+		assert_eq(Upgrades.weapon_level(_player(w, s).upgrades, World.SP_FIRE), 0)
+
+
+func test_spells_auto_cast_at_the_nearest_enemy() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	assert_eq(_casts(w, 30), 0, "cast with nothing in range")
+	var e: World.Enemy = w.spawn_enemy(World.ORC, 0, p.pos + Vector2(0, 60))
+	assert_true(_casts(w, 30) > 0, "no cast at an enemy in range")
+	assert_true(p.aim.dot((e.pos - p.pos).normalized()) > 0.9, "aim %s does not point at the enemy" % p.aim)
+
+
+func test_every_owned_weapon_casts() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	p.upgrades[Upgrades.weapon_entry(World.SP_FROST)] = 1
+	var seen: Dictionary = {}
+	for _i: int in range(90):
+		w.step(DT, {0: PackedFloat32Array([0, 0, 1, 0, 0, 0])})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_CAST:
+				seen[int(ev[3])] = true
+	assert_eq(seen.keys().size(), 2, "spells cast: %s" % [seen.keys()])
+
+
+func test_tome_grants_and_levels_its_weapon() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	var tome := World.Pickup.new()
+	tome.kind = World.PK_TOME_FIRE
+	w._collect(p, tome)
+	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_FIRE), 1)
+	assert_eq(p.spell, World.SP_FIRE, "a new weapon tied with arcane becomes the main spell")
+	w._collect(p, tome)
+	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_FIRE), 2)
+	p.upgrades[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL
+	var score: int = p.score
+	w._collect(p, tome)
+	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_FIRE), Spells.MAX_LEVEL)
+	assert_eq(p.score, score + 500, "a maxed weapon's tome is worth points")
+
+
+func test_weapons_survive_death() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	p.upgrades[Upgrades.weapon_entry(World.SP_STAR)] = 3
+	w._refresh_spell(p)
+	p.invuln = 0.0
+	w.hurt_player(p, 9)
+	assert_false(p.alive)
+	assert_eq(p.spell, World.SP_STAR)
+	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_STAR), 3)
+
+
+func _orcs_hit(evo: bool) -> int:
+	var w := World.new([0], 3)
+	var orcs: Array[World.Enemy] = []
+	for i: int in range(3):
+		orcs.append(w.spawn_enemy(World.ORC, 0, Vector2(200 + i * 18, 120)))
+	var pierce: int = int(Spells.evo_value(World.SP_ARCANE, "pierce", 0.0)) if evo else 0
+	w._shot(0, World.SP_ARCANE, evo, Vector2(170, 113), Vector2(310, 0), 1.0, pierce)
+	for _i: int in range(30):
+		w._build_grid()
+		w._update_shots(DT)
+	var hit: int = 0
+	for o: World.Enemy in orcs:
+		if o.hp < o.maxhp:
+			hit += 1
+	return hit
+
+
+func test_astral_lance_pierces() -> void:
+	assert_eq(_orcs_hit(false), 1)
+	assert_eq(_orcs_hit(true), 3)
+
+
+func _blast_zaps(evo: bool) -> bool:
+	var w := World.new([0], 3)
+	w.spawn_enemy(World.ORC, 0, Vector2(200, 120))
+	var far: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(255, 120))
+	w._build_grid()
+	var s := World.Shot.new()
+	s.pos = Vector2(200, 116)
+	s.spell = World.SP_FIRE
+	s.evo = evo
+	s.dmg = 2.0
+	w._explode(s)
+	var zapped: bool = false
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_ZAP:
+			zapped = true
+	assert_eq(zapped, far.hp < far.maxhp, "a zap should hurt the orc out of blast range")
+	return zapped
+
+
+func test_thunderfire_blasts_fork_lightning() -> void:
+	assert_false(_blast_zaps(false))
+	assert_true(_blast_zaps(true))
+
+
+func test_tempest_casts_two_chains() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	w.spawn_enemy(World.ORC, 0, p.pos + Vector2(60, -10))
+	w.spawn_enemy(World.ORC, 0, p.pos + Vector2(60, 30))
+	w._build_grid()
+	w.take_events()
+	w._cast(p, World.SP_STORM, Spells.MAX_LEVEL, true, Vector2.RIGHT)
+	var zaps: int = 0
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_ZAP:
+			zaps += 1
+	assert_eq(zaps, 2)
+
+
+func test_comet_rain_bursts_into_ice() -> void:
+	var w := World.new([0], 3)
+	var a: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200, 120))
+	var b: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(220, 120))
+	w._build_grid()
+	w._shot(0, World.SP_STAR, true, Vector2(200, 114), Vector2(1, 0), 2.0, 0)
+	w._shot_hit(w.shots[0], a)
+	assert_true(b.slow > 0.0 and b.hp < b.maxhp, "the neighbour was not caught in the burst")
+
+
+func test_snapshot_sends_weapon_levels() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	p.upgrades[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL
+	p.upgrades[Upgrades.evo_entry(World.SP_FIRE)] = 1
+	var pl: PackedFloat32Array = w.snapshot()["p"]
+	assert_eq(int(pl[29 + World.SP_ARCANE]), 1)
+	assert_eq(int(pl[29 + World.SP_FIRE]), Spells.MAX_LEVEL + 1)
+	assert_eq(int(pl[29 + World.SP_STAR]), 0)

@@ -69,9 +69,8 @@ and numbers go in `Tuning` or data tables.
 2. **(Done, see below.) XP and level-up picks.** Enemies drop XP gems. A level-up pauses for a pick of 1 of 3 upgrades, each player
    picking for themselves. Put it in a new `game/logic/upgrades.gd` with a seeded roll, and give the bot a pick
    policy so sims keep running.
-3. **Spell stacking and evolution.** Turn the five spells (arcane, fire, frost, storm, star) into levelled
-   weapons that auto-cast, with evolutions at max level plus a pairing, for example fire + storm. Today a
-   spell is a 15 s tome pickup (`World.SPELL_TIME`).
+3. **(Done, see below.) Spell stacking and evolution.** Turn the five spells (arcane, fire, frost, storm, star) into levelled
+   weapons that auto-cast, with evolutions at max level plus a pairing, for example fire + storm.
 4. **Continuous horde.** Replace wave clears with a timer-driven spawn budget that ramps up, with elites and
    the Lich as minute bosses. Raise the enemy cap. Add a sim that holds frame cost under budget at peak
    (`tests/sim/sim_waves.gd` already reports `us_per_step`).
@@ -94,6 +93,23 @@ and numbers go in `Tuning` or data tables.
   pick screen shows; `--autotest` saves `levelup.png` the first time it does.
 - Open question for Curtis: XP goes to whoever picks the shard up. Shared party XP (everyone levels together)
   is kinder to a mixed-skill Remote Play group; it is a small change in `World._collect`.
+
+## Step 3 notes (spell weapons and evolutions)
+
+- Every wizard starts with Arcane Bolt level 1. All owned spells cast on their own cooldowns, along the aim
+  stick when it is held, otherwise at the nearest enemy within `Tuning.auto_aim_range`. The fire button no
+  longer does anything; the nova button still does.
+- Stats per level and the evolutions are data in `game/logic/spells.gd`. Weapon levels and evolutions are
+  entries in the `Upgrades` catalogue (`weapon_entry`, `evo_entry`); an evolution is offered once its weapon is
+  level 5 and its partner is owned. Pairs: Astral Lance (arcane + star, piercing), Thunderfire (fire + storm,
+  blasts fork lightning), Blizzard (frost + arcane), Tempest (storm + fire, twin chains), Comet Rain (star +
+  frost, ice bursts). `Tuning.spell_cd_mul` scales every cooldown.
+- Tomes now grant or level their spell weapon (points once it is maxed) and weapons are kept through death.
+  Snapshots carry the 5 weapon levels (6 = evolved) and shot kinds are +5 when evolved; the HUD shows a pip per
+  weapon.
+- Seen in a 2-player bot probe (seeds 11 and 12): first evolutions around minute 3 to 4, most weapons evolved by
+  minute 8, and the bots never lost a life by wave 27. Tomes level weapons fast, so balance belongs to step 4,
+  where the horde ramps.
 
 ## Checks and tools
 

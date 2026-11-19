@@ -12,18 +12,32 @@ const MAGNET := 4
 const WISDOM := 5
 const NOVA := 6
 const LIFE := 7
+## Spell weapons, one entry per World.SP_* spell (see weapon_entry), then their evolutions (evo_entry).
+const W_FIRST := 8
+const EVO_FIRST := 13
 
-## [key, name, short description, weight, values per level]. Indices are the constants above and are sent
-## in snapshots, so append new upgrades at the end.
+## [key, name, short description, weight, values per level, requires]. Indices are the constants above and are
+## sent in snapshots, so append new upgrades at the end. `requires` is a list of [entry, minimum level] that
+## must all hold before the entry can be offered. Spell names and evolution names match Spells.
 const CATALOG: Array = [
-	["swift", "SWIFT FEET", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40]],
-	["quick", "QUICK CAST", "CAST FASTER", 10.0, [0.92, 0.85, 0.79, 0.74, 0.70]],
-	["power", "SPELL POWER", "MORE DAMAGE", 10.0, [1.15, 1.30, 1.45, 1.60, 1.80]],
-	["regen", "REGENERATE", "HEAL OVER TIME", 6.0, [18.0, 12.0, 8.0]],
-	["magnet", "MAGNET", "PULL XP FROM AFAR", 7.0, [1.6, 2.2, 3.0]],
-	["wisdom", "WISDOM", "MORE XP", 7.0, [1.15, 1.30, 1.50]],
-	["nova", "NOVA CHARGE", "+1 NOVA NOW", 5.0, [1.0, 1.0, 1.0, 1.0, 1.0]],
-	["life", "SECOND WIND", "+1 LIFE NOW", 3.0, [1.0, 1.0]],
+	["swift", "SWIFT FEET", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40], []],
+	["quick", "QUICK CAST", "CAST FASTER", 10.0, [0.92, 0.85, 0.79, 0.74, 0.70], []],
+	["power", "SPELL POWER", "MORE DAMAGE", 10.0, [1.15, 1.30, 1.45, 1.60, 1.80], []],
+	["regen", "REGENERATE", "HEAL OVER TIME", 6.0, [18.0, 12.0, 8.0], []],
+	["magnet", "MAGNET", "PULL XP FROM AFAR", 7.0, [1.6, 2.2, 3.0], []],
+	["wisdom", "WISDOM", "MORE XP", 7.0, [1.15, 1.30, 1.50], []],
+	["nova", "NOVA CHARGE", "+1 NOVA NOW", 5.0, [1.0, 1.0, 1.0, 1.0, 1.0], []],
+	["life", "SECOND WIND", "+1 LIFE NOW", 3.0, [1.0, 1.0], []],
+	["w_arcane", "ARCANE BOLT", "AUTO-CAST BOLTS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["w_fire", "FIREBALL", "EXPLODES ON HIT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["w_frost", "FROST FAN", "SLOWS ENEMIES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["w_storm", "CHAIN LIGHTNING", "JUMPS FOE TO FOE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["w_star", "STARFALL", "HOMING STARS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["e_arcane", "ASTRAL LANCE", "PIERCING BOLTS", 40.0, [1.0], [[8, 5], [12, 1]]],
+	["e_fire", "THUNDERFIRE", "BLASTS FORK LIGHTNING", 40.0, [1.0], [[9, 5], [11, 1]]],
+	["e_frost", "BLIZZARD", "A STORM OF ICE", 40.0, [1.0], [[10, 5], [8, 1]]],
+	["e_storm", "TEMPEST", "TWIN LIGHTNING CHAINS", 40.0, [1.0], [[11, 5], [9, 1]]],
+	["e_star", "COMET RAIN", "STARS BURST INTO ICE", 40.0, [1.0], [[12, 5], [10, 1]]],
 ]
 
 
@@ -41,6 +55,41 @@ static func display_name(idx: int) -> String:
 
 static func description(idx: int) -> String:
 	return CATALOG[idx][2]
+
+
+static func weapon_entry(spell: int) -> int:
+	return W_FIRST + spell
+
+
+static func evo_entry(spell: int) -> int:
+	return EVO_FIRST + spell
+
+
+static func is_weapon(idx: int) -> bool:
+	return idx >= W_FIRST and idx < EVO_FIRST
+
+
+static func is_evolution(idx: int) -> bool:
+	return idx >= EVO_FIRST and idx < CATALOG.size()
+
+
+## Spell weapon level 0..Spells.MAX_LEVEL.
+static func weapon_level(levels: Dictionary, spell: int) -> int:
+	return level_of(levels, weapon_entry(spell))
+
+
+static func evolved(levels: Dictionary, spell: int) -> bool:
+	return level_of(levels, evo_entry(spell)) > 0
+
+
+## True if `idx` is below its max level and every requirement holds.
+static func available(levels: Dictionary, idx: int) -> bool:
+	if idx < 0 or idx >= CATALOG.size() or level_of(levels, idx) >= max_level(idx):
+		return false
+	for req: Array in CATALOG[idx][5]:
+		if level_of(levels, int(req[0])) < int(req[1]):
+			return false
+	return true
 
 
 static func level_of(levels: Dictionary, idx: int) -> int:
@@ -86,7 +135,7 @@ static func xp_mul(levels: Dictionary) -> float:
 static func roll(rng: RandomNumberGenerator, levels: Dictionary, n: int) -> Array[int]:
 	var pool: Array[int] = []
 	for i: int in range(CATALOG.size()):
-		if level_of(levels, i) < max_level(i):
+		if available(levels, i):
 			pool.append(i)
 	var out: Array[int] = []
 	while out.size() < n and not pool.is_empty():
@@ -107,7 +156,7 @@ static func roll(rng: RandomNumberGenerator, levels: Dictionary, n: int) -> Arra
 
 ## Raises `idx` by one level in `levels`. Returns false if it is unknown or already maxed.
 static func take(levels: Dictionary, idx: int) -> bool:
-	if idx < 0 or idx >= CATALOG.size() or level_of(levels, idx) >= max_level(idx):
+	if not available(levels, idx):
 		return false
 	levels[idx] = level_of(levels, idx) + 1
 	return true

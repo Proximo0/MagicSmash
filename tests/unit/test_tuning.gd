@@ -60,13 +60,22 @@ func test_xp_curve_starts_at_first_level_and_grows() -> void:
 		prev = need
 
 
-func test_cast_cd_maps_each_spell() -> void:
-	var t := Tuning.new()
-	assert_near(t.cast_cd(World.SP_ARCANE), t.cast_cd_arcane)
-	assert_near(t.cast_cd(World.SP_FIRE), t.cast_cd_fire)
-	assert_near(t.cast_cd(World.SP_FROST), t.cast_cd_frost)
-	assert_near(t.cast_cd(World.SP_STORM), t.cast_cd_storm)
-	assert_near(t.cast_cd(World.SP_STAR), t.cast_cd_star)
+func test_spell_cd_mul_scales_cast_rate() -> void:
+	# Doubling every spell cooldown halves how often the starting arcane bolt casts.
+	var slow := Tuning.new()
+	slow.set_value("spell_cd_mul", 2.0)
+	var aim_right: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
+	var counts: Array[int] = []
+	for w: World in [World.new([0], 5), World.new([0], 5, slow)]:
+		var casts: int = 0
+		for _i: int in range(120):
+			w.step(1.0 / 60.0, {0: aim_right})
+			for ev: Array in w.take_events():
+				if ev[0] == World.EV_CAST:
+					casts += 1
+		counts.append(casts)
+	assert_true(counts[0] >= 10, "arcane cast %d times in 2 s" % counts[0])
+	assert_true(absi(counts[0] - 2 * counts[1]) <= 1, "casts %d vs %d" % [counts[0], counts[1]])
 
 
 func test_world_reads_its_tuning() -> void:

@@ -20,8 +20,6 @@ const SP_FIRE := 1
 const SP_FROST := 2
 const SP_STORM := 3
 const SP_STAR := 4
-const SPELL_NAMES := ["ARCANE BOLT", "FIREBALL", "FROST FAN", "CHAIN LIGHTNING", "STARFALL"]
-const SPELL_TIME := 15.0
 
 # Pickups
 const PK_COIN := 0
@@ -86,9 +84,10 @@ const STATS := [
 	[380.0, 26.0, 14.0, 5000, 2],# lich
 ]
 
-## Floats per player in snapshot()["p"]: 19 core values, then xp, xp needed, level, offer id,
-## and 3 x (offered upgrade index or -1, the level it would reach).
-const PLAYER_FLOATS := 29
+## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 is unused), then xp,
+## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), and the 5 spell
+## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved).
+const PLAYER_FLOATS := 34
 
 ## XP a gem dropped by each enemy type is worth (same order as STATS).
 const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25]
@@ -108,10 +107,9 @@ class Player:
 	var alive := true
 	var respawn := 0.0
 	var invuln := 2.0
-	var spell := 0
-	var spell_time := 0.0
+	var spell := 0 # main spell: the highest weapon, which colours the staff
 	var bombs := 2
-	var fire_cd := 0.0
+	var cds: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0] # seconds until each spell weapon casts again
 	var haste := 0.0
 	var orbit := 0.0
 	var orbit_ang := 0.0
@@ -157,7 +155,11 @@ class Enemy:
 class Shot:
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
-	var kind := 0
+	var kind := 0 # spell, plus Spells.COUNT when evolved (what clients draw)
+	var spell := 0
+	var evo := false
+	var pierce := 0 # enemies it may still pass through
+	var hits := {} # enemy ids already hit by a piercing shot
 	var dmg := 1.0
 	var owner := 0
 	var life := 1.0
@@ -214,6 +216,7 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 		var p := Player.new()
 		p.slot = s
 		p.pos = c + offs[s % 4]
+		p.upgrades[Upgrades.weapon_entry(SP_ARCANE)] = 1
 		players[s] = p
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
@@ -329,6 +332,7 @@ func _pick(p: Player, idx: int) -> void:
 			p.bombs += 1
 		Upgrades.LIFE:
 			p.lives += 1
+	_refresh_spell(p)
 	emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
 	if p.pending > 0:
 		_offer(p)
@@ -485,12 +489,10 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 		p.regen_t = 0.0
 	var move := Vector2.ZERO
 	var aim := Vector2.ZERO
-	var fire := false
 	var bomb_count := -1
 	if inp.size() >= 6:
 		move = Vector2(inp[0], inp[1]).limit_length(1.0)
 		aim = Vector2(inp[2], inp[3])
-		fire = inp[4] > 0.5
 		bomb_count = int(inp[5])
 	var speed := tune.player_speed * Upgrades.move_mul(p.upgrades) * (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	p.vel = move * speed
@@ -502,13 +504,8 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 		p.aim = aim.normalized()
 	elif p.moving:
 		p.aim = move.normalized()
-	p.fire_cd -= dt
-	if fire and p.fire_cd <= 0.0 and aim.length() > 0.1 and phase != PH_GAMEOVER:
-		_cast(p)
-	if p.spell != SP_ARCANE:
-		p.spell_time -= dt
-		if p.spell_time <= 0.0:
-			p.spell = SP_ARCANE
+	if phase != PH_GAMEOVER:
+		_auto_cast(p, dt, aim)
 	if bomb_count >= 0:
 		if p.last_bomb < 0:
 			p.last_bomb = bomb_count
@@ -525,82 +522,132 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 					e.orbit_cd = 0.3
 					_damage_enemy(e, 1.5, p.slot, (e.pos - p.pos).normalized() * 80.0)
 
-func staff_tip(p: Player) -> Vector2:
-	return p.pos + Vector2(0, -7) + p.aim * 9.0
+## Every owned spell weapon casts on its own cooldown: along the aim stick when it is held, otherwise at the
+## nearest enemy within tune.auto_aim_range. Nothing in range and no aim: the weapons wait, ready.
+func _auto_cast(p: Player, dt: float, aim: Vector2) -> void:
+	var dir := Vector2.ZERO
+	if aim.length() > 0.1:
+		dir = aim.normalized()
+	else:
+		var tgt := _nearest_enemy(p.pos, tune.auto_aim_range)
+		if tgt:
+			dir = (tgt.pos + Vector2(0, -4) - (p.pos + Vector2(0, -7))).normalized()
+			p.aim = dir
+	var rate_mul := (tune.haste_rate_mul if p.haste > 0.0 else 1.0) * Upgrades.cast_mul(p.upgrades) * tune.spell_cd_mul
+	for sp in Spells.COUNT:
+		var lv := Upgrades.weapon_level(p.upgrades, sp)
+		if lv <= 0:
+			continue
+		p.cds[sp] = maxf(0.0, p.cds[sp] - dt)
+		if p.cds[sp] > 0.0 or dir == Vector2.ZERO:
+			continue
+		var evo := Upgrades.evolved(p.upgrades, sp)
+		p.cds[sp] = Spells.cooldown(sp, lv, evo) * rate_mul
+		_cast(p, sp, lv, evo, dir)
 
-func _cast(p: Player) -> void:
-	var rate_mul := (tune.haste_rate_mul if p.haste > 0.0 else 1.0) * Upgrades.cast_mul(p.upgrades)
-	var tip := staff_tip(p)
-	var dir := p.aim
-	match p.spell:
-		SP_ARCANE:
-			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
-			_shot(p, tip, dir.rotated(rng.randf_range(-0.04, 0.04)) * 310.0, 1.0, 3.0, 1.0)
-		SP_FIRE:
-			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
-			_shot(p, tip, dir * 200.0, 2.0, 4.5, 1.6)
-		SP_FROST:
-			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
-			for i in 5:
-				var a := (i - 2) * 0.17
-				_shot(p, tip, dir.rotated(a) * 255.0, 0.85, 2.5, 0.75)
-		SP_STORM:
-			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
-			_chain_lightning(p, tip)
-		SP_STAR:
-			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
-			for s in [-0.45, 0.45]:
-				_shot(p, tip, dir.rotated(s) * 175.0, 1.35, 3.0, 2.2)
-	emit(EV_CAST, tip.x, tip.y, p.spell, p.slot)
+## Nearest living enemy inside the arena within `radius` of `pos`, or null.
+func _nearest_enemy(pos: Vector2, radius: float) -> Enemy:
+	var best: Enemy = null
+	var bd := radius * radius
+	for e in enemies:
+		if e.dead or e.entering:
+			continue
+		var d := e.pos.distance_squared_to(pos)
+		if d < bd:
+			bd = d
+			best = e
+	return best
 
-func _shot(p: Player, pos: Vector2, vel: Vector2, dmg: float, r: float, life: float) -> void:
+func _cast(p: Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
+	var tip := p.pos + Vector2(0, -7) + dir * 9.0
+	var n := Spells.count(sp, lv, evo)
+	var dmg := Spells.damage(sp, lv, evo)
+	if sp == SP_STORM:
+		var chains := int(Spells.evo_value(sp, "chains", 1.0)) if evo else 1
+		var range_mul := Spells.TEMPEST_RANGE_MUL if evo else 1.0
+		var hit := {}
+		for c in chains:
+			_chain_lightning(p.slot, tip, dir.rotated((c - (chains - 1) * 0.5) * 0.5), n, dmg, range_mul, hit)
+	else:
+		var spread := Spells.stat(sp, "spread")
+		var speed := Spells.stat(sp, "speed")
+		var pierce := int(Spells.evo_value(sp, "pierce", 0.0)) if evo else 0
+		for i in n:
+			var a := (i - (n - 1) * 0.5) * spread
+			if sp == SP_ARCANE:
+				a += rng.randf_range(-0.04, 0.04)
+			_shot(p.slot, sp, evo, tip, dir.rotated(a) * speed, dmg, pierce)
+	emit(EV_CAST, tip.x, tip.y, sp, p.slot)
+
+func _shot(slot: int, sp: int, evo: bool, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> void:
 	var s := Shot.new()
 	s.pos = pos
 	s.vel = vel
-	s.kind = p.spell
+	s.spell = sp
+	s.evo = evo
+	s.kind = sp + (Spells.COUNT if evo else 0)
 	s.dmg = dmg
-	s.owner = p.slot
-	s.r = r
-	s.life = life
+	s.owner = slot
+	s.r = Spells.stat(sp, "r")
+	s.life = Spells.stat(sp, "life")
+	s.pierce = pierce
 	shots.append(s)
 
-func _chain_lightning(p: Player, tip: Vector2) -> void:
-	var pts := PackedVector2Array([tip])
-	var hit := {}
+## Lightning from `tip` to the nearest enemy roughly along `dir`, then `jumps - 1` jumps foe to foe.
+## Enemies in `hit` are skipped, so several chains of one cast find different foes.
+func _chain_lightning(slot: int, tip: Vector2, dir: Vector2, jumps: int, dmg: float, range_mul: float, hit: Dictionary) -> void:
 	var best: Enemy = null
-	var best_d := 140.0
+	var best_d := Spells.CHAIN_FIRST_RANGE * range_mul
 	for e in enemies:
-		if e.dead:
+		if e.dead or hit.has(e.id):
 			continue
 		var to := e.pos - tip
 		var d := to.length()
-		if d < best_d and to.normalized().dot(p.aim) > 0.6:
+		if d < best_d and to.normalized().dot(dir) > 0.6:
 			best_d = d
 			best = e
 	if best == null:
-		pts.append(tip + p.aim * 70.0)
-		emit(EV_ZAP, tip.x, tip.y, pts, p.slot)
+		emit(EV_ZAP, tip.x, tip.y, PackedVector2Array([tip, tip + dir * Spells.CHAIN_JUMP_RANGE * range_mul]), slot)
 		return
-	var cur := best
-	var dmg := 1.7
-	for i in 5:
+	_zap_chain(slot, tip, best, jumps, dmg, Spells.CHAIN_JUMP_RANGE * range_mul, hit, dir)
+
+## Lightning from `from` through `first` and on to the nearest unhit enemy within `jump_range`, up to `jumps` foes.
+func _zap_chain(slot: int, from: Vector2, first: Enemy, jumps: int, dmg: float, jump_range: float, hit: Dictionary, push: Vector2) -> void:
+	var pts := PackedVector2Array([from])
+	var cur := first
+	for i in jumps:
 		pts.append(cur.pos + Vector2(0, -4))
 		hit[cur.id] = true
-		_damage_enemy(cur, dmg, p.slot, p.aim * 40.0)
+		_damage_enemy(cur, dmg, slot, push * 40.0)
 		var nxt: Enemy = null
-		var nd := 70.0
-		for e in _query(cur.pos, 70.0):
+		var nd := jump_range
+		for e in _query(cur.pos, jump_range):
 			if hit.has(e.id) or e.dead:
 				continue
-			var d = e.pos.distance_to(cur.pos)
+			var d: float = e.pos.distance_to(cur.pos)
 			if d < nd:
 				nd = d
 				nxt = e
 		if nxt == null:
 			break
 		cur = nxt
-		dmg *= 0.85
-	emit(EV_ZAP, tip.x, tip.y, pts, p.slot)
+		dmg *= Spells.CHAIN_FALLOFF
+	emit(EV_ZAP, from.x, from.y, pts, slot)
+
+## The main spell is the highest weapon (an evolved one beats any level); ties go to the later spell.
+func _refresh_spell(p: Player) -> void:
+	var best := -1
+	for sp in Spells.COUNT:
+		var lv := _weapon_snap(p, sp)
+		if lv > 0 and lv >= best:
+			best = lv
+			p.spell = sp
+
+## Weapon level as sent in snapshots: 0 not owned, 1..MAX_LEVEL, MAX_LEVEL + 1 evolved.
+func _weapon_snap(p: Player, sp: int) -> int:
+	if Upgrades.evolved(p.upgrades, sp):
+		return Spells.MAX_LEVEL + 1
+	return Upgrades.weapon_level(p.upgrades, sp)
 
 func _nova(p: Player) -> void:
 	p.bombs -= 1
@@ -629,7 +676,6 @@ func hurt_player(p: Player, dmg: int) -> void:
 		p.alive = false
 		p.lives -= 1
 		p.respawn = 2.5
-		p.spell = SP_ARCANE
 		p.haste = 0.0
 		p.orbit = 0.0
 		p.combo = 0
@@ -936,38 +982,63 @@ func _drop(kind: int, pos: Vector2, vel: Vector2, life: float = 9.0, value: int 
 func _update_shots(dt: float) -> void:
 	var bounds := G.ARENA.grow(4)
 	for s in shots:
+		if s.dead:
+			continue
 		s.life -= dt
-		if s.kind == SP_STAR:
+		if s.spell == SP_STAR:
 			var best: Enemy = null
 			var bd := 160.0
 			for e in _query(s.pos, 160.0):
+				if s.hits.has(e.id):
+					continue
 				var d = e.pos.distance_to(s.pos)
 				if d < bd:
 					bd = d
 					best = e
 			if best:
-				var want := (best.pos + Vector2(0, -4) - s.pos).normalized() * s.vel.length()
-				s.vel = s.vel.lerp(want, minf(1.0, dt * 5.5)).normalized() * 175.0
+				var speed := Spells.stat(SP_STAR, "speed")
+				var want := (best.pos + Vector2(0, -4) - s.pos).normalized() * speed
+				s.vel = s.vel.lerp(want, minf(1.0, dt * 5.5)).normalized() * speed
 		s.pos += s.vel * dt
 		if s.life <= 0.0 or not bounds.has_point(s.pos):
 			s.dead = true
-			if s.kind == SP_FIRE:
+			if s.spell == SP_FIRE:
 				_explode(s)
 			continue
 		for e in _query(s.pos, 20.0):
-			if e.dead:
+			if e.dead or s.hits.has(e.id):
 				continue
 			var hit_pos = e.pos + Vector2(0, -e.r * 0.8)
 			if s.pos.distance_to(hit_pos) < s.r + e.r + 1.0:
-				s.dead = true
-				if s.kind == SP_FIRE:
-					_explode(s)
-				else:
-					_damage_enemy(e, s.dmg, s.owner, s.vel.normalized() * 70.0)
-					if s.kind == SP_FROST:
-						e.slow = 1.8
-						emit(EV_FROST, s.pos.x, s.pos.y, 0, 0)
+				_shot_hit(s, e)
 				break
+
+func _shot_hit(s: Shot, e: Enemy) -> void:
+	if s.spell == SP_FIRE:
+		s.dead = true
+		_explode(s)
+		return
+	_damage_enemy(e, s.dmg, s.owner, s.vel.normalized() * 70.0)
+	if s.spell == SP_FROST:
+		e.slow = Spells.evo_value(SP_FROST, "slow", Spells.FROST_SLOW) if s.evo else Spells.FROST_SLOW
+		emit(EV_FROST, s.pos.x, s.pos.y, 0, 0)
+	if s.evo and s.spell == SP_STAR:
+		_frost_burst(s, e)
+	if s.pierce > 0:
+		s.pierce -= 1
+		s.hits[e.id] = true
+	else:
+		s.dead = true
+
+## Comet Rain: a star that hits bursts into ice, slowing and hurting every other enemy nearby.
+func _frost_burst(s: Shot, center: Enemy) -> void:
+	var radius := Spells.evo_value(SP_STAR, "burst", 0.0)
+	emit(EV_FROST, s.pos.x, s.pos.y, radius, 0)
+	for e in _query(s.pos, radius + 8.0):
+		if e == center or e.dead or e.pos.distance_to(s.pos) > radius + e.r:
+			continue
+		e.slow = Spells.FROST_SLOW
+		_damage_enemy(e, s.dmg * Spells.BURST_DMG, s.owner, (e.pos - s.pos).normalized() * 60.0)
 
 func _explode(s: Shot) -> void:
 	emit(EV_EXPLODE, s.pos.x, s.pos.y, 28, s.owner)
@@ -975,6 +1046,12 @@ func _explode(s: Shot) -> void:
 		var d = e.pos.distance_to(s.pos)
 		if d < 28.0 + e.r:
 			_damage_enemy(e, s.dmg + 1.5 * (1.0 - d / 40.0), s.owner, (e.pos - s.pos).normalized() * 160.0)
+	if s.evo:
+		# Thunderfire: lightning forks from the blast to the nearest survivor.
+		var tgt := _nearest_enemy(s.pos, Spells.CHAIN_JUMP_RANGE)
+		if tgt:
+			var jumps := int(Spells.evo_value(SP_FIRE, "chain", 0.0))
+			_zap_chain(s.owner, s.pos, tgt, jumps, s.dmg * Spells.CHAIN_FALLOFF, Spells.CHAIN_JUMP_RANGE, {}, Vector2.ZERO)
 
 func _update_eshots(dt: float) -> void:
 	var bounds := G.ARENA.grow(6)
@@ -1032,9 +1109,13 @@ func _collect(p: Player, k: Pickup) -> void:
 		PK_POTION:
 			p.hp = mini(5, p.hp + 2)
 		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR:
-			var sp: int = k.kind - PK_TOME_FIRE + 1
-			p.spell_time = SPELL_TIME + (p.spell_time if p.spell == sp else 0.0)
-			p.spell = sp
+			# A tome grants or levels its spell weapon; one that is already maxed is worth points instead.
+			var idx := Upgrades.weapon_entry(k.kind - PK_TOME_FIRE + 1)
+			if Upgrades.take(p.upgrades, idx):
+				_refresh_spell(p)
+				emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
+			else:
+				pts = 500
 		PK_BOOTS:
 			p.haste = 10.0
 		PK_ORBIT:
@@ -1080,13 +1161,15 @@ func snapshot() -> Dictionary:
 	var pl := PackedFloat32Array()
 	for p in players.values():
 		pl.append_array([p.slot, p.pos.x, p.pos.y, p.aim.x, p.aim.y, p.hp, p.lives,
-			1.0 if p.alive else 0.0, p.invuln, p.spell, p.spell_time, p.bombs, p.score,
+			1.0 if p.alive else 0.0, p.invuln, p.spell, 0.0, p.bombs, p.score,
 			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0,
 			p.xp, tune.xp_to_next(p.level), p.level, p.offer])
 		for c in 3:
 			var idx: int = p.choices[c] if c < p.choices.size() else -1
 			pl.append(idx)
 			pl.append(Upgrades.level_of(p.upgrades, idx) + 1 if idx >= 0 else 0)
+		for sp in Spells.COUNT:
+			pl.append(_weapon_snap(p, sp))
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow])
