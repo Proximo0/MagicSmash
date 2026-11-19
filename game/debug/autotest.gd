@@ -26,6 +26,7 @@ var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
 var quit_at := 60.0
+var _quit_override := -1.0
 var net := ""
 var _pick_seen := 0.0
 var _pick_shot := false
@@ -46,6 +47,9 @@ func _ready() -> void:
 			end_at = float(spec[0])
 			end_win = spec.size() > 1 and spec[1] == "win"
 			quit_at = maxf(quit_at, end_at + 8.0)
+		# --quit=SECONDS stops the run early (art and UI loops that only need the first shots).
+		if a.begins_with("--quit="):
+			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--players="):
@@ -75,6 +79,10 @@ func _ready() -> void:
 	if "--eclipse" in OS.get_cmdline_user_args():
 		shots = [[3.0, "@eclipse"], [5.2, "title_eclipse"]]
 		quit_at = 5.6
+	# --options: open the options on the title and shoot them, then stop.
+	if "--options" in OS.get_cmdline_user_args():
+		shots = [[3.0, "@options"], [3.4, "options"]]
+		quit_at = 3.8
 	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
 	if "--album" in OS.get_cmdline_user_args():
 		shots.insert(2, [4.1, "@album"])
@@ -178,6 +186,11 @@ func _process(delta: float) -> void:
 			album_title.album.open()
 			album_title.album.sel = 5
 			album_title.state = album_title.S.CARDS
+		elif name == "@options":
+			var options_title = G.main.current
+			options_title.options.open()
+			options_title.options.sel = Settings.R_CRASH
+			options_title.state = options_title.S.OPTIONS
 		elif name == "@menu":
 			G.main.current.state = G.main.current.S.MAIN
 		elif name == "@lobby":
@@ -213,7 +226,7 @@ func _process(delta: float) -> void:
 			img.save_png("%s/%s.png" % [out_dir, name])
 			print("shot ", name, " fps=", Engine.get_frames_per_second(),
 				" particles=", (G.main.current.fx.parts.size() if "fx" in G.main.current else 0))
-	if t > quit_at:
+	if t > (_quit_override if _quit_override > 0.0 else quit_at):
 		get_tree().quit()
 
 

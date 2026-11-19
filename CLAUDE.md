@@ -16,6 +16,8 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 - `godot --headless --path . -s tools/full_run.gd -- --wizards=4`: bots play a whole run (to the Archlich) and
   print a line per minute. For balancing; too slow for check_all.
 - `tools/export_windows.sh`: Windows build zip in `build/`. `tools/export_android.sh`: debug APK in `build/`.
+- `tools/fetch_sentry.sh`: downloads the pinned sentry-godot addon into the git-ignored `addons/sentry` (the
+  Windows export runs it).
 - Run the game: `godot --path .` (add `-- --seed=N` for a repeatable run).
 
 ## Layout
@@ -32,7 +34,8 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
   `game/art/`. Autoloads `G` (constants, scene switch), `Save` (the only reader and writer of
   player data, `user://profile.json`), `Sfx`, `Net` (LAN roster, inputs, snapshots),
   `Platform` (the only code that talks to Steam; a no-op without GodotSteam, an App ID, or in scripted runs;
-  see `docs/steam.md`).
+  see `docs/steam.md`), `Crash` (the only code that talks to Sentry: crash and script-error reports; a no-op
+  without the fetched addon, a DSN, or in scripted and editor runs; see `docs/sentry.md`).
 - `game/debug/autotest.gd`: `godot --path . -- --autotest[=wave] [--out=dir]` plays with bots and saves screenshots
   (needs a display: `xvfb-run -a godot ...`).
 - `tests/bot/bot.tscn`: boots the real game and lets bots play 75 s per shard (seed 101+shard, 1+shard%4 wizards).

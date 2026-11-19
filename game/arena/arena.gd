@@ -211,6 +211,8 @@ func _ready() -> void:
 			slots.append(0)
 		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks())
 		world.apply_meta(Save.run_bonuses())
+		Crash.tag("seed", str(world.rng.seed))
+		Crash.tag("wizards", str(slots.size()))
 	Sfx.music(_act_music())
 
 ## Runs a draw callback and books its script time with PerfMeter (when the perf harness is on).
