@@ -733,3 +733,46 @@ func test_snapshot_marks_the_archlich() -> void:
 	assert_eq(en[8], 2.0)
 	var wv: PackedFloat32Array = snap.w
 	assert_eq(wv[9], 1.0)
+
+
+func test_the_record_notes_kills_damage_and_the_lich() -> void:
+	var w := World.new([0, 1], 3)
+	var lich: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._damage_enemy(lich, 50.0, 1, Vector2.ZERO)
+	w._kill_enemy(lich, 1)
+	assert_true(w.record.stat(1, "damage") >= 50.0)
+	assert_eq(w.record.stat(0, "damage"), 0.0)
+	assert_eq(w.record.moments.size(), 1)
+	assert_eq(int(w.record.moments[0][1]), Results.M_LICH)
+	assert_eq(int(w.record.moments[0][2]), 1)
+
+
+func test_the_record_notes_chests_and_bets() -> void:
+	var w := _shrine_world([0])
+	var p := _player(w)
+	w._open_chest(p, _chest(w, 5))
+	assert_eq(w.record.stat(0, "chests"), 1.0)
+	assert_true(w.record.stat(0, "best_tier") >= float(Loot.RARE), "luck 5 never rolls common")
+	p.gold = 500.0
+	w._place_shrine(Gamble.SOLO)
+	var sh: World.Shrine = w.shrines[0]
+	_stand_on(w, sh, w.tune.shrine_hold + 0.2)
+	assert_eq(w.record.stat(0, "bets"), float(sh.cost))
+
+
+func test_game_over_sends_the_record_first() -> void:
+	var w := _fighting()
+	_player(w).lives = 0
+	_player(w).invuln = 0.0
+	w.hurt_player(_player(w), 99)
+	var codes: Array = []
+	for _i: int in range(3):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_RESULTS or ev[0] == World.EV_GAMEOVER:
+				codes.append(ev[0])
+				if ev[0] == World.EV_RESULTS:
+					var back := Results.from_dict(ev[3])
+					assert_eq(back.stat(0, "deaths"), 1.0)
+					assert_eq(back.stat(0, "level"), 1.0)
+	assert_eq(codes, [World.EV_RESULTS, World.EV_GAMEOVER])

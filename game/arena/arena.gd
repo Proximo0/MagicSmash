@@ -46,6 +46,7 @@ var game_over := false
 var game_over_t := 0.0
 var final_score := 0
 var crystals_earned := 0
+var results: Results = null # the run record, from EV_RESULTS
 
 var shake := 0.0
 var screen_flash := Color(0, 0, 0, 0)
@@ -618,6 +619,8 @@ func _handle_events(evs: Array) -> void:
 				Sfx.music("music_title")
 				for q: Dictionary in vp.values():
 					fx.burst(q.pos + Vector2(0, -8), 30, 140.0, 1.0, 2.0, Color.WHITE, Color("ffd94d"), true, 40.0, true)
+			World.EV_RESULTS:
+				results = Results.from_dict(ev[3])
 			World.EV_GAMEOVER:
 				game_over = true
 				game_over_t = 0.0
@@ -1355,34 +1358,77 @@ func _star(ci: CanvasItem, p: Vector2) -> void:
 
 func _draw_game_over(ci: CanvasItem) -> void:
 	var a := clampf(game_over_t / 1.0, 0.0, 1.0)
-	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.75 * a))
+	var dark := Color("0b0716")
+	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.82 * a))
 	if game_over_t < 0.6:
 		return
 	var title := "VICTORY!" if victory else "GAME OVER"
-	var tw := PixelFont.text_width(title, 5)
-	PixelFont.draw(ci, title, Vector2(240 - tw / 2.0, 46) + Vector2(3, 3), 5, Color("0b0716"))
-	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 46), 5, Color("ffd94d"), Color("8bff9e") if victory else Color("ff3b5c"), time * 3.0, 2.0)
-	var y := 100
-	for slot in 4:
-		if not vp.has(slot):
-			continue
-		var p: Dictionary = vp[slot]
-		PixelFont.draw(ci, "P%d" % (slot + 1), Vector2(150, y), 1, G.player_color(slot), Color("0b0716"))
-		PixelFont.draw(ci, "%07d" % p.score, Vector2(270, y), 1, Color.WHITE, Color("0b0716"))
-		y += 12
-	y += 6
-	PixelFont.draw(ci, "TOTAL", Vector2(150, y), 1, Color("ffd94d"))
-	PixelFont.draw(ci, "%07d" % final_score, Vector2(270, y), 1, Color("ffd94d"))
-	y += 12
-	PixelFont.draw(ci, "BEST", Vector2(150, y), 1, Color("c9b8ff"))
-	PixelFont.draw(ci, "%07d" % G.high_score, Vector2(270, y), 1, Color("c9b8ff"))
-	PixelFont.draw_centered(ci, ("WON AT " if victory else "SURVIVED ") + _clock(run_t), 240, y + 18, 1, Color("8bff9e"))
-	PixelFont.draw_centered(ci, "+%d CRYSTALS  (%d TO SPEND)" % [crystals_earned, Save.profile.crystals], 240, y + 30, 1, Color("8bdcff"))
+	var tw := PixelFont.text_width(title, 4)
+	PixelFont.draw(ci, title, Vector2(240 - tw / 2.0, 10) + Vector2(2, 2), 4, dark)
+	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 10), 4, Color("ffd94d"), Color("8bff9e") if victory else Color("ff3b5c"), time * 3.0, 2.0)
+	var sub := ("WON AT " if victory else "SURVIVED ") + _clock(run_t) + "    TEAM SCORE %07d" % final_score
+	PixelFont.draw_centered(ci, sub, 240, 44, 1, Color("8bff9e") if victory else Color("c9b8ff"), dark)
+	_draw_result_columns(ci, dark, 58)
+	_draw_moments(ci, dark, 150)
+	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, crystals_earned, Save.profile.crystals]
+	PixelFont.draw_centered(ci, foot, 240, 222, 1, Color("8bdcff"), dark)
 	if game_over_t > 2.0 and int(time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if is_host else "WAITING FOR HOST..."
 		if G.touch_active and is_host:
 			msg = "TAP TO CONTINUE"
-		PixelFont.draw_centered(ci, msg, 240, 236, 1, Color.WHITE, Color("0b0716"))
+		PixelFont.draw_centered(ci, msg, 240, 240, 1, Color.WHITE, dark)
+
+## One column per wizard: name, award, then score, level, kills, damage and gold, revealed one by one.
+func _draw_result_columns(ci: CanvasItem, dark: Color, y0: int) -> void:
+	var slots: Array = []
+	for slot in 4:
+		if vp.has(slot):
+			slots.append(slot)
+	if slots.is_empty():
+		return
+	var titles := {}
+	if results != null:
+		for aw: Array in results.awards():
+			titles[int(aw[0])] = aw[1]
+	var colw := 112.0
+	var x0 := 240.0 - colw * slots.size() / 2.0
+	var rows := [["SCORE", "score"], ["LEVEL", "level"], ["KILLS", "kills"], ["DAMAGE", "damage"], ["GOLD", "gold"]]
+	for i in slots.size():
+		var slot: int = slots[i]
+		var cx := x0 + colw * (i + 0.5)
+		var show := clampf((game_over_t - 0.8 - i * 0.25) / 0.3, 0.0, 1.0)
+		if show <= 0.0:
+			continue
+		var col := G.player_color(slot)
+		ci.draw_rect(Rect2(cx - colw / 2.0 + 4, y0 - 2, colw - 8, 86), Color(col.r, col.g, col.b, 0.12 * show))
+		PixelFont.draw_centered(ci, "P%d" % (slot + 1), cx, y0 + 2, 2, col, dark)
+		var award: String = titles.get(slot, "")
+		if award != "":
+			PixelFont.draw_centered(ci, award, cx, y0 + 18, 1, Color("ffd94d"), dark)
+		var y := y0 + 30
+		for r: Array in rows:
+			var v: float = float(vp[slot].score) if r[1] == "score" else (results.stat(slot, r[1]) if results != null else 0.0)
+			PixelFont.draw(ci, r[0], Vector2(cx - 46, y), 1, Color("8a7aa8"), dark)
+			var txt := "%d" % int(v)
+			PixelFont.draw(ci, txt, Vector2(cx + 46 - PixelFont.text_width(txt, 1), y), 1, Color.WHITE, dark)
+			y += 10
+
+## The team's best moments, with the run time each happened at.
+func _draw_moments(ci: CanvasItem, dark: Color, y0: int) -> void:
+	if results == null or game_over_t < 1.8:
+		return
+	var top: Array = results.top_moments()
+	if top.is_empty():
+		return
+	PixelFont.draw_centered(ci, "BEST MOMENTS", 240, y0, 1, Color("ff4df2"), dark)
+	var y := y0 + 14
+	for i in top.size():
+		if game_over_t < 2.0 + i * 0.3:
+			break
+		var m: Array = top[i]
+		var line := _clock(float(m[0])) + "  " + Results.moment_text(m)
+		PixelFont.draw_centered(ci, line, 240, y, 1, G.player_fx(int(m[2])), dark)
+		y += 12
 
 func _draw_pause(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.7))
