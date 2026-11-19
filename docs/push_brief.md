@@ -73,10 +73,12 @@ mid-to-bright actors with a clean dark outline; magic as the brightest thing on 
 - **Sizes** (width x height, give or take 2 px): wizard 16x22 with the hat; goblin 14x14; bat 16x11; slime 14x11;
   mini slime 9x7; skeleton 12x18; orc 20x22; dark mage 14x20; wraith 16x20; cursed tome 12x12; gargoyle 20x18;
   bone priest 14x20; the Lich 30x40. XP mote 5x5; coin 6x6; gem 7x8; potion 7x9; chest 14x12; spell tome 9x10.
-- **Positions are on the floor.** `pos` is where the feet stand: sprites are anchored bottom centre on it and hit
-  circles are centred on it. Anything that flies (spell shots, enemy shots, a staff head, orbiting orbs, an aura
-  round a body) is drawn `Sprites.LIFT` (7 px) above its floor position, so a shot crosses a body at chest height
-  at the moment the simulation counts the hit. Design each body so its chest is about there.
+- **Bodies and shots.** `pos` is where the feet stand, and a sprite is anchored bottom centre on it. The
+  simulation already works at body height, so nothing is drawn lifted: a wizard's shots leave the staff head at
+  `pos + (0, -7) + aim * 9`; a wizard is hit in a circle of radius 4 centred 6 px above the feet; an enemy is hit
+  in a circle of its `World.STATS` radius centred `0.8 * radius` above its feet; enemy shots leave 7 to 16 px
+  above the feet (see the `_eshot` calls). Draw each shot exactly where the simulation has it, and design each
+  body so its mass covers its hit circle (hats, horns and wings may stick out).
 - **Old sprite keys stay valid.** The title, the lobby, the Sanctum, the card album and the store-art tool draw
   `wiz<n>_<down|up|side>_<a|b>`, `<enemy>_a`, `<enemy>_b` and `lich`. Keep those keys (as aliases of new frames).
 - **One pixel density.** No sprite is drawn scaled or rotated: a bigger thing is drawn bigger, pixel by pixel.

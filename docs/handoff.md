@@ -34,7 +34,7 @@ together, and bet the whole party's fate on a card.
 **Title: FOUR OF WANDS** (the working title was Magic Smash). It is the tarot card of four staffs raised before a
 castle: four wizards, their home, a celebration. No game of that name came up in a web search; Steam's own search
 cannot be reached from the cloud box, so Curtis checks it there. The repository, class names and the save folder
-keep "Magic Smash". The rename lands with the new title screen, once Curtis has seen it.
+keep "Magic Smash". The rename lands with the new title screen.
 
 **Pillars.** Every feature serves one of them:
 1. **Co-op first.** Shared party XP, one pick screen, revives, a shared screen that stays readable with four
@@ -59,8 +59,9 @@ keep "Magic Smash". The rename lands with the new title screen, once Curtis has 
 **Quality bars:**
 - **Readable.** Every wizard can be found within a second in a 4-player Lich fight: bigger sprites, outlines,
   floor rings in the wizard's colour, calmer floors.
-- **Finished art everywhere a player looks**, plain placeholders until then. Curtis approves new art from
-  screenshots before it merges.
+- **Finished art everywhere a player looks**, plain placeholders until then. The lead judges finished art from
+  screenshots at 2x and merges it (Curtis, 19 Nov: bringing him screenshots for approval was only for the
+  earlier Opus lead).
 - **Measured.** The playtest tool with its three bot personas sets the difficulty curve (`docs/bots.md`).
 - **Stable.** Crash reports are on (`docs/sentry.md`) and `tools/check_all.sh` stays green.
 
