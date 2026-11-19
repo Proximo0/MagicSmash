@@ -76,6 +76,15 @@ var _banner_queue: Array = []
 ## A fallen wizard's ghost rising from where they fell: [position, seconds, wizard].
 var _ghosts: Array = []
 const GHOST_LIFE := 1.8
+## The controls hint on a player's first run: seconds into the fight it shows (-1: not yet), and how long.
+var _hint_t := -1.0
+const HINT_LIFE := 10.0
+const HINT_LINES := [
+	["MOVE", "WASD / LEFT STICK"],
+	["AIM", "ARROWS, MOUSE / RIGHT STICK"],
+	["", "YOUR SPELLS CAST THEMSELVES"],
+	["NOVA", "SPACE / RB  -  LEVEL UP: DRAW A CARD"],
+]
 ## The act of the tower the run is in (Lore.ACTS); the backdrop fades to the next act's.
 var act := 0
 var bg_next: Sprite2D
@@ -290,6 +299,13 @@ func _process_view(dt: float) -> void:
 		if banner.act != "":
 			Sfx.play("gong")
 	_update_act(dt)
+	if _hint_t < 0.0 and run_t > 0.5 and not Save.settings.seen_tutorial and not Flags.is_scripted_run():
+		_hint_t = 0.0
+	elif _hint_t >= 0.0 and _hint_t < HINT_LIFE:
+		_hint_t += dt
+		if _hint_t >= HINT_LIFE:
+			Save.settings.seen_tutorial = true
+			Save.write_settings()
 	for g: Array in _ghosts:
 		g[1] += dt
 	_ghosts = _ghosts.filter(func(g: Array) -> bool: return g[1] < GHOST_LIFE)
@@ -1176,6 +1192,20 @@ func _rune_alpha(c: Array) -> float:
 
 ## Active rune circles on the additive floor layer: a double ring with gold runes turning between, a pentagram
 ## inside (a hexagram for the Seal of Solomon, with motes drawn inward), flaring on every damage tick.
+## The first-run controls hint: a small occult panel low on the screen that slides in and out.
+func _draw_hint(ci: CanvasItem) -> void:
+	if _hint_t < 0.0 or _hint_t >= HINT_LIFE:
+		return
+	var k := minf(1.0, minf(_hint_t, HINT_LIFE - _hint_t) * 3.0)
+	var r := Rect2(96, 206 + (1.0 - k) * 70.0, 288, 46)
+	Occult.frame(ci, r, time, false)
+	var y := r.position.y + 4
+	for l: Array in HINT_LINES:
+		PixelFont.draw(ci, l[0], Vector2(r.position.x + 8, y), 1, Color("ffd94d"))
+		PixelFont.draw(ci, l[1], Vector2(r.position.x + 44, y), 1, Color("fff6e0"))
+		y += 10
+
+
 func _draw_runes(ci: CanvasItem) -> void:
 	for c: Array in vr:
 		var at: Vector2 = c[0]
@@ -1535,6 +1565,7 @@ func _draw_hud() -> void:
 			Occult.rune(ci, Vector2(240 + nw / 2.0 + 8 + k * 7, 249), k + 5, glow)
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 1), Color.WHITE)
+	_draw_hint(ci)
 	_draw_reveals(ci, dark)
 	_draw_bets(ci, dark)
 	# Banner

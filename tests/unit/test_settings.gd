@@ -46,3 +46,10 @@ func test_round_trip_and_clamping() -> void:
 	assert_eq(bad.sound, 0)
 	assert_eq(bad.display, Settings.DISPLAY_NAMES.size() - 1)
 	assert_true(bad.shake, "missing keys keep their defaults")
+
+
+func test_the_tutorial_flag_survives_a_save() -> void:
+	var s := Settings.new()
+	s.seen_tutorial = true
+	assert_true(Settings.from_dict(s.to_dict()).seen_tutorial)
+	assert_false(Settings.from_dict({}).seen_tutorial)

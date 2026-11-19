@@ -21,6 +21,8 @@ var display: int = 1
 var shake: bool = true
 ## Whether the prologue has been shown once (it then plays only from THE TALE on the title).
 var seen_prologue: bool = false
+## Whether the controls hint has been shown at the start of a first run.
+var seen_tutorial: bool = false
 
 
 static func row_count() -> int:
@@ -94,7 +96,8 @@ func window_scale() -> int:
 
 
 func to_dict() -> Dictionary:
-	return {"music": music, "sound": sound, "display": display, "shake": shake, "seen_prologue": seen_prologue}
+	return {"music": music, "sound": sound, "display": display, "shake": shake, "seen_prologue": seen_prologue,
+		"seen_tutorial": seen_tutorial}
 
 
 ## Settings from a saved dictionary. Missing or broken values keep their defaults; numbers are clamped.
@@ -105,4 +108,5 @@ static func from_dict(d: Dictionary) -> Settings:
 	s.display = clampi(int(d.get("display", s.display)), 0, DISPLAY_NAMES.size() - 1)
 	s.shake = bool(d.get("shake", s.shake))
 	s.seen_prologue = bool(d.get("seen_prologue", false))
+	s.seen_tutorial = bool(d.get("seen_tutorial", false))
 	return s
