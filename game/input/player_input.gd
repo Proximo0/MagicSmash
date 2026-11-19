@@ -87,6 +87,24 @@ static func back_pressed(event: InputEvent) -> bool:
 		return event.button_index == JOY_BUTTON_B
 	return false
 
+## [device, -1 left or +1 right] for a sideways menu press, or [-99, 0]. The lobby uses it so each player
+## steps through the wizards with their own keyboard or pad.
+static func menu_side(event: InputEvent) -> Array:
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_LEFT, KEY_A: return [G.DEV_KBM, -1]
+			KEY_RIGHT, KEY_D: return [G.DEV_KBM, 1]
+	if event is InputEventJoypadButton and event.pressed:
+		if event.button_index == JOY_BUTTON_DPAD_LEFT: return [event.device, -1]
+		if event.button_index == JOY_BUTTON_DPAD_RIGHT: return [event.device, 1]
+	if event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_X:
+		var key := "stickx%d" % event.device
+		var was: float = _bomb_held.get(key, 0.0)
+		_bomb_held[key] = event.axis_value
+		if event.axis_value < -0.6 and was >= -0.6: return [event.device, -1]
+		if event.axis_value > 0.6 and was <= 0.6: return [event.device, 1]
+	return [-99, 0]
+
 ## -1 up, +1 down, 0 none.
 static func menu_dir(event: InputEvent) -> int:
 	if event is InputEventKey and event.pressed:

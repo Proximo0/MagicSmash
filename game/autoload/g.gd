@@ -47,8 +47,14 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 	high_score = Save.profile.high_score
 	return earned
 
-static func player_color(slot: int) -> Color:
-	return Sprites.PLAYER_COLORS[slot % 4].robe
+## Slot -> picked wizard (Wizards index) for drawing, filled from snapshots. A slot not in it shows its own colour.
+var slot_wizard := {}
 
-static func player_fx(slot: int) -> Color:
-	return Sprites.PLAYER_COLORS[slot % 4].fx
+func wizard_of(slot: int) -> int:
+	return int(slot_wizard.get(slot, slot % 4))
+
+func player_color(slot: int) -> Color:
+	return Sprites.PLAYER_COLORS[wizard_of(slot)].robe
+
+func player_fx(slot: int) -> Color:
+	return Sprites.PLAYER_COLORS[wizard_of(slot)].fx

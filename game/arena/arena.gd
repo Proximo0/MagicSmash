@@ -134,6 +134,7 @@ func _ready() -> void:
 	PlayerInput.touch = touch
 	touch.pause_pressed.connect(_toggle_pause)
 
+	G.slot_wizard = Net.wizard_picks()
 	Net.snapshot_received.connect(_on_snapshot)
 	Net.roster_changed.connect(_on_roster_changed)
 	if is_host:
@@ -142,7 +143,7 @@ func _ready() -> void:
 			slots.append(r.slot)
 		if slots.is_empty():
 			slots.append(0)
-		world = World.new(slots, int(Flags.get_arg("seed", "0")))
+		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks())
 		world.apply_meta(Save.run_bonuses())
 	Sfx.music("music_battle")
 
@@ -322,6 +323,7 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.alive = pl[i + 7] > 0.5
 		p.invuln = pl[i + 8]
 		p.spell = int(pl[i + 9])
+		G.slot_wizard[slot] = int(pl[i + 10])
 		p.bombs = int(pl[i + 11])
 		p.score = int(pl[i + 12])
 		p.combo = int(pl[i + 13])
@@ -969,7 +971,7 @@ func _draw_player(ci: CanvasItem, p: Dictionary) -> void:
 		dirkey = "side"
 		flip = aim.x < 0
 	var fr := "a" if not p.moving or int(p.walk_t) % 2 == 0 else "b"
-	var key := "wiz%d_%s_%s" % [slot % 4, dirkey, fr]
+	var key := "wiz%d_%s_%s" % [G.wizard_of(slot), dirkey, fr]
 	var feet: Vector2 = p.pos + Vector2(0, 1)
 	if p.moving:
 		feet.y -= float(int(p.walk_t) % 2)

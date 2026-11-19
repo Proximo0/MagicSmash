@@ -202,7 +202,17 @@ and numbers go in `Tuning` or data tables.
     only to a wizard who really leads its stat (MVP, SLAYER, HIGH ROLLER, LUCKY, GOLD DIGGER, UNTOUCHABLE); in a
     party anyone left without one is a TEAM PLAYER.
   - `--autotest --end=45` ends the run at 45 s and saves `results.png`; `--end=45:win` shows it as a victory.
-- Next is 6c, character select with the four wizard colours.
+- 6c, wizard select (`game/logic/wizards.gd`, `Wizards`):
+  - In the lobby each player steps left or right through the four wizards with their own keyboard or pad. Two
+    players can't pick the same one. Each wizard is one robe colour and starts with its own spell: Violet
+    Arcanist (arcane bolt), Crimson Pyromancer (fireball), Emerald Frostwarden (frost fan), Amber Stormcaller
+    (chain lightning). Star is the spell nobody starts with.
+  - The roster carries `wizard`; the host passes `Net.wizard_picks()` to `World.new`. Snapshots send the wizard
+    at player index 10, and `G.wizard_of(slot)` colours everything a slot draws (robe, HUD, spell fx).
+  - A slot with no pick (tests, sims, the bot) plays the wizard of its own colour, so 4-bot runs cover all four.
+  - `--autotest --wizard=2` steps the first player two wizards right before the run.
+- Step 6 is done. Next is step 7, Steam: GodotSteam, achievements, Remote Play Together, the store page and the
+  capsule art. Ask Curtis before any store action, payment or upload.
 
 ## Checks and tools
 

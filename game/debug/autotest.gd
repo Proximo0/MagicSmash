@@ -13,6 +13,7 @@ var _arch_shot := false
 var _victory_shot := false
 var end_at := -1.0 # --end=SECONDS[:win] ends the run then (as a win with :win) to capture the results screen
 var end_win := false
+var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
 var _results_shot := false
 var quit_at := 60.0
 var net := ""
@@ -35,6 +36,8 @@ func _ready() -> void:
 			end_at = float(spec[0])
 			end_win = spec.size() > 1 and spec[1] == "win"
 			quit_at = maxf(quit_at, end_at + 8.0)
+		if a.begins_with("--wizard="):
+			wizard_steps = int(a.substr(9))
 		if a == "--passive":
 			PlayerInput.bot_passive = true
 		if a.begins_with("--net="):
@@ -115,6 +118,8 @@ func _process(delta: float) -> void:
 				Net.start_offline()
 				Net.add_local_device(0)
 				title.state = 2
+			for _i in wizard_steps:
+				Net.cycle_wizard(G.DEV_KBM, 1)
 		elif name == "@play":
 			PlayerInput.bot = true
 			if net == "join":
