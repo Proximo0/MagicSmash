@@ -15,6 +15,7 @@ boot_splash/show_image=false
 
 Flags="*res://game/autoload/flags.gd"
 Controls="*res://game/autoload/controls.gd"
+Save="*res://game/autoload/save.gd"
 G="*res://game/autoload/g.gd"
 Sfx="*res://game/autoload/sfx.gd"
 Net="*res://game/autoload/net.gd"

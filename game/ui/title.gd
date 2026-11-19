@@ -3,14 +3,15 @@ extends Node2D
 ## a twilight sky, a castle on the hill, an animated logo and four wizards
 ## launching fireworks.
 
-enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO }
+enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS }
 
-const MENU := ["PLAY", "HOST LAN GAME", "JOIN LAN GAME", "HOW TO PLAY", "QUIT"]
+const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "HOW TO PLAY", "QUIT"]
 
 var state := S.INTRO
 var t := 0.0
 var sel := 0
 var join_sel := 0
+var unlock_sel := 0
 var stars: Array = []
 var mountains_a := PackedFloat32Array()
 var mountains_b := PackedFloat32Array()
@@ -255,6 +256,8 @@ func _draw_front() -> void:
 			PixelFont.draw_centered(ci, "CONNECTING" + ".".repeat(int(t * 3) % 4), 240, 160, 1, Color.WHITE)
 		S.HOWTO:
 			_draw_howto(ci)
+		S.UNLOCKS:
+			_draw_unlocks(ci)
 	if message_t > 0.0:
 		PixelFont.draw_centered(ci, message, 240, 128, 1, Color("ff7a8a"), Color("0b0716"))
 	PixelFont.draw(ci, "V" + G.VERSION, Vector2(3, 262), 1, Color(1, 1, 1, 0.3))
@@ -369,6 +372,40 @@ func _draw_menu(ci: CanvasItem) -> void:
 	var hint := "TAP TO SELECT" if G.touch_active else "ARROWS/STICK + ENTER/A"
 	PixelFont.draw_centered(ci, hint, 240, 252, 1, Color(1, 1, 1, 0.35 * a))
 
+## Meta unlocks: crystals earned in runs buy permanent head starts for every run (never sold for money).
+func _draw_unlocks(ci: CanvasItem) -> void:
+	var prof: Profile = Save.profile
+	_panel(ci, Rect2(40, 132, 400, 124))
+	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 138, 1, Color("8bdcff"))
+	menu_items.clear()
+	for i in Profile.META.size():
+		var row: Array = Profile.META[i]
+		var y := 152 + i * 14
+		var picked := i == unlock_sel
+		menu_items.append(Rect2(46, y - 3, 388, 13))
+		if picked:
+			ci.draw_rect(Rect2(46, y - 3, 388, 13), Color(0.48, 0.3, 1.0, 0.3))
+		var lv := prof.level(row[0])
+		var mx := Profile.max_level(i)
+		PixelFont.draw(ci, row[1], Vector2(52, y), 1, Color("ffd94d") if picked else Color.WHITE)
+		for k in mx:
+			ci.draw_rect(Rect2(158 + k * 7, y + 1, 5, 5), Color("8bdcff") if k < lv else Color("3a2f55"))
+		PixelFont.draw(ci, row[2], Vector2(186, y), 1, Color("b8a8d8"))
+		var cost := prof.next_cost(i)
+		var price := "MAX" if cost < 0 else "%d" % cost
+		var pc := Color("8bff9e") if cost < 0 else (Color("8bdcff") if cost <= prof.crystals else Color("ff7a8a"))
+		PixelFont.draw(ci, price, Vector2(410 - PixelFont.text_width(price, 1), y), 1, pc)
+	PixelFont.draw_centered(ci, "ENTER/A: BUY    ESC/B: BACK", 240, 244, 1, Color(1, 1, 1, 0.5))
+
+func _buy_unlock(i: int) -> void:
+	if Save.profile.buy(i):
+		Save.write()
+		Sfx.play("powerup")
+		fx.burst(Vector2(240, 152 + i * 14), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
+	else:
+		Sfx.play("hurt", -6.0)
+		_msg("MAXED" if Save.profile.next_cost(i) < 0 else "NOT ENOUGH CRYSTALS")
+
 func _star_icon(ci: CanvasItem, p: Vector2, c: Color) -> void:
 	ci.draw_rect(Rect2(p + Vector2(2, 0), Vector2(1, 7)), c)
 	ci.draw_rect(Rect2(p + Vector2(-1, 3), Vector2(7, 1)), c)
@@ -453,10 +490,10 @@ func _draw_howto(ci: CanvasItem) -> void:
 		["NOVA", "SPACE, RIGHT CLICK / RB, A / NOVA BUTTON"],
 		["PAUSE", "ESC / START"],
 		["", ""],
-		["TOMES", "FIREBALL  FROST FAN  CHAIN LIGHTNING  STARFALL"],
-		["BOOTS", "HASTE      GREEN TOME: RUNE SHIELD"],
-		["", "SURVIVE THE WAVES. EVERY 5TH WAVE A BOSS ARRIVES."],
-		["", "CHAIN KILLS FOR COMBO MULTIPLIERS!"],
+		["SPELLS", "CAST THEMSELVES. LEVEL UP AND TOMES ADD MORE"],
+		["LOOT", "CHESTS FROM ELITES. SPEND GOLD AT SHRINES"],
+		["", "SURVIVE THE HORDE. THE LICH COMES EVERY 5 MINUTES."],
+		["", "RUNS EARN CRYSTALS FOR UNLOCKS."],
 	]
 	var y := 146
 	for l in lines:
@@ -548,6 +585,22 @@ func _unhandled_input(event: InputEvent) -> void:
 			if dev != -99 or back or tap:
 				state = S.MAIN
 				Sfx.play("menu_select")
+		S.UNLOCKS:
+			if back:
+				state = S.MAIN
+				Sfx.play("menu_select")
+				return
+			if dir != 0:
+				unlock_sel = wrapi(unlock_sel + dir, 0, Profile.META.size())
+				Sfx.play("menu_move")
+			if tap:
+				for i in menu_items.size():
+					if menu_items[i].has_point(tap_pos):
+						unlock_sel = i
+						_buy_unlock(i)
+				return
+			if dev != -99:
+				_buy_unlock(unlock_sel)
 
 func _activate(item: String, dev: int) -> void:
 	Sfx.play("menu_select")
@@ -571,6 +624,9 @@ func _activate(item: String, dev: int) -> void:
 			state = S.JOIN
 		"HOW TO PLAY":
 			state = S.HOWTO
+		"UNLOCKS":
+			unlock_sel = 0
+			state = S.UNLOCKS
 		"QUIT":
 			get_tree().quit()
 

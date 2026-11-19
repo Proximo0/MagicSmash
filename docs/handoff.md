@@ -74,7 +74,7 @@ and numbers go in `Tuning` or data tables.
 4. **(Done, see below.) Continuous horde.** Replace wave clears with a timer-driven spawn budget that ramps up, with elites and
    the Lich as minute bosses. Raise the enemy cap. Add a sim that holds frame cost under budget at peak
    (`tests/sim/sim_waves.gd` already reports `us_per_step`).
-5. **Loot layer.** In-run chests, the gamble shrines, consumables and armor drops with rarity, plus meta
+5. **(Done, see below.) Loot layer.** In-run chests, the gamble shrines, consumables and armor drops with rarity, plus meta
    unlocks between runs. Saves go through one save module that never writes when `Flags.is_scripted_run()`.
 6. **Run structure.** A 15 to 20 minute run, a final boss, a results screen with the team's best moments, and a
    character select with the four wizard colours.
@@ -167,7 +167,20 @@ and numbers go in `Tuning` or data tables.
     - Cursed: every wizard loses a heart (never the last), and an elite comes for each of them.
   - Bots walk to shrines they can afford (`SmashBot.shrine_goal`); `sim_waves` checks they bet.
   - `--autotest --tune=team_shrine_first:12,shrine_cost_base:2,shrine_cost_per_min:0` saves `team_shrine.png`.
-- Next: 5c, meta unlocks between runs and the save module.
+- 5c, meta unlocks and saves:
+  - `game/logic/profile.gd` (`Profile`) holds the best score, crystals and the unlock catalogue (`META`, costs
+    per level, `EFFECTS`).
+  - A run pays 1 crystal per 30 s survived, 1 per 250 kills and 10 per Lich. Crystals are earned in play and
+    never sold.
+  - The title menu's UNLOCKS screen spends crystals: hearts, damage, XP, gold, novas, chest luck.
+  - In co-op the host's unlocks apply to every wizard (`World.apply_meta`), so Remote Play guests get the same
+    head start.
+  - `game/autoload/save.gd` (`Save`) is the only module that reads or writes player data (`user://profile.json`;
+    the old `save.cfg` high score is carried over once). `Save.write()` refuses in scripted runs, and scripted
+    runs start with no unlocks so bots and sims do not depend on the machine.
+  - The game over screen shows the crystals earned.
+- Step 5 is done. Next is step 6: run structure (a 15 to 20 minute run with a final boss, a results screen with
+  the team's best moments, character select).
 
 ## Checks and tools
 
