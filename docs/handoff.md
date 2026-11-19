@@ -21,7 +21,7 @@ Written 19 Nov 2026, when the project moved onto the game starter kit. Read this
   - High scores are not saved during bot, test or capture runs (`Flags.is_scripted_run()`).
 - Measured: the 4-player sim peaks at about 60 enemies and costs about 130 µs per `World.step` on the cloud box.
   A survivors horde of several hundred enemies needs the spatial grid (`World._build_grid` / `_query`, already
-  there) and batched drawing (MultiMesh or one `_draw` per enemy type) in `game/arena/arena.gd`.
+  there) and batched drawing. Both are in now; see `docs/performance.md`, "This project's numbers".
 
 ## Decisions already made (by Curtis, 19 Nov 2026)
 
@@ -125,9 +125,8 @@ and numbers go in `Tuning` or data tables.
 - XP gems past `Tuning.xp_gem_cap` merge into the nearest gem, so the floor stays readable and cheap.
 - Cost: `tests/sim/sim_horde.gd` fills the arena to the cap with 4 wizards and asserts `World.step` stays under
   4 ms. It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for
-  half the crowd per tick). Drawing is the next cost: under xvfb software rendering the autotest drops from
-  about 85 fps on main to about 40 fps with the horde, so batch enemy drawing (MultiMesh or per-type draws in
-  `arena.gd`) before Steam builds.
+  half the crowd per tick). Drawing was the next cost; the perf pass on 19 Nov cut a 12:00 frame from about
+  1000 draw calls to about 250 (see `docs/performance.md`).
 - Balance pass 1 (after step 4), measured with bot teams on seed 21:
   - The XP curve is now 20 + 60 per level, x1.04 per level (`Tuning.xp_*`): about level 6 at 1:00, 15 at
     5:00 and 25 at 12:00, so pick screens come about every 20 to 30 s instead of every few seconds.

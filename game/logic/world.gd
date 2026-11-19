@@ -504,13 +504,14 @@ func _lich_visits(minute: int) -> int:
 	return (minute - 1) / int(tune.boss_every_min)
 
 ## The horde earns spawn budget every second (more each minute, scaled by party size, less while the Lich is
-## up) and spends it on the group it rolled, from a random door. At the enemy cap it holds.
+## up) and spends it on the group it rolled, from a random door. At the enemy cap it holds: enemies on the field
+## and enemies still queued both count, so the field never grows much past the cap.
 func _direct_horde(dt: float) -> void:
 	elite_t += dt
 	if elite_t >= tune.elite_interval:
 		elite_t -= tune.elite_interval
 		_spawn_elite()
-	if enemies.size() >= int(tune.enemy_cap) or spawn_queue.size() >= int(tune.enemy_cap) / 2:
+	if enemies.size() + spawn_queue.size() >= int(tune.enemy_cap):
 		return
 	var rate := (tune.horde_rate_base + tune.horde_rate_per_min * wave_time / 60.0) * pscale()
 	if boss != null:

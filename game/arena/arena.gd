@@ -90,19 +90,19 @@ func _ready() -> void:
 	bg.texture = ArenaBg.build()
 	root.add_child(bg)
 	decal_layer = _layer(false)
-	decal_layer.draw.connect(_draw_decals)
+	decal_layer.draw.connect(_timed.bind("draw_decals", _draw_decals))
 	env_layer = _layer(false)
-	env_layer.draw.connect(_draw_env)
+	env_layer.draw.connect(_timed.bind("draw_env", _draw_env))
 	env_add = _layer(true)
-	env_add.draw.connect(_draw_env_add)
+	env_add.draw.connect(_timed.bind("draw_env_add", _draw_env_add))
 	ent_layer = _layer(false)
-	ent_layer.draw.connect(_draw_entities)
+	ent_layer.draw.connect(_timed.bind("draw_entities", _draw_entities))
 	fx = Fx.new()
 	root.add_child(fx)
 	shot_layer = _layer(true)
-	shot_layer.draw.connect(_draw_shots)
+	shot_layer.draw.connect(_timed.bind("draw_shots", _draw_shots))
 	eshot_layer = _layer(false)
-	eshot_layer.draw.connect(_draw_eshots)
+	eshot_layer.draw.connect(_timed.bind("draw_eshots", _draw_eshots))
 	var vignette := TextureRect.new()
 	var grad := GradientTexture2D.new()
 	grad.width = 240
@@ -125,7 +125,7 @@ func _ready() -> void:
 	add_child(hud_layer)
 	hud = Node2D.new()
 	hud_layer.add_child(hud)
-	hud.draw.connect(_draw_hud)
+	hud.draw.connect(_timed.bind("draw_hud", _draw_hud))
 	var touch_layer := CanvasLayer.new()
 	touch_layer.layer = 11
 	add_child(touch_layer)
@@ -146,6 +146,12 @@ func _ready() -> void:
 		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks())
 		world.apply_meta(Save.run_bonuses())
 	Sfx.music("music_battle")
+
+## Runs a draw callback and books its script time with PerfMeter (when the perf harness is on).
+func _timed(label: String, fn: Callable) -> void:
+	var t0 := Time.get_ticks_usec()
+	fn.call()
+	PerfMeter.since(label, t0)
 
 func _layer(additive: bool) -> Node2D:
 	var n := Node2D.new()
@@ -181,11 +187,17 @@ func _physics_process(dt: float) -> void:
 	if is_host:
 		for slot in Net.remote_inputs:
 			inputs[slot] = Net.remote_inputs[slot]
+		var t0 := Time.get_ticks_usec()
 		world.step(dt, inputs)
+		PerfMeter.since("world_step", t0)
+		t0 = Time.get_ticks_usec()
 		var snap := world.snapshot()
 		var evs := world.take_events()
 		_apply_snapshot(snap, true)
+		PerfMeter.since("snapshot", t0)
+		t0 = Time.get_ticks_usec()
 		_handle_events(evs)
+		PerfMeter.since("events", t0)
 		pending_events.append_array(evs)
 		frame += 1
 		if frame % SNAP_EVERY == 0 and Net.is_online():
@@ -196,6 +208,11 @@ func _physics_process(dt: float) -> void:
 			pending_events.clear()
 
 func _process(dt: float) -> void:
+	var t0 := Time.get_ticks_usec()
+	_process_view(dt)
+	PerfMeter.since("arena_process", t0)
+
+func _process_view(dt: float) -> void:
 	time += dt
 	if _hitstop > 0.0:
 		_hitstop -= dt / maxf(Engine.time_scale, 0.01)
@@ -855,12 +872,15 @@ func _draw_decals() -> void:
 		var p: Vector2 = d[0]
 		var s: float = d[2]
 		var seed: int = d[4]
-		decal_layer.draw_set_transform(p.floor(), 0.0, Vector2(1.0, 0.55))
-		decal_layer.draw_circle(Vector2.ZERO, s * 0.6, c)
+		# A squashed blob of rects: rects batch into one draw call, where circles cost one call each.
+		var r := s * 0.6
+		var o := p.floor()
+		decal_layer.draw_rect(Rect2(o.x - r, o.y - r * 0.35, r * 2.0, r * 0.7), c)
+		decal_layer.draw_rect(Rect2(o.x - r * 0.7, o.y - r * 0.55, r * 1.4, r * 1.1), c)
 		for k in 4:
-			var o := Vector2(((seed >> (k * 4)) % 13) - 6, ((seed >> (k * 4 + 2)) % 9) - 4) * s * 0.18
-			decal_layer.draw_circle(o, s * 0.3, c)
-	decal_layer.draw_set_transform(Vector2.ZERO)
+			var q := Vector2(((seed >> (k * 4)) % 13) - 6, (((seed >> (k * 4 + 2)) % 9) - 4) * 0.55) * s * 0.18
+			var dr := s * 0.3
+			decal_layer.draw_rect(Rect2((o + q - Vector2(dr, dr * 0.55)).floor(), Vector2(dr * 2.0, dr * 1.1)), c)
 
 func _draw_env() -> void:
 	var ci := env_layer
@@ -954,11 +974,19 @@ func _draw_entities() -> void:
 			var e: Dictionary = it[2]
 			if e.type != World.BAT:
 				_shadow(ci, e.pos, [10, 10, 12, 8, 8, 14, 10, 26][e.type])
+	# Glows under the elites and the Archlich go before the sprites, in one pass, so sprites batch together.
+	for e: Dictionary in ve.values():
+		if e.get("final", false):
+			ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
+			ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
+		elif e.get("elite", false):
+			ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
 	for it in list:
 		if it[1] == 0:
 			_draw_player(ci, it[2])
 		else:
 			_draw_enemy(ci, it[2])
+	_draw_enemy_bars(ci)
 
 func _draw_player(ci: CanvasItem, p: Dictionary) -> void:
 	var slot: int = p.slot
@@ -1042,21 +1070,23 @@ func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 			if e.state == 1:
 				mod = Color(1.4, 0.8, 1.4)
 	if e.get("final", false):
-		# The Archlich: a pulsing violet and gold crown of light and a darker robe.
-		ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
-		ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
+		# The Archlich: a darker violet robe (its glow is drawn under the sprites in _draw_entities).
 		mod = mod * Color(1.3, 0.75, 1.35)
 	elif e.get("elite", false):
-		# Elites: a gold aura and a warmer tint so they stand out of the horde.
-		ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
+		# Elites: a warmer tint (and a gold glow under the sprites) so they stand out of the horde.
 		mod = mod * Color(1.35, 1.1, 0.8)
 	var flash: bool = e.flash > 0.0 and (t != World.LICH or int(time * 40.0) % 3 == 0)
 	Sprites.draw_at(ci, key, feet, flip and t != World.BAT and t != World.LICH, flash, mod)
-	if (t == World.ORC or t == World.MAGE or e.get("elite", false)) and e.hpf < 1.0:
-		var w := 14.0
-		var bp = (e.pos + Vector2(-w / 2, 4)).floor()
-		ci.draw_rect(Rect2(bp - Vector2(1, 1), Vector2(w + 2, 4)), Color("0b0716"))
-		ci.draw_rect(Rect2(bp, Vector2(w * e.hpf, 2)), Color("ff3b5c"))
+
+## Health bars for the big and elite enemies, drawn after every sprite so they do not split the sprite batch.
+func _draw_enemy_bars(ci: CanvasItem) -> void:
+	for e: Dictionary in ve.values():
+		var t: int = e.type
+		if (t == World.ORC or t == World.MAGE or e.get("elite", false)) and e.hpf < 1.0:
+			var w := 14.0
+			var bp: Vector2 = (e.pos + Vector2(-w / 2, 4)).floor()
+			ci.draw_rect(Rect2(bp - Vector2(1, 1), Vector2(w + 2, 4)), Color("0b0716"))
+			ci.draw_rect(Rect2(bp, Vector2(w * e.hpf, 2)), Color("ff3b5c"))
 
 func _draw_shots() -> void:
 	var ci := shot_layer
