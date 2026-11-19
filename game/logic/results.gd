@@ -14,6 +14,7 @@ const M_CURSE := 4
 const M_JACKPOT := 5
 const M_COMBO := 6 # value = combo count
 const M_EVOLVE := 7 # value = Upgrades index of the evolution
+const M_CARD := 8 # value = Cards index
 const MOMENTS: Array = [
 	["lich", "%s SLEW THE LICH LORD", 60],
 	["archlich", "%s SLEW THE ARCHLICH", 100],
@@ -23,6 +24,7 @@ const MOMENTS: Array = [
 	["jackpot", "%s HIT THE JACKPOT", 45],
 	["combo", "%s CHAINED A %v COMBO", 40],
 	["evolve", "%s EVOLVED %v", 30],
+	["card", "%s DREW %v", 90],
 ]
 
 ## Combos worth a moment, and how many moments the screen shows.
@@ -142,6 +144,8 @@ static func moment_text(m: Array) -> String:
 			detail = "x%d" % int(m[3])
 		M_EVOLVE:
 			detail = Upgrades.display_name(int(m[3]))
+		M_CARD:
+			detail = Cards.card_name(clampi(int(m[3]), 0, Cards.count() - 1))
 	var who := "P%d" % (int(m[2]) + 1)
 	return String(MOMENTS[kind][1]).replace("%s", who).replace("%v", detail)
 

@@ -3,9 +3,9 @@ extends Node2D
 ## a twilight sky, a castle on the hill, an animated logo and four wizards
 ## launching fireworks.
 
-enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE }
+enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE, CARDS }
 
-const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "QUIT"]
+const MENU := ["PLAY", "UNLOCKS", "CARDS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "QUIT"]
 
 var state := S.INTRO
 var t := 0.0
@@ -25,6 +25,7 @@ var wiz_cast := [0.0, 0.0, 0.0, 0.0]
 var message := ""
 var message_t := 0.0
 var options := OptionsPanel.new()
+var album := CardAlbum.new()
 var ouija := Ouija.new()
 var planchette := Vector2(240, 150)
 ## The prologue page on screen, when it was turned, and the menu item to carry on to after it.
@@ -256,6 +257,8 @@ func _draw_front() -> void:
 			_draw_unlocks(ci)
 		S.OPTIONS:
 			options.draw(ci, t)
+		S.CARDS:
+			album.draw(ci, t)
 		S.TALE:
 			_draw_tale(ci)
 		S.OUIJA:
@@ -352,15 +355,15 @@ func _draw_menu(ci: CanvasItem) -> void:
 	if a <= 0.0:
 		return
 	for i in items.size():
-		var y := 145 + i * 13
+		var y := 141 + i * 12
 		var s := i == sel
 		var label: String = items[i]
 		var c := Color("ffd94d") if s else Color("b8a8d8")
 		c.a = a
 		var w := PixelFont.text_width(label, 1)
-		menu_items.append(Rect2(240 - 70, y - 3, 140, 13))
+		menu_items.append(Rect2(240 - 70, y - 3, 140, 12))
 		if s:
-			Occult.highlight(ci, Rect2(240 - w / 2.0 - 18, y - 3, w + 36, 13), t)
+			Occult.highlight(ci, Rect2(240 - w / 2.0 - 18, y - 3, w + 36, 12), t)
 			Occult.cursor(ci, Vector2(240 - w / 2.0 - 10, y + 3), t)
 			Occult.cursor(ci, Vector2(240 + w / 2.0 + 9, y + 3), -t)
 		PixelFont.draw_centered(ci, label, 240, y, 1, c, Color(0.04, 0.0, 0.1, a))
@@ -588,6 +591,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		S.OPTIONS:
 			if options.handle(event):
 				state = S.MAIN
+		S.CARDS:
+			if album.handle(event):
+				state = S.MAIN
 		S.TALE:
 			if back:
 				_end_tale()
@@ -648,6 +654,9 @@ func _activate(item: String, dev: int) -> void:
 		"UNLOCKS":
 			unlock_sel = 0
 			state = S.UNLOCKS
+		"CARDS":
+			album.open()
+			state = S.CARDS
 		"OPTIONS":
 			options.open()
 			state = S.OPTIONS

@@ -21,9 +21,9 @@ const SCORE_WORDS := 1000
 const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
-	"tome_rune"]
+	"tome_rune", "card", "chest_rare", "chest_ultra"]
 const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", "",
-	"RUNE CIRCLE!"]
+	"RUNE CIRCLE!", "", "", ""]
 ## Loot tier colours (Loot.COMMON .. Loot.ULTRA): readable in 3 seconds with the sound off.
 const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color("ffb84d"), Color("ff4df2")]
 ## Seconds a chest reel spins before it shows the item, and how long the item stays up after.
@@ -60,6 +60,8 @@ var boss_final := false # the boss on screen is the Archlich
 var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
 var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
+var _cards: Array = [] # monster card reveals, one at a time: {idx, slot, t, first}
+const CARD_SHOW := 4.0
 var doors := [0.0, 0.0, 0.0, 0.0]
 var door_anim := [0.0, 0.0, 0.0, 0.0]
 var game_over := false
@@ -651,6 +653,15 @@ func _handle_events(evs: Array) -> void:
 				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
 				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
 				fx.sparkle(pos, Color("ff4df2"), 8)
+			World.EV_CARD:
+				var cidx := int(ev[3])
+				var first := Save.add_card(cidx)
+				_cards.append({"idx": cidx, "slot": int(ev[4]), "t": 0.0, "first": first})
+				fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
+				fx.ring(pos, 4.0, 60.0, 0.7, Color("ffd94d"), 2.0)
+				_add_shake(4.0)
+				Sfx.play("card_flip")
+				Sfx.play("wave_clear", -2.0, 1.4)
 			World.EV_CHEST:
 				var code := int(ev[4])
 				_reveals.append({"slot": int(ev[3]), "pos": pos, "item": code / 8, "tier": code % 8, "t": 0.0, "shown": false})
@@ -825,6 +836,38 @@ func _update_reveals(dt: float) -> void:
 					fx.ring(at, 4.0, 40.0 + 20.0 * (r.tier - Loot.LEGENDARY), 0.6, col, 2.0)
 					_add_shake(3.0 * (r.tier - Loot.EPIC))
 	_reveals = _reveals.filter(func(r: Dictionary) -> bool: return r.t < REEL_SPIN + REEL_SHOW)
+	if not _cards.is_empty():
+		_cards[0].t += dt
+		if _cards[0].t >= CARD_SHOW:
+			_cards.pop_front()
+
+## The monster card a wizard just found: it flips in at the middle of the screen with its name and bonus.
+func _draw_card_reveal(ci: CanvasItem, dark: Color) -> void:
+	if _cards.is_empty():
+		return
+	var c: Dictionary = _cards[0]
+	var t: float = c.t
+	var fade := clampf(minf(t * 4.0, (CARD_SHOW - t) * 3.0), 0.0, 1.0)
+	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.06, 0.55 * fade))
+	# The back shows, narrows to an edge, then the face widens out: a card turning over.
+	var flip := clampf(t / 0.6, 0.0, 1.0)
+	var w := 76.0 * absf(1.0 - flip * 2.0)
+	var h := 112.0
+	var center := Vector2(240, 128 - (1.0 - fade) * 10.0)
+	var r := Rect2((center - Vector2(w / 2.0, h / 2.0)).floor(), Vector2(maxf(floorf(w), 1.0), h))
+	if flip < 0.5:
+		TarotArt.draw_back(ci, r)
+	else:
+		for i: int in range(12):
+			var a := time * 0.6 + i * TAU / 12.0
+			ci.draw_line(center, center + Vector2.from_angle(a) * 90.0, Color(1.0, 0.3, 0.95, 0.10 * fade), 3.0)
+		MonsterCard.draw(ci, r, c.idx, true, time, 1.0)
+	var col := Color("ff4df2").lerp(Color.WHITE, 0.5 + 0.5 * sin(time * 10.0))
+	PixelFont.draw_centered(ci, "ULTRA RARE CARD", 240, r.position.y - 22, 2, Color(col, fade), dark)
+	var who := "P%d DREW %s" % [int(c.slot) + 1, Cards.card_name(c.idx)]
+	PixelFont.draw_centered(ci, who, 240, r.end.y + 6, 1, Color(Color("ffd94d"), fade), dark)
+	var sub := "NEW TO YOUR COLLECTION" if c.first else "SOCKET IT IN THE SANCTUM"
+	PixelFont.draw_centered(ci, sub, 240, r.end.y + 16, 1, Color(Color("c9b8ff"), fade), dark)
 
 ## Altars: a rune altar (solo) with three rune stones circling it, or the fate altar (team) with a tarot card
 ## turning over it. The price floats above and a ring fills while a wizard bets.
@@ -1051,6 +1094,9 @@ func _pickup_color(k: int) -> Color:
 		World.PK_ORBIT: return Color("8bff9e")
 		World.PK_XP: return Color("5dff7a")
 		World.PK_CHEST: return Color("ffd23d")
+		World.PK_CARD: return Color("ff4df2")
+		World.PK_CHEST_RARE: return Color("8fe3ff")
+		World.PK_CHEST_ULTRA: return Color("ff8af0")
 	return Color.WHITE
 
 # ======================================================== AMBIENT FX ===
@@ -1249,6 +1295,20 @@ func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
 	ci.draw_rect(Rect2((pos - Vector2(w / 2.0, h / 2.0)).floor() + Vector2(1, 0), Vector2(w - 2, h)), c)
 	ci.draw_rect(Rect2((pos - Vector2(w / 2.0 - 1, h / 2.0 + 1)).floor() + Vector2(1, 0), Vector2(w - 4, h + 2)), c)
 
+## A pillar of light over a card or a rare chest so it is seen across a crowded arena.
+func _draw_treasure_glow(ci: CanvasItem, kind: int, pos: Vector2) -> void:
+	var col := _pickup_color(kind)
+	var pulse := 0.5 + 0.5 * sin(time * 5.0 + pos.x)
+	var tall := 60.0 if kind != World.PK_CHEST_RARE else 30.0
+	for i: int in range(3):
+		var w := 7.0 - i * 2.0
+		ci.draw_rect(Rect2(pos.x - w / 2.0, pos.y - tall, w, tall), Color(col, (0.08 + 0.06 * pulse) * (i + 1)))
+	if kind == World.PK_CHEST_ULTRA:
+		col = Color.from_hsv(fposmod(time * 0.5, 1.0), 0.6, 1.0)
+	ci.draw_circle(pos + Vector2(0, -3), 7.0 + 2.0 * pulse, Color(col, 0.18))
+	if int(time * 8.0 + pos.x) % 6 == 0:
+		fx.sparkle(pos + Vector2(0, -4), col, 1)
+
 func _draw_entities() -> void:
 	var ci := ent_layer
 	_draw_shrines(ci)
@@ -1260,6 +1320,8 @@ func _draw_entities() -> void:
 		if life < 3.0 and int(life * 10.0) % 2 == 0:
 			continue
 		var bob := floorf(sin(time * 4.0 + pos.x) * 2.0)
+		if kind >= World.PK_CARD:
+			_draw_treasure_glow(ci, kind, pos)
 		_shadow(ci, pos + Vector2(0, 1), 8)
 		Sprites.draw_at(ci, PICKUP_KEYS[kind], pos + Vector2(0, -2 + bob))
 	# Collect drawables sorted by y
@@ -1567,6 +1629,7 @@ func _draw_hud() -> void:
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 1), Color.WHITE)
 	_draw_hint(ci)
 	_draw_reveals(ci, dark)
+	_draw_card_reveal(ci, dark)
 	_draw_bets(ci, dark)
 	# Banner
 	if banner.t > 0.0:

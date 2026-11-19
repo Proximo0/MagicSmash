@@ -7,6 +7,8 @@ var shots := []
 var out_dir := ""
 var start_wave := 1
 var _chest_shot := false
+var _card_shot := false
+var _card_drop_shot := false
 var _team_shot := false
 var _arch_seen := 0.0
 var _arch_shot := false
@@ -65,6 +67,11 @@ func _ready() -> void:
 	shots = [[1.2, "title_intro"], [4.0, "title_menu"], [4.5, "@lobby"], [5.0, "lobby"], [5.5, "@play"],
 		[7.0, "game_wave_banner"], [12.0, "game_a"], [16.0, "game_b"], [22.0, "game_c"], [28.0, "game_d"],
 		[36.0, "game_e"], [44.0, "game_f"], [52.0, "game_g"], [58.0, "game_h"]]
+	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
+	if "--album" in OS.get_cmdline_user_args():
+		shots.insert(2, [4.1, "@album"])
+		shots.insert(3, [4.35, "album"])
+		shots.insert(4, [4.4, "@menu"])
 
 func _process(delta: float) -> void:
 	# A LAN host waits for the client to join before starting the clock again.
@@ -89,6 +96,19 @@ func _process(delta: float) -> void:
 				get_viewport().get_texture().get_image().save_png("%s/chest.png" % out_dir)
 				print("shot chest")
 				break
+	# State-keyed shots: a card or rare chest lying on the floor (--tune=card_chance:0.05), then the card reveal
+	# once its face has turned over.
+	if not _card_drop_shot and cur and "vk" in cur:
+		for k: Array in cur.vk:
+			if int(k[0]) >= World.PK_CARD:
+				_card_drop_shot = true
+				get_viewport().get_texture().get_image().save_png("%s/card_drop.png" % out_dir)
+				print("shot card_drop")
+				break
+	if not _card_shot and cur and "_cards" in cur and not cur._cards.is_empty() and cur._cards[0].t > 1.0:
+		_card_shot = true
+		get_viewport().get_texture().get_image().save_png("%s/card.png" % out_dir)
+		print("shot card")
 	# State-keyed shot: the team shrine's reel halfway through its spin, the clip moment.
 	if not _team_shot and cur and "_bets" in cur:
 		for b: Dictionary in cur._bets:
@@ -124,6 +144,18 @@ func _process(delta: float) -> void:
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
+		if name == "@album":
+			for i: int in [0, 1, 4, 5, 7, 8, 10]:
+				Save.profile.add_card(i)
+			Save.profile.add_card(5)
+			Save.profile.socket_card(5)
+			Save.profile.socket_card(4)
+			var album_title = G.main.current
+			album_title.album.open()
+			album_title.album.sel = 5
+			album_title.state = album_title.S.CARDS
+		elif name == "@menu":
+			G.main.current.state = G.main.current.S.MAIN
 		if name == "@lobby":
 			G.local_devices = [G.DEV_KBM]
 			var title = G.main.current

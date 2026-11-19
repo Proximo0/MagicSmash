@@ -40,6 +40,9 @@ const PK_ORBIT := 8
 const PK_XP := 9
 const PK_CHEST := 10
 const PK_TOME_RUNE := 11 # after the chest, so the older pickup ids stay put
+const PK_CARD := 12 # a monster card (value: Cards index), kept in the collection between runs
+const PK_CHEST_RARE := 13 # a blue chest any kill can drop: opens rare or better
+const PK_CHEST_ULTRA := 14 # a prismatic chest, far rarer: opens legendary or better
 ## Every spell tome, in World.SP_* order from the fireball (arcane has no tome).
 const TOMES := [PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR, PK_TOME_RUNE]
 
@@ -91,6 +94,7 @@ const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict(
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
 const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b = slot + 8 when evolved
+const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -289,6 +293,7 @@ var shots: Array[Shot] = []
 var runes: Array[Rune] = []
 var eshots: Array[EShot] = []
 var pickups: Array[Pickup] = []
+var cards_found: Array[int] = [] # Cards indices picked up this run, in order
 var shrines: Array[Shrine] = []
 var shrine_t := 0.0
 var team_shrine_t := 0.0
@@ -362,8 +367,12 @@ func apply_meta(b: Dictionary) -> void:
 	meta_xp = float(b.get("xp", 0.0))
 	meta_gold = float(b.get("gold", 0.0))
 	meta_luck = int(b.get("luck", 0.0))
+	var armor: Array = b.get("armor", [])
 	for p: Player in players.values():
 		p.max_hp += int(b.get("hearts", 0.0))
+		for st: int in range(mini(armor.size(), Loot.STAT_COUNT)):
+			p.armor[st] = minf(float(p.armor[st]) + float(armor[st]), float(Loot.STAT_CAPS[st]))
+		p.max_hp += int(float(armor[Loot.ST_VIGOR])) if armor.size() > Loot.ST_VIGOR else 0
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
 
@@ -1375,6 +1384,7 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			record.add(slot, "elites", 1)
 	emit(EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
 	_drop_xp(e.pos, Vector2.from_angle(rng.randf() * TAU) * 25.0, XP_VALUES[e.type] * (ELITE_REWARD if e.elite else 1))
+	_roll_card(e)
 	if e.elite:
 		for i in ELITE_GEMS:
 			_drop(PK_GEM if i % 2 == 0 else PK_COIN, e.pos, Vector2.from_angle(i * TAU / ELITE_GEMS) * 70.0)
@@ -1415,7 +1425,19 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			return
 	_roll_drop(e)
 
+## A kill may drop its monster's card (Cards.drop_chance): far likelier from an elite or a Lich.
+func _roll_card(e: Enemy) -> void:
+	if rng.randf() < Cards.drop_chance(e.type, e.elite, tune.card_chance, tune.card_elite_mul, tune.card_boss_chance):
+		_drop(PK_CARD, e.pos, Vector2(0, -50), tune.chest_life, e.type)
+
 func _roll_drop(e: Enemy) -> void:
+	var lucky := rng.randf()
+	if lucky < tune.ultra_drop_chance:
+		_drop(PK_CHEST_ULTRA, e.pos, Vector2(0, 30), tune.chest_life, 5)
+		return
+	if lucky < tune.ultra_drop_chance + tune.rare_drop_chance:
+		_drop(PK_CHEST_RARE, e.pos, Vector2(0, 30), tune.chest_life, 2)
+		return
 	var r := rng.randf()
 	var big := e.type == ORC or e.type == MAGE
 	var pop := Vector2.from_angle(rng.randf() * TAU) * 40.0
@@ -1612,8 +1634,13 @@ func _collect(p: Player, k: Pickup) -> void:
 		gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades) * (1.0 + meta_xp))))
 		emit(EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 		return
-	if k.kind == PK_CHEST:
+	if k.kind == PK_CHEST or k.kind == PK_CHEST_RARE or k.kind == PK_CHEST_ULTRA:
 		_open_chest(p, k)
+		return
+	if k.kind == PK_CARD:
+		cards_found.append(k.value)
+		record.note(wave_time, Results.M_CARD, p.slot, k.value)
+		emit(EV_CARD, k.pos.x, k.pos.y, k.value, p.slot)
 		return
 	var pts := 0
 	var greed: float = 1.0 + p.armor[Loot.ST_GREED] + meta_gold
@@ -1649,6 +1676,10 @@ func _collect(p: Player, k: Pickup) -> void:
 ## arena plays the reel from EV_CHEST.
 func _open_chest(p: Player, k: Pickup) -> void:
 	var tier := Loot.roll_rarity(rng, float(k.value + meta_luck))
+	if k.kind == PK_CHEST_RARE:
+		tier = maxi(tier, Loot.RARE)
+	elif k.kind == PK_CHEST_ULTRA:
+		tier = maxi(tier, Loot.LEGENDARY)
 	var idx := Loot.roll_item(rng)
 	record.add(p.slot, "chests", 1)
 	record.best(p.slot, "best_tier", tier)

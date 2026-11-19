@@ -90,3 +90,13 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 	var earned := profile.finish_run(score, seconds, kills, liches, won)
 	write()
 	return earned
+
+
+## Books a monster card found in play and saves. Returns true if it is the first of its kind. Scripted runs
+## never write, so a card a bot finds is not kept.
+func add_card(idx: int) -> bool:
+	if Flags.is_scripted_run():
+		return false
+	var first := profile.add_card(idx)
+	write()
+	return first

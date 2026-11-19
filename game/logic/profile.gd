@@ -41,6 +41,8 @@ var runs := 0
 var wins := 0
 var best_time := 0.0
 var unlocks := {} # META key -> level bought
+var cards := {} # Cards key -> how many found
+var sockets: Array[String] = ["", "", ""] # Cards key socketed in the hat, robe and staff ("" for empty)
 
 
 static func meta_index(key: String) -> int:
@@ -75,13 +77,58 @@ func buy(i: int) -> bool:
 	return true
 
 
-## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck}, zero when nothing is bought.
+## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck} (zero when nothing is bought) and
+## "armor": the socketed cards' stats in Loot.empty_stats layout.
 func bonuses() -> Dictionary:
 	var out := {"hearts": 0.0, "damage": 0.0, "xp": 0.0, "gold": 0.0, "novas": 0.0, "luck": 0.0}
 	for key: String in EFFECTS:
 		var eff: Array = EFFECTS[key]
 		out[eff[0]] = float(out[eff[0]]) + float(eff[1]) * level(key)
+	out["armor"] = Cards.socket_stats(socket_indices())
 	return out
+
+
+## How many of card `idx` the player has found.
+func card_count(idx: int) -> int:
+	return int(cards.get(Cards.key(idx), 0))
+
+
+## Books a found card. Returns true if it is the first of its kind.
+func add_card(idx: int) -> bool:
+	if idx < 0 or idx >= Cards.count():
+		return false
+	var first := card_count(idx) == 0
+	cards[Cards.key(idx)] = card_count(idx) + 1
+	return first
+
+
+func cards_owned() -> int:
+	var n := 0
+	for i: int in range(Cards.count()):
+		if card_count(i) > 0:
+			n += 1
+	return n
+
+
+## Card index in each socket, -1 for empty.
+func socket_indices() -> Array[int]:
+	var out: Array[int] = []
+	for s: int in range(Cards.SOCKETS):
+		out.append(Cards.index_of(sockets[s]))
+	return out
+
+
+## Puts an owned card in its own socket (replacing what was there). False if not owned.
+func socket_card(idx: int) -> bool:
+	if idx < 0 or idx >= Cards.count() or card_count(idx) <= 0:
+		return false
+	sockets[Cards.socket(idx)] = Cards.key(idx)
+	return true
+
+
+func unsocket(s: int) -> void:
+	if s >= 0 and s < Cards.SOCKETS:
+		sockets[s] = ""
 
 
 static func crystals_for_run(seconds: float, kills: int, liches: int, won: bool = false) -> int:
@@ -102,7 +149,7 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
-		"best_time": best_time, "unlocks": unlocks.duplicate()}
+		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate()}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -120,4 +167,15 @@ static func from_dict(d: Dictionary) -> Profile:
 			var i: int = meta_index(str(key))
 			if i >= 0:
 				p.unlocks[str(key)] = clampi(int(u[key]), 0, max_level(i))
+	var c: Variant = d.get("cards", {})
+	if c is Dictionary:
+		for key: Variant in c:
+			if Cards.index_of(str(key)) >= 0 and int(c[key]) > 0:
+				p.cards[str(key)] = int(c[key])
+	var so: Variant = d.get("sockets", [])
+	if so is Array:
+		for s: int in range(mini((so as Array).size(), Cards.SOCKETS)):
+			var idx: int = Cards.index_of(str(so[s]))
+			if idx >= 0 and Cards.socket(idx) == s and p.card_count(idx) > 0:
+				p.sockets[s] = str(so[s])
 	return p

@@ -1018,3 +1018,61 @@ func test_omens_have_lore_and_skip_lich_minutes() -> void:
 	for o: Array in World.OMENS:
 		var wave: int = o[0]
 		assert_true(w._lich_visits(wave) == w._lich_visits(wave - 1), "an omen shares a minute with the Lich")
+
+
+func test_a_kill_can_drop_its_card_and_picking_it_up_announces_it() -> void:
+	var w := World.new([0], 3)
+	w.tune.card_chance = 1.0
+	var p := _player(w)
+	var e: World.Enemy = w.spawn_enemy(World.BAT, 0, Vector2(150, 120))
+	w._kill_enemy(e, 0)
+	var card: World.Pickup = null
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CARD:
+			card = k
+	assert_true(card != null, "no card dropped at chance 1")
+	assert_eq(card.value, World.BAT)
+	w.take_events()
+	w._collect(p, card)
+	var seen := false
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CARD:
+			seen = int(ev[3]) == World.BAT and int(ev[4]) == 0
+	assert_true(seen, "no card event")
+	assert_eq(w.cards_found, [World.BAT] as Array[int])
+
+
+func test_rare_and_ultra_chests_open_at_their_floor() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	for kind: int in [World.PK_CHEST_RARE, World.PK_CHEST_ULTRA]:
+		for _i: int in range(20):
+			var k := _chest(w, 0)
+			k.kind = kind
+			w.take_events()
+			w._collect(p, k)
+			for ev: Array in w.take_events():
+				if ev[0] == World.EV_CHEST:
+					var floor_tier: int = Loot.RARE if kind == World.PK_CHEST_RARE else Loot.LEGENDARY
+					assert_true(int(ev[4]) % 8 >= floor_tier, "a chest opened below its floor")
+
+
+func test_any_kill_can_drop_a_rare_chest() -> void:
+	var w := World.new([0], 3)
+	w.tune.rare_drop_chance = 1.0
+	var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, Vector2(150, 120))
+	w._kill_enemy(e, 0)
+	var kinds: Array = w.pickups.map(func(k: World.Pickup) -> int: return k.kind)
+	assert_true(kinds.has(World.PK_CHEST_RARE), "no rare chest at chance 1")
+
+
+func test_socketed_cards_reach_every_wizard() -> void:
+	var w := World.new([0, 1], 3)
+	var hp0: int = _player(w).max_hp
+	var armor := Loot.empty_stats()
+	armor[Loot.ST_MIGHT] = 0.1
+	armor[Loot.ST_VIGOR] = 2.0
+	w.apply_meta({"armor": armor})
+	for p: World.Player in w.players.values():
+		assert_near(float(p.armor[Loot.ST_MIGHT]), 0.1)
+		assert_eq(p.max_hp, hp0 + 2)
