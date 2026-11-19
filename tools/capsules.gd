@@ -66,20 +66,43 @@ class Canvas extends Node2D:
 		for x in int(w):
 			var top := h * 0.62 + sin(x * 0.05) * h * 0.03 + sin(x * 0.17) * h * 0.012
 			draw_rect(Rect2(x, top, 1, h - top), Color("2a1048"))
-		# The Archlich, large and centred, with its violet and gold aura
+		# The Black Comet over the tower (wide images; the tall ones keep the sky for the logo and the moon).
+		if h <= w:
+			var head := Vector2(w * 0.62, h * 0.1)
+			var tail_dir := Vector2(-1.0, -0.42).normalized()
+			for k in 40:
+				var p := head + tail_dir * k * 3.0 * sc
+				draw_circle(p, (6.0 - k * 0.12) * sc, Color(0.55, 0.25, 0.9, 0.16 * (1.0 - k / 40.0)))
+			draw_circle(head, 5.0 * sc, Color(1.0, 0.85, 0.4, 0.35))
+			draw_circle(head, 3.5 * sc, Color("12051f"))
+		# The Archlich, large and centred, with its violet and gold aura, over a burning seal seen in perspective
 		var lc := Vector2(cx, ground - minf(h * 0.16, 26.0 * sc))
+		var seal := Vector2(cx, ground - 2.0 * sc)
+		var lw := maxf(1.0, sc * 0.75)
+		var squash := Vector2(1.0, 0.3)
+		for ring: Array in [[46.0, Color("ffd23d")], [40.0, Color(1.0, 0.82, 0.24, 0.6)]]:
+			var pts := PackedVector2Array()
+			for k in 65:
+				pts.append(seal + Vector2.from_angle(k * TAU / 64.0) * float(ring[0]) * sc * squash)
+			draw_polyline(pts, ring[1], lw)
+		var star := PackedVector2Array()
+		for k in 6:
+			star.append(seal + Vector2.from_angle(-PI / 2.0 + k * 2.0 * TAU / 5.0) * 38.0 * sc * squash)
+		draw_polyline(star, Color(1.0, 0.82, 0.24, 0.75), lw)
 		draw_circle(lc + Vector2(0, -26) * sc, 40.0 * sc, Color(1.0, 0.3, 0.95, 0.16))
 		draw_circle(lc + Vector2(0, -26) * sc, 27.0 * sc, Color(1.0, 0.85, 0.3, 0.14))
 		Sprites.draw_at(self, "lich", lc, false, false, Color(1.3, 0.75, 1.35), sc * 2.0)
 		# Horde on both flanks
-		var kinds := ["skeleton_a", "goblin_a", "orc_a", "skeleton_b", "goblin_b", "mage_a", "bat_a"]
+		var kinds := ["skeleton_a", "goblin_a", "orc_a", "wraith_a", "tome_a", "priest_a", "gargoyle_b", "mage_a", "bat_a"]
 		for i in int(spread / (7.0 * sc)):
 			var side := -1.0 if i % 2 == 0 else 1.0
 			var dx := rng.randf_range(0.25, 1.0) * spread
 			var feet := Vector2(cx + side * dx, ground - (8.0 + rng.randf_range(0.0, minf(h * 0.1, 16.0))) * sc)
 			var k: String = kinds[rng.randi() % kinds.size()]
-			if k == "bat_a":
+			if k == "bat_a" or k == "gargoyle_b":
 				feet.y -= 30.0 * sc
+			elif k == "tome_a" or k == "wraith_a":
+				feet.y -= 8.0 * sc
 			Sprites.draw_at(self, k, feet.round(), side > 0.0, false, Color(0.75, 0.7, 0.9), sc)
 		# Ledge and the wizards
 		draw_rect(Rect2(0, ground, w, h - ground), Color("0d0618"))
