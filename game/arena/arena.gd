@@ -14,6 +14,10 @@ const RUNE_DRAW_IN := 0.25
 const RUNE_FADE := 0.4
 const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich", "wraith", "tome", "gargoyle", "priest"]
 ## Shadow width under each enemy type (bats and wraiths float without one).
+## The smallest combo call written over a wizard; smaller ones only sparkle.
+const COMBO_WORDS := 50
+## The smallest score popup written over a pickup.
+const SCORE_WORDS := 1000
 const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
@@ -561,7 +565,9 @@ func _handle_events(evs: Array) -> void:
 				if PICKUP_NAMES[k] != "":
 					fx.text(pos + Vector2(0, -12), PICKUP_NAMES[k], _pickup_color(k), 1.4)
 			World.EV_SCORE:
-				fx.text(pos, "+%d" % int(ev[3]), Color("ffe58a"), 0.7)
+				# Gems and coins score all the time; only the big pickups get a number, so the floor stays readable.
+				if int(ev[3]) >= SCORE_WORDS:
+					fx.text(pos, "+%d" % int(ev[3]), Color("ffe58a"), 0.7)
 			World.EV_HURT:
 				fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
 				Sfx.play("hurt")
@@ -701,9 +707,14 @@ func _handle_events(evs: Array) -> void:
 				var col := G.player_fx(int(ev[4]))
 				# One call over the wizard who made it; big only for the rare x100 and beyond.
 				var who: Vector2 = vp[int(ev[4])].pos if vp.has(int(ev[4])) else pos
-				fx.text(who + Vector2(0, -22), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.3,
-					2 if int(ev[3]) >= 100 else 1)
-				Sfx.play("powerup", -2.0, 1.2)
+				# The early calls come every few seconds in a big horde: a spark and a chime, so words stay rare.
+				if int(ev[3]) < COMBO_WORDS:
+					fx.sparkle(who + Vector2(0, -10), col, 8)
+					Sfx.play("powerup", -8.0, 1.4)
+				else:
+					fx.text(who + Vector2(0, -22), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.3,
+						2 if int(ev[3]) >= 100 else 1)
+					Sfx.play("powerup", -2.0, 1.2)
 			World.EV_SPAWN:
 				fx.teleport(pos, G.player_color(int(ev[3])))
 				fx.ring(pos + Vector2(0, -6), 1.0, 30.0, 0.5, G.player_fx(int(ev[3])), 2.0)
