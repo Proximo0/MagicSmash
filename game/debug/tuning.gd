@@ -26,6 +26,9 @@ const FIELDS: Array = [
 	["enemy_cap", 260.0, 20.0, 600.0, 10.0, "Spawning", "Most enemies alive at once; the horde holds its budget while at the cap."],
 	["elite_interval", 45.0, 5.0, 300.0, 5.0, "Spawning", "Seconds between elite spawns (a big glowing orc or mage that drops loot)."],
 	["elite_hp_mul", 8.0, 1.0, 30.0, 0.5, "Spawning", "Elite HP as a multiple of a normal enemy of its type."],
+	["chest_life", 40.0, 5.0, 300.0, 5.0, "Loot", "Seconds a chest stays on the floor."],
+	["elite_chest_luck", 1.0, 0.0, 5.0, 1.0, "Loot", "Luck of an elite's chest (each point moves a fifth of the common odds up the tiers)."],
+	["boss_chest_luck", 3.0, 0.0, 5.0, 1.0, "Loot", "Luck of the chests the Lich drops, one per wizard."],
 	["boss_every_min", 5.0, 1.0, 20.0, 1.0, "Spawning", "The Lich arrives at the start of every this-many-th minute."],
 	["enemy_hp_per_min", 0.35, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
 	["enemy_speed_per_min", 0.03, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
@@ -61,6 +64,9 @@ var rift_min_dist: float
 var enemy_cap: float
 var elite_interval: float
 var elite_hp_mul: float
+var chest_life: float
+var elite_chest_luck: float
+var boss_chest_luck: float
 var boss_every_min: float
 var enemy_hp_per_min: float
 var enemy_speed_per_min: float

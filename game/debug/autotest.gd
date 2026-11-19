@@ -6,6 +6,7 @@ var t := 0.0
 var shots := []
 var out_dir := ""
 var start_wave := 1
+var _chest_shot := false
 var quit_at := 60.0
 var net := ""
 var _pick_seen := 0.0
@@ -16,6 +17,12 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--autotest="):
 			start_wave = int(a.split("=")[1])
+		# --tune=field:value,field:value sets live Tuning for this run (for example elite_interval:8 to see chests).
+		if a.begins_with("--tune="):
+			for kv: String in a.substr(7).split(","):
+				var parts := kv.split(":")
+				if parts.size() == 2:
+					Tuning.shared().set_value(parts[0], float(parts[1]))
 		if a == "--passive":
 			PlayerInput.bot_passive = true
 		if a.begins_with("--net="):
@@ -42,6 +49,14 @@ func _process(delta: float) -> void:
 			_pick_shot = true
 			get_viewport().get_texture().get_image().save_png("%s/levelup.png" % out_dir)
 			print("shot levelup")
+	# State-keyed shot: the first chest reel, just after it stops on the item.
+	if not _chest_shot and cur and "_reveals" in cur:
+		for r: Dictionary in cur._reveals:
+			if r.t > cur.REEL_SPIN + 0.15:
+				_chest_shot = true
+				get_viewport().get_texture().get_image().save_png("%s/chest.png" % out_dir)
+				print("shot chest")
+				break
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
