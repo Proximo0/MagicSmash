@@ -3,9 +3,9 @@ extends Node2D
 ## a twilight sky, a castle on the hill, an animated logo and four wizards
 ## launching fireworks.
 
-enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS }
+enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA }
 
-const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "HOW TO PLAY", "QUIT"]
+const MENU := ["PLAY", "UNLOCKS", "HOST LAN GAME", "JOIN LAN GAME", "HOW TO PLAY", "OPTIONS", "QUIT"]
 
 var state := S.INTRO
 var t := 0.0
@@ -24,7 +24,9 @@ var cast_timer := 1.0
 var wiz_cast := [0.0, 0.0, 0.0, 0.0]
 var message := ""
 var message_t := 0.0
-var ip_edit: LineEdit
+var options := OptionsPanel.new()
+var ouija := Ouija.new()
+var planchette := Vector2(240, 150)
 var menu_items: Array = []
 var rng := RandomNumberGenerator.new()
 var _landed := {}
@@ -49,18 +51,6 @@ func _ready() -> void:
 	front = Node2D.new()
 	add_child(front)
 	front.draw.connect(_draw_front)
-	ip_edit = LineEdit.new()
-	ip_edit.placeholder_text = "192.168.1.10"
-	ip_edit.position = Vector2(150, 196)
-	ip_edit.size = Vector2(180, 18)
-	ip_edit.add_theme_font_size_override("font_size", 10)
-	ip_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ip_edit.visible = false
-	ip_edit.text_submitted.connect(_on_ip_submitted)
-	var layer := CanvasLayer.new()
-	layer.layer = 5
-	add_child(layer)
-	layer.add_child(ip_edit)
 	Net.roster_changed.connect(_on_roster)
 	Net.connection_failed.connect(_on_conn_failed)
 	Net.games_found_changed.connect(func(): pass)
@@ -127,7 +117,8 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	glow.queue_redraw()
 	front.queue_redraw()
-	ip_edit.visible = state == S.JOIN and join_sel == Net.found_games.size()
+	if state == S.OUIJA:
+		planchette = planchette.lerp(_ouija_pos(ouija.row, ouija.col), minf(1.0, delta * 14.0))
 
 var rockets: Array = [] # [pos, vel, color, fuse]
 
@@ -258,6 +249,11 @@ func _draw_front() -> void:
 			_draw_howto(ci)
 		S.UNLOCKS:
 			_draw_unlocks(ci)
+		S.OPTIONS:
+			options.draw(ci, t)
+		S.OUIJA:
+			_draw_join(ci)
+			_draw_ouija(ci)
 	if message_t > 0.0:
 		PixelFont.draw_centered(ci, message, 240, 128, 1, Color("ff7a8a"), Color("0b0716"))
 	PixelFont.draw(ci, "V" + G.VERSION, Vector2(3, 262), 1, Color(1, 1, 1, 0.3))
@@ -334,10 +330,7 @@ func _draw_wizards(ci: CanvasItem) -> void:
 		ci.draw_rect(Rect2(tip - Vector2(2, 2), Vector2(5, 5)), c if not casting else Color.WHITE)
 
 func _panel(ci: CanvasItem, r: Rect2) -> void:
-	ci.draw_rect(r.grow(2), Color("0b0716"))
-	ci.draw_rect(r, Color(0.08, 0.03, 0.16, 0.92))
-	ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), Color("7b4dff"))
-	ci.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), Color("4b2ab8"))
+	Occult.frame(ci, r, t)
 
 func _visible_menu() -> Array:
 	var items := MENU.duplicate()
@@ -352,22 +345,17 @@ func _draw_menu(ci: CanvasItem) -> void:
 	if a <= 0.0:
 		return
 	for i in items.size():
-		var y := 148 + i * 17
+		var y := 146 + i * 14
 		var s := i == sel
 		var label: String = items[i]
 		var c := Color("ffd94d") if s else Color("b8a8d8")
 		c.a = a
 		var w := PixelFont.text_width(label, 1)
-		menu_items.append(Rect2(240 - 70, y - 4, 140, 15))
+		menu_items.append(Rect2(240 - 70, y - 3, 140, 13))
 		if s:
-			var pulse := 0.5 + 0.5 * sin(t * 6.0)
-			ci.draw_rect(Rect2(240 - w / 2.0 - 14, y - 4, w + 28, 15), Color(0.48, 0.3, 1.0, 0.25 + 0.15 * pulse))
-			ci.draw_rect(Rect2(240 - w / 2.0 - 14, y - 4, w + 28, 1), Color("b07bff"))
-			ci.draw_rect(Rect2(240 - w / 2.0 - 14, y + 10, w + 28, 1), Color("b07bff"))
-			# Wand cursors
-			var bob := floorf(sin(t * 8.0) * 2.0)
-			_star_icon(ci, Vector2(240 - w / 2.0 - 10 + bob, y), Color("ffd94d"))
-			_star_icon(ci, Vector2(240 + w / 2.0 + 5 - bob, y), Color("ffd94d"))
+			Occult.highlight(ci, Rect2(240 - w / 2.0 - 18, y - 3, w + 36, 13), t)
+			Occult.cursor(ci, Vector2(240 - w / 2.0 - 10, y + 3), t)
+			Occult.cursor(ci, Vector2(240 + w / 2.0 + 9, y + 3), -t)
 		PixelFont.draw_centered(ci, label, 240, y, 1, c, Color(0.04, 0.0, 0.1, a))
 	var hint := "TAP TO SELECT" if G.touch_active else "ARROWS/STICK + ENTER/A"
 	PixelFont.draw_centered(ci, hint, 240, 252, 1, Color(1, 1, 1, 0.35 * a))
@@ -375,16 +363,16 @@ func _draw_menu(ci: CanvasItem) -> void:
 ## Meta unlocks: crystals earned in runs buy permanent head starts for every run (never sold for money).
 func _draw_unlocks(ci: CanvasItem) -> void:
 	var prof: Profile = Save.profile
-	_panel(ci, Rect2(40, 132, 400, 124))
-	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 138, 1, Color("8bdcff"))
+	_panel(ci, Rect2(40, 144, 400, 104))
+	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 150, 1, Color("8bdcff"))
 	menu_items.clear()
 	for i in Profile.META.size():
 		var row: Array = Profile.META[i]
-		var y := 152 + i * 14
+		var y := 163 + i * 12
 		var picked := i == unlock_sel
-		menu_items.append(Rect2(46, y - 3, 388, 13))
+		menu_items.append(Rect2(46, y - 2, 388, 11))
 		if picked:
-			ci.draw_rect(Rect2(46, y - 3, 388, 13), Color(0.48, 0.3, 1.0, 0.3))
+			Occult.highlight(ci, Rect2(46, y - 2, 388, 11), t)
 		var lv := prof.level(row[0])
 		var mx := Profile.max_level(i)
 		PixelFont.draw(ci, row[1], Vector2(52, y), 1, Color("ffd94d") if picked else Color.WHITE)
@@ -395,22 +383,16 @@ func _draw_unlocks(ci: CanvasItem) -> void:
 		var price := "MAX" if cost < 0 else "%d" % cost
 		var pc := Color("8bff9e") if cost < 0 else (Color("8bdcff") if cost <= prof.crystals else Color("ff7a8a"))
 		PixelFont.draw(ci, price, Vector2(410 - PixelFont.text_width(price, 1), y), 1, pc)
-	PixelFont.draw_centered(ci, "ENTER/A: BUY    ESC/B: BACK", 240, 244, 1, Color(1, 1, 1, 0.5))
+	PixelFont.draw_centered(ci, "ENTER/A: BUY    ESC/B: BACK", 240, 236, 1, Color(1, 1, 1, 0.5))
 
 func _buy_unlock(i: int) -> void:
 	if Save.profile.buy(i):
 		Save.write()
 		Sfx.play("powerup")
-		fx.burst(Vector2(240, 152 + i * 14), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
+		fx.burst(Vector2(240, 163 + i * 12), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
 	else:
 		Sfx.play("hurt", -6.0)
 		_msg("MAXED" if Save.profile.next_cost(i) < 0 else "NOT ENOUGH CRYSTALS")
-
-func _star_icon(ci: CanvasItem, p: Vector2, c: Color) -> void:
-	ci.draw_rect(Rect2(p + Vector2(2, 0), Vector2(1, 7)), c)
-	ci.draw_rect(Rect2(p + Vector2(-1, 3), Vector2(7, 1)), c)
-	ci.draw_rect(Rect2(p + Vector2(1, 2), Vector2(3, 3)), c)
-	ci.draw_rect(Rect2(p + Vector2(2, 3), Vector2(1, 1)), Color.WHITE)
 
 func _device_name(d: int) -> String:
 	if d == G.DEV_KBM:
@@ -480,19 +462,19 @@ func _draw_join(ci: CanvasItem) -> void:
 		var label := "%s  %s  %d/4" % [g.name, ips[i], g.players]
 		menu_items.append(Rect2(90, y - 3, 300, 13))
 		if s:
-			ci.draw_rect(Rect2(90, y - 3, 300, 13), Color(0.48, 0.3, 1.0, 0.3))
+			Occult.highlight(ci, Rect2(90, y - 3, 300, 13), t)
 		PixelFont.draw_centered(ci, label, 240, y, 1, Color("ffd94d") if s else Color.WHITE)
 		y += 14
 	var manual_sel := join_sel == ips.size()
 	var my := 184
 	menu_items.append(Rect2(90, my - 3, 300, 13))
 	if manual_sel:
-		ci.draw_rect(Rect2(90, my - 3, 300, 13), Color(0.48, 0.3, 1.0, 0.3))
-	PixelFont.draw_centered(ci, "ENTER HOST IP:", 240, my, 1, Color("ffd94d") if manual_sel else Color(1, 1, 1, 0.7))
+		Occult.highlight(ci, Rect2(90, my - 3, 300, 13), t)
+	PixelFont.draw_centered(ci, "SPEAK AN ADDRESS ON THE BOARD", 240, my, 1, Color("ffd94d") if manual_sel else Color(1, 1, 1, 0.7))
 	PixelFont.draw_centered(ci, "ESC/B: BACK", 240, 236, 1, Color(1, 1, 1, 0.5))
 
 func _draw_howto(ci: CanvasItem) -> void:
-	_panel(ci, Rect2(30, 138, 420, 118))
+	_panel(ci, Rect2(30, 142, 420, 112))
 	var lines := [
 		["MOVE", "WASD / LEFT STICK / LEFT THUMB"],
 		["CAST", "ARROWS, MOUSE / RIGHT STICK / RIGHT THUMB"],
@@ -504,7 +486,7 @@ func _draw_howto(ci: CanvasItem) -> void:
 		["", "SURVIVE THE HORDE. SLAY THE ARCHLICH AT 15:00 TO WIN."],
 		["", "RUNS EARN CRYSTALS FOR UNLOCKS."],
 	]
-	var y := 146
+	var y := 149
 	for l in lines:
 		PixelFont.draw(ci, l[0], Vector2(40, y), 1, Color("ffd94d"))
 		PixelFont.draw(ci, l[1], Vector2(84, y), 1, Color.WHITE)
@@ -571,10 +553,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if back:
 				Net.stop_discovery()
 				state = S.MAIN
-				ip_edit.release_focus()
 				Sfx.play("menu_select")
 				return
-			if dir != 0 and not ip_edit.has_focus():
+			if dir != 0:
 				join_sel = wrapi(join_sel + dir, 0, n)
 				Sfx.play("menu_move")
 			if tap:
@@ -584,13 +565,18 @@ func _unhandled_input(event: InputEvent) -> void:
 						if i < Net.found_games.size():
 							_join(Net.found_games.keys()[i])
 						else:
-							ip_edit.grab_focus()
+							_open_ouija()
 				return
-			if dev != -99 and not ip_edit.has_focus():
+			if dev != -99:
 				if join_sel < Net.found_games.size():
 					_join(Net.found_games.keys()[join_sel])
 				else:
-					ip_edit.grab_focus()
+					_open_ouija()
+		S.OUIJA:
+			_ouija_input(event, tap, tap_pos)
+		S.OPTIONS:
+			if options.handle(event):
+				state = S.MAIN
 		S.JOINING:
 			if back:
 				Net.shutdown()
@@ -641,6 +627,9 @@ func _activate(item: String, dev: int) -> void:
 		"UNLOCKS":
 			unlock_sel = 0
 			state = S.UNLOCKS
+		"OPTIONS":
+			options.open()
+			state = S.OPTIONS
 		"QUIT":
 			get_tree().quit()
 
@@ -656,16 +645,164 @@ func _begin() -> void:
 
 func _join(ip: String) -> void:
 	Net.stop_discovery()
-	ip_edit.release_focus()
 	state = S.JOINING
 	Net.join_game(ip)
 
-func _on_ip_submitted(text: String) -> void:
-	var ip := text.strip_edges()
+func _open_ouija() -> void:
+	ouija = Ouija.new()
+	planchette = _ouija_pos(ouija.row, ouija.col)
+	state = S.OUIJA
+	Sfx.play("teleport", -6.0)
+
+
+func _submit_ouija() -> void:
+	var ip := ouija.text.strip_edges()
 	if ip.is_valid_ip_address():
+		Sfx.play("powerup")
 		_join(ip)
 	else:
-		_msg("THAT IP DOESN'T LOOK RIGHT")
+		Sfx.play("hurt", -6.0)
+		_msg("THE SPIRITS CANNOT FIND THAT ADDRESS")
+
+
+## The ouija board takes the planchette (arrows, stick, d-pad, mouse) and typed digits on a keyboard.
+func _ouija_input(event: InputEvent, tap: bool, tap_pos: Vector2) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		var ch := String.chr(event.unicode) if event.unicode > 0 else ""
+		if ouija.type_char(ch):
+			Sfx.play("menu_move")
+			return
+		match event.physical_keycode:
+			KEY_BACKSPACE:
+				if ouija.erase():
+					Sfx.play("menu_move")
+				return
+			KEY_ENTER, KEY_KP_ENTER:
+				_submit_ouija()
+				return
+			KEY_ESCAPE:
+				state = S.JOIN
+				Sfx.play("menu_select")
+				return
+	if PlayerInput.back_pressed(event):
+		state = S.JOIN
+		Sfx.play("menu_select")
+		return
+	var dy := PlayerInput.menu_dir(event)
+	var dx := int(PlayerInput.menu_side(event)[1])
+	if dx != 0 or dy != 0:
+		ouija.move(dx, dy)
+		Sfx.play("menu_move", -4.0)
+		return
+	if event is InputEventMouseMotion:
+		var hit: Vector2i = _ouija_hit(event.position)
+		if hit.x >= 0 and ouija.point_at(hit.x, hit.y):
+			pass
+		return
+	if tap:
+		var hit: Vector2i = _ouija_hit(tap_pos)
+		if hit.x < 0 or not ouija.point_at(hit.x, hit.y):
+			return
+	elif PlayerInput.confirm_device(event) == -99:
+		return
+	match ouija.choose():
+		Ouija.TYPED, Ouija.ERASED:
+			Sfx.play("menu_select")
+			fx.burst(_ouija_pos(ouija.row, ouija.col), 8, 40.0, 0.4, 1.0, Occult.FLAME, Occult.BLOOD, true)
+		Ouija.SUBMIT:
+			_submit_ouija()
+		Ouija.CANCEL:
+			state = S.JOIN
+			Sfx.play("menu_select")
+
+
+## Where a mark sits on the board.
+func _ouija_pos(r: int, c: int) -> Vector2:
+	var n: int = Ouija.LAYOUT[r].size()
+	match r:
+		0:
+			return Vector2(118 if c == 0 else 362, 62)
+		1, 2:
+			var u := float(c) / (n - 1) * 2.0 - 1.0
+			var y := (100.0 if r == 1 else 126.0) - (24.0 if r == 1 else 18.0) * (1.0 - u * u)
+			return Vector2(240 + u * (150.0 if r == 1 else 140.0), y)
+		3:
+			return Vector2(130 + c * 22.0, 152)
+	return Vector2(240, 210)
+
+
+## The mark under a point on screen, as (row, col), or (-1, -1).
+func _ouija_hit(p: Vector2) -> Vector2i:
+	for r in Ouija.LAYOUT.size():
+		for c in Ouija.LAYOUT[r].size():
+			var m: String = Ouija.LAYOUT[r][c]
+			var half := Vector2(maxf(9.0, PixelFont.text_width(m, 2) / 2.0 + 3.0), 10.0)
+			if absf(p.x - _ouija_pos(r, c).x) <= half.x and absf(p.y - _ouija_pos(r, c).y) <= half.y:
+				return Vector2i(r, c)
+	return Vector2i(-1, -1)
+
+
+func _draw_ouija(ci: CanvasItem) -> void:
+	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.02, 0.0, 0.05, 0.78))
+	var board := Rect2(52, 30, 376, 214)
+	# Old wood: a dark rim, a warm face and faint grain.
+	ci.draw_rect(board.grow(3), Occult.INK)
+	ci.draw_rect(board, Color("3b2414"))
+	ci.draw_rect(board.grow(-4), Color("6b4526"))
+	for k in 9:
+		var gy := board.position.y + 14 + k * 23 + sin(k * 1.7) * 3.0
+		ci.draw_rect(Rect2(board.position.x + 6, gy, board.size.x - 12, 1), Color(0.3, 0.17, 0.08, 0.35))
+	Occult._box(ci, board.grow(-7), Color("2a170b"))
+	# Sun by YES, moon by NO.
+	var sun := Vector2(82, 54)
+	ci.draw_circle(sun, 8, Color("2a170b"))
+	for k in 8:
+		var a := k * TAU / 8.0
+		ci.draw_line(sun + Vector2(cos(a), sin(a)) * 10, sun + Vector2(cos(a), sin(a)) * 13, Color("2a170b"), 1.0)
+	var moon := Vector2(398, 54)
+	ci.draw_circle(moon, 8, Color("2a170b"))
+	ci.draw_circle(moon + Vector2(4, -2), 7, Color("6b4526"))
+	PixelFont.draw_centered(ci, "SPEAK THE HOST'S ADDRESS", 240, 40, 1, Color("2a170b"))
+	for r in Ouija.LAYOUT.size():
+		for c in Ouija.LAYOUT[r].size():
+			var m: String = Ouija.LAYOUT[r][c]
+			var p := _ouija_pos(r, c)
+			var on := ouija.enabled(r, c)
+			var col := Color("1c0f06") if on else Color(0.17, 0.09, 0.04, 0.35)
+			if r == ouija.row and c == ouija.col:
+				col = Color("fff0c8")
+			PixelFont.draw_centered(ci, m, p.x, p.y - 7, 2, col)
+	# What has been spelled so far, on a slate.
+	var slate := Rect2(150, 172, 180, 16)
+	ci.draw_rect(slate, Color("1c0f06"))
+	var shown := ouija.text + ("_" if int(t * 2.0) % 2 == 0 else " ")
+	PixelFont.draw_centered(ci, shown, 240, slate.position.y + 5, 1, Occult.BONE)
+	_draw_planchette(ci, planchette)
+	PixelFont.draw_centered(ci, "MOVE + ENTER/A   OR TYPE THE NUMBERS   ESC/B: BACK", 240, 250, 1, Color(1, 1, 1, 0.5), Occult.INK)
+
+
+## The planchette: a heart-shaped pointer whose glass eye shows the chosen mark.
+func _draw_planchette(ci: CanvasItem, eye: Vector2) -> void:
+	var c := eye + Vector2(0, 8)
+	var body := PackedVector2Array([c + Vector2(0, -21), c + Vector2(17, -3), c + Vector2(13, 15), c + Vector2(0, 21),
+		c + Vector2(-13, 15), c + Vector2(-17, -3)])
+	var shadow := PackedVector2Array()
+	for v in body:
+		shadow.append(v + Vector2(2, 3))
+	ci.draw_colored_polygon(shadow, Color(0, 0, 0, 0.35))
+	ci.draw_colored_polygon(body, Occult.BONE)
+	body.append(body[0])
+	ci.draw_polyline(body, Color("5a4630"), 1.0)
+	ci.draw_circle(eye, 9.0, Color("8a5a32"))
+	var m := ouija.current()
+	if m.length() == 1:
+		PixelFont.draw_centered(ci, m, eye.x, eye.y - 7, 2, Color("1c0f06"))
+	ci.draw_arc(eye, 9.5, 0.0, TAU, 24, Color("5a4630"), 1.0)
+	ci.draw_rect(Rect2(eye + Vector2(-5, -6), Vector2(3, 1)), Color(1, 1, 1, 0.7))
+	ci.draw_rect(Rect2(eye + Vector2(-6, -5), Vector2(1, 2)), Color(1, 1, 1, 0.5))
+	if m.length() > 1:
+		# A word is wider than the glass: it stays readable over the planchette.
+		PixelFont.draw_centered(ci, m, eye.x, eye.y - 7, 2, Color("fff0c8"), Color("1c0f06"))
 
 func _on_roster() -> void:
 	if state == S.JOINING and Net.mode == Net.Mode.CLIENT:

@@ -54,6 +54,9 @@ var banner := {"text": "", "sub": "", "t": 0.0, "max": 1.0, "color": Color.WHITE
 var decals: Array = [] # [pos, color, size, life]
 var paused := false
 var pause_sel := 0
+var pause_options := false
+var options := OptionsPanel.new()
+const PAUSE_ITEMS := ["RESUME", "OPTIONS", "QUIT TO TITLE"]
 var time := 0.0
 var torch_pos := [Vector2(110, 26), Vector2(370, 26), Vector2(10, 92), Vector2(10, 204), Vector2(470, 92), Vector2(470, 204)]
 var _hitstop := 0.0
@@ -783,6 +786,8 @@ func _banner(text: String, sub: String, color: Color, dur: float) -> void:
 	banner = {"text": text, "sub": sub, "t": dur, "max": dur, "color": color}
 
 func _add_shake(v: float) -> void:
+	if not Save.settings.shake:
+		return
 	shake = minf(14.0, maxf(shake, v))
 
 func _do_hitstop(d: float) -> void:
@@ -1467,12 +1472,22 @@ func _draw_moments(ci: CanvasItem, dark: Color, y0: int) -> void:
 func _draw_pause(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.7))
 	var tw := PixelFont.text_width("PAUSED", 4)
-	PixelFont.draw_gradient(ci, "PAUSED", Vector2(240 - tw / 2.0, 80), 4, Color.WHITE, Color("b78cff"), time * 4.0, 1.0)
-	var items := ["RESUME", "QUIT TO TITLE"]
-	for i in items.size():
+	PixelFont.draw_gradient(ci, "PAUSED", Vector2(240 - tw / 2.0, 60), 4, Color.WHITE, Color("b78cff"), time * 4.0, 1.0)
+	if pause_options:
+		options.draw(ci, time)
+		return
+	var panel := Rect2(170, 118, 140, 66)
+	Occult.frame(ci, panel, time)
+	Occult.candle(ci, Vector2(158, 184), time, 0.0, 10)
+	Occult.candle(ci, Vector2(322, 184), time, 2.0, 10)
+	for i in PAUSE_ITEMS.size():
 		var sel := i == pause_sel
-		var c := Color("ffd94d") if sel else Color("8a7aa8")
-		PixelFont.draw_centered(ci, ("> " + items[i] + " <") if sel else items[i], 240, 130 + i * 18, 2 if sel else 1, c, Color("0b0716"))
+		var y := 130 + i * 16
+		if sel:
+			var w := PixelFont.text_width(PAUSE_ITEMS[i])
+			Occult.highlight(ci, Rect2(240 - w / 2.0 - 16, y - 3, w + 32, 13), time)
+			Occult.cursor(ci, Vector2(240 - w / 2.0 - 9, y + 3), time)
+		PixelFont.draw_centered(ci, PAUSE_ITEMS[i], 240, y, 1, Occult.GOLD if sel else Occult.DIM, Occult.INK)
 
 # ============================================================== INPUT ===
 func _unhandled_input(event: InputEvent) -> void:
@@ -1486,6 +1501,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var start = (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ESCAPE, KEY_P]) \
 		or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)
+	if start and pause_options:
+		pause_options = false
+		Save.write_settings()
+		Sfx.play("menu_select")
+		return
 	if start:
 		_toggle_pause()
 		return
@@ -1493,28 +1513,42 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if paused:
+		if pause_options:
+			if options.handle(event):
+				pause_options = false
+			return
 		var d := PlayerInput.menu_dir(event)
 		if d != 0:
-			pause_sel = wrapi(pause_sel + d, 0, 2)
+			pause_sel = wrapi(pause_sel + d, 0, PAUSE_ITEMS.size())
 			Sfx.play("menu_move")
 		if PlayerInput.confirm_device(event) != -99:
-			Sfx.play("menu_select")
-			if pause_sel == 0:
-				_toggle_pause()
-			else:
-				_quit_to_title()
+			_pause_choose(pause_sel)
 		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed):
-			var y: float = event.position.y
-			if y > 122 and y < 145:
-				_toggle_pause()
-			elif y >= 145 and y < 170:
-				_quit_to_title()
+			var row := int(floorf((event.position.y - 127.0) / 16.0))
+			if row >= 0 and row < PAUSE_ITEMS.size() and absf(event.position.x - 240.0) < 70.0:
+				_pause_choose(row)
+
+
+func _pause_choose(i: int) -> void:
+	Sfx.play("menu_select")
+	pause_sel = i
+	match i:
+		0:
+			_toggle_pause()
+		1:
+			options.open()
+			pause_options = true
+		2:
+			_quit_to_title()
 
 func _toggle_pause() -> void:
 	if game_over:
 		return
 	paused = not paused
 	pause_sel = 0
+	if pause_options:
+		pause_options = false
+		Save.write_settings()
 	Sfx.play("menu_select")
 
 func _quit_to_title() -> void:
