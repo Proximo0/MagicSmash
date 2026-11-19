@@ -10,11 +10,11 @@ const VERSION := 1
 ## [key, name, description, crystal cost per level]. The number of costs is the max level. Effects per level
 ## are in EFFECTS. Append new unlocks at the end; keys are what the save file stores.
 const META: Array = [
-	["vigor", "TOUGHER ROBES", "+1 HEART", [30, 90]],
-	["might", "SHARPER STAFF", "+5% DAMAGE", [20, 50, 110]],
-	["wisdom", "OLD BOOKS", "+6% XP", [20, 50, 110]],
-	["fortune", "LUCKY PURSE", "+15% GOLD", [15, 40, 90]],
-	["novas", "SPARE NOVA", "+1 NOVA", [25, 70]],
+	["vigor", "WARDED ROBES", "+1 HEART", [30, 90]],
+	["might", "RUNED STAFF", "+5% DAMAGE", [20, 50, 110]],
+	["wisdom", "FORBIDDEN LORE", "+6% XP", [20, 50, 110]],
+	["fortune", "MIDAS' PURSE", "+15% GOLD", [15, 40, 90]],
+	["novas", "BOTTLED STAR", "+1 NOVA", [25, 70]],
 	["luck", "FOUR-LEAF RUNE", "LUCKIER CHESTS", [60, 160]],
 ]
 

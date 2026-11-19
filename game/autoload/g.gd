@@ -1,7 +1,7 @@
 extends Node
 ## Global constants, shared settings and the scene switcher.
 
-const VERSION := "0.2.0"
+const VERSION := "0.9.0"
 const SCREEN := Vector2(480, 270)
 ## Playfield (inside the walls).
 const ARENA := Rect2(20, 38, 440, 220)

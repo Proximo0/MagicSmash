@@ -37,16 +37,16 @@ const FX_INSIGHT := 3 # XP worth this fraction of the current level
 ## [key, name, kind, stat or effect, base value, weight]. Indices are sent in events, so append new items at the
 ## end. An armor's value is base x RARITY_MUL[tier]; vigor rounds to whole hearts.
 const ITEMS: Array = [
-	["might", "RUNED GLOVES", KIND_ARMOR, ST_MIGHT, 0.08, 10.0],
-	["focus", "FOCUS CIRCLET", KIND_ARMOR, ST_FOCUS, 0.05, 10.0],
-	["swift", "WIND SANDALS", KIND_ARMOR, ST_SWIFT, 0.05, 8.0],
+	["might", "GAUNTLETS OF TYR", KIND_ARMOR, ST_MIGHT, 0.08, 10.0],
+	["focus", "CIRCLET OF THOTH", KIND_ARMOR, ST_FOCUS, 0.05, 10.0],
+	["swift", "HERMES' SANDALS", KIND_ARMOR, ST_SWIFT, 0.05, 8.0],
 	["vigor", "TROLL HIDE", KIND_ARMOR, ST_VIGOR, 1.0, 6.0],
-	["ward", "WARDING CLOAK", KIND_ARMOR, ST_WARD, 0.06, 7.0],
+	["ward", "AEGIS CLOAK", KIND_ARMOR, ST_WARD, 0.06, 7.0],
 	["greed", "MISER'S RING", KIND_ARMOR, ST_GREED, 0.15, 6.0],
 	["elixir", "ELIXIR", KIND_CONSUMABLE, FX_ELIXIR, 1.0, 8.0],
 	["novas", "NOVA FLASK", KIND_CONSUMABLE, FX_NOVAS, 1.0, 7.0],
-	["tome", "ANCIENT TOME", KIND_CONSUMABLE, FX_TOME, 1.0, 7.0],
-	["insight", "INSIGHT", KIND_CONSUMABLE, FX_INSIGHT, 0.5, 6.0],
+	["tome", "SIBYLLINE BOOK", KIND_CONSUMABLE, FX_TOME, 1.0, 7.0],
+	["insight", "EYE OF ODIN", KIND_CONSUMABLE, FX_INSIGHT, 0.5, 6.0],
 ]
 
 ## Caps so stacked armor stays sane: [might, focus, swift, vigor, ward, greed].

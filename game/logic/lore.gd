@@ -41,6 +41,12 @@ const LICH_NAME := "MORVANE, LICH LORD"
 const ARCHLICH_NAME := "MORVANE ASCENDANT"
 const ARCHLICH_TITLE := "THE ARCHLICH"
 
+## Epithets an elite is announced with, so each tough one reads as someone from the tale.
+const ELITE_EPITHETS: Array = [
+	"THE UNBURIED", "COMET-BORN", "OF THE NINTH PAGE", "THE HOLLOW KING", "MORVANE'S HOUND", "THE ASHEN",
+	"WARDEN OF BONES", "THE BLOODLESS", "THE STARLESS", "KEEPER OF THE CRYPT", "THE TWICE-DEAD", "GRAVE-SWORN",
+]
+
 const VICTORY_LINES: Array = [
 	"THE COMET FALLS INTO THE SEA. THE DEAD SLEEP AGAIN.",
 	"THE ASHEN GRIMOIRE IS SEALED. THE TOWER STANDS.",
@@ -91,3 +97,8 @@ static func minute_line(minute: int) -> String:
 static func ending(won: bool, seed_value: int) -> String:
 	var lines: Array = VICTORY_LINES if won else DEFEAT_LINES
 	return lines[absi(seed_value) % lines.size()]
+
+
+## An elite's epithet, picked from a number every screen agrees on (such as where it appeared).
+static func elite_epithet(n: int) -> String:
+	return ELITE_EPITHETS[absi(n) % ELITE_EPITHETS.size()]

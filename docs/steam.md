@@ -34,9 +34,9 @@ The API names must match exactly.
 | FLAWLESS | UNTOUCHED | Win a run without any wizard losing a life. |
 | LICH | LICH BANE | Slay the Lich Lord. |
 | TEN_MINUTES | HOLD THE TOWER | Survive for 10 minutes. |
-| BLESSED | BLESSED BE | Bless the whole party at a team shrine. |
-| CURSED | WORTH IT | Curse the whole party at a team shrine. |
-| JACKPOT | JACKPOT | Hit the jackpot at a gamble shrine. |
+| BLESSED | BLESSED BE | Draw The Sun for the whole party at the fate card. |
+| CURSED | WORTH IT | Draw Death for the whole party at the fate card. |
+| JACKPOT | JACKPOT | Hit the jackpot at a rune altar. |
 | ULTRA | ULTRA RARE | Find ultra rare loot in a chest. |
 | EVOLVE | EVOLUTION | Evolve a spell. |
 | COMBO_200 | TOTAL SORCERY | Chain a 200 kill combo. |

@@ -647,7 +647,9 @@ func _handle_events(evs: Array) -> void:
 				fx.text(pos + Vector2(0, -20), "RISE!", Color("6dff9a"), 0.8, 1)
 				Sfx.play("portal", -6.0, 1.3, 0.2)
 			World.EV_ELITE:
-				fx.text(pos + Vector2(0, -16), "ELITE!", Color("ffb84d"), 1.2, 1)
+				var elite_name: String = ENEMY_NAMES[clampi(int(ev[3]), 0, ENEMY_NAMES.size() - 1)]
+				fx.text(pos + Vector2(0, -24), Lore.elite_epithet(int(ev[1]) * 7 + int(ev[2])), Color("ffd23d"), 1.6, 1)
+				fx.text(pos + Vector2(0, -15), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
 				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
