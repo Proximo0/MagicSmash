@@ -27,6 +27,6 @@ if [ ${#missing[@]} -gt 0 ]; then
   (apt-get update -qq && apt-get install -y -qq "${missing[@]}") >/dev/null 2>&1 || echo "session-start: could not apt-get ${missing[*]}" >&2
 fi
 
-# Import once so the class cache and resources are ready (the tools take the same lock).
-(flock 9; godot --headless --path . --import >/tmp/godot_import.log 2>&1) 9>/tmp/$(basename "$PWD")_import.lock || {
-  echo "session-start: godot import failed, see /tmp/godot_import.log" >&2; exit 1; }
+# Import once so the class cache and resources are ready. tools/import.sh takes the shared lock and leaves a stamp,
+# so the first tool a session runs does not import again.
+tools/import.sh >&2 || { echo "session-start: godot import failed" >&2; exit 1; }

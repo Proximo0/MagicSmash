@@ -14,7 +14,7 @@ JOBS="${JOBS:-$(nproc)}"
 OUT=$(mktemp -d "/tmp/check.$(basename "$PWD").XXXXXX")  # per run, so two check_all runs never share logs
 FILTER='^(Godot Engine v|$|WARNING: .*audio|   at: )'
 start=$(date +%s)
-(flock 9; "$GODOT" --headless --path . --import) 9>"/tmp/$(basename "$PWD")_import.lock" >"$OUT/import.log" 2>&1 || { cat "$OUT/import.log"; echo "CHECK_ALL FAIL (import)"; exit 1; }
+tools/import.sh || { echo "CHECK_ALL FAIL (import)"; exit 1; }
 
 # One command per line: name|command.
 BOT_SHARDS=3
@@ -27,8 +27,10 @@ if (( HAVE_BOT )); then
   done
 fi
 (( HAVE_LAB )) && TASKS+=("lab|timeout 600 $GODOT --headless --fixed-fps 60 --path . res://tests/lab/lab.tscn")
-TASKS+=("sims|tools/run_sims.sh")
-TASKS+=("unit|timeout 600 $GODOT --headless --path . -s res://tests/runner.gd")
+# The horde's step budget is doubled here: this script's other Godot processes slow it through shared caches even in
+# CPU time. CI's sims-horde row runs alone and holds the real budget.
+TASKS+=("sims|SIM_BUDGET_SCALE=2 tools/run_sims.sh")
+TASKS+=("unit|tools/run_tests.sh")
 TASKS+=("lint|tools/lint.sh")
 
 running=0

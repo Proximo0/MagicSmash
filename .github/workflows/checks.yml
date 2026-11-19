@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          godot --headless --path . --import > /tmp/import.log 2>&1 || { cat /tmp/import.log; exit 1; }
+          tools/import.sh  # imports once and leaves a stamp, so the tool below does not import again
           bash -c "${{ matrix.cmd }}"
       - uses: actions/upload-artifact@v4
         if: always()
