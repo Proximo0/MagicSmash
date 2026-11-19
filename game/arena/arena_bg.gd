@@ -21,8 +21,8 @@ static func build(act: int = OSSUARY) -> ImageTexture:
 	act = clampi(act, 0, PALETTES.size() - 1)
 	if _cache.has(act):
 		return _cache[act]
-	var w := int(G.SCREEN.x)
-	var h := int(G.SCREEN.y)
+	var w := int(G.WORLD.x)
+	var h := int(G.WORLD.y)
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1337 + act * 101
@@ -48,9 +48,6 @@ static func build(act: int = OSSUARY) -> ImageTexture:
 		for y in range(int(a.position.y), int(a.end.y)):
 			img.set_pixel(x0, y, img.get_pixel(x0, y).darkened(0.35))
 	_pillars(img, w, h, pal, act)
-	# HUD band.
-	img.fill_rect(Rect2i(0, 0, w, 18), Color("0b0716"))
-	img.fill_rect(Rect2i(0, 17, w, 1), Color("2f2450") if act != LIBRARY else Color("4a2414"))
 	var tex := ImageTexture.create_from_image(img)
 	_cache[act] = tex
 	return tex
@@ -59,7 +56,7 @@ static func build(act: int = OSSUARY) -> ImageTexture:
 static func _walls(img: Image, a: Rect2, pal: Array, act: int) -> void:
 	var w := img.get_width()
 	var h := img.get_height()
-	for y in range(18, h):
+	for y in range(0, h):
 		for x in w:
 			if a.has_point(Vector2(x, y)):
 				continue
@@ -67,10 +64,10 @@ static func _walls(img: Image, a: Rect2, pal: Array, act: int) -> void:
 			if act == LIBRARY:
 				c = _shelf_px(x, y, pal)
 			else:
-				var row := (y - 18) / 6
+				var row := (y + 42) / 6
 				var off := 6 if row % 2 == 1 else 0
 				var bx := (x + off) % 12
-				var by := (y - 18) % 6
+				var by := (y + 42) % 6
 				var brick_id := ((x + off) / 12) * 31 + row * 17
 				var base: Color = (pal[0] as Color).lerp(pal[1], float((brick_id * 7919) % 13) / 13.0)
 				c = base
@@ -87,10 +84,10 @@ static func _walls(img: Image, a: Rect2, pal: Array, act: int) -> void:
 
 ## Bookshelf walls: dark wood boards every 10 px with rows of coloured spines between.
 static func _shelf_px(x: int, y: int, pal: Array) -> Color:
-	var ry := (y - 18) % 10
+	var ry := (y + 42) % 10
 	if ry >= 8:
 		return Color("2a140c") if ry == 9 else Color("6a3a20")
-	var book := (x * 3 + (y - 18) / 10 * 7) / 4
+	var book := (x * 3 + (y + 42) / 10 * 7) / 4
 	var hsh := (book * 2654435761) % 1000
 	if hsh < 90:
 		return pal[2]
@@ -99,7 +96,7 @@ static func _shelf_px(x: int, y: int, pal: Array) -> Color:
 	var tall := 2 + hsh % 3
 	if ry < 8 - (8 - tall) and ry < 2 and hsh % 2 == 0:
 		return pal[2]
-	if (x * 3 + (y - 18) / 10 * 7) % 4 == 0:
+	if (x * 3 + (y + 42) / 10 * 7) % 4 == 0:
 		return c.darkened(0.35)
 	if ry == 3 and hsh % 3 == 0:
 		return Color("d8b04a").darkened(0.2)
@@ -155,18 +152,18 @@ static func _floor(img: Image, a: Rect2, pal: Array, act: int, rng: RandomNumber
 
 ## Act I: cracks, moss, bone piles along the walls and skull niches in the top wall.
 static func _ossuary(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
-	for i in 40:
+	for i in _scaled(40, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x) + 4, int(a.end.x) - 4), rng.randi_range(int(a.position.y) + 4, int(a.end.y) - 4))
 		var dir := Vector2i([1, -1][rng.randi() % 2], [1, -1][rng.randi() % 2])
 		for k in rng.randi_range(3, 8):
 			if a.has_point(Vector2(p)):
 				img.set_pixelv(p, Color("2a2140"))
 			p += Vector2i(dir.x if rng.randf() < 0.7 else 0, dir.y if rng.randf() < 0.7 else 0)
-	for i in 70:
+	for i in _scaled(70, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x), int(a.end.x) - 1), rng.randi_range(int(a.position.y), int(a.end.y) - 1))
 		img.set_pixelv(p, Color("3f5a4a") if rng.randf() < 0.6 else Color("4f7a52"))
 	# Skull niches in the top wall.
-	for nx: int in [60, 160, 300, 420]:
+	for nx: int in range(60, int(a.end.x) - 40, 110):
 		_art(img, Vector2i(nx, 22), [
 			"..kkkkk..",
 			".kk...kk.",
@@ -202,7 +199,7 @@ static func _library(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 			elif not edge and (x + y) % 9 == 0:
 				c = c.lightened(0.06)
 			img.set_pixel(x, y, c)
-	for i in 26:
+	for i in _scaled(26, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x) + 6, int(a.end.x) - 12), rng.randi_range(int(a.position.y) + 6, int(a.end.y) - 10))
 		var pw := rng.randi_range(5, 8)
 		var ph := rng.randi_range(4, 6)
@@ -211,10 +208,10 @@ static func _library(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 			img.fill_rect(Rect2i(p + Vector2i(1, l), Vector2i(pw - 2, 1)), Color("8a7a60"))
 		if rng.randf() < 0.4:
 			img.fill_rect(Rect2i(p + Vector2i(pw - 2, 0), Vector2i(2, 2)), Color("3a2a1a"))
-	for i in 18:
+	for i in _scaled(18, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x) + 6, int(a.end.x) - 6), rng.randi_range(int(a.position.y) + 6, int(a.end.y) - 6))
 		img.fill_rect(Rect2i(p, Vector2i(rng.randi_range(2, 4), rng.randi_range(1, 3))), Color("120a14"))
-	for i in 160:
+	for i in _scaled(160, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x), int(a.end.x) - 1), rng.randi_range(int(a.position.y), int(a.end.y) - 1))
 		img.set_pixelv(p, Color("2a1a14") if rng.randf() < 0.7 else Color("8a4020"))
 
@@ -222,7 +219,7 @@ static func _library(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 ## Act III: stained-glass windows in the top wall, gold inlay and starlight through cracks in the floor.
 static func _sanctum(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 	var glass := [Color("c0263a"), Color("2a5ad8"), Color("d8b04a"), Color("7b4dff"), Color("29a06b")]
-	for wx: int in [44, 124, 204, 284, 364]:
+	for wx: int in range(44, int(a.end.x) - 40, 80):
 		var win := Rect2i(wx, 20, 30, 17)
 		img.fill_rect(win.grow(1), Color("0a0c1a"))
 		for y in range(win.position.y, win.end.y):
@@ -236,7 +233,7 @@ static func _sanctum(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 				var cell: int = (lx / 6) * 3 + ly / 5 + wx
 				img.set_pixel(x, y, Color("0a0c1a") if lead else (glass[cell % glass.size()] as Color).darkened(0.25))
 		img.fill_rect(Rect2i(wx + 13, 23, 4, 4), Color("fff6e0"))
-	for i in 34:
+	for i in _scaled(34, a):
 		var p := Vector2i(rng.randi_range(int(a.position.x) + 4, int(a.end.x) - 4), rng.randi_range(int(a.position.y) + 4, int(a.end.y) - 4))
 		var dir := Vector2i([1, -1][rng.randi() % 2], [1, -1][rng.randi() % 2])
 		for k in rng.randi_range(4, 10):
@@ -245,6 +242,11 @@ static func _sanctum(img: Image, a: Rect2, rng: RandomNumberGenerator) -> void:
 				if rng.randf() < 0.25:
 					img.set_pixelv(p, Color("9ad8ff"))
 			p += Vector2i(dir.x if rng.randf() < 0.7 else 0, dir.y if rng.randf() < 0.7 else 0)
+
+
+## A decoration count drawn for the original 440x220 floor, scaled to this floor's area.
+static func _scaled(n: int, a: Rect2) -> int:
+	return int(n * a.get_area() / (440.0 * 220.0))
 
 
 ## The summoning circle in the middle of the floor: two rings, a pentagram and studs; larger and gold in Act III.
