@@ -69,6 +69,9 @@ var screen_flash := Color(0, 0, 0, 0)
 var banner := {"text": "", "sub": "", "t": 0.0, "max": 1.0, "color": Color.WHITE, "act": ""}
 ## Banners waiting for the one on screen to finish (an act card is followed by its boss).
 var _banner_queue: Array = []
+## A fallen wizard's ghost rising from where they fell: [position, seconds, wizard].
+var _ghosts: Array = []
+const GHOST_LIFE := 1.8
 ## The act of the tower the run is in (Lore.ACTS); the backdrop fades to the next act's.
 var act := 0
 var bg_next: Sprite2D
@@ -283,6 +286,9 @@ func _process_view(dt: float) -> void:
 		if banner.act != "":
 			Sfx.play("gong")
 	_update_act(dt)
+	for g: Array in _ghosts:
+		g[1] += dt
+	_ghosts = _ghosts.filter(func(g: Array) -> bool: return g[1] < GHOST_LIFE)
 	_update_reveals(dt)
 	_update_bets(dt)
 	screen_flash.a = maxf(0.0, screen_flash.a - dt * 3.0)
@@ -573,6 +579,9 @@ func _handle_events(evs: Array) -> void:
 				fx.nova(pos, col)
 				fx.burst(pos, 40, 160.0, 0.9, 2.0, Color.WHITE, col, true, 60.0, true)
 				Sfx.play("player_die")
+				Sfx.play("ghost", -4.0, 0.9)
+				var dead_slot := int(ev[3])
+				_ghosts.append([pos + Vector2(0, 6), 0.0, G.wizard_of(dead_slot)])
 				_add_shake(7.0)
 				var left := int(ev[4])
 				fx.text(pos + Vector2(0, -16), "P%d DOWN!" % (int(ev[3]) + 1) if left > 0 else "P%d IS OUT!" % (int(ev[3]) + 1), col, 1.8, 1)
@@ -1240,6 +1249,10 @@ func _draw_entities() -> void:
 		else:
 			_draw_enemy(ci, it[2])
 	_draw_enemy_bars(ci)
+	for g: Array in _ghosts:
+		var k: float = g[1] / GHOST_LIFE
+		var gp: Vector2 = g[0] + Vector2(sin(k * 9.0) * 3.0, -40.0 * k)
+		Sprites.draw_at(ci, "wiz%d_up_a" % g[2], gp.round(), false, false, Color(0.7, 0.9, 1.3, 0.6 * (1.0 - k)))
 
 func _draw_player(ci: CanvasItem, p: Dictionary) -> void:
 	var slot: int = p.slot
