@@ -21,7 +21,7 @@ var pending_events: Array = []
 # View state (what gets drawn), filled from snapshots on every peer.
 var vp := {}  # slot -> Dictionary
 var ve := {}  # id -> Dictionary
-var vs: Array = []  # [kind, pos, vel, owner]
+var vs: Array = []  # [spell, pos, vel, owner, evolved]
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
 var wave := 1
@@ -304,7 +304,6 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.alive = pl[i + 7] > 0.5
 		p.invuln = pl[i + 8]
 		p.spell = int(pl[i + 9])
-		p.spell_time = pl[i + 10]
 		p.bombs = int(pl[i + 11])
 		p.score = int(pl[i + 12])
 		p.combo = int(pl[i + 13])
@@ -329,6 +328,10 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 				lv.append(int(pl[i + 24 + c * 2]))
 		p.choices = ch
 		p.choice_lv = lv
+		var wl: Array[int] = []
+		for sp in Spells.COUNT:
+			wl.append(int(pl[i + 29 + sp]))
+		p.weapons = wl
 		if not p.alive:
 			p.pos = p.target
 		i += World.PLAYER_FLOATS
@@ -360,7 +363,8 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	var sh: PackedFloat32Array = snap.s
 	i = 0
 	while i + 6 <= sh.size():
-		vs.append([int(sh[i]), Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5])])
+		var sk := int(sh[i])
+		vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
 		i += 6
 	ves.clear()
 	var es: PackedFloat32Array = snap.es
@@ -540,6 +544,8 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_FROST:
 				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
+				if float(ev[3]) > 0.0:
+					fx.ring(pos, 0.4, float(ev[3]), 0.3, Color("7fe8ff"), 2.0)
 
 func _banner(text: String, sub: String, color: Color, dur: float) -> void:
 	banner = {"text": text, "sub": sub, "t": dur, "max": dur, "color": color}
@@ -833,6 +839,9 @@ func _draw_shots() -> void:
 		var p: Vector2 = s[1]
 		var v: Vector2 = s[2]
 		var col := _spell_color(kind, s[3])
+		if s[4]:
+			# Evolved spells carry a wide pulsing halo so they read as the upgraded form.
+			ci.draw_circle(p, 9.0 + sin(time * 16.0 + p.x) * 1.5, Color(col.r, col.g, col.b, 0.18))
 		match kind:
 			World.SP_ARCANE:
 				ci.draw_circle(p, 5.0, Color(col.r, col.g, col.b, 0.25))
@@ -927,11 +936,15 @@ func _draw_hud() -> void:
 			_hat(ci, Vector2(x + 38 + l * 6, 10), col)
 		for b in mini(p.bombs, 4):
 			_star(ci, Vector2(x + 72 + b * 7, 10))
-		if p.spell != World.SP_ARCANE:
-			var sc: Color = SPELL_COLORS[p.spell]
-			var frac := clampf(p.spell_time / World.SPELL_TIME, 0.0, 1.0)
-			ci.draw_rect(Rect2(x + 64, 3, 48, 4), dark)
-			ci.draw_rect(Rect2(x + 65, 4, 46 * frac, 2), sc)
+		# Spell weapons: one pip per spell, filled by level; an evolved one glows white at the rim.
+		var wl: Array = p.get("weapons", [])
+		for sp in wl.size():
+			var wlv: int = wl[sp]
+			if wlv <= 0:
+				continue
+			var px := x + 64 + sp * 10
+			ci.draw_rect(Rect2(px, 3, 9, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
+			ci.draw_rect(Rect2(px + 1, 4, 7.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), SPELL_COLORS[sp])
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(time * 8) % 2 == 0 else G.player_fx(slot)
 			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x + 96, 10), 1, cc, dark)
