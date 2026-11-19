@@ -67,6 +67,14 @@ func music(name: String) -> void:
 	_music.volume_db = linear_to_db(music_volume)
 	_music.play()
 
+## Volumes from 0 to 1. Music already playing changes at once.
+func set_volumes(music_vol: float, sfx_vol: float) -> void:
+	music_volume = music_vol
+	sfx_volume = sfx_vol
+	if _music:
+		_music.volume_db = linear_to_db(music_volume)
+
+
 func stop_music() -> void:
 	_music_name = ""
 	_music.stop()
