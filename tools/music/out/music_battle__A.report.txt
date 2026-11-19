@@ -1,0 +1,47 @@
+== music_battle__A: 96.0s, 160 bpm, 64 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.93 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 8%  bass 60-250 46%  lowmid 250-800 24%  mid 800-3k 13%  presence 3k-8k 5%  air >8k 4%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -21.1 dB   35.5%
+   bass            -23.8 dB   19.3%
+   lead            -24.6 dB   16.0%
+   saw             -25.8 dB   12.2%
+   counter         -30.4 dB    4.2%
+   brass           -32.8 dB    2.4%
+   gtr             -33.0 dB    2.3%
+   pad             -33.5 dB    2.0%
+   chip            -34.3 dB    1.7%
+   gtrL            -34.5 dB    1.6%
+   bell            -36.6 dB    1.0%
+   chipbass        -36.7 dB    1.0%
+   arp             -38.8 dB    0.6%
+track lead: 139 notes, range Ab4-F#6, max leap 9 st, mean 2.6 st
+track saw: 190 notes, range F#4-F#6, max leap 13 st, mean 2.5 st
+track chip: 43 notes, range G4-D6, max leap 16 st, mean 4.4 st
+track counter: 156 notes, range E4-C#6, max leap 10 st, mean 2.7 st
+track brass: 154 notes, range A2-E5, max leap 19 st, mean 7.9 st
+track gtr: 227 notes, range C3-B4, max leap 16 st, mean 6.0 st
+track gtrL: 228 notes, range G2-B4, max leap 28 st, mean 8.3 st
+track bass: 495 notes, range F#1-F#3, max leap 16 st, mean 7.7 st
+track chipbass: 32 notes, range G1-E3, max leap 17 st, mean 6.2 st
+track pad: 197 notes, range E3-Eb4, max leap 11 st, mean 4.8 st
+track arp: 623 notes, range C4-E6, max leap 19 st, mean 4.5 st
+track bell: 57 notes, range C5-E7, max leap 14 st, mean 3.7 st
+non-chord tones on beats (>=8th long) in lead: 2/76 (3%) e.g. bar 59.1 Ab5 over A, bar 60.1 C#6 over D
+non-chord tones on beats (>=8th long) in saw: 4/115 (3%) e.g. bar 31.1 F#5 over G, bar 32.1 B5 over C, bar 59.1 Ab5 over A, bar 60.1 C#6 over D
+non-chord tones on beats (>=8th long) in chip: 0/28 (0%)
+non-chord tones on beats (>=8th long) in counter: 0/99 (0%)
+non-chord tones on beats (>=8th long) in brass: 0/35 (0%)
+non-chord tones on beats (>=8th long) in gtr: 0/52 (0%)
+non-chord tones on beats (>=8th long) in gtrL: 0/68 (0%)
+non-chord tones on beats (>=8th long) in bass: 0/202 (0%)
+non-chord tones on beats (>=8th long) in chipbass: 0/24 (0%)
+non-chord tones on beats (>=8th long) in pad: 0/197 (0%)
+non-chord tones on beats (>=8th long) in arp: 0/6 (0%)
+non-chord tones on beats (>=8th long) in bell: 0/30 (0%)
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -26.0 dB -> loop start 50ms -9.8 dB, sample jump 0.014 (under ~0.1 is click-free)
+sections: bar 1 intro riff, bar 5 verse A, bar 13 verse A2, bar 21 hook B, bar 29 circle C, bar 37 chip breakdown, bar 45 build, bar 49 climax F#m, bar 57 circle C' >B7
+loudness per 2 bars (dB): -14 -13 -15 -15 -15 -14 -14 -14 -14 -13 -13 -13 -12 -12 -13 -14 -13 -14 -18 -18 -17 -16 -14 -12 -12 -12 -12 -11 -12 -12 -12 -12

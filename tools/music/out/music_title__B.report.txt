@@ -1,0 +1,43 @@
+== music_title__B: 88.0s, 120 bpm, 44 bars, loop from bar 4
+peak -1.0 dBFS | rms -13.3 dBFS | crest 12.3 dB | clipped samples 0
+stereo L/R correlation 0.94 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 10%  bass 60-250 38%  lowmid 250-800 24%  mid 800-3k 18%  presence 3k-8k 6%  air >8k 4%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -20.6 dB   41.5%
+   lead            -22.6 dB   25.8%
+   bass            -24.2 dB   18.1%
+   brass           -31.3 dB    3.5%
+   fm_lead         -31.6 dB    3.3%
+   strings         -32.4 dB    2.7%
+   counter         -34.2 dB    1.8%
+   choir           -36.4 dB    1.1%
+   bell            -37.1 dB    0.9%
+   sparkle         -38.8 dB    0.6%
+   arp             -40.6 dB    0.4%
+   harp            -43.1 dB    0.2%
+track lead: 199 notes, range A4-E6, max leap 11 st, mean 2.7 st
+track fm_lead: 22 notes, range A4-C6, max leap 8 st, mean 3.4 st
+track counter: 81 notes, range E4-B5, max leap 10 st, mean 2.6 st
+track brass: 180 notes, range F3-D5, max leap 16 st, mean 5.5 st
+track bell: 26 notes, range D5-A6, max leap 17 st, mean 3.8 st
+track sparkle: 52 notes, range E5-E7, max leap 9 st, mean 3.2 st
+track harp: 104 notes, range G2-F5, max leap 31 st, mean 6.5 st
+track arp: 271 notes, range F4-D6, max leap 14 st, mean 4.2 st
+track strings: 172 notes, range D3-A4, max leap 14 st, mean 5.3 st
+track choir: 48 notes, range F3-A4, max leap 11 st, mean 4.1 st
+track bass: 291 notes, range G1-B3, max leap 23 st, mean 8.0 st
+non-chord tones on beats (>=8th long) in lead: 0/98 (0%)
+non-chord tones on beats (>=8th long) in fm_lead: 0/15 (0%)
+non-chord tones on beats (>=8th long) in counter: 0/51 (0%)
+non-chord tones on beats (>=8th long) in brass: 0/123 (0%)
+non-chord tones on beats (>=8th long) in bell: 0/14 (0%)
+non-chord tones on beats (>=8th long) in sparkle: 0/32 (0%)
+non-chord tones on beats (>=8th long) in arp: 0/6 (0%)
+non-chord tones on beats (>=8th long) in strings: 0/172 (0%)
+non-chord tones on beats (>=8th long) in choir: 0/48 (0%)
+non-chord tones on beats (>=8th long) in bass: 8/157 (5%) e.g. bar 11.4 B1 over C, bar 16.4 B2 over A7, bar 17.4 C3 over Dm, bar 21.4 C3 over Dm, bar 26.4 B1 over Cadd9, bar 30.4 B1 over Cadd9
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -16.6 dB -> loop start 50ms -9.1 dB, sample jump 0.089 (under ~0.1 is click-free)
+sections: bar 1 intro, bar 5 fanfare, bar 9 verse, bar 17 chorus, bar 25 bridge, bar 33 chorus Em, bar 41 tag
+loudness per 2 bars (dB): -17 -16 -13 -12 -15 -15 -14 -13 -12 -13 -12 -12 -16 -16 -16 -13 -12 -12 -12 -11 -13 -12

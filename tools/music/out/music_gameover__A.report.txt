@@ -1,0 +1,30 @@
+== music_gameover__A: 8.0s, 88 bpm, 2 bars, loop from bar -
+peak -1.0 dBFS | rms -13.4 dBFS | crest 12.4 dB | clipped samples 0
+stereo L/R correlation 0.91 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 10%  bass 60-250 33%  lowmid 250-800 34%  mid 800-3k 18%  presence 3k-8k 5%  air >8k 1%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   lead            -25.5 dB   43.1%
+   bass            -28.2 dB   23.2%
+   drums           -29.4 dB   17.5%
+   flute           -31.9 dB    9.9%
+   strings         -36.1 dB    3.8%
+   harp            -40.8 dB    1.3%
+   bell            -42.0 dB    1.0%
+   fizzle          -47.9 dB    0.2%
+track lead: 13 notes, range C#4-A5, max leap 7 st, mean 2.6 st
+track flute: 13 notes, range E5-A6, max leap 7 st, mean 2.6 st
+track bass: 7 notes, range G1-D2, max leap 5 st, mean 2.3 st
+track strings: 11 notes, range C#3-C4, max leap 9 st, mean 5.2 st
+track harp: 16 notes, range D3-F5, max leap 14 st, mean 5.3 st
+track bell: 3 notes, range A5-D6, max leap 5 st, mean 2.5 st
+track fizzle: 4 notes, range D5-D6, max leap 5 st, mean 4.0 st
+non-chord tones on beats (>=8th long) in lead: 0/6 (0%)
+non-chord tones on beats (>=8th long) in flute: 0/6 (0%)
+non-chord tones on beats (>=8th long) in bass: 0/6 (0%)
+non-chord tones on beats (>=8th long) in strings: 0/11 (0%)
+non-chord tones on beats (>=8th long) in harp: 0/6 (0%)
+non-chord tones on beats (>=8th long) in bell: 0/2 (0%)
+semitone clashes held >= 1/2 beat: 0
+sections: bar 1 x falls, bar 2 sigh, wink, Picardy, fizzle
+loudness per 2 bars (dB): -12

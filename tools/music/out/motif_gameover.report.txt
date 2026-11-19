@@ -1,0 +1,27 @@
+== motif_gameover: 7.7s, 84 bpm, 2 bars, loop from bar -
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.92 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 14%  bass 60-250 24%  lowmid 250-800 44%  mid 800-3k 16%  presence 3k-8k 2%  air >8k 0%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   lead            -24.3 dB   47.9%
+   bass            -25.9 dB   32.9%
+   flute           -31.2 dB    9.7%
+   drums           -32.5 dB    7.2%
+   strings         -39.3 dB    1.5%
+   harp            -42.4 dB    0.7%
+   fizzle          -52.4 dB    0.1%
+track lead: 15 notes, range C#4-A5, max leap 7 st, mean 2.1 st
+track flute: 15 notes, range C#5-A6, max leap 7 st, mean 2.1 st
+track bass: 5 notes, range G1-D2, max leap 5 st, mean 3.5 st
+track strings: 15 notes, range D3-F4, max leap 14 st, mean 4.6 st
+track harp: 17 notes, range G3-D5, max leap 9 st, mean 4.4 st
+track fizzle: 4 notes, range D5-D6, max leap 5 st, mean 4.0 st
+non-chord tones on beats (>=8th long) in lead: 0/7 (0%)
+non-chord tones on beats (>=8th long) in flute: 0/7 (0%)
+non-chord tones on beats (>=8th long) in bass: 0/5 (0%)
+non-chord tones on beats (>=8th long) in strings: 0/15 (0%)
+non-chord tones on beats (>=8th long) in harp: 0/8 (0%)
+semitone clashes held >= 1/2 beat: 0
+sections: bar 1 jingle
+loudness per 2 bars (dB): -13

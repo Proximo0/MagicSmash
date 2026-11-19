@@ -1,0 +1,10 @@
+{
+ "name": "motif_title",
+ "samples": 784000,
+ "sample_rate": 44100,
+ "loop": true,
+ "loop_begin": 0,
+ "loop_end": 784000,
+ "bpm": 108,
+ "bars": 8
+}

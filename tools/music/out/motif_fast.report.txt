@@ -1,0 +1,25 @@
+== motif_fast: 12.0s, 160 bpm, 8 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.96 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 14%  bass 60-250 41%  lowmid 250-800 19%  mid 800-3k 17%  presence 3k-8k 5%  air >8k 4%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -18.9 dB   46.1%
+   lead            -21.3 dB   26.7%
+   bass            -22.0 dB   22.8%
+   counter         -31.9 dB    2.3%
+   pad             -32.6 dB    2.0%
+   arp             -42.6 dB    0.2%
+track lead: 54 notes, range A4-D6, max leap 8 st, mean 2.6 st
+track arp: 64 notes, range C4-Bb5, max leap 14 st, mean 4.1 st
+track counter: 25 notes, range E4-A5, max leap 10 st, mean 2.7 st
+track bass: 64 notes, range A1-A3, max leap 23 st, mean 9.3 st
+track pad: 36 notes, range C3-F4, max leap 17 st, mean 4.6 st
+non-chord tones on beats (>=8th long) in lead: 0/30 (0%)
+non-chord tones on beats (>=8th long) in counter: 0/15 (0%)
+non-chord tones on beats (>=8th long) in bass: 2/32 (6%) e.g. bar 1.4 C3 over Dm, bar 5.4 C3 over Dm
+non-chord tones on beats (>=8th long) in pad: 0/36 (0%)
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -11.7 dB -> loop start 50ms -8.5 dB, sample jump 0.053 (under ~0.1 is click-free)
+sections: bar 1 theme, bar 5 theme+harmony
+loudness per 2 bars (dB): -13 -13 -13 -13

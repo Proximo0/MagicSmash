@@ -1,0 +1,10 @@
+{
+ "name": "music_title__A",
+ "samples": 3920000,
+ "sample_rate": 44100,
+ "loop": true,
+ "loop_begin": 784000,
+ "loop_end": 3920000,
+ "bpm": 108,
+ "bars": 40
+}

@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.translation
+export_credentials.cfg
+# Builds and Python
+/builds/
+__pycache__/
+tools/music/out/candidates/

@@ -1,0 +1,27 @@
+== demo: 12.6s, 152 bpm, 8 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.95 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 14%  bass 60-250 49%  lowmid 250-800 17%  mid 800-3k 14%  presence 3k-8k 4%  air >8k 3%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -18.9 dB   49.8%
+   bass            -21.9 dB   25.0%
+   lead            -22.8 dB   20.4%
+   choir           -31.9 dB    2.5%
+   pad             -33.0 dB    1.9%
+   arp             -43.0 dB    0.2%
+   harp            -43.7 dB    0.2%
+track lead: 31 notes, range B4-C6, max leap 5 st, mean 2.8 st
+track bass: 64 notes, range B1-E3, max leap 12 st, mean 6.5 st
+track pad: 26 notes, range C4-A5, max leap 17 st, mean 4.6 st
+track arp: 128 notes, range C5-F#6, max leap 11 st, mean 3.6 st
+track harp: 32 notes, range E4-E5, max leap 5 st, mean 4.0 st
+track choir: 3 notes, range E4-B4, max leap 4 st, mean 3.5 st
+non-chord tones on beats (>=8th long) in lead: 11/23 (48%) e.g. bar 2.2 D5 over C, bar 2.3 B4 over C, bar 3.1 C5 over D, bar 3.2 E5 over D, bar 3.3 C6 over D, bar 4.3 D5 over B7
+non-chord tones on beats (>=8th long) in bass: 0/32 (0%)
+non-chord tones on beats (>=8th long) in pad: 0/26 (0%)
+non-chord tones on beats (>=8th long) in choir: 0/3 (0%)
+semitone clashes held >= 1/2 beat: 16; first: bar 1.4.5 lead:F#5 vs pad:G4; bar 2.3 lead:B4 vs pad:C4; bar 2.4 lead:B4 vs bass:C3; bar 3.2.5 lead:G5 vs pad:F#4; bar 4.3 lead:D5 vs pad:Eb5; bar 6.1 lead:B5 vs pad:C4; bar 6.1 pad:C4 vs choir:B4; bar 6.2 bass:C3 vs choir:B4
+loop seam: last 50ms -14.9 dB -> loop start 50ms -9.1 dB, sample jump 0.007 (under ~0.1 is click-free)
+sections: bar 1 A
+loudness per 2 bars (dB): -13 -14 -13 -12

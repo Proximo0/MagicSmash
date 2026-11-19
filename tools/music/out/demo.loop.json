@@ -1,0 +1,10 @@
+{
+ "name": "demo",
+ "samples": 557053,
+ "sample_rate": 44100,
+ "loop": true,
+ "loop_begin": 0,
+ "loop_end": 557053,
+ "bpm": 152,
+ "bars": 8
+}

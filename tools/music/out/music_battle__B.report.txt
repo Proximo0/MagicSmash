@@ -1,0 +1,40 @@
+== music_battle__B: 96.0s, 160 bpm, 64 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.3 dBFS | crest 12.3 dB | clipped samples 0
+stereo L/R correlation 0.96 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 10%  bass 60-250 41%  lowmid 250-800 23%  mid 800-3k 16%  presence 3k-8k 5%  air >8k 5%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   drums           -20.0 dB   41.6%
+   lead            -21.8 dB   27.6%
+   bass            -23.6 dB   18.3%
+   lead2           -28.3 dB    6.2%
+   pad             -33.2 dB    2.0%
+   bass_chip       -36.3 dB    1.0%
+   brass           -36.8 dB    0.9%
+   bell            -37.2 dB    0.8%
+   chip            -37.7 dB    0.7%
+   arp             -38.5 dB    0.6%
+   counter         -39.9 dB    0.4%
+track lead: 298 notes, range G4-F#6, max leap 12 st, mean 2.9 st
+track lead2: 221 notes, range B3-C#6, max leap 17 st, mean 2.8 st
+track counter: 25 notes, range F#4-B5, max leap 10 st, mean 2.7 st
+track chip: 40 notes, range G4-C6, max leap 14 st, mean 3.4 st
+track bell: 53 notes, range G4-E7, max leap 14 st, mean 3.7 st
+track brass: 47 notes, range Ab3-F#5, max leap 19 st, mean 3.7 st
+track arp: 720 notes, range C4-E5, max leap 16 st, mean 4.2 st
+track pad: 171 notes, range E3-Eb4, max leap 11 st, mean 5.1 st
+track bass: 513 notes, range G1-C#4, max leap 23 st, mean 4.6 st
+track bass_chip: 64 notes, range G1-E3, max leap 17 st, mean 12.0 st
+non-chord tones on beats (>=8th long) in lead: 2/181 (1%) e.g. bar 32.2 B5 over D, bar 36.2 G5 over B7
+non-chord tones on beats (>=8th long) in lead2: 0/138 (0%)
+non-chord tones on beats (>=8th long) in counter: 0/15 (0%)
+non-chord tones on beats (>=8th long) in chip: 0/16 (0%)
+non-chord tones on beats (>=8th long) in bell: 0/32 (0%)
+non-chord tones on beats (>=8th long) in brass: 0/38 (0%)
+non-chord tones on beats (>=8th long) in pad: 0/171 (0%)
+non-chord tones on beats (>=8th long) in bass: 5/210 (2%) e.g. bar 21.4 D3 over Em, bar 25.4 D3 over Em, bar 49.4 D3 over Em, bar 53.4 D3 over Em, bar 57.4 E3 over F#m
+non-chord tones on beats (>=8th long) in bass_chip: 0/32 (0%)
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -13.1 dB -> loop start 50ms -9.4 dB, sample jump 0.043 (under ~0.1 is click-free)
+sections: bar 1 intro, bar 5 verse A1, bar 13 A2 pre, bar 21 hook B, bar 29 bridge, bar 37 breakdown, bar 45 build, bar 49 climax B', bar 57 lift F#m, bar 61 tag
+loudness per 2 bars (dB): -16 -14 -15 -15 -14 -14 -13 -13 -13 -13 -13 -13 -12 -12 -14 -14 -14 -13 -18 -18 -17 -16 -13 -12 -12 -12 -12 -12 -12 -12 -13 -12

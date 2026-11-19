@@ -1,0 +1,23 @@
+== motif_title: 17.8s, 108 bpm, 8 bars, loop from bar 0
+peak -1.0 dBFS | rms -13.1 dBFS | crest 12.1 dB | clipped samples 0
+stereo L/R correlation 0.94 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 15%  bass 60-250 40%  lowmid 250-800 20%  mid 800-3k 23%  presence 3k-8k 3%  air >8k 0%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   lead            -21.8 dB   36.4%
+   bass            -22.3 dB   32.5%
+   drums           -24.2 dB   21.3%
+   brass           -28.0 dB    8.7%
+   strings         -37.3 dB    1.0%
+track lead: 27 notes, range A4-D6, max leap 8 st, mean 2.6 st
+track brass: 25 notes, range E4-A5, max leap 10 st, mean 2.7 st
+track bass: 10 notes, range G1-D2, max leap 5 st, mean 2.7 st
+track strings: 24 notes, range D3-A4, max leap 19 st, mean 7.0 st
+non-chord tones on beats (>=8th long) in lead: 2/19 (11%) e.g. bar 3.4 F5 over Gm, bar 4.2 F5 over A
+non-chord tones on beats (>=8th long) in brass: 0/18 (0%)
+non-chord tones on beats (>=8th long) in bass: 0/10 (0%)
+non-chord tones on beats (>=8th long) in strings: 0/24 (0%)
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -11.8 dB -> loop start 50ms -11.1 dB, sample jump 0.196 (under ~0.1 is click-free)
+sections: bar 1 theme x2 augmented
+loudness per 2 bars (dB): -14 -14 -14 -12

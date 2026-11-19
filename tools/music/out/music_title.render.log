@@ -1,0 +1,44 @@
+== music_title: 88.9s, 108 bpm, 40 bars, loop from bar 8
+peak -1.0 dBFS | rms -13.2 dBFS | crest 12.2 dB | clipped samples 0
+stereo L/R correlation 0.90 (1 = mono, <0.3 very wide)
+spectrum share: sub <60 8%  bass 60-250 28%  lowmid 250-800 33%  mid 800-3k 23%  presence 3k-8k 6%  air >8k 2%
+(reference for bright chiptune/16-bit mixes: bass+sub ~35-55%, mid ~15-30%, presence ~5-15%)
+per-track level (rms dBFS before master; share of summed energy):
+   lead            -24.8 dB   32.3%
+   bass            -26.2 dB   23.6%
+   timpani         -28.8 dB   13.1%
+   brass           -31.0 dB    7.8%
+   perc            -31.6 dB    6.8%
+   flute           -33.7 dB    4.2%
+   strings         -33.9 dB    4.0%
+   choir           -36.7 dB    2.1%
+   harp            -37.0 dB    1.9%
+   bell            -37.7 dB    1.7%
+   shimmer         -39.5 dB    1.1%
+   counter         -39.6 dB    1.1%
+   sparkle         -45.7 dB    0.3%
+track lead: 124 notes, range A4-E6, max leap 8 st, mean 2.6 st
+track counter: 25 notes, range E4-A5, max leap 10 st, mean 2.7 st
+track brass: 133 notes, range F3-A5, max leap 12 st, mean 4.2 st
+track bell: 16 notes, range E5-E6, max leap 9 st, mean 3.6 st
+track sparkle: 7 notes, range D6-D7, max leap 12 st, mean 4.0 st
+track flute: 24 notes, range A4-Bb5, max leap 13 st, mean 3.1 st
+track harp: 237 notes, range F2-D6, max leap 34 st, mean 5.7 st
+track strings: 125 notes, range C3-A4, max leap 19 st, mean 6.9 st
+track choir: 52 notes, range C#4-A4, max leap 7 st, mean 5.2 st
+track bass: 155 notes, range F1-A3, max leap 23 st, mean 5.9 st
+non-chord tones on beats (>=8th long) in lead: 2/78 (3%) e.g. bar 12.2 F5 over A, bar 24.2 F5 over A7
+non-chord tones on beats (>=8th long) in counter: 0/15 (0%)
+non-chord tones on beats (>=8th long) in brass: 1/95 (1%) e.g. bar 20.4 E4 over Dm
+non-chord tones on beats (>=8th long) in bell: 0/10 (0%)
+non-chord tones on beats (>=8th long) in sparkle: 0/7 (0%)
+non-chord tones on beats (>=8th long) in flute: 1/17 (6%) e.g. bar 8.2 F5 over A7
+non-chord tones on beats (>=8th long) in strings: 0/125 (0%)
+non-chord tones on beats (>=8th long) in choir: 0/52 (0%)
+non-chord tones on beats (>=8th long) in bass: 4/116 (3%) e.g. bar 23.4 G1 over F, bar 25.4 C3 over Dm, bar 29.4 C3 over Dm, bar 32.4 C3 over Dm
+semitone clashes held >= 1/2 beat: 0
+loop seam: last 50ms -15.2 dB -> loop start 50ms -11.2 dB, sample jump 0.095 (under ~0.1 is click-free)
+sections: bar 1 night sky, bar 9 herald (theme x0.5), bar 17 royal road B, bar 25 tutti theme, bar 29 tutti 2, bar 33 fanfare x, bar 37 night falls
+loudness per 2 bars (dB): -18 -18 -16 -15 -13 -13 -12 -12 -15 -14 -15 -14 -11 -11 -11 -11 -12 -12 -18 -15
+
+wrote /home/claude/magic-smash/assets/audio/music_title.wav (88.9s)

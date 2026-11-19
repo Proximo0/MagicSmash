@@ -1,0 +1,10 @@
+{
+ "name": "motif_gameover",
+ "samples": 340200,
+ "sample_rate": 44100,
+ "loop": false,
+ "loop_begin": 0,
+ "loop_end": 340200,
+ "bpm": 84,
+ "bars": 2
+}
