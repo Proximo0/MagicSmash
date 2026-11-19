@@ -19,6 +19,7 @@ Save="*res://game/autoload/save.gd"
 G="*res://game/autoload/g.gd"
 Sfx="*res://game/autoload/sfx.gd"
 Net="*res://game/autoload/net.gd"
+Platform="*res://game/autoload/platform.gd"
 
 [display]
 
