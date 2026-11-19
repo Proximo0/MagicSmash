@@ -50,7 +50,13 @@ var results: Results = null # the run record, from EV_RESULTS
 
 var shake := 0.0
 var screen_flash := Color(0, 0, 0, 0)
-var banner := {"text": "", "sub": "", "t": 0.0, "max": 1.0, "color": Color.WHITE}
+var banner := {"text": "", "sub": "", "t": 0.0, "max": 1.0, "color": Color.WHITE, "act": ""}
+## Banners waiting for the one on screen to finish (an act card is followed by its boss).
+var _banner_queue: Array = []
+## The act of the tower the run is in (Lore.ACTS); the backdrop fades to the next act's.
+var act := 0
+var bg_next: Sprite2D
+var _act_fade := -1.0
 var decals: Array = [] # [pos, color, size, life]
 var paused := false
 var pause_sel := 0
@@ -97,8 +103,12 @@ func _ready() -> void:
 	add_child(root)
 	bg = Sprite2D.new()
 	bg.centered = false
-	bg.texture = ArenaBg.build()
+	bg.texture = ArenaBg.build(ArenaBg.OSSUARY)
 	root.add_child(bg)
+	bg_next = Sprite2D.new()
+	bg_next.centered = false
+	bg_next.visible = false
+	root.add_child(bg_next)
 	decal_layer = _layer(false)
 	decal_layer.draw.connect(_timed.bind("draw_decals", _draw_decals))
 	env_layer = _layer(false)
@@ -252,6 +262,11 @@ func _process_view(dt: float) -> void:
 	decals = decals.filter(func(d): return d[3] > 0.0)
 	if banner.t > 0.0:
 		banner.t -= dt
+	elif not _banner_queue.is_empty():
+		banner = _banner_queue.pop_front()
+		if banner.act != "":
+			Sfx.play("gong")
+	_update_act(dt)
 	_update_reveals(dt)
 	_update_bets(dt)
 	screen_flash.a = maxf(0.0, screen_flash.a - dt * 3.0)
@@ -546,17 +561,20 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("charge", -3.0)
 			World.EV_WAVE:
 				var w := int(ev[3])
+				if Lore.opens_act(w):
+					_act_card(Lore.act_of(w))
 				if int(ev[4]) == 2:
-					_banner("THE ARCHLICH", "THE FINAL BATTLE BEGINS", Color("ff4df2"), 3.2)
+					_banner(Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
 					Sfx.play("boss_roar", 0.0, 0.7)
+					Sfx.play("bell_toll", -2.0)
 				elif int(ev[4]) == 1:
-					_banner("THE LICH LORD", "AWAKENS AT MINUTE %d" % w, Color("ff4d6a"), 2.6)
-					Sfx.play("wave_start")
+					_banner("THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
+					Sfx.play("portal")
 				elif w > 1:
-					_banner("MINUTE %d" % w, ["HOLD THE TOWER!", "THEY KEEP COMING!", "STAND TOGETHER!", "MORE OF THEM!"][w % 4], Color("ffd94d"), 1.6)
+					_banner("MINUTE %d" % w, Lore.minute_line(w), Color("ffd94d"), 1.8)
 					Sfx.play("wave_start", -4.0)
 				else:
-					_banner("SURVIVE", "SMASH THEM ALL!", Color("ffd94d"), 2.4)
+					_act_card(0)
 					Sfx.play("wave_start")
 				Sfx.music("music_battle")
 			World.EV_RIFT:
@@ -619,8 +637,10 @@ func _handle_events(evs: Array) -> void:
 					fx.nova(pos + Vector2(0, -16), Color("ff4df2"))
 			World.EV_COMBO:
 				var col := G.player_fx(int(ev[4]))
-				fx.text(pos + Vector2(0, -18), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.6, 2)
-				fx.text(pos + Vector2(0, -4), "x%d COMBO" % int(ev[3]), Color.WHITE, 1.4, 1)
+				# One call over the wizard who made it; big only for the rare x100 and beyond.
+				var who: Vector2 = vp[int(ev[4])].pos if vp.has(int(ev[4])) else pos
+				fx.text(who + Vector2(0, -22), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.3,
+					2 if int(ev[3]) >= 100 else 1)
 				Sfx.play("powerup", -2.0, 1.2)
 			World.EV_SPAWN:
 				fx.teleport(pos, G.player_color(int(ev[3])))
@@ -789,8 +809,59 @@ func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
 		PixelFont.draw_centered(ci, label, at.x, box.position.y + 2, 1, col, dark)
 		PixelFont.draw_centered(ci, title, at.x, box.position.y + 11, 1, Color.WHITE if spinning else col, dark)
 
-func _banner(text: String, sub: String, color: Color, dur: float) -> void:
-	banner = {"text": text, "sub": sub, "t": dur, "max": dur, "color": color}
+## Shows a banner now, or after the one on screen when `wait` is set.
+func _banner(text: String, sub: String, color: Color, dur: float, wait: bool = false) -> void:
+	var b := {"text": text, "sub": sub, "t": dur, "max": dur, "color": color, "act": ""}
+	if wait and (banner.t > 0.0 or not _banner_queue.is_empty()):
+		_banner_queue.append(b)
+	else:
+		banner = b
+
+
+## The card that opens an act: ACT II, its name and subtitle, with a gong.
+func _act_card(a: int) -> void:
+	var b := {"text": Lore.act_name(a), "sub": Lore.act_subtitle(a), "t": 3.4, "max": 3.4,
+		"color": [Color("8bdcff"), Color("ff8a2a"), Color("ffd94d")][clampi(a, 0, 2)], "act": Lore.act_heading(a)}
+	_banner_queue.clear()
+	banner = b
+	Sfx.play("gong")
+
+
+## Fades the backdrop to the act the run minute is in.
+func _update_act(dt: float) -> void:
+	var want := Lore.act_of(wave)
+	if want != act and _act_fade < 0.0:
+		act = want
+		bg_next.texture = ArenaBg.build(act)
+		bg_next.modulate.a = 0.0
+		bg_next.visible = true
+		_act_fade = 0.0
+		screen_flash = Color(1.0, 0.9, 0.7, 0.5)
+	# Each act has its own air: dust in the Ossuary, embers in the Library, falling starlight in the Sanctum.
+	var ar := G.ARENA
+	if _fx_rng.randf() < dt * [3.0, 14.0, 9.0][act]:
+		match act:
+			0:
+				fx.spawn(Vector2(_fx_rng.randf_range(ar.position.x, ar.end.x), _fx_rng.randf_range(ar.position.y, ar.end.y)),
+					Vector2(_fx_rng.randf_range(-3, 3), _fx_rng.randf_range(-4, -1)), 4.0, 1.0, Color(0.8, 0.75, 0.9, 0.25),
+					Color(0.8, 0.75, 0.9, 0.0), false, 0.0)
+			1:
+				var c := Color("ff8a2a") if _fx_rng.randf() < 0.7 else Color("ffd94d")
+				fx.spawn(Vector2(_fx_rng.randf_range(ar.position.x, ar.end.x), ar.end.y - _fx_rng.randf_range(0, 30)),
+					Vector2(_fx_rng.randf_range(-8, 8), _fx_rng.randf_range(-30, -14)), _fx_rng.randf_range(2.0, 4.0), 1.0, c,
+					Color(c.r, 0.1, 0.0, 0.0), true, 0.0)
+			2:
+				var c := Color("9ad8ff") if _fx_rng.randf() < 0.6 else Color("ffd94d")
+				fx.spawn(Vector2(_fx_rng.randf_range(ar.position.x, ar.end.x), ar.position.y),
+					Vector2(_fx_rng.randf_range(-4, 4), _fx_rng.randf_range(12, 26)), _fx_rng.randf_range(3.0, 6.0), 1.0, c,
+					Color(c.r, c.g, c.b, 0.0), true, 0.0)
+	if _act_fade >= 0.0:
+		_act_fade += dt
+		bg_next.modulate.a = clampf(_act_fade / 2.0, 0.0, 1.0)
+		if _act_fade >= 2.0:
+			bg.texture = bg_next.texture
+			bg_next.visible = false
+			_act_fade = -1.0
 
 func _add_shake(v: float) -> void:
 	if not Save.settings.shake:
@@ -1233,7 +1304,7 @@ func _draw_hud() -> void:
 	if boss_f > 0.0:
 		var bw := 300.0
 		var bx := 240 - bw / 2
-		PixelFont.draw_centered(ci, "THE ARCHLICH" if boss_final else "LICH LORD", 240, 249, 1, Color("ff4df2") if boss_final else Color("4dfff0"), dark)
+		PixelFont.draw_centered(ci, Lore.ARCHLICH_NAME if boss_final else Lore.LICH_NAME, 240, 249, 1, Color("ff4df2") if boss_final else Color("4dfff0"), dark)
 		ci.draw_rect(Rect2(bx - 2, 258, bw + 4, 8), dark)
 		ci.draw_rect(Rect2(bx, 260, bw, 4), Color("2c0d4d"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
@@ -1249,13 +1320,16 @@ func _draw_hud() -> void:
 		elif banner.t < 0.3:
 			slide = -(1.0 - banner.t / 0.3) * 260.0
 		var y := 96.0
-		ci.draw_rect(Rect2(0 + slide, y - 8, 480, 44), Color(0.04, 0.0, 0.1, 0.6))
-		ci.draw_rect(Rect2(0 + slide, y - 8, 480, 1), banner.color)
-		ci.draw_rect(Rect2(0 + slide, y + 35, 480, 1), banner.color)
-		var tw := PixelFont.text_width(banner.text, 3)
-		PixelFont.draw_gradient(ci, banner.text, Vector2(240 - tw / 2.0 + slide, y), 3,
-			Color.WHITE, banner.color, time * 6.0, 1.5)
-		PixelFont.draw_centered(ci, banner.sub, 240 + slide, y + 25, 1, Color("fff6e0"), dark)
+		if banner.act != "":
+			_draw_act_card(ci, k, slide)
+		else:
+			ci.draw_rect(Rect2(0 + slide, y - 8, 480, 44), Color(0.04, 0.0, 0.1, 0.6))
+			ci.draw_rect(Rect2(0 + slide, y - 8, 480, 1), banner.color)
+			ci.draw_rect(Rect2(0 + slide, y + 35, 480, 1), banner.color)
+			var tw := PixelFont.text_width(banner.text, 3)
+			PixelFont.draw_gradient(ci, banner.text, Vector2(240 - tw / 2.0 + slide, y), 3,
+				Color.WHITE, banner.color, time * 6.0, 1.5)
+			PixelFont.draw_centered(ci, banner.sub, 240 + slide, y + 25, 1, Color("fff6e0"), dark)
 	# Screen flash
 	if screen_flash.a > 0.0:
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), screen_flash)
@@ -1265,6 +1339,24 @@ func _draw_hud() -> void:
 		_draw_levelup(ci)
 	elif paused:
 		_draw_pause(ci)
+
+## An act card: a rune-framed band with the act's numeral, its name in large letters and its subtitle, fading in.
+func _draw_act_card(ci: CanvasItem, k: float, slide: float) -> void:
+	var a := clampf(k / 0.12, 0.0, 1.0) * clampf(banner.t / 0.4, 0.0, 1.0)
+	var col: Color = banner.color
+	var band := Rect2(40, 82, 400, 66)
+	ci.draw_rect(Rect2(0, band.position.y - 6, 480, band.size.y + 12), Color(0.02, 0.0, 0.05, 0.55 * a))
+	if a < 0.99:
+		return
+	Occult.frame(ci, band, time)
+	PixelFont.draw_centered(ci, banner.act, 240, band.position.y + 8, 1, Color(col, 0.9), Occult.INK)
+	var tw := PixelFont.text_width(banner.text, 3)
+	PixelFont.draw_gradient(ci, banner.text, Vector2(240 - tw / 2.0 + slide * 0.0, band.position.y + 22), 3,
+		Color.WHITE, col, time * 3.0, 1.0)
+	PixelFont.draw_centered(ci, banner.sub, 240, band.position.y + 50, 1, Color("fff6e0"), Occult.INK)
+	Occult.candle(ci, Vector2(band.position.x + 14, band.end.y - 4), time, 0.0, 9)
+	Occult.candle(ci, Vector2(band.end.x - 14, band.end.y - 4), time, 3.0, 9)
+
 
 # ======================================================== LEVEL-UP PICKS ===
 func _anyone_picking() -> bool:
@@ -1293,11 +1385,16 @@ func _card_rect(row: int, c: int) -> Rect2:
 ## How far the dealt card `c` of `slot`'s offer has turned over: 0 face down, 1 face up.
 func _deal(slot: int, c: int) -> float:
 	var offer := int(vp[slot].offer)
-	var seen: Array = _pick_dealt.get(slot, [-1, 0.0])
+	var seen: Array = _pick_dealt.get(slot, [-1, 0.0, 0])
 	if int(seen[0]) != offer:
-		seen = [offer, time]
+		seen = [offer, time, 0]
 		_pick_dealt[slot] = seen
-	return clampf((time - float(seen[1]) - 0.1 * c) / 0.3, 0.0, 1.0)
+		Sfx.play("card_deal", -2.0)
+	var k := clampf((time - float(seen[1]) - 0.1 * c) / 0.3, 0.0, 1.0)
+	if k >= 0.5 and (int(seen[2]) & (1 << c)) == 0:
+		seen[2] = int(seen[2]) | (1 << c)
+		Sfx.play("card_flip", -4.0, 1.0 + c * 0.06, 0.0)
+	return k
 
 func _draw_levelup(ci: CanvasItem) -> void:
 	var dark := Color("0b0716")
@@ -1388,7 +1485,7 @@ func _confirm_pick(slot: int, c: int) -> void:
 		return
 	_pick_sel[slot] = c
 	_pick_sent[slot] = [c, int(vp[slot].offer)]
-	Sfx.play("menu_select")
+	Sfx.play("card_pick", -2.0)
 
 ## -1 left, +1 right, 0 none (keys, d-pad, or an edge of the left stick).
 func _pick_dir(event: InputEvent) -> int:
@@ -1435,7 +1532,7 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.82 * a))
 	if game_over_t < 0.6:
 		return
-	var title := "VICTORY!" if victory else "GAME OVER"
+	var title := "VICTORY!" if victory else "THE TOWER FALLS"
 	var tw := PixelFont.text_width(title, 4)
 	PixelFont.draw(ci, title, Vector2(240 - tw / 2.0, 10) + Vector2(2, 2), 4, dark)
 	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 10), 4, Color("ffd94d"), Color("8bff9e") if victory else Color("ff3b5c"), time * 3.0, 2.0)
@@ -1444,12 +1541,13 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	_draw_result_columns(ci, dark, 58)
 	_draw_moments(ci, dark, 150)
 	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, crystals_earned, Save.profile.crystals]
-	PixelFont.draw_centered(ci, foot, 240, 222, 1, Color("8bdcff"), dark)
+	PixelFont.draw_centered(ci, Lore.ending(victory, final_score), 240, 208, 1, Color("e8dcc0"), dark)
+	PixelFont.draw_centered(ci, foot, 240, 224, 1, Color("8bdcff"), dark)
 	if game_over_t > 2.0 and int(time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if is_host else "WAITING FOR HOST..."
 		if G.touch_active and is_host:
 			msg = "TAP TO CONTINUE"
-		PixelFont.draw_centered(ci, msg, 240, 240, 1, Color.WHITE, dark)
+		PixelFont.draw_centered(ci, msg, 240, 244, 1, Color.WHITE, dark)
 
 ## One column per wizard: name, award, then score, level, kills, damage and gold, revealed one by one.
 func _draw_result_columns(ci: CanvasItem, dark: Color, y0: int) -> void:
