@@ -66,8 +66,10 @@ func _process(delta: float) -> void:
 			await get_tree().process_frame
 			var arena = G.main.current
 			if arena.world and start_wave > 1:
+				# Jump the run clock to just before the start_wave:00 mark (5 brings the Lich); the horde announces
+				# the new minute itself.
 				arena.world.wave = start_wave
-				arena.world.events.append([World.EV_WAVE, 0, 0, start_wave, 1 if start_wave % 5 == 0 else 0])
+				arena.world.wave_time = start_wave * 60.0 - 0.5
 		else:
 			var img := get_viewport().get_texture().get_image()
 			img.save_png("%s/%s.png" % [out_dir, name])

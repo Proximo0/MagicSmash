@@ -344,3 +344,113 @@ func test_snapshot_sends_weapon_levels() -> void:
 	assert_eq(int(pl[29 + World.SP_ARCANE]), 1)
 	assert_eq(int(pl[29 + World.SP_FIRE]), Spells.MAX_LEVEL + 1)
 	assert_eq(int(pl[29 + World.SP_STAR]), 0)
+
+
+## A world past its intro whose wizards cannot be hurt, so only the horde changes.
+func _fighting(tuning: Tuning = null, at_seconds: float = 0.0) -> World:
+	var w := World.new([0], 3, tuning)
+	w.phase = World.PH_FIGHT
+	w.wave_time = at_seconds
+	w.wave = int(at_seconds / 60.0) + 1
+	_player(w).invuln = 99999.0
+	return w
+
+
+func _fielded(w: World) -> int:
+	return w.enemies.size() + w.spawn_queue.size()
+
+
+func test_horde_ramps_with_the_clock() -> void:
+	var early := _fighting(null, 0.0)
+	var late := _fighting(null, 360.0)
+	early.horde_budget = 0.0
+	late.horde_budget = 0.0
+	for _i: int in range(600):
+		early.step(DT, {})
+		late.step(DT, {})
+	assert_true(_fielded(late) > 2 * _fielded(early), "minute 7 fielded %d, minute 1 %d" % [_fielded(late), _fielded(early)])
+
+
+func test_horde_never_clears_and_minutes_tick() -> void:
+	var w := _fighting(null, 59.0)
+	for _i: int in range(120):
+		w.step(DT, {})
+	assert_eq(w.wave, 2)
+	assert_eq(w.phase, World.PH_FIGHT)
+
+
+func test_lich_comes_on_its_minute() -> void:
+	var w := _fighting(null, 4 * 60.0 + 59.5)
+	var announced := false
+	for _i: int in range(60 * 4):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_WAVE and int(ev[4]) == 1:
+				announced = true
+	assert_true(announced, "minute 5 was not announced as a boss minute")
+	assert_true(w.boss != null and w.boss.type == World.LICH, "no Lich after minute 5 began")
+
+
+func test_enemy_cap_holds_the_horde() -> void:
+	var t := Tuning.new()
+	t.set_value("horde_rate_base", 40.0)
+	t.set_value("enemy_cap", 30.0)
+	var w := _fighting(t, 0.0)
+	for _i: int in range(60 * 10):
+		w.step(DT, {})
+		assert_true(_fielded(w) <= 30 + 20, "fielded %d over a cap of 30" % _fielded(w))
+	assert_true(_fielded(w) >= 30, "the horde should reach the cap")
+
+
+func test_elites_are_tough_and_pay_out() -> void:
+	var t := Tuning.new()
+	t.set_value("elite_interval", 5.0)
+	var w := _fighting(t, 0.0)
+	var elite: World.Enemy = null
+	for _i: int in range(60 * 6):
+		w.step(DT, {})
+		for e: World.Enemy in w.enemies:
+			if e.elite:
+				elite = e
+		if elite:
+			break
+	assert_true(elite != null, "no elite after 6 s with a 5 s interval")
+	var plain: World.Enemy = w.spawn_enemy(elite.type, 0, Vector2(100, 100))
+	assert_near(elite.maxhp, plain.maxhp * t.elite_hp_mul, 0.001)
+	_player(w).combo = 0
+	var score: int = _player(w).score
+	var drops: int = w.pickups.size()
+	w._kill_enemy(elite, 0)
+	assert_eq(_player(w).score - score, int(World.STATS[elite.type][3]) * World.ELITE_REWARD)
+	var tomes: int = 0
+	for k: World.Pickup in w.pickups.slice(drops):
+		if k.kind >= World.PK_TOME_FIRE and k.kind <= World.PK_TOME_STAR:
+			tomes += 1
+	assert_eq(tomes, 1, "an elite drops one tome")
+	assert_true(w.pickups.size() - drops >= World.ELITE_GEMS + 1)
+
+
+func test_snapshot_enemy_block_size() -> void:
+	var w := _fighting(null, 0.0)
+	w.spawn_enemy(World.GOBLIN, 0, Vector2(100, 100)).elite = true
+	w.spawn_enemy(World.BAT, 1, Vector2(140, 100))
+	var en: PackedFloat32Array = w.snapshot()["e"]
+	assert_eq(en.size(), World.ENEMY_FLOATS * 2)
+	assert_eq(en[World.ENEMY_FLOATS - 1], 1.0, "elite flag")
+	assert_eq(en[2 * World.ENEMY_FLOATS - 1], 0.0)
+
+
+func test_xp_gems_merge_past_the_cap() -> void:
+	var t := Tuning.new()
+	t.set_value("xp_gem_cap", 10.0)
+	var w := World.new([0], 3, t)
+	for i: int in range(25):
+		w._drop_xp(Vector2(100 + i * 10, 100), Vector2.ZERO, 2)
+	var gems: int = 0
+	var total: int = 0
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_XP:
+			gems += 1
+			total += k.value
+	assert_eq(gems, 10)
+	assert_eq(total, 50, "merged gems must keep every point of XP")

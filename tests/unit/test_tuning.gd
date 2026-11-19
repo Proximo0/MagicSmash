@@ -95,14 +95,16 @@ func test_world_reads_its_tuning() -> void:
 	assert_near(db, 200.0 * 0.5, 0.5, "tuned speed")
 
 
-func test_bigger_spawn_budget_queues_more_enemies() -> void:
+func test_faster_horde_rate_spawns_more_enemies() -> void:
 	var big := Tuning.new()
-	big.set_value("spawn_budget_base", 120.0)
-	var a := World.new([0], 9)
+	big.set_value("horde_rate_base", 20.0)
+	var small := Tuning.new()
+	small.set_value("horde_rate_base", 2.0)
+	var a := World.new([0], 9, small)
 	var b := World.new([0], 9, big)
-	# Step through the intro so the first wave is built.
-	for _i: int in range(200):
+	# Through the intro and 10 s of fighting.
+	for _i: int in range(750):
 		a.step(DT, {})
 		b.step(DT, {})
-	assert_true(b.spawn_queue.size() + b.enemies.size() > a.spawn_queue.size() + a.enemies.size(),
-		"budget 120 should queue more than budget 18")
+	assert_true(b.spawn_queue.size() + b.enemies.size() > 2 * (a.spawn_queue.size() + a.enemies.size()),
+		"rate 20 should field far more than rate 2 (%d vs %d)" % [b.spawn_queue.size() + b.enemies.size(), a.spawn_queue.size() + a.enemies.size()])

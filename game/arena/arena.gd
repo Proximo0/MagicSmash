@@ -28,6 +28,7 @@ var wave := 1
 var phase := 0
 var phase_t := 0.0
 var boss_f := -1.0
+var run_t := 0.0 # seconds of fighting, from the snapshot
 var doors := [0.0, 0.0, 0.0, 0.0]
 var door_anim := [0.0, 0.0, 0.0, 0.0]
 var game_over := false
@@ -341,7 +342,7 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	var en: PackedFloat32Array = snap.e
 	var eseen := {}
 	i = 0
-	while i + 8 <= en.size():
+	while i + World.ENEMY_FLOATS <= en.size():
 		var id := int(en[i])
 		eseen[id] = true
 		var pos := Vector2(en[i + 2], en[i + 3])
@@ -355,7 +356,8 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		e.state = int(en[i + 5])
 		e.hpf = en[i + 6]
 		e.slow = en[i + 7]
-		i += 8
+		e.elite = en[i + 8] > 0.5
+		i += World.ENEMY_FLOATS
 	for id in ve.keys():
 		if not eseen.has(id):
 			ve.erase(id)
@@ -383,6 +385,7 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	phase = int(w[1])
 	phase_t = w[2]
 	boss_f = w[3]
+	run_t = w[8]
 	for d in 4:
 		doors[d] = w[4 + d]
 
@@ -488,17 +491,19 @@ func _handle_events(evs: Array) -> void:
 			World.EV_WAVE:
 				var w := int(ev[3])
 				if int(ev[4]) == 1:
-					_banner("BOSS WAVE", "THE LICH LORD AWAKENS", Color("ff4d6a"), 2.6)
+					_banner("THE LICH LORD", "AWAKENS AT MINUTE %d" % w, Color("ff4d6a"), 2.6)
+					Sfx.play("wave_start")
+				elif w > 1:
+					_banner("MINUTE %d" % w, ["HOLD THE TOWER!", "THEY KEEP COMING!", "STAND TOGETHER!", "MORE OF THEM!"][w % 4], Color("ffd94d"), 1.6)
+					Sfx.play("wave_start", -4.0)
 				else:
-					_banner("WAVE %d" % w, ["GET READY!", "SMASH THEM ALL!", "HERE THEY COME!", "FOR THE TOWER!"][w % 4], Color("ffd94d"), 2.4)
-				Sfx.play("wave_start")
+					_banner("SURVIVE", "SMASH THEM ALL!", Color("ffd94d"), 2.4)
+					Sfx.play("wave_start")
 				Sfx.music("music_battle")
-			World.EV_CLEAR:
-				_banner("WAVE CLEAR!", "BONUS %d" % int(ev[4]), Color("8bff9e"), 3.0)
-				Sfx.play("wave_clear")
-				for k in 6:
-					var fp := Vector2(_fx_rng.randf_range(80, 400), _fx_rng.randf_range(60, 200))
-					fx.burst(fp, 30, 120.0, 0.9, 1.5, Color.WHITE, Sprites.PLAYER_COLORS[k % 4].robe, true, 40.0, true)
+			World.EV_ELITE:
+				fx.text(pos + Vector2(0, -16), "ELITE!", Color("ffb84d"), 1.2, 1)
+				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
+				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
 				Sfx.play("boss_roar")
 				Sfx.music("music_boss")
@@ -546,6 +551,11 @@ func _handle_events(evs: Array) -> void:
 				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
 				if float(ev[3]) > 0.0:
 					fx.ring(pos, 0.4, float(ev[3]), 0.3, Color("7fe8ff"), 2.0)
+
+## Run time as M:SS.
+static func _clock(secs: float) -> String:
+	var t := int(secs)
+	return "%d:%02d" % [t / 60, t % 60]
 
 func _banner(text: String, sub: String, color: Color, dur: float) -> void:
 	banner = {"text": text, "sub": sub, "t": dur, "max": dur, "color": color}
@@ -824,9 +834,13 @@ func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 		World.MAGE:
 			if e.state == 1:
 				mod = Color(1.4, 0.8, 1.4)
+	if e.get("elite", false):
+		# Elites: a gold aura and a warmer tint so they stand out of the horde.
+		ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
+		mod = mod * Color(1.35, 1.1, 0.8)
 	var flash: bool = e.flash > 0.0 and (t != World.LICH or int(time * 40.0) % 3 == 0)
 	Sprites.draw_at(ci, key, feet, flip and t != World.BAT and t != World.LICH, flash, mod)
-	if (t == World.ORC or t == World.MAGE) and e.hpf < 1.0:
+	if (t == World.ORC or t == World.MAGE or e.get("elite", false)) and e.hpf < 1.0:
 		var w := 14.0
 		var bp = (e.pos + Vector2(-w / 2, 4)).floor()
 		ci.draw_rect(Rect2(bp - Vector2(1, 1), Vector2(w + 2, 4)), Color("0b0716"))
@@ -956,7 +970,7 @@ func _draw_hud() -> void:
 		ci.draw_rect(Rect2(x + 24, 19, 66, 3), dark)
 		ci.draw_rect(Rect2(x + 25, 20, 64 * xf, 1), Color("5dff7a"))
 	# Wave label on the top wall
-	var wl := "WAVE %d" % wave
+	var wl := _clock(run_t)
 	PixelFont.draw_centered(ci, wl, 240, 22, 1, Color("c9b8ff"), dark)
 	# Boss bar
 	if boss_f > 0.0:
@@ -1151,7 +1165,7 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	y += 12
 	PixelFont.draw(ci, "BEST", Vector2(150, y), 1, Color("c9b8ff"))
 	PixelFont.draw(ci, "%07d" % G.high_score, Vector2(270, y), 1, Color("c9b8ff"))
-	PixelFont.draw_centered(ci, "REACHED WAVE %d" % wave, 240, y + 18, 1, Color("8bff9e"))
+	PixelFont.draw_centered(ci, "SURVIVED " + _clock(run_t), 240, y + 18, 1, Color("8bff9e"))
 	if game_over_t > 2.0 and int(time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if is_host else "WAITING FOR HOST..."
 		if G.touch_active and is_host:

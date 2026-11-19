@@ -4,7 +4,8 @@ extends Node
 ## Run: godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3
 
 const SECONDS: float = 75.0
-const MIN_WAVE: int = 2
+## Seconds of fighting the run clock must reach (level-up picks pause the world, so it runs behind SECONDS).
+const MIN_FIGHT: float = 40.0
 
 var _t: float = 0.0
 var _shard: int = 0
@@ -36,9 +37,9 @@ func _physics_process(delta: float) -> void:
 	if _t < SECONDS and not over:
 		return
 	set_physics_process(false)
-	var ok: bool = w != null and (w.wave >= MIN_WAVE or over)
-	print("BOT shard=%d players=%d seed=%d wave=%d enemies=%d over=%s %s" % [_shard, w.players.size() if w else 0,
-		101 + _shard, w.wave if w else 0, w.enemies.size() if w else 0, over, "PASS" if ok else "FAIL "])
+	var ok: bool = w != null and (w.wave_time >= MIN_FIGHT or over)
+	print("BOT shard=%d players=%d seed=%d clock=%.0fs enemies=%d over=%s %s" % [_shard, w.players.size() if w else 0,
+		101 + _shard, w.wave_time if w else 0.0, w.enemies.size() if w else 0, over, "PASS" if ok else "FAIL "])
 	print("BOT score=%d" % (w.total_score() if w else 0))
 	PlayerInput.bot = false
 	get_tree().quit(0 if ok else 1)
