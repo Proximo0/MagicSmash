@@ -11,6 +11,9 @@ var _team_shot := false
 var _arch_seen := 0.0
 var _arch_shot := false
 var _victory_shot := false
+var end_at := -1.0 # --end=SECONDS[:win] ends the run then (as a win with :win) to capture the results screen
+var end_win := false
+var _results_shot := false
 var quit_at := 60.0
 var net := ""
 var _pick_seen := 0.0
@@ -27,6 +30,11 @@ func _ready() -> void:
 				var parts := kv.split(":")
 				if parts.size() == 2:
 					Tuning.shared().set_value(parts[0], float(parts[1]))
+		if a.begins_with("--end="):
+			var spec := a.substr(6).split(":")
+			end_at = float(spec[0])
+			end_win = spec.size() > 1 and spec[1] == "win"
+			quit_at = maxf(quit_at, end_at + 8.0)
 		if a == "--passive":
 			PlayerInput.bot_passive = true
 		if a.begins_with("--net="):
@@ -80,6 +88,17 @@ func _process(delta: float) -> void:
 		_victory_shot = true
 		get_viewport().get_texture().get_image().save_png("%s/victory.png" % out_dir)
 		print("shot victory")
+	if end_at > 0.0 and t >= end_at and cur and "world" in cur and cur.world and cur.world.phase != World.PH_GAMEOVER \
+			and not cur.world.is_picking():
+		end_at = -1.0
+		if end_win:
+			cur.world.won = true
+			cur.world.emit(World.EV_VICTORY, 240, 140, 0, 0)
+		cur.world._end_run()
+	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
+		_results_shot = true
+		get_viewport().get_texture().get_image().save_png("%s/results.png" % out_dir)
+		print("shot results")
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]

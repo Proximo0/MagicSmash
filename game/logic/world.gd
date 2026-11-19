@@ -78,6 +78,7 @@ const EV_SHRINE_UP := 30 # a shrine appeared: a = kind
 const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcome; the reel starts
 const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
 const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
+const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -242,6 +243,8 @@ var liches_slain := 0
 var won := false
 var victory_t := 0.0
 var _final_called := false
+## Stats and best moments for the results screen.
+var record: Results
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
@@ -285,6 +288,7 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 		p.pos = c + offs[s % 4]
 		p.upgrades[Upgrades.weapon_entry(SP_ARCANE)] = 1
 		players[s] = p
+	record = Results.new(slots)
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
 ## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
@@ -362,6 +366,10 @@ func step(dt: float, inputs: Dictionary) -> void:
 func _end_run() -> void:
 	phase = PH_GAMEOVER
 	phase_t = 0.0
+	for p: Player in players.values():
+		record.set_stat(p.slot, "level", p.level)
+		record.set_stat(p.slot, "kills", p.kills)
+	emit(EV_RESULTS, 0, 0, record.to_dict(), 0)
 	emit(EV_GAMEOVER, wave_time, total_kills(), total_score(), liches_slain)
 
 ## One tick of the run proper: the clock, the horde, powerups and shrines.
@@ -419,6 +427,8 @@ func _pick(p: Player, idx: int) -> void:
 			p.lives += 1
 	_refresh_spell(p)
 	emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
+	if Upgrades.is_evolution(idx):
+		record.note(wave_time, Results.M_EVOLVE, p.slot, idx)
 	if p.pending > 0:
 		_offer(p)
 
@@ -870,6 +880,7 @@ func hurt_player(p: Player, dmg: int) -> void:
 		p.haste = 0.0
 		p.orbit = 0.0
 		p.combo = 0
+		record.add(p.slot, "deaths", 1)
 		emit(EV_PDIE, p.pos.x, p.pos.y - 6, p.slot, p.lives)
 
 # ================================================================ ENEMY ===
@@ -1107,6 +1118,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 	var src: Player = players.get(slot)
 	if src:
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + meta_damage)
+	record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
 	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC else 1.0)
@@ -1127,6 +1139,11 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 		p.score += base * mult
 		if COMBO_CALLS.has(p.combo):
 			emit(EV_COMBO, e.pos.x, e.pos.y, p.combo, slot)
+		record.best(slot, "best_combo", p.combo)
+		if p.combo in Results.COMBO_MOMENTS:
+			record.note(wave_time, Results.M_COMBO, slot, p.combo)
+		if e.elite:
+			record.add(slot, "elites", 1)
 	emit(EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
 	_drop_xp(e.pos, Vector2.from_angle(rng.randf() * TAU) * 25.0, XP_VALUES[e.type] * (ELITE_REWARD if e.elite else 1))
 	if e.elite:
@@ -1143,6 +1160,7 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 		LICH:
 			boss = null
 			liches_slain += 1
+			record.note(wave_time, Results.M_ARCHLICH if e.final else Results.M_LICH, slot)
 			for o in enemies:
 				if not o.dead and o != e:
 					o.dead = true
@@ -1347,13 +1365,16 @@ func _collect(p: Player, k: Pickup) -> void:
 		_open_chest(p, k)
 		return
 	var pts := 0
+	var greed: float = 1.0 + p.armor[Loot.ST_GREED] + meta_gold
 	match k.kind:
 		PK_COIN:
 			pts = 100
-			p.gold += Loot.GOLD_COIN * (1.0 + p.armor[Loot.ST_GREED] + meta_gold)
+			p.gold += Loot.GOLD_COIN * greed
+			record.add(p.slot, "gold", Loot.GOLD_COIN * greed)
 		PK_GEM:
 			pts = 500
-			p.gold += Loot.GOLD_GEM * (1.0 + p.armor[Loot.ST_GREED] + meta_gold)
+			p.gold += Loot.GOLD_GEM * greed
+			record.add(p.slot, "gold", Loot.GOLD_GEM * greed)
 		PK_POTION:
 			p.hp = mini(p.max_hp, p.hp + 2)
 		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR:
@@ -1378,6 +1399,10 @@ func _collect(p: Player, k: Pickup) -> void:
 func _open_chest(p: Player, k: Pickup) -> void:
 	var tier := Loot.roll_rarity(rng, float(k.value + meta_luck))
 	var idx := Loot.roll_item(rng)
+	record.add(p.slot, "chests", 1)
+	record.best(p.slot, "best_tier", tier)
+	if tier >= Loot.LEGENDARY:
+		record.note(wave_time, Results.M_CHEST, p.slot, tier)
 	var v := Loot.value(idx, tier)
 	if Loot.kind(idx) == Loot.KIND_ARMOR:
 		var before: float = p.armor[Loot.ST_VIGOR]
@@ -1457,6 +1482,7 @@ func _place_shrine(kind: int) -> void:
 func _bet(sh: Shrine, p: Player) -> void:
 	sh.life = 0.0
 	p.gold -= sh.cost
+	record.add(p.slot, "bets", sh.cost)
 	var outcome := Gamble.roll(rng, sh.kind)
 	var reel := tune.team_reel if sh.kind == Gamble.TEAM else tune.shrine_reel
 	_gambles.append({"t": wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
@@ -1487,6 +1513,10 @@ func _resolve_gamble(g: Dictionary) -> void:
 				if p.alive:
 					p.hp = maxi(1, p.hp - 1)
 					p.flash = 0.3
+	if g.kind == Gamble.TEAM:
+		record.note(wave_time, Results.M_BLESSING if g.outcome == Gamble.TO_BLESSING else Results.M_CURSE, g.slot)
+	elif g.outcome == Gamble.SO_JACKPOT:
+		record.note(wave_time, Results.M_JACKPOT, g.slot)
 	emit(EV_GAMBLE, pos.x, pos.y, g.slot, int(g.kind) * 16 + int(g.outcome))
 
 # ================================================================ GRID ===

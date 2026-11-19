@@ -193,7 +193,16 @@ and numbers go in `Tuning` or data tables.
   - `tools/full_run.gd` plays a whole run with bots and prints a line per minute. Seed 11, final_hp_mul 12:
     1, 2 and 4 bots won at 16:43, 17:38 and 16:42 (fights of 100 to 156 s); 10 leaves room for human play.
   - `--autotest=15` saves `archlich.png` once the Archlich is up. A victory saves `victory.png`.
-- Next is 6b, the results screen with the team's best moments, then 6c, character select.
+- 6b, the results screen (`game/logic/results.gd`, `Results`):
+  - `World.record` notes each wizard's damage, kills, elites, best combo, chests and best tier, gold, gold bet
+    and deaths, and the run's moments: Liches and the Archlich slain, legendary and ultra chests, team blessings
+    and curses, jackpots, x100/x200/x400 combos and evolutions.
+  - At the end, `EV_RESULTS` carries `record.to_dict()` to every client, just before `EV_GAMEOVER`.
+  - The screen shows a column per wizard with an award, then the 4 best moments with their times. An award goes
+    only to a wizard who really leads its stat (MVP, SLAYER, HIGH ROLLER, LUCKY, GOLD DIGGER, UNTOUCHABLE); in a
+    party anyone left without one is a TEAM PLAYER.
+  - `--autotest --end=45` ends the run at 45 s and saves `results.png`; `--end=45:win` shows it as a victory.
+- Next is 6c, character select with the four wizard colours.
 
 ## Checks and tools
 
