@@ -422,11 +422,12 @@ func test_elites_are_tough_and_pay_out() -> void:
 	var drops: int = w.pickups.size()
 	w._kill_enemy(elite, 0)
 	assert_eq(_player(w).score - score, int(World.STATS[elite.type][3]) * World.ELITE_REWARD)
-	var tomes: int = 0
+	var chests: int = 0
 	for k: World.Pickup in w.pickups.slice(drops):
-		if k.kind >= World.PK_TOME_FIRE and k.kind <= World.PK_TOME_STAR:
-			tomes += 1
-	assert_eq(tomes, 1, "an elite drops one tome")
+		if k.kind == World.PK_CHEST:
+			chests += 1
+			assert_eq(k.value, int(t.elite_chest_luck), "elite chest luck")
+	assert_eq(chests, 1, "an elite drops one chest")
 	assert_true(w.pickups.size() - drops >= World.ELITE_GEMS + 1)
 
 
@@ -477,3 +478,78 @@ func test_rift_opens_away_from_wizards_then_spawns() -> void:
 	for e: World.Enemy in w.enemies.slice(before):
 		assert_false(e.entering)
 		assert_true(e.pos.distance_to(at) < 30.0)
+
+
+
+func _chest(w: World, luck: int = 0) -> World.Pickup:
+	var k := World.Pickup.new()
+	k.kind = World.PK_CHEST
+	k.value = luck
+	k.pos = Vector2(100, 100)
+	return k
+
+
+func test_chest_gives_an_item_and_announces_it() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	w.take_events()
+	w._collect(p, _chest(w))
+	var seen: Array = []
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CHEST:
+			seen = ev
+	assert_false(seen.is_empty(), "no chest event")
+	var item: int = int(seen[4]) / 8
+	var tier: int = int(seen[4]) % 8
+	assert_true(item >= 0 and item < Loot.count() and tier >= Loot.COMMON and tier <= Loot.ULTRA)
+
+
+func test_armor_items_change_the_wizard() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	Loot.add_armor(p.armor, 3, Loot.EPIC) # troll hide: +2 hearts at epic
+	assert_near(p.armor[Loot.ST_VIGOR], 2.0)
+	# Might raises damage like Spell Power does.
+	var a: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(100, 100))
+	w._damage_enemy(a, 1.0, 0, Vector2.ZERO)
+	var plain: float = a.maxhp - a.hp
+	Loot.add_armor(p.armor, 0, Loot.COMMON)
+	var b: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(140, 100))
+	w._damage_enemy(b, 1.0, 0, Vector2.ZERO)
+	assert_near(b.maxhp - b.hp, plain * 1.08, 0.0001)
+
+
+func test_ward_can_block_a_hit() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	p.armor[Loot.ST_WARD] = 1.0
+	p.invuln = 0.0
+	var hp: int = p.hp
+	w.hurt_player(p, 1)
+	assert_eq(p.hp, hp, "a full ward blocks every hit")
+
+
+func test_coins_give_run_gold_with_greed() -> void:
+	var w := World.new([0], 3)
+	var p := _player(w)
+	var coin := World.Pickup.new()
+	coin.kind = World.PK_COIN
+	w._collect(p, coin)
+	assert_near(p.gold, 1.0)
+	p.armor[Loot.ST_GREED] = 1.0
+	var gem := World.Pickup.new()
+	gem.kind = World.PK_GEM
+	w._collect(p, gem)
+	assert_near(p.gold, 11.0)
+
+
+func test_lich_drops_a_lucky_chest_per_wizard() -> void:
+	var w := World.new([0, 1, 2], 3)
+	var lich: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._kill_enemy(lich, 0)
+	var chests: int = 0
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CHEST:
+			chests += 1
+			assert_eq(k.value, int(w.tune.boss_chest_luck))
+	assert_eq(chests, 3)

@@ -7,8 +7,13 @@ const SNAP_EVERY := 2 # physics frames between snapshots sent to clients
 const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6")]
 const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich"]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0]
-const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp"]
-const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", ""]
+const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest"]
+const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", ""]
+## Loot tier colours (Loot.COMMON .. Loot.ULTRA): readable in 3 seconds with the sound off.
+const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color("ffb84d"), Color("ff4df2")]
+## Seconds a chest reel spins before it shows the item, and how long the item stays up after.
+const REEL_SPIN := 1.0
+const REEL_SHOW := 1.6
 const ENEMY_NAMES := ["GOBLIN", "SKELETON", "SLIME", "SLIMELING", "BAT", "ORC BRUTE", "DARK MAGE", "LICH LORD"]
 
 ## Cosmetic randomness only (particles, shake, pitch). Gameplay randomness lives in World.rng.
@@ -29,6 +34,7 @@ var phase := 0
 var phase_t := 0.0
 var boss_f := -1.0
 var run_t := 0.0 # seconds of fighting, from the snapshot
+var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
 var doors := [0.0, 0.0, 0.0, 0.0]
 var door_anim := [0.0, 0.0, 0.0, 0.0]
 var game_over := false
@@ -210,6 +216,7 @@ func _process(dt: float) -> void:
 	decals = decals.filter(func(d): return d[3] > 0.0)
 	if banner.t > 0.0:
 		banner.t -= dt
+	_update_reveals(dt)
 	screen_flash.a = maxf(0.0, screen_flash.a - dt * 3.0)
 	shake = maxf(0.0, shake - dt * 18.0)
 	var so := Vector2.ZERO
@@ -333,6 +340,8 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		for sp in Spells.COUNT:
 			wl.append(int(pl[i + 29 + sp]))
 		p.weapons = wl
+		p.gold = int(pl[i + 34])
+		p.max_hp = int(pl[i + 35])
 		if not p.alive:
 			p.pos = p.target
 		i += World.PLAYER_FLOATS
@@ -506,6 +515,14 @@ func _handle_events(evs: Array) -> void:
 				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
 				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
 				fx.sparkle(pos, Color("ff4df2"), 8)
+			World.EV_CHEST:
+				var code := int(ev[4])
+				_reveals.append({"slot": int(ev[3]), "pos": pos, "item": code / 8, "tier": code % 8, "t": 0.0, "shown": false})
+				Sfx.play("door", -6.0, 1.4)
+			World.EV_WARD:
+				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
+				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
+				Sfx.play("orbit", -4.0, 1.3)
 			World.EV_ELITE:
 				fx.text(pos + Vector2(0, -16), "ELITE!", Color("ffb84d"), 1.2, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
@@ -563,6 +580,51 @@ static func _clock(secs: float) -> String:
 	var t := int(secs)
 	return "%d:%02d" % [t / 60, t % 60]
 
+## Advances chest reels; when a reel stops it plays its tier's sound and burst.
+func _update_reveals(dt: float) -> void:
+	for r: Dictionary in _reveals:
+		var prev: float = r.t
+		r.t += dt
+		if vp.has(r.slot):
+			r.pos = (vp[r.slot] as Dictionary).pos
+		if not r.shown and r.t < REEL_SPIN and int(r.t * 14.0) != int(prev * 14.0):
+			Sfx.play("menu_move", -10.0, 1.0 + r.t * 0.6)
+		if not r.shown and r.t >= REEL_SPIN:
+			r.shown = true
+			var col: Color = RARITY_COLORS[r.tier]
+			var at: Vector2 = r.pos + Vector2(0, -34)
+			fx.burst(at, 10 + 8 * r.tier, 60.0 + 30.0 * r.tier, 0.6, 1.5, Color.WHITE, col, true)
+			match r.tier:
+				Loot.COMMON:
+					Sfx.play("pickup", -4.0)
+				Loot.RARE:
+					Sfx.play("powerup", -4.0)
+				Loot.EPIC:
+					Sfx.play("powerup", -2.0, 1.2)
+				_:
+					Sfx.play("wave_clear", -2.0, 1.1 if r.tier == Loot.LEGENDARY else 1.3)
+					fx.ring(at, 4.0, 40.0 + 20.0 * (r.tier - Loot.LEGENDARY), 0.6, col, 2.0)
+					_add_shake(3.0 * (r.tier - Loot.EPIC))
+	_reveals = _reveals.filter(func(r: Dictionary) -> bool: return r.t < REEL_SPIN + REEL_SHOW)
+
+## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
+func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
+	for r: Dictionary in _reveals:
+		var at: Vector2 = (r.pos as Vector2) + Vector2(0, -34)
+		var spinning: bool = r.t < REEL_SPIN
+		var tier: int = (int(r.t * 14.0) + r.slot) % RARITY_COLORS.size() if spinning else r.tier
+		var col: Color = RARITY_COLORS[tier]
+		if tier == Loot.ULTRA and not spinning:
+			col = col.lerp(Color.WHITE, 0.5 + 0.5 * sin(time * 12.0))
+		var label: String = Loot.RARITY_NAMES[tier]
+		var title: String = "?????" if spinning else Loot.item_name(r.item)
+		var w: float = maxf(PixelFont.text_width(label, 1), PixelFont.text_width(title, 1)) + 8.0
+		var box := Rect2((at - Vector2(w / 2.0, 9)).floor(), Vector2(w, 19))
+		ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
+		ci.draw_rect(box, col, false, 1.0)
+		PixelFont.draw_centered(ci, label, at.x, box.position.y + 2, 1, col, dark)
+		PixelFont.draw_centered(ci, title, at.x, box.position.y + 11, 1, Color.WHITE if spinning else col, dark)
+
 func _banner(text: String, sub: String, color: Color, dur: float) -> void:
 	banner = {"text": text, "sub": sub, "t": dur, "max": dur, "color": color}
 
@@ -603,6 +665,7 @@ func _pickup_color(k: int) -> Color:
 		World.PK_BOOTS: return Color("4dc8ff")
 		World.PK_ORBIT: return Color("8bff9e")
 		World.PK_XP: return Color("5dff7a")
+		World.PK_CHEST: return Color("ffd23d")
 	return Color.WHITE
 
 # ======================================================== AMBIENT FX ===
@@ -949,8 +1012,10 @@ func _draw_hud() -> void:
 		PixelFont.draw(ci, "P%d" % (slot + 1), Vector2(x, 2), 1, col, dark)
 		PixelFont.draw(ci, "%07d" % p.score, Vector2(x + 18, 2), 1, Color("fff6e0"), dark)
 		# Hearts
-		for h in 5:
-			_heart(ci, Vector2(x + h * 7, 10), h < p.hp)
+		var mh: int = p.get("max_hp", World.BASE_HEARTS)
+		var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
+		for h in mh:
+			_heart(ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
 		# Lives (small hats) and nova charges (stars)
 		for l in mini(p.lives, 5):
 			_hat(ci, Vector2(x + 38 + l * 6, 10), col)
@@ -973,8 +1038,9 @@ func _draw_hud() -> void:
 		# XP bar and level
 		var xf := clampf(float(p.xp) / float(p.xp_need), 0.0, 1.0)
 		PixelFont.draw(ci, "LV%d" % p.level, Vector2(x, 17), 1, Color("5dff7a"), dark)
-		ci.draw_rect(Rect2(x + 24, 19, 66, 3), dark)
-		ci.draw_rect(Rect2(x + 25, 20, 64 * xf, 1), Color("5dff7a"))
+		PixelFont.draw(ci, "%dG" % p.get("gold", 0), Vector2(x + 78, 17), 1, Color("ffd23d"), dark)
+		ci.draw_rect(Rect2(x + 24, 19, 50, 3), dark)
+		ci.draw_rect(Rect2(x + 25, 20, 48 * xf, 1), Color("5dff7a"))
 	# Wave label on the top wall
 	var wl := _clock(run_t)
 	PixelFont.draw_centered(ci, wl, 240, 22, 1, Color("c9b8ff"), dark)
@@ -987,6 +1053,7 @@ func _draw_hud() -> void:
 		ci.draw_rect(Rect2(bx, 260, bw, 4), Color("2c0d4d"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 1), Color.WHITE)
+	_draw_reveals(ci, dark)
 	# Banner
 	if banner.t > 0.0:
 		var k: float = 1.0 - banner.t / banner.max

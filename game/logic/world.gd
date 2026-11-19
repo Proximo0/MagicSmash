@@ -32,6 +32,7 @@ const PK_TOME_STAR := 6
 const PK_BOOTS := 7
 const PK_ORBIT := 8
 const PK_XP := 9
+const PK_CHEST := 10
 
 # Enemy shot kinds
 const ES_ARROW := 0
@@ -71,6 +72,8 @@ const EV_LEVELUP := 24
 const EV_PICK := 25
 const EV_ELITE := 26
 const EV_RIFT := 27
+const EV_CHEST := 28
+const EV_WARD := 29
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -86,8 +89,9 @@ const STATS := [
 
 ## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 is unused), then xp,
 ## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), and the 5 spell
-## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved).
-const PLAYER_FLOATS := 34
+## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold and max hearts.
+const PLAYER_FLOATS := 36
+const BASE_HEARTS := 5
 
 ## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, elite.
 const ENEMY_FLOATS := 9
@@ -146,6 +150,9 @@ class Player:
 	var offer := 0 # id of the current offer; a pick input must name it
 	var pending := 0 # level-ups still to offer after the current one
 	var regen_t := 0.0
+	var max_hp := 5
+	var gold := 0.0 # run gold; only exists inside a run
+	var armor: Array = Loot.empty_stats() # Loot.ST_* totals from armor found in chests
 
 class Enemy:
 	var id := 0
@@ -553,14 +560,14 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 			p.respawn -= dt
 			if p.respawn <= 0.0:
 				p.alive = true
-				p.hp = 5
+				p.hp = p.max_hp
 				p.invuln = 2.5
 				p.bombs = maxi(p.bombs, 2)
 				p.pos = G.ARENA.get_center() + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10))
 				emit(EV_SPAWN, p.pos.x, p.pos.y, p.slot, 0)
 		return
 	var regen := Upgrades.regen_interval(p.upgrades)
-	if regen > 0.0 and p.hp < 5:
+	if regen > 0.0 and p.hp < p.max_hp:
 		p.regen_t += dt
 		if p.regen_t >= regen:
 			p.regen_t = 0.0
@@ -574,7 +581,8 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 		move = Vector2(inp[0], inp[1]).limit_length(1.0)
 		aim = Vector2(inp[2], inp[3])
 		bomb_count = int(inp[5])
-	var speed := tune.player_speed * Upgrades.move_mul(p.upgrades) * (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
+	var speed: float = tune.player_speed * Upgrades.move_mul(p.upgrades) * (1.0 + p.armor[Loot.ST_SWIFT]) \
+		* (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	p.vel = move * speed
 	p.moving = move.length() > 0.1
 	p.pos += p.vel * dt
@@ -613,7 +621,8 @@ func _auto_cast(p: Player, dt: float, aim: Vector2) -> void:
 		if tgt:
 			dir = (tgt.pos + Vector2(0, -4) - (p.pos + Vector2(0, -7))).normalized()
 			p.aim = dir
-	var rate_mul := (tune.haste_rate_mul if p.haste > 0.0 else 1.0) * Upgrades.cast_mul(p.upgrades) * tune.spell_cd_mul
+	var rate_mul: float = (tune.haste_rate_mul if p.haste > 0.0 else 1.0) * Upgrades.cast_mul(p.upgrades) * tune.spell_cd_mul \
+		* (1.0 - p.armor[Loot.ST_FOCUS])
 	for sp in Spells.COUNT:
 		var lv := Upgrades.weapon_level(p.upgrades, sp)
 		if lv <= 0:
@@ -747,6 +756,10 @@ func _nova(p: Player) -> void:
 
 func hurt_player(p: Player, dmg: int) -> void:
 	if not p.alive or p.invuln > 0.0 or phase == PH_GAMEOVER:
+		return
+	if p.armor[Loot.ST_WARD] > 0.0 and rng.randf() < p.armor[Loot.ST_WARD]:
+		p.invuln = 0.5
+		emit(EV_WARD, p.pos.x, p.pos.y - 6, p.slot, 0)
 		return
 	p.hp -= dmg
 	p.flash = 0.15
@@ -993,7 +1006,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 		return
 	var src: Player = players.get(slot)
 	if src:
-		dmg *= Upgrades.damage_mul(src.upgrades)
+		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT])
 	e.hp -= dmg
 	e.flash = 0.07
 	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC else 1.0)
@@ -1019,7 +1032,7 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 	if e.elite:
 		for i in ELITE_GEMS:
 			_drop(PK_GEM if i % 2 == 0 else PK_COIN, e.pos, Vector2.from_angle(i * TAU / ELITE_GEMS) * 70.0)
-		_drop([PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR][rng.randi() % 4], e.pos, Vector2(0, 30), 15.0)
+		_drop(PK_CHEST, e.pos, Vector2(0, 30), tune.chest_life, int(tune.elite_chest_luck))
 		return
 	match e.type:
 		SLIME:
@@ -1038,6 +1051,9 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			for i in 14:
 				_drop(PK_GEM if i % 2 == 0 else PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
 			_drop(PK_POTION, e.pos, Vector2(0, 40))
+			for i in players.size():
+				_drop(PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (players.size() - 1) * 0.5) * 0.7) * 60.0,
+					tune.chest_life, int(tune.boss_chest_luck))
 			emit(EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 0)
 			spawn_queue.clear()
 			horde_budget = 0.0
@@ -1220,12 +1236,19 @@ func _collect(p: Player, k: Pickup) -> void:
 		gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades))))
 		emit(EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 		return
+	if k.kind == PK_CHEST:
+		_open_chest(p, k)
+		return
 	var pts := 0
 	match k.kind:
-		PK_COIN: pts = 100
-		PK_GEM: pts = 500
+		PK_COIN:
+			pts = 100
+			p.gold += Loot.GOLD_COIN * (1.0 + p.armor[Loot.ST_GREED])
+		PK_GEM:
+			pts = 500
+			p.gold += Loot.GOLD_GEM * (1.0 + p.armor[Loot.ST_GREED])
 		PK_POTION:
-			p.hp = mini(5, p.hp + 2)
+			p.hp = mini(p.max_hp, p.hp + 2)
 		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR:
 			# A tome grants or levels its spell weapon; one that is already maxed is worth points instead.
 			var idx := Upgrades.weapon_entry(k.kind - PK_TOME_FIRE + 1)
@@ -1242,6 +1265,39 @@ func _collect(p: Player, k: Pickup) -> void:
 	emit(EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 	if pts > 0:
 		emit(EV_SCORE, k.pos.x, k.pos.y - 6, pts, p.slot)
+
+## A chest opens where it is touched: a tier (luck from the chest's value) and an item, applied at once. The
+## arena plays the reel from EV_CHEST.
+func _open_chest(p: Player, k: Pickup) -> void:
+	var tier := Loot.roll_rarity(rng, float(k.value))
+	var idx := Loot.roll_item(rng)
+	var v := Loot.value(idx, tier)
+	if Loot.kind(idx) == Loot.KIND_ARMOR:
+		var before: float = p.armor[Loot.ST_VIGOR]
+		Loot.add_armor(p.armor, idx, tier)
+		var hearts := int(p.armor[Loot.ST_VIGOR] - before)
+		p.max_hp += hearts
+		p.hp += hearts
+	else:
+		match Loot.effect(idx):
+			Loot.FX_ELIXIR:
+				p.hp = p.max_hp
+			Loot.FX_NOVAS:
+				p.bombs += maxi(1, int(v))
+			Loot.FX_TOME:
+				for i in maxi(1, int(v)):
+					var owned: Array[int] = []
+					for sp in Spells.COUNT:
+						var lv := Upgrades.weapon_level(p.upgrades, sp)
+						if lv > 0 and lv < Spells.MAX_LEVEL:
+							owned.append(sp)
+					if owned.is_empty():
+						break
+					Upgrades.take(p.upgrades, Upgrades.weapon_entry(owned[rng.randi() % owned.size()]))
+				_refresh_spell(p)
+			Loot.FX_INSIGHT:
+				gain_xp(p, maxi(1, int(round(tune.xp_to_next(p.level) * v))))
+	emit(EV_CHEST, k.pos.x, k.pos.y, p.slot, idx * 8 + tier)
 
 # ================================================================ GRID ===
 func _build_grid() -> void:
@@ -1288,6 +1344,8 @@ func snapshot() -> Dictionary:
 			pl.append(Upgrades.level_of(p.upgrades, idx) + 1 if idx >= 0 else 0)
 		for sp in Spells.COUNT:
 			pl.append(_weapon_snap(p, sp))
+		pl.append(floorf(p.gold))
+		pl.append(p.max_hp)
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 1.0 if e.elite else 0.0])

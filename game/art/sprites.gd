@@ -372,6 +372,16 @@ const COIN := [
 	"KYYyK",
 	".KKK.",
 ]
+## Treasure chest dropped by elites and the Lich (World.PK_CHEST).
+const CHEST := [
+	".KKKKKKK.",
+	"KWwwYwwWK",
+	"KKKKYKKKK",
+	"KWwYLYwWK",
+	"KWwwYwwWK",
+	"KWwwwwwWK",
+	".KKKKKKK.",
+]
 const BOOT := [
 	"..KKKK.",
 	"..KBBK.",
@@ -427,6 +437,7 @@ static func build_all() -> void:
 	_add("potion", POTION, {"K": OUTLINE, "R": Color("ff3b6b"), "r": Color("a3133c"), "L": Color("ffd0dc"), "w": Color("c8a070")})
 	_add("gem", GEM, {"K": OUTLINE, "C": Color("4df0ff"), "c": Color("1a8fb8"), "L": Color("ffffff")})
 	_add("xp", XP_SHARD, {"K": OUTLINE, "G": Color("5dff7a"), "g": Color("1f9e4a"), "L": Color("eaffd8")})
+	_add("chest", CHEST, {"K": OUTLINE, "W": Color("8a4b22"), "w": Color("b8682f"), "Y": Color("ffd23d"), "L": Color("fff6c0")})
 	_add("coin", COIN, {"K": OUTLINE, "Y": Color("ffd23d"), "y": Color("c48a10"), "L": Color("fff6c0")})
 	_add("boot", BOOT, {"K": OUTLINE, "B": Color("4dc8ff"), "b": Color("2a6fb8")})
 	var tome_cols := {

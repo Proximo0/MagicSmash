@@ -140,6 +140,22 @@ and numbers go in `Tuning` or data tables.
   - Each player levels and picks on their own, so 4 players pause the world about 4 times as often as 1. Shared
     party XP (one pick screen for everyone at once) would cut that to the solo rate; it is Curtis's call.
 
+## Step 5 notes (loot layer, in progress)
+
+- 5a, chests and run gold:
+  - Rarity tiers, chest items, armor stats and gold values are data in `game/logic/loot.gd` (`Loot`).
+  - Tiers run from common to ultra rare at 60 / 26 / 10 / 3.4 / 0.6 weight. A chest's luck (elites 1, the
+    Lich 3) moves common odds up the tiers.
+  - Elites drop a chest. The Lich drops one per wizard.
+  - Opening a chest is instant in the simulation. The arena plays a 1 s reel over the wizard, then shows the
+    item in its tier colour, with sound and bursts that grow by tier.
+  - Armor stacks for the run, up to `Loot.STAT_CAPS`: might, focus, swift, vigor (max hearts), ward (block
+    chance), greed (more gold). Consumables work at once: elixir, nova flask, ancient tome, insight.
+  - Coins and gems give run gold (`Player.gold`) as well as score. Gold is per wizard and only lives inside a
+    run; shrines (5b) spend it.
+  - `--autotest --tune=elite_interval:8` saves `chest.png` at the first reel.
+- Next: 5b, the gamble shrines and the team shrine. Then 5c, meta unlocks between runs and the save module.
+
 ## Checks and tools
 
 - `tools/check_all.sh`: unit, sims, lint and 3 bot shards in about 80 s (the horde sims are most of it).
