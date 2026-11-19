@@ -206,11 +206,28 @@ func _casts(w: World, ticks: int, inp: Dictionary = {}) -> int:
 	return n
 
 
-func test_wizards_start_with_arcane_bolt() -> void:
-	var w := World.new([0, 1], 3)
-	for s: int in [0, 1]:
-		assert_eq(Upgrades.weapon_level(_player(w, s).upgrades, World.SP_ARCANE), 1)
-		assert_eq(Upgrades.weapon_level(_player(w, s).upgrades, World.SP_FIRE), 0)
+func test_each_wizard_starts_with_its_spell() -> void:
+	var w := World.new([0, 1, 2, 3], 3)
+	for s: int in [0, 1, 2, 3]:
+		var p := _player(w, s)
+		assert_eq(p.wizard, s, "a slot with no pick plays its own colour")
+		var sp: int = Wizards.start_spell(s)
+		assert_eq(Upgrades.weapon_level(p.upgrades, sp), 1)
+		assert_eq(p.spell, sp)
+		var owned: int = 0
+		for k: int in Spells.COUNT:
+			owned += Upgrades.weapon_level(p.upgrades, k)
+		assert_eq(owned, 1, "slot %d starts with one weapon" % s)
+
+
+func test_picked_wizards_are_kept_and_sent() -> void:
+	var w := World.new([0, 1], 3, null, {0: 3, 1: 1})
+	assert_eq(_player(w, 0).wizard, 3)
+	assert_eq(Upgrades.weapon_level(_player(w, 0).upgrades, Wizards.start_spell(3)), 1)
+	assert_eq(Upgrades.weapon_level(_player(w, 0).upgrades, World.SP_ARCANE), 0)
+	var pl: PackedFloat32Array = w.snapshot().p
+	assert_eq(int(pl[10]), 3)
+	assert_eq(int(pl[World.PLAYER_FLOATS + 10]), 1)
 
 
 func test_spells_auto_cast_at_the_nearest_enemy() -> void:

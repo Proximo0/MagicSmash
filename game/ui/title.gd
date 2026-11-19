@@ -431,15 +431,24 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		for e in Net.roster:
 			if e.slot == slot:
 				entry = e
-		var col := G.player_color(slot)
+		var wiz: int = int(entry.get("wizard", slot)) if entry else slot
+		var col: Color = Sprites.PLAYER_COLORS[wiz].robe
 		ci.draw_rect(r, Color(col.r, col.g, col.b, 0.12 if entry else 0.04))
 		ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col if entry else col.darkened(0.6))
 		PixelFont.draw(ci, "P%d" % (slot + 1), r.position + Vector2(4, 4), 1, col)
 		if entry:
-			var key := "wiz%d_down_%s" % [slot, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
-			Sprites.draw_at(ci, key, r.position + Vector2(48, 50), false, false, Color.WHITE, 2.0)
+			var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
+			Sprites.draw_at(ci, key, r.position + Vector2(48, 47), false, false, Color.WHITE, 2.0)
+			# The wizard picked, with arrows to step through the free ones, and the spell it starts with.
+			var cx := r.get_center().x
+			PixelFont.draw_centered(ci, Wizards.title(wiz), cx, r.position.y + 13, 1, Sprites.PLAYER_COLORS[wiz].fx)
+			if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
+				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 28), 1, Color.WHITE)
+				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 28), 1, Color.WHITE)
+			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
+			PixelFont.draw_centered(ci, spell, cx, r.end.y - 18, 1, Color("c9b8ff"))
 			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
-			PixelFont.draw_centered(ci, who, r.get_center().x, r.end.y - 10, 1, Color.WHITE)
+			PixelFont.draw_centered(ci, who, cx, r.end.y - 9, 1, Color.WHITE)
 		else:
 			if int(t * 2) % 2 == 0:
 				PixelFont.draw_centered(ci, "PRESS FIRE", r.get_center().x, r.position.y + 26, 1, Color(1, 1, 1, 0.5))
@@ -450,7 +459,7 @@ func _draw_lobby(ci: CanvasItem) -> void:
 	elif G.touch_active:
 		foot = "TAP HERE TO START"
 	else:
-		foot = "ENTER/START: BEGIN    ESC/B: BACK"
+		foot = "LEFT/RIGHT: WIZARD   ENTER/START: BEGIN   ESC/B: BACK"
 	PixelFont.draw_centered(ci, foot, 240, 236, 1, Color("8bff9e") if int(t * 2) % 2 == 0 else Color.WHITE)
 	if Net.mode == Net.Mode.HOST:
 		var ips := Net.local_ips()
@@ -492,7 +501,7 @@ func _draw_howto(ci: CanvasItem) -> void:
 		["", ""],
 		["SPELLS", "CAST THEMSELVES. LEVEL UP AND TOMES ADD MORE"],
 		["LOOT", "CHESTS FROM ELITES. SPEND GOLD AT SHRINES"],
-		["", "SURVIVE THE HORDE. THE LICH COMES EVERY 5 MINUTES."],
+		["", "SURVIVE THE HORDE. SLAY THE ARCHLICH AT 15:00 TO WIN."],
 		["", "RUNS EARN CRYSTALS FOR UNLOCKS."],
 	]
 	var y := 146
@@ -544,6 +553,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			if tap:
 				if tap_pos.y > 228 and Net.mode != Net.Mode.CLIENT:
 					_begin()
+				return
+			var side: Array = PlayerInput.menu_side(event)
+			if int(side[1]) != 0 and G.local_devices.has(int(side[0])):
+				Net.cycle_wizard(int(side[0]), int(side[1]))
+				Sfx.play("menu_move")
 				return
 			if dev != -99:
 				if G.local_devices.has(dev):

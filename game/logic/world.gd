@@ -92,7 +92,7 @@ const STATS := [
 	[380.0, 26.0, 14.0, 5000, 2],# lich
 ]
 
-## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 is unused), then xp,
+## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then xp,
 ## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), and the 5 spell
 ## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold and max hearts.
 const PLAYER_FLOATS := 36
@@ -130,6 +130,7 @@ const COMBO_CALLS := {10: "SMASHING!", 25: "ARCANE CARNAGE!", 50: "WIZARDLY!", 1
 
 class Player:
 	var slot := 0
+	var wizard := 0 # Wizards index: robe colour and starting spell
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
 	var aim := Vector2.DOWN
@@ -270,8 +271,9 @@ const _NO_CELL: Array = []
 ## Gameplay numbers. Tuning.shared() unless a test or sim passes its own.
 var tune: Tuning
 
-## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one.
-func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
+## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one. `wizards` maps a
+## slot to the Wizards index its player picked in the lobby; a slot not in it plays the wizard of its own colour.
+func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Dictionary = {}) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
 	horde_budget = tune.horde_start_budget
 	shrine_t = tune.shrine_first
@@ -286,7 +288,9 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
 		var p := Player.new()
 		p.slot = s
 		p.pos = c + offs[s % 4]
-		p.upgrades[Upgrades.weapon_entry(SP_ARCANE)] = 1
+		p.wizard = clampi(int(wizards.get(s, s % Wizards.count())), 0, Wizards.count() - 1)
+		p.upgrades[Upgrades.weapon_entry(Wizards.start_spell(p.wizard))] = 1
+		_refresh_spell(p)
 		players[s] = p
 	record = Results.new(slots)
 	events.append([EV_WAVE, 0, 0, wave, 0])
@@ -1555,7 +1559,7 @@ func snapshot() -> Dictionary:
 	var pl := PackedFloat32Array()
 	for p in players.values():
 		pl.append_array([p.slot, p.pos.x, p.pos.y, p.aim.x, p.aim.y, p.hp, p.lives,
-			1.0 if p.alive else 0.0, p.invuln, p.spell, 0.0, p.bombs, p.score,
+			1.0 if p.alive else 0.0, p.invuln, p.spell, p.wizard, p.bombs, p.score,
 			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0,
 			p.xp, tune.xp_to_next(p.level), p.level, p.offer])
 		for c in 3:

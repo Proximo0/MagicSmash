@@ -151,7 +151,7 @@ func _add_to_roster(peer: int, device: int) -> int:
 		used.append(r.slot)
 	for s in G.MAX_PLAYERS:
 		if not used.has(s):
-			roster.append({"slot": s, "peer": peer, "device": device})
+			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1))})
 			roster.sort_custom(func(a, b): return a.slot < b.slot)
 			return s
 	return -1
@@ -177,6 +177,40 @@ func remove_local_device(device: int) -> void:
 		if r.peer == 1 and r.device == device:
 			roster.erase(r)
 	_push_roster()
+
+## Wizards (Wizards index) picked by everyone in the roster except `slot`.
+func _wizards_taken(slot: int) -> Array:
+	var out := []
+	for r in roster:
+		if r.slot != slot:
+			out.append(int(r.get("wizard", r.slot)))
+	return out
+
+## slot -> picked wizard, for World.new.
+func wizard_picks() -> Dictionary:
+	var out := {}
+	for r in roster:
+		out[r.slot] = int(r.get("wizard", r.slot))
+	return out
+
+## Called by the lobby when a local device steps left (-1) or right (+1) through the wizards.
+func cycle_wizard(device: int, dir: int) -> void:
+	if mode == Mode.CLIENT:
+		_request_wizard.rpc_id(1, device, dir)
+		return
+	_cycle_wizard(1, device, dir)
+
+func _cycle_wizard(peer: int, device: int, dir: int) -> void:
+	for r in roster:
+		if r.peer == peer and r.device == device:
+			r.wizard = Wizards.cycle(int(r.get("wizard", r.slot)), signi(dir), _wizards_taken(r.slot))
+	_push_roster()
+
+@rpc("any_peer", "reliable")
+func _request_wizard(device: int, dir: int) -> void:
+	if mode != Mode.HOST or in_game:
+		return
+	_cycle_wizard(multiplayer.get_remote_sender_id(), device, dir)
 
 func my_slots() -> Array:
 	var out := []
