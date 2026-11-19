@@ -313,7 +313,7 @@ func _draw_logo(ci: CanvasItem) -> void:
 		li += 1
 	if t > 2.0:
 		var a := clampf((t - 2.0) / 0.5, 0.0, 1.0)
-		PixelFont.draw_centered(ci, "ARCANE  ARENA  CARNAGE", 240, 132, 1, Color(0.8, 0.9, 1.0, a), Color(0.05, 0.02, 0.1, a))
+		PixelFont.draw_centered(ci, "HOLD  THE  TOWER", 240, 132, 1, Color(0.8, 0.9, 1.0, a), Color(0.05, 0.02, 0.1, a))
 
 func _bounce(k: float) -> float:
 	if k < 0.6:
@@ -439,9 +439,13 @@ func _draw_lobby(ci: CanvasItem) -> void:
 			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
 			PixelFont.draw_centered(ci, who, cx, r.end.y - 9, 1, Color.WHITE)
 		else:
-			if int(t * 2) % 2 == 0:
-				PixelFont.draw_centered(ci, "PRESS FIRE", r.get_center().x, r.position.y + 26, 1, Color(1, 1, 1, 0.5))
-				PixelFont.draw_centered(ci, "TO JOIN", r.get_center().x, r.position.y + 36, 1, Color(1, 1, 1, 0.5))
+			# An empty seat at the coven: the wizard's shadow between two candles, waiting for a player.
+			var seat := r.position + Vector2(48, 44)
+			Sprites.draw_at(ci, "wiz%d_down_a" % slot, seat, false, false, Color(0.12, 0.06, 0.22, 0.75), 2.0)
+			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
+			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
+			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
+			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 14, 1, Color(1, 1, 1, blink))
 	var foot := ""
 	if Net.mode == Net.Mode.CLIENT:
 		foot = "WAITING FOR HOST TO START..."
