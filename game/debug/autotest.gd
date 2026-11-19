@@ -21,6 +21,7 @@ var _perf_peak := 0
 const PERF_FRAMES := 300
 const PERF_ENEMIES := 180
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
+var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
 var quit_at := 60.0
 var net := ""
@@ -45,6 +46,8 @@ func _ready() -> void:
 			quit_at = maxf(quit_at, end_at + 8.0)
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--players="):
+			players = clampi(int(a.substr(10)), 1, 4)
 		if a.begins_with("--perf-hide="):
 			perf_hide = a.substr(12)
 		if a == "--perf":
@@ -132,7 +135,8 @@ func _process(delta: float) -> void:
 				title.state = 4
 			else:
 				Net.start_offline()
-				Net.add_local_device(0)
+				for d in players - 1:
+					Net.add_local_device(d)
 				title.state = 2
 			for _i in wizard_steps:
 				Net.cycle_wizard(G.DEV_KBM, 1)
