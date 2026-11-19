@@ -1,0 +1,44 @@
+extends Node
+## Play-bot: boots the real game (title -> lobby -> arena), lets SmashBot wizards play it offline for
+## SECONDS of game time, then prints one "BOT ..." line. A shard plays its own seed and player count.
+## Run: godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3
+
+const SECONDS: float = 75.0
+const MIN_WAVE: int = 2
+
+var _t: float = 0.0
+var _shard: int = 0
+var _arena: Node = null
+
+
+func _ready() -> void:
+	_shard = int(Flags.get_arg("shard", "0"))
+	Flags.args["seed"] = str(101 + _shard)
+	add_child(load("res://game/main.tscn").instantiate())
+	await get_tree().process_frame
+	var players: int = 1 + _shard % 4
+	G.local_devices = []
+	Net.start_offline()
+	for d: int in range(players):
+		Net.add_local_device(G.DEV_KBM if d == 0 else d - 1)
+	PlayerInput.bot = true
+	Net.begin_game()
+	await get_tree().process_frame
+	_arena = G.main.current
+
+
+func _physics_process(delta: float) -> void:
+	if _arena == null:
+		return
+	_t += delta
+	var w: World = _arena.get("world")
+	var over: bool = w != null and w.phase == World.PH_GAMEOVER
+	if _t < SECONDS and not over:
+		return
+	set_physics_process(false)
+	var ok: bool = w != null and (w.wave >= MIN_WAVE or over)
+	print("BOT shard=%d players=%d seed=%d wave=%d enemies=%d over=%s %s" % [_shard, w.players.size() if w else 0,
+		101 + _shard, w.wave if w else 0, w.enemies.size() if w else 0, over, "PASS" if ok else "FAIL "])
+	print("BOT score=%d" % (w.total_score() if w else 0))
+	PlayerInput.bot = false
+	get_tree().quit(0 if ok else 1)
