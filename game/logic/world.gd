@@ -181,7 +181,8 @@ const ELITE_GEMS := 6
 ## XP a gem dropped by each enemy type is worth (same order as STATS).
 const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25, 2, 2, 4, 5]
 
-const DOORS := [Vector2(240, 30), Vector2(240, 266), Vector2(12, 148), Vector2(468, 148)]
+## The four doors, mid-wall on each side of G.ARENA (top, bottom, left, right).
+const DOORS := [Vector2(400, 30), Vector2(400, 446), Vector2(12, 238), Vector2(788, 238)]
 const DOOR_DIRS := [Vector2(0, 1), Vector2(0, -1), Vector2(1, 0), Vector2(-1, 0)]
 
 const COMBO_CALLS := {10: "SMASHING!", 25: "ARCANE CARNAGE!", 50: "WIZARDLY!", 100: "TOTAL SORCERY!", 200: "LEGENDARY!"}
@@ -640,35 +641,50 @@ func _direct_horde(dt: float) -> void:
 		if rng.randf() < tune.rift_share:
 			_queue_rift(_next_group[0], _next_group[1])
 		else:
-			_queue_group(_next_group[0], _next_group[1], rng.randi_range(0, 3), wave_time)
+			_queue_group(_next_group[0], _next_group[1], _pick_door(), wave_time)
 		_sort_queue()
 		_next_group = []
 
 ## A rift: a marker opens somewhere in the arena away from the wizards, and after tune.rift_warning the
 ## group bursts out of it in a clump, so the horde surrounds the party instead of queuing at the doors.
 func _queue_rift(type: int, n: int) -> void:
-	var best := _spot_away(tune.rift_min_dist, 22.0)
+	var best := _spot_near_party(tune.rift_min_dist, tune.rift_max_dist, 22.0)
 	var spread := 6.0 + 3.0 * sqrt(float(n))
 	emit(EV_RIFT, best.x, best.y, spread, tune.rift_warning)
 	for i in n:
 		var off := Vector2.from_angle(rng.randf() * TAU) * rng.randf() * spread
 		spawn_queue.append({"t": wave_time + tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
 
-## A random point in the arena (inset by `margin`) at least `min_dist` from every living wizard, or the farthest
-## of ten tries.
-func _spot_away(min_dist: float, margin: float) -> Vector2:
+## A door for a group: usually the one nearest the party (the arena is bigger than the screen, and a far door
+## would leave the group walking for half a minute), otherwise any door.
+func _pick_door() -> int:
+	if rng.randf() >= tune.door_near_share:
+		return rng.randi_range(0, DOORS.size() - 1)
+	var c := party_center()
+	var best := 0
+	for d in DOORS.size():
+		if (DOORS[d] as Vector2).distance_to(c) < (DOORS[best] as Vector2).distance_to(c):
+			best = d
+	return best
+
+## A point in the arena (inset by `margin`) between `min_dist` and `max_dist` from the middle of the party and at
+## least `min_dist` from every living wizard: just off the edge of the screen, the way a survivors horde closes
+## in. Falls back to the try farthest from the wizards.
+func _spot_near_party(min_dist: float, max_dist: float, margin: float) -> Vector2:
 	var area := G.ARENA.grow(-margin)
+	var c := party_center()
 	var best := area.get_center()
 	var best_d := -1.0
-	for tries in 10:
-		var c := Vector2(rng.randf_range(area.position.x, area.end.x), rng.randf_range(area.position.y, area.end.y))
+	for tries in 12:
+		var at := c + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(min_dist, maxf(min_dist, max_dist))
+		at = at.clamp(area.position, area.end)
 		var d := INF
 		for p: Player in players.values():
 			if p.alive:
-				d = minf(d, p.pos.distance_to(c))
+				d = minf(d, p.pos.distance_to(at))
 		if d > best_d:
 			best_d = d
-			best = c
+			best = at
 		if d >= min_dist:
 			break
 	return best
@@ -706,7 +722,7 @@ func _spawn_elite() -> void:
 		type = ORC if roll < 0.6 else MAGE
 	elif wave >= 2:
 		type = ORC
-	var e := spawn_enemy(type, rng.randi_range(0, 3))
+	var e := spawn_enemy(type, _pick_door())
 	e.elite = true
 	e.hp *= tune.elite_hp_mul
 	e.maxhp = e.hp
@@ -796,7 +812,9 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 				p.hp = p.max_hp
 				p.invuln = 2.5
 				p.bombs = maxi(p.bombs, 2)
-				p.pos = G.ARENA.get_center() + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10))
+				# Back beside the party (the arena is bigger than the screen), or mid-arena when nobody is up.
+				p.pos = party_center() + Vector2(rng.randf_range(-20, 20), rng.randf_range(-10, 10))
+				p.pos = p.pos.clamp(G.ARENA.position + Vector2(5, 6), G.ARENA.end - Vector2(5, 2))
 				emit(EV_SPAWN, p.pos.x, p.pos.y, p.slot, 0)
 		return
 	var regen := Upgrades.regen_interval(p.upgrades)
@@ -821,6 +839,7 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 	p.pos += p.vel * dt
 	p.pos.x = clampf(p.pos.x, G.ARENA.position.x + 5, G.ARENA.end.x - 5)
 	p.pos.y = clampf(p.pos.y, G.ARENA.position.y + 6, G.ARENA.end.y - 2)
+	_leash(p)
 	if aim.length() > 0.1:
 		p.aim = aim.normalized()
 	elif p.moving:
@@ -842,6 +861,24 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 				if e.orbit_cd <= 0.0 and op.distance_to(e.pos) < e.r + 6.0:
 					e.orbit_cd = 0.3
 					_damage_enemy(e, 1.5, p.slot, (e.pos - p.pos).normalized() * 80.0)
+
+## Wizards share one screen: none may get further than tune.leash_x / leash_y from any other living wizard.
+func _leash(p: Player) -> void:
+	for q: Player in players.values():
+		if q == p or not q.alive:
+			continue
+		p.pos.x = clampf(p.pos.x, q.pos.x - tune.leash_x, q.pos.x + tune.leash_x)
+		p.pos.y = clampf(p.pos.y, q.pos.y - tune.leash_y, q.pos.y + tune.leash_y)
+
+## The middle of the living wizards, or of the arena when none is alive.
+func party_center() -> Vector2:
+	var c := Vector2.ZERO
+	var n := 0
+	for p: Player in players.values():
+		if p.alive:
+			c += p.pos
+			n += 1
+	return c / n if n > 0 else G.ARENA.get_center()
 
 ## Every owned spell weapon casts on its own cooldown: along the aim stick when it is held, otherwise at the
 ## nearest enemy within tune.auto_aim_range. Nothing in range and no aim: the weapons wait, ready.
@@ -1838,7 +1875,7 @@ func snapshot_shrines() -> Array:
 func _place_shrine(kind: int) -> void:
 	var sh := Shrine.new()
 	sh.kind = kind
-	sh.pos = _spot_away(tune.shrine_min_dist, 30.0)
+	sh.pos = _spot_near_party(tune.shrine_min_dist, tune.shrine_min_dist + 120.0, 30.0)
 	sh.life = tune.shrine_life * (tune.team_shrine_life_mul if kind == Gamble.TEAM else 1.0)
 	sh.cost = Gamble.cost(kind, wave, tune.shrine_cost_base, tune.shrine_cost_per_min, tune.team_cost_mul)
 	shrines.append(sh)

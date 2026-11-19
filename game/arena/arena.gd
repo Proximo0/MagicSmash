@@ -99,7 +99,12 @@ var pause_options := false
 var options := OptionsPanel.new()
 const PAUSE_ITEMS := ["RESUME", "OPTIONS", "QUIT TO TITLE"]
 var time := 0.0
-var torch_pos := [Vector2(110, 26), Vector2(370, 26), Vector2(10, 92), Vector2(10, 204), Vector2(470, 92), Vector2(470, 204)]
+var torch_pos := [Vector2(150, 26), Vector2(300, 26), Vector2(500, 26), Vector2(650, 26), Vector2(10, 110),
+	Vector2(10, 340), Vector2(790, 110), Vector2(790, 340)]
+## The camera: the world point at the screen's top-left. It follows the middle of the living party and stays
+## inside the arena image; CAM_EASE is how fast it catches up (per second).
+var cam := Vector2.ZERO
+const CAM_EASE := 6.0
 var _hitstop := 0.0
 var _last_aim := {}
 ## Level-up pick screen, per local slot: highlighted card, and the [card, offer] confirmed and being sent.
@@ -173,7 +178,10 @@ func _ready() -> void:
 	vignette.texture = grad
 	vignette.size = G.SCREEN
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(vignette)
+	var vignette_layer := CanvasLayer.new()
+	vignette_layer.layer = 5
+	add_child(vignette_layer)
+	vignette_layer.add_child(vignette)
 
 	hud_layer = CanvasLayer.new()
 	hud_layer.layer = 10
@@ -319,7 +327,8 @@ func _process_view(dt: float) -> void:
 	var so := Vector2.ZERO
 	if shake > 0.0:
 		so = Vector2(_fx_rng.randf_range(-1, 1), _fx_rng.randf_range(-1, 1)) * shake
-	root.position = so.round()
+	_follow_party(dt)
+	root.position = (so - cam).round()
 	if game_over:
 		game_over_t += dt
 	_torch_fx(dt)
@@ -965,7 +974,7 @@ func _draw_bets(ci: CanvasItem, dark: Color) -> void:
 		if b.kind == Gamble.TEAM:
 			_draw_fate(ci, b, spinning, col, text, dark)
 			continue
-		var at: Vector2 = (b.pos as Vector2) + Vector2(0, -30)
+		var at: Vector2 = _on_screen(b.pos as Vector2) + Vector2(0, -30)
 		var k := clampf(b.t / b.spin, 0.0, 1.0)
 		for n in 3:
 			# Each stone flies up and tumbles down; the middle one lands last, on the outcome.
@@ -1002,7 +1011,7 @@ func _draw_fate(ci: CanvasItem, b: Dictionary, spinning: bool, col: Color, text:
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
 func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
 	for r: Dictionary in _reveals:
-		var at: Vector2 = (r.pos as Vector2) + Vector2(0, -34)
+		var at: Vector2 = _on_screen(r.pos as Vector2) + Vector2(0, -34)
 		var spinning: bool = r.t < REEL_SPIN
 		var tier: int = (int(r.t * 14.0) + r.slot) % RARITY_COLORS.size() if spinning else r.tier
 		var col: Color = RARITY_COLORS[tier]
@@ -1070,6 +1079,32 @@ func _update_act(dt: float) -> void:
 			bg.texture = bg_next.texture
 			bg_next.visible = false
 			_act_fade = -1.0
+
+## Eases the camera toward the middle of the living wizards (all of them when none is alive), keeping the view
+## inside the arena image. The HUD band at the top counts as part of the view, so the top wall can show under it.
+func _follow_party(dt: float) -> void:
+	var c := Vector2.ZERO
+	var n := 0
+	for p: Dictionary in vp.values():
+		if p.alive:
+			c += p.pos
+			n += 1
+	if n == 0:
+		for p: Dictionary in vp.values():
+			c += p.pos
+			n += 1
+	if n == 0:
+		return
+	c /= n
+	var want := c - Vector2(G.SCREEN.x / 2.0, (G.SCREEN.y + G.HUD_H) / 2.0)
+	want = want.clamp(Vector2.ZERO, G.WORLD - G.SCREEN)
+	cam = want if cam == Vector2.ZERO and time < 0.2 else cam.lerp(want, minf(1.0, dt * CAM_EASE))
+
+
+## A world position on the screen (for HUD things that point at the arena).
+func _on_screen(p: Vector2) -> Vector2:
+	return p - cam
+
 
 func _add_shake(v: float) -> void:
 	if not Save.settings.shake:
@@ -1583,6 +1618,10 @@ func _draw_eshots() -> void:
 func _draw_hud() -> void:
 	var ci := hud
 	var dark := Color("0b0716")
+	# The HUD band: the arena scrolls under it.
+	ci.draw_rect(Rect2(0, 0, G.SCREEN.x, G.HUD_H), Color(dark, 0.92))
+	ci.draw_rect(Rect2(0, G.HUD_H, G.SCREEN.x, 1), Color("2f2450"))
+	_draw_offscreen(ci)
 	# Player panels
 	for slot in 4:
 		var x := slot * 120 + 4
@@ -1680,6 +1719,41 @@ func _draw_hud() -> void:
 		_draw_levelup(ci)
 	elif paused:
 		_draw_pause(ci)
+
+## Arrows at the screen's edge pointing at what matters out of view: chests, cards and the Lich.
+func _draw_offscreen(ci: CanvasItem) -> void:
+	var view := Rect2(Vector2(6, G.HUD_H + 6), G.SCREEN - Vector2(12, G.HUD_H + 12))
+	var marks: Array = []
+	for k: Array in vk:
+		var kind: int = k[0]
+		if kind == World.PK_CHEST or kind >= World.PK_CARD:
+			marks.append([k[1], _pickup_color(kind)])
+	for e: Dictionary in ve.values():
+		if e.type == World.LICH:
+			marks.append([e.pos, Color("ff4df2") if boss_final else Color("4dfff0")])
+	for m: Array in marks:
+		var sp := _on_screen(m[0])
+		if view.grow(4).has_point(sp):
+			continue
+		var center := view.get_center()
+		var d: Vector2 = (sp - center)
+		# Where the line from the middle to the thing leaves the view.
+		var tx := (view.size.x / 2.0) / maxf(absf(d.x), 0.001)
+		var ty := (view.size.y / 2.0) / maxf(absf(d.y), 0.001)
+		var at := center + d * minf(tx, ty)
+		var dir := d.normalized()
+		var side := Vector2(-dir.y, dir.x)
+		var pulse := 0.6 + 0.4 * sin(time * 6.0)
+		var col: Color = m[1]
+		var tip := at
+		var pts := PackedVector2Array([tip, tip - dir * 7.0 + side * 4.0, tip - dir * 7.0 - side * 4.0])
+		ci.draw_colored_polygon(pts, Color(col, pulse))
+		ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(dark_ink(), 0.9), 1.0)
+
+
+func dark_ink() -> Color:
+	return Color("0b0716")
+
 
 ## An act card: a rune-framed band with the act's numeral, its name in large letters and its subtitle, fading in.
 func _draw_act_card(ci: CanvasItem, k: float, slide: float) -> void:
