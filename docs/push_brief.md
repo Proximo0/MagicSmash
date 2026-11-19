@@ -2,13 +2,13 @@
 
 Read `CLAUDE.md`, `docs/agent_brief.md` (the hard rules) and `docs/lessons_learned.md` first. "Launch scope and
 the big push" in `docs/handoff.md` says where the game is going. This file adds the rules and contracts for the
-five workers of wave 1. Workers code against it at the same time; nobody changes a contract here without the lead.
+six workers of wave 1. Workers code against it at the same time; nobody changes a contract here without the lead.
 
 ## Rules on top of `docs/agent_brief.md`
 
 - You work in your own git worktree. Do not run git. The lead commits your files from your worktree, so your final
   report lists every file you created or changed.
-- Four CPUs are shared by five workers. Run one engine at a time, keep runs short, and never start
+- Four CPUs are shared by six workers. Run one engine at a time, keep runs short, and never start
   `tools/check_all.sh` or the whole sim suite (the lead runs them). Run your own unit test file
   (`tools/run_tests.sh test_<name>`), `tools/lint.sh`, and a named sim only when you changed code it covers
   (`tools/run_sims.sh sim_waves`). `sim_horde` asserts a time budget and fails on a busy box: leave it to the lead.
@@ -22,7 +22,8 @@ five workers of wave 1. Workers code against it at the same time; nobody changes
 - Faster art loops: a throwaway `-s` script in `/tmp/<your task>/` that draws your sprites or your floor to a PNG
   in a few seconds (rules for `-s` scripts are in `docs/agent_brief.md`).
 - Art follows Curtis's rule: either a plain placeholder nobody would take for finished, or fully finished art.
-  Nothing in between. Wave 1 art is finished art; it merges only after Curtis has seen the screenshots.
+  Nothing in between. Wave 1 art is finished art. The lead judges it from your screenshots and merges it, so your
+  report shows the weak spots too, not only the best frames.
 
 ## Who owns what
 
@@ -30,7 +31,8 @@ five workers of wave 1. Workers code against it at the same time; nobody changes
 |---|---|---|
 | A, shared XP | The party levels together and picks on one screen | `world.gd`: `gain_xp`, `_offer`, `_pick`, `_update_levelups`, `is_picking`, the XP lines of `_collect`, the blessing in `_resolve_gamble`, the level and XP fields of `snapshot`. `arena.gd`: `_draw_hud`, `_draw_levelup`, `_pick_input`, `_confirm_pick`, `_pick_dir`, `_card_rect`, `_deal`, `_anyone_picking`, `_local_pick_slots`, `_with_pick`, and the level and XP fields of `_apply_snapshot`. `tuning.gd` (new XP rows), `tests/unit/test_world.gd`, `tests/unit/test_tuning.gd`, `tests/sim/sim_waves.gd` |
 | B, bots | Human-like play-testers and a playtest report | `game/logic/smash_bot.gd`, `tests/unit/test_smash_bot.gd`, `tools/full_run.gd`, new `tools/playtest.gd`, `tests/bot/bot.gd`, new `docs/bots.md`, `arena.gd`: `_bot_input` only. In `world.gd` and `results.gd`: lines that record statistics only (no change to behaviour or to `state_hash`) |
-| C1, actors | Finished wizards, enemies, pickups and spell shots at the new scale | `game/art/sprites.gd`, new `game/art/sprites_*.gd`, new `tools/sprite_sheet.gd`, `game/arena/fx.gd`, `arena.gd`: `_draw_entities`, `_draw_player`, `_draw_staff`, `_draw_enemy`, `_draw_enemy_bars`, `_draw_shots`, `_draw_eshots`, `_shadow`, `_draw_treasure_glow`, `_emit_trails`, `_spell_color`, `_pickup_color` |
+| C1, wizards and magic | Finished wizards, pickups, spell shots and effects at the new scale | `game/art/sprites.gd`, new `game/art/sprites_wizards.gd`, new `tools/sprite_sheet.gd`, `game/arena/fx.gd`, `arena.gd`: `_draw_entities`, `_draw_player`, `_draw_staff`, `_draw_shots`, `_draw_eshots`, `_shadow`, `_draw_treasure_glow`, `_emit_trails`, `_spell_color`, `_pickup_color`, and the tables `SPELL_COLORS` and `PICKUP_KEYS` |
+| C3, enemies | Finished enemies at the new scale, all twelve kinds | `game/art/sprites_enemies.gd`, `arena.gd`: `_draw_enemy`, `_draw_enemy_glows`, `_draw_enemy_bars`, and the tables `ENEMY_KEYS`, `ENEMY_ANIM` and `ENEMY_SHADOW` |
 | C2, Act I floor | A finished Ossuary: floor, walls, doors, light | `game/arena/arena_bg.gd`, new `game/art/arena_art_*.gd`, `arena.gd`: `_draw_decals`, `_draw_env`, `_draw_env_add`, `_torch_fx`, `_decal` |
 | D, title | The FOUR OF WANDS title screen and logo | `game/ui/title.gd`: the backdrop, the logo and the menu's look; new `game/art/title_art.gd` |
 
@@ -56,7 +58,7 @@ need a change there, give the exact lines in your report.
   `static shrine_goal(me, gold, rows)`. Extra arguments are optional and go at the end.
 - The output stays `[move_x, move_y, aim_x, aim_y, fire, nova_count]`, plus `[pick, offer]` from `with_pick`.
 
-## Contract: art (workers C1, C2 and D share it)
+## Contract: art (workers C1, C2, C3 and D share it)
 
 **The look: candlelit occult pixel art.** At a squint the picture has three layers of value: a dark, quiet floor;
 mid-to-bright actors with a clean dark outline; magic as the brightest thing on screen.
@@ -69,8 +71,13 @@ mid-to-bright actors with a clean dark outline; magic as the brightest thing on 
 - **Actors** get a 1 px outline in `Sprites.OUTLINE` (`#1a0f24`), a drop shadow, light from the upper left, and
   at least three shades per material. Anchor: the feet, bottom centre.
 - **Sizes** (width x height, give or take 2 px): wizard 16x22 with the hat; goblin 14x14; bat 16x11; slime 14x11;
-  mini slime 9x7; skeleton 12x18; orc 20x22; an elite is its sprite at 1.5x; XP mote 5x5; coin 6x6; gem 7x8;
-  potion 7x9; chest 14x12; tome 9x10.
+  mini slime 9x7; skeleton 12x18; orc 20x22; dark mage 14x20; wraith 16x20; cursed tome 12x12; gargoyle 20x18;
+  bone priest 14x20; the Lich 30x40. XP mote 5x5; coin 6x6; gem 7x8; potion 7x9; chest 14x12; spell tome 9x10.
+- **One pixel density.** No sprite is drawn scaled or rotated: a bigger thing is drawn bigger, pixel by pixel.
+  An elite keeps its sprite's size and gets a gold rim, a mark over its head and a glow under it.
+- **The sprite code.** `Sprites.draw_at(ci, key, feet, flip, flash, modulate)` and
+  `Sprites._add(key, rows, pal)` keep their signatures and meaning. `Sprites.build_all` calls
+  `SpritesEnemies.add_all()` once before it packs the atlas; the atlas has room for every frame both workers add.
 - **Animation:** a wizard has idle (2 frames) and walk (4 frames) facing down, up and side (side is mirrored for
   left), plus a cast frame. An enemy has 2 to 4 frames. Timing lives in the drawing code, not in `World`.
 - **Every wizard stands on a floor ring** in their colour (an ellipse about 18x7, soft, under the shadow), so a

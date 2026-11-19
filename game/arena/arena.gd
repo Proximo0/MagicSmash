@@ -1400,13 +1400,7 @@ func _draw_entities() -> void:
 			var e: Dictionary = it[2]
 			if ENEMY_SHADOW[e.type] > 0 and e.type != World.BAT and not (e.type == World.GARGOYLE and e.state == 1):
 				_shadow(ci, e.pos, ENEMY_SHADOW[e.type])
-	# Glows under the elites and the Archlich go before the sprites, in one pass, so sprites batch together.
-	for e: Dictionary in ve.values():
-		if e.get("final", false):
-			ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
-			ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
-		elif e.get("elite", false):
-			ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
+	_draw_enemy_glows(ci)
 	for it in list:
 		if it[1] == 0:
 			_draw_player(ci, it[2])
@@ -1459,6 +1453,15 @@ func _draw_staff(ci: CanvasItem, hand: Vector2, tip: Vector2, spell: int, slot: 
 	ci.draw_line(a + Vector2(0.5, 0.5), b + Vector2(0.5, 0.5), Color("b07a3a"), 1.0)
 	ci.draw_rect(Rect2(b - Vector2(1, 1), Vector2(3, 3)), _spell_color(spell, slot))
 	ci.draw_rect(Rect2(b - Vector2(0, 0), Vector2(1, 1)), Color.WHITE)
+
+## Glows under the elites and the Archlich go before the sprites, in one pass, so sprites batch together.
+func _draw_enemy_glows(ci: CanvasItem) -> void:
+	for e: Dictionary in ve.values():
+		if e.get("final", false):
+			ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
+			ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
+		elif e.get("elite", false):
+			ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
 
 func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 	var t: int = e.type
