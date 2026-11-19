@@ -14,11 +14,12 @@ const NOVA := 6
 const LIFE := 7
 ## Spell weapons, one entry per World.SP_* spell (see weapon_entry), then their evolutions (evo_entry).
 const W_FIRST := 8
-const EVO_FIRST := 13
+const EVO_FIRST := W_FIRST + Spells.COUNT
 
 ## [key, name, short description, weight, values per level, requires]. Passives are named for the Major Arcana
 ## tarot card they are drawn as (TarotArt). Indices are the constants above and are
-## sent in snapshots, so append new upgrades at the end. `requires` is a list of [entry, minimum level] that
+## sent in snapshots, so append new upgrades at the end (a new spell weapon shifts the evolutions after it;
+## both sides of a LAN game run the same build). `requires` is a list of [entry, minimum level] that
 ## must all hold before the entry can be offered. Spell names and evolution names match Spells.
 const CATALOG: Array = [
 	["swift", "THE CHARIOT", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40], []],
@@ -34,11 +35,13 @@ const CATALOG: Array = [
 	["w_frost", "FROST FAN", "SLOWS ENEMIES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
 	["w_storm", "CHAIN LIGHTNING", "JUMPS FOE TO FOE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
 	["w_star", "STARFALL", "HOMING STARS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
+	["w_rune", "RUNE CIRCLE", "SIGILS SEAR THE FLOOR", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], []],
 	["e_arcane", "ASTRAL LANCE", "PIERCING BOLTS", 40.0, [1.0], [[8, 5], [12, 1]]],
 	["e_fire", "THUNDERFIRE", "BLASTS FORK LIGHTNING", 40.0, [1.0], [[9, 5], [11, 1]]],
 	["e_frost", "BLIZZARD", "A STORM OF ICE", 40.0, [1.0], [[10, 5], [8, 1]]],
 	["e_storm", "TEMPEST", "TWIN LIGHTNING CHAINS", 40.0, [1.0], [[11, 5], [9, 1]]],
 	["e_star", "COMET RAIN", "STARS BURST INTO ICE", 40.0, [1.0], [[12, 5], [10, 1]]],
+	["e_rune", "SEAL OF SOLOMON", "CIRCLES DRAW FOES IN", 40.0, [1.0], [[13, 5], [12, 1]]],
 ]
 
 

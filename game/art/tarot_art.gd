@@ -280,6 +280,24 @@ const EMBLEMS := {
 		"................",
 		"................",
 	],
+	"w_rune": [ # a rune circle: a violet ring set with gold glyphs round the warding rune algiz
+		"................",
+		".....vvvvvv.....",
+		"...vvpyppypvv...",
+		"..vpp..ww..ppv..",
+		"..vpy..ww..ypv..",
+		".vy..y.ww.y..yv.",
+		".vp...ywwy...pv.",
+		".vp....ww....pv.",
+		".vp....ww....pv.",
+		".vy....ww....yv.",
+		".vp....ww....pv.",
+		"..vp...ww...pv..",
+		"..vpp..rr..ppv..",
+		"...vvpyppypvv...",
+		".....vvvvvv.....",
+		"................",
+	],
 }
 
 ## [roman numeral, card title] for the Major Arcana passives.

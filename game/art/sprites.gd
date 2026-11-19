@@ -584,6 +584,7 @@ static func build_all() -> void:
 		"tome_frost": [Color("7fe0ff"), Color("3a86c8")],
 		"tome_storm": [Color("ffe84d"), Color("c09a10")],
 		"tome_star": [Color("ff7ae6"), Color("a83aa0")],
+		"tome_rune": [Color("ff4d6d"), Color("a01a3a")],
 		"tome_orbit": [Color("8bff9e"), Color("2fa04a")],
 	}
 	for k in tome_cols:

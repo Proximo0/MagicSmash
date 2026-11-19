@@ -23,8 +23,9 @@ const SHRINE_PULL: float = 1.2
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.
 const PICK_PRIORITY: Array[int] = [Upgrades.EVO_FIRST, Upgrades.EVO_FIRST + 1, Upgrades.EVO_FIRST + 2,
-	Upgrades.EVO_FIRST + 3, Upgrades.EVO_FIRST + 4,
-	Upgrades.W_FIRST + 1, Upgrades.W_FIRST + 3, Upgrades.W_FIRST + 4, Upgrades.W_FIRST + 2, Upgrades.W_FIRST,
+	Upgrades.EVO_FIRST + 3, Upgrades.EVO_FIRST + 4, Upgrades.EVO_FIRST + 5,
+	Upgrades.W_FIRST + 1, Upgrades.W_FIRST + 3, Upgrades.W_FIRST + 4, Upgrades.W_FIRST + 5, Upgrades.W_FIRST + 2,
+	Upgrades.W_FIRST,
 	Upgrades.POWER, Upgrades.QUICK, Upgrades.SWIFT, Upgrades.MAGNET,
 	Upgrades.WISDOM, Upgrades.REGEN, Upgrades.LIFE, Upgrades.NOVA]
 

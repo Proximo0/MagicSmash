@@ -25,6 +25,7 @@ const SP_FIRE := 1
 const SP_FROST := 2
 const SP_STORM := 3
 const SP_STAR := 4
+const SP_RUNE := 5
 
 # Pickups
 const PK_COIN := 0
@@ -38,6 +39,9 @@ const PK_BOOTS := 7
 const PK_ORBIT := 8
 const PK_XP := 9
 const PK_CHEST := 10
+const PK_TOME_RUNE := 11 # after the chest, so the older pickup ids stay put
+## Every spell tome, in World.SP_* order from the fireball (arcane has no tome).
+const TOMES := [PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR, PK_TOME_RUNE]
 
 # Enemy shot kinds
 const ES_ARROW := 0
@@ -86,6 +90,7 @@ const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the w
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
+const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b = slot + 8 when evolved
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -104,10 +109,14 @@ const STATS := [
 ]
 
 ## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then xp,
-## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), and the 5 spell
-## weapon levels (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold and max hearts.
-const PLAYER_FLOATS := 36
+## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), the Spells.COUNT
+## spell weapon levels from PLAYER_WEAPONS (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold and max hearts.
+const PLAYER_WEAPONS := 29
+const PLAYER_FLOATS := PLAYER_WEAPONS + Spells.COUNT + 2
 const BASE_HEARTS := 5
+
+## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved.
+const RUNE_FLOATS := 7
 
 ## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, rank (1 elite, 2 Archlich).
 const ENEMY_FLOATS := 9
@@ -176,7 +185,7 @@ class Player:
 	var invuln := 2.0
 	var spell := 0 # main spell: the highest weapon, which colours the staff
 	var bombs := 2
-	var cds: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0] # seconds until each spell weapon casts again
+	var cds: Array[float] = [] # seconds until each spell weapon casts again, per World.SP_*
 	var haste := 0.0
 	var orbit := 0.0
 	var orbit_ang := 0.0
@@ -238,6 +247,19 @@ class Shot:
 	var r := 3.0
 	var dead := false
 
+## A rune circle inscribed on the floor: it hurts every enemy standing in it each Spells.RUNE_TICK, and the
+## Seal of Solomon also pulls enemies toward its centre.
+class Rune:
+	var pos := Vector2.ZERO
+	var r := 20.0
+	var age := 0.0
+	var life := 2.5
+	var tick := 0.0 # seconds to the next damage tick
+	var dmg := 1.0
+	var owner := 0
+	var evo := false
+	var pull := 0.0
+
 class EShot:
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
@@ -264,6 +286,7 @@ class Pickup:
 var players := {} # slot -> Player
 var enemies: Array[Enemy] = []
 var shots: Array[Shot] = []
+var runes: Array[Rune] = []
 var eshots: Array[EShot] = []
 var pickups: Array[Pickup] = []
 var shrines: Array[Shrine] = []
@@ -324,6 +347,8 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		p.slot = s
 		p.pos = c + offs[s % 4]
 		p.wizard = clampi(int(wizards.get(s, s % Wizards.count())), 0, Wizards.count() - 1)
+		p.cds.resize(Spells.COUNT)
+		p.cds.fill(0.0)
 		p.upgrades[Upgrades.weapon_entry(Wizards.start_spell(p.wizard))] = 1
 		_refresh_spell(p)
 		players[s] = p
@@ -389,10 +414,12 @@ func step(dt: float, inputs: Dictionary) -> void:
 		if not e.dead:
 			_update_enemy(e, dt)
 	_update_shots(dt)
+	_update_runes(dt)
 	_update_eshots(dt)
 	_update_pickups(dt)
 	enemies = enemies.filter(func(e): return not e.dead)
 	shots = shots.filter(func(s): return not s.dead)
+	runes = runes.filter(func(c: Rune) -> bool: return c.age < c.life)
 	eshots = eshots.filter(func(s): return not s.dead)
 	if phase != PH_GAMEOVER and not won:
 		var any := false
@@ -712,7 +739,7 @@ func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	return e
 
 func _spawn_random_powerup() -> void:
-	var kinds := [PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR, PK_BOOTS, PK_ORBIT, PK_TOME_FIRE, PK_TOME_STORM]
+	var kinds := TOMES + [PK_BOOTS, PK_ORBIT, PK_TOME_FIRE, PK_TOME_STORM]
 	var k: int = kinds[rng.randi() % kinds.size()]
 	var pos := Vector2.ZERO
 	for tries in 12:
@@ -834,7 +861,9 @@ func _cast(p: Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
 	var tip := p.pos + Vector2(0, -7) + dir * 9.0
 	var n := Spells.count(sp, lv, evo)
 	var dmg := Spells.damage(sp, lv, evo)
-	if sp == SP_STORM:
+	if sp == SP_RUNE:
+		_inscribe_runes(p, lv, evo, dir, n, dmg)
+	elif sp == SP_STORM:
 		var chains := int(Spells.evo_value(sp, "chains", 1.0)) if evo else 1
 		var range_mul := Spells.TEMPEST_RANGE_MUL if evo else 1.0
 		var hit := {}
@@ -864,6 +893,57 @@ func _shot(slot: int, sp: int, evo: bool, pos: Vector2, vel: Vector2, dmg: float
 	s.life = Spells.stat(sp, "life")
 	s.pierce = pierce
 	shots.append(s)
+
+## Inscribes `n` rune circles, each on the densest cluster of enemies within Spells.RUNE_RANGE of the wizard
+## that no circle of this cast already covers; with no enemy in range, one circle goes ahead along `dir`.
+func _inscribe_runes(p: Player, lv: int, evo: bool, dir: Vector2, n: int, dmg: float) -> void:
+	var radius := Spells.level_value(SP_RUNE, "r", lv, evo)
+	var near: Array[Enemy] = []
+	for e: Enemy in _query(p.pos, Spells.RUNE_RANGE):
+		if not e.entering and not _faded(e) and e.pos.distance_to(p.pos) <= Spells.RUNE_RANGE:
+			near.append(e)
+	var centres: Array[Vector2] = []
+	for i in n:
+		var best := Vector2.INF
+		var best_n := 0
+		var best_d := INF
+		for e: Enemy in near:
+			var covered := false
+			for c: Vector2 in centres:
+				if c.distance_to(e.pos) < radius * Spells.RUNE_SPACING:
+					covered = true
+					break
+			if covered:
+				continue
+			var sum := Vector2.ZERO
+			var cnt := 0
+			for o: Enemy in _query(e.pos, radius):
+				if not o.entering and o.pos.distance_to(e.pos) <= radius:
+					sum += o.pos
+					cnt += 1
+			var d := e.pos.distance_squared_to(p.pos)
+			if cnt > best_n or (cnt == best_n and d < best_d):
+				best_n = cnt
+				best_d = d
+				best = sum / maxf(1.0, float(cnt))
+		if best == Vector2.INF:
+			break
+		centres.append(best)
+	if centres.is_empty():
+		centres.append(p.pos + dir * Spells.RUNE_AIM_DIST)
+	for c: Vector2 in centres:
+		var rn := Rune.new()
+		rn.pos = Vector2(clampf(c.x, G.ARENA.position.x + 4.0, G.ARENA.end.x - 4.0),
+			clampf(c.y, G.ARENA.position.y + 4.0, G.ARENA.end.y - 4.0))
+		rn.r = radius
+		rn.life = Spells.level_value(SP_RUNE, "life", lv, evo)
+		rn.tick = Spells.RUNE_ARM
+		rn.dmg = dmg
+		rn.owner = p.slot
+		rn.evo = evo
+		rn.pull = Spells.evo_value(SP_RUNE, "pull", 0.0) if evo else 0.0
+		runes.append(rn)
+		emit(EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + (8 if evo else 0))
 
 ## Lightning from `tip` to the nearest enemy roughly along `dir`, then `jumps - 1` jumps foe to foe.
 ## Enemies in `hit` are skipped, so several chains of one cast find different foes.
@@ -1267,11 +1347,14 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 	record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
-	var km := 0.15 if e.type == LICH else (0.4 if e.type == ORC or e.type == GARGOYLE else 1.0)
-	e.knock += knock * km
+	e.knock += knock * _heft(e)
 	emit(EV_HIT, e.pos.x, e.pos.y - e.r, e.type, slot)
 	if e.hp <= 0.0:
 		_kill_enemy(e, slot)
+
+## How far knockback and pulls move an enemy: the Lich barely, orcs and gargoyles less than the rest.
+func _heft(e: Enemy) -> float:
+	return 0.15 if e.type == LICH else (0.4 if e.type == ORC or e.type == GARGOYLE else 1.0)
 
 func _kill_enemy(e: Enemy, slot: int) -> void:
 	e.dead = true
@@ -1339,7 +1422,7 @@ func _roll_drop(e: Enemy) -> void:
 	if big:
 		_drop(PK_GEM, e.pos, pop)
 		if rng.randf() < 0.25:
-			_drop([PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR][rng.randi() % 4], e.pos, -pop)
+			_drop(TOMES[rng.randi() % TOMES.size()], e.pos, -pop)
 		return
 	if r < 0.22:
 		_drop(PK_COIN, e.pos, pop)
@@ -1348,7 +1431,7 @@ func _roll_drop(e: Enemy) -> void:
 	elif r < 0.29:
 		_drop(PK_POTION, e.pos, pop)
 	elif r < 0.315:
-		_drop([PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR][rng.randi() % 4], e.pos, pop)
+		_drop(TOMES[rng.randi() % TOMES.size()], e.pos, pop)
 	elif r < 0.322:
 		_drop(PK_BOOTS, e.pos, pop)
 	elif r < 0.33:
@@ -1458,6 +1541,28 @@ func _explode(s: Shot) -> void:
 			var jumps := int(Spells.evo_value(SP_FIRE, "chain", 0.0))
 			_zap_chain(s.owner, s.pos, tgt, jumps, s.dmg * Spells.CHAIN_FALLOFF, Spells.CHAIN_JUMP_RANGE, {}, Vector2.ZERO)
 
+## Rune circles age, tick damage on every enemy standing in them, and (the Seal of Solomon) pull enemies in.
+func _update_runes(dt: float) -> void:
+	for c: Rune in runes:
+		c.age += dt
+		if c.pull > 0.0:
+			var reach := c.r * Spells.SEAL_REACH
+			for e: Enemy in _query(c.pos, reach):
+				if e.entering or e.dead:
+					continue
+				var to := c.pos - e.pos
+				var d := to.length()
+				if d > reach or d < 1.0:
+					continue
+				e.pos += to / d * minf(d, c.pull * _heft(e) * dt)
+		c.tick -= dt
+		if c.tick > 0.0 or c.age > c.life:
+			continue
+		c.tick += Spells.RUNE_TICK
+		for e: Enemy in _query(c.pos, c.r + CELL * 0.5):
+			if e.pos.distance_to(c.pos) <= c.r + e.r * 0.5:
+				_damage_enemy(e, c.dmg, c.owner, Vector2.ZERO)
+
 func _update_eshots(dt: float) -> void:
 	var bounds := G.ARENA.grow(6)
 	for s in eshots:
@@ -1523,9 +1628,9 @@ func _collect(p: Player, k: Pickup) -> void:
 			record.add(p.slot, "gold", Loot.GOLD_GEM * greed)
 		PK_POTION:
 			p.hp = mini(p.max_hp, p.hp + 2)
-		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR:
+		PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR, PK_TOME_RUNE:
 			# A tome grants or levels its spell weapon; one that is already maxed is worth points instead.
-			var idx := Upgrades.weapon_entry(k.kind - PK_TOME_FIRE + 1)
+			var idx := Upgrades.weapon_entry(TOMES.find(k.kind) + 1)
 			if Upgrades.take(p.upgrades, idx):
 				_refresh_spell(p)
 				emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
@@ -1718,6 +1823,9 @@ func snapshot() -> Dictionary:
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
+	var rn := PackedFloat32Array()
+	for c: Rune in runes:
+		rn.append_array([c.pos.x, c.pos.y, c.r, c.age, c.life, c.owner, 1.0 if c.evo else 0.0])
 	var es := PackedFloat32Array()
 	for s in eshots:
 		es.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y])
@@ -1731,7 +1839,7 @@ func snapshot() -> Dictionary:
 	for row: Array in snapshot_shrines():
 		shr.append_array(row)
 	return {
-		"p": pl, "e": en, "s": sh, "es": es, "k": pk, "sh": shr,
+		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr,
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
 			1.0 if boss != null and boss.final else 0.0]),
 	}
