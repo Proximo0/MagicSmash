@@ -18,9 +18,19 @@ const LIST: Array = [
 	["ULTRA", "ULTRA RARE", "Find ultra rare loot in a chest."],
 	["EVOLVE", "EVOLUTION", "Evolve a spell."],
 	["COMBO_200", "TOTAL SORCERY", "Chain a 200 kill combo."],
+	["SEAL", "THE KEY OF SOLOMON", "Evolve Rune Circle into the Seal of Solomon."],
+	["OMENS", "OMEN-PROOF", "Survive all three omens."],
 ]
 
 const TEN_MINUTES := 600.0
+
+
+## Seconds into a run when the last omen's minute ends (World.OMENS lists them by wave).
+static func omens_survived() -> float:
+	var last := 0
+	for o: Array in World.OMENS:
+		last = maxi(last, int(o[0]))
+	return last * 60.0
 
 
 static func api_names() -> Array:
@@ -41,8 +51,11 @@ static func earned(record: Results, won: bool, seconds: float) -> Array:
 	var kinds := {}
 	var best_combo: int = 0
 	var best_tier: int = 0
+	var evolved := {}
 	for m: Array in record.moments:
 		kinds[int(m[1])] = true
+		if int(m[1]) == Results.M_EVOLVE:
+			evolved[int(m[3])] = true
 		if int(m[1]) == Results.M_COMBO:
 			best_combo = maxi(best_combo, int(m[3]))
 		if int(m[1]) == Results.M_CHEST:
@@ -71,4 +84,8 @@ static func earned(record: Results, won: bool, seconds: float) -> Array:
 		out.append("EVOLVE")
 	if best_combo >= 200:
 		out.append("COMBO_200")
+	if evolved.has(Upgrades.evo_entry(World.SP_RUNE)):
+		out.append("SEAL")
+	if seconds >= omens_survived():
+		out.append("OMENS")
 	return out
