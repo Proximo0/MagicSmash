@@ -23,6 +23,59 @@ Written 19 Nov 2026, when the project moved onto the game starter kit. Read this
   A survivors horde of several hundred enemies needs the spatial grid (`World._build_grid` / `_query`, already
   there) and batched drawing. Both are in now; see `docs/performance.md`, "This project's numbers".
 
+## Launch scope and the big push (decided 19 Nov 2026)
+
+Curtis on 19 Nov: make the design calls yourself, spend the week on scope, playability, art and better bots, and
+remember that competitors use the same tools, so the game has to stand out. He also allowed a new title.
+
+**The game in one line:** a tarot-dealt co-op survivors-like. One to four wizards hold their tower, level up
+together, and bet the whole party's fate on a card.
+
+**Title: FOUR OF WANDS** (the working title was Magic Smash). It is the tarot card of four staffs raised before a
+castle: four wizards, their home, a celebration. No game of that name came up in a web search; Steam's own search
+cannot be reached from the cloud box, so Curtis checks it there. The repository, class names and the save folder
+keep "Magic Smash". The rename lands with the new title screen, once Curtis has seen it.
+
+**Pillars.** Every feature serves one of them:
+1. **Co-op first.** Shared party XP, one pick screen, revives, a shared screen that stays readable with four
+   wizards, and AI apprentices for empty seats.
+2. **Fate.** Tarot draws, gamble shrines and the party's fate card: a few moments in every run that make the whole
+   couch shout.
+3. **A tower worth exploring.** The Sanctum, secrets and monster cards.
+
+**Content at launch** (targets):
+
+| | 19 Nov | Launch |
+|---|---|---|
+| Wizards | 4 | 8 (4 to unlock), each with a starting spell and a trait |
+| Spells | 6, each with an evolution | 12, each with an evolution; 4 spell slots per wizard |
+| Passives (Major Arcana) | 8 | 12; 4 slots per wizard |
+| Enemies | 12 | 12, redrawn bigger, plus elites |
+| Bosses | the Lich twice, then the Archlich | a boss of its own for each act, the Archlich last |
+| Difficulty | one | 8 Seals: stacking modifiers, unlocked by winning |
+| Stage | one tower, three acts | the same |
+| Between runs | unlocks, 12 cards, 8 secrets, achievements | the same, plus wizards to unlock |
+
+**Quality bars:**
+- **Readable.** Every wizard can be found within a second in a 4-player Lich fight: bigger sprites, outlines,
+  floor rings in the wizard's colour, calmer floors.
+- **Finished art everywhere a player looks**, plain placeholders until then. Curtis approves new art from
+  screenshots before it merges.
+- **Measured.** The playtest tool with its three bot personas sets the difficulty curve (`docs/bots.md`).
+- **Stable.** Crash reports are on (`docs/sentry.md`) and `tools/check_all.sh` stays green.
+
+**Not for launch:** online lobbies, paid cosmetics, Android, web, a second stage, key rebinding.
+
+**Order of work:**
+1. Wave 1: shared XP, better bots, the art target (actors and the Act I floor) and the title screen.
+   The brief is `docs/push_brief.md`.
+2. Wave 2: spell slots and a spell core that new spells plug into, revives, apprentices, the Seals.
+3. Wave 3: spells to 12, wizards to 8, act bosses, the rest of the art.
+4. Then balance with the playtest tool and Curtis's own play, store art, and Steam.
+
+**Risk to the date:** Steam wants the app fee paid 30 days before release and the store page live 2 weeks
+before. If the fee was not paid by 18 Nov, 18 Dec moves by as many days.
+
 ## Decisions already made (by Curtis, 19 Nov 2026)
 
 - **Genre:** a co-op survivors-like (auto-ish fighting, level-up picks, growing hordes, short runs) built on
