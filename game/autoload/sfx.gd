@@ -6,6 +6,8 @@ const SOUNDS := [
 	"explode", "nova", "pickup", "coin", "powerup", "heal", "hurt", "player_die",
 	"door", "arrow", "enemy_shot", "slime", "menu_move", "menu_select",
 	"wave_start", "wave_clear", "boss_roar", "teleport", "charge", "orbit",
+	"card_deal", "card_flip", "card_pick", "planchette", "rune_cast", "rune_good",
+	"rune_bad", "gong", "whisper", "candle", "page_turn", "bell_toll", "portal", "ghost",
 ]
 const MUSIC := ["music_title", "music_battle", "music_boss", "music_gameover"]
 const POOL := 20
