@@ -10,14 +10,52 @@ signal changed(field: String, value: float)
 
 ## [field, default, min, max, step, group, doc]. The order here is the order a tuning panel shows.
 const FIELDS: Array = [
-	["gravity", 18.0, 5.0, 40.0, 0.5, "World", "Gravity, m/s². Real is 9.8; higher feels snappier, less floaty."],
-	["move_speed", 6.0, 1.0, 20.0, 0.25, "Movement", "Top move speed, m/s."],
+	["player_speed", 102.0, 40.0, 220.0, 2.0, "Player", "Wizard walk speed, px/s (the arena is 480x270)."],
+	["haste_speed_mul", 1.45, 1.0, 2.5, 0.05, "Player", "Walk speed multiplier while Haste boots are active."],
+	["haste_rate_mul", 0.72, 0.3, 1.0, 0.02, "Player", "Cast cooldown multiplier while hasted (lower casts faster)."],
+	["cast_cd_arcane", 0.11, 0.03, 1.0, 0.01, "Casting", "Seconds between Arcane Bolt casts."],
+	["cast_cd_fire", 0.27, 0.05, 2.0, 0.01, "Casting", "Seconds between Fireball casts."],
+	["cast_cd_frost", 0.21, 0.05, 2.0, 0.01, "Casting", "Seconds between Frost Fan casts."],
+	["cast_cd_storm", 0.15, 0.05, 2.0, 0.01, "Casting", "Seconds between Chain Lightning casts."],
+	["cast_cd_star", 0.2, 0.05, 2.0, 0.01, "Casting", "Seconds between Starfall casts."],
+	["spawn_budget_base", 18.0, 0.0, 200.0, 1.0, "Spawning", "Spawn budget of a wave before wave and party scaling (a goblin costs 1, an orc 9)."],
+	["spawn_budget_per_wave", 9.0, 0.0, 100.0, 0.5, "Spawning", "Spawn budget added per wave."],
+	["spawn_party_scale", 0.55, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
+	["spawn_gap_per_wave", 0.04, 0.0, 0.2, 0.005, "Spawning", "How much shorter the gap between spawn groups gets per wave (fraction)."],
+	["spawn_gap_min", 0.5, 0.1, 1.0, 0.05, "Spawning", "Shortest spawn gap, as a fraction of the wave-1 gap."],
+	["enemy_hp_per_wave", 0.07, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per wave: HP x (1 + this x (wave - 1))."],
+	["enemy_speed_per_wave", 0.02, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per wave, up to enemy_speed_wave_cap."],
+	["enemy_speed_wave_cap", 15.0, 1.0, 60.0, 1.0, "Scaling", "Wave after which enemies stop getting faster."],
+	["boss_hp_per_player", 0.6, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
+	["boss_hp_per_cycle", 0.25, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth each time it returns (every 5th wave)."],
+	["xp_first_level", 6.0, 1.0, 100.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
+	["xp_per_level", 3.0, 0.0, 50.0, 0.5, "XP", "Extra XP needed per level beyond the first (linear part)."],
+	["xp_growth", 1.12, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
 ]
 
 static var _shared: Tuning = null
 
-var gravity: float
-var move_speed: float
+var player_speed: float
+var haste_speed_mul: float
+var haste_rate_mul: float
+var cast_cd_arcane: float
+var cast_cd_fire: float
+var cast_cd_frost: float
+var cast_cd_storm: float
+var cast_cd_star: float
+var spawn_budget_base: float
+var spawn_budget_per_wave: float
+var spawn_party_scale: float
+var spawn_gap_per_wave: float
+var spawn_gap_min: float
+var enemy_hp_per_wave: float
+var enemy_speed_per_wave: float
+var enemy_speed_wave_cap: float
+var boss_hp_per_player: float
+var boss_hp_per_cycle: float
+var xp_first_level: float
+var xp_per_level: float
+var xp_growth: float
 
 
 func _init() -> void:
@@ -29,6 +67,26 @@ static func shared() -> Tuning:
 	if _shared == null:
 		_shared = Tuning.new()
 	return _shared
+
+
+## XP needed to go from `level` to `level + 1` (level 1 is the start of a run).
+func xp_to_next(level: int) -> int:
+	var l: int = maxi(level, 1) - 1
+	return int(round((xp_first_level + xp_per_level * l) * pow(xp_growth, l)))
+
+
+## Cast cooldown of a spell, by World.SP_* index (arcane, fire, frost, storm, star).
+func cast_cd(spell: int) -> float:
+	match spell:
+		World.SP_FIRE:
+			return cast_cd_fire
+		World.SP_FROST:
+			return cast_cd_frost
+		World.SP_STORM:
+			return cast_cd_storm
+		World.SP_STAR:
+			return cast_cd_star
+	return cast_cd_arcane
 
 
 static func field_names() -> PackedStringArray:

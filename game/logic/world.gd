@@ -180,9 +180,12 @@ var powerup_timer := 8.0
 var time := 0.0
 var _grid := {}
 const CELL := 32.0
+## Gameplay numbers. Tuning.shared() unless a test or sim passes its own.
+var tune: Tuning
 
 ## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one.
-func _init(slots: Array, seed_value: int = 0) -> void:
+func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null) -> void:
+	tune = tuning if tuning != null else Tuning.shared()
 	if seed_value == 0:
 		rng.randomize()
 	else:
@@ -197,7 +200,7 @@ func _init(slots: Array, seed_value: int = 0) -> void:
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
 func pscale() -> float:
-	return 1.0 + 0.55 * (players.size() - 1)
+	return 1.0 + tune.spawn_party_scale * (players.size() - 1)
 
 func emit(code: int, x: float = 0.0, y: float = 0.0, a: Variant = 0, b: Variant = 0) -> void:
 	events.append([code, x, y, a, b])
@@ -280,7 +283,7 @@ func _build_wave() -> void:
 		spawn_queue.append({"t": 2.5, "type": LICH, "door": 0})
 		_sort_queue()
 		return
-	var budget := (18.0 + wave * 9.0) * pscale()
+	var budget := (tune.spawn_budget_base + wave * tune.spawn_budget_per_wave) * pscale()
 	var pool := [[GOBLIN, 1.0, 5], [BAT, 1.0, 3]]
 	if wave >= 2: pool.append([SLIME, 3.0, 3])
 	if wave >= 3: pool.append([SKELETON, 3.0, 3])
@@ -303,7 +306,7 @@ func _build_wave() -> void:
 		# Sometimes two doors burst open at once.
 		if rng.randf() < 0.35:
 			continue
-		t += rng.randf_range(0.7, 1.8) * maxf(0.5, 1.0 - wave * 0.04)
+		t += rng.randf_range(0.7, 1.8) * maxf(tune.spawn_gap_min, 1.0 - wave * tune.spawn_gap_per_wave)
 	_sort_queue()
 
 func _queue_group(type: int, n: int, door: int, t: float) -> void:
@@ -324,12 +327,12 @@ func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	next_id += 1
 	e.type = type
 	var st: Array = STATS[type]
-	var hp_scale := 1.0 + 0.07 * (wave - 1)
+	var hp_scale := 1.0 + tune.enemy_hp_per_wave * (wave - 1)
 	if type == LICH:
-		hp_scale = (1.0 + 0.6 * (players.size() - 1)) * (1.0 + 0.25 * (wave / 5 - 1))
+		hp_scale = (1.0 + tune.boss_hp_per_player * (players.size() - 1)) * (1.0 + tune.boss_hp_per_cycle * (wave / 5 - 1))
 	e.hp = st[0] * hp_scale
 	e.maxhp = e.hp
-	e.spd = st[1] * (1.0 + 0.02 * minf(wave, 15))
+	e.spd = st[1] * (1.0 + tune.enemy_speed_per_wave * minf(wave, tune.enemy_speed_wave_cap))
 	e.r = st[2]
 	e.contact = st[4]
 	e.t = rng.randf() * 10.0
@@ -399,7 +402,7 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 		aim = Vector2(inp[2], inp[3])
 		fire = inp[4] > 0.5
 		bomb_count = int(inp[5])
-	var speed := 102.0 * (1.45 if p.haste > 0.0 else 1.0)
+	var speed := tune.player_speed * (tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	p.vel = move * speed
 	p.moving = move.length() > 0.1
 	p.pos += p.vel * dt
@@ -436,26 +439,26 @@ func staff_tip(p: Player) -> Vector2:
 	return p.pos + Vector2(0, -7) + p.aim * 9.0
 
 func _cast(p: Player) -> void:
-	var rate_mul := 0.72 if p.haste > 0.0 else 1.0
+	var rate_mul := tune.haste_rate_mul if p.haste > 0.0 else 1.0
 	var tip := staff_tip(p)
 	var dir := p.aim
 	match p.spell:
 		SP_ARCANE:
-			p.fire_cd = 0.11 * rate_mul
+			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
 			_shot(p, tip, dir.rotated(rng.randf_range(-0.04, 0.04)) * 310.0, 1.0, 3.0, 1.0)
 		SP_FIRE:
-			p.fire_cd = 0.27 * rate_mul
+			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
 			_shot(p, tip, dir * 200.0, 2.0, 4.5, 1.6)
 		SP_FROST:
-			p.fire_cd = 0.21 * rate_mul
+			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
 			for i in 5:
 				var a := (i - 2) * 0.17
 				_shot(p, tip, dir.rotated(a) * 255.0, 0.85, 2.5, 0.75)
 		SP_STORM:
-			p.fire_cd = 0.15 * rate_mul
+			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
 			_chain_lightning(p, tip)
 		SP_STAR:
-			p.fire_cd = 0.2 * rate_mul
+			p.fire_cd = tune.cast_cd(p.spell) * rate_mul
 			for s in [-0.45, 0.45]:
 				_shot(p, tip, dir.rotated(s) * 175.0, 1.35, 3.0, 2.2)
 	emit(EV_CAST, tip.x, tip.y, p.spell, p.slot)
