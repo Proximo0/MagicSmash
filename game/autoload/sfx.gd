@@ -58,6 +58,10 @@ func play(name: String, vol_db: float = 0.0, pitch: float = 1.0, min_gap: float 
 	p.pitch_scale = pitch * _fx_rng.randf_range(0.95, 1.05)
 	p.play()
 
+func has_music(name: String) -> bool:
+	return _streams.has(name)
+
+
 func music(name: String) -> void:
 	if name == _music_name and _music.playing:
 		return
