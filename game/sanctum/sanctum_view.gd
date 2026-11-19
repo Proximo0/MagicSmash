@@ -156,13 +156,24 @@ func _use(i: int) -> void:
 			fx.text(Sanctum.THINGS[i][1] + Vector2(0, -16), "~", Color("ffd94d"), 1.0, 2)
 		Sanctum.WELL:
 			if prof.spend(1):
+				prof.wishes += 1
 				var back := Sanctum.wish(_rng)
+				# Every ninth wish is granted, as the well's fortune hints.
+				var ninth := prof.wishes % Secrets.NINTH_WISH == 0
+				if ninth:
+					back = Secrets.NINTH_CRYSTALS
+					if prof.find_secret("ninth"):
+						fx.text(Sanctum.THINGS[i][1] + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
 				prof.crystals += back
 				Save.write()
 				Sfx.play("coin", -2.0, 0.8)
 				var well: Vector2 = Sanctum.THINGS[i][1]
 				fx.ring(well, 2.0, 14.0, 0.6, Color("8bdcff"), 1.0)
-				if back > 0:
+				if ninth:
+					Sfx.play("wave_clear", -2.0, 1.2)
+					fx.burst(well, 36, 90.0, 1.0, 1.5, Color.WHITE, Color("ffd94d"), true)
+					_say("THE NINTH WISH IS GRANTED! +%d CRYSTALS" % back, 4.0)
+				elif back > 0:
 					Sfx.play("wave_clear", -4.0, 1.5)
 					fx.burst(well, 20, 70.0, 0.8, 1.5, Color.WHITE, Color("8bdcff"), true)
 					_say("THE WELL IS GENEROUS! +%d CRYSTALS" % back)
@@ -448,8 +459,9 @@ func _draw_hud() -> void:
 	var prof: Profile = Save.profile
 	Sprites.draw_at(self, "gem", Vector2(14, 268))
 	PixelFont.draw(self, "%d CRYSTALS" % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
-	PixelFont.draw(self, "CARDS %d/%d" % [prof.cards_owned(), Cards.count()], Vector2(120, 261), 1, Occult.GOLD, Occult.INK)
-	var keys := "WASD: WALK   ENTER: USE   ESC: TITLE" if device == G.DEV_KBM else "STICK: WALK   A: USE   B: TITLE"
+	PixelFont.draw(self, "CARDS %d/%d" % [prof.cards_owned(), Cards.count()], Vector2(110, 261), 1, Occult.GOLD, Occult.INK)
+	PixelFont.draw(self, "SECRETS %d/%d" % [Secrets.found(prof), Secrets.count()], Vector2(190, 261), 1, Color("ff8af0"), Occult.INK)
+	var keys := "WASD WALK  ENTER USE  ESC TITLE" if device == G.DEV_KBM else "STICK WALK  A USE  B TITLE"
 	PixelFont.draw(self, keys, Vector2(466 - PixelFont.text_width(keys), 261), 1, Color(1, 1, 1, 0.4), Occult.INK)
 	if message_t > 0.0:
 		var a := clampf(message_t * 2.0, 0.0, 1.0)

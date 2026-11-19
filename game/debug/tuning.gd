@@ -29,10 +29,13 @@ const FIELDS: Array = [
 	["chest_life", 40.0, 5.0, 300.0, 5.0, "Loot", "Seconds a chest stays on the floor."],
 	["elite_chest_luck", 1.0, 0.0, 5.0, 1.0, "Loot", "Luck of an elite's chest (each point moves a fifth of the common odds up the tiers)."],
 	["boss_chest_luck", 3.0, 0.0, 5.0, 1.0, "Loot", "Luck of the chests the Lich drops, one per wizard."],
-	["rare_drop_chance", 0.004, 0.0, 0.1, 0.001, "Loot", "Chance any kill drops a rare chest (blue, opens rare or better)."],
-	["ultra_drop_chance", 0.0004, 0.0, 0.01, 0.0001, "Loot", "Chance any kill drops an ultra-rare chest (prismatic, opens legendary or better)."],
+	["rare_drop_chance", 0.0015, 0.0, 0.1, 0.0005, "Loot", "Chance any kill drops a rare chest (blue, opens rare or better)."],
+	["ultra_drop_chance", 0.0002, 0.0, 0.01, 0.0001, "Loot", "Chance any kill drops an ultra-rare chest (prismatic, opens legendary or better)."],
 	["card_chance", 0.0004, 0.0, 0.05, 0.0001, "Loot", "Chance a kill drops that monster's card (ultra rare, kept between runs)."],
 	["card_elite_mul", 25.0, 1.0, 100.0, 1.0, "Loot", "An elite's card chance as a multiple of card_chance."],
+	["urn_count", 5.0, 0.0, 20.0, 1.0, "Loot", "Urns standing along the arena walls; broken ones are replaced each minute."],
+	["urn_card_chance", 0.004, 0.0, 0.1, 0.001, "Loot", "Chance an urn holds a monster card (any kind)."],
+	["urn_rare_chance", 0.03, 0.0, 0.5, 0.01, "Loot", "Chance an urn holds a rare chest."],
 	["card_boss_chance", 0.25, 0.0, 1.0, 0.05, "Loot", "Chance a slain Lich or the Archlich drops the Lich card."],
 	["shrine_first", 40.0, 0.0, 600.0, 5.0, "Shrines", "Seconds of fighting before the first gamble shrine."],
 	["shrine_interval", 60.0, 5.0, 600.0, 5.0, "Shrines", "Seconds between gamble shrines."],
@@ -94,6 +97,9 @@ var ultra_drop_chance: float
 var card_chance: float
 var card_elite_mul: float
 var card_boss_chance: float
+var urn_count: float
+var urn_card_chance: float
+var urn_rare_chance: float
 var shrine_first: float
 var shrine_interval: float
 var shrine_life: float

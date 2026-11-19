@@ -106,6 +106,7 @@ func choose() -> int:
 
 ## Writes one character if it is allowed and there is room.
 func type_char(ch: String) -> bool:
+	ch = ch.to_upper()
 	if ch.length() != 1 or not allowed.contains(ch) or text.length() >= max_len:
 		return false
 	text += ch

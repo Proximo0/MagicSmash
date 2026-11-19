@@ -42,3 +42,22 @@ func test_socket_stats_only_count_cards_in_their_own_socket() -> void:
 	var wrong := Cards.socket_stats([orc, orc, -1])
 	for v: Variant in wrong:
 		assert_eq(float(v), 0.0, "a card in the wrong socket counted")
+
+
+func test_secrets_are_listed_once_and_words_answer() -> void:
+	var keys := {}
+	for row: Array in Secrets.ALL:
+		assert_false(keys.has(row[0]), "duplicate secret " + row[0])
+		keys[row[0]] = true
+	for word: String in Secrets.WORDS:
+		var key: String = Secrets.WORDS[word][1]
+		assert_true(key == "" or keys.has(key), word + " points at an unlisted secret")
+		assert_true(PixelFont.text_width(Secrets.WORDS[word][0], 1) <= 440, word + " reply too wide")
+		for ch: String in word:
+			assert_true("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.".contains(ch), word + " cannot be spelled on the board")
+	assert_eq(Secrets.answer(" abracadabra ")[1], "abracadabra")
+	assert_true(Secrets.answer("NOTHING").is_empty())
+	var p := Profile.new()
+	p.find_secret("cat")
+	p.find_secret("not_listed")
+	assert_eq(Secrets.found(p), 1)

@@ -44,6 +44,7 @@ var unlocks := {} # META key -> level bought
 var cards := {} # Cards key -> how many found
 var sockets: Array[String] = ["", "", ""] # Cards key socketed in the hat, robe and staff ("" for empty)
 var secrets := {} # secret key -> true, once found (the Sanctum alcove, title easter eggs, Ouija words)
+var wishes := 0 # crystals tossed into the Sanctum's wishing well, ever
 var pots_run := -1 # the run count when the Sanctum's pots were last smashed; they refill after the next run
 
 
@@ -176,7 +177,7 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
-		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run}
+		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "wishes": wishes}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -204,6 +205,7 @@ static func from_dict(d: Dictionary) -> Profile:
 		for k: Variant in se:
 			p.secrets[str(k)] = true
 	p.pots_run = int(d.get("pots_run", -1))
+	p.wishes = maxi(0, int(d.get("wishes", 0)))
 	var so: Variant = d.get("sockets", [])
 	if so is Array:
 		for s: int in range(mini((so as Array).size(), Cards.SOCKETS)):
