@@ -8,6 +8,9 @@ var out_dir := ""
 var start_wave := 1
 var _chest_shot := false
 var _team_shot := false
+var _arch_seen := 0.0
+var _arch_shot := false
+var _victory_shot := false
 var quit_at := 60.0
 var net := ""
 var _pick_seen := 0.0
@@ -66,6 +69,17 @@ func _process(delta: float) -> void:
 				get_viewport().get_texture().get_image().save_png("%s/team_shrine.png" % out_dir)
 				print("shot team_shrine")
 				break
+	# State-keyed shots: the Archlich a moment after it appears (--autotest=15), and the victory screen.
+	if not _arch_shot and cur and "boss_final" in cur and cur.boss_final and not cur._anyone_picking():
+		_arch_seen += delta
+		if _arch_seen > 1.5:
+			_arch_shot = true
+			get_viewport().get_texture().get_image().save_png("%s/archlich.png" % out_dir)
+			print("shot archlich")
+	if not _victory_shot and cur and "victory" in cur and cur.victory and cur.game_over and cur.game_over_t > 1.2:
+		_victory_shot = true
+		get_viewport().get_texture().get_image().save_png("%s/victory.png" % out_dir)
+		print("shot victory")
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]

@@ -36,6 +36,8 @@ var wave := 1
 var phase := 0
 var phase_t := 0.0
 var boss_f := -1.0
+var boss_final := false # the boss on screen is the Archlich
+var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
 var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
 var doors := [0.0, 0.0, 0.0, 0.0]
@@ -372,7 +374,8 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		e.state = int(en[i + 5])
 		e.hpf = en[i + 6]
 		e.slow = en[i + 7]
-		e.elite = en[i + 8] > 0.5
+		e.elite = en[i + 8] > 0.5 and en[i + 8] < 1.5
+		e.final = en[i + 8] > 1.5
 		i += World.ENEMY_FLOATS
 	for id in ve.keys():
 		if not eseen.has(id):
@@ -408,6 +411,7 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	phase_t = w[2]
 	boss_f = w[3]
 	run_t = w[8]
+	boss_final = w.size() > 9 and w[9] > 0.5
 	for d in 4:
 		doors[d] = w[4 + d]
 
@@ -512,7 +516,10 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("charge", -3.0)
 			World.EV_WAVE:
 				var w := int(ev[3])
-				if int(ev[4]) == 1:
+				if int(ev[4]) == 2:
+					_banner("THE ARCHLICH", "THE FINAL BATTLE BEGINS", Color("ff4df2"), 3.2)
+					Sfx.play("boss_roar", 0.0, 0.7)
+				elif int(ev[4]) == 1:
 					_banner("THE LICH LORD", "AWAKENS AT MINUTE %d" % w, Color("ff4d6a"), 2.6)
 					Sfx.play("wave_start")
 				elif w > 1:
@@ -574,10 +581,12 @@ func _handle_events(evs: Array) -> void:
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
 				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
-				Sfx.play("boss_roar")
+				Sfx.play("boss_roar", 0.0, 0.7 if int(ev[3]) == 1 else 1.0)
 				Sfx.music("music_boss")
-				_add_shake(8.0)
-				screen_flash = Color(0.3, 1.0, 0.9, 0.4)
+				_add_shake(12.0 if int(ev[3]) == 1 else 8.0)
+				screen_flash = Color(1.0, 0.3, 0.95, 0.5) if int(ev[3]) == 1 else Color(0.3, 1.0, 0.9, 0.4)
+				if int(ev[3]) == 1:
+					fx.nova(pos + Vector2(0, -16), Color("ff4df2"))
 			World.EV_COMBO:
 				var col := G.player_fx(int(ev[4]))
 				fx.text(pos + Vector2(0, -18), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.6, 2)
@@ -599,14 +608,24 @@ func _handle_events(evs: Array) -> void:
 				_add_shake(12.0)
 				screen_flash = Color(1, 1, 1, 0.8)
 				_do_hitstop(0.25)
-				_banner("LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
+				if int(ev[4]) == 1:
+					_banner("ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
+				else:
+					_banner("LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
+			World.EV_VICTORY:
+				victory = true
+				Sfx.play("wave_clear", 0.0, 0.8)
+				Sfx.music("music_title")
+				for q: Dictionary in vp.values():
+					fx.burst(q.pos + Vector2(0, -8), 30, 140.0, 1.0, 2.0, Color.WHITE, Color("ffd94d"), true, 40.0, true)
 			World.EV_GAMEOVER:
 				game_over = true
 				game_over_t = 0.0
 				final_score = int(ev[3])
 				run_t = float(ev[1])
-				crystals_earned = G.finish_run(final_score, float(ev[1]), int(ev[2]), int(ev[4]))
-				Sfx.music("music_gameover")
+				crystals_earned = G.finish_run(final_score, float(ev[1]), int(ev[2]), int(ev[4]), victory)
+				if not victory:
+					Sfx.music("music_gameover")
 			World.EV_LEVELUP:
 				var col := G.player_fx(int(ev[3]))
 				fx.text(pos, "LEVEL UP!", col, 1.4, 1)
@@ -1015,7 +1034,12 @@ func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 		World.MAGE:
 			if e.state == 1:
 				mod = Color(1.4, 0.8, 1.4)
-	if e.get("elite", false):
+	if e.get("final", false):
+		# The Archlich: a pulsing violet and gold crown of light and a darker robe.
+		ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
+		ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
+		mod = mod * Color(1.3, 0.75, 1.35)
+	elif e.get("elite", false):
 		# Elites: a gold aura and a warmer tint so they stand out of the horde.
 		ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
 		mod = mod * Color(1.35, 1.1, 0.8)
@@ -1160,7 +1184,7 @@ func _draw_hud() -> void:
 	if boss_f > 0.0:
 		var bw := 300.0
 		var bx := 240 - bw / 2
-		PixelFont.draw_centered(ci, "LICH LORD", 240, 249, 1, Color("4dfff0"), dark)
+		PixelFont.draw_centered(ci, "THE ARCHLICH" if boss_final else "LICH LORD", 240, 249, 1, Color("ff4df2") if boss_final else Color("4dfff0"), dark)
 		ci.draw_rect(Rect2(bx - 2, 258, bw + 4, 8), dark)
 		ci.draw_rect(Rect2(bx, 260, bw, 4), Color("2c0d4d"))
 		ci.draw_rect(Rect2(bx, 260, bw * boss_f, 4), Color("4dfff0") if boss_f > 0.5 else Color("ff4d6a"))
@@ -1334,9 +1358,10 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.75 * a))
 	if game_over_t < 0.6:
 		return
-	var tw := PixelFont.text_width("GAME OVER", 5)
-	PixelFont.draw(ci, "GAME OVER", Vector2(240 - tw / 2.0, 46) + Vector2(3, 3), 5, Color("0b0716"))
-	PixelFont.draw_gradient(ci, "GAME OVER", Vector2(240 - tw / 2.0, 46), 5, Color("ffd94d"), Color("ff3b5c"), time * 3.0, 2.0)
+	var title := "VICTORY!" if victory else "GAME OVER"
+	var tw := PixelFont.text_width(title, 5)
+	PixelFont.draw(ci, title, Vector2(240 - tw / 2.0, 46) + Vector2(3, 3), 5, Color("0b0716"))
+	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 46), 5, Color("ffd94d"), Color("8bff9e") if victory else Color("ff3b5c"), time * 3.0, 2.0)
 	var y := 100
 	for slot in 4:
 		if not vp.has(slot):
@@ -1351,7 +1376,7 @@ func _draw_game_over(ci: CanvasItem) -> void:
 	y += 12
 	PixelFont.draw(ci, "BEST", Vector2(150, y), 1, Color("c9b8ff"))
 	PixelFont.draw(ci, "%07d" % G.high_score, Vector2(270, y), 1, Color("c9b8ff"))
-	PixelFont.draw_centered(ci, "SURVIVED " + _clock(run_t), 240, y + 18, 1, Color("8bff9e"))
+	PixelFont.draw_centered(ci, ("WON AT " if victory else "SURVIVED ") + _clock(run_t), 240, y + 18, 1, Color("8bff9e"))
 	PixelFont.draw_centered(ci, "+%d CRYSTALS  (%d TO SPEND)" % [crystals_earned, Save.profile.crystals], 240, y + 30, 1, Color("8bdcff"))
 	if game_over_t > 2.0 and int(time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if is_host else "WAITING FOR HOST..."

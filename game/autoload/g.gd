@@ -41,9 +41,9 @@ func goto_game() -> void:
 		main.show_game()
 
 ## Books a finished run in the profile (best score, crystals) through Save. Returns the crystals earned.
-func finish_run(score: int, seconds: float, kills: int, liches: int) -> int:
+func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool = false) -> int:
 	last_score = score
-	var earned := Save.finish_run(score, seconds, kills, liches)
+	var earned := Save.finish_run(score, seconds, kills, liches, won)
 	high_score = Save.profile.high_score
 	return earned
 

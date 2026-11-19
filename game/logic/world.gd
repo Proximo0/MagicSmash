@@ -77,6 +77,7 @@ const EV_WARD := 29
 const EV_SHRINE_UP := 30 # a shrine appeared: a = kind
 const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcome; the reel starts
 const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
+const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -96,7 +97,7 @@ const STATS := [
 const PLAYER_FLOATS := 36
 const BASE_HEARTS := 5
 
-## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, elite.
+## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, rank (1 elite, 2 Archlich).
 const ENEMY_FLOATS := 9
 
 ## The horde: [type, budget cost, unlocks after this many seconds of fighting, weight, group min, group max,
@@ -113,6 +114,9 @@ const HORDE := [
 const DOOR_STAGGER := 0.1
 ## Elite multipliers on score and XP, and what an elite drops.
 const ELITE_REWARD := 5
+## Score multiplier for slaying the Archlich, and the HP fraction under which it rages (the Lich rages at half).
+const FINAL_REWARD := 4
+const FINAL_RAGE := 0.66
 const ELITE_GEMS := 6
 
 ## XP a gem dropped by each enemy type is worth (same order as STATS).
@@ -181,6 +185,7 @@ class Enemy:
 	var dead := false
 	var contact := 1
 	var elite := false
+	var final := false # the Archlich: the run's last boss
 
 class Shot:
 	var pos := Vector2.ZERO
@@ -233,6 +238,10 @@ var meta_xp := 0.0
 var meta_gold := 0.0
 var meta_luck := 0
 var liches_slain := 0
+## True once the Archlich has fallen; the results screen follows after victory_t runs out.
+var won := false
+var victory_t := 0.0
+var _final_called := false
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
@@ -321,15 +330,13 @@ func step(dt: float, inputs: Dictionary) -> void:
 			if phase_t <= 0.0:
 				phase = PH_FIGHT
 		PH_FIGHT:
-			wave_time += dt
-			_tick_minute()
-			_direct_horde(dt)
-			_process_spawns()
-			powerup_timer -= dt
-			if powerup_timer <= 0.0:
-				powerup_timer = rng.randf_range(9.0, 14.0)
-				_spawn_random_powerup()
-			_update_shrines(dt)
+			if won:
+				victory_t -= dt
+				if victory_t <= 0.0:
+					_end_run()
+				# The horde, the clock and the shrines stop once the run is won.
+			else:
+				_fight(dt)
 		PH_GAMEOVER:
 			phase_t += dt
 	_build_grid()
@@ -344,15 +351,30 @@ func step(dt: float, inputs: Dictionary) -> void:
 	enemies = enemies.filter(func(e): return not e.dead)
 	shots = shots.filter(func(s): return not s.dead)
 	eshots = eshots.filter(func(s): return not s.dead)
-	if phase != PH_GAMEOVER:
+	if phase != PH_GAMEOVER and not won:
 		var any := false
 		for p in players.values():
 			if p.alive or p.lives > 0:
 				any = true
 		if not any:
-			phase = PH_GAMEOVER
-			phase_t = 0.0
-			emit(EV_GAMEOVER, wave_time, total_kills(), total_score(), liches_slain)
+			_end_run()
+
+func _end_run() -> void:
+	phase = PH_GAMEOVER
+	phase_t = 0.0
+	emit(EV_GAMEOVER, wave_time, total_kills(), total_score(), liches_slain)
+
+## One tick of the run proper: the clock, the horde, powerups and shrines.
+func _fight(dt: float) -> void:
+	wave_time += dt
+	_tick_minute()
+	_direct_horde(dt)
+	_process_spawns()
+	powerup_timer -= dt
+	if powerup_timer <= 0.0:
+		powerup_timer = rng.randf_range(9.0, 14.0)
+		_spawn_random_powerup()
+	_update_shrines(dt)
 
 # ============================================================ LEVEL-UPS ===
 ## Offers and applies level-up picks. Returns true while any player still has to pick: the whole world waits.
@@ -431,11 +453,37 @@ func _tick_minute() -> void:
 	if minute <= wave:
 		return
 	wave = minute
-	var boss_minute := _lich_visits(wave) > _lich_visits(wave - 1)
+	if wave >= final_minute() and not _final_called:
+		_final_called = true
+		emit(EV_WAVE, 0, 0, wave, 2)
+		if boss != null and not boss.dead:
+			_make_final(boss) # a Lich still standing ascends
+		else:
+			spawn_queue.append({"t": wave_time + 2.5, "type": LICH, "door": 0, "final": true})
+			_sort_queue()
+		return
+	var boss_minute := wave < final_minute() and _lich_visits(wave) > _lich_visits(wave - 1)
 	emit(EV_WAVE, 0, 0, wave, 1 if boss_minute else 0)
 	if boss_minute and boss == null:
 		spawn_queue.append({"t": wave_time + 2.5, "type": LICH, "door": 0})
 		_sort_queue()
+
+## The minute the Archlich comes: the one that starts at run_minutes:00. No Lich visits after it.
+func final_minute() -> int:
+	return int(tune.run_minutes) + 1
+
+## Turns a Lich into the Archlich: final_hp_mul times the HP, full health, a bigger body and a meaner pattern.
+func _make_final(e: Enemy) -> void:
+	e.final = true
+	e.maxhp = STATS[LICH][0] * _lich_hp_scale() * tune.final_hp_mul
+	e.hp = e.maxhp
+	e.r += 3.0
+	e.state = 0
+	e.timer = 2.0
+	emit(EV_BOSS, e.pos.x, e.pos.y, 1, 0)
+
+func _lich_hp_scale() -> float:
+	return (1.0 + tune.boss_hp_per_player * (players.size() - 1)) * (1.0 + tune.boss_hp_per_cycle * maxi(0, _lich_visits(wave) - 1))
 
 ## How many Lich visits are due by the start of `minute` (minute 1 starts at 0:00).
 func _lich_visits(minute: int) -> int:
@@ -540,7 +588,9 @@ func _sort_queue() -> void:
 func _process_spawns() -> void:
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= wave_time:
 		var s: Dictionary = spawn_queue.pop_front()
-		spawn_enemy(s.type, s.door, s.get("at"))
+		var e := spawn_enemy(s.type, s.door, s.get("at"))
+		if s.get("final", false):
+			_make_final(e)
 
 func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	var e := Enemy.new()
@@ -550,7 +600,7 @@ func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	var st: Array = STATS[type]
 	var hp_scale := 1.0 + tune.enemy_hp_per_min * (wave - 1)
 	if type == LICH:
-		hp_scale = (1.0 + tune.boss_hp_per_player * (players.size() - 1)) * (1.0 + tune.boss_hp_per_cycle * maxi(0, _lich_visits(wave) - 1))
+		hp_scale = _lich_hp_scale()
 	e.hp = st[0] * hp_scale
 	e.maxhp = e.hp
 	e.spd = st[1] * (1.0 + tune.enemy_speed_per_min * minf(wave, tune.enemy_speed_min_cap))
@@ -958,7 +1008,7 @@ func _separate(e: Enemy) -> void:
 					e.pos += dv / dd * (min_d - dd) * (0.5 if o.type != LICH else 1.0)
 
 func _update_lich(e: Enemy, dt: float, tgt: Player, dirv: Vector2, dist: float) -> Vector2:
-	var rage := e.hp / e.maxhp < 0.5
+	var rage := e.hp / e.maxhp < (FINAL_RAGE if e.final else 0.5)
 	var desired := Vector2.ZERO
 	# Drift between waypoints in the upper half of the arena.
 	if e.dir == Vector2.ZERO or e.pos.distance_to(e.dir) < 8.0:
@@ -1022,6 +1072,8 @@ func _update_lich(e: Enemy, dt: float, tgt: Player, dirv: Vector2, dist: float) 
 			for d in 4:
 				spawn_enemy(kinds[rng.randi() % kinds.size()], d)
 				spawn_enemy(GOBLIN, d)
+			if e.final and rage:
+				_spawn_elite()
 			emit(EV_TELE, e.pos.x, e.pos.y - 16, 2, 0)
 			e.state = 0
 			e.timer = 2.5
@@ -1066,7 +1118,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 func _kill_enemy(e: Enemy, slot: int) -> void:
 	e.dead = true
 	var p: Player = players.get(slot)
-	var base: int = STATS[e.type][3] * (ELITE_REWARD if e.elite else 1)
+	var base: int = STATS[e.type][3] * (ELITE_REWARD if e.elite else 1) * (FINAL_REWARD if e.final else 1)
 	if p:
 		p.combo += 1
 		p.combo_t = 2.5
@@ -1103,7 +1155,13 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			for i in players.size():
 				_drop(PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (players.size() - 1) * 0.5) * 0.7) * 60.0,
 					tune.chest_life, int(tune.boss_chest_luck))
-			emit(EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 0)
+			emit(EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 1 if e.final else 0)
+			if e.final:
+				won = true
+				victory_t = tune.victory_delay
+				for q: Player in players.values():
+					q.invuln = maxf(q.invuln, tune.victory_delay + 1.0)
+				emit(EV_VICTORY, e.pos.x, e.pos.y, slot, 0)
 			spawn_queue.clear()
 			horde_budget = 0.0
 			_next_group = []
@@ -1480,7 +1538,7 @@ func snapshot() -> Dictionary:
 		pl.append(p.max_hp)
 	var en := PackedFloat32Array()
 	for e in enemies:
-		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 1.0 if e.elite else 0.0])
+		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 2.0 if e.final else (1.0 if e.elite else 0.0)])
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
@@ -1498,5 +1556,6 @@ func snapshot() -> Dictionary:
 		shr.append_array(row)
 	return {
 		"p": pl, "e": en, "s": sh, "es": es, "k": pk, "sh": shr,
-		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time]),
+		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
+			1.0 if boss != null and boss.final else 0.0]),
 	}

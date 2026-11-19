@@ -44,6 +44,9 @@ const FIELDS: Array = [
 	["team_cost_mul", 2.5, 1.0, 10.0, 0.1, "Shrines", "A team shrine costs this many times a solo one; one wizard pays it all."],
 	["team_reel", 3.0, 0.5, 8.0, 0.1, "Shrines", "Seconds the team shrine's reel spins while everyone watches."],
 	["boss_every_min", 5.0, 1.0, 20.0, 1.0, "Spawning", "The Lich arrives at the start of every this-many-th minute."],
+	["run_minutes", 15.0, 1.0, 30.0, 1.0, "Run", "Minutes of horde before the Archlich, the final boss, comes. Slaying it wins the run."],
+	["final_hp_mul", 10.0, 1.0, 40.0, 0.5, "Run", "The Archlich has this many times the HP the Lich would have on that minute."],
+	["victory_delay", 3.0, 0.5, 10.0, 0.5, "Run", "Seconds between the Archlich falling and the results screen."],
 	["enemy_hp_per_min", 0.35, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
 	["enemy_speed_per_min", 0.03, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
 	["enemy_speed_min_cap", 12.0, 1.0, 60.0, 1.0, "Scaling", "Minute after which enemies stop getting faster."],
@@ -96,6 +99,9 @@ var team_shrine_life_mul: float
 var team_cost_mul: float
 var team_reel: float
 var boss_every_min: float
+var run_minutes: float
+var final_hp_mul: float
+var victory_delay: float
 var enemy_hp_per_min: float
 var enemy_speed_per_min: float
 var enemy_speed_min_cap: float

@@ -11,13 +11,15 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 - `tools/lint.sh`: parse and static checks for every script. Ends with `LINT problems=<n>`.
 - `tools/run_sims.sh`: regression sims (`tests/sim/sim_*.gd`, listed in `tests/sim/sim_suite.gd`).
 - `tools/check_all.sh`: everything at once (unit, sims, lint, plus the bot and lab if their scenes exist).
+- `godot --headless --path . -s tools/full_run.gd -- --wizards=4`: bots play a whole run (to the Archlich) and
+  print a line per minute. For balancing; too slow for check_all.
 - `tools/export_windows.sh`: Windows build zip in `build/`. `tools/export_android.sh`: debug APK in `build/`.
 - Run the game: `godot --path .` (add `-- --seed=N` for a repeatable run).
 
 ## Layout
 - `game/autoload/`: `Flags` (run flags, frame counter, state hash), `Controls` (input actions).
 - `game/debug/`: `Tuning` (live-tunable gameplay numbers: player speed, spell cooldown scale, auto-aim range, spawn budget, wave scaling, XP curve; `World` reads `world.tune`), kit frame stamp and render toggles (sized for 1080p 3D, not wired in yet).
-- `game/logic/`: `World` (the whole authoritative simulation: the timed horde, enemies, spells, pickups, snapshots; seeded
+- `game/logic/`: `World` (the whole authoritative simulation: the timed horde, the Archlich and the win, enemies, spells, pickups, snapshots; seeded
   with `World.new(slots, seed)`), `SmashBot` (play-bot brain shared by the arena and the sims), `Upgrades` (level-up catalogue, seeded offer
   roll and effect values), `Spells` (spell weapon stats per level and the evolutions),
   `Loot` (rarity tiers, chest items, armor stats, run gold), `Gamble` (shrine outcomes and costs),
