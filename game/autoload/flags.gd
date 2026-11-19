@@ -20,7 +20,7 @@ func _physics_process(_delta: float) -> void:
 
 ## Captures, tests and gates: no saves, no writes to player data.
 func is_scripted_run() -> bool:
-	return args.has("scripted") or args.has("capture") or DisplayServer.get_name() == "headless"
+	return args.has("scripted") or args.has("capture") or args.has("autotest") or DisplayServer.get_name() == "headless"
 
 
 ## Dev menu entries and cheats only with --dev.

@@ -80,3 +80,28 @@ func test_world_applies_meta_bonuses() -> void:
 	var e: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(100, 100))
 	w._damage_enemy(e, 1.0, 0, Vector2.ZERO)
 	assert_near(e.maxhp - e.hp, 1.1, 0.0001)
+
+
+func test_cards_collect_socket_and_save() -> void:
+	var p := Profile.new()
+	assert_false(p.socket_card(World.ORC), "socketed a card not owned")
+	assert_true(p.add_card(World.ORC), "first orc card is not new")
+	assert_false(p.add_card(World.ORC), "second orc card counted as new")
+	assert_eq(p.card_count(World.ORC), 2)
+	assert_eq(p.cards_owned(), 1)
+	assert_true(p.socket_card(World.ORC))
+	assert_eq(p.socket_indices(), [-1, -1, World.ORC] as Array[int])
+	assert_near(float((p.bonuses()["armor"] as Array)[Loot.ST_MIGHT]), 0.10)
+	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
+	assert_eq(back.card_count(World.ORC), 2)
+	assert_eq(back.socket_indices(), [-1, -1, World.ORC] as Array[int])
+	p.unsocket(Cards.STAFF)
+	assert_eq(p.socket_indices(), [-1, -1, -1] as Array[int])
+
+
+func test_saved_sockets_drop_cards_not_owned_or_misplaced() -> void:
+	var d := {"cards": {"orc": 1, "bogus": 3}, "sockets": ["orc", "bat", "orc"]}
+	var p := Profile.from_dict(d)
+	assert_eq(p.card_count(World.ORC), 1)
+	assert_eq(p.cards_owned(), 1)
+	assert_eq(p.socket_indices(), [-1, -1, World.ORC] as Array[int])
