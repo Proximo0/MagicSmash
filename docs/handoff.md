@@ -128,10 +128,17 @@ and numbers go in `Tuning` or data tables.
   half the crowd per tick). Drawing is the next cost: under xvfb software rendering the autotest drops from
   about 85 fps on main to about 40 fps with the horde, so batch enemy drawing (MultiMesh or per-type draws in
   `arena.gd`) before Steam builds.
-- Balance is not done. Bot teams still never lose a life by 8:00 (`survival_4p` in `sim_horde` reports it),
-  and bots reach level 10 in the first minute, so picks pause the world often (a 3-player bot run spent about
-  a third of its time on pick screens). Next measure-fix loop: slow the XP curve, then raise
-  enemy pressure until `survival_4p` shows first deaths around 6 to 10 minutes.
+- Balance pass 1 (after step 4), measured with bot teams on seed 21:
+  - The XP curve is now 20 + 60 per level, x1.04 per level (`Tuning.xp_*`): about level 6 at 1:00, 15 at
+    5:00 and 25 at 12:00, so pick screens come about every 20 to 30 s instead of every few seconds.
+  - Before, 4 bots killed about 200 enemies a second as they filed through the doors. Now 60% of groups open a
+    rift: a marker shows for `rift_warning` s at least `rift_min_dist` px from every wizard, then the group bursts
+    out in a clump. Doors stay for the rest, and a door group walks in `World.DOOR_STAGGER` apart.
+  - `spawn_party_scale` is 1.1. Bots: 1 player loses a first life around 8:00, 2 players around 9:30, and 4 bots
+    in their tidy formation still lose none by 12:00. Bots dodge better than they play as a team, so set the
+    final pressure from human playtests; `sim_horde` reports the bot numbers on every check.
+  - Each player levels and picks on their own, so 4 players pause the world about 4 times as often as 1. Shared
+    party XP (one pick screen for everyone at once) would cut that to the solo rate; it is Curtis's call.
 
 ## Checks and tools
 

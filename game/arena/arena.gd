@@ -500,6 +500,12 @@ func _handle_events(evs: Array) -> void:
 					_banner("SURVIVE", "SMASH THEM ALL!", Color("ffd94d"), 2.4)
 					Sfx.play("wave_start")
 				Sfx.music("music_battle")
+			World.EV_RIFT:
+				# A shrinking ring and a dark core warn where the group will burst out.
+				var life := float(ev[4])
+				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
+				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
+				fx.sparkle(pos, Color("ff4df2"), 8)
 			World.EV_ELITE:
 				fx.text(pos + Vector2(0, -16), "ELITE!", Color("ffb84d"), 1.2, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)

@@ -70,6 +70,7 @@ const EV_SCORE := 23
 const EV_LEVELUP := 24
 const EV_PICK := 25
 const EV_ELITE := 26
+const EV_RIFT := 27
 
 #                  hp    spd  r   score contact
 const STATS := [
@@ -101,6 +102,8 @@ const HORDE := [
 	[ORC,      9.0, 150.0, 1, 1, 1,  0],
 	[MAGE,     6.0, 210.0, 1, 1, 2,  0],
 ]
+## Seconds between enemies of one group walking through a door.
+const DOOR_STAGGER := 0.1
 ## Elite multipliers on score and XP, and what an elite drops.
 const ELITE_REWARD := 5
 const ELITE_GEMS := 6
@@ -396,7 +399,7 @@ func _direct_horde(dt: float) -> void:
 	if elite_t >= tune.elite_interval:
 		elite_t -= tune.elite_interval
 		_spawn_elite()
-	if enemies.size() + spawn_queue.size() >= int(tune.enemy_cap):
+	if enemies.size() >= int(tune.enemy_cap) or spawn_queue.size() >= int(tune.enemy_cap) / 2:
 		return
 	var rate := (tune.horde_rate_base + tune.horde_rate_per_min * wave_time / 60.0) * pscale()
 	if boss != null:
@@ -407,9 +410,35 @@ func _direct_horde(dt: float) -> void:
 	var cost: float = _horde_row(_next_group[0])[1] * _next_group[1]
 	if horde_budget >= cost:
 		horde_budget -= cost
-		_queue_group(_next_group[0], _next_group[1], rng.randi_range(0, 3), wave_time)
+		if rng.randf() < tune.rift_share:
+			_queue_rift(_next_group[0], _next_group[1])
+		else:
+			_queue_group(_next_group[0], _next_group[1], rng.randi_range(0, 3), wave_time)
 		_sort_queue()
 		_next_group = []
+
+## A rift: a marker opens somewhere in the arena away from the wizards, and after tune.rift_warning the
+## group bursts out of it in a clump, so the horde surrounds the party instead of queuing at the doors.
+func _queue_rift(type: int, n: int) -> void:
+	var area := G.ARENA.grow(-22)
+	var best := area.get_center()
+	var best_d := -1.0
+	for tries in 10:
+		var c := Vector2(rng.randf_range(area.position.x, area.end.x), rng.randf_range(area.position.y, area.end.y))
+		var d := INF
+		for p: Player in players.values():
+			if p.alive:
+				d = minf(d, p.pos.distance_to(c))
+		if d > best_d:
+			best_d = d
+			best = c
+		if d >= tune.rift_min_dist:
+			break
+	var spread := 6.0 + 3.0 * sqrt(float(n))
+	emit(EV_RIFT, best.x, best.y, spread, tune.rift_warning)
+	for i in n:
+		var off := Vector2.from_angle(rng.randf() * TAU) * rng.randf() * spread
+		spawn_queue.append({"t": wave_time + tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
 
 ## A weighted pick among the unlocked HORDE rows, with its group size: [type, count].
 func _roll_group() -> Array:
@@ -448,7 +477,7 @@ func _spawn_elite() -> void:
 
 func _queue_group(type: int, n: int, door: int, t: float) -> void:
 	for i in n:
-		spawn_queue.append({"t": t + i * 0.18, "type": type, "door": door})
+		spawn_queue.append({"t": t + i * DOOR_STAGGER, "type": type, "door": door})
 
 func _sort_queue() -> void:
 	spawn_queue.sort_custom(func(a, b): return a.t < b.t)
@@ -456,7 +485,7 @@ func _sort_queue() -> void:
 func _process_spawns() -> void:
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= wave_time:
 		var s: Dictionary = spawn_queue.pop_front()
-		spawn_enemy(s.type, s.door)
+		spawn_enemy(s.type, s.door, s.get("at"))
 
 func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 	var e := Enemy.new()

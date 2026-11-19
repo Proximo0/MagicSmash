@@ -1,7 +1,7 @@
 extends "res://tests/sim/sim_base.gd"
 ## The horde at its peak: four bot wizards fight a full arena (Tuning.enemy_cap enemies, refilled by the horde)
-## at minute 12, and World.step must stay inside its share of a 60 fps frame. Also reports how long bot teams
-## survive the ramp, which is the number balance work moves.
+## at minute 12, and World.step must stay inside its share of a 60 fps frame. Also reports when a 2-bot team
+## first loses a life, which is the number balance work moves (bots dodge well, so treat it as a floor).
 
 const SEED: int = 21
 ## Ticks measured at the peak, after a short settle.
@@ -88,7 +88,7 @@ func run() -> Array:
 		row("horde_peak_cost_4p", peak.us <= STEP_BUDGET_US and peak.low >= cap / 2,
 			"us_per_step=%.0f (budget %.0f) enemies>=%d of cap %d" % [peak.us, STEP_BUDGET_US, peak.low, cap]),
 	]
-	for n: int in [4]:
+	for n: int in [2]:
 		var slots: Array = range(n)
 		var s := _survive(slots)
 		rows.append(row("survival_%dp" % n, null, "survived=%s first_life_lost=%s over=%s" % [

@@ -18,8 +18,11 @@ const FIELDS: Array = [
 	["horde_start_budget", 10.0, 0.0, 100.0, 1.0, "Spawning", "Spawn budget the horde starts with, so the first enemies come at once."],
 	["horde_rate_base", 10.0, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
 	["horde_rate_per_min", 10.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
-	["spawn_party_scale", 0.9, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
+	["spawn_party_scale", 1.1, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
 	["horde_boss_mul", 0.35, 0.0, 1.0, 0.05, "Spawning", "Spawn budget multiplier while the Lich is alive."],
+	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
+	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
+	["rift_min_dist", 90.0, 30.0, 200.0, 5.0, "Spawning", "Rifts open at least this far from every wizard, px."],
 	["enemy_cap", 260.0, 20.0, 600.0, 10.0, "Spawning", "Most enemies alive at once; the horde holds its budget while at the cap."],
 	["elite_interval", 45.0, 5.0, 300.0, 5.0, "Spawning", "Seconds between elite spawns (a big glowing orc or mage that drops loot)."],
 	["elite_hp_mul", 8.0, 1.0, 30.0, 0.5, "Spawning", "Elite HP as a multiple of a normal enemy of its type."],
@@ -29,9 +32,9 @@ const FIELDS: Array = [
 	["enemy_speed_min_cap", 12.0, 1.0, 60.0, 1.0, "Scaling", "Minute after which enemies stop getting faster."],
 	["boss_hp_per_player", 0.6, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
 	["boss_hp_per_cycle", 0.25, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth each time it returns."],
-	["xp_first_level", 6.0, 1.0, 100.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
-	["xp_per_level", 3.0, 0.0, 50.0, 0.5, "XP", "Extra XP needed per level beyond the first (linear part)."],
-	["xp_growth", 1.12, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
+	["xp_first_level", 20.0, 1.0, 200.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
+	["xp_per_level", 60.0, 0.0, 200.0, 1.0, "XP", "Extra XP needed per level beyond the first (linear part)."],
+	["xp_growth", 1.04, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
 	["xp_gem_life", 30.0, 5.0, 120.0, 1.0, "XP", "Seconds an XP gem stays on the floor."],
 	["xp_gem_cap", 120.0, 10.0, 1000.0, 10.0, "XP", "Most XP gems on the floor; past it a new gem's XP joins the nearest gem instead."],
 	["xp_magnet_radius", 24.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
@@ -52,6 +55,9 @@ var horde_rate_base: float
 var horde_rate_per_min: float
 var spawn_party_scale: float
 var horde_boss_mul: float
+var rift_share: float
+var rift_warning: float
+var rift_min_dist: float
 var enemy_cap: float
 var elite_interval: float
 var elite_hp_mul: float
