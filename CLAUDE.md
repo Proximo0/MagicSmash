@@ -9,7 +9,9 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 ## Commands
 - `tools/run_tests.sh [test_name]`: headless unit tests (`tests/unit/test_*.gd`). Prints failures only.
 - `tools/lint.sh`: parse and static checks for every script. Ends with `LINT problems=<n>`.
-- `tools/run_sims.sh`: regression sims (`tests/sim/sim_*.gd`, listed in `tests/sim/sim_suite.gd`).
+- `tools/run_sims.sh [sim_name ...]`: regression sims (`tests/sim/sim_*.gd`, listed in `tests/sim/sim_suite.gd`), one
+  process per sim file, all in parallel (about 60 s). `sim_horde` asserts a time budget: if only it fails while the
+  CPU is busy, rerun `tools/run_sims.sh sim_horde` alone. CI gives it its own runner (`sims-horde`).
 - `tools/check_all.sh`: everything at once (unit, sims, lint, plus the bot and lab if their scenes exist).
 - `godot --headless --path . -s tools/full_run.gd -- --wizards=4`: bots play a whole run (to the Archlich) and
   print a line per minute. For balancing; too slow for check_all.
