@@ -54,3 +54,15 @@ func test_moments_earn_their_achievements() -> void:
 func test_platform_is_a_no_op_in_scripted_runs() -> void:
 	assert_false(Platform.ready_ok)
 	assert_eq(Platform.finish_run(Results.new([0]), true, 1000.0), 0)
+
+
+func test_the_seal_and_the_omens() -> void:
+	var r := Results.new([0])
+	r.note(400.0, Results.M_EVOLVE, 0, Upgrades.evo_entry(World.SP_FIRE))
+	var got: Array = Achievements.earned(r, false, Achievements.omens_survived() - 1.0)
+	assert_false(got.has("SEAL"), "another evolution is not the seal")
+	assert_false(got.has("OMENS"), "the last omen's minute is not over")
+	r.note(500.0, Results.M_EVOLVE, 0, Upgrades.evo_entry(World.SP_RUNE))
+	got = Achievements.earned(r, false, Achievements.omens_survived())
+	assert_true(got.has("SEAL"))
+	assert_true(got.has("OMENS"))

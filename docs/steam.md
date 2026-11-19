@@ -40,6 +40,8 @@ The API names must match exactly.
 | ULTRA | ULTRA RARE | Find ultra rare loot in a chest. |
 | EVOLVE | EVOLUTION | Evolve a spell. |
 | COMBO_200 | TOTAL SORCERY | Chain a 200 kill combo. |
+| SEAL | THE KEY OF SOLOMON | Evolve Rune Circle into the Seal of Solomon. |
+| OMENS | OMEN-PROOF | Survive all three omens. |
 
 ## Steamworks checklist (Curtis)
 
@@ -47,7 +49,9 @@ The API names must match exactly.
    release; for Friday 18 Dec 2026 that was 18 Nov 2026, so check what Steam says for the date.
 2. Send the App ID; it goes in `config/steam.cfg` and the GodotSteam setup follows.
 3. Turn on Remote Play Together (and Remote Play on TV if wanted) in the app's Steamworks settings.
-4. Add the achievements above, with icons.
+4. Add the achievements above, with icons: `docs/achievements/<api name>.png` (achieved) and
+   `<api name>_locked.png` (unachieved), 64x64, drawn from the tarot emblems by
+   `godot --headless --path . -s tools/achievement_icons.gd`.
 5. The store page: description, tags, price ($4.99 to $6.99), screenshots, trailer, capsule art. It must be
    live at least 2 weeks before release (by 4 Dec 2026).
 6. The build: a Windows depot from `tools/export_windows.sh`, uploaded with SteamPipe.
