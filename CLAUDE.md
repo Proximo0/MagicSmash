@@ -16,7 +16,7 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 
 ## Layout
 - `game/autoload/`: `Flags` (run flags, frame counter, state hash), `Controls` (input actions).
-- `game/debug/`: `Tuning` (live-tunable numbers; empty template, fill it during the rework), kit frame stamp and render toggles (sized for 1080p 3D, not wired in yet).
+- `game/debug/`: `Tuning` (live-tunable gameplay numbers: player speed, cast cooldowns, spawn budget, wave scaling, XP curve; `World` reads `world.tune`), kit frame stamp and render toggles (sized for 1080p 3D, not wired in yet).
 - `game/logic/`: `World` (the whole authoritative simulation: waves, enemies, spells, pickups, snapshots; seeded
   with `World.new(slots, seed)`), `SmashBot` (play-bot brain shared by the arena and the sims).
 - `game/arena/` (renders snapshots, fx, sound cues), `game/ui/` (title, lobby, font, touch), `game/input/`,

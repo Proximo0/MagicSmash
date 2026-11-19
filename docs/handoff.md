@@ -96,7 +96,7 @@ and numbers go in `Tuning` or data tables.
 
 - The kit's frame stamp and render toggles are sized for a 1080p 3D game, so they are not added to the 480x270
   main scene. Scale them down before using them.
-- `Tuning` is still the kit template.
+- `Tuning` holds the rework's first numbers (step 1, done). The XP curve rows are in place but nothing uses them until step 2.
 - Most of `arena.gd`, `title.gd` and `net.gd` are untyped (only `game/logic` is strict in spirit). Lint passes
   because its rules are narrow. Type things as you touch them.
 - `README.md` still says Godot 4.3 and describes v0.2.0 play; update it once the survivors loop exists.
