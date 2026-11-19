@@ -75,6 +75,10 @@ func _ready() -> void:
 	if "--eclipse" in OS.get_cmdline_user_args():
 		shots = [[3.0, "@eclipse"], [5.2, "title_eclipse"]]
 		quit_at = 5.6
+	# --options: open the options on the title and shoot them, then stop.
+	if "--options" in OS.get_cmdline_user_args():
+		shots = [[3.0, "@options"], [3.4, "options"]]
+		quit_at = 3.8
 	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
 	if "--album" in OS.get_cmdline_user_args():
 		shots.insert(2, [4.1, "@album"])
@@ -178,6 +182,11 @@ func _process(delta: float) -> void:
 			album_title.album.open()
 			album_title.album.sel = 5
 			album_title.state = album_title.S.CARDS
+		elif name == "@options":
+			var options_title = G.main.current
+			options_title.options.open()
+			options_title.options.sel = Settings.R_CRASH
+			options_title.state = options_title.S.OPTIONS
 		elif name == "@menu":
 			G.main.current.state = G.main.current.S.MAIN
 		elif name == "@lobby":

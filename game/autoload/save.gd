@@ -42,6 +42,7 @@ func write_settings() -> bool:
 ## Puts the options into effect: volumes always, the window only in a real windowed run.
 func apply_settings() -> void:
 	Sfx.set_volumes(settings.music_linear(), settings.sound_linear())
+	Crash.set_enabled(settings.crash_reports)
 	if Flags.is_scripted_run() or DisplayServer.get_name() == "headless" or OS.has_feature("mobile") or OS.has_feature("web"):
 		return
 	if settings.is_fullscreen():

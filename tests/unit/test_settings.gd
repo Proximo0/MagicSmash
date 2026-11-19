@@ -53,3 +53,13 @@ func test_the_tutorial_flag_survives_a_save() -> void:
 	s.seen_tutorial = true
 	assert_true(Settings.from_dict(s.to_dict()).seen_tutorial)
 	assert_false(Settings.from_dict({}).seen_tutorial)
+
+
+func test_crash_reports_are_on_until_the_player_turns_them_off() -> void:
+	var s := Settings.new()
+	assert_true(s.crash_reports)
+	assert_true(Settings.from_dict({}).crash_reports, "an old settings file keeps them on")
+	assert_true(s.adjust(Settings.R_CRASH, 1))
+	assert_false(s.crash_reports)
+	assert_eq(s.value_text(Settings.R_CRASH), "OFF")
+	assert_false(Settings.from_dict(s.to_dict()).crash_reports)

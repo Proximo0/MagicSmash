@@ -16,10 +16,15 @@ boot_splash/show_image=false
 Flags="*res://game/autoload/flags.gd"
 Controls="*res://game/autoload/controls.gd"
 Save="*res://game/autoload/save.gd"
+Crash="*res://game/autoload/crash.gd"
 G="*res://game/autoload/g.gd"
 Sfx="*res://game/autoload/sfx.gd"
 Net="*res://game/autoload/net.gd"
 Platform="*res://game/autoload/platform.gd"
+
+[debug]
+
+settings/gdscript/always_track_call_stacks=true
 
 [display]
 
@@ -51,3 +56,9 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 2d/snap/snap_2d_transforms_to_pixel=false
 environment/defaults/default_clear_color=Color(0.03, 0.02, 0.06, 1)
+
+[sentry]
+
+options/auto_init=false
+options/debug_printing=0
+schema_version=5
