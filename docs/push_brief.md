@@ -73,6 +73,12 @@ mid-to-bright actors with a clean dark outline; magic as the brightest thing on 
 - **Sizes** (width x height, give or take 2 px): wizard 16x22 with the hat; goblin 14x14; bat 16x11; slime 14x11;
   mini slime 9x7; skeleton 12x18; orc 20x22; dark mage 14x20; wraith 16x20; cursed tome 12x12; gargoyle 20x18;
   bone priest 14x20; the Lich 30x40. XP mote 5x5; coin 6x6; gem 7x8; potion 7x9; chest 14x12; spell tome 9x10.
+- **Positions are on the floor.** `pos` is where the feet stand: sprites are anchored bottom centre on it and hit
+  circles are centred on it. Anything that flies (spell shots, enemy shots, a staff head, orbiting orbs, an aura
+  round a body) is drawn `Sprites.LIFT` (7 px) above its floor position, so a shot crosses a body at chest height
+  at the moment the simulation counts the hit. Design each body so its chest is about there.
+- **Old sprite keys stay valid.** The title, the lobby, the Sanctum, the card album and the store-art tool draw
+  `wiz<n>_<down|up|side>_<a|b>`, `<enemy>_a`, `<enemy>_b` and `lich`. Keep those keys (as aliases of new frames).
 - **One pixel density.** No sprite is drawn scaled or rotated: a bigger thing is drawn bigger, pixel by pixel.
   An elite keeps its sprite's size and gets a gold rim, a mark over its head and a glow under it.
 - **The sprite code.** `Sprites.draw_at(ci, key, feet, flip, flash, modulate)` and

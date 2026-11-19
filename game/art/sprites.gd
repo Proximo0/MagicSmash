@@ -13,6 +13,10 @@ const ATLAS_W := 256
 const ATLAS_PAD := 1
 
 const OUTLINE := Color("1a0f24")
+## Positions in the simulation are on the floor (where the feet stand). Anything that flies (spell shots, enemy
+## shots, a staff head, orbiting orbs, an aura round a body) is drawn this many pixels above its floor position,
+## so a shot crosses a body at chest height at the moment the simulation counts the hit.
+const LIFT := 7.0
 
 const PLAYER_COLORS := [
 	{"name": "VIOLET", "robe": Color("7b4dff"), "shade": Color("4b2ab8"), "band": Color("ffd94d"), "fx": Color("c9a6ff")},
