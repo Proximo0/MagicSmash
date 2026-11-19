@@ -28,14 +28,17 @@ const EFFECTS := {
 	"luck": ["luck", 1.0],
 }
 
-## Crystals a run pays: one per CRYSTAL_SECONDS survived, one per CRYSTAL_KILLS kills, CRYSTAL_LICH per Lich slain.
+## Crystals a run pays: one per CRYSTAL_SECONDS survived, one per CRYSTAL_KILLS kills, CRYSTAL_LICH per Lich slain
+## (the Archlich counts as one) and CRYSTAL_WIN for a won run.
 const CRYSTAL_SECONDS := 30.0
 const CRYSTAL_KILLS := 250
 const CRYSTAL_LICH := 10
+const CRYSTAL_WIN := 25
 
 var high_score := 0
 var crystals := 0
 var runs := 0
+var wins := 0
 var best_time := 0.0
 var unlocks := {} # META key -> level bought
 
@@ -81,22 +84,24 @@ func bonuses() -> Dictionary:
 	return out
 
 
-static func crystals_for_run(seconds: float, kills: int, liches: int) -> int:
-	return int(seconds / CRYSTAL_SECONDS) + kills / CRYSTAL_KILLS + liches * CRYSTAL_LICH
+static func crystals_for_run(seconds: float, kills: int, liches: int, won: bool = false) -> int:
+	return int(seconds / CRYSTAL_SECONDS) + kills / CRYSTAL_KILLS + liches * CRYSTAL_LICH + (CRYSTAL_WIN if won else 0)
 
 
-## Books a finished run: best score and time, crystals earned. Returns the crystals it paid.
-func finish_run(score: int, seconds: float, kills: int, liches: int) -> int:
+## Books a finished run: best score and time, wins, crystals earned. Returns the crystals it paid.
+func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool = false) -> int:
 	runs += 1
+	if won:
+		wins += 1
 	high_score = maxi(high_score, score)
 	best_time = maxf(best_time, seconds)
-	var earned: int = crystals_for_run(seconds, kills, liches)
+	var earned: int = crystals_for_run(seconds, kills, liches, won)
 	crystals += earned
 	return earned
 
 
 func to_dict() -> Dictionary:
-	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs,
+	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
 		"best_time": best_time, "unlocks": unlocks.duplicate()}
 
 
@@ -107,6 +112,7 @@ static func from_dict(d: Dictionary) -> Profile:
 	p.high_score = maxi(0, int(d.get("high_score", 0)))
 	p.crystals = maxi(0, int(d.get("crystals", 0)))
 	p.runs = maxi(0, int(d.get("runs", 0)))
+	p.wins = maxi(0, int(d.get("wins", 0)))
 	p.best_time = maxf(0.0, float(d.get("best_time", 0.0)))
 	var u: Variant = d.get("unlocks", {})
 	if u is Dictionary:

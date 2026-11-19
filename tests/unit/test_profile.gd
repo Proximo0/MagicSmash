@@ -39,6 +39,15 @@ func test_runs_earn_crystals() -> void:
 	p.finish_run(10, 20.0, 0, 0)
 	assert_eq(p.high_score, 12345, "a worse run keeps the best score")
 	assert_eq(p.runs, 2)
+	assert_eq(p.wins, 0)
+
+
+func test_a_won_run_pays_the_win_bonus_and_counts() -> void:
+	var p := Profile.new()
+	var earned: int = p.finish_run(1, 0.0, 0, 0, true)
+	assert_eq(earned, Profile.CRYSTAL_WIN)
+	assert_eq(p.wins, 1)
+	assert_eq(Profile.from_dict(p.to_dict()).wins, 1)
 
 
 func test_round_trip_and_bad_data() -> void:

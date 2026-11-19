@@ -179,14 +179,29 @@ and numbers go in `Tuning` or data tables.
     the old `save.cfg` high score is carried over once). `Save.write()` refuses in scripted runs, and scripted
     runs start with no unlocks so bots and sims do not depend on the machine.
   - The game over screen shows the crystals earned.
-- Step 5 is done. Next is step 6: run structure (a 15 to 20 minute run with a final boss, a results screen with
-  the team's best moments, character select).
+- Step 5 is done.
+
+## Step 6 notes (run structure)
+
+- 6a, the final boss (`Tuning` Run group):
+  - At `run_minutes` (15:00) the Archlich comes instead of the third Lich: a Lich with `final_hp_mul` (10) x the
+    HP, a bigger body, rage from two thirds of its HP, and an elite with every rage summon. A Lich still standing
+    at 15:00 ascends into it. No Lich comes after it; the horde keeps coming at the boss rate.
+  - Slaying it wins the run (`World.won`, `EV_VICTORY`): the clock and the horde stop, everyone is safe, and
+    after `victory_delay` s the results screen says VICTORY. A win pays `Profile.CRYSTAL_WIN` (25) crystals
+    and counts in `Profile.wins`. The Archlich pays 4x the Lich's score.
+  - `tools/full_run.gd` plays a whole run with bots and prints a line per minute. Seed 11, final_hp_mul 12:
+    1, 2 and 4 bots won at 16:43, 17:38 and 16:42 (fights of 100 to 156 s); 10 leaves room for human play.
+  - `--autotest=15` saves `archlich.png` once the Archlich is up. A victory saves `victory.png`.
+- Next is 6b, the results screen with the team's best moments, then 6c, character select.
 
 ## Checks and tools
 
 - `tools/check_all.sh`: unit, sims, lint and 3 bot shards in about 80 s (the horde sims are most of it).
 - Watch it play: `xvfb-run -a godot --path . -- --autotest --out=/tmp/shots` saves screenshots every few seconds.
-  Use `--autotest=5` to start at 5:00, when the Lich comes.
+  Use `--autotest=5` to start at 5:00, when the Lich comes, or `--autotest=15` for the Archlich.
+- A whole run with bots, minute by minute: `godot --headless --path . -s tools/full_run.gd -- --wizards=4 --seed=7`
+  (about 3 minutes; add `--tune=field:value` to try numbers).
 - CI (`.github/workflows/checks.yml`) runs unit, lint, sims and bot-0..2 on every push and PR.
 - Music: `tools/music` renders the soundtrack (see `tools/music/SOUNDTRACK.md`). SFX come from
   `tools/gen_audio.py`.

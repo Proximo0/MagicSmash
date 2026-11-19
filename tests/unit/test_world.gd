@@ -633,3 +633,103 @@ func test_team_curse_hurts_but_never_kills() -> void:
 		if e.elite:
 			elites += 1
 	assert_eq(elites, 2, "the curse sends an elite per wizard")
+
+
+func _final_world(slots: Array = [0]) -> World:
+	var w := World.new(slots, 3)
+	w.phase = World.PH_FIGHT
+	w.wave_time = w.tune.run_minutes * 60.0 - 0.5
+	w.wave = w.final_minute() - 1
+	for p: World.Player in w.players.values():
+		p.invuln = 99999.0
+	return w
+
+
+func test_archlich_comes_when_the_run_time_is_up() -> void:
+	var w := _final_world()
+	var announced := false
+	for _i: int in range(60 * 4):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_WAVE and int(ev[4]) == 2:
+				announced = true
+	assert_true(announced, "the final minute was not announced")
+	assert_true(w.boss != null and w.boss.final, "no Archlich after the run time")
+	var lich_hp: float = World.STATS[World.LICH][0] * w._lich_hp_scale()
+	assert_true(w.boss.maxhp > 2.0 * lich_hp, "Archlich hp %.0f vs Lich %.0f" % [w.boss.maxhp, lich_hp])
+
+
+func test_a_lich_still_standing_ascends() -> void:
+	var w := _final_world()
+	var lich: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	lich.hp = 10.0
+	for _i: int in range(60):
+		w.step(DT, {})
+	assert_true(w.boss == lich and lich.final, "the standing Lich did not become the Archlich")
+	assert_true(lich.hp > 0.9 * lich.maxhp, "the Archlich was not healed: %.0f of %.0f" % [lich.hp, lich.maxhp])
+	var liches: int = 0
+	for e: World.Enemy in w.enemies:
+		if e.type == World.LICH:
+			liches += 1
+	assert_eq(liches, 1)
+	for s: Dictionary in w.spawn_queue:
+		assert_true(s.type != World.LICH, "a second boss was queued")
+
+
+func test_no_lich_visits_after_the_final_minute() -> void:
+	var t := Tuning.new()
+	t.run_minutes = 3.0 # the Archlich comes at 3:00
+	t.boss_every_min = 1.0 # so 4:00 would otherwise bring a Lich
+	var w := World.new([0], 3, t)
+	w.phase = World.PH_FIGHT
+	w.wave = 3
+	w.wave_time = 3 * 60.0 - 0.5
+	_player(w).invuln = 99999.0
+	for _i: int in range(60 * 70):
+		_player(w).choices.clear() # skip level-up picks so the clock keeps running
+		_player(w).pending = 0
+		w.step(DT, {})
+	assert_true(w.wave >= 5, "the clock did not reach 4:00")
+	var liches: int = 0
+	for e: World.Enemy in w.enemies:
+		if e.type == World.LICH:
+			liches += 1
+			assert_true(e.final, "a plain Lich came after the Archlich's minute")
+	assert_eq(liches, 1)
+
+
+func test_slaying_the_archlich_wins_the_run() -> void:
+	var w := _final_world([0, 1])
+	var arch: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._make_final(arch)
+	w.take_events()
+	w._kill_enemy(arch, 1)
+	var won_by: int = -1
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_VICTORY:
+			won_by = int(ev[3])
+	assert_eq(won_by, 1)
+	assert_true(w.won)
+	assert_eq(w.liches_slain, 1)
+	var over: bool = false
+	var clock: float = w.wave_time
+	for _i: int in range(int((w.tune.victory_delay + 0.5) * 60.0)):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_GAMEOVER:
+				over = true
+	assert_true(over, "no results screen after the victory delay")
+	assert_eq(w.phase, World.PH_GAMEOVER)
+	assert_eq(w.wave_time, clock)
+	assert_eq(w.enemies.size(), 0)
+
+
+func test_snapshot_marks_the_archlich() -> void:
+	var w := _final_world()
+	var arch: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._make_final(arch)
+	var snap: Dictionary = w.snapshot()
+	var en: PackedFloat32Array = snap.e
+	assert_eq(en[8], 2.0)
+	var wv: PackedFloat32Array = snap.w
+	assert_eq(wv[9], 1.0)
