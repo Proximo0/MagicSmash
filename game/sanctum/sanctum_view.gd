@@ -7,11 +7,7 @@ extends Node2D
 const TRACKS := [["music_sanctum", "THE SANCTUM"], ["music_title", "THE TOWER AT DUSK"],
 	["music_library", "THE FORBIDDEN LIBRARY"], ["music_battle", "HOLD THE TOWER"], ["music_boss", "THE ARCHLICH"],
 	["music_gameover", "REQUIEM"]]
-const WALL := Color("2a1f3d")
-const WALL_LIT := Color("3b2c55")
-const FLOOR_A := Color("3a2730")
-const FLOOR_B := Color("432d35")
-const SHELF := Color("4a2a1c")
+const CAULDRON := Vector2(240, 248) # its feet, where SanctumArt bakes it
 
 var room: Sanctum
 var device := G.DEV_KBM
@@ -29,10 +25,16 @@ var _deck: Dictionary = {} # a sealed deck opening: {idx, t, first}
 var _cat_pet := 0.0
 var _rng := RandomNumberGenerator.new()
 var _leaving := -1.0
+var _room_tex: ImageTexture
+var _alcove_tex: ImageTexture
+## The use prompt for the thing in reach ([text, centre]), drawn last so nothing in the room covers it.
+var _prompt: Array = []
 
 
 func _ready() -> void:
 	_rng.randomize()
+	_room_tex = SanctumArt.room()
+	_alcove_tex = SanctumArt.alcove()
 	if not G.local_devices.is_empty():
 		device = G.local_devices[0]
 	var prof: Profile = Save.profile
@@ -229,10 +231,14 @@ func _draw() -> void:
 	draw_set_transform(off)
 	_draw_room()
 	_draw_things()
+	_draw_cauldron()
 	_draw_pots()
 	_draw_wizard()
 	for s: Array in _shards:
 		draw_rect(Rect2((s[0] as Vector2).floor(), Vector2(2, 2)), s[3])
+	# The prompt goes over everything in the room, so pots and the wizard never cover it.
+	if not _prompt.is_empty():
+		PixelFont.draw_centered(self, _prompt[0], _prompt[1].x, _prompt[1].y, 1, Occult.GOLD, Occult.INK)
 	draw_set_transform(Vector2.ZERO)
 	_draw_hud()
 	if not _deck.is_empty():
@@ -244,102 +250,29 @@ func _draw() -> void:
 
 
 func _draw_room() -> void:
-	draw_rect(Rect2(0, 0, 480, 270), Color("120b1e"))
-	var r := Sanctum.ROOM
-	# Old floorboards: rows of planks of uneven length, dark seams and a few nail heads.
-	draw_rect(r, FLOOR_A)
-	var row := 0
-	for y: int in range(int(r.position.y), int(r.end.y), 8):
-		var x := int(r.position.x) - (row * 23) % 40
-		var k := row * 7
-		while x < int(r.end.x):
-			var len := 34 + (k * 13) % 30
-			var plank := Rect2(x, y, len - 1, 7).intersection(r)
-			if plank.size.x > 0:
-				draw_rect(plank, FLOOR_A if k % 3 != 0 else FLOOR_B)
-				draw_rect(Rect2(plank.position, Vector2(plank.size.x, 1)), Color(1, 1, 1, 0.04))
-				if plank.size.x > 6:
-					draw_rect(Rect2(plank.position + Vector2(2, 3), Vector2(1, 1)), Color(0, 0, 0, 0.35))
-			x += len
-			k += 1
-		draw_rect(Rect2(r.position.x, y + 7, r.size.x, 1).intersection(r), Color("1a1226"))
-		row += 1
-	# The rug and its circle.
-	var rug := Rect2(170, 130, 140, 90)
-	draw_rect(rug, Color("4a1a2a"))
-	draw_rect(rug.grow(-3), Color("6a2236"), false, 1.0)
-	draw_rect(rug.grow(-6), Color("ffd94d", 0.25), false, 1.0)
-	var rc := rug.get_center()
-	draw_arc(rc, 34.0, 0, TAU, 48, Color("ffd94d", 0.3), 1.0)
-	for i: int in range(5):
-		var a := -PI / 2.0 + i * TAU / 5.0
-		var b := -PI / 2.0 + (i + 2) * TAU / 5.0
-		draw_line(rc + Vector2.from_angle(a) * 34.0, rc + Vector2.from_angle(b) * 34.0, Color("ffd94d", 0.2), 1.0)
-	# Top wall: stones, bookshelves, windows with the moon.
-	draw_rect(Rect2(0, 0, 480, r.position.y), WALL)
-	for y: int in range(0, int(r.position.y), 8):
-		for x: int in range(0, 480, 16):
-			var sx := x + (8 if (y / 8) % 2 == 1 else 0)
-			draw_rect(Rect2(sx, y, 15, 7), WALL_LIT if (sx / 16 + y / 8) % 4 == 0 else WALL)
-	for shelf_x: int in [40, 128, 300]:
-		_bookshelf(Rect2(shelf_x, 18, 52, 38))
-	for wx: int in [206, 254]:
-		var win := Rect2(wx, 14, 20, 30)
-		draw_rect(win, Color("0b1030"))
-		draw_rect(win, Color("6a5a8a"), false, 1.0)
-		draw_line(Vector2(win.get_center().x, win.position.y), Vector2(win.get_center().x, win.end.y), Color("6a5a8a"), 1.0)
-		draw_line(Vector2(win.position.x, win.position.y + 14), Vector2(win.end.x, win.position.y + 14), Color("6a5a8a"), 1.0)
-	draw_circle(Vector2(264, 22), 4.0, Color("fff6c0"))
-	draw_circle(Vector2(266, 21), 3.4, Color("0b1030"))
-	# The tired wall: a few cracks, or the open alcove.
-	var a := Sanctum.ALCOVE
+	draw_texture(_room_tex, Vector2.ZERO)
 	if room.crack_open:
-		draw_rect(a, Color("1a1228"))
-		draw_rect(Rect2(Sanctum.CRACK_X.x, a.end.y - 2, Sanctum.CRACK_X.y - Sanctum.CRACK_X.x, 4), Color("1a1228"))
-		for y: int in range(int(a.position.y), int(a.end.y), 6):
-			draw_line(Vector2(a.position.x, y), Vector2(a.end.x, y), Color("221838"), 1.0)
-		draw_rect(a, Color("4a3a6a"), false, 1.0)
-	else:
-		var cc := Color("120b1e")
-		draw_line(Vector2(404, 59), Vector2(408, 50), cc, 1.0)
-		draw_line(Vector2(408, 50), Vector2(406, 44), cc, 1.0)
-		draw_line(Vector2(408, 50), Vector2(414, 47), cc, 1.0)
-		draw_line(Vector2(420, 59), Vector2(418, 53), cc, 1.0)
-		draw_line(Vector2(418, 53), Vector2(423, 49), cc, 1.0)
-	# Side and bottom walls.
-	draw_rect(Rect2(0, r.position.y, r.position.x, r.size.y), WALL)
-	draw_rect(Rect2(r.end.x, r.position.y, 480 - r.end.x, r.size.y), WALL)
-	draw_rect(Rect2(0, r.end.y, 480, 270 - r.end.y), WALL)
-	draw_rect(Rect2(0, r.position.y - 2, 480, 2), Color("0b0716"))
-	# Candles on the walls.
+		draw_texture(_alcove_tex, Vector2(SanctumArt.PATCH.position))
+	# Candle flames on every baked wick: a flickering orange tongue round a bright core.
 	for c: Vector2 in _candles():
-		draw_rect(Rect2(c + Vector2(-1, 0), Vector2(3, 6)), Color("e8dcc0"))
-		var fl := 1.0 + 0.4 * sin(t * 13.0 + c.x)
-		draw_rect(Rect2(c + Vector2(0, -2 - fl), Vector2(1, 2 + fl)), Color("ffcf5a"))
+		var fl := int(1.5 + 1.5 * sin(t * 13.0 + c.x * 1.7))
+		draw_rect(Rect2(c + Vector2(0, -2 - fl), Vector2(1, 3 + fl)), Color("ff8a2a"))
+		draw_rect(Rect2(c + Vector2(0, -1), Vector2(1, 2)), Color("ffe07a"))
+		if fl >= 2:
+			draw_rect(Rect2(c + Vector2(0, -3 - fl), Vector2(1, 1)), Color("ff8a2a", 0.5))
 
 
+## Every lit wick; the one in the alcove only once the wall is open.
 func _candles() -> Array[Vector2]:
-	return [Vector2(12, 90), Vector2(12, 190), Vector2(467, 90), Vector2(467, 190), Vector2(196, 30), Vector2(284, 30)]
-
-
-func _bookshelf(r: Rect2) -> void:
-	draw_rect(r, SHELF)
-	draw_rect(r, Color("2a160e"), false, 1.0)
-	var cols := [Color("8a2a3a"), Color("2a5a8a"), Color("3a7a3a"), Color("8a6a2a"), Color("5a2a8a"), Color("a04a2a")]
-	for row: int in range(3):
-		var y := r.position.y + 2 + row * 12
-		draw_rect(Rect2(r.position.x + 1, y + 10, r.size.x - 2, 2), Color("2a160e"))
-		var x := r.position.x + 3
-		var k := int(r.position.x) + row * 7
-		while x < r.end.x - 4:
-			var w := 3 + (k % 3)
-			var h := 7 + (k % 3)
-			draw_rect(Rect2(x, y + 10 - h, w, h), cols[k % cols.size()])
-			x += w + 1
-			k += 5
+	var out: Array[Vector2] = []
+	for c: Vector2 in SanctumArt.flames():
+		if room.crack_open or not Sanctum.ALCOVE.has_point(c):
+			out.append(c)
+	return out
 
 
 func _draw_things() -> void:
+	_prompt = []
 	var near := room.near_thing()
 	for i: int in range(Sanctum.THINGS.size()):
 		var p: Vector2 = Sanctum.THINGS[i][1]
@@ -351,48 +284,53 @@ func _draw_things() -> void:
 					var a := -t * 0.8 + k * TAU / 8.0
 					Occult.rune(self, p + Vector2.from_angle(a) * 19.0 - Vector2(2, 2), k, Color("ff4df2", 0.7))
 			Sanctum.ALTAR:
-				draw_rect(Rect2(p + Vector2(-9, -2), Vector2(18, 10)), Color("4a3a5a"))
-				draw_rect(Rect2(p + Vector2(-11, -4), Vector2(22, 3)), Color("6a5a7a"))
-				var bob := sin(t * 2.0) * 2.0
-				var card := Rect2(p + Vector2(-5, -22 + bob), Vector2(10, 14))
-				draw_rect(card.grow(1), Color("0b0716"))
-				draw_rect(card, Color("3a1a6a"))
-				draw_rect(card.grow(-1), Color("ffd94d"), false, 1.0)
+				# The card floats over the pedestal and turns its glow on the stone below.
+				var bob := roundf(sin(t * 2.0) * 2.0)
+				draw_rect(Rect2(p + Vector2(-4 + absf(bob), -13), Vector2(8 - absf(bob) * 2.0, 1)), Color(0, 0, 0, 0.35))
+				SanctumArt.draw(self, "card", p + Vector2(0, -20 + bob))
+				if int(t * 3.0) % 4 == 0:
+					draw_rect(Rect2(p + Vector2(3, -32 + bob), Vector2(1, 1)), Color("fff6c0"))
 			Sanctum.RELIQUARY:
-				draw_rect(Rect2(p + Vector2(-10, -10), Vector2(20, 14)), Color("5a1a8a"))
-				draw_rect(Rect2(p + Vector2(-10, -10), Vector2(20, 4)), Color("b03ad0"))
-				draw_rect(Rect2(p + Vector2(-10, -10), Vector2(20, 14)), Color("0b0716"), false, 1.0)
-				draw_rect(Rect2(p + Vector2(-2, -6), Vector2(4, 4)), Color("ffd94d"))
+				# A glint that runs across the gold lock.
+				var g := fmod(t * 0.7, 3.0)
+				if g < 0.25:
+					draw_rect(Rect2(p + Vector2(-1 + int(g * 12.0) % 3, -9), Vector2(1, 1)), Color("fff6c0"))
 			Sanctum.MUSIC:
-				draw_rect(Rect2(p + Vector2(-8, -6), Vector2(16, 9)), Color("6a3a1a"))
-				draw_rect(Rect2(p + Vector2(-8, -6), Vector2(16, 9)), Color("0b0716"), false, 1.0)
-				draw_line(p + Vector2(2, -6), p + Vector2(6, -16), Color("ffd94d"), 1.0)
-				draw_arc(p + Vector2(8, -18), 5.0, PI * 0.6, PI * 1.6, 10, Color("ffd94d"), 2.0)
 				# A note drifting up out of the horn.
-				var np := (p + Vector2(10, -24 - fmod(t * 6.0, 10.0))).floor()
-				var na := 1.0 - fmod(t * 6.0, 10.0) / 10.0
+				var np := (p + Vector2(-2, -38 - fmod(t * 6.0, 12.0))).floor()
+				var na := 1.0 - fmod(t * 6.0, 12.0) / 12.0
 				draw_rect(Rect2(np, Vector2(2, 2)), Color("ffd94d", na))
 				draw_rect(Rect2(np + Vector2(2, -5), Vector2(1, 6)), Color("ffd94d", na))
 				draw_rect(Rect2(np + Vector2(3, -5), Vector2(2, 1)), Color("ffd94d", na))
 			Sanctum.WELL:
-				draw_circle(p, 11.0, Color("4a4458"))
-				draw_circle(p, 8.0, Color("0b2040"))
-				draw_arc(p, 5.0 + fmod(t * 3.0, 3.0), 0, TAU, 16, Color("8bdcff", 0.4), 1.0)
-				draw_arc(p, 11.0, 0, TAU, 24, Color("0b0716"), 1.0)
+				# Ripples on the water.
+				var w := p + Vector2(0, -6)
+				var rr := fmod(t * 3.0, 4.0)
+				for k: int in range(16):
+					var a := k * TAU / 16.0
+					var q := (w + Vector2(cos(a) * (3.0 + rr * 1.6), sin(a) * (1.0 + rr * 0.6))).floor()
+					draw_rect(Rect2(q, Vector2(1, 1)), Color("8bdcff", 0.5 - rr * 0.1))
+				if int(t * 2.0) % 3 == 0:
+					draw_rect(Rect2(w + Vector2(-5, -1), Vector2(2, 1)), Color("c8f0ff", 0.6))
 			Sanctum.CAT:
 				if not room.crack_open:
 					continue
-				var c := Color("16101e")
-				draw_rect(Rect2(p + Vector2(-5, -4), Vector2(10, 5)), c)
-				draw_rect(Rect2(p + Vector2(3, -7), Vector2(5, 5)), c)
-				draw_rect(Rect2(p + Vector2(3, -9), Vector2(1, 2)), c)
-				draw_rect(Rect2(p + Vector2(7, -9), Vector2(1, 2)), c)
-				var eye := Color("8bff9e") if _cat_pet <= 0.0 else Color("ff8af0")
-				if int(t * 0.7) % 5 != 0:
-					draw_rect(Rect2(p + Vector2(4, -6), Vector2(1, 1)), eye)
-					draw_rect(Rect2(p + Vector2(6, -6), Vector2(1, 1)), eye)
-				var tail := sin(t * 2.0) * 3.0
-				draw_line(p + Vector2(-5, -2), p + Vector2(-9, -6 + tail), c, 1.0)
+				# Asleep: eyes shut, a tail that twitches. Open (green) now and then, pink when petted.
+				var head := Vector2(411, 37) # where SanctumArt bakes the cat
+				var awake := _cat_pet > 0.0 or int(t * 0.5) % 7 == 3
+				var eye := Color("ff8af0") if _cat_pet > 0.0 else Color("8bff9e")
+				for ex: int in [11, 14]:
+					if awake:
+						draw_rect(Rect2(head + Vector2(ex + 1, 4), Vector2(1, 1)), eye)
+					else:
+						draw_rect(Rect2(head + Vector2(ex, 4), Vector2(2, 1)), Color("0e0a14"))
+				var tail := int(roundf(sin(t * 1.6) * 1.5))
+				draw_rect(Rect2(head + Vector2(-2, 7 + tail), Vector2(2, 1)), Color("1a0f24"))
+				draw_rect(Rect2(head + Vector2(-3, 6 + tail * 2), Vector2(1, 2)), Color("1a0f24"))
+				draw_rect(Rect2(head + Vector2(-3, 6 + tail * 2), Vector2(1, 1)), Color("5a4e74"))
+				if not awake and int(t) % 4 < 2:
+					var zt := fmod(t, 2.0)
+					PixelFont.draw(self, "z", head + Vector2(17 + zt * 3.0, -2 - zt * 5.0), 1, Color("c9b8ff", 1.0 - zt / 2.0), Occult.INK)
 		if i == near:
 			var prompt: String = String(Sanctum.THINGS[i][2])
 			if i == Sanctum.RELIQUARY:
@@ -402,20 +340,28 @@ func _draw_things() -> void:
 			var half := PixelFont.text_width(text) / 2.0
 			var px := clampf(p.x, half + 4.0, 476.0 - half)
 			var py := maxf(p.y - 34.0, 64.0) + sin(t * 4.0)
-			PixelFont.draw_centered(self, text, px, py, 1, Occult.GOLD, Occult.INK)
+			_prompt = [text, Vector2(px, py)]
+
+
+## The cauldron by the front wall bubbles away.
+func _draw_cauldron() -> void:
+	for k: int in range(3):
+		var ph := fmod(t * 0.9 + k * 0.37, 1.0)
+		var bx := CAULDRON.x - 6.0 + k * 5.0 + sin(t * 3.0 + k) * 1.0
+		var by := CAULDRON.y - 11.0 - ph * 10.0
+		draw_rect(Rect2(Vector2(bx, by).floor(), Vector2(1, 1)), Color("b8ff9a", 1.0 - ph))
+	if int(t * 4.0) % 3 == 0:
+		draw_rect(Rect2(CAULDRON + Vector2(2, -11), Vector2(2, 1)), Color("b8ff9a"))
 
 
 func _draw_pots() -> void:
 	for i: int in range(Sanctum.POTS.size()):
 		var p: Vector2 = Sanctum.POTS[i]
 		if room.broken[i]:
-			draw_rect(Rect2(p + Vector2(-3, 1), Vector2(2, 1)), Color("7a3f22"))
-			draw_rect(Rect2(p + Vector2(1, 2), Vector2(3, 1)), Color("b0643a"))
+			SanctumArt.draw(self, "urn_broken", p + Vector2(0, 3))
 			continue
-		draw_rect(Rect2(p + Vector2(-4, -6), Vector2(8, 8)), Color("b0643a"))
-		draw_rect(Rect2(p + Vector2(-3, -8), Vector2(6, 2)), Color("7a3f22"))
-		draw_rect(Rect2(p + Vector2(-4, -3), Vector2(8, 1)), Color("7a3f22"))
-		draw_rect(Rect2(p + Vector2(-4, -6), Vector2(8, 8)), Color("0b0716"), false, 1.0)
+		draw_rect(Rect2(p + Vector2(-4, 1), Vector2(9, 2)), Color(0.02, 0.0, 0.06, 0.4))
+		SanctumArt.draw(self, ["urn_a", "urn_b", "urn_c"][i % 3], p + Vector2(0, 2))
 
 
 func _draw_wizard() -> void:
@@ -443,22 +389,23 @@ func _light(at: Vector2, radius: float, c: Color) -> void:
 
 func _draw_glow() -> void:
 	for c: Vector2 in _candles():
-		_light(c, 18.0 + 1.5 * sin(t * 9.0 + c.y), Color(1.0, 0.6, 0.2, 0.12))
+		_light(c, 12.0 + 1.5 * sin(t * 9.0 + c.y), Color(1.0, 0.6, 0.2, 0.08))
 	var portal: Vector2 = Sanctum.THINGS[Sanctum.PORTAL][1]
 	_light(portal, 30.0 + 2.0 * sin(t * 3.0), Color(0.6, 0.3, 1.0, 0.16))
-	_light(Vector2(264, 22), 14.0, Color(0.9, 0.9, 1.0, 0.12))
+	_light(Vector2(SanctumArt.MOON), 10.0, Color(0.9, 0.9, 1.0, 0.1))
 	var altar: Vector2 = Sanctum.THINGS[Sanctum.ALTAR][1]
-	_light(altar + Vector2(0, -15), 14.0, Color(1.0, 0.85, 0.3, 0.12))
+	_light(altar + Vector2(0, -26), 14.0, Color(1.0, 0.85, 0.3, 0.12))
 	var rel: Vector2 = Sanctum.THINGS[Sanctum.RELIQUARY][1]
 	_light(rel + Vector2(0, -4), 16.0, Color(0.8, 0.3, 1.0, 0.12))
 	var well: Vector2 = Sanctum.THINGS[Sanctum.WELL][1]
-	_light(well, 14.0, Color(0.3, 0.7, 1.0, 0.08))
+	_light(well + Vector2(0, -6), 12.0, Color(0.3, 0.7, 1.0, 0.08))
+	_light(CAULDRON + Vector2(0, -12), 12.0 + sin(t * 2.3), Color(0.3, 1.0, 0.4, 0.08))
 
 
 func _draw_hud() -> void:
 	var prof: Profile = Save.profile
 	Sprites.draw_at(self, "gem", Vector2(14, 268))
-	PixelFont.draw(self, "%d CRYSTALS" % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
+	PixelFont.draw(self, ("%d CRYSTAL" if prof.crystals == 1 else "%d CRYSTALS") % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
 	PixelFont.draw(self, "CARDS %d/%d" % [prof.cards_owned(), Cards.count()], Vector2(110, 261), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(self, "SECRETS %d/%d" % [Secrets.found(prof), Secrets.count()], Vector2(190, 261), 1, Color("ff8af0"), Occult.INK)
 	var keys := "WASD WALK  ENTER USE  ESC TITLE" if device == G.DEV_KBM else "STICK WALK  A USE  B TITLE"
