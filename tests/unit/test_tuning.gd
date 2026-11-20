@@ -108,3 +108,13 @@ func test_faster_horde_rate_spawns_more_enemies() -> void:
 		b.step(DT, {})
 	assert_true(b.spawn_queue.size() + b.enemies.size() > 2 * (a.spawn_queue.size() + a.enemies.size()),
 		"rate 20 should field far more than rate 2 (%d vs %d)" % [b.spawn_queue.size() + b.enemies.size(), a.spawn_queue.size() + a.enemies.size()])
+
+
+func test_shared_xp_rows_have_their_defaults_and_ranges() -> void:
+	var t := Tuning.new()
+	assert_near(t.xp_party_scale, 1.0)
+	assert_near(t.pick_seconds, 15.0)
+	t.set_value("xp_party_scale", 5.0)
+	assert_near(t.xp_party_scale, 2.0, 0.0001, "xp_party_scale is not clamped to 2")
+	t.set_value("pick_seconds", -3.0)
+	assert_near(t.pick_seconds, 0.0, 0.0001, "pick_seconds is not clamped to 0")

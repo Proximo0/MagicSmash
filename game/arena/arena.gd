@@ -110,6 +110,25 @@ var _last_aim := {}
 ## Level-up pick screen, per local slot: highlighted card, and the [card, offer] confirmed and being sent.
 var _pick_sel := {}
 var _pick_sent := {}
+## The party's shared level, XP pool and pick clock, from the snapshot. _pick_max is the longest the clock was
+## seen at in this round (the bar's full width); _lv_flash_t is when the party last levelled (for the HUD flash).
+var party_level := 1
+var party_xp := 0
+var party_need := 1
+var pick_left := 0.0
+var _pick_max := 0.0
+var _lv_flash_t := -10.0
+const AUTO_PICK_AT := 0.35
+var _pick_sfx_t := -10.0
+## slot -> the offer id last seen with time left on the clock: only such an offer is auto-confirmed.
+var _auto_pick_offer := {}
+## The local slots that held cards in this pick session, in the order they first did: one fixed row each, so
+## rows do not jump when a wizard picks. Cleared when nobody is picking. _pick_took is the card each took.
+var _pick_rows: Array[int] = []
+var _pick_took := {}
+var _was_picking := false
+## Autotest only (--pick-hold): seconds the bot in slot 0 looks at its cards before picking.
+var autotest_pick_hold := 0.0
 const CARD_W := 140
 const CARD_H := 40
 const CARD_GAP := 8
@@ -356,11 +375,19 @@ func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
 			_bot_pick_wait[slot] = 0.0
 		else:
 			_bot_pick_wait[slot] = float(_bot_pick_wait.get(slot, 0.0)) + get_physics_process_delta_time()
-		if float(_bot_pick_wait.get(slot, 0.0)) < BOT_PICK_THINK:
+		var think := autotest_pick_hold if slot == 0 and autotest_pick_hold > 0.0 else BOT_PICK_THINK
+		if float(_bot_pick_wait.get(slot, 0.0)) < think:
 			return SmashBot.with_pick(inp, [] as Array[int], p.offer)
 		return SmashBot.with_pick(inp, p.choices, p.offer)
 	var out: PackedFloat32Array = inp.duplicate()
 	var sent: Array = _pick_sent.get(slot, [-1, -1])
+	if pick_left <= 0.0 or pick_left >= AUTO_PICK_AT:
+		_auto_pick_offer[slot] = int(p.offer) # seen with time left
+	if pick_left > 0.0 and pick_left < AUTO_PICK_AT and int(sent[1]) != int(p.offer) \
+			and int(_auto_pick_offer.get(slot, -1)) == int(p.offer) and not (p.choices as Array).is_empty():
+		# The clock is about to take card 0 for everyone: take the card the cursor is on instead.
+		_confirm_pick(slot, clampi(int(_pick_sel.get(slot, 0)), 0, (p.choices as Array).size() - 1))
+		sent = _pick_sent.get(slot, [-1, -1])
 	if int(sent[1]) == int(p.offer) and not (p.choices as Array).is_empty():
 		out.append_array([float(sent[0]), float(p.offer)])
 	else:
@@ -436,6 +463,9 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.xp = int(pl[i + 19])
 		p.xp_need = maxi(1, int(pl[i + 20]))
 		p.level = int(pl[i + 21])
+		party_xp = p.xp
+		party_need = p.xp_need
+		party_level = p.level
 		var offer := int(pl[i + 22])
 		if offer != int(p.get("offer", -1)):
 			_pick_sel[slot] = 0
@@ -528,8 +558,17 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	boss_f = w[3]
 	run_t = w[8]
 	boss_final = w.size() > 9 and w[9] > 0.5
+	var was_left := pick_left
+	pick_left = w[10] if w.size() > 10 else 0.0
+	if pick_left > 0.0 and pick_left <= 5.0 and ceili(pick_left) < ceili(was_left):
+		Sfx.play("menu_move", -4.0, 1.0 + (5 - ceili(pick_left)) * 0.08)
+	_pick_max = maxf(_pick_max, pick_left) if pick_left > 0.0 else 0.0
 	for d in 4:
 		doors[d] = w[4 + d]
+	_update_pick_rows()
+	if _was_picking and not _anyone_picking():
+		_lv_flash_t = time # the party's level flashes when the pick screen closes
+	_was_picking = _anyone_picking()
 
 func _on_roster_changed() -> void:
 	if not is_host or world == null:
@@ -829,9 +868,12 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("powerup", -2.0, 1.1)
 			World.EV_PICK:
 				var col := G.player_fx(int(ev[3]))
+				_pick_took[int(ev[3])] = int(ev[4])
 				fx.text(pos, Upgrades.display_name(int(ev[4])) + "!", col, 1.4, 1)
 				fx.sparkle(pos + Vector2(0, 10), col, 16)
-				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
+				if time - _pick_sfx_t > 0.12:
+					_pick_sfx_t = time # four wizards picking at once play it once
+					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_FROST:
 				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
 				if float(ev[3]) > 0.0:
@@ -1662,19 +1704,12 @@ func _draw_hud() -> void:
 			ci.draw_rect(Rect2(px + 1, 4, 6.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), SPELL_COLORS[sp])
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(time * 8) % 2 == 0 else G.player_fx(slot)
-			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x + 96, 10), 1, cc, dark)
+			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x, 17), 1, cc, dark)
 		if not p.alive and p.lives > 0:
-			PixelFont.draw(ci, "...", Vector2(x + 96, 10), 1, col)
-		# XP bar and level
-		var xf := clampf(float(p.xp) / float(p.xp_need), 0.0, 1.0)
-		PixelFont.draw(ci, "LV%d" % p.level, Vector2(x, 17), 1, Color("5dff7a"), dark)
+			PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
 		Sprites.draw_at(ci, "coin", Vector2(x + 80, 23))
 		PixelFont.draw(ci, "%d" % p.get("gold", 0), Vector2(x + 85, 17), 1, Color("ffd23d"), dark)
-		ci.draw_rect(Rect2(x + 24, 19, 50, 3), dark)
-		ci.draw_rect(Rect2(x + 25, 20, 48 * xf, 1), Color("5dff7a"))
-	# Wave label on the top wall
-	var wl := _clock(run_t)
-	PixelFont.draw_centered(ci, wl, 240, 22, 1, Color("c9b8ff"), dark)
+	_draw_party_bar(ci, dark)
 	# Boss bar
 	if boss_f > 0.0:
 		var bw := 300.0
@@ -1727,6 +1762,29 @@ func _draw_hud() -> void:
 		_draw_levelup(ci)
 	elif paused:
 		_draw_pause(ci)
+
+## The party's one XP bar along the bottom edge of the HUD strip, with the party level beside the run clock.
+func _draw_party_bar(ci: CanvasItem, dark: Color) -> void:
+	var xf := clampf(float(party_xp) / float(maxi(1, party_need)), 0.0, 1.0)
+	var y := G.HUD_H - 2.0
+	var flash := clampf(1.0 - (time - _lv_flash_t) / 0.6, 0.0, 1.0)
+	ci.draw_rect(Rect2(0, y, G.SCREEN.x, 2), Color("1c2a24"))
+	ci.draw_rect(Rect2(0, y, G.SCREEN.x * xf, 2), Color("5dff7a").lerp(Color.WHITE, flash))
+	if flash > 0.0:
+		ci.draw_rect(Rect2(0, y - 1, G.SCREEN.x, 3), Color(1, 1, 1, flash * 0.35))
+	if _anyone_picking() or game_over:
+		return # the pick screen shows the level in its title
+	var lv := "LV %d" % party_level
+	var clock := _clock(run_t)
+	var gap := 6
+	var lw := PixelFont.text_width(lv, 1)
+	var cw := PixelFont.text_width(clock, 1)
+	var x0 := 240.0 - (lw + gap + cw) / 2.0
+	var lc := Color("5dff7a").lerp(Color.WHITE, flash)
+	ci.draw_rect(Rect2(x0 - 4, G.HUD_H, lw + gap + cw + 8, 12), Color(dark, 0.92))
+	ci.draw_rect(Rect2(x0 - 4, G.HUD_H + 12, lw + gap + cw + 8, 1), Color("2f2450"))
+	PixelFont.draw(ci, lv, Vector2(x0, G.HUD_H + 3), 1, lc, dark)
+	PixelFont.draw(ci, clock, Vector2(x0 + lw + gap, G.HUD_H + 3), 1, Color("c9b8ff"), dark)
 
 ## Arrows at the screen's edge pointing at what matters out of view: chests, cards and the Lich.
 func _draw_offscreen(ci: CanvasItem) -> void:
@@ -1793,8 +1851,18 @@ func _local_pick_slots() -> Array[int]:
 	out.sort()
 	return out
 
+## Keeps _pick_rows: a local slot joins the first time it holds cards; the list clears when nobody picks.
+func _update_pick_rows() -> void:
+	if not _anyone_picking():
+		_pick_rows.clear()
+		_pick_took.clear()
+		return
+	for slot: int in _local_pick_slots():
+		if not _pick_rows.has(slot):
+			_pick_rows.append(slot)
+
 func _card_rect(row: int, c: int) -> Rect2:
-	if _local_pick_slots().size() == 1:
+	if _pick_rows.size() == 1:
 		var bx := (480 - (TAROT_W * 3 + TAROT_GAP * 2)) / 2
 		return Rect2(bx + c * (TAROT_W + TAROT_GAP), TAROT_TOP, TAROT_W, TAROT_H)
 	var x0 := (480 - (CARD_W * 3 + CARD_GAP * 2)) / 2
@@ -1812,15 +1880,19 @@ func _deal(slot: int, c: int) -> float:
 	var k := clampf((time - float(seen[1]) - 0.1 * c) / 0.3, 0.0, 1.0)
 	if k >= 0.5 and (int(seen[2]) & (1 << c)) == 0:
 		seen[2] = int(seen[2]) | (1 << c)
-		Sfx.play("card_flip", -4.0, 1.0 + c * 0.06, 0.0)
+		Sfx.play("card_flip", -4.0, 1.0 + c * 0.06, 0.03)
 	return k
 
 func _draw_levelup(ci: CanvasItem) -> void:
 	var dark := Color("0b0716")
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.72))
-	var tw := PixelFont.text_width("LEVEL UP", 3)
-	PixelFont.draw_gradient(ci, "LEVEL UP", Vector2(240 - tw / 2.0, 14), 3, Color.WHITE, Color("ffd94d"), time * 5.0, 1.5)
-	var rows := _local_pick_slots()
+	ci.draw_rect(Rect2(0, 0, G.SCREEN.x, 40), Color(0.03, 0.0, 0.08, 0.85))
+	var title := "LEVEL %d" % party_level
+	var tw := PixelFont.text_width(title, 3)
+	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 7), 3, Color.WHITE, Color("ffd94d"), time * 5.0, 1.5)
+	_draw_pick_clock(ci, dark)
+	_update_pick_rows()
+	var rows := _pick_rows
 	var big := rows.size() == 1
 	for row in rows.size():
 		var slot: int = rows[row]
@@ -1829,7 +1901,10 @@ func _draw_levelup(ci: CanvasItem) -> void:
 		var sent: Array = _pick_sent.get(slot, [-1, -1])
 		var done := int(sent[1]) == int(p.offer)
 		var y0 := (TAROT_TOP - 14) if big else PICK_TOP + row * PICK_ROW_H
-		var line := "P%d  LEVEL %d  -  %s" % [slot + 1, p.level, "WAITING FOR THE OTHERS" if done else "DRAW A CARD"]
+		var held := not (p.choices as Array).is_empty()
+		var line := "P%d  %s" % [slot + 1, "READY" if done or not held else "DRAW A CARD"]
+		if not held and _pick_took.has(slot):
+			line += "  -  " + Upgrades.display_name(int(_pick_took[slot]))
 		if big:
 			PixelFont.draw_centered(ci, line, 240, y0, 1, col, dark)
 		else:
@@ -1848,6 +1923,7 @@ func _draw_levelup(ci: CanvasItem) -> void:
 				continue
 			if big and sel:
 				r.position.y -= 6
+			var dim := done and not sel
 			if big:
 				TarotArt.draw_card(ci, r, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
 					lv_text, sel, col, time)
@@ -1858,12 +1934,29 @@ func _draw_levelup(ci: CanvasItem) -> void:
 					Upgrades.description(idx), lv_text, sel, col, time)
 			if k < 0.75:
 				ci.draw_rect(r, Color(1, 1, 1, (0.75 - k) * 3.0))
+			if dim:
+				ci.draw_rect(r, Color(0.03, 0.0, 0.08, 0.6))
 	var waiting: Array[String] = []
 	for s in vp.keys():
 		if not rows.has(s) and not (vp[s].choices as Array).is_empty():
 			waiting.append("P%d" % (s + 1))
 	if not waiting.is_empty():
 		PixelFont.draw_centered(ci, " ".join(waiting) + " CHOOSING...", 240, 258, 1, Color("c9b8ff"), dark)
+
+## The pick clock: a shrinking bar under the title with the seconds, only while the clock runs.
+func _draw_pick_clock(ci: CanvasItem, dark: Color) -> void:
+	if pick_left <= 0.0:
+		return
+	var full := maxf(_pick_max, pick_left)
+	var bw := 160.0
+	var bx := 240.0 - bw / 2.0
+	var urgent := pick_left <= 5.0
+	var pulse := 0.5 + 0.5 * sin(time * 12.0) if urgent else 0.0
+	var col := Color("ffd94d").lerp(Color("ff4d6a"), pulse) if urgent else Color("ffd94d")
+	ci.draw_rect(Rect2(bx - 1, 31, bw + 2, 5), dark)
+	ci.draw_rect(Rect2(bx, 32, bw, 3), Color("3a2f55"))
+	ci.draw_rect(Rect2(bx, 32, bw * clampf(pick_left / full, 0.0, 1.0), 3), col)
+	PixelFont.draw(ci, "%d" % ceili(pick_left), Vector2(bx + bw + 6, 29), 1, col, dark)
 
 ## Routes menu input to the pick rows of local players. Returns true if the event was used.
 func _pick_input(event: InputEvent) -> bool:
@@ -1872,10 +1965,12 @@ func _pick_input(event: InputEvent) -> bool:
 		return false
 	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
 		var pos: Vector2 = event.position
-		for row in rows.size():
-			for c in (vp[rows[row]].choices as Array).size():
+		for row in _pick_rows.size():
+			if not rows.has(_pick_rows[row]):
+				continue
+			for c in (vp[_pick_rows[row]].choices as Array).size():
 				if _card_rect(row, c).has_point(pos):
-					_confirm_pick(rows[row], c)
+					_confirm_pick(_pick_rows[row], c)
 					return true
 		return true
 	for slot: int in rows:
@@ -1888,6 +1983,8 @@ func _pick_input(event: InputEvent) -> bool:
 		if not mine:
 			continue
 		var n: int = (vp[slot].choices as Array).size()
+		if n == 0:
+			continue
 		var d := _pick_dir(event)
 		if d != 0:
 			_pick_sel[slot] = wrapi(int(_pick_sel.get(slot, 0)) + d, 0, n)

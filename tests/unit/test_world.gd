@@ -86,7 +86,7 @@ func test_collecting_xp_levels_up_and_offers_choices() -> void:
 	var p := _player(w)
 	w.gain_xp(p, w.tune.xp_to_next(1))
 	assert_eq(p.level, 2)
-	assert_eq(p.xp, 0)
+	assert_eq(w.party_xp, 0)
 	assert_eq(p.pending, 1)
 	w.step(DT, {})
 	assert_eq(p.choices.size(), int(w.tune.level_choices))
@@ -98,7 +98,7 @@ func test_world_waits_while_a_player_picks() -> void:
 	var w := World.new([0, 1], 3)
 	for _i: int in range(60 * 5):
 		w.step(DT, {})
-	w.gain_xp(_player(w), w.tune.xp_to_next(1))
+	w.gain_xp(_player(w), w.xp_needed())
 	w.step(DT, {})
 	var t0: float = w.time
 	var e_pos: Array = w.enemies.map(func(e: World.Enemy) -> Vector2: return e.pos)
@@ -188,7 +188,7 @@ func test_xp_gem_flies_to_a_near_wizard() -> void:
 	w._drop(World.PK_XP, p.pos + Vector2(20, 0), Vector2.ZERO, 30.0, 3)
 	for _i: int in range(60):
 		w.step(DT, {})
-	assert_eq(p.xp, 3, "the gem should have reached the wizard")
+	assert_eq(w.party_xp, 3, "the gem should have reached the wizard")
 
 
 func test_snapshot_player_block_size() -> void:
@@ -768,16 +768,6 @@ func test_solo_bet_takes_gold_then_pays_after_the_reel() -> void:
 	assert_true(done, "the outcome never landed")
 
 
-func test_team_blessing_levels_everyone() -> void:
-	var w := _shrine_world([0, 1, 2])
-	var levels: Array[int] = []
-	for s: int in [0, 1, 2]:
-		levels.append(_player(w, s).level)
-	w._resolve_gamble({"slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_BLESSING, "stake": 40, "pos": Vector2(200, 120)})
-	for s: int in [0, 1, 2]:
-		assert_eq(_player(w, s).level, levels[s] + Gamble.BLESSING_LEVELS)
-
-
 func test_team_curse_hurts_but_never_kills() -> void:
 	var w := _shrine_world([0, 1])
 	_player(w, 0).hp = 1
@@ -1143,3 +1133,185 @@ func test_rifts_open_near_the_party_not_across_the_arena() -> void:
 		var at := w._spot_near_party(w.tune.rift_min_dist, w.tune.rift_max_dist, 22.0)
 		var d := at.distance_to(p.pos)
 		assert_true(d >= w.tune.rift_min_dist - 0.5 and d <= w.tune.rift_max_dist + 1.0, "rift %d px away" % d)
+
+
+# ================================================================ SHARED XP ===
+func _card_input(p: World.Player, card: int = 0) -> PackedFloat32Array:
+	return PackedFloat32Array([0, 0, 0, 0, 0, 0, card, p.offer])
+
+
+func test_a_gem_collected_by_any_wizard_levels_everyone() -> void:
+	var w := World.new([0, 1, 2], 3)
+	var p1 := _player(w, 1)
+	w._drop(World.PK_XP, p1.pos + Vector2(10, 0), Vector2.ZERO, 30.0, w.xp_needed())
+	for _i: int in range(30):
+		w.step(DT, {})
+	assert_eq(w.party_level, 2)
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).level, 2)
+		assert_true(not _player(w, s).choices.is_empty(), "slot %d was not dealt cards" % s)
+
+
+func test_xp_needed_scales_with_party_size() -> void:
+	var base: int = World.new([0], 3).xp_needed()
+	assert_eq(base, World.new([0], 3).tune.xp_to_next(1))
+	for n: int in [2, 3, 4]:
+		var slots: Array = range(n)
+		var w := World.new(slots, 3)
+		assert_eq(w.xp_needed(), int(round(base * (1.0 + w.tune.xp_party_scale * (n - 1)))))
+	var flat := Tuning.new()
+	flat.set_value("xp_party_scale", 0.0)
+	assert_eq(World.new([0, 1, 2, 3], 3, flat).xp_needed(), base)
+
+
+func test_one_large_gain_queues_several_levels() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), 2000)
+	assert_true(w.party_level >= 4, "level %d" % w.party_level)
+	for s: int in [0, 1]:
+		assert_eq(_player(w, s).pending, w.party_level - 1)
+		assert_eq(_player(w, s).level, w.party_level)
+
+
+func test_a_down_wizard_is_dealt_cards_and_can_pick() -> void:
+	var w := World.new([0, 1], 3)
+	var down := _player(w, 1)
+	down.alive = false
+	down.lives = 2
+	down.respawn = 100.0
+	w.gain_xp(_player(w, 0), w.xp_needed())
+	w.step(DT, {})
+	assert_false(down.choices.is_empty(), "the down wizard got no cards")
+	w.step(DT, {1: _card_input(down, 1)})
+	assert_true(down.choices.is_empty())
+
+
+func test_an_out_wizard_banks_offers_and_never_blocks() -> void:
+	var w := World.new([0, 1], 3)
+	var out := _player(w, 1)
+	out.alive = false
+	out.lives = 0
+	w.gain_xp(_player(w, 0), w.xp_needed())
+	w.step(DT, {})
+	assert_true(out.choices.is_empty(), "an out wizard was dealt cards")
+	assert_eq(out.pending, 1)
+	w.step(DT, {0: _card_input(_player(w, 0))})
+	assert_false(w.is_picking(), "an out wizard held the party up")
+
+
+func test_pick_clock_takes_card_zero_for_everyone_with_two_wizards() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), w.xp_needed())
+	w.step(DT, {})
+	assert_near(w.pick_left, w.tune.pick_seconds, 0.001)
+	var first: Array[int] = []
+	var before: Array[int] = []
+	for s: int in [0, 1]:
+		var p := _player(w, s)
+		first.append(p.choices[0])
+		before.append(Upgrades.level_of(p.upgrades, p.choices[0]))
+	var ticks := 0
+	while w.is_picking() and ticks < 60 * 20:
+		w.step(DT, {})
+		ticks += 1
+	assert_false(w.is_picking(), "the clock never ran out")
+	assert_near(ticks / 60.0, w.tune.pick_seconds, 0.2)
+	for s: int in [0, 1]:
+		assert_eq(Upgrades.level_of(_player(w, s).upgrades, first[s]), before[s] + 1, "slot %d did not get card 0" % s)
+	assert_eq(w.pick_left, 0.0)
+
+
+func test_a_late_pick_does_not_shorten_the_next_cards_clock() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), 2000)
+	w.step(DT, {})
+	var p0 := _player(w, 0)
+	var p1 := _player(w, 1)
+	assert_true(p0.pending >= 1)
+	var ticks := int(w.tune.pick_seconds * 60.0) - 2
+	for _i: int in range(ticks):
+		w.step(DT, {})
+	assert_true(w.pick_left > 0.0 and w.pick_left < 0.1, "clock %f" % w.pick_left)
+	w.step(DT, {0: _card_input(p0, 1)})
+	assert_true(w.pick_left > 0.0 and w.pick_left < 0.1, "p1 still holds round one: %f" % w.pick_left)
+	w.step(DT, {})
+	w.step(DT, {})
+	# Round one is over for both; round two is dealt to both with a full clock.
+	assert_false(p0.choices.is_empty())
+	assert_false(p1.choices.is_empty())
+	assert_near(w.pick_left, w.tune.pick_seconds, 0.1)
+	for _i: int in range(int((w.tune.pick_seconds - 1.0) * 60.0)):
+		w.step(DT, {})
+	assert_false(p0.choices.is_empty(), "slot 0 lost its second card early")
+	assert_true(w.pick_left > 0.5)
+
+
+func test_no_pick_clock_for_a_solo_run_or_with_zero_seconds() -> void:
+	var solo := World.new([0], 3)
+	solo.gain_xp(_player(solo), solo.xp_needed())
+	for _i: int in range(60 * 40):
+		solo.step(DT, {})
+	assert_true(solo.is_picking(), "a solo run was auto-picked")
+	assert_eq(solo.pick_left, 0.0)
+	var off := Tuning.new()
+	off.set_value("pick_seconds", 0.0)
+	var duo := World.new([0, 1], 3, off)
+	duo.gain_xp(_player(duo, 0), duo.xp_needed())
+	for _i: int in range(60 * 40):
+		duo.step(DT, {})
+	assert_true(duo.is_picking(), "pick_seconds 0 still auto-picked")
+	assert_eq(duo.pick_left, 0.0)
+	# The last wizard standing in a party is not rushed.
+	var rest := World.new([0, 1], 3)
+	var gone := _player(rest, 1)
+	gone.alive = false
+	gone.lives = 0
+	rest.gain_xp(_player(rest, 0), rest.xp_needed())
+	for _i: int in range(60 * 40):
+		rest.step(DT, {})
+	assert_true(rest.is_picking(), "a lone survivor was auto-picked")
+	assert_eq(rest.pick_left, 0.0)
+
+
+func test_a_freeze_never_outlasts_pick_seconds_times_queued_levels() -> void:
+	for fast: bool in [false, true]:
+		var w := World.new([0, 1], 3)
+		w.gain_xp(_player(w, 0), w.xp_needed() + w.tune.xp_to_next(2) * 3 + w.tune.xp_to_next(3) * 4)
+		var levels: int = w.party_level - 1
+		var limit := int(w.tune.pick_seconds * 60.0) * levels + 10
+		var ticks := 0
+		while ticks <= limit:
+			var inputs := {}
+			if fast and not _player(w, 0).choices.is_empty():
+				inputs[0] = _card_input(_player(w, 0))
+			w.step(DT, inputs)
+			if not w.is_picking() and _player(w, 0).pending == 0 and _player(w, 1).pending == 0:
+				break
+			ticks += 1
+		assert_true(ticks <= limit, "froze %d ticks for %d levels (fast picker: %s)" % [ticks, levels, fast])
+
+
+func test_blessing_gives_the_party_its_levels() -> void:
+	var w := _shrine_world([0, 1, 2])
+	var before: int = w.party_level
+	w._resolve_gamble({"slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_BLESSING, "stake": 40, "pos": Vector2(200, 120)})
+	assert_eq(w.party_level, before + Gamble.BLESSING_LEVELS)
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).level, w.party_level)
+
+
+func test_snapshot_carries_the_party_fields() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), w.xp_needed() + 5)
+	w.step(DT, {})
+	var snap: Dictionary = w.snapshot()
+	var pl: PackedFloat32Array = snap["p"]
+	for i: int in [0, World.PLAYER_FLOATS]:
+		assert_eq(int(pl[i + 19]), 5)
+		assert_eq(int(pl[i + 20]), w.xp_needed())
+		assert_eq(int(pl[i + 21]), w.party_level)
+	assert_near((snap["w"] as PackedFloat32Array)[10], w.pick_left)
+	assert_true(w.pick_left > 0.0)
+	var h: int = w.state_hash()
+	w.party_xp += 1
+	assert_true(w.state_hash() != h, "the hash ignores the party pool")

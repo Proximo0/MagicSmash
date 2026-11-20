@@ -96,6 +96,7 @@ const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen 
 const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b = slot + 8 when evolved
 const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
 const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
+const EV_LULL := 40 # a Lich fell and the lull begins: at the party's centre, a = its seconds
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -122,11 +123,12 @@ const STATS := [
 	[9.0,  24.0, 5.0, 300, 1],   # bone priest
 ]
 
-## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then xp,
-## xp needed, level, offer id, 3 x (offered upgrade index or -1, the level it would reach), the Spells.COUNT
-## spell weapon levels from PLAYER_WEAPONS (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold and max hearts.
+## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then the party's xp,
+## xp needed and level (the same for every wizard), offer id, 3 x (offered upgrade index or -1, the level it would reach), the Spells.COUNT
+## spell weapon levels from PLAYER_WEAPONS (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold, max hearts and
+## draws (queued level-up offers plus 1 while the wizard holds cards).
 const PLAYER_WEAPONS := 29
-const PLAYER_FLOATS := PLAYER_WEAPONS + Spells.COUNT + 2
+const PLAYER_FLOATS := PLAYER_WEAPONS + Spells.COUNT + 3
 const BASE_HEARTS := 5
 
 ## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved.
@@ -211,10 +213,9 @@ class Player:
 	var last_bomb := -1
 	var moving := false
 	var kills := 0
-	var xp := 0
-	var level := 1
+	var level := 1 # follows World.party_level
 	var upgrades := {} # Upgrades index -> level
-	var choices: Array[int] = [] # upgrades offered right now; the world waits while any player has some
+	var choices: Array[int] = [] # upgrades offered right now; they wait in hand until the wizard takes one
 	var offer := 0 # id of the current offer; a pick input must name it
 	var pending := 0 # level-ups still to offer after the current one
 	var regen_t := 0.0
@@ -314,6 +315,11 @@ var meta_damage := 0.0
 var meta_xp := 0.0
 var meta_gold := 0.0
 var meta_luck := 0
+## The party's shared level and XP pool; every Player.level follows party_level.
+var party_level := 1
+var party_xp := 0
+## Seconds left of the lull after a Lich falls (nothing spawns, XP flies to the party); 0 when there is none.
+var lull_left := 0.0
 var liches_slain := 0
 ## True once the Archlich has fallen; the results screen follows after victory_t runs out.
 var won := false
@@ -407,8 +413,8 @@ func take_events() -> Array:
 
 # ================================================================= STEP ===
 func step(dt: float, inputs: Dictionary) -> void:
-	if phase != PH_GAMEOVER and _update_levelups(inputs):
-		return
+	if phase != PH_GAMEOVER:
+		_update_levelups(inputs)
 	time += dt
 	_tick += 1
 	for i in 4:
@@ -461,9 +467,11 @@ func _end_run() -> void:
 	emit(EV_RESULTS, 0, 0, record.to_dict(), 0)
 	emit(EV_GAMEOVER, wave_time, total_kills(), total_score(), liches_slain)
 
-## One tick of the run proper: the clock, the horde, powerups and shrines.
+## One tick of the run proper: the clock, the horde, powerups and shrines. The lull counts down here; while it
+## lasts the horde holds (see _direct_horde and _process_spawns) but the clock, minutes and shrines go on.
 func _fight(dt: float) -> void:
 	wave_time += dt
+	lull_left = maxf(0.0, lull_left - dt)
 	_tick_minute()
 	_direct_horde(dt)
 	_process_spawns()
@@ -474,27 +482,19 @@ func _fight(dt: float) -> void:
 	_update_shrines(dt)
 
 # ============================================================ LEVEL-UPS ===
-## Offers and applies level-up picks. Returns true while any player still has to pick: the whole world waits.
-func _update_levelups(inputs: Dictionary) -> bool:
-	var frozen := false
+## Applies level-up picks and deals cards; the world never waits for them. A wizard with no cards in hand and a
+## draw queued is dealt an offer at once (one with nothing left to learn is scored for each queued draw), so cards
+## are ready whenever the player wants them. Nothing picks for a player and nothing expires.
+func _update_levelups(inputs: Dictionary) -> void:
 	for p: Player in players.values():
-		if p.choices.is_empty() and p.pending > 0:
-			_offer(p)
 		if not p.choices.is_empty():
 			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
 			if inp.size() >= 8 and int(inp[7]) == p.offer:
 				var c := int(inp[6])
 				if c >= 0 and c < p.choices.size():
 					_pick(p, p.choices[c])
-		if not p.choices.is_empty():
-			frozen = true
-	if frozen:
-		# Presses made while the world waits (confirming a card with Space) must not fire a nova afterwards.
-		for p: Player in players.values():
-			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
-			if inp.size() >= 6:
-				p.last_bomb = int(inp[5])
-	return frozen
+		while p.choices.is_empty() and p.pending > 0:
+			_offer(p)
 
 func _offer(p: Player) -> void:
 	p.pending -= 1
@@ -518,20 +518,42 @@ func _pick(p: Player, idx: int) -> void:
 	emit(EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
 	if Upgrades.is_evolution(idx):
 		record.note(wave_time, Results.M_EVOLVE, p.slot, idx)
-	if p.pending > 0:
-		_offer(p)
+	if p.alive:
+		_pick_shock(p)
 
+## Taking a card pushes every enemy near the wizard away at once (no damage), so drawing mid-fight is safe.
+func _pick_shock(p: Player) -> void:
+	var radius := tune.pick_shock_radius
+	if radius <= 0.0:
+		return
+	for e: Enemy in enemies:
+		if e.dead or e.entering:
+			continue
+		var to := e.pos - p.pos
+		if to.length() <= radius:
+			var dir := to.normalized() if to.length() > 0.01 else Vector2.RIGHT
+			e.knock += dir * tune.pick_shock_push * _heft(e)
+
+## XP the party needs for its next level: the solo curve, grown with the party size.
+func xp_needed() -> int:
+	var scale := 1.0 + tune.xp_party_scale * (players.size() - 1)
+	return maxi(1, int(round(tune.xp_to_next(party_level) * maxf(scale, 0.0))))
+
+## Adds to the party's shared pool; `p` is the wizard who gets the credit (where the LEVEL UP shows).
+## Each time the pool fills the party levels, and every wizard in the run gets one more offer.
 func gain_xp(p: Player, amount: int) -> void:
-	p.xp += amount
-	var need := tune.xp_to_next(p.level)
-	while p.xp >= need:
-		p.xp -= need
-		p.level += 1
-		p.pending += 1
-		emit(EV_LEVELUP, p.pos.x, p.pos.y - 14, p.slot, p.level)
-		need = tune.xp_to_next(p.level)
+	party_xp += amount
+	var need := xp_needed()
+	while party_xp >= need:
+		party_xp -= need
+		party_level += 1
+		for q: Player in players.values():
+			q.level = party_level
+			q.pending += 1
+		emit(EV_LEVELUP, p.pos.x, p.pos.y - 14, p.slot, party_level)
+		need = xp_needed()
 
-## True while the world is waiting for level-up picks.
+## True while any wizard holds cards. A plain query: the world no longer waits for picks.
 func is_picking() -> bool:
 	for p: Player in players.values():
 		if not p.choices.is_empty():
@@ -623,6 +645,8 @@ func _lich_visits(minute: int) -> int:
 ## up) and spends it on the group it rolled, from a random door. At the enemy cap it holds: enemies on the field
 ## and enemies still queued both count, so the field never grows much past the cap.
 func _direct_horde(dt: float) -> void:
+	if lull_left > 0.0:
+		return # the lull: no groups, elites or rifts, and no budget earned
 	elite_t += dt
 	if elite_t >= tune.elite_interval:
 		elite_t -= tune.elite_interval
@@ -737,6 +761,8 @@ func _sort_queue() -> void:
 	spawn_queue.sort_custom(func(a, b): return a.t < b.t)
 
 func _process_spawns() -> void:
+	if lull_left > 0.0:
+		return # queued spawns (an omen's horde, the next Lich) wait for the lull to end
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= wave_time:
 		var s: Dictionary = spawn_queue.pop_front()
 		var e := spawn_enemy(s.type, s.door, s.get("at"))
@@ -1473,6 +1499,10 @@ func _kill_enemy(e: Enemy, slot: int) -> void:
 			spawn_queue.clear()
 			horde_budget = 0.0
 			_next_group = []
+			if not e.final and tune.lull_seconds > 0.0:
+				lull_left = tune.lull_seconds
+				var c := party_center()
+				emit(EV_LULL, c.x, c.y, lull_left, 0)
 			return
 	_roll_drop(e)
 
@@ -1734,7 +1764,7 @@ func _update_pickups(dt: float) -> void:
 				break
 	pickups = pickups.filter(func(k): return k.life > 0.0)
 
-## An XP gem near a wizard flies to the nearest one in reach.
+## An XP gem near a wizard flies to the nearest one in reach; during a lull every gem flies to the nearest one.
 func _magnet_xp(k: Pickup) -> void:
 	var best: Player = null
 	var bd := INF
@@ -1742,7 +1772,7 @@ func _magnet_xp(k: Pickup) -> void:
 		if not p.alive:
 			continue
 		var d := p.pos.distance_to(k.pos)
-		if d < tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades) and d < bd:
+		if (lull_left > 0.0 or d < tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)) and d < bd:
 			bd = d
 			best = p
 	if best:
@@ -1830,7 +1860,7 @@ func _open_chest(p: Player, k: Pickup) -> void:
 					Upgrades.take(p.upgrades, Upgrades.weapon_entry(owned[rng.randi() % owned.size()]))
 				_refresh_spell(p)
 			Loot.FX_INSIGHT:
-				gain_xp(p, maxi(1, int(round(tune.xp_to_next(p.level) * v))))
+				gain_xp(p, maxi(1, int(round(xp_needed() * v))))
 	emit(EV_CHEST, k.pos.x, k.pos.y, p.slot, idx * 8 + tier)
 
 # ============================================================= SHRINES ===
@@ -1895,14 +1925,16 @@ func _resolve_gamble(g: Dictionary) -> void:
 	var p: Player = players.get(g.slot)
 	var pos: Vector2 = g.pos
 	if g.kind == Gamble.TEAM:
-		for q: Player in players.values():
-			if g.outcome == Gamble.TO_BLESSING:
-				for i in Gamble.BLESSING_LEVELS:
-					gain_xp(q, maxi(1, tune.xp_to_next(q.level) - q.xp))
-			elif q.alive:
-				q.hp = maxi(1, q.hp - 1)
-				q.flash = 0.3
-				_spawn_elite()
+		if g.outcome == Gamble.TO_BLESSING:
+			var who: Player = p if p != null else players.values()[0]
+			for i in Gamble.BLESSING_LEVELS:
+				gain_xp(who, maxi(1, xp_needed() - party_xp))
+		else:
+			for q: Player in players.values():
+				if q.alive:
+					q.hp = maxi(1, q.hp - 1)
+					q.flash = 0.3
+					_spawn_elite()
 	elif p != null:
 		match int(g.outcome):
 			Gamble.SO_JACKPOT:
@@ -1950,7 +1982,7 @@ func _query(pos: Vector2, radius: float) -> Array:
 
 ## Summary of the whole simulation for determinism checks (same seed + same inputs = same hash).
 func state_hash() -> int:
-	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget])
+	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)])
 
 # ============================================================ SNAPSHOT ===
 func _snapshot_urns() -> PackedFloat32Array:
@@ -1965,7 +1997,7 @@ func snapshot() -> Dictionary:
 		pl.append_array([p.slot, p.pos.x, p.pos.y, p.aim.x, p.aim.y, p.hp, p.lives,
 			1.0 if p.alive else 0.0, p.invuln, p.spell, p.wizard, p.bombs, p.score,
 			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0,
-			p.xp, tune.xp_to_next(p.level), p.level, p.offer])
+			party_xp, xp_needed(), party_level, p.offer])
 		for c in 3:
 			var idx: int = p.choices[c] if c < p.choices.size() else -1
 			pl.append(idx)
@@ -1974,6 +2006,7 @@ func snapshot() -> Dictionary:
 			pl.append(_weapon_snap(p, sp))
 		pl.append(floorf(p.gold))
 		pl.append(p.max_hp)
+		pl.append(p.pending + (0 if p.choices.is_empty() else 1))
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 2.0 if e.final else (1.0 if e.elite else 0.0)])
@@ -1998,5 +2031,5 @@ func snapshot() -> Dictionary:
 	return {
 		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
-			1.0 if boss != null and boss.final else 0.0]),
+			1.0 if boss != null and boss.final else 0.0, lull_left]),
 	}

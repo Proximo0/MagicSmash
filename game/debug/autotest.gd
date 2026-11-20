@@ -30,6 +30,10 @@ var _quit_override := -1.0
 var net := ""
 var _pick_seen := 0.0
 var _pick_shot := false
+var _ready_shot := false
+var _ready_seen := 0.0
+var _clock_shot := false
+var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -52,6 +56,8 @@ func _ready() -> void:
 			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--pick-hold="):
+			pick_hold = float(a.substr(12))
 		if a.begins_with("--players="):
 			players = clampi(int(a.substr(10)), 1, 4)
 		if a.begins_with("--perf-hide="):
@@ -104,6 +110,22 @@ func _process(delta: float) -> void:
 			_pick_shot = true
 			get_viewport().get_texture().get_image().save_png("%s/levelup.png" % out_dir)
 			print("shot levelup")
+	# State-keyed shots: a pick row showing READY (some wizard picked, others have not), and the clock under 5 s.
+	if cur and cur.has_method("_anyone_picking") and cur._anyone_picking():
+		if not _ready_shot:
+			for slot: int in cur._pick_rows:
+				if (cur.vp[slot].choices as Array).is_empty():
+					_ready_seen += delta
+					if _ready_seen < 0.4:
+						break
+					_ready_shot = true
+					get_viewport().get_texture().get_image().save_png("%s/pick_ready.png" % out_dir)
+					print("shot pick_ready")
+					break
+		if not _clock_shot and cur.pick_left > 0.0 and cur.pick_left < 4.0:
+			_clock_shot = true
+			get_viewport().get_texture().get_image().save_png("%s/pick_clock.png" % out_dir)
+			print("shot pick_clock")
 	# State-keyed shot: the first chest reel, just after it stops on the item.
 	if not _chest_shot and cur and "_reveals" in cur:
 		for r: Dictionary in cur._reveals:
@@ -216,6 +238,7 @@ func _process(delta: float) -> void:
 			Net.begin_game()
 			await get_tree().process_frame
 			var arena = G.main.current
+			arena.autotest_pick_hold = pick_hold
 			if arena.world and start_wave > 1:
 				# Jump the run clock to just before the start_wave:00 mark (5 brings the Lich); the horde announces
 				# the new minute itself.

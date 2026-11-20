@@ -5,7 +5,7 @@ extends "res://tests/sim/sim_base.gd"
 const SEED: int = 7
 const MINUTES: float = 3.0
 const MIN_WAVE: int = 3
-## Every bot wizard should level up this many times in the run, and bots answer an offer within a few ticks.
+## The party should level up this many times in the run, and bots answer an offer within a few ticks.
 const MIN_LEVEL: int = 5
 const MAX_PICK_TICKS: int = 3
 
@@ -32,7 +32,7 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 		streak = streak + 1 if w.is_picking() else 0
 		longest = maxi(longest, streak)
 	var us: float = float(Time.get_ticks_usec() - t0) / ticks
-	var lowest: int = 1 << 30
+	var lowest: int = w.party_level # the party levels together; every wizard's level follows it
 	for p: World.Player in w.players.values():
 		lowest = mini(lowest, p.level)
 	return {"lowest_level": lowest, "pick_ticks": longest, "wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
