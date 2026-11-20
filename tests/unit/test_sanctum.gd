@@ -117,3 +117,23 @@ func test_sealed_decks_draw_the_lich_rarely() -> void:
 func test_texts_fit_the_screen() -> void:
 	for f: String in Sanctum.FORTUNES:
 		assert_true(PixelFont.text_width(f, 1) <= 440, f)
+
+
+func test_the_ninth_wish_pays_only_the_first_time() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 11
+	var p := Profile.new()
+	var ninths := 0
+	var paid_30 := 0
+	for i: int in range(1, 28):
+		var res := Sanctum.toss(p, r)
+		if res.ninth:
+			ninths += 1
+			assert_eq(i, 9, "the secret was found on toss %d" % i)
+			assert_eq(res.back, Secrets.NINTH_CRYSTALS)
+		if res.back == Secrets.NINTH_CRYSTALS:
+			paid_30 += 1
+	assert_eq(p.wishes, 27)
+	assert_true(p.has_secret("ninth"))
+	assert_eq(ninths, 1, "tosses 9, 18 and 27 must find the secret exactly once")
+	assert_eq(paid_30, 1, "the prize was paid more than once")

@@ -123,3 +123,12 @@ func test_secrets_pots_and_spending_save() -> void:
 	assert_eq(back.pots_mask_now(), 8)
 	back.finish_run(10, 30.0, 0, 0)
 	assert_eq(back.pots_mask_now(), 0, "pots did not refill after a run")
+
+
+func test_breaking_a_pot_in_a_new_run_drops_the_old_runs_bits() -> void:
+	var p := Profile.new()
+	p.break_pot(3)
+	p.finish_run(10, 30.0, 0, 0)
+	assert_eq(p.pots_mask_now(), 0)
+	p.break_pot(1)
+	assert_eq(p.pots_mask_now(), 2, "a pot from an earlier run stayed broken")

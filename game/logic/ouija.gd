@@ -92,7 +92,6 @@ func point_at(r: int, c: int) -> bool:
 		return false
 	row = r
 	col = c
-	moved = true
 	return true
 
 

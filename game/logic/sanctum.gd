@@ -204,6 +204,15 @@ static func wish_payout(wishes: int, first_ninth: bool, r: RandomNumberGenerator
 	return wish(r)
 
 
+## One toss into the wishing well, after the crystal is paid: counts it on the profile and returns {"back": the
+## crystals paid, "ninth": whether this toss found the ninth-wish secret}. The 30 crystals are paid only the first
+## time (the toss that finds the secret); later ninths are ordinary tosses.
+static func toss(prof: Profile, r: RandomNumberGenerator) -> Dictionary:
+	prof.wishes += 1
+	var ninth := prof.wishes % Secrets.NINTH_WISH == 0 and prof.find_secret("ninth")
+	return {"back": wish_payout(prof.wishes, ninth, r), "ninth": ninth}
+
+
 ## A toss into the wishing well: the crystals it pays back (0 most of the time).
 static func wish(r: RandomNumberGenerator) -> int:
 	return WELL_CRYSTALS if r.randf() < WELL_PAYOUT else 0

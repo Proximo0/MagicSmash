@@ -42,14 +42,16 @@ func _ready() -> void:
 	if not n.is_empty():
 		host_name = clean_name(n)
 
-## A name the pixel font can draw: upper case, only its glyphs (no "|", which would break the discovery packet),
-## at most 10 characters, "WIZARD" when nothing is left. Also applied to names that arrive off the network.
+## A name the pixel font can draw: upper case, only its glyphs (spaces kept, runs collapsed and trimmed; no "|",
+## which would break the discovery packet), at most 10 characters, "WIZARD" when nothing is left. Also applied to
+## names that arrive off the network.
 static func clean_name(n: String) -> String:
 	var out := ""
 	for ch: String in n.to_upper():
-		if ch != " " and ch != "|" and PixelFont.GLYPHS.has(ch):
-			out += ch
-	out = out.left(10)
+		if ch == " " or (ch != "|" and PixelFont.GLYPHS.has(ch)):
+			if ch != " " or not out.ends_with(" "):
+				out += ch
+	out = out.strip_edges().left(10).strip_edges()
 	return "WIZARD" if out.is_empty() else out
 
 func is_host() -> bool:

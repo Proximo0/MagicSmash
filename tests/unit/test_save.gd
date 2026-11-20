@@ -20,7 +20,8 @@ func _put(path: String, text: String) -> void:
 
 
 func _cleanup() -> void:
-	for f: String in DirAccess.get_files_at(_dir):
+	Save.tmp_filter = Callable()
+	for f: String in DirAccess.get_files_at(_dir) + DirAccess.get_directories_at(_dir):
 		DirAccess.remove_absolute(_dir + "/" + f)
 	DirAccess.remove_absolute(_dir)
 
@@ -87,4 +88,74 @@ func test_damaged_settings_load_the_backup() -> void:
 	_put(path + ".bak", JSON.stringify(s.to_dict()))
 	_put(path, "{")
 	assert_eq(Save.read_settings(path, true).music, 2)
+	_cleanup()
+
+
+func test_a_write_that_fails_at_the_same_path_leaves_the_real_file_alone() -> void:
+	var path := _fresh_dir("samepath")
+	assert_true(Save.write_json(path, {"crystals": 9}))
+	var before := FileAccess.get_file_as_bytes(path)
+	DirAccess.make_dir_absolute(path + ".tmp") # the temporary file cannot be opened
+	assert_false(Save.write_json(path, {"crystals": 500}))
+	assert_eq(FileAccess.get_file_as_bytes(path), before, "a failed write changed the real file")
+	_cleanup()
+
+
+func test_a_damaged_main_file_never_replaces_a_good_backup() -> void:
+	var path := _fresh_dir("badmain")
+	_put(path + ".bak", JSON.stringify({"crystals": 3}))
+	_put(path, "{\"crystals\": 12, \"runs\"")
+	assert_true(Save.write_json(path, {"crystals": 20}))
+	var bak: Variant = Save._parse(FileAccess.get_file_as_string(path + ".bak"))
+	assert_true(bak is Dictionary, "the backup was overwritten with the damaged file")
+	assert_eq(int(bak.crystals), 3)
+	_cleanup()
+
+
+func test_a_temporary_file_that_does_not_parse_never_replaces_the_real_file() -> void:
+	var path := _fresh_dir("badtmp")
+	assert_true(Save.write_json(path, {"crystals": 9}))
+	var before := FileAccess.get_file_as_bytes(path)
+	Save.tmp_filter = func(t: String) -> String: return t.left(t.length() / 2)
+	assert_false(Save.write_json(path, {"crystals": 500, "runs": 4}))
+	Save.tmp_filter = Callable()
+	assert_eq(FileAccess.get_file_as_bytes(path), before, "a torn temporary file replaced the real file")
+	assert_false(FileAccess.file_exists(path + ".tmp"), "the torn temporary file was left behind")
+	_cleanup()
+
+
+func test_every_damaged_copy_is_kept() -> void:
+	var path := _fresh_dir("keepall")
+	_put(path, "first bad")
+	Save.read_json(path, true)
+	_put(path, "second bad")
+	Save.read_json(path, true)
+	assert_eq(FileAccess.get_file_as_string(path + ".bad"), "first bad")
+	var kept := 0
+	for f: String in DirAccess.get_files_at(_dir):
+		if f.begins_with("profile.json.bad."):
+			assert_eq(FileAccess.get_file_as_string(_dir + "/" + f), "second bad")
+			kept += 1
+	assert_eq(kept, 1, "the second damaged file was not kept")
+	_cleanup()
+
+
+func test_a_damaged_backup_is_kept_aside_too() -> void:
+	var path := _fresh_dir("badbak")
+	_put(path, "bad main")
+	_put(path + ".bak", "bad backup")
+	assert_eq(Save.read_profile(path, path + ".old", true).crystals, 0)
+	assert_false(FileAccess.file_exists(path + ".bak"), "the damaged backup is still there to be written over")
+	assert_eq(FileAccess.get_file_as_string(path + ".bak.bad"), "bad backup")
+	_cleanup()
+
+
+func test_a_failed_rename_keeps_the_temporary_file_and_it_is_loaded() -> void:
+	var path := _fresh_dir("rename")
+	DirAccess.make_dir_absolute(path) # a folder where the file belongs: the rename fails
+	assert_false(Save.write_json(path, {"crystals": 31}))
+	assert_true(FileAccess.file_exists(path + ".tmp"), "the only copy of the newest data was deleted")
+	DirAccess.remove_absolute(path)
+	var p := Save.read_profile(path, path + ".old", true)
+	assert_eq(p.crystals, 31, "the temporary file was not used when the main file is missing")
 	_cleanup()

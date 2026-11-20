@@ -4,7 +4,7 @@ extends Node
 ## their runs do not depend on whoever ran them. An old user://save.cfg high score is carried over once.
 ## The player's options (Settings) live beside it in user://settings.json; scripted runs use the defaults.
 ## Files are written safely: to a .tmp file, the last good one kept as .bak, then renamed into place. A file that
-## cannot be read is kept aside as .bad and the .bak is loaded, so a bad save never wipes the player's data.
+## cannot be read is kept aside as .bad (never overwriting an earlier one) and the .bak is loaded, so a bad save never wipes the player's data.
 
 const PATH := "user://profile.json"
 const OLD_PATH := "user://save.cfg"
@@ -31,21 +31,61 @@ static func _parse(text: String) -> Variant:
 	return j.data if j.parse(text) == OK else null
 
 
-## The dictionary stored at `path`, else the one in its .bak, else null. With `aside`, a file that exists but does
-## not parse is renamed to .bad (so nothing can write over it); scripted runs leave files alone.
+## The dictionary stored in the file at `path`, or null. An empty read of a file that has bytes may be a passing
+## failure, not damage, so it is read once more before it counts as unreadable.
+static func _read(path: String) -> Variant:
+	var parsed: Variant = _parse(FileAccess.get_file_as_string(path))
+	if parsed is Dictionary:
+		return parsed
+	var f := FileAccess.open(path, FileAccess.READ)
+	var size := f.get_length() if f else 0
+	if f:
+		f.close()
+	if size > 0:
+		parsed = _parse(FileAccess.get_file_as_string(path))
+	return parsed if parsed is Dictionary else null
+
+
+## Renames a damaged file to `path + suffix`, or to `path + suffix + "." + unix time` when that name is taken, so
+## every damaged copy is kept.
+static func _keep_aside(path: String, suffix: String) -> void:
+	var to := path + suffix
+	if FileAccess.file_exists(to):
+		to = "%s%s.%d" % [path, suffix, int(Time.get_unix_time_from_system())]
+		var n := 1
+		while FileAccess.file_exists(to):
+			to = "%s%s.%d_%d" % [path, suffix, int(Time.get_unix_time_from_system()), n]
+			n += 1
+	DirAccess.rename_absolute(path, to)
+	push_warning("%s could not be read; kept as %s" % [path, to])
+
+
+## The dictionary stored at `path`, else a complete .tmp left by a save whose rename failed (when the file is
+## missing), else the one in its .bak, else null. With `aside`, a file or .bak that exists but does not parse is
+## renamed to .bad (or .bak.bad; a name already taken gets the unix time added) so nothing can write over it;
+## scripted runs leave files alone.
 static func read_json(path: String, aside: bool = false) -> Variant:
 	if FileAccess.file_exists(path):
-		var parsed: Variant = _parse(FileAccess.get_file_as_string(path))
+		var parsed: Variant = _read(path)
 		if parsed is Dictionary:
 			return parsed
 		if aside:
-			DirAccess.rename_absolute(path, path + ".bad")
-			push_warning("%s could not be read; kept as %s.bad" % [path, path])
+			_keep_aside(path, ".bad")
+	if not FileAccess.file_exists(path) and FileAccess.file_exists(path + ".tmp"):
+		var newest: Variant = _read(path + ".tmp")
+		if newest is Dictionary:
+			return newest
 	if FileAccess.file_exists(path + ".bak"):
-		var parsed: Variant = _parse(FileAccess.get_file_as_string(path + ".bak"))
-		if parsed is Dictionary:
-			return parsed
+		var old: Variant = _read(path + ".bak")
+		if old is Dictionary:
+			return old
+		if aside:
+			_keep_aside(path + ".bak", ".bad")
 	return null
+
+
+## Test seam: when set, the text bound for the .tmp file passes through it (to inject a bad write).
+static var tmp_filter := Callable()
 
 
 ## Writes `data` to `path` safely (see the top). Returns false, leaving `path` as it was, on any failure.
@@ -54,19 +94,20 @@ static func write_json(path: String, data: Dictionary) -> bool:
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	if f == null:
 		return false
-	f.store_string(JSON.stringify(data, "\t"))
+	var text := JSON.stringify(data, "\t")
+	if tmp_filter.is_valid():
+		text = tmp_filter.call(text)
+	f.store_string(text)
 	var ok := f.get_error() == OK
 	f.close()
 	if not ok or not (_parse(FileAccess.get_file_as_string(tmp)) is Dictionary):
 		DirAccess.remove_absolute(tmp)
 		return false
 	# Keep the last good file as .bak (never a damaged one over a good .bak).
-	if FileAccess.file_exists(path) and _parse(FileAccess.get_file_as_string(path)) is Dictionary:
+	if FileAccess.file_exists(path) and _read(path) is Dictionary:
 		DirAccess.copy_absolute(path, path + ".bak")
-	if DirAccess.rename_absolute(tmp, path) != OK:
-		DirAccess.remove_absolute(tmp)
-		return false
-	return true
+	# A failed rename leaves the .tmp: it is then the only copy of the newest data (read_json can use it).
+	return DirAccess.rename_absolute(tmp, path) == OK
 
 
 static func read_settings(path: String, aside: bool = false) -> Settings:

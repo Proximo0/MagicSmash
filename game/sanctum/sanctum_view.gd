@@ -158,10 +158,9 @@ func _use(i: int) -> void:
 			fx.text(Sanctum.THINGS[i][1] + Vector2(0, -16), Sanctum.MUSIC_NOTE, Color("ffd94d"), 1.0, 2)
 		Sanctum.WELL:
 			if prof.spend(1):
-				prof.wishes += 1
-				# The ninth wish is granted once, when the secret is found; later ninths are ordinary tosses.
-				var ninth: bool = prof.wishes % Secrets.NINTH_WISH == 0 and prof.find_secret("ninth")
-				var back := Sanctum.wish_payout(prof.wishes, ninth, _rng)
+				var res := Sanctum.toss(prof, _rng)
+				var ninth: bool = res.ninth
+				var back: int = res.back
 				if ninth:
 					fx.text(Sanctum.THINGS[i][1] + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
 				prof.crystals += back
