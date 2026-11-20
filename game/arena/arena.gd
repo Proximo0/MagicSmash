@@ -1,3 +1,4 @@
+class_name Arena
 extends Node2D
 ## Match scene: runs the World on the host, mirrors it on clients, and draws
 ## everything (sprites, spells, particles, HUD, banners, touch controls).
@@ -254,7 +255,6 @@ func _exit_tree() -> void:
 	PlayerInput.touch = null
 	Engine.time_scale = 1.0
 
-# ============================================================== LOOP ===
 func _physics_process(dt: float) -> void:
 	if paused and not Net.is_online():
 		return
@@ -365,111 +365,6 @@ func _process_view(dt: float) -> void:
 	env_add.queue_redraw()
 	hud.queue_redraw()
 
-## Adds the level-up pick fields [card, offer] (World reads input[6] and input[7]).
-func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
-	if not vp.has(slot):
-		return SmashBot.with_pick(inp, [] as Array[int], 0)
-	var p: Dictionary = vp[slot]
-	var held := not (p.choices as Array).is_empty()
-	if PlayerInput.bot:
-		# Demo bots show their tray while they hold cards and take one after a moment, so watchers and captures see
-		# it. With --pick-hold the slot 0 bot keeps its tray shut for the first second of the hold, or half a hold
-		# shorter than two seconds (its tab shows), so it never takes a card with the tray shut.
-		var wait: Array = _bot_pick_wait.get(slot, [-1, 0.0])
-		if not held:
-			wait = [-1, 0.0]
-		elif int(wait[0]) != int(p.offer):
-			wait = [int(p.offer), 0.0]
-		else:
-			wait[1] = float(wait[1]) + get_physics_process_delta_time()
-		_bot_pick_wait[slot] = wait
-		var hold := slot == 0 and autotest_pick_hold > 0.0
-		_set_tray(slot, held and (not hold or float(wait[1]) >= minf(1.0, autotest_pick_hold * 0.5)))
-		if float(wait[1]) < (autotest_pick_hold if hold else BOT_PICK_THINK):
-			return SmashBot.with_pick(inp, [] as Array[int], p.offer)
-		return SmashBot.with_pick(inp, p.choices, p.offer)
-	var out: PackedFloat32Array = inp.duplicate()
-	var sent: Array = _pick_sent.get(slot, [-1, -1])
-	if int(sent[1]) == int(p.offer) and held:
-		out.append_array([float(sent[0]), float(p.offer)])
-	else:
-		out.append_array([-1.0, float(p.offer)])
-	return out
-
-## Bot wizards (autotest, the bot gate): SmashBot fed from the view state, so it also works on LAN clients.
-## `--persona=novice|casual|veteran` picks how well they play (casual by default).
-var _bots := {}  # slot -> SmashBot
-var _bot_track := {}  # enemy id -> [last seen position, estimated velocity, time seen], for the bots' senses
-func _bot_input(slot: int) -> PackedFloat32Array:
-	if not vp.has(slot):
-		return PackedFloat32Array([0, 0, 0, 0, 0, 0])
-	if not _bots.has(slot):
-		var persona := SmashBot.persona_from_name(Flags.get_arg("persona", "casual"))
-		_bots[slot] = SmashBot.new(slot + 1, persona if persona >= 0 else SmashBot.CASUAL)
-	var bot: SmashBot = _bots[slot]
-	var me: Dictionary = vp[slot]
-	var at: Vector2 = me.get("target", me.pos)
-	var en: Array[Vector2] = []
-	var es: Array[Vector2] = []
-	var pk: Array[Vector2] = []
-	if not bot.wants_senses(time):
-		return bot.decide(slot, at, G.ARENA.get_center(), time, en, es, pk)
-	var tune := Tuning.shared()
-	var ev: Array = []
-	var er: Array = []
-	var boss := Vector2.INF
-	var seen := {}
-	for id: int in ve:
-		var e: Dictionary = ve[id]
-		var pos: Vector2 = e.get("target", e.pos)
-		var tr: Array = _bot_track.get(id, [pos, Vector2.ZERO, time])
-		if time > float(tr[2]):
-			tr = [pos, (pos - (tr[0] as Vector2)) / (time - float(tr[2])), time]
-		_bot_track[id] = tr
-		seen[id] = true
-		en.append(pos)
-		ev.append(tr[1])
-		er.append(World.STATS[int(e.type)][2])
-		if int(e.type) == World.LICH:
-			boss = pos
-	for id: int in _bot_track.keys():
-		if not seen.has(id):
-			_bot_track.erase(id)
-	var sv: Array = []
-	var sr: Array = []
-	for s: Array in ves:
-		es.append(s[1])
-		sv.append(s[2])
-		sr.append([2.5, 4.0, 5.0][clampi(int(s[0]), 0, 2)])
-	var kinds: Array = []
-	for k: Array in vk:
-		pk.append(k[1])
-		kinds.append(k[0])
-	var mates: Array = []
-	var party := Vector2.ZERO
-	var lo := Vector2(-1e6, -1e6)
-	var hi := Vector2(1e6, 1e6)
-	for q: Dictionary in vp.values():
-		if not q.get("alive", true):
-			continue
-		var qp: Vector2 = q.get("target", q.pos)
-		party += qp
-		if q.slot == slot:
-			continue
-		mates.append(qp)
-		lo = Vector2(maxf(lo.x, qp.x - tune.leash_x), maxf(lo.y, qp.y - tune.leash_y))
-		hi = Vector2(minf(hi.x, qp.x + tune.leash_x), minf(hi.y, qp.y + tune.leash_y))
-	var ctx := {
-		"hp": int(me.get("hp", 5)), "max_hp": int(me.get("max_hp", 5)), "bombs": int(me.get("bombs", 0)),
-		"speed": tune.player_speed * (tune.haste_speed_mul if float(me.get("haste", 0.0)) > 0.0 else 1.0),
-		"enemy_vel": ev, "enemy_r": er, "shot_vel": sv, "shot_r": sr, "pickup_kinds": kinds, "mates": mates,
-		"party": party / (mates.size() + 1),
-		"arena": Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8)),
-		"leash": Rect2(lo, hi - lo), "boss": boss,
-	}
-	var goal := SmashBot.shrine_goal(at, float(me.get("gold", 0)), vsh)
-	return bot.decide(slot, at, G.ARENA.get_center(), time, en, es, pk, goal, ctx)
-
 func _smooth(dt: float) -> void:
 	var k := 1.0 - exp(-dt * 20.0)
 	for p in vp.values():
@@ -480,159 +375,12 @@ func _smooth(dt: float) -> void:
 		else:
 			e.pos = e.pos.lerp(e.target, k)
 
-# ========================================================= SNAPSHOTS ===
 func _on_snapshot(snap: Dictionary) -> void:
 	if is_host:
 		return
 	_apply_snapshot(snap, false)
 	if snap.has("ev"):
 		_handle_events(snap.ev)
-
-func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
-	var pl: PackedFloat32Array = snap.p
-	var seen := {}
-	var i := 0
-	while i + World.PLAYER_FLOATS <= pl.size():
-		var slot := int(pl[i])
-		seen[slot] = true
-		if not vp.has(slot):
-			vp[slot] = {"slot": slot, "pos": Vector2(pl[i + 1], pl[i + 2]), "walk_t": 0.0, "ghosts": []}
-		var p: Dictionary = vp[slot]
-		p.target = Vector2(pl[i + 1], pl[i + 2])
-		if instant:
-			p.pos = p.target
-		p.aim = Vector2(pl[i + 3], pl[i + 4])
-		p.hp = int(pl[i + 5])
-		p.lives = int(pl[i + 6])
-		p.alive = pl[i + 7] > 0.5
-		p.invuln = pl[i + 8]
-		p.spell = int(pl[i + 9])
-		G.slot_wizard[slot] = int(pl[i + 10])
-		p.bombs = int(pl[i + 11])
-		p.score = int(pl[i + 12])
-		p.combo = int(pl[i + 13])
-		p.haste = pl[i + 14]
-		p.orbit = pl[i + 15]
-		p.orbit_ang = pl[i + 16]
-		p.flash = pl[i + 17]
-		p.moving = pl[i + 18] > 0.5
-		p.xp = int(pl[i + 19])
-		p.xp_need = maxi(1, int(pl[i + 20]))
-		p.level = int(pl[i + 21])
-		party_xp = p.xp
-		party_need = p.xp_need
-		party_level = p.level
-		var offer := int(pl[i + 22])
-		if offer != int(p.get("offer", -1)):
-			# A new hand: its rows turn over if the tray is open (or was opened while the hand was on its way: a
-			# level's hand comes a tick after its draw), and are already face up when the tray opens later.
-			_deal_tray(slot, offer, bool(_tray_open.get(slot, false)))
-		p.offer = offer
-		var ch: Array[int] = []
-		var lv: Array[int] = []
-		for c in 3:
-			var idx := int(pl[i + 23 + c * 2])
-			if idx >= 0:
-				ch.append(idx)
-				lv.append(int(pl[i + 24 + c * 2]))
-		p.choices = ch
-		p.choice_lv = lv
-		var wl: Array[int] = []
-		for sp in Spells.COUNT:
-			wl.append(int(pl[i + World.PLAYER_WEAPONS + sp]))
-		p.weapons = wl
-		p.gold = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT])
-		p.max_hp = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT + 1])
-		var draws := int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT + 2])
-		if draws > int(p.get("draws", 0)):
-			_tab_flash[slot] = time
-			if lull_left > 0.0 and int(p.get("draws", 0)) == 0 and _is_local_slot(slot):
-				_tray_open[slot] = true # in the quiet the cards come out by themselves
-				if not ch.is_empty():
-					_deal_tray(slot, offer, true) # the hand came with the draw (a merged snapshot): it turns over too
-		p.draws = draws
-		if draws == 0:
-			_tray_open[slot] = false # the last card is taken: the tray closes
-		if not p.alive:
-			p.pos = p.target
-		i += World.PLAYER_FLOATS
-	for s in vp.keys():
-		if not seen.has(s):
-			vp.erase(s)
-	var en: PackedFloat32Array = snap.e
-	var eseen := {}
-	i = 0
-	while i + World.ENEMY_FLOATS <= en.size():
-		var id := int(en[i])
-		eseen[id] = true
-		var pos := Vector2(en[i + 2], en[i + 3])
-		if not ve.has(id):
-			ve[id] = {"type": int(en[i + 1]), "pos": pos, "t": _fx_rng.randf() * 5.0, "flip": false, "prev_x": pos.x}
-		var e: Dictionary = ve[id]
-		e.target = pos
-		if instant:
-			e.pos = pos
-		e.flash = en[i + 4]
-		e.state = int(en[i + 5])
-		e.hpf = en[i + 6]
-		e.slow = en[i + 7]
-		e.elite = en[i + 8] > 0.5 and en[i + 8] < 1.5
-		e.final = en[i + 8] > 1.5
-		i += World.ENEMY_FLOATS
-	for id in ve.keys():
-		if not eseen.has(id):
-			ve.erase(id)
-	vs.clear()
-	var sh: PackedFloat32Array = snap.s
-	i = 0
-	while i + 6 <= sh.size():
-		var sk := int(sh[i])
-		vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
-		i += 6
-	vr.clear()
-	var rn: PackedFloat32Array = snap.get("r", PackedFloat32Array())
-	i = 0
-	while i + World.RUNE_FLOATS <= rn.size():
-		vr.append([Vector2(rn[i], rn[i + 1]), rn[i + 2], rn[i + 3], rn[i + 4], int(rn[i + 5]), rn[i + 6] > 0.5])
-		i += World.RUNE_FLOATS
-	ves.clear()
-	var es: PackedFloat32Array = snap.es
-	i = 0
-	while i + 5 <= es.size():
-		ves.append([int(es[i]), Vector2(es[i + 1], es[i + 2]), Vector2(es[i + 3], es[i + 4])])
-		i += 5
-	vu.clear()
-	var up: PackedFloat32Array = snap.get("u", PackedFloat32Array())
-	i = 0
-	while i + 2 <= up.size():
-		vu.append(Vector2(up[i], up[i + 1]))
-		i += 2
-	vsh.clear()
-	var shp: PackedFloat32Array = snap.get("sh", PackedFloat32Array())
-	i = 0
-	while i + 6 <= shp.size():
-		vsh.append([int(shp[i]), shp[i + 1], shp[i + 2], shp[i + 3], shp[i + 4], int(shp[i + 5])])
-		i += 6
-	vk.clear()
-	var pk: PackedFloat32Array = snap.k
-	i = 0
-	while i + 4 <= pk.size():
-		vk.append([int(pk[i]), Vector2(pk[i + 1], pk[i + 2]), pk[i + 3]])
-		i += 4
-	var w: PackedFloat32Array = snap.w
-	wave = int(w[0])
-	phase = int(w[1])
-	phase_t = w[2]
-	boss_f = w[3]
-	run_t = w[8]
-	boss_final = w.size() > 9 and w[9] > 0.5
-	var was_lull := lull_left
-	lull_left = w[10] if w.size() > 10 else 0.0
-	if was_lull > 0.0 and lull_left <= 0.0 and phase != World.PH_GAMEOVER:
-		_banner("THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
-		Sfx.play("gong", -2.0)
-	for d in 4:
-		doors[d] = w[4 + d]
 
 func _on_roster_changed() -> void:
 	if not is_host or world == null:
@@ -643,310 +391,6 @@ func _on_roster_changed() -> void:
 	for s in world.players.keys():
 		if not live.has(s):
 			world.players.erase(s)
-
-# ============================================================ EVENTS ===
-func _handle_events(evs: Array) -> void:
-	for ev in evs:
-		var pos := Vector2(ev[1], ev[2])
-		match int(ev[0]):
-			World.EV_CAST:
-				var sp := int(ev[3])
-				var col := _spell_color(sp, int(ev[4]))
-				fx.cast_flash(pos, col, int(ev[4]))
-				match sp:
-					World.SP_ARCANE: Sfx.play("shoot_arcane", -6.0, 1.0, 0.06)
-					World.SP_FIRE: Sfx.play("shoot_fire", -3.0, 1.0, 0.08)
-					World.SP_FROST: Sfx.play("shoot_frost", -5.0, 1.0, 0.08)
-					World.SP_STAR: Sfx.play("star", -6.0, 1.0, 0.08)
-					World.SP_RUNE: Sfx.play("rune_cast", -5.0, _fx_rng.randf_range(0.95, 1.1), 0.12)
-			World.EV_RUNE:
-				var evo := int(ev[4]) >= 8
-				var rc := _spell_color(World.SP_RUNE, 0)
-				fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, SEAL_WHITE if evo else rc, 1.0)
-				fx.burst(pos, 8, 40.0, 0.5, 1.0, RUNE_GOLD, rc, true, -30.0)
-				if evo:
-					Sfx.play("portal", -9.0, 1.4, 0.25)
-			World.EV_HIT:
-				fx.hit_spark(pos, Color(1, 1, 1) if int(ev[4]) < 0 else G.player_fx(int(ev[4])))
-				Sfx.play("hit", -8.0, _fx_rng.randf_range(0.9, 1.2), 0.04)
-			World.EV_DIE:
-				var t := int(ev[3])
-				fx.death(pos, t)
-				Sfx.play("enemy_die", -2.0, _fx_rng.randf_range(0.85, 1.15), 0.04)
-				_add_shake(1.5 if t != World.ORC else 3.0)
-				var gc := [Color("2f7a2a"), Color("b7a98e"), Color("158f86"), Color("158f86"), Color("5a1a8a"), Color("4d5166"), Color("3b1f6e"), Color("4a1a7a"), Color("4f9a94"), Color("4e0f18"), Color("57546a"), Color("2e1a12")]
-				if t == World.TOME:
-					fx.burst(pos + Vector2(0, -6), 10, 70.0, 0.7, 1.5, Color("efe2c0"), Color("8a1f2c"), false, 60.0)
-					Sfx.play("page_turn", -4.0, _fx_rng.randf_range(0.9, 1.2), 0.1)
-				elif t == World.WRAITH:
-					Sfx.play("ghost", -8.0, _fx_rng.randf_range(0.9, 1.3), 0.15)
-				_decal(pos + Vector2(0, 4), gc[clampi(t, 0, gc.size() - 1)], 4.0 if t != World.ORC else 7.0)
-			World.EV_EXPLODE:
-				fx.explosion(pos, float(ev[3]))
-				Sfx.play("explode", -2.0, _fx_rng.randf_range(0.9, 1.1), 0.05)
-				_add_shake(3.0)
-				_decal(pos, Color("1a1020"), 10.0)
-			World.EV_ZAP:
-				var pts: PackedVector2Array = ev[3]
-				fx.bolt(pts, SPELL_COLORS[World.SP_STORM])
-				for pt in pts:
-					fx.burst(pt, 3, 60.0, 0.2, 1.0, Color.WHITE, Color("ffe84d"), true)
-				Sfx.play("zap", -5.0, _fx_rng.randf_range(0.9, 1.15), 0.07)
-			World.EV_NOVA:
-				var col := G.player_fx(int(ev[3]))
-				fx.nova(pos, col)
-				Sfx.play("nova", 0.0, 1.0, 0.1)
-				_add_shake(9.0)
-				screen_flash = Color(col.r, col.g, col.b, 0.55)
-				_do_hitstop(0.08)
-			World.EV_PICKUP:
-				var k := int(ev[3])
-				if k == World.PK_XP:
-					Sfx.play("coin", -14.0, 1.5, 0.05)
-					continue
-				fx.sparkle(pos, _pickup_color(k))
-				match k:
-					World.PK_COIN: Sfx.play("coin", -4.0)
-					World.PK_GEM: Sfx.play("pickup", -3.0)
-					World.PK_POTION: Sfx.play("heal")
-					_: Sfx.play("powerup")
-				# A tome says what it is by its colour and its spell: only the other pickups write their name.
-				if PICKUP_NAMES[k] != "" and k not in World.TOMES:
-					fx.text(pos + Vector2(0, -12), PICKUP_NAMES[k], _pickup_color(k), 1.4)
-			World.EV_HURT:
-				fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
-				Sfx.play("hurt")
-				_add_shake(4.0)
-				if _is_local_slot(int(ev[3])):
-					screen_flash = Color(1, 0.1, 0.2, 0.35)
-			World.EV_PDIE:
-				var col := G.player_color(int(ev[3]))
-				fx.nova(pos, col)
-				fx.burst(pos, 40, 160.0, 0.9, 2.0, Color.WHITE, col, true, 60.0, true)
-				Sfx.play("player_die")
-				Sfx.play("ghost", -4.0, 0.9)
-				var dead_slot := int(ev[3])
-				_ghosts.append([pos + Vector2(0, 6), 0.0, G.wizard_of(dead_slot)])
-				_add_shake(7.0)
-				var left := int(ev[4])
-				fx.text(pos + Vector2(0, -16), "P%d DOWN!" % (int(ev[3]) + 1) if left > 0 else "P%d IS OUT!" % (int(ev[3]) + 1), col, 1.8, 1)
-			World.EV_DOOR:
-				Sfx.play("door", -6.0, 1.0, 0.2)
-			World.EV_ESHOT:
-				var k := int(ev[3])
-				if k == World.ES_ARROW:
-					Sfx.play("arrow", -8.0, 1.0, 0.08)
-				else:
-					Sfx.play("enemy_shot", -9.0, 1.0 if k == World.ES_ORB else 0.7, 0.1)
-					fx.flash(pos, 6.0, Color("c0263a"), 0.08)
-			World.EV_SPLIT:
-				fx.burst(pos, 16, 80.0, 0.5, 2.0, Color("d8fff6"), Color("158f86"), false, 200.0)
-				Sfx.play("slime")
-			World.EV_TELE:
-				fx.teleport(pos, Color("ff4df2") if int(ev[3]) == 0 else Color("4dfff0"))
-				Sfx.play("teleport", -6.0, 1.0, 0.1)
-			World.EV_CHARGE:
-				fx.text(pos + Vector2(0, -8), "!", Color("ff3030"), 0.6, 2)
-				Sfx.play("charge", -3.0)
-			World.EV_WAVE:
-				var w := int(ev[3])
-				# World waves count from 1 (wave 1 is 0:00 to 1:00); Lore counts run minutes from 0.
-				if Lore.opens_act(w - 1):
-					_act_card(Lore.act_of(w - 1))
-				if int(ev[4]) == 2:
-					_banner(Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
-					Sfx.play("boss_roar", 0.0, 0.7)
-					Sfx.play("bell_toll", -2.0)
-				elif int(ev[4]) == 1:
-					_banner("THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
-					Sfx.play("portal")
-				elif w > 1:
-					_banner("MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
-					Sfx.play("wave_start", -4.0)
-				else:
-					_act_card(0)
-					Sfx.play("wave_start")
-				if int(ev[4]) == 0 and boss_f <= 0.0:
-					Sfx.music(_act_music())
-			World.EV_RIFT:
-				# A shrinking ring and a dark core warn where the group will burst out.
-				var life := float(ev[4])
-				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("c0263a"), 2.0)
-				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("7a1226"), 3.0)
-				fx.sparkle(pos, Color("c0263a"), 8)
-			World.EV_URN:
-				for k: int in range(10):
-					fx.spawn(pos + Vector2(0, -4), Vector2.from_angle(_fx_rng.randf() * TAU) * _fx_rng.randf_range(30.0, 80.0)
-						+ Vector2(0, -30), 0.6, 1.5, Color("b0643a"), Color("7a3f22"), false, 1.0, 220.0)
-				Sfx.play("hit", -4.0, 0.7)
-				if int(ev[3]) >= World.URN_CHEST:
-					fx.sparkle(pos, Color("ff8af0") if int(ev[3]) == World.URN_CARD_DROP else Color("8fe3ff"), 14)
-					Sfx.play("powerup", -4.0, 1.3)
-			World.EV_CARD:
-				var cidx := int(ev[3])
-				if int(ev[4]) >= 8 and Save.profile.find_secret("urn_card"):
-					fx.text(pos + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
-				ev[4] = int(ev[4]) % 8
-				var first := Save.add_card(cidx)
-				_cards.append({"idx": cidx, "slot": int(ev[4]), "t": 0.0, "first": first})
-				fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
-				fx.ring(pos, 4.0, 60.0, 0.7, Color("ffd94d"), 2.0)
-				_add_shake(4.0)
-				Sfx.play("card_flip")
-				Sfx.play("wave_clear", -2.0, 1.4)
-			World.EV_CHEST:
-				var code := int(ev[4])
-				_reveals.append({"slot": int(ev[3]), "pos": pos, "item": code / 8, "tier": code % 8, "t": 0.0, "shown": false})
-				Sfx.play("door", -6.0, 1.4)
-			World.EV_SHRINE_UP:
-				var sk := int(ev[3])
-				fx.ring(pos, 2.0, 30.0, 0.6, SHRINE_COLORS[sk], 2.0)
-				fx.sparkle(pos, SHRINE_COLORS[sk], 14)
-				if sk == Gamble.TEAM:
-					_banner("THE FATE CARD", "ONE WIZARD DRAWS FOR THE WHOLE PARTY", SHRINE_COLORS[sk], 2.4)
-					Sfx.play("portal", -4.0)
-				else:
-					fx.text(pos + Vector2(0, -20), "RUNE ALTAR", SHRINE_COLORS[sk], 1.2, 1)
-					Sfx.play("candle", -2.0)
-			World.EV_SHRINE:
-				var code := int(ev[4])
-				var bk := code / 16
-				var spin: float = Tuning.shared().team_reel if bk == Gamble.TEAM else Tuning.shared().shrine_reel
-				_bets.append({"slot": int(ev[3]), "pos": pos, "kind": bk, "outcome": code % 16, "t": 0.0, "spin": spin, "shown": false})
-				Sfx.play("coin", -2.0, 0.8)
-				if bk == Gamble.TEAM:
-					Sfx.play("card_deal")
-					Sfx.play("whisper", -2.0)
-					Sfx.music("music_boss")
-				else:
-					Sfx.play("rune_cast")
-			World.EV_GAMBLE:
-				var code := int(ev[4])
-				var gk := code / 16
-				var good := Gamble.is_good(gk, code % 16)
-				var col := Color("8bff9e") if good else Color("ff3b5c")
-				if gk == Gamble.TEAM:
-					for q: Dictionary in vp.values():
-						fx.burst(q.pos + Vector2(0, -8), 24, 120.0, 0.8, 2.0, Color.WHITE, col, true, 40.0, true)
-					screen_flash = Color(col.r, col.g, col.b, 0.35)
-					_add_shake(6.0 if good else 10.0)
-					Sfx.play("gong")
-					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
-					Sfx.music(_act_music())
-				else:
-					fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
-					Sfx.play("rune_good" if good else "rune_bad", -2.0)
-			World.EV_WARD:
-				fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
-				fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)
-				Sfx.play("orbit", -4.0, 1.3)
-			World.EV_OMEN:
-				var oi := int(ev[3])
-				var rr := float(ev[4])
-				_banner(Lore.omen_name(oi), Lore.omen_subtitle(oi), Color("ff6a4d"), 2.2, true)
-				Sfx.play("bell_toll", -3.0, 0.8)
-				Sfx.play("whisper", -4.0)
-				if rr > 0.0:
-					# The ring the horde will rise on: it tightens onto its radius before they arrive.
-					fx.ring(pos, rr + 40.0, rr, World.OMEN_WARN, Color("ff4d6a"), 2.0)
-					fx.ring(pos, rr + 60.0, rr, World.OMEN_WARN * 0.8, Color("ffd23d"), 1.0)
-				else:
-					for d: Vector2 in World.DOORS:
-						fx.flash(d, 24.0, Color("ff6a4d"), 0.6)
-			World.EV_RAISE:
-				fx.ring(pos, 4.0, 26.0, 0.5, Color("6dff9a"), 2.0)
-				fx.burst(pos + Vector2(0, -4), 14, 60.0, 0.6, 1.5, Color("6dff9a"), Color("efe7d2"), true, -40.0)
-				fx.text(pos + Vector2(0, -20), "RISE!", Color("6dff9a"), 0.8, 1)
-				Sfx.play("portal", -6.0, 1.3, 0.2)
-			World.EV_ELITE:
-				var elite_name: String = ENEMY_NAMES[clampi(int(ev[3]), 0, ENEMY_NAMES.size() - 1)]
-				fx.text(pos + Vector2(0, -20), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
-				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
-				Sfx.play("charge", -2.0, 0.8)
-			World.EV_BOSS:
-				Sfx.play("boss_roar", 0.0, 0.7 if int(ev[3]) == 1 else 1.0)
-				Sfx.music("music_boss")
-				_add_shake(12.0 if int(ev[3]) == 1 else 8.0)
-				screen_flash = Color(1.0, 0.3, 0.95, 0.5) if int(ev[3]) == 1 else Color(0.3, 1.0, 0.9, 0.4)
-				if int(ev[3]) == 1:
-					fx.nova(pos + Vector2(0, -16), Color("ff4df2"))
-			World.EV_COMBO:
-				var col := G.player_fx(int(ev[4]))
-				# One call over the wizard who made it; big only for the rare x100 and beyond.
-				var who: Vector2 = vp[int(ev[4])].pos if vp.has(int(ev[4])) else pos
-				# The early calls come every few seconds in a big horde: a spark and a chime, so words stay rare.
-				if int(ev[3]) < COMBO_WORDS:
-					fx.sparkle(who + Vector2(0, -10), col, 8)
-					Sfx.play("powerup", -8.0, 1.4)
-				else:
-					fx.text(who + Vector2(0, -22), World.COMBO_CALLS.get(int(ev[3]), "COMBO!"), col, 1.3,
-						2 if int(ev[3]) >= 100 else 1)
-					Sfx.play("powerup", -2.0, 1.2)
-			World.EV_SPAWN:
-				fx.teleport(pos, G.player_color(int(ev[3])))
-				fx.ring(pos + Vector2(0, -6), 1.0, 30.0, 0.5, G.player_fx(int(ev[3])), 2.0)
-				Sfx.play("teleport")
-			World.EV_POWERUP:
-				fx.sparkle(pos, _pickup_color(int(ev[3])), 16)
-				Sfx.play("orbit", -6.0)
-			World.EV_BOSSDIE:
-				for k in 6:
-					fx.explosion(pos + Vector2(_fx_rng.randf_range(-26, 26), _fx_rng.randf_range(-26, 20)), 30.0)
-				fx.nova(pos, Color("4dfff0"))
-				Sfx.play("nova")
-				Sfx.play("explode", 0.0, 0.7)
-				_add_shake(12.0)
-				screen_flash = Color(1, 1, 1, 0.8)
-				_do_hitstop(0.25)
-				if int(ev[4]) == 1:
-					_banner("ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
-				else:
-					_banner("LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
-					Sfx.music(_act_music())
-			World.EV_VICTORY:
-				victory = true
-				Sfx.play("wave_clear", 0.0, 0.8)
-				Sfx.music("music_title")
-				for q: Dictionary in vp.values():
-					fx.burst(q.pos + Vector2(0, -8), 30, 140.0, 1.0, 2.0, Color.WHITE, Color("ffd94d"), true, 40.0, true)
-			World.EV_RESULTS:
-				results = Results.from_dict(ev[3])
-			World.EV_GAMEOVER:
-				game_over = true
-				game_over_t = 0.0
-				final_score = int(ev[3])
-				run_t = float(ev[1])
-				crystals_earned = G.finish_run(final_score, float(ev[1]), int(ev[2]), int(ev[4]), victory)
-				if is_host:
-					Platform.finish_run(results, victory, float(ev[1]))
-				if not victory:
-					Sfx.music("music_gameover")
-			World.EV_LEVELUP:
-				var col := G.player_fx(int(ev[3]))
-				_lv_flash_t = time
-				fx.text(pos, "LEVEL UP!", col, 1.4, 1)
-				fx.level_up(pos + Vector2(0, 8), col)
-				Sfx.play("powerup", -2.0, 1.1)
-			World.EV_PICK:
-				var col := G.player_fx(int(ev[3]))
-				fx.text(pos, Upgrades.display_name(int(ev[4])) + "!", col, 1.4, 1)
-				fx.sparkle(pos + Vector2(0, 10), col, 16)
-				if time - _pick_sfx_t > 0.12:
-					_pick_sfx_t = time # four wizards picking at once play it once
-					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
-			World.EV_LULL:
-				_lull_full = maxf(1.0, float(ev[3]))
-				_banner("RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
-				Sfx.play("wave_clear", -2.0, 0.8)
-				for r in Net.my_slots():
-					if vp.has(r.slot) and int(vp[r.slot].get("draws", 0)) > 0 and not _tray_shown(r.slot):
-						_tray_open[r.slot] = true
-						if not (vp[r.slot].choices as Array).is_empty():
-							_deal_tray(r.slot, int(vp[r.slot].offer), true) # opened by itself: the hand turns over
-			World.EV_FROST:
-				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, SPELL_COLORS[World.SP_FROST], true)
-				if float(ev[3]) > 0.0:
-					fx.ring(pos, 0.4, float(ev[3]), 0.3, SPELL_COLORS[World.SP_FROST], 2.0)
 
 ## Run time as M:SS.
 static func _clock(secs: float) -> String:
@@ -1051,7 +495,6 @@ func _draw_shrines(ci: CanvasItem) -> void:
 			ci.draw_arc(at, 16.0 * big, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 32, Color.WHITE, 2.0)
 		PixelFont.draw_centered(ci, "%dG" % int(r[5]), at.x, at.y - (32.0 if kind == Gamble.SOLO else 50.0), 1, col, dark)
 
-
 ## A rune stone: a pale pebble with a rune cut into it (`rune` -1 for a blank stone).
 func _rune_stone(ci: CanvasItem, p: Vector2, rune: int, glow: Color, a: float) -> void:
 	ci.draw_rect(Rect2(p + Vector2(-3, -4), Vector2(7, 9)), Color(0.04, 0.0, 0.1, a))
@@ -1060,7 +503,6 @@ func _rune_stone(ci: CanvasItem, p: Vector2, rune: int, glow: Color, a: float) -
 	ci.draw_rect(Rect2(p + Vector2(-3, 3), Vector2(7, 1)), Color(0.6, 0.56, 0.5, a))
 	if rune >= 0:
 		Occult.rune(ci, p + Vector2(-2, -3), rune, Color(glow.r * 0.5, glow.g * 0.3, glow.b * 0.2, a))
-
 
 ## The act's own battle music (Act I's until a track for the act is in).
 func _act_music() -> String:
@@ -1106,7 +548,6 @@ func _draw_bets(ci: CanvasItem, dark: Color) -> void:
 			ci.draw_circle(at, 9.0, Color(col.r, col.g, col.b, 0.25 * lift))
 			PixelFont.draw_centered(ci, text, at.x, at.y - 22, 1, col, dark)
 
-
 ## The team bet: the bettor's fate card shuffles between The Sun and Death, then turns face up.
 func _draw_fate(ci: CanvasItem, b: Dictionary, spinning: bool, col: Color, text: String, dark: Color) -> void:
 	var r := Rect2(240 - 34, 40, 68, 90)
@@ -1122,7 +563,6 @@ func _draw_fate(ci: CanvasItem, b: Dictionary, spinning: bool, col: Color, text:
 	var title: String = TarotArt.ARCANA[key][1]
 	TarotArt.draw_card(ci, r, key, title, "", "", true, col, time)
 	PixelFont.draw_centered(ci, text, 240, r.end.y + 16, 2, col, dark)
-
 
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
 func _draw_reveals(ci: CanvasItem, dark: Color) -> void:
@@ -1150,7 +590,6 @@ func _banner(text: String, sub: String, color: Color, dur: float, wait: bool = f
 	else:
 		banner = b
 
-
 ## The card that opens an act: ACT II, its name and subtitle, with a gong.
 func _act_card(a: int) -> void:
 	var b := {"text": Lore.act_name(a), "sub": Lore.act_subtitle(a), "t": 3.4, "max": 3.4,
@@ -1158,7 +597,6 @@ func _act_card(a: int) -> void:
 	_banner_queue.clear()
 	banner = b
 	Sfx.play("gong")
-
 
 ## Fades the backdrop to the act the run minute is in.
 func _update_act(dt: float) -> void:
@@ -1218,11 +656,9 @@ func _follow_party(dt: float) -> void:
 	want = want.clamp(Vector2(0.0, -G.HUD_H), G.WORLD - G.SCREEN)
 	cam = want if cam == Vector2.ZERO and time < 0.2 else cam.lerp(want, minf(1.0, dt * CAM_EASE))
 
-
 ## A world position on the screen (for HUD things that point at the arena).
 func _on_screen(p: Vector2) -> Vector2:
 	return p - cam
-
 
 func _add_shake(v: float) -> void:
 	if not Save.settings.shake:
@@ -1288,7 +724,6 @@ const TAG_UP_ORBS := 40.0
 ## Last frame's starfall shots, [pos, vel, evolved]: one that is gone has landed (`_emit_trails`).
 var _stars_seen: Array = []
 
-# ======================================================== AMBIENT FX ===
 ## Once a frame: what the shots, the rune circles, the enemies and the wizards shed, and the view state that
 ## follows from the snapshot rather than from an event (who is casting, who took a level-up card, which star landed).
 func _emit_trails(dt: float) -> void:
@@ -1384,7 +819,6 @@ func _torch_fx(dt: float) -> void:
 	var from := _prev_act if _act_fade >= 0.0 and _act_fade < 1.0 else act
 	ArenaArtLive.sparks(fx, ArenaBg.scene(from), _fx_rng, dt, door_anim)
 
-# ============================================================ DRAWING ===
 func _draw_decals() -> void:
 	for d in decals:
 		var c: Color = d[1]
@@ -1432,11 +866,9 @@ func _act_blend() -> float:
 func _rune_grow(c: Array) -> float:
 	return clampf(float(c[2]) / RUNE_DRAW_IN, 0.0, 1.0)
 
-
 ## A rune circle's brightness: up while it draws in, down over its last RUNE_FADE seconds.
 func _rune_alpha(c: Array) -> float:
 	return clampf((float(c[3]) - float(c[2])) / RUNE_FADE, 0.0, 1.0) * (0.4 + 0.6 * _rune_grow(c))
-
 
 ## Active rune circles on the additive floor layer: a double ring with gold runes turning between, a pentagram
 ## inside (a hexagram for the Seal of Solomon, with motes drawn inward), flaring on every damage tick.
@@ -1452,7 +884,6 @@ func _draw_hint(ci: CanvasItem) -> void:
 		PixelFont.draw(ci, l[0], Vector2(r.position.x + 8, y), 1, Color("ffd94d"))
 		PixelFont.draw(ci, l[1], Vector2(r.position.x + 44, y), 1, Color("fff6e0"))
 		y += 10
-
 
 ## The additive floor layer's magic, under the actors: the marks fallen stars leave, and the active rune circles.
 ## A circle is a ring with two broken rings turning inside it, as on the Sanctum's portal, a slow wheel of gold
@@ -1496,7 +927,6 @@ func _draw_runes(ci: CanvasItem) -> void:
 				Sprites.rect(ci, Rect2(mp.floor(), Vector2(1, 1)), Color(SEAL_WHITE, 0.7 * k * (1.0 - f * 0.5)))
 		elif inner > 3.0:
 			Occult.pentagram(ci, at, inner, Color(col, (0.3 + 0.4 * flare) * k), -turn * 0.5)
-
 
 ## The shadow under an actor or a pickup: a squat lozenge `w` wide, from the atlas so it batches with the sprites.
 func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
@@ -1886,7 +1316,6 @@ func _draw_eshots() -> void:
 			World.ES_SKULL:
 				Sprites.draw_mid_r(ci, skulls[beat], p)
 
-# ================================================================ HUD ===
 func _draw_hud() -> void:
 	var ci := hud
 	var dark := Color("0b0716")
@@ -2058,7 +1487,6 @@ func _draw_offscreen(ci: CanvasItem) -> void:
 		ci.draw_colored_polygon(pts, Color(col, pulse))
 		ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(Occult.INK, 0.9), 1.0)
 
-
 ## An act card: a rune-framed band with the act's numeral, its name in large letters and its subtitle, fading in.
 func _draw_act_card(ci: CanvasItem, k: float, slide: float) -> void:
 	var a := clampf(k / 0.12, 0.0, 1.0) * clampf(banner.t / 0.4, 0.0, 1.0)
@@ -2076,8 +1504,6 @@ func _draw_act_card(ci: CanvasItem, k: float, slide: float) -> void:
 	Occult.candle(ci, Vector2(band.position.x + 14, band.end.y - 4), time, 0.0, 9)
 	Occult.candle(ci, Vector2(band.end.x - 14, band.end.y - 4), time, 3.0, 9)
 
-
-# ======================================================== LEVEL-UP CARDS ===
 ## True while any wizard holds cards (the autotest keys shots on it).
 func _anyone_picking() -> bool:
 	for p: Dictionary in vp.values():
@@ -2459,7 +1885,6 @@ func _draw_pause(ci: CanvasItem) -> void:
 			Occult.cursor(ci, Vector2(240 - w / 2.0 - 9, y + 3), time)
 		PixelFont.draw_centered(ci, PAUSE_ITEMS[i], 240, y, 1, Occult.GOLD if sel else Occult.DIM, Occult.INK)
 
-# ============================================================== INPUT ===
 func _unhandled_input(event: InputEvent) -> void:
 	if game_over:
 		if game_over_t > 2.0 and is_host:
@@ -2503,7 +1928,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			if row >= 0 and row < PAUSE_ITEMS.size() and absf(event.position.x - 240.0) < 70.0:
 				_pause_choose(row)
 
-
 func _pause_choose(i: int) -> void:
 	Sfx.play("menu_select")
 	pause_sel = i
@@ -2532,3 +1956,9 @@ func _quit_to_title() -> void:
 		Net.send_back_to_title()
 	Net.shutdown()
 	G.goto_title()
+
+# ----- Forwarders: the moved code (game/arena/*.gd) keeps these names callable on the Arena -----
+func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array: return ArenaSeats._with_pick(self, slot, inp)
+func _bot_input(slot: int) -> PackedFloat32Array: return ArenaSeats._bot_input(self, slot)
+func _apply_snapshot(snap: Dictionary, instant: bool) -> void: ArenaViewSync._apply_snapshot(self, snap, instant)
+func _handle_events(evs: Array) -> void: ArenaEvents._handle_events(self, evs)
