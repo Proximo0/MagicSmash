@@ -4,27 +4,22 @@ FOUR OF WANDS (working title Magic Smash): a co-op survivors-like wizard shooter
 host-authoritative ENet), Steam launch 18 Dec 2026. 480x270 pixel art, Compatibility renderer.
 
 ## Commands
-- `tools/run_tests.sh [test_name]`: headless unit tests (`tests/unit/`, ~3 s for all). A pass prints one `TESTS` line, a
-  failure its output. A test also fails if the engine logs an error, runs no assert, or takes over 10 s.
-- `tools/lint.sh`: parse and static checks for every script. Ends with `LINT problems=<n>`.
-- `tools/run_sims.sh [sim_name ...]`: regression sims (`tests/sim/sim_*.gd`, listed in `tests/sim/sim_suite.gd`), in parallel. `sim_horde` asserts a step budget in CPU time; CI gives it its own
-  runner (`sims-horde`) with the real budget; `check_all` shares the CPU, so it doubles it.
-- `tools/check_all.sh`: everything at once (unit, sims, lint, plus the bot and lab if their scenes exist).
-- `tools/import.sh`: the shared import step every tool calls; skipped unless an import input changed (a new file, a
-  `class_name` line, an asset). `FORCE_IMPORT=1` forces it.
-- `tools/golden.sh [base-ref, default origin/main]`: did this change alter the game? Plays the same seeded bot runs here and in the base
-  commit and compares state hashes every 15 s. Ends with `GOLDEN same` or `GOLDEN changed`.
-- `tools/map.sh [dir ...]`: one line per script. `tools/outline.sh <file.gd>`: a script's functions with line ranges.
-- `.claude/hooks/lint-on-edit.sh`: after every Edit or Write of a `.gd` file, parse-checks and lints it, reporting problems at once.
-- `godot --headless --path . -s tools/full_run.gd -- --wizards=4`: bots play a whole run (to the Archlich), one line
-  per minute. For balancing; too slow for check_all.
-- New command-line tools run through `tools/tool.gd` (`godot --headless --path . -s tools/tool.gd -- <name> [args]`),
-  which starts `tools/<name>.gd` after the autoloads exist. A bare `-s` script that names a game class prints eight
-  lines of compile errors, then runs anyway (`tools/full_run.gd` does): ignore them, or move it over.
-- `tools/export_windows.sh` (zip) and `tools/export_android.sh` (debug APK) write to `build/`.
-- `tools/fetch_sentry.sh`: fetches the pinned sentry-godot addon into git-ignored `addons/sentry`.
-- Run the game: `godot --path .` (`-- --seed=N` repeats a run). Bots with screenshots (needs a display):
-  `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir]`.
+Key: `T/` = `tools/`. `GD` = `godot --headless --path .`. Every tool is quiet and ends with one summary line (in caps below).
+- `T/run_tests.sh [test_name]`: unit tests (`tests/unit/`, ~3 s). `TESTS`. Also fails on an engine error, no assert, or over 10 s.
+- `T/lint.sh`: parse and static checks. `LINT problems=<n>`.
+- `T/run_sims.sh [sim ...]`: sims in `tests/sim/` (listed in `sim_suite.gd`), in parallel. `SIMS`. `sim_horde` holds a CPU-time step
+  budget: real on CI's own `sims-horde` runner, doubled in `check_all`.
+- `T/check_all.sh`: unit, sims, lint, bot (and lab if present). `CHECK_ALL`.
+- `T/golden.sh [base=origin/main]`: same seeded bot runs here and in base, state hash every 15 s. `GOLDEN same|changed`.
+- `T/map.sh [dir ...]`: one line per script. `T/outline.sh <file.gd>`: its functions with line ranges.
+  `T/graph.sh [Class ...]`: who uses a class or autoload and what it uses.
+- `T/import.sh`: shared import step, skipped unless an import input changed; `FORCE_IMPORT=1` forces. Every tool calls it.
+- `.claude/hooks/lint-on-edit.sh`: lints a `.gd` file after each Edit or Write.
+- `GD -s tools/tool.gd -- <name> [args]`: runs `tools/<name>.gd` after autoloads exist (new tools go here). A bare `-s` script
+  that names a game class prints eight compile-error lines, then runs (`tools/full_run.gd` does).
+- `GD -s tools/full_run.gd -- --wizards=4`: bots play to the Archlich, one line a minute. Balancing only.
+- `T/export_windows.sh` (zip), `T/export_android.sh` (debug APK): into `build/`. `T/fetch_sentry.sh`: pinned addon into `addons/sentry`.
+- Play: `godot --path .` (`-- --seed=N`). Bots with screenshots: `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir]`.
 
 ## Layout
 - `game/logic/`: pure classes: `World` (the authoritative simulation), `SmashBot`, `Upgrades`, `Spells`, `Loot`, `Gamble`,
@@ -51,6 +46,8 @@ host-authoritative ENet), Steam launch 18 Dec 2026. 480x270 pixel art, Compatibi
 
 ## Reading (keep it small)
 - This file is enough to start most tasks. A worker's prompt carries its own contract; do not read the whole brief or handoff unless told to.
-- `tools/map.sh` lists every script on one screen; `tools/outline.sh <file>` gives a script's functions. Read functions by line range (`sed -n '409,454p' game/logic/world.gd`); never read a script over 400 lines whole.
+- Helpers: use agent type `worker` for a change and `scout` for a question (`.claude/agents/`), never `general-purpose`: a general helper costs about 57,000 tokens before it reads anything.
+- Fan-out and feel-bug method live in the skills `agent-fanout-playbook` and `measure-fix-loop`: invoke the skill, do not read `docs/playbook.md`.
+- `tools/map.sh` lists every script on one screen; `tools/graph.sh <Class>` who uses it; `tools/outline.sh <file>` gives a script's functions. Read functions by line range (`sed -n '409,454p' game/logic/world.gd`); never read a script over 400 lines whole.
 - `docs/handoff.md`: the plan and the decisions, for whoever plans the next step. `docs/systems.md`: how each system works, one section per system; read only yours.
 - `docs/lessons_learned.md` is for the lead, by section. Workers skip it unless their prompt names a section. Add a row whenever something goes wrong.
