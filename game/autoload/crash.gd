@@ -15,7 +15,7 @@ func _ready() -> void:
 	set_enabled(Save.settings.crash_reports)
 	# `-- --sentry-test` sends one message, to check a build reaches Sentry.
 	if started and Flags.args.has("sentry-test"):
-		Engine.get_singleton("SentrySDK").call("capture_message", "Magic Smash %s: test report" % G.VERSION)
+		Engine.get_singleton("SentrySDK").call("capture_message", "Four of Wands %s: test report" % G.VERSION)
 
 
 ## Starts or stops reporting. The options call it whenever CRASH REPORTS changes.

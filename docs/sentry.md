@@ -39,7 +39,7 @@ next to the exe.
 ## Checking a build
 
 Run `Send-Test-Crash-Report.bat` next to the exe (or start the game with `-- --sentry-test`). One message,
-"Magic Smash <version>: test report", shows up under Issues in Sentry within a minute.
+"Four of Wands <version>: test report", shows up under Issues in Sentry within a minute.
 
 ## Before the store page goes live
 

@@ -4,7 +4,8 @@ extends Node2D
 
 const SNAP_EVERY := 2 # physics frames between snapshots sent to clients
 
-const SPELL_COLORS := [Color("b78cff"), Color("ff7a2a"), Color("7fe8ff"), Color("ffe84d"), Color("ff7ae6"), Color("ff4d6d")]
+## One colour per spell (see Sprites.SPELL_COLORS: the tomes are painted from the same table). None is red.
+const SPELL_COLORS := Sprites.SPELL_COLORS
 ## A rune circle's glyphs and the Seal of Solomon's hexagram.
 const RUNE_GOLD := Color("ffd94d")
 const SEAL_WHITE := Color("fff2c0")
@@ -12,14 +13,18 @@ const SEAL_RING := Color("ffb347")
 ## Seconds a rune circle takes to draw itself in and to fade out.
 const RUNE_DRAW_IN := 0.25
 const RUNE_FADE := 0.4
-const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mage", "lich", "wraith", "tome", "gargoyle", "priest"]
-## Shadow width under each enemy type (bats and wraiths float without one).
+## The walk or hover cycle of each enemy type, stepped at ENEMY_ANIM frames a second. `_draw_enemy` swaps in the
+## frame of a hop, a wind-up, a cast or a swoop.
+const ENEMY_KEYS := [["goblin_a", "goblin_c", "goblin_b", "goblin_d"], ["skeleton_a", "skeleton_c", "skeleton_b", "skeleton_d"],
+	["slime_a"], ["mslime_a", "mslime_c", "mslime_a", "mslime_b"], ["bat_a", "bat_c", "bat_b", "bat_d"],
+	["orc_a", "orc_c", "orc_b", "orc_c"], ["mage_a", "mage_b"], ["lich", "lich_b"], ["wraith_a", "wraith_b"],
+	["tome_a", "tome_b", "tome_c", "tome_b"], ["gargoyle_b", "gargoyle_c"], ["priest_a", "priest_b"]]
 ## The smallest combo call written over a wizard; smaller ones only sparkle.
 const COMBO_WORDS := 50
-## The smallest score popup written over a pickup.
-const SCORE_WORDS := 1000
-const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
-const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
+## Width of the shadow `_draw_entities` puts under each enemy type. 0: none there. The wraith has none; the bat,
+## the tome and the swooping gargoyle get theirs from `_draw_enemy_glows`, further down the floor.
+const ENEMY_SHADOW := [10, 10, 12, 8, 0, 16, 10, 26, 0, 0, 16, 10]
+const ENEMY_ANIM := [10.0, 7.0, 0.0, 7.0, 14.0, 5.0, 2.5, 3.0, 3.0, 10.0, 7.0, 3.0]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
 	"tome_rune", "card", "chest_rare", "chest_ultra"]
 const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", "",
@@ -161,6 +166,7 @@ func _ready() -> void:
 	ent_layer = _layer(false)
 	ent_layer.draw.connect(_timed.bind("draw_entities", _draw_entities))
 	fx = Fx.new()
+	fx.calm = true
 	root.add_child(fx)
 	shot_layer = _layer(true)
 	shot_layer.draw.connect(_timed.bind("draw_shots", _draw_shots))
@@ -549,7 +555,7 @@ func _handle_events(evs: Array) -> void:
 			World.EV_CAST:
 				var sp := int(ev[3])
 				var col := _spell_color(sp, int(ev[4]))
-				fx.cast_flash(pos, col)
+				fx.cast_flash(pos, col, int(ev[4]))
 				match sp:
 					World.SP_ARCANE: Sfx.play("shoot_arcane", -6.0, 1.0, 0.06)
 					World.SP_FIRE: Sfx.play("shoot_fire", -3.0, 1.0, 0.08)
@@ -585,7 +591,7 @@ func _handle_events(evs: Array) -> void:
 				_decal(pos, Color("1a1020"), 10.0)
 			World.EV_ZAP:
 				var pts: PackedVector2Array = ev[3]
-				fx.bolt(pts, Color("7fd8ff"))
+				fx.bolt(pts, SPELL_COLORS[World.SP_STORM])
 				for pt in pts:
 					fx.burst(pt, 3, 60.0, 0.2, 1.0, Color.WHITE, Color("ffe84d"), true)
 				Sfx.play("zap", -5.0, _fx_rng.randf_range(0.9, 1.15), 0.07)
@@ -607,12 +613,9 @@ func _handle_events(evs: Array) -> void:
 					World.PK_GEM: Sfx.play("pickup", -3.0)
 					World.PK_POTION: Sfx.play("heal")
 					_: Sfx.play("powerup")
-				if PICKUP_NAMES[k] != "":
+				# A tome says what it is by its colour and its spell: only the other pickups write their name.
+				if PICKUP_NAMES[k] != "" and k not in World.TOMES:
 					fx.text(pos + Vector2(0, -12), PICKUP_NAMES[k], _pickup_color(k), 1.4)
-			World.EV_SCORE:
-				# Gems and coins score all the time; only the big pickups get a number, so the floor stays readable.
-				if int(ev[3]) >= SCORE_WORDS:
-					fx.text(pos, "+%d" % int(ev[3]), Color("ffe58a"), 0.7)
 			World.EV_HURT:
 				fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
 				Sfx.play("hurt")
@@ -638,7 +641,7 @@ func _handle_events(evs: Array) -> void:
 					Sfx.play("arrow", -8.0, 1.0, 0.08)
 				else:
 					Sfx.play("enemy_shot", -9.0, 1.0 if k == World.ES_ORB else 0.7, 0.1)
-					fx.flash(pos, 6.0, Color("ff4df2") if k == World.ES_ORB else Color("4dffb0"), 0.08)
+					fx.flash(pos, 6.0, Color("c0263a"), 0.08)
 			World.EV_SPLIT:
 				fx.burst(pos, 16, 80.0, 0.5, 2.0, Color("d8fff6"), Color("158f86"), false, 200.0)
 				Sfx.play("slime")
@@ -671,9 +674,9 @@ func _handle_events(evs: Array) -> void:
 			World.EV_RIFT:
 				# A shrinking ring and a dark core warn where the group will burst out.
 				var life := float(ev[4])
-				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
-				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
-				fx.sparkle(pos, Color("ff4df2"), 8)
+				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("c0263a"), 2.0)
+				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("7a1226"), 3.0)
+				fx.sparkle(pos, Color("c0263a"), 8)
 			World.EV_URN:
 				for k: int in range(10):
 					fx.spawn(pos + Vector2(0, -4), Vector2.from_angle(_fx_rng.randf() * TAU) * _fx_rng.randf_range(30.0, 80.0)
@@ -760,8 +763,7 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("portal", -6.0, 1.3, 0.2)
 			World.EV_ELITE:
 				var elite_name: String = ENEMY_NAMES[clampi(int(ev[3]), 0, ENEMY_NAMES.size() - 1)]
-				fx.text(pos + Vector2(0, -24), Lore.elite_epithet(int(ev[1]) * 7 + int(ev[2])), Color("ffd23d"), 1.6, 1)
-				fx.text(pos + Vector2(0, -15), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
+				fx.text(pos + Vector2(0, -20), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
 				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
@@ -833,9 +835,9 @@ func _handle_events(evs: Array) -> void:
 				fx.sparkle(pos + Vector2(0, 10), col, 16)
 				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_FROST:
-				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
+				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, SPELL_COLORS[World.SP_FROST], true)
 				if float(ev[3]) > 0.0:
-					fx.ring(pos, 0.4, float(ev[3]), 0.3, Color("7fe8ff"), 2.0)
+					fx.ring(pos, 0.4, float(ev[3]), 0.3, SPELL_COLORS[World.SP_FROST], 2.0)
 
 ## Run time as M:SS.
 static func _clock(secs: float) -> String:
@@ -1144,62 +1146,129 @@ func _spell_color(sp: int, slot: int) -> Color:
 
 func _pickup_color(k: int) -> Color:
 	match k:
-		World.PK_COIN: return Color("ffd23d")
-		World.PK_GEM: return Color("4df0ff")
-		World.PK_POTION: return Color("ff3b6b")
+		World.PK_COIN: return Color("ffd94d")
+		World.PK_GEM: return Color("4dfff0")
+		World.PK_POTION: return Color("ff3b5c")
 		World.PK_TOME_FIRE: return SPELL_COLORS[1]
 		World.PK_TOME_FROST: return SPELL_COLORS[2]
 		World.PK_TOME_STORM: return SPELL_COLORS[3]
 		World.PK_TOME_STAR: return SPELL_COLORS[4]
 		World.PK_TOME_RUNE: return SPELL_COLORS[5]
-		World.PK_BOOTS: return Color("4dc8ff")
-		World.PK_ORBIT: return Color("8bff9e")
-		World.PK_XP: return Color("5dff7a")
-		World.PK_CHEST: return Color("ffd23d")
+		World.PK_BOOTS: return Color("8fe3ff")
+		World.PK_ORBIT: return Sprites.ORBIT_COLOR
+		World.PK_XP: return Sprites.XP_COLOR
+		World.PK_CHEST: return Color("ffd94d")
 		World.PK_CARD: return Color("ff4df2")
 		World.PK_CHEST_RARE: return Color("8fe3ff")
-		World.PK_CHEST_ULTRA: return Color("ff8af0")
+		World.PK_CHEST_ULTRA: return Color("c9a6ff")
 	return Color.WHITE
 
+## A wizard's casting pose lasts CAST_POSE seconds and comes back no sooner than CAST_EVERY (the fast spells fire
+## many times a second: the arm would never come down); the staff head flares for CAST_FLARE on every cast.
+## A cast belongs to the wizard whose staff head is within CAST_NEAR pixels of it.
+const CAST_POSE := 0.16
+const CAST_EVERY := 0.45
+const CAST_FLARE := 0.09
+const CAST_NEAR := 12.0
+const STAFF_WOOD := Color("c98a6b")
+const STAFF_BAND := Color("ffd94d")
+const SHADOW_COLOR := Color(0.04, 0.0, 0.09, 0.45)
+## How far above the feet a wizard's P-tag starts, and where it goes while the rune shield's orbs circle the hat.
+const TAG_UP := 31.0
+const TAG_UP_ORBS := 40.0
+## Last frame's starfall shots, [pos, vel, evolved]: one that is gone has landed (`_emit_trails`).
+var _stars_seen: Array = []
+
 # ======================================================== AMBIENT FX ===
+## Once a frame: what the shots, the rune circles, the enemies and the wizards shed, and the view state that
+## follows from the snapshot rather than from an event (who is casting, who took a level-up card, which star landed).
 func _emit_trails(dt: float) -> void:
+	var stars: Array = []
 	for s in vs:
-		var col := _spell_color(s[0], s[3])
 		var p: Vector2 = s[1]
 		match s[0]:
 			World.SP_ARCANE:
-				if frame % 2 == 0 or not is_host:
-					fx.spawn(p, -s[2] * 0.05, 0.18, 1.5, col.lightened(0.3), col, true, 4.0)
+				# The comet is a sprite with its own tail; only the Astral Lance sheds motes.
+				if s[4] and _fx_rng.randf() < 0.3:
+					var col := G.player_fx(s[3])
+					fx.spawn(p, Vector2(_fx_rng.randf_range(-12, 12), _fx_rng.randf_range(-12, 12)), 0.22, 1.0, Color.WHITE, col, true, 3.0)
 			World.SP_FIRE:
-				fx.spawn(p + Vector2(_fx_rng.randf_range(-2, 2), _fx_rng.randf_range(-2, 2)), -s[2] * 0.15 + Vector2(0, -20),
-					0.35, 2.5, Color(1, 0.9, 0.4), Color(0.8, 0.1, 0.05), true, 3.0, -20.0, 0.0, true)
-				if _fx_rng.randf() < 0.3:
-					fx.spawn(p, Vector2(_fx_rng.randf_range(-10, 10), -15), 0.6, 2.0, Color(0.25, 0.2, 0.25, 0.6), Color(0.1, 0.1, 0.1, 0.0), false, 1.0, -10.0, 4.0)
+				# A lick of flame left behind every frame; now and then an ember that falls, or smoke.
+				fx.spawn(p + Vector2(_fx_rng.randf_range(-1.5, 1.5), _fx_rng.randf_range(-1.5, 1.5)), -s[2] * 0.12 + Vector2(0, -14),
+					0.26, 3.0 if s[4] else 2.0, Color("ffcf5a"), Color("c85a1e"), true, 3.0, -20.0, 0.0, true)
+				if _fx_rng.randf() < 0.25:
+					fx.spawn(p, Vector2(_fx_rng.randf_range(-25, 25), _fx_rng.randf_range(-30, 0)), 0.5, 1.0, Color("fff6c0"),
+						Color("c0263a"), true, 1.0, 160.0)
+				if _fx_rng.randf() < 0.12:
+					fx.spawn(p, Vector2(_fx_rng.randf_range(-8, 8), -12), 0.6, 2.0, Color(0.23, 0.19, 0.31, 0.6), Color(0.1, 0.06, 0.14, 0.0),
+						false, 1.0, -10.0, 4.0)
 			World.SP_FROST:
-				if _fx_rng.randf() < 0.5:
-					fx.spawn(p, Vector2(_fx_rng.randf_range(-15, 15), _fx_rng.randf_range(-15, 15)), 0.3, 1.0, Color.WHITE, col, true, 2.0)
+				if _fx_rng.randf() < 0.2:
+					fx.spawn(p, Vector2(_fx_rng.randf_range(-10, 10), _fx_rng.randf_range(-10, 10)), 0.25, 1.0, Color.WHITE,
+						SPELL_COLORS[World.SP_FROST], true, 2.0)
 			World.SP_STAR:
-				fx.spawn(p, Vector2(_fx_rng.randf_range(-20, 20), _fx_rng.randf_range(-20, 20)), 0.4, 1.0, Color.WHITE, col, true, 2.0, 30.0)
+				stars.append(s)
+				if _fx_rng.randf() < 0.5:
+					fx.spawn(p + Vector2(_fx_rng.randf_range(-2, 2), _fx_rng.randf_range(-2, 2)), Vector2(_fx_rng.randf_range(-8, 8), 10),
+						0.45, 1.0, Color.WHITE, SPELL_COLORS[World.SP_STAR], true, 2.0, 30.0)
+	# A star that was here a frame ago and is nowhere near now has landed: a burst, and a mark on the floor.
+	var reach := maxf(24.0, 420.0 * dt)
+	for old: Array in _stars_seen:
+		var alive := false
+		for s: Array in stars:
+			if (s[1] as Vector2).distance_squared_to(old[0]) < reach * reach:
+				alive = true
+				break
+		if not alive:
+			fx.star_land((old[0] as Vector2) + (old[1] as Vector2) * dt, SPELL_COLORS[World.SP_STAR], old[2])
+	_stars_seen.clear()
+	for s: Array in stars:
+		_stars_seen.append([s[1], s[2], s[4]])
 	for c: Array in vr:
-		if _fx_rng.randf() < (0.5 if c[5] else 0.3):
+		if _fx_rng.randf() < (0.3 if c[5] else 0.18):
 			var at: Vector2 = c[0] + Vector2.from_angle(_fx_rng.randf() * TAU) * float(c[1])
 			fx.spawn(at, Vector2(0, _fx_rng.randf_range(-22, -8)), 0.5, 1.0, RUNE_GOLD, SPELL_COLORS[World.SP_RUNE], true, 1.0)
 	for e in ve.values():
-		if e.type == World.LICH and _fx_rng.randf() < 0.6:
+		if e.type == World.LICH and _fx_rng.randf() < 0.4:
 			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-14, 14), _fx_rng.randf_range(-24, 0)), Vector2(0, _fx_rng.randf_range(-30, -10)),
-				0.7, 1.0, Color("4dfff0"), Color("4a1a7a"), true, 1.0)
-		elif e.slow > 0.0 and _fx_rng.randf() < 0.15:
-			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-5, 5), -_fx_rng.randf_range(0, 10)), Vector2(0, -8), 0.4, 1.0, Color.WHITE, Color("7fe8ff"), true)
+				0.7, 1.0, Color("d8fff6"), Color("158f86"), true, 1.0)
+		elif e.slow > 0.0 and _fx_rng.randf() < 0.1:
+			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-5, 5), -_fx_rng.randf_range(0, 10)), Vector2(0, -8), 0.4, 1.0, Color.WHITE,
+				SPELL_COLORS[World.SP_FROST], true)
 		elif e.type == World.MAGE and e.state == 1:
-			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-6, 6), -8 + _fx_rng.randf_range(-4, 4)), Vector2(0, -20), 0.3, 1.0, Color.WHITE, Color("ff4df2"), true)
-	for p in vp.values():
+			# A mage gathering its shot burns red: the colour of everything an enemy throws.
+			fx.spawn(e.pos + Vector2(_fx_rng.randf_range(-6, 6), -8 + _fx_rng.randf_range(-4, 4)), Vector2(0, -20), 0.3, 1.0,
+				Color("ffcf5a"), Color("c0263a"), true)
+	fx.keep_clear.clear()
+	var tagged := vp.size() > 1 or Net.is_online()
+	for p: Dictionary in vp.values():
 		if not p.alive:
 			continue
-		if p.haste > 0.0 and p.moving and _fx_rng.randf() < 0.5:
-			fx.spawn(p.pos + Vector2(_fx_rng.randf_range(-3, 3), 0), Vector2(0, -10), 0.35, 1.0, Color.WHITE, Color("4dc8ff"), true)
-		if p.spell != World.SP_ARCANE and _fx_rng.randf() < 0.25:
-			var tip: Vector2 = p.pos + Vector2(0, -7) + p.aim * 9.0
-			fx.spawn(tip, Vector2(_fx_rng.randf_range(-10, 10), _fx_rng.randf_range(-25, -5)), 0.4, 1.0, Color.WHITE, SPELL_COLORS[p.spell], true)
+		# Floating words start above the wizard (and the P-tag), never across them.
+		var head := 24.0
+		if tagged:
+			head = (TAG_UP_ORBS if p.orbit > 0.0 else TAG_UP) + 2.0
+		fx.keep_clear.append(Rect2(p.pos.x - 9.0, p.pos.y - head, 18.0, head + 2.0))
+		var tip: Vector2 = (p.target as Vector2) + Vector2(0, -7) + (p.aim as Vector2) * 9.0
+		for c: Array in fx.casts:
+			# Matched by the caster's slot; by staff distance only when the cast did not say who cast it.
+			var mine: bool = int(c[1]) == int(p.slot) if int(c[1]) >= 0 \
+					else (c[0] as Vector2).distance_squared_to(tip) < CAST_NEAR * CAST_NEAR
+			if mine:
+				p["flare_at"] = time
+				if time - float(p.get("cast_at", -9.0)) > CAST_EVERY:
+					p["cast_at"] = time
+				break
+		# The column of light walks with its wizard.
+		var pillar: Array = p.get("pillar", [])
+		if not pillar.is_empty():
+			if float(pillar[1]) > 0.0:
+				pillar[0] = p.pos
+			else:
+				p.erase("pillar")
+		if p.haste > 0.0 and p.moving and _fx_rng.randf() < 0.4:
+			fx.spawn(p.pos + Vector2(_fx_rng.randf_range(-3, 3), 0), Vector2(0, -10), 0.35, 1.0, Color.WHITE, Color("8fe3ff"), true)
+	fx.casts.clear()
 
 func _torch_fx(dt: float) -> void:
 	# Sparks rise from the fires of the backdrop that shows most: the old act's for the first half of a fade.
@@ -1276,81 +1345,119 @@ func _draw_hint(ci: CanvasItem) -> void:
 		y += 10
 
 
+## The additive floor layer's magic, under the actors: the marks fallen stars leave, and the active rune circles.
+## A circle is a ring with two broken rings turning inside it, as on the Sanctum's portal, a slow wheel of gold
+## runes between them and a pentagram in the middle (a hexagram for the Seal of Solomon, with motes drawn
+## inward); all of it flares on every damage tick.
 func _draw_runes(ci: CanvasItem) -> void:
+	fx.draw_floor(ci)
+	var runes: Array = Sprites.strip("fx_rune", Occult.RUNES.size())
 	for c: Array in vr:
-		var at: Vector2 = c[0]
+		var at: Vector2 = (c[0] as Vector2).floor() + Vector2(0.5, 0.5)
 		var evo: bool = c[5]
-		var r: float = float(c[1]) * (0.6 + 0.4 * _rune_grow(c))
+		var r: float = roundf(float(c[1]) * (0.6 + 0.4 * _rune_grow(c)))
 		var k := _rune_alpha(c)
 		var since := fposmod(float(c[2]) - Spells.RUNE_ARM, Spells.RUNE_TICK)
 		var flare := clampf(1.0 - since / (Spells.RUNE_TICK * 0.5), 0.0, 1.0) if float(c[2]) >= Spells.RUNE_ARM else 0.0
 		var col: Color = SEAL_RING if evo else SPELL_COLORS[World.SP_RUNE]
 		var glyph: Color = SEAL_WHITE if evo else RUNE_GOLD
-		var turn := (time * 0.6 + float(c[4])) * (1.0 if int(c[4]) % 2 == 0 else -1.0)
-		ci.draw_circle(at, r, Color(col.r, col.g, col.b, (0.05 + 0.08 * flare) * k))
+		var turn := (time * 0.5 + float(c[4])) * (1.0 if int(c[4]) % 2 == 0 else -1.0)
+		ci.draw_circle(at, r, Color(col, (0.05 + 0.09 * flare) * k))
 		var segs := 48 if r > 24.0 else 32
-		ci.draw_arc(at, r, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.75 + 0.25 * flare) * k), 1.0)
-		ci.draw_arc(at, r - 7.0, 0.0, TAU, segs, Color(col.r, col.g, col.b, (0.5 + 0.3 * flare) * k), 1.0)
-		var n := maxi(5, int(TAU * (r - 3.5) / 12.0))
+		ci.draw_arc(at, r, 0.0, TAU, segs, Color(col, (0.75 + 0.25 * flare) * k), 1.0)
+		ci.draw_arc(at, r - 2.0, turn * 1.6, turn * 1.6 + TAU * 0.8, segs, Color(col, (0.4 + 0.3 * flare) * k), 1.0)
+		ci.draw_arc(at, r - 10.0, -turn * 2.2, -turn * 2.2 + TAU * 0.8, segs, Color(col, (0.5 + 0.3 * flare) * k), 1.0)
+		var n := maxi(5, int(TAU * (r - 6.0) / 11.0))
+		var gc := Color(glyph, (0.6 + 0.4 * flare) * k)
 		for g in n:
 			var a := turn + g * TAU / n
-			var gp := at + Vector2.from_angle(a) * (r - 3.5) - Vector2(2, 3)
-			Occult.rune(ci, gp.round(), g * 3 + int(c[4]), Color(glyph.r, glyph.g, glyph.b, (0.4 + 0.3 * flare) * k))
-		var inner := r - 8.0
+			Sprites.draw_mid_r(ci, runes[(g * 3 + int(c[4])) % runes.size()], at + Vector2.from_angle(a) * (r - 6.0), gc)
+		var inner := r - 11.0
 		if evo:
 			# The Seal of Solomon: two interlaced triangles, and motes pulled toward the centre.
 			for t in 2:
 				var tri := PackedVector2Array()
 				for v in 4:
 					tri.append(at + Vector2.from_angle(-turn * 0.5 + t * PI + v * TAU / 3.0 - PI / 2.0) * inner)
-				ci.draw_polyline(tri, Color(SEAL_WHITE.r, SEAL_WHITE.g, SEAL_WHITE.b, (0.6 + 0.4 * flare) * k), 1.0)
+				ci.draw_polyline(tri, Color(SEAL_WHITE, (0.6 + 0.4 * flare) * k), 1.0)
 			var reach := float(c[1]) * Spells.SEAL_REACH
 			for m in 10:
 				var f := fposmod(time * 0.8 + m * 0.37, 1.0)
 				var mp := at + Vector2.from_angle(m * 2.4 + turn * 0.3) * lerpf(reach, r * 0.3, f)
-				ci.draw_rect(Rect2(mp.floor(), Vector2(1, 1)), Color(SEAL_WHITE.r, SEAL_WHITE.g, SEAL_WHITE.b, 0.7 * k * (1.0 - f * 0.5)))
-		else:
-			Occult.pentagram(ci, at, inner, Color(col.r, col.g, col.b, (0.3 + 0.35 * flare) * k), -turn * 0.5)
+				Sprites.rect(ci, Rect2(mp.floor(), Vector2(1, 1)), Color(SEAL_WHITE, 0.7 * k * (1.0 - f * 0.5)))
+		elif inner > 3.0:
+			Occult.pentagram(ci, at, inner, Color(col, (0.3 + 0.4 * flare) * k), -turn * 0.5)
 
 
+## The shadow under an actor or a pickup: a squat lozenge `w` wide, from the atlas so it batches with the sprites.
 func _shadow(ci: CanvasItem, pos: Vector2, w: float) -> void:
-	var c := Color(0.05, 0.0, 0.1, 0.45)
 	var h := maxf(2.0, floorf(w * 0.35))
-	ci.draw_rect(Rect2((pos - Vector2(w / 2.0, h / 2.0)).floor() + Vector2(1, 0), Vector2(w - 2, h)), c)
-	ci.draw_rect(Rect2((pos - Vector2(w / 2.0 - 1, h / 2.0 + 1)).floor() + Vector2(1, 0), Vector2(w - 4, h + 2)), c)
+	var at := (pos - Vector2(w / 2.0, h / 2.0)).floor()
+	Sprites.rect(ci, Rect2(at.x + 1.0, at.y, w - 2.0, h), SHADOW_COLOR)
+	Sprites.rect(ci, Rect2(at.x + 2.0, at.y - 1.0, w - 4.0, h + 2.0), SHADOW_COLOR)
 
-## A pillar of light over a card or a rare chest so it is seen across a crowded arena.
+## A pillar of light over a card or a rare chest so it is seen across a crowded arena, and a glint that comes
+## and goes over it.
 func _draw_treasure_glow(ci: CanvasItem, kind: int, pos: Vector2) -> void:
 	var col := _pickup_color(kind)
 	var pulse := 0.5 + 0.5 * sin(time * 5.0 + pos.x)
 	var tall := 60.0 if kind != World.PK_CHEST_RARE else 30.0
+	var at := pos.floor()
 	for i: int in range(3):
 		var w := 7.0 - i * 2.0
-		ci.draw_rect(Rect2(pos.x - w / 2.0, pos.y - tall, w, tall), Color(col, (0.08 + 0.06 * pulse) * (i + 1)))
+		Sprites.rect(ci, Rect2(at.x - floorf(w / 2.0), at.y - tall, w, tall), Color(col, (0.07 + 0.05 * pulse) * (i + 1)))
 	if kind == World.PK_CHEST_ULTRA:
 		col = Color.from_hsv(fposmod(time * 0.5, 1.0), 0.6, 1.0)
-	ci.draw_circle(pos + Vector2(0, -3), 7.0 + 2.0 * pulse, Color(col, 0.18))
-	if int(time * 8.0 + pos.x) % 6 == 0:
-		fx.sparkle(pos + Vector2(0, -4), col, 1)
+	Sprites.glow(ci, pos + Vector2(0, -4), 8.0 + 2.0 * pulse, Color(col, 0.3))
+	var beat := time * 1.6 + pos.x * 0.37
+	var f := int(fposmod(beat, 1.0) * 8.0)
+	if f < 3:
+		var spot := int(floorf(beat)) * 7
+		Sprites.draw_mid_r(ci, Sprites.strip("fx_spark", 3)[f], pos + Vector2((spot % 11) - 5, -5 - (spot % 6)), col.lerp(Color.WHITE, 0.6))
 
 func _draw_entities() -> void:
 	var ci := ent_layer
 	_draw_shrines(ci)
 	for u: Vector2 in vu:
-		_shadow(ci, u + Vector2(0, 1), 8)
+		_shadow(ci, u + Vector2(0, 1), 10)
 		Sprites.draw_at(ci, "urn", u + Vector2(0, 1))
-	# Pickups
+	# Each wizard's ring lies on the floor in their colour, under the shadows and everything that stands.
+	for p: Dictionary in vp.values():
+		if p.alive:
+			Sprites.draw_mid(ci, "fx_ring", (p.pos as Vector2) + Vector2(0, 0.5),
+				Color(G.player_fx(p.slot), 0.8 + 0.15 * sin(time * 3.0 + float(p.slot))))
+	# Pickups: calm on the floor. The motes come in hundreds, so they neither bob nor cast a shadow, and each
+	# twinkles for a blink every couple of seconds.
+	var xp_r := Sprites.region("xp")
+	var xp_twinkle := Sprites.region("xp_1")
+	var coins: Array = [Sprites.region("coin"), Sprites.region("coin_1"), Sprites.region("coin_2"), Sprites.region("coin_3")]
+	var glints: Array = Sprites.strip("fx_spark", 3)
 	for k in vk:
 		var kind: int = k[0]
 		var pos: Vector2 = k[1]
 		var life: float = k[2]
 		if life < 3.0 and int(life * 10.0) % 2 == 0:
 			continue
-		var bob := floorf(sin(time * 4.0 + pos.x) * 2.0)
+		if kind == World.PK_XP:
+			var lit := fposmod(time * 0.45 + pos.x * 0.173 + pos.y * 0.291, 1.0) < 0.05
+			Sprites.draw_mid_r(ci, xp_twinkle if lit else xp_r, pos + Vector2(0, -2))
+			continue
+		var bob := floorf(sin(time * 3.0 + pos.x) * 1.5)
+		var chest := kind == World.PK_CHEST or kind == World.PK_CHEST_RARE or kind == World.PK_CHEST_ULTRA
 		if kind >= World.PK_CARD:
 			_draw_treasure_glow(ci, kind, pos)
-		_shadow(ci, pos + Vector2(0, 1), 8)
-		Sprites.draw_at(ci, PICKUP_KEYS[kind], pos + Vector2(0, -2 + bob))
+		_shadow(ci, pos + Vector2(0, 1), 12 if chest else 8)
+		if kind == World.PK_COIN:
+			Sprites.draw_mid_r(ci, coins[int(time * 7.0 + pos.x * 0.31) & 3], pos + Vector2(0, -5 + bob))
+		elif chest:
+			# A chest sits on the floor; a glint crosses its lid now and then.
+			Sprites.draw_at(ci, PICKUP_KEYS[kind], pos + Vector2(0, 2))
+			var beat := time * 0.8 + pos.x * 0.21
+			var f := int(fposmod(beat, 1.0) * 10.0)
+			if f < 3:
+				Sprites.draw_mid_r(ci, glints[f], pos + Vector2(-4 + (int(floorf(beat)) % 3) * 4, -8))
+		else:
+			Sprites.draw_at(ci, PICKUP_KEYS[kind], pos + Vector2(0, -2 + bob))
 	# Collect drawables sorted by y
 	var list := []
 	for p in vp.values():
@@ -1361,7 +1468,7 @@ func _draw_entities() -> void:
 	list.sort_custom(func(a, b): return a[0] < b[0])
 	for it in list:
 		if it[1] == 0:
-			_shadow(ci, it[2].pos, 10)
+			_shadow(ci, it[2].pos, 12)
 		else:
 			var e: Dictionary = it[2]
 			if ENEMY_SHADOW[e.type] > 0 and e.type != World.BAT and not (e.type == World.GARGOYLE and e.state == 1):
@@ -1376,8 +1483,10 @@ func _draw_entities() -> void:
 	for g: Array in _ghosts:
 		var k: float = g[1] / GHOST_LIFE
 		var gp: Vector2 = g[0] + Vector2(sin(k * 9.0) * 3.0, -40.0 * k)
-		Sprites.draw_at(ci, "wiz%d_up_a" % g[2], gp.round(), false, false, Color(0.7, 0.9, 1.3, 0.6 * (1.0 - k)))
+		Sprites.draw_at(ci, "wiz%d_up_i0" % g[2], gp.round(), false, false, Color(0.7, 0.9, 1.3, 0.6 * (1.0 - k)))
 
+## One wizard: the walk cycle (or the idle breath), the casting pose for a moment after a spell leaves, the staff
+## (behind the body when they face away), and the P-tag over the hat when there is a party.
 func _draw_player(ci: CanvasItem, p: Dictionary) -> void:
 	var slot: int = p.slot
 	if p.invuln > 0.0 and int(time * 20.0) % 2 == 0 and p.invuln < 2.4:
@@ -1390,203 +1499,283 @@ func _draw_player(ci: CanvasItem, p: Dictionary) -> void:
 	else:
 		dirkey = "side"
 		flip = aim.x < 0
-	var fr := "a" if not p.moving or int(p.walk_t) % 2 == 0 else "b"
-	var key := "wiz%d_%s_%s" % [G.wizard_of(slot), dirkey, fr]
+	var casting: bool = time - float(p.get("cast_at", -9.0)) < CAST_POSE
+	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, p.moving, int(p.walk_t), int(time * 2.0 + slot * 0.5), casting,
+		aim.x >= 0.0)
 	var feet: Vector2 = p.pos + Vector2(0, 1)
-	if p.moving:
-		feet.y -= float(int(p.walk_t) % 2)
 	# Haste afterimages
 	if p.haste > 0.0:
 		for gi in range(2, p.ghosts.size(), 2):
-			var gc := Color(0.3, 0.8, 1.0, 0.35 - gi * 0.035)
+			var gc := Color(0.56, 0.89, 1.0, 0.35 - gi * 0.035)
 			Sprites.draw_at(ci, key, p.ghosts[gi] + Vector2(0, 1), flip, true, gc)
-	var hand = p.pos + Vector2(3 if aim.x >= 0 else -3, -6)
+	var grip: Vector2 = p.pos + SpritesWizards.grip(dirkey, aim)
 	var tip: Vector2 = p.pos + Vector2(0, -7) + aim * 9.0
 	if dirkey == "up":
-		_draw_staff(ci, hand, tip, p.spell, slot)
+		_draw_staff(ci, grip, tip, slot)
 	Sprites.draw_at(ci, key, feet, flip, p.flash > 0.0)
 	if dirkey != "up":
-		_draw_staff(ci, hand, tip, p.spell, slot)
+		_draw_staff(ci, grip, tip, slot)
 	if vp.size() > 1 or Net.is_online():
 		var col := G.player_color(slot)
 		var lbl := "P%d" % (slot + 1)
-		PixelFont.draw_centered(ci, lbl, p.pos.x, p.pos.y - 26 + floorf(sin(time * 5) * 1.0), 1, col, Color("0b0716"))
+		# The tag rides above the rune shield's orbs while they circle the hat.
+		var up := TAG_UP_ORBS if p.orbit > 0.0 else TAG_UP
+		PixelFont.draw_centered(ci, lbl, p.pos.x, p.pos.y - up + floorf(sin(time * 5) * 1.0), 1, col, Color("0b0716"))
 
-func _draw_staff(ci: CanvasItem, hand: Vector2, tip: Vector2, spell: int, slot: int) -> void:
-	var a := hand.floor()
-	var b := tip.floor()
-	ci.draw_line(a + Vector2(0.5, 0.5), b + Vector2(0.5, 0.5), Color("1a0f24"), 3.0)
-	ci.draw_line(a + Vector2(0.5, 0.5), b + Vector2(0.5, 0.5), Color("b07a3a"), 1.0)
-	ci.draw_rect(Rect2(b - Vector2(1, 1), Vector2(3, 3)), _spell_color(spell, slot))
-	ci.draw_rect(Rect2(b - Vector2(0, 0), Vector2(1, 1)), Color.WHITE)
+## A wizard's staff: a wooden shaft through the grip with a short butt behind it and a gold band under the head,
+## and the head itself where the simulation casts from (`tip`). Its glow, and the flare of a cast, are drawn with
+## the shots on the additive layer.
+func _draw_staff(ci: CanvasItem, grip: Vector2, tip: Vector2, slot: int) -> void:
+	var along := tip - grip
+	var u := along.normalized() if along.length() > 0.5 else Vector2.DOWN
+	var butt := grip - u * 3.0
+	Sprites.line(ci, butt, tip, Sprites.OUTLINE, 1)
+	Sprites.line(ci, butt, tip, STAFF_WOOD)
+	Sprites.line(ci, tip - u * 3.0, tip, STAFF_BAND)
+	Sprites.draw_mid(ci, "fx_staff_%d" % G.wizard_of(slot), tip)
 
-## Glows under the elites and the Archlich go before the sprites, in one pass, so sprites batch together.
+## Under the sprites, in one pass, so the sprites batch together: the shadows of the kinds that fly (set down the
+## floor from the sprite, which stays on the body that spells hit), then the halo of each elite and of the Lich.
 func _draw_enemy_glows(ci: CanvasItem) -> void:
+	var halos: Array = []
 	for e: Dictionary in ve.values():
-		if e.get("final", false):
-			ci.draw_circle(e.pos + Vector2(0, -14), 20.0 + sin(time * 4.0) * 2.0, Color(1.0, 0.3, 0.95, 0.18))
-			ci.draw_circle(e.pos + Vector2(0, -14), 14.0 + sin(time * 6.0) * 1.5, Color(1.0, 0.85, 0.3, 0.16))
-		elif e.get("elite", false):
-			ci.draw_circle(e.pos + Vector2(0, -6), 11.0 + sin(time * 6.0 + e.t) * 1.5, Color(1.0, 0.72, 0.3, 0.22))
+		match int(e.type):
+			World.BAT:
+				_shadow(ci, e.pos + Vector2(0, 6), 8)
+			World.TOME:
+				_shadow(ci, e.pos + Vector2(0, 5), 10)
+			World.GARGOYLE:
+				if e.state == 1:
+					_shadow(ci, e.pos + Vector2(0, 6), 14)
+			World.LICH:
+				halos.append(e)
+		if e.elite:
+			halos.append(e)
+	for e: Dictionary in halos:
+		if e.type == World.LICH:
+			var glow := Color(1, 1, 1, 0.75 + 0.25 * sin(time * 4.0))
+			Sprites.draw_at(ci, "archlich_halo" if e.final else "lich_halo", e.pos + Vector2(0, 9), false, false, glow)
+		else:
+			Sprites.draw_at(ci, "elite_halo", e.pos + Vector2(0, 6), false, false, Color(1, 1, 1, 0.7 + 0.3 * sin(time * 6.0 + e.t)))
 
+## One enemy: the frame its type and state call for (see `SpritesEnemies`), anchored bottom centre on its feet.
 func _draw_enemy(ci: CanvasItem, e: Dictionary) -> void:
 	var t: int = e.type
-	var base: String = ENEMY_KEYS[t]
-	var key := base
-	if t != World.LICH:
-		var fr := "a"
-		if t == World.SLIME:
-			fr = "b" if e.state == 1 else "a"
-		elif t == World.GARGOYLE and e.state == 0:
-			fr = "a"
-		elif int(e.t * ENEMY_ANIM[t]) % 2 == 1:
-			fr = "b"
-		key = base + "_" + fr
-	# Face the nearest wizard
-	var near := Vector2.ZERO
+	var st: int = e.state
+	# A snapshot carries the state but not its age, so the view times each state: hops, wind-ups and wakes read it.
+	if e.get("st", -1) != st:
+		e.st = st
+		e.st_t = time
+	var since: float = time - float(e.st_t)
+	var cyc: Array = ENEMY_KEYS[t]
+	var fi := int(e.t * ENEMY_ANIM[t]) % cyc.size()
+	var key: String = cyc[fi]
+	# Face the nearest wizard; hold the facing while that wizard is almost straight above or below.
+	var near_dx := 0.0
 	var nd := INF
 	for p in vp.values():
 		if p.alive:
 			var d: float = p.pos.distance_squared_to(e.pos)
 			if d < nd:
 				nd = d
-				near = p.pos
-	var flip = nd < INF and near.x < e.pos.x
+				near_dx = p.pos.x - e.pos.x
+	var turn := absf(near_dx) > 3.0
 	var feet: Vector2 = e.pos + Vector2(0, 1)
 	var mod := Color.WHITE
 	if e.slow > 0.0:
 		mod = Color(0.6, 0.9, 1.4)
 	match t:
+		World.SLIME:
+			# The hop: it stretches off the floor, hangs in the air and squashes where it lands.
+			if st == 1:
+				var u := clampf(since / 0.5, 0.0, 1.0)
+				key = "slime_c" if u < 0.2 else ("slime_d" if u < 0.85 else "slime_b")
+				feet.y -= roundf(sin(u * PI) * 5.0)
+			elif since < 0.12:
+				key = "slime_b"
+		World.MSLIME:
+			if fi == 1:
+				feet.y -= 2.0
 		World.BAT:
-			feet.y -= 6.0 + floorf(sin(e.t * 8.0) * 2.0)
-		World.LICH:
-			feet.y -= 4.0 + floorf(sin(e.t * 2.0) * 3.0)
+			turn = false
+			feet.y -= 1.0 + roundf(sin(e.t * 8.0))
 		World.ORC:
-			if e.state == 1:
-				feet.x += _fx_rng.randf_range(-1.5, 1.5)
-				mod = Color(1.6, 0.6, 0.6)
-			elif e.state == 2:
-				mod = Color(1.4, 0.8, 0.8)
+			if st == 1:
+				# The wind-up: the club goes up and the brute shakes with it.
+				key = "orc_wind"
+				feet.x += float(int(time * 30.0) % 2)
+			elif st == 2:
+				key = "orc_charge" if int(time * 12.0) % 2 == 0 else "orc_charge2"
 		World.MAGE:
-			if e.state == 1:
-				mod = Color(1.4, 0.8, 1.4)
+			if st == 1:
+				key = "mage_cast"
+		World.LICH:
+			turn = false
+			feet.y -= 3.0 + roundf(sin(e.t * 2.0) * 1.5)
+			if st == 5:
+				# About to step through the dark: its fire flares and it flickers.
+				key = "lich_cast"
+				mod.a = 0.6 + 0.3 * sin(time * 30.0)
+			elif st >= 1 and st <= 3 and int(time * 8.0) % 3 != 0:
+				key = "lich_cast"
+			if e.final:
+				key = "arch" + key
 		World.WRAITH:
-			# Faded: a thin ghost the spells pass through.
-			feet.y -= 3.0 + floorf(sin(e.t * 3.0) * 1.5)
-			mod.a = 0.25 + 0.1 * sin(time * 20.0) if e.state == 1 else 0.85
+			feet.y -= 1.0 + roundf(sin(e.t * 3.0))
+			if st == 1:
+				# Faded: only its rim is left, and spells pass through.
+				key = "wraith_fade_a" if fi == 0 else "wraith_fade_b"
+				mod.a = 0.55 + 0.15 * sin(time * 20.0)
 		World.TOME:
-			feet.y -= 4.0 + floorf(sin(e.t * 6.0) * 1.5)
-			if e.state == 1:
-				feet.x += _fx_rng.randf_range(-1.0, 1.0)
-				mod = Color(1.5, 0.7, 0.7)
+			feet.y -= 1.0 + roundf(sin(e.t * 6.0))
+			if st == 1:
+				key = "tome_rear"
+				feet.x += float(int(time * 30.0) % 2)
+			elif st == 2:
+				key = "tome_dash" if int(time * 14.0) % 2 == 0 else "tome_rear"
 		World.GARGOYLE:
-			if e.state == 0:
-				mod = Color(0.75, 0.75, 0.8)
+			# It flies in from the door with its wings out and lands where it first stops. From then on it is
+			# stone whenever it perches: it does not turn, and its eyes light shortly before it wakes.
+			if st == 1:
+				e.down = true
+			elif not e.get("down", false):
+				var moved: bool = e.pos.distance_squared_to(e.get("at", Vector2.INF)) > 0.04
+				e.at = e.pos
+				e.still = 0 if moved else int(e.get("still", 0)) + 1
+				e.down = e.still >= 6
+			if st == 1 or not e.down:
+				feet.y -= 2.0 + float(fi)
 			else:
-				feet.y -= 8.0
-				mod = Color(1.2, 1.0, 1.0)
+				turn = false
+				key = "gargoyle_wake" if since > World.GARGOYLE_PERCH - 0.5 else "gargoyle_a"
+				mod = mod * Color(0.86, 0.86, 0.94)
 		World.PRIEST:
-			if e.state == 1:
-				mod = Color(0.9, 1.5, 1.0)
-	if e.get("final", false):
-		# The Archlich: a darker violet robe (its glow is drawn under the sprites in _draw_entities).
-		mod = mod * Color(1.3, 0.75, 1.35)
-	elif e.get("elite", false):
-		# Elites: a warmer tint (and a gold glow under the sprites) so they stand out of the horde.
-		mod = mod * Color(1.35, 1.1, 0.8)
+			if st == 1:
+				key = "priest_raise"
+	if turn:
+		e.flip = near_dx < 0.0
+	var elite: bool = e.elite
+	if elite:
+		key = "elite_" + key
 	var flash: bool = e.flash > 0.0 and (t != World.LICH or int(time * 40.0) % 3 == 0)
-	Sprites.draw_at(ci, key, feet, flip and t != World.BAT and t != World.LICH, flash, mod)
+	Sprites.draw_at(ci, key, feet, e.flip, flash, mod)
+	if elite:
+		# The mark of an elite: a small crown that bobs over its head, above the health bar.
+		Sprites.draw_at(ci, "elite_mark", e.pos + Vector2(0, -5.0 - SpritesEnemies.TOP[t] + roundf(sin(time * 4.0 + e.t))))
 
-## Health bars for the big and elite enemies, drawn after every sprite so they do not split the sprite batch.
+## Health bars over the big enemies and the elites, once they are hurt. Drawn after every sprite, so they do not
+## split the sprite batch.
 func _draw_enemy_bars(ci: CanvasItem) -> void:
 	for e: Dictionary in ve.values():
 		var t: int = e.type
-		if (t == World.ORC or t == World.MAGE or e.get("elite", false)) and e.hpf < 1.0:
-			var w := 14.0
-			var bp: Vector2 = (e.pos + Vector2(-w / 2, 4)).floor()
-			ci.draw_rect(Rect2(bp - Vector2(1, 1), Vector2(w + 2, 4)), Color("0b0716"))
-			ci.draw_rect(Rect2(bp, Vector2(w * e.hpf, 2)), Color("ff3b5c"))
+		var elite: bool = e.elite
+		if e.hpf < 1.0 and (elite or t == World.ORC or t == World.GARGOYLE):
+			var w := 16.0 if elite else 12.0
+			var bp: Vector2 = (e.pos + Vector2(-w / 2.0, -3.0 - SpritesEnemies.TOP[t])).floor()
+			ci.draw_rect(Rect2(bp - Vector2(1, 1), Vector2(w + 2, 4)), Color("c48a10") if elite else Color("0b0716"))
+			ci.draw_rect(Rect2(bp, Vector2(w, 2)), Color("2a1f45"))
+			ci.draw_rect(Rect2(bp, Vector2(ceilf(w * e.hpf), 2)), Color("ff3b5c"))
 
+## The wizards' magic, on the additive layer over the actors: every shot is a glow and one or two sprites from
+## the atlas, plotted for its direction, so hundreds of them are one batch. An evolved spell is the grown form of
+## the same shape. Also here: the glow of each staff head (it flares on a cast), the rune shield's orbs, a red
+## halo under every enemy shot, and the auras of the Lich and of a mage gathering its shot.
 func _draw_shots() -> void:
 	var ci := shot_layer
+	var bolts: Array = Sprites.strip("fx_bolt", Sprites.DIRS)
+	var lances: Array = Sprites.strip("fx_lance", Sprites.DIRS)
+	var shards: Array = Sprites.strip("fx_shard", Sprites.DIRS)
+	var big_shards: Array = Sprites.strip("fx_shardx", Sprites.DIRS)
+	var fires: Array = Sprites.strip("fx_fire", 4)
+	var big_fires: Array = Sprites.strip("fx_firex", 4)
+	var stars: Array = Sprites.strip("fx_star", 4)
+	var big_stars: Array = Sprites.strip("fx_starx", 4)
+	var core := Sprites.region("fx_core_0")
+	var big_core := Sprites.region("fx_core_1")
+	var tick := int(time * 12.0)
+	var fire_glow := Color(SPELL_COLORS[World.SP_FIRE], 0.4)
+	var frost_glow := Color(SPELL_COLORS[World.SP_FROST], 0.3)
+	var star_col: Color = SPELL_COLORS[World.SP_STAR]
 	for s in vs:
-		var kind: int = s[0]
 		var p: Vector2 = s[1]
 		var v: Vector2 = s[2]
-		var col := _spell_color(kind, s[3])
-		if s[4]:
-			# Evolved spells carry a wide pulsing halo so they read as the upgraded form.
-			ci.draw_circle(p, 9.0 + sin(time * 16.0 + p.x) * 1.5, Color(col.r, col.g, col.b, 0.18))
-		match kind:
+		var evo: bool = s[4]
+		match s[0]:
 			World.SP_ARCANE:
-				ci.draw_circle(p, 5.0, Color(col.r, col.g, col.b, 0.25))
-				var d := v.normalized()
-				ci.draw_line(p - d * 5.0, p, Color(col.r, col.g, col.b, 0.8), 2.0)
-				ci.draw_rect(Rect2(p.floor() - Vector2(1, 1), Vector2(2, 2)), Color.WHITE)
+				# A small comet in its caster's colour with a white head; the Astral Lance is a long pointed one
+				# with a white comet inside it.
+				var col := G.player_fx(s[3])
+				var d := Sprites.dir16(v)
+				Sprites.glow(ci, p, 5.0 if evo else 3.5, Color(col, 0.4))
+				Sprites.draw_mid_r(ci, lances[d] if evo else bolts[d], p, col)
+				Sprites.draw_mid_r(ci, bolts[d] if evo else core, p)
 			World.SP_FIRE:
-				var f := 1.0 + 0.2 * sin(time * 30.0 + p.x)
-				ci.draw_circle(p, 9.0 * f, Color(1.0, 0.35, 0.05, 0.25))
-				ci.draw_circle(p, 5.0 * f, Color(1.0, 0.6, 0.1, 0.6))
-				ci.draw_circle(p, 2.5, Color(1.0, 1.0, 0.7, 1.0))
+				# A tumbling flame: four frames a quarter turn apart, each ball out of step with the next.
+				var f := (tick + int(absf(v.x) * 7.0 + absf(v.y) * 3.0)) & 3
+				Sprites.glow(ci, p, 13.0 if evo else 9.0, fire_glow)
+				Sprites.draw_mid_r(ci, big_fires[f] if evo else fires[f], p)
 			World.SP_FROST:
-				var d := v.normalized()
-				ci.draw_circle(p, 4.0, Color(col.r, col.g, col.b, 0.25))
-				ci.draw_line(p - d * 6.0, p + d * 1.0, col, 2.0)
-				ci.draw_line(p - d * 3.0, p + d * 1.0, Color.WHITE, 1.0)
+				var d := Sprites.dir16(v)
+				Sprites.glow(ci, p, 5.0 if evo else 3.0, frost_glow)
+				Sprites.draw_mid_r(ci, big_shards[d] if evo else shards[d], p)
 			World.SP_STAR:
-				var r := 3.0 + sin(time * 20.0) * 1.0
-				ci.draw_circle(p, 6.0, Color(col.r, col.g, col.b, 0.25))
-				var a := time * 10.0
-				for k in 4:
-					var dd := Vector2.from_angle(a + k * PI / 2.0)
-					ci.draw_line(p, p + dd * r, col, 1.0)
-				ci.draw_rect(Rect2(p.floor() - Vector2(1, 1), Vector2(2, 2)), Color.WHITE)
-	# Rune shield orbs + staff glow
+				# A falling star: a twinkling star with a comet's tail (the mark and the burst when it lands are Fx's).
+				var d := Sprites.dir16(v)
+				Sprites.glow(ci, p, 10.0 if evo else 7.0, Color(star_col, 0.4))
+				Sprites.draw_mid_r(ci, lances[d] if evo else bolts[d], p, Color(star_col, 0.7))
+				Sprites.draw_mid_r(ci, big_stars[tick & 3] if evo else stars[tick & 3], p)
+	# Staff heads and the rune shield's orbs
+	var orb := Sprites.region("fx_orb")
+	var orb_glow := Color(Sprites.ORBIT_COLOR, 0.4)
 	for slot in vp:
 		var p: Dictionary = vp[slot]
 		if not p.alive:
 			continue
-		var tip: Vector2 = p.pos + Vector2(0, -7) + p.aim * 9.0
-		var sc := _spell_color(p.spell, slot)
-		ci.draw_circle(tip, 4.0 + sin(time * 8.0), Color(sc.r, sc.g, sc.b, 0.25))
+		var aim: Vector2 = p.aim
+		var tip: Vector2 = p.pos + Vector2(0, -7) + aim * 9.0
+		var sc := G.player_fx(slot)
+		# A staff held away from the camera is behind the wizard's hat: its light is dimmer, and never white.
+		var hidden := aim.y < 0.0 and absf(aim.y) > absf(aim.x) * 1.1
+		if time - float(p.get("flare_at", -9.0)) < CAST_FLARE:
+			Sprites.glow(ci, tip, 5.0, Color(sc, 0.5 if hidden else 0.95))
+			if not hidden:
+				Sprites.draw_mid_r(ci, big_core, tip)
+		else:
+			Sprites.glow(ci, tip, 3.5 if hidden else 5.0, Color(sc, 0.4 + 0.12 * sin(time * 6.0 + slot)))
 		if p.orbit > 0.0 and (p.orbit > 2.0 or int(time * 10) % 2 == 0):
 			for i in 3:
 				var a: float = p.orbit_ang + i * TAU / 3.0
 				var op: Vector2 = p.pos + Vector2(0, -6) + Vector2(cos(a), sin(a)) * 22.0
-				ci.draw_circle(op, 6.0, Color(0.5, 1.0, 0.6, 0.25))
-				ci.draw_circle(op, 3.0, Color(0.6, 1.0, 0.7, 0.8))
-				ci.draw_rect(Rect2(op.floor() - Vector2(1, 1), Vector2(2, 2)), Color.WHITE)
-	# Boss & charging-mage aura
+				Sprites.glow(ci, op, 6.0, orb_glow)
+				Sprites.draw_mid_r(ci, orb, op)
+	# Danger is red: a halo under each enemy shot, and round a mage that is gathering one.
+	var danger := Color(0.75, 0.15, 0.23, 0.5)
+	for s in ves:
+		Sprites.glow(ci, s[1], 5.0, danger)
 	for e in ve.values():
 		if e.type == World.LICH:
-			ci.draw_circle(e.pos + Vector2(0, -14), 22.0 + sin(time * 3.0) * 2.0, Color(0.2, 0.9, 0.9, 0.08))
+			Sprites.glow(ci, e.pos + Vector2(0, -14), 28.0, Color(0.2, 0.88, 0.77, 0.1 + 0.03 * sin(time * 3.0)))
 		elif e.type == World.MAGE and e.state == 1:
-			ci.draw_circle(e.pos + Vector2(0, -8), 7.0, Color(1.0, 0.3, 0.9, 0.35))
+			Sprites.glow(ci, e.pos + Vector2(0, -8), 7.0, danger)
 
+## Enemy shots, over everything: a dark rim round a blood-red body with an orange core, so none can be taken for
+## a wizard's magic or for a pickup. Arrows are plotted for their direction; orbs and skulls pulse.
 func _draw_eshots() -> void:
 	var ci := eshot_layer
+	var arrows: Array = Sprites.strip("fx_earrow", Sprites.DIRS)
+	var orbs: Array = Sprites.strip("fx_eorb", 2)
+	var skulls: Array = Sprites.strip("fx_eskull", 2)
+	var beat := int(time * 8.0) & 1
 	for s in ves:
-		var kind: int = s[0]
 		var p: Vector2 = s[1]
-		var v: Vector2 = s[2]
-		match kind:
+		match s[0]:
 			World.ES_ARROW:
-				var d := v.normalized()
-				ci.draw_line(p - d * 7.0, p, Color("6b3f1f"), 1.0)
-				ci.draw_line(p - d * 7.0, p - d * 5.0, Color("f2ead8"), 1.0)
-				ci.draw_rect(Rect2(p.floor() - Vector2(1, 1) + d.round(), Vector2(2, 2)), Color("e8e8f0"))
+				var v: Vector2 = s[2]
+				Sprites.draw_mid_r(ci, arrows[Sprites.dir16(v)], p - v.normalized() * 4.0)
 			World.ES_ORB:
-				var pulse := 1.0 + 0.25 * sin(time * 20.0 + p.x)
-				ci.draw_circle(p, 5.0 * pulse, Color(1.0, 0.2, 0.85, 0.35))
-				ci.draw_circle(p, 3.0, Color("ff4df2"))
-				ci.draw_circle(p, 1.5, Color("2b0030"))
+				Sprites.draw_mid_r(ci, orbs[beat], p)
 			World.ES_SKULL:
-				var pulse := 1.0 + 0.2 * sin(time * 16.0 + p.y)
-				ci.draw_circle(p, 6.0 * pulse, Color(0.2, 1.0, 0.7, 0.3))
-				ci.draw_circle(p, 3.5, Color("4dffb0"))
-				ci.draw_rect(Rect2(p.floor() + Vector2(-2, -1), Vector2(1, 1)), Color("0b2a1a"))
-				ci.draw_rect(Rect2(p.floor() + Vector2(1, -1), Vector2(1, 1)), Color("0b2a1a"))
-				ci.draw_rect(Rect2(p.floor() + Vector2(-1, 1), Vector2(2, 1)), Color("0b2a1a"))
+				Sprites.draw_mid_r(ci, skulls[beat], p)
 
 # ================================================================ HUD ===
 func _draw_hud() -> void:
