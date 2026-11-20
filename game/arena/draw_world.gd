@@ -1,0 +1,292 @@
+class_name ArenaDrawWorld
+extends RefCounted
+## Arena: the floor, env, hint, runes, entities, wizards and staffs.
+## Static helpers: `a` is the Arena that owns the state.
+
+## Eases the camera toward the middle of the living wizards (all of them when none is alive), keeping the view
+## inside the arena image. The HUD band covers the top of the screen, so the view may rise by the band's height:
+## near the top of the room the whole back wall and its door then show below the band.
+static func _follow_party(a: Arena, dt: float) -> void:
+	var c := Vector2.ZERO
+	var n := 0
+	for p: Dictionary in a.vp.values():
+		if p.alive:
+			c += p.pos
+			n += 1
+	if n == 0:
+		for p: Dictionary in a.vp.values():
+			c += p.pos
+			n += 1
+	if n == 0:
+		return
+	c /= n
+	var want := c - Vector2(G.SCREEN.x / 2.0, (G.SCREEN.y + G.HUD_H) / 2.0)
+	want = want.clamp(Vector2(0.0, -G.HUD_H), G.WORLD - G.SCREEN)
+	a.cam = want if a.cam == Vector2.ZERO and a.time < 0.2 else a.cam.lerp(want, minf(1.0, dt * a.CAM_EASE))
+
+
+static func _draw_decals(a: Arena) -> void:
+	for d in a.decals:
+		var c: Color = d[1]
+		c.a = clampf(d[3] / 4.0, 0.0, 1.0) * 0.42
+		var p: Vector2 = d[0]
+		var s: float = d[2]
+		var seed: int = d[4]
+		# A squashed blob of rects: rects batch into one draw call, where circles cost one call each.
+		var r := s * 0.6
+		var o := p.floor()
+		a.decal_layer.draw_rect(Rect2(o.x - r, o.y - r * 0.35, r * 2.0, r * 0.7), c)
+		a.decal_layer.draw_rect(Rect2(o.x - r * 0.7, o.y - r * 0.55, r * 1.4, r * 1.1), c)
+		for k in 4:
+			var q := Vector2(((seed >> (k * 4)) % 13) - 6, (((seed >> (k * 4 + 2)) % 9) - 4) * 0.55) * s * 0.18
+			var dr := s * 0.3
+			a.decal_layer.draw_rect(Rect2((o + q - Vector2(dr, dr * 0.55)).floor(), Vector2(dr * 2.0, dr * 1.1)), c)
+
+
+static func _draw_env(a: Arena) -> void:
+	var ci := a.env_layer
+	# Rune circles: a dark scorched disc under the glow, so the ring reads on any floor.
+	for c: Array in a.vr:
+		var k := _rune_alpha(a, c)
+		ci.draw_circle(c[0], float(c[1]) * _rune_grow(a, c) + 1.0, Color(0.06, 0.0, 0.05, 0.45 * k))
+	# Flames on the backdrop's candles and fire bowls. While the backdrop fades to a new act, the old act's
+	# flames fade out with its picture and the new act's fade in.
+	var k := _act_blend(a)
+	if k < 1.0:
+		ArenaArtLive.draw(ci, ArenaBg.scene(a._prev_act), a.time, 1.0 - k)
+	ArenaArtLive.draw(ci, ArenaBg.scene(a.act), a.time, k)
+
+
+static func _draw_env_add(a: Arena) -> void:
+	var ci := a.env_add
+	# The light of those flames, the seal breathing, and each door's glow, flaring while monsters come through.
+	var k := _act_blend(a)
+	if k < 1.0:
+		ArenaArtLive.draw_glow(ci, ArenaBg.scene(a._prev_act), a.time, a.door_anim, 1.0 - k)
+	ArenaArtLive.draw_glow(ci, ArenaBg.scene(a.act), a.time, a.door_anim, k)
+	_draw_runes(a, ci)
+
+
+## How far the backdrop has faded to the current act: 1 when no fade is running.
+static func _act_blend(a: Arena) -> float:
+	return 1.0 if a._act_fade < 0.0 else clampf(a._act_fade / 2.0, 0.0, 1.0)
+
+
+## How far a rune circle has drawn itself in (0..1), from its age.
+static func _rune_grow(a: Arena, c: Array) -> float:
+	return clampf(float(c[2]) / a.RUNE_DRAW_IN, 0.0, 1.0)
+
+
+## A rune circle's brightness: up while it draws in, down over its last RUNE_FADE seconds.
+static func _rune_alpha(a: Arena, c: Array) -> float:
+	return clampf((float(c[3]) - float(c[2])) / a.RUNE_FADE, 0.0, 1.0) * (0.4 + 0.6 * _rune_grow(a, c))
+
+
+## Active rune circles on the additive floor layer: a double ring with gold runes turning between, a pentagram
+## inside (a hexagram for the Seal of Solomon, with motes drawn inward), flaring on every damage tick.
+## The first-run controls hint: a small occult panel low on the screen that slides in and out.
+static func _draw_hint(a: Arena, ci: CanvasItem) -> void:
+	if a._hint_t < 0.0 or a._hint_t >= a.HINT_LIFE:
+		return
+	var k := minf(1.0, minf(a._hint_t, a.HINT_LIFE - a._hint_t) * 3.0)
+	var r := Rect2(96, 206 + (1.0 - k) * 70.0, 288, 46)
+	Occult.frame(ci, r, a.time, false)
+	var y := r.position.y + 4
+	for l: Array in a.HINT_LINES:
+		PixelFont.draw(ci, l[0], Vector2(r.position.x + 8, y), 1, Color("ffd94d"))
+		PixelFont.draw(ci, l[1], Vector2(r.position.x + 44, y), 1, Color("fff6e0"))
+		y += 10
+
+
+## The additive floor layer's magic, under the actors: the marks fallen stars leave, and the active rune circles.
+## A circle is a ring with two broken rings turning inside it, as on the Sanctum's portal, a slow wheel of gold
+## runes between them and a pentagram in the middle (a hexagram for the Seal of Solomon, with motes drawn
+## inward); all of it flares on every damage tick.
+static func _draw_runes(a: Arena, ci: CanvasItem) -> void:
+	a.fx.draw_floor(ci)
+	var runes: Array = Sprites.strip("fx_rune", Occult.RUNES.size())
+	for c: Array in a.vr:
+		var at: Vector2 = (c[0] as Vector2).floor() + Vector2(0.5, 0.5)
+		var evo: bool = c[5]
+		var r: float = roundf(float(c[1]) * (0.6 + 0.4 * _rune_grow(a, c)))
+		var k := _rune_alpha(a, c)
+		var since := fposmod(float(c[2]) - Spells.RUNE_ARM, Spells.RUNE_TICK)
+		var flare := clampf(1.0 - since / (Spells.RUNE_TICK * 0.5), 0.0, 1.0) if float(c[2]) >= Spells.RUNE_ARM else 0.0
+		var col: Color = a.SEAL_RING if evo else a.SPELL_COLORS[World.SP_RUNE]
+		var glyph: Color = a.SEAL_WHITE if evo else a.RUNE_GOLD
+		var turn := (a.time * 0.5 + float(c[4])) * (1.0 if int(c[4]) % 2 == 0 else -1.0)
+		ci.draw_circle(at, r, Color(col, (0.05 + 0.09 * flare) * k))
+		var segs := 48 if r > 24.0 else 32
+		ci.draw_arc(at, r, 0.0, TAU, segs, Color(col, (0.75 + 0.25 * flare) * k), 1.0)
+		ci.draw_arc(at, r - 2.0, turn * 1.6, turn * 1.6 + TAU * 0.8, segs, Color(col, (0.4 + 0.3 * flare) * k), 1.0)
+		ci.draw_arc(at, r - 10.0, -turn * 2.2, -turn * 2.2 + TAU * 0.8, segs, Color(col, (0.5 + 0.3 * flare) * k), 1.0)
+		var n := maxi(5, int(TAU * (r - 6.0) / 11.0))
+		var gc := Color(glyph, (0.6 + 0.4 * flare) * k)
+		for g in n:
+			var ang := turn + g * TAU / n
+			Sprites.draw_mid_r(ci, runes[(g * 3 + int(c[4])) % runes.size()], at + Vector2.from_angle(ang) * (r - 6.0), gc)
+		var inner := r - 11.0
+		if evo:
+			# The Seal of Solomon: two interlaced triangles, and motes pulled toward the centre.
+			for t in 2:
+				var tri := PackedVector2Array()
+				for v in 4:
+					tri.append(at + Vector2.from_angle(-turn * 0.5 + t * PI + v * TAU / 3.0 - PI / 2.0) * inner)
+				ci.draw_polyline(tri, Color(a.SEAL_WHITE, (0.6 + 0.4 * flare) * k), 1.0)
+			var reach := float(c[1]) * Spells.SEAL_REACH
+			for m in 10:
+				var f := fposmod(a.time * 0.8 + m * 0.37, 1.0)
+				var mp := at + Vector2.from_angle(m * 2.4 + turn * 0.3) * lerpf(reach, r * 0.3, f)
+				Sprites.rect(ci, Rect2(mp.floor(), Vector2(1, 1)), Color(a.SEAL_WHITE, 0.7 * k * (1.0 - f * 0.5)))
+		elif inner > 3.0:
+			Occult.pentagram(ci, at, inner, Color(col, (0.3 + 0.4 * flare) * k), -turn * 0.5)
+
+
+## The shadow under an actor or a pickup: a squat lozenge `w` wide, from the atlas so it batches with the sprites.
+static func _shadow(a: Arena, ci: CanvasItem, pos: Vector2, w: float) -> void:
+	var h := maxf(2.0, floorf(w * 0.35))
+	var at := (pos - Vector2(w / 2.0, h / 2.0)).floor()
+	Sprites.rect(ci, Rect2(at.x + 1.0, at.y, w - 2.0, h), a.SHADOW_COLOR)
+	Sprites.rect(ci, Rect2(at.x + 2.0, at.y - 1.0, w - 4.0, h + 2.0), a.SHADOW_COLOR)
+
+
+## A pillar of light over a card or a rare chest so it is seen across a crowded arena, and a glint that comes
+## and goes over it.
+static func _draw_treasure_glow(a: Arena, ci: CanvasItem, kind: int, pos: Vector2) -> void:
+	var col := ArenaDrawFx._pickup_color(a, kind)
+	var pulse := 0.5 + 0.5 * sin(a.time * 5.0 + pos.x)
+	var tall := 60.0 if kind != World.PK_CHEST_RARE else 30.0
+	var at := pos.floor()
+	for i: int in range(3):
+		var w := 7.0 - i * 2.0
+		Sprites.rect(ci, Rect2(at.x - floorf(w / 2.0), at.y - tall, w, tall), Color(col, (0.07 + 0.05 * pulse) * (i + 1)))
+	if kind == World.PK_CHEST_ULTRA:
+		col = Color.from_hsv(fposmod(a.time * 0.5, 1.0), 0.6, 1.0)
+	Sprites.glow(ci, pos + Vector2(0, -4), 8.0 + 2.0 * pulse, Color(col, 0.3))
+	var beat := a.time * 1.6 + pos.x * 0.37
+	var f := int(fposmod(beat, 1.0) * 8.0)
+	if f < 3:
+		var spot := int(floorf(beat)) * 7
+		Sprites.draw_mid_r(ci, Sprites.strip("fx_spark", 3)[f], pos + Vector2((spot % 11) - 5, -5 - (spot % 6)), col.lerp(Color.WHITE, 0.6))
+
+
+static func _draw_entities(a: Arena) -> void:
+	var ci := a.ent_layer
+	ArenaFateView._draw_shrines(a, ci)
+	for u: Vector2 in a.vu:
+		_shadow(a, ci, u + Vector2(0, 1), 10)
+		Sprites.draw_at(ci, "urn", u + Vector2(0, 1))
+	# Each wizard's ring lies on the floor in their colour, under the shadows and everything that stands.
+	for p: Dictionary in a.vp.values():
+		if p.alive:
+			Sprites.draw_mid(ci, "fx_ring", (p.pos as Vector2) + Vector2(0, 0.5),
+				Color(G.player_fx(p.slot), 0.8 + 0.15 * sin(a.time * 3.0 + float(p.slot))))
+	# Pickups: calm on the floor. The motes come in hundreds, so they neither bob nor cast a shadow, and each
+	# twinkles for a blink every couple of seconds.
+	var xp_r := Sprites.region("xp")
+	var xp_twinkle := Sprites.region("xp_1")
+	var coins: Array = [Sprites.region("coin"), Sprites.region("coin_1"), Sprites.region("coin_2"), Sprites.region("coin_3")]
+	var glints: Array = Sprites.strip("fx_spark", 3)
+	for k in a.vk:
+		var kind: int = k[0]
+		var pos: Vector2 = k[1]
+		var life: float = k[2]
+		if life < 3.0 and int(life * 10.0) % 2 == 0:
+			continue
+		if kind == World.PK_XP:
+			var lit := fposmod(a.time * 0.45 + pos.x * 0.173 + pos.y * 0.291, 1.0) < 0.05
+			Sprites.draw_mid_r(ci, xp_twinkle if lit else xp_r, pos + Vector2(0, -2))
+			continue
+		var bob := floorf(sin(a.time * 3.0 + pos.x) * 1.5)
+		var chest := kind == World.PK_CHEST or kind == World.PK_CHEST_RARE or kind == World.PK_CHEST_ULTRA
+		if kind >= World.PK_CARD:
+			_draw_treasure_glow(a, ci, kind, pos)
+		_shadow(a, ci, pos + Vector2(0, 1), 12 if chest else 8)
+		if kind == World.PK_COIN:
+			Sprites.draw_mid_r(ci, coins[int(a.time * 7.0 + pos.x * 0.31) & 3], pos + Vector2(0, -5 + bob))
+		elif chest:
+			# A chest sits on the floor; a glint crosses its lid now and then.
+			Sprites.draw_at(ci, a.PICKUP_KEYS[kind], pos + Vector2(0, 2))
+			var beat := a.time * 0.8 + pos.x * 0.21
+			var f := int(fposmod(beat, 1.0) * 10.0)
+			if f < 3:
+				Sprites.draw_mid_r(ci, glints[f], pos + Vector2(-4 + (int(floorf(beat)) % 3) * 4, -8))
+		else:
+			Sprites.draw_at(ci, a.PICKUP_KEYS[kind], pos + Vector2(0, -2 + bob))
+	# Collect drawables sorted by y
+	var list := []
+	for p in a.vp.values():
+		if p.alive:
+			list.append([p.pos.y, 0, p])
+	for e in a.ve.values():
+		list.append([e.pos.y, 1, e])
+	list.sort_custom(func(x, y): return x[0] < y[0])
+	for it in list:
+		if it[1] == 0:
+			_shadow(a, ci, it[2].pos, 12)
+		else:
+			var e: Dictionary = it[2]
+			if a.ENEMY_SHADOW[e.type] > 0 and e.type != World.BAT and not (e.type == World.GARGOYLE and e.state == 1):
+				_shadow(a, ci, e.pos, a.ENEMY_SHADOW[e.type])
+	ArenaDrawEnemies._draw_enemy_glows(a, ci)
+	for it in list:
+		if it[1] == 0:
+			_draw_player(a, ci, it[2])
+		else:
+			ArenaDrawEnemies._draw_enemy(a, ci, it[2])
+	ArenaDrawEnemies._draw_enemy_bars(a, ci)
+	for g: Array in a._ghosts:
+		var k: float = g[1] / a.GHOST_LIFE
+		var gp: Vector2 = g[0] + Vector2(sin(k * 9.0) * 3.0, -40.0 * k)
+		Sprites.draw_at(ci, "wiz%d_up_i0" % g[2], gp.round(), false, false, Color(0.7, 0.9, 1.3, 0.6 * (1.0 - k)))
+
+
+## One wizard: the walk cycle (or the idle breath), the casting pose for a moment after a spell leaves, the staff
+## (behind the body when they face away), and the P-tag over the hat when there is a party.
+static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
+	var slot: int = p.slot
+	if p.invuln > 0.0 and int(a.time * 20.0) % 2 == 0 and p.invuln < 2.4:
+		return
+	var aim: Vector2 = p.aim
+	var dirkey := "down"
+	var flip := false
+	if absf(aim.y) > absf(aim.x) * 1.1:
+		dirkey = "up" if aim.y < 0 else "down"
+	else:
+		dirkey = "side"
+		flip = aim.x < 0
+	var casting: bool = a.time - float(p.get("cast_at", -9.0)) < a.CAST_POSE
+	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, p.moving, int(p.walk_t), int(a.time * 2.0 + slot * 0.5), casting,
+		aim.x >= 0.0)
+	var feet: Vector2 = p.pos + Vector2(0, 1)
+	# Haste afterimages
+	if p.haste > 0.0:
+		for gi in range(2, p.ghosts.size(), 2):
+			var gc := Color(0.56, 0.89, 1.0, 0.35 - gi * 0.035)
+			Sprites.draw_at(ci, key, p.ghosts[gi] + Vector2(0, 1), flip, true, gc)
+	var grip: Vector2 = p.pos + SpritesWizards.grip(dirkey, aim)
+	var tip: Vector2 = p.pos + Vector2(0, -7) + aim * 9.0
+	if dirkey == "up":
+		_draw_staff(a, ci, grip, tip, slot)
+	Sprites.draw_at(ci, key, feet, flip, p.flash > 0.0)
+	if dirkey != "up":
+		_draw_staff(a, ci, grip, tip, slot)
+	if a.vp.size() > 1 or Net.is_online():
+		var col := G.player_color(slot)
+		var lbl := "P%d" % (slot + 1)
+		# The tag rides above the rune shield's orbs while they circle the hat.
+		var up := a.TAG_UP_ORBS if p.orbit > 0.0 else a.TAG_UP
+		PixelFont.draw_centered(ci, lbl, p.pos.x, p.pos.y - up + floorf(sin(a.time * 5) * 1.0), 1, col, Color("0b0716"))
+
+
+## A wizard's staff: a wooden shaft through the grip with a short butt behind it and a gold band under the head,
+## and the head itself where the simulation casts from (`tip`). Its glow, and the flare of a cast, are drawn with
+## the shots on the additive layer.
+static func _draw_staff(a: Arena, ci: CanvasItem, grip: Vector2, tip: Vector2, slot: int) -> void:
+	var along := tip - grip
+	var u := along.normalized() if along.length() > 0.5 else Vector2.DOWN
+	var butt := grip - u * 3.0
+	Sprites.line(ci, butt, tip, Sprites.OUTLINE, 1)
+	Sprites.line(ci, butt, tip, a.STAFF_WOOD)
+	Sprites.line(ci, tip - u * 3.0, tip, a.STAFF_BAND)
+	Sprites.draw_mid(ci, "fx_staff_%d" % G.wizard_of(slot), tip)

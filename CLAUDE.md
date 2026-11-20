@@ -10,6 +10,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 ## Commands
 - `T/run_tests.sh [name]` unit ~3 s `TESTS` (fails on engine error, 0 asserts, >10 s) · `T/lint.sh` `LINT problems=n`
 - `T/run_sims.sh [sim]` parallel `SIMS` (`sim_horde` CPU budget: real on CI `sims-horde`, ×2 in check_all) · `T/check_all.sh` `CHECK_ALL`
+- `T/station/read.sh` C's 4 PCs relay long jobs per merge (checks → boss bots → frames ×2) `STATIONS n= failed= stale=`; setup `T/station/README.md`
 - `T/golden.sh [base=origin/main]` `GOLDEN same|changed` · `T/import.sh` only import path, skips no-ops (`FORCE_IMPORT=1`)
 - `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
 - `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_android.sh` → `build/` · `T/fetch_sentry.sh`
@@ -17,6 +18,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 
 ## Layout
 - `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards
+- Split scripts: `World` = `game/logic/world.gd` (fields, step, snapshot, forwarders) + `game/logic/world/*.gd` (`World*` static helpers, 1st arg `w: World`); `Arena` = `game/arena/arena.gd` + `view_sync seats events fate_view draw_world draw_fx draw_enemies hud tray results_view` (`Arena*` statics, 1st arg `a: Arena`). `test_world` covers the World helpers.
 - `game/debug/` Tuning (all gameplay numbers, `world.tune`), autotest · `game/autoload/` Flags Controls G Save Sfx Net Platform Crash
 - Sole owners: Save ↔ `user://profile.json` · Platform ↔ Steam (`docs/steam.md`) · Crash ↔ Sentry (`docs/sentry.md`)
 - `game/arena/` renders snapshots · `game/ui/` `game/input/` `game/art/` (ASCII sprites) · `assets/audio`
