@@ -4,8 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT_NAME="Magic Smash"
-PROJECT_SLUG="Magic-Smash"  # no spaces: used for file names
+PROJECT_NAME="Four of Wands"
+PROJECT_SLUG="Four-of-Wands"  # no spaces: used for file names
 GODOT_VERSION="4.7.2"
 TEMPLATE_TAG="4.7.2-stable"
 TEMPLATE_DIR="${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
