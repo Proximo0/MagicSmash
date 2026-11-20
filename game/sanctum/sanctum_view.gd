@@ -38,7 +38,7 @@ func _ready() -> void:
 	if not G.local_devices.is_empty():
 		device = G.local_devices[0]
 	var prof: Profile = Save.profile
-	room = Sanctum.new(_rng.randi(), prof.pots_smashed(), prof.has_secret("alcove"))
+	room = Sanctum.new(_rng.randi(), prof.pots_mask_now(), prof.has_secret("alcove"))
 	var m := CanvasItemMaterial.new()
 	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	glow = Node2D.new()
@@ -98,7 +98,7 @@ func _on_event(e: Array) -> void:
 	match int(e[0]):
 		Sanctum.EV_POT:
 			var at: Vector2 = Sanctum.POTS[int(e[1])]
-			prof.pots_run = prof.runs
+			prof.break_pot(int(e[1]))
 			for i: int in range(8):
 				_shards.append([at, Vector2(_rng.randf_range(-60, 60), _rng.randf_range(-90, -30)), 0.8,
 					Color("b0643a") if i % 2 == 0 else Color("7a3f22")])
@@ -155,17 +155,15 @@ func _use(i: int) -> void:
 			Sfx.music(TRACKS[track][0])
 			Sfx.play("card_flip", -6.0, 1.4)
 			_say("NOW PLAYING: " + String(TRACKS[track][1]))
-			fx.text(Sanctum.THINGS[i][1] + Vector2(0, -16), "~", Color("ffd94d"), 1.0, 2)
+			fx.text(Sanctum.THINGS[i][1] + Vector2(0, -16), Sanctum.MUSIC_NOTE, Color("ffd94d"), 1.0, 2)
 		Sanctum.WELL:
 			if prof.spend(1):
 				prof.wishes += 1
-				var back := Sanctum.wish(_rng)
-				# Every ninth wish is granted, as the well's fortune hints.
-				var ninth := prof.wishes % Secrets.NINTH_WISH == 0
+				# The ninth wish is granted once, when the secret is found; later ninths are ordinary tosses.
+				var ninth: bool = prof.wishes % Secrets.NINTH_WISH == 0 and prof.find_secret("ninth")
+				var back := Sanctum.wish_payout(prof.wishes, ninth, _rng)
 				if ninth:
-					back = Secrets.NINTH_CRYSTALS
-					if prof.find_secret("ninth"):
-						fx.text(Sanctum.THINGS[i][1] + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
+					fx.text(Sanctum.THINGS[i][1] + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
 				prof.crystals += back
 				Save.write()
 				Sfx.play("coin", -2.0, 0.8)

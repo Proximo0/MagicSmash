@@ -46,6 +46,7 @@ var sockets: Array[String] = ["", "", ""] # Cards key socketed in the hat, robe 
 var secrets := {} # secret key -> true, once found (the Sanctum alcove, title easter eggs, Ouija words)
 var wishes := 0 # crystals tossed into the Sanctum's wishing well, ever
 var pots_run := -1 # the run count when the Sanctum's pots were last smashed; they refill after the next run
+var pots_mask := 0 # which pots (a bit per Sanctum.POTS index) were smashed then; valid only while pots_run == runs
 
 
 static func meta_index(key: String) -> int:
@@ -141,9 +142,15 @@ func has_secret(k: String) -> bool:
 	return secrets.has(k)
 
 
-## True if the Sanctum's pots were already smashed since the last run.
-func pots_smashed() -> bool:
-	return pots_run == runs
+## The Sanctum pots smashed since the last run, as a bit mask (0 once a run has been played since).
+func pots_mask_now() -> int:
+	return pots_mask if pots_run == runs else 0
+
+
+## Books that Sanctum pot `i` was smashed this visit.
+func break_pot(i: int) -> void:
+	pots_mask = pots_mask_now() | (1 << i)
+	pots_run = runs
 
 
 ## Spends `cost` crystals. False (and nothing spent) if there are too few.
@@ -177,7 +184,7 @@ func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool =
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
-		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "wishes": wishes}
+		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -205,6 +212,8 @@ static func from_dict(d: Dictionary) -> Profile:
 		for k: Variant in se:
 			p.secrets[str(k)] = true
 	p.pots_run = int(d.get("pots_run", -1))
+	# An old save has no mask: its pots all stay broken until the next run, as they always did.
+	p.pots_mask = int(d.get("pots_mask", Sanctum.ALL_POTS)) & Sanctum.ALL_POTS
 	p.wishes = maxi(0, int(d.get("wishes", 0)))
 	var so: Variant = d.get("sockets", [])
 	if so is Array:

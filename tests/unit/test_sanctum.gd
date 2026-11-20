@@ -34,9 +34,32 @@ func test_walking_into_a_pot_breaks_it_once() -> void:
 
 
 func test_pots_start_broken_until_the_next_run() -> void:
-	var s := Sanctum.new(1, true)
+	var s := Sanctum.new(1, Sanctum.ALL_POTS)
 	for b: bool in s.broken:
 		assert_true(b)
+
+
+func test_one_smashed_pot_does_not_break_the_rest_next_visit() -> void:
+	var p := Profile.new()
+	p.break_pot(0)
+	var s := Sanctum.new(1, p.pots_mask_now())
+	assert_true(s.broken[0])
+	assert_false(s.broken[1], "another pot came back broken")
+	assert_eq(s.broken.count(true), 1)
+	p.finish_run(10, 30.0, 0, 0)
+	assert_eq(p.pots_mask_now(), 0, "pots did not refill after a run")
+	var old := Profile.from_dict({"runs": 2, "pots_run": 2})
+	assert_eq(old.pots_mask_now(), Sanctum.ALL_POTS, "an old save keeps its pots broken")
+
+
+func test_the_well_never_pays_out_more_than_it_takes() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 5
+	var total := 0
+	for i: int in range(1, 9001):
+		total += Sanctum.wish_payout(i, false, r)
+	assert_true(total < 9000, "the well paid %d crystals for 9000" % total)
+	assert_eq(Sanctum.wish_payout(9, true, r), Secrets.NINTH_CRYSTALS, "the first ninth wish pays")
 
 
 func test_pots_hold_crystals_and_rarely_cards() -> void:

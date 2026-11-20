@@ -28,6 +28,8 @@ var allowed: String
 var max_len: int
 var row: int = DIGITS_ROW
 var col: int = 0
+## Whether the planchette moved since the last typed or erased character: ENTER then chooses the mark under it.
+var moved := false
 
 
 func _init(allowed_chars: String = "0123456789.", max_length: int = 15) -> void:
@@ -52,6 +54,7 @@ func current() -> String:
 ## Moves the planchette: `dx` along the row (wrapping, skipping dimmed marks), `dy` to the next row that has
 ## an enabled mark, landing on the mark nearest the same place across the board.
 func move(dx: int, dy: int) -> void:
+	moved = true
 	if dx != 0:
 		var n: int = LAYOUT[row].size()
 		var c := col
@@ -89,6 +92,7 @@ func point_at(r: int, c: int) -> bool:
 		return false
 	row = r
 	col = c
+	moved = true
 	return true
 
 
@@ -104,12 +108,19 @@ func choose() -> int:
 	return TYPED if type_char(current()) else NONE
 
 
+## The ENTER key: sends the text when the planchette has not moved since the last character, otherwise chooses the
+## mark under it (what the hint on screen says), like SPACE or A.
+func enter() -> int:
+	return choose() if moved else SUBMIT
+
+
 ## Writes one character if it is allowed and there is room.
 func type_char(ch: String) -> bool:
 	ch = ch.to_upper()
 	if ch.length() != 1 or not allowed.contains(ch) or text.length() >= max_len:
 		return false
 	text += ch
+	moved = false
 	return true
 
 
@@ -117,4 +128,5 @@ func erase() -> bool:
 	if text.is_empty():
 		return false
 	text = text.left(text.length() - 1)
+	moved = false
 	return true

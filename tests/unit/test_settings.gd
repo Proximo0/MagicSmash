@@ -63,3 +63,20 @@ func test_crash_reports_are_on_until_the_player_turns_them_off() -> void:
 	assert_false(s.crash_reports)
 	assert_eq(s.value_text(Settings.R_CRASH), "OFF")
 	assert_false(Settings.from_dict(s.to_dict()).crash_reports)
+
+
+func test_the_window_is_fitted_to_the_screen() -> void:
+	var s := Settings.new()
+	s.display = 1
+	assert_eq(s.fit_scale(Vector2i(1366, 728)), 2, "x3 does not fit 1366x728")
+	s.display = 2
+	assert_eq(s.fit_scale(Vector2i(1920, 1040)), 3, "x4 does not fit 1920x1040")
+	s.display = 0
+	assert_eq(s.fit_scale(Vector2i(1920, 1040)), 2)
+	assert_eq(s.fit_scale(Vector2i(300, 200)), 1, "never below 1")
+
+
+func test_a_first_run_picks_the_largest_scale_that_fits() -> void:
+	assert_eq(Settings.best_display(Vector2i(1366, 728)), 0, "x2 is the largest that fits")
+	assert_eq(Settings.best_display(Vector2i(1920, 1040)), 1, "x3")
+	assert_eq(Settings.best_display(Vector2i(3840, 2100)), 2, "capped at x4")
