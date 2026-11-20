@@ -3,6 +3,7 @@ extends SceneTree
 ## minute (lives, levels, enemies), the Archlich's fight and how the run ended. For balancing the run's length
 ## and the final boss; too slow for check_all.
 ## Usage: godot --headless --path . -s tools/full_run.gd -- [--wizards=4] [--seed=7] [--persona=casual] [--tune=field:value,...]
+## [--seal=N]
 
 const DT: float = 1.0 / 60.0
 const MAX_MINUTES: float = 30.0
@@ -13,6 +14,7 @@ func _init() -> void:
 	var seed_value: int = 7
 	var tune := Tuning.new()
 	var persona: int = SmashBot.CASUAL
+	var seal: int = 0
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--wizards="):
 			wizards = clampi(int(arg.get_slice("=", 1)), 1, 4)
@@ -24,12 +26,15 @@ func _init() -> void:
 				push_error("unknown persona " + arg)
 				quit(2)
 				return
+		elif arg.begins_with("--seal="):
+			seal = int(arg.get_slice("=", 1))
 		elif arg.begins_with("--tune="):
 			for pair: String in arg.get_slice("=", 1).split(","):
 				if not tune.set_value(pair.get_slice(":", 0), float(pair.get_slice(":", 1))):
 					push_error("unknown tuning field " + pair)
 	var slots: Array = range(wizards)
 	var w := World.new(slots, seed_value, tune)
+	w.apply_seal(seal)
 	var bots: Dictionary = {}
 	for s: int in slots:
 		bots[s] = SmashBot.new(seed_value + s, persona)

@@ -4,6 +4,11 @@ extends RefCounted
 ## Static helpers: `a` is the Arena that owns the state.
 
 ## True while any wizard holds cards (the autotest keys shots on it).
+## Left edge of each seat's tab and tray. The outer seats hang under their panel; the inner two lean into the
+## empty middle column of the HUD strip, so four 118 px trays never touch.
+const TRAY_X: Array[int] = [2, 120, 242, 360]
+
+
 static func _anyone_picking(a: Arena) -> bool:
 	for p: Dictionary in a.vp.values():
 		if not (p.get("choices", []) as Array).is_empty():
@@ -34,18 +39,18 @@ static func _set_tray(a: Arena, slot: int, open: bool) -> void:
 	a._tray_open[slot] = open
 
 
-## The tab and the tray sit in the wizard's own HUD column, directly under the HUD strip.
+## The tab and the tray hang under the HUD strip at TRAY_X, under or right beside the wizard's own HUD panel.
 static func _tab_rect(a: Arena, slot: int) -> Rect2:
-	return Rect2(slot * 120 + 1, G.HUD_H + 1, a.TRAY_W, a.TAB_H)
+	return Rect2(TRAY_X[slot], G.HUD_H + 1, a.TRAY_W, a.TAB_H)
 
 
 static func _tray_rect(a: Arena, slot: int) -> Rect2:
 	var n: int = (a.vp[slot].choices as Array).size()
-	return Rect2(slot * 120 + 1, G.HUD_H + 1, a.TRAY_W, 1 + n * a.TRAY_ROW_H + 8)
+	return Rect2(TRAY_X[slot], G.HUD_H + 1, a.TRAY_W, 1 + n * a.TRAY_ROW_H + 8)
 
 
 static func _tray_row_rect(a: Arena, slot: int, c: int) -> Rect2:
-	return Rect2(slot * 120 + 2, G.HUD_H + 1 + c * a.TRAY_ROW_H, a.TRAY_W - 2, a.TRAY_ROW_H)
+	return Rect2(TRAY_X[slot] + 1, G.HUD_H + 1 + c * a.TRAY_ROW_H, a.TRAY_W - 2, a.TRAY_ROW_H)
 
 
 ## How far row `c` of `slot`'s hand has turned over: 0 face down, 1 face up. A hand dealt while the tray is

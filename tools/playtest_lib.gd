@@ -14,6 +14,7 @@ var _personas: Array[int] = [SmashBot.NOVICE, SmashBot.CASUAL, SmashBot.VETERAN]
 var _seed: int = 1
 var _minutes: float = 16.0
 var _tune_pairs: PackedStringArray = []
+var _seal: int = 0
 var _json: String = ""
 
 
@@ -66,6 +67,8 @@ func _parse_args() -> bool:
 			_minutes = maxf(0.5, float(v))
 		elif arg.begins_with("--tune="):
 			_tune_pairs = v.split(",")
+		elif arg.begins_with("--seal="):
+			_seal = int(v)
 		elif arg.begins_with("--json="):
 			_json = v
 	return true
@@ -85,6 +88,7 @@ func _make_tune() -> Tuning:
 func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	var slots: Array = range(wizards)
 	var w := World.new(slots, seed_value, _make_tune())
+	w.apply_seal(_seal)
 	var bots: Dictionary = {}
 	for s: int in slots:
 		bots[s] = SmashBot.new(seed_value * 10 + s, persona)

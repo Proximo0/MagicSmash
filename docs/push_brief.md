@@ -51,7 +51,7 @@ need a change there, give the exact lines in your report.
   Archlich) falls (snapshot `w[10]`, event `EV_LULL`). Each player row ends with `draws` (queued offers, plus 1
   while holding cards). `World.is_picking()` is a plain query.
 - Screen areas taken: the `LV n m:ss` pill and the lull plate sit at the foot of the screen (y 257, or 234 under a
-  boss bar); HUD columns x = slot * 120, y 28 to 89 belong to the level-up tabs and trays.
+  boss bar); HUD panels at x = 2, 110, 262, 370 (108 wide); the level-up tabs and trays sit at x = 2, 120, 242, 360 (118 wide), y 28 to 89.
 
 ## Contract: bots (worker B provides; the arena, sims and tools read it)
 

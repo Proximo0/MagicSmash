@@ -11,8 +11,11 @@ const ARENA := Rect2(20, 38, 760, 400)
 const HUD_H := 27.0
 const MAX_PLAYERS := 4
 
-## Device id -1 is keyboard + mouse + touch, 0..7 are gamepads.
+## Device id -1 is keyboard + mouse + touch, 0..7 are gamepads. -2 is an apprentice (a computer wizard, no
+## device) and -3 the second keyboard half; nothing seats either yet.
 const DEV_KBM := -1
+const DEV_AI := -2
+const DEV_KB2 := -3
 
 var is_mobile := false
 var touch_active := false
@@ -57,9 +60,10 @@ func goto_game() -> void:
 		main.show_game()
 
 ## Books a finished run in the profile (best score, crystals) through Save. Returns the crystals earned.
-func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool = false) -> int:
-	last_score = score
-	var earned := Save.finish_run(score, seconds, kills, liches, won)
+## `run` is Profile.finish_run's dictionary: score, seconds, kills, liches, won (and seal).
+func finish_run(run: Dictionary) -> int:
+	last_score = int(run.get("score", 0))
+	var earned := Save.finish_run(run)
 	high_score = Save.profile.high_score
 	return earned
 

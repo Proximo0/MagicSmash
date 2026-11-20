@@ -13,11 +13,15 @@ enum Mode { OFFLINE, HOST, CLIENT }
 
 const GAME_PORT := 24680
 const DISCOVERY_PORT := 24681
-const MAGIC := "MAGICSMASH1"
+const MAGIC := "MAGICSMASH2" # 2: longer snapshot rows and roster rows; older builds do not see these games
 
 var mode := Mode.OFFLINE
-## Array of {slot:int, peer:int, device:int}
+## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, race:int, cls:int, look:int, cls_level:int}. An
+## ai row is an apprentice (device G.DEV_AI) the host plays; none exist yet. race, cls, look and cls_level are
+## reserved (0) for races and classes.
 var roster: Array = []
+## The difficulty the host chose for the next run (World.SEAL_EASY..World.SEAL_MAX, 0 normal); travels with the roster.
+var seal := 0
 ## slot -> PackedFloat32Array input from remote clients (host only)
 var remote_inputs := {}
 var my_peer := 1
@@ -163,7 +167,8 @@ func _add_to_roster(peer: int, device: int) -> int:
 		used.append(r.slot)
 	for s in G.MAX_PLAYERS:
 		if not used.has(s):
-			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1))})
+			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1)),
+				"ai": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0})
 			roster.sort_custom(func(a, b): return a.slot < b.slot)
 			return s
 	return -1
@@ -205,6 +210,14 @@ func wizard_picks() -> Dictionary:
 		out[r.slot] = int(r.get("wizard", r.slot))
 	return out
 
+## slot -> the roster extras World copies onto each Player untouched: ai, race, cls, look, cls_level.
+func seat_builds() -> Dictionary:
+	var out := {}
+	for r in roster:
+		out[r.slot] = {"ai": bool(r.get("ai", false)), "race": int(r.get("race", 0)), "cls": int(r.get("cls", 0)),
+			"look": int(r.get("look", 0)), "cls_level": int(r.get("cls_level", 0))}
+	return out
+
 ## Called by the lobby when a local device steps left (-1) or right (+1) through the wizards.
 func cycle_wizard(device: int, dir: int) -> void:
 	if mode == Mode.CLIENT:
@@ -224,17 +237,33 @@ func _request_wizard(device: int, dir: int) -> void:
 		return
 	_cycle_wizard(multiplayer.get_remote_sender_id(), device, dir)
 
+## This machine's human seats (apprentices left out).
 func my_slots() -> Array:
 	var out := []
 	for r in roster:
-		if r.peer == my_peer:
+		if r.peer == my_peer and not bool(r.get("ai", false)):
 			out.append(r)
 	return out
+
+## The apprentice seats (the host plays them).
+func ai_slots() -> Array:
+	var out := []
+	for r in roster:
+		if bool(r.get("ai", false)):
+			out.append(r)
+	return out
+
+## The host picks the Seal for the next run; clients follow with the roster. Ignored on a client.
+func set_seal(level: int) -> void:
+	if mode == Mode.CLIENT:
+		return
+	seal = clampi(level, World.SEAL_EASY, World.SEAL_MAX)
+	_push_roster()
 
 func _push_roster() -> void:
 	roster_changed.emit()
 	if mode == Mode.HOST:
-		_sync_roster.rpc(roster)
+		_sync_roster.rpc(roster, seal)
 
 @rpc("any_peer", "reliable")
 func _request_join(device: int) -> void:
@@ -255,13 +284,14 @@ func _request_leave(device: int) -> void:
 	_push_roster()
 
 @rpc("authority", "reliable")
-func _sync_roster(r: Array) -> void:
+func _sync_roster(r: Array, s: int) -> void:
 	roster = r
+	seal = s
 	roster_changed.emit()
 
 func _on_peer_connected(id: int) -> void:
 	if mode == Mode.HOST:
-		_sync_roster.rpc_id(id, roster)
+		_sync_roster.rpc_id(id, roster, seal)
 
 func _on_peer_disconnected(id: int) -> void:
 	if mode != Mode.HOST:

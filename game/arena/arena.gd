@@ -48,7 +48,8 @@ var pending_events: Array = []
 var vp := {}  # slot -> Dictionary
 var ve := {}  # id -> Dictionary
 var vs: Array = []  # [spell, pos, vel, owner, evolved]
-var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved]
+var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved, kind]
+var vo: Array = []  # spell objects, World.O_FLOATS floats each (none exist yet)
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
 var vu: Array[Vector2] = [] # urns from the snapshot
@@ -66,6 +67,8 @@ var boss_f := -1.0
 var boss_final := false # the boss on screen is the Archlich
 var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
+var seal := 0 # the run's Seal level, from the snapshot header
+var slot_cap := Upgrades.UNCAPPED # spell and passive slots, from the snapshot header
 var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
 var _cards: Array = [] # monster card reveals, one at a time: {idx, slot, t, first}
 const CARD_SHOW := 4.0
@@ -135,7 +138,7 @@ var _lv_flash_t := -10.0
 var _pick_sfx_t := -10.0
 ## Autotest only (--pick-hold): seconds the bot in slot 0 looks at its cards before picking.
 var autotest_pick_hold := 0.0
-const TRAY_W := 118
+const TRAY_W := 118 # wider than a HUD panel: the longest effect line and its level chip need 116 px
 const TRAY_ROW_H := 17 # a row's top pixel stays dark, between it and the row above
 const TAB_H := 11
 const TRAY_FLIP := 0.25 # seconds for a new hand's rows to turn over, all of them
@@ -217,8 +220,9 @@ func _ready() -> void:
 			slots.append(r.slot)
 		if slots.is_empty():
 			slots.append(0)
-		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks())
+		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks(), Net.seat_builds())
 		world.apply_meta(Save.run_bonuses())
+		world.apply_seal(Net.seal)
 		Crash.tag("seed", str(world.rng.seed))
 		Crash.tag("wizards", str(slots.size()))
 	Sfx.music(_act_music())

@@ -31,8 +31,10 @@ const MOMENTS: Array = [
 const COMBO_MOMENTS := [100, 200, 400]
 const SHOWN_MOMENTS := 4
 
-## Stat keys kept per wizard. Every one starts at 0.
-const STATS := ["damage", "kills", "elites", "best_combo", "chests", "best_tier", "gold", "bets", "deaths", "level"]
+## Stat keys kept per wizard. Every one starts at 0. downs and revives (times fallen, fallen raised) stay 0 until
+## revives land.
+const STATS := ["damage", "kills", "elites", "best_combo", "chests", "best_tier", "gold", "bets", "deaths", "level",
+	"downs", "revives"]
 
 ## Awards: [title, stat, true if the lowest value wins], best first. An award goes only to the wizard who really
 ## leads its stat; a wizard who leads several shows the first. In a party, anyone left without one is a TEAM PLAYER.
@@ -48,9 +50,11 @@ const TEAM_PLAYER := "TEAM PLAYER"
 
 var stats := {} # slot -> {stat key -> number}
 var moments: Array = [] # [t, kind, slot, value]
-## Damage dealt by source, for the playtest tool: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT. Not sent to
-## clients and not part of to_dict().
+## Damage dealt by source: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT. Travels in to_dict() for the results
+## screen's damage by spell.
 var source_damage := {}
+## slot -> true for an apprentice's column (none yet).
+var ai := {}
 
 ## Damage sources that are not spells (spells use their World.SP_* index).
 const SRC_NOVA := 100
@@ -165,7 +169,16 @@ func to_dict() -> Dictionary:
 	var st := {}
 	for s: int in stats:
 		st[s] = (stats[s] as Dictionary).duplicate()
-	return {"stats": st, "moments": moments.duplicate(true)}
+	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate()}
+
+
+## Times `slot` fell this run, and fallen wizards it raised.
+func downs(slot: int) -> int:
+	return int(stat(slot, "downs"))
+
+
+func revives(slot: int) -> int:
+	return int(stat(slot, "revives"))
 
 
 ## A record from to_dict() (or from the network): unknown moment kinds are dropped.
@@ -179,6 +192,15 @@ static func from_dict(d: Dictionary) -> Results:
 			if row is Dictionary:
 				for k: String in STATS:
 					r.stats[int(s)][k] = float((row as Dictionary).get(k, 0.0))
+	var aid: Variant = d.get("ai", {})
+	if aid is Dictionary:
+		for s: Variant in aid:
+			if bool(aid[s]):
+				r.ai[int(s)] = true
+	var sd: Variant = d.get("source_damage", {})
+	if sd is Dictionary:
+		for k: Variant in sd:
+			r.source_damage[int(k)] = float(sd[k])
 	var ms: Variant = d.get("moments", [])
 	if ms is Array:
 		for m: Variant in ms:

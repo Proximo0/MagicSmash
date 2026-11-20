@@ -204,7 +204,7 @@ func test_xp_gem_flies_to_a_near_wizard() -> void:
 
 func test_snapshot_player_block_size() -> void:
 	var w := World.new([0, 1], 3)
-	assert_eq((w.snapshot()["p"] as PackedFloat32Array).size(), World.PLAYER_FLOATS * 2)
+	assert_eq((w.snapshot()["p"] as PackedFloat32Array).size(), World.P_FLOATS * 2)
 
 
 func _casts(w: World, ticks: int, inp: Dictionary = {}) -> int:
@@ -237,8 +237,8 @@ func test_picked_wizards_are_kept_and_sent() -> void:
 	assert_eq(Upgrades.weapon_level(_player(w, 0).upgrades, Wizards.start_spell(3)), 1)
 	assert_eq(Upgrades.weapon_level(_player(w, 0).upgrades, World.SP_ARCANE), 0)
 	var pl: PackedFloat32Array = w.snapshot().p
-	assert_eq(int(pl[10]), 3)
-	assert_eq(int(pl[World.PLAYER_FLOATS + 10]), 1)
+	assert_eq(int(pl[World.P_WIZARD]), 3)
+	assert_eq(int(pl[World.P_FLOATS + World.P_WIZARD]), 1)
 
 
 func test_spells_auto_cast_at_the_nearest_enemy() -> void:
@@ -370,12 +370,17 @@ func test_snapshot_sends_weapon_levels() -> void:
 	p.upgrades[Upgrades.evo_entry(World.SP_FIRE)] = 1
 	p.upgrades[Upgrades.weapon_entry(World.SP_RUNE)] = 2
 	var pl: PackedFloat32Array = w.snapshot()["p"]
-	assert_eq(pl.size(), World.PLAYER_FLOATS)
-	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_ARCANE]), 1)
-	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_FIRE]), Spells.MAX_LEVEL + 1)
-	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_STAR]), 0)
-	assert_eq(int(pl[World.PLAYER_WEAPONS + World.SP_RUNE]), 2)
-	assert_eq(int(pl[World.PLAYER_WEAPONS + Spells.COUNT + 1]), p.max_hp, "max hearts come last")
+	assert_eq(pl.size(), World.P_FLOATS)
+	# Spells in the order taken: [catalogue id, level], level MAX_LEVEL + 1 when evolved, -1 for an empty slot.
+	assert_eq(int(pl[World.P_SPELLS]), Upgrades.weapon_entry(World.SP_ARCANE))
+	assert_eq(int(pl[World.P_SPELLS + 1]), 1)
+	assert_eq(int(pl[World.P_SPELLS + 2]), Upgrades.weapon_entry(World.SP_FIRE))
+	assert_eq(int(pl[World.P_SPELLS + 3]), Spells.MAX_LEVEL + 1)
+	assert_eq(int(pl[World.P_SPELLS + 4]), Upgrades.weapon_entry(World.SP_RUNE))
+	assert_eq(int(pl[World.P_SPELLS + 5]), 2)
+	assert_eq(int(pl[World.P_SPELLS + 6]), -1)
+	assert_eq(int(pl[World.P_PASSIVES]), -1, "no passives taken")
+	assert_eq(int(pl[World.P_MAX_HP]), p.max_hp)
 
 
 ## A world with one wizard and a rune circle inscribed at `at` (Rune Circle at `lv`, or the Seal when `evo`).
@@ -497,6 +502,7 @@ func test_snapshot_sends_rune_circles() -> void:
 	assert_eq(Vector2(rn[0], rn[1]), Vector2(200, 140))
 	assert_eq(rn[2], Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, true))
 	assert_true(rn[6] > 0.5, "the seal is not marked evolved")
+	assert_eq(int(rn[World.R_KIND]), 0)
 
 
 func test_rune_tome_grants_rune_circle() -> void:
@@ -604,8 +610,9 @@ func test_snapshot_enemy_block_size() -> void:
 	w.spawn_enemy(World.BAT, 1, Vector2(140, 100))
 	var en: PackedFloat32Array = w.snapshot()["e"]
 	assert_eq(en.size(), World.ENEMY_FLOATS * 2)
-	assert_eq(en[World.ENEMY_FLOATS - 1], 1.0, "elite flag")
-	assert_eq(en[2 * World.ENEMY_FLOATS - 1], 0.0)
+	assert_eq(en[World.E_RANK], 1.0, "elite flag")
+	assert_eq(en[World.ENEMY_FLOATS + World.E_RANK], 0.0)
+	assert_eq(en[World.E_STATUS], 0.0, "no status bits yet")
 
 
 func test_xp_gems_merge_past_the_cap() -> void:
@@ -892,9 +899,9 @@ func test_snapshot_marks_the_archlich() -> void:
 	w._make_final(arch)
 	var snap: Dictionary = w.snapshot()
 	var en: PackedFloat32Array = snap.e
-	assert_eq(en[8], 2.0)
+	assert_eq(en[World.E_RANK], 2.0)
 	var wv: PackedFloat32Array = snap.w
-	assert_eq(wv[9], 1.0)
+	assert_eq(wv[World.W_FINAL], 1.0)
 
 
 func test_the_record_notes_kills_damage_and_the_lich() -> void:
@@ -1402,16 +1409,16 @@ func test_snapshot_carries_the_party_fields() -> void:
 	w.step(DT, {})
 	var snap: Dictionary = w.snapshot()
 	var pl: PackedFloat32Array = snap["p"]
-	for i: int in [0, World.PLAYER_FLOATS]:
-		assert_eq(int(pl[i + 19]), w.party_xp)
-		assert_eq(int(pl[i + 20]), w.xp_needed())
-		assert_eq(int(pl[i + 21]), w.party_level)
-		assert_eq(int(pl[i + World.PLAYER_FLOATS - 1]), w.party_level - 1, "draws: queued plus the hand")
+	for i: int in [0, World.P_FLOATS]:
+		assert_eq(int(pl[i + World.P_XP]), w.party_xp)
+		assert_eq(int(pl[i + World.P_XP_NEED]), w.xp_needed())
+		assert_eq(int(pl[i + World.P_LEVEL]), w.party_level)
+		assert_eq(int(pl[i + World.P_DRAWS]), w.party_level - 1, "draws: queued plus the hand")
 	_player(w, 1).choices.clear()
 	_player(w, 1).pending = 0
-	assert_eq(int((w.snapshot()["p"] as PackedFloat32Array)[World.PLAYER_FLOATS * 2 - 1]), 0)
+	assert_eq(int((w.snapshot()["p"] as PackedFloat32Array)[World.P_FLOATS + World.P_DRAWS]), 0)
 	w.lull_left = 7.5
-	assert_near((w.snapshot()["w"] as PackedFloat32Array)[10], 7.5)
+	assert_near((w.snapshot()["w"] as PackedFloat32Array)[World.W_LULL], 7.5)
 	var h: int = w.state_hash()
 	w.party_xp += 1
 	assert_true(w.state_hash() != h, "the hash ignores the party pool")

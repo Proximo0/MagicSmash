@@ -7,19 +7,23 @@ extends RefCounted
 ## inside the arena image. The HUD band covers the top of the screen, so the view may rise by the band's height:
 ## near the top of the room the whole back wall and its door then show below the band.
 static func _follow_party(a: Arena, dt: float) -> void:
-	var c := Vector2.ZERO
+	# The middle of the box around the standing humans; failing that, of every living wizard, then of everyone.
+	var box := Rect2()
 	var n := 0
-	for p: Dictionary in a.vp.values():
-		if p.alive:
-			c += p.pos
-			n += 1
-	if n == 0:
+	for pass_i in 3:
 		for p: Dictionary in a.vp.values():
-			c += p.pos
+			var stands: bool = p.alive and not p.get("down", false)
+			if pass_i == 0 and (not stands or p.get("ai", false)):
+				continue
+			if pass_i == 1 and not p.alive:
+				continue
+			box = Rect2(p.pos, Vector2.ZERO) if n == 0 else box.expand(p.pos)
 			n += 1
+		if n > 0:
+			break
 	if n == 0:
 		return
-	c /= n
+	var c := box.get_center()
 	var want := c - Vector2(G.SCREEN.x / 2.0, (G.SCREEN.y + G.HUD_H) / 2.0)
 	want = want.clamp(Vector2(0.0, -G.HUD_H), G.WORLD - G.SCREEN)
 	a.cam = want if a.cam == Vector2.ZERO and a.time < 0.2 else a.cam.lerp(want, minf(1.0, dt * a.CAM_EASE))

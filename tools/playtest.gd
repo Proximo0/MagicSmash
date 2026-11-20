@@ -2,7 +2,8 @@ extends SceneTree
 ## Playtest: SmashBot personas play whole runs in the pure simulation and the tool reports where the game is too
 ## hard, too easy, dull or unfair. One compact table per persona and party size, then one line starting PLAYTEST.
 ## Usage: godot --headless --path . -s tools/playtest.gd -- [--runs=6] [--wizards=1,2,4]
-##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=16] [--tune=field:value,...] [--json=/tmp/out.json]
+##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=16] [--tune=field:value,...] [--seal=N]
+##   [--json=/tmp/out.json]
 ## Seeds run from --seed to --seed + runs - 1; every group plays the same seeds. How to read it: docs/bots.md.
 
 ## The work lives in tools/playtest_lib.gd, loaded after the autoloads so game classes compile.

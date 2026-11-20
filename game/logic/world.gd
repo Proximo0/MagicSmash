@@ -97,6 +97,15 @@ const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b =
 const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
 const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
 const EV_LULL := 40 # a Lich fell and the lull begins: at the party's centre, a = its seconds
+## Wave 2 events; nothing emits them yet.
+const EV_DOWN := 41 # a wizard fell: at its position, a = slot
+const EV_REVIVE := 42 # a fallen wizard is back up: at its position, a = slot, b = the reviver's slot (-1: by itself)
+const EV_CALL := 43 # a wizard calls for help: at its position, a = slot
+const EV_REDRAW := 44 # a wizard redrew the hand: a = slot
+const EV_BANISH := 45 # a wizard banished a card: a = slot, b = Upgrades index
+const EV_FATE := 46 # a fate is drawn: a = fate, b = slot
+const EV_SLOTS := 47 # the slot cap changed: a = spell slots, b = passive slots
+const EV_TALK := 48 # Morvane speaks: a = line
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -123,19 +132,93 @@ const STATS := [
 	[9.0,  24.0, 5.0, 300, 1],   # bone priest
 ]
 
-## Floats per player in snapshot()["p"]: 19 core values (index 9 is the main spell, 10 the wizard picked), then the party's xp,
-## xp needed and level (the same for every wizard), offer id, 3 x (offered upgrade index or -1, the level it would reach), the Spells.COUNT
-## spell weapon levels from PLAYER_WEAPONS (0 = not owned, Spells.MAX_LEVEL + 1 = evolved), run gold, max hearts and
-## draws (queued level-up offers plus 1 while the wizard holds cards).
-const PLAYER_WEAPONS := 29
-const PLAYER_FLOATS := PLAYER_WEAPONS + Spells.COUNT + 3
+## The player row in snapshot()["p"], final for waves 2 and 3: read it only through these P_* indices.
+## Choices: 3 x (offered Upgrades index or -1, the level it would reach). Spells: P_SLOTS x (SPELL row or -1,
+## level; Spells.MAX_LEVEL + 1 = evolved), in the order taken. Passives: P_SLOTS x (PASSIVE row or -1, level),
+## in the order taken. xp, xp needed and level are the party's (the same for every wizard); draws are queued
+## level-up offers plus 1 while the wizard holds cards; down_left is s (-1 = a ritual only); race, class, look and
+## class level are reserved ints, 0 until their job lands.
+const P_SLOT := 0
+const P_X := 1
+const P_Y := 2
+const P_AIM_X := 3
+const P_AIM_Y := 4
+const P_HP := 5
+const P_LIVES := 6
+const P_ALIVE := 7
+const P_INVULN := 8
+const P_SPELL := 9 # the main spell (colours the staff)
+const P_WIZARD := 10 # the Wizards index picked
+const P_BOMBS := 11
+const P_SCORE := 12
+const P_COMBO := 13
+const P_HASTE := 14
+const P_ORBIT := 15
+const P_ORBIT_ANG := 16
+const P_FLASH := 17
+const P_MOVING := 18
+const P_XP := 19
+const P_XP_NEED := 20
+const P_LEVEL := 21
+const P_OFFER := 22
+const P_CHOICES := 23
+const P_CHOICE_COUNT := 3
+const P_SPELLS := P_CHOICES + P_CHOICE_COUNT * 2
+const P_SLOTS := 6 # every spell and passive of today; a slot cap (job E) only ever uses the first few
+const P_PASSIVES := P_SPELLS + P_SLOTS * 2
+const P_GOLD := P_PASSIVES + P_SLOTS * 2
+const P_MAX_HP := P_GOLD + 1
+const P_DRAWS := P_GOLD + 2
+const P_REDRAWS := P_GOLD + 3
+const P_BANISHES := P_GOLD + 4
+const P_DOWN := P_GOLD + 5
+const P_DOWN_LEFT := P_GOLD + 6
+const P_REVIVE := P_GOLD + 7
+const P_AI := P_GOLD + 8
+const P_TRAIT_A := P_GOLD + 9
+const P_TRAIT_B := P_GOLD + 10
+const P_RACE := P_GOLD + 11 # reserved for races and classes: 0 until a later job fills them
+const P_CLASS := P_GOLD + 12
+const P_LOOK := P_GOLD + 13 # a packed look: skin, hair, style
+const P_CLASS_LEVEL := P_GOLD + 14
+const P_FLOATS := P_GOLD + 15
 const BASE_HEARTS := 5
 
-## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved.
-const RUNE_FLOATS := 7
+## The header, snapshot()["w"]: minute, phase, phase s, boss health fraction (-1: none), the four doors' open s,
+## run s, 1 if the boss is the Archlich, lull s left, seal level, slot cap (spells, passives).
+const W_WAVE := 0
+const W_PHASE := 1
+const W_PHASE_T := 2
+const W_BOSS := 3
+const W_DOORS := 4
+const W_TIME := 8
+const W_FINAL := 9
+const W_LULL := 10
+const W_SEAL := 11
+const W_CAP_SPELLS := 12
+const W_CAP_PASSIVES := 13
+const W_FLOATS := 14
 
-## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, rank (1 elite, 2 Archlich).
-const ENEMY_FLOATS := 9
+## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved, kind.
+const RUNE_FLOATS := 8
+const R_KIND := 7
+
+## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, rank (1 elite, 2 Archlich),
+## status bits.
+const E_ID := 0
+const E_TYPE := 1
+const E_X := 2
+const E_Y := 3
+const E_FLASH := 4
+const E_STATE := 5
+const E_HP := 6
+const E_SLOW := 7
+const E_RANK := 8
+const E_STATUS := 9
+const ENEMY_FLOATS := 10
+
+## Floats per spell object in snapshot()["o"]: kind, owner, x, y, a, b, t, evolved. None exist yet.
+const O_FLOATS := 8
 
 ## The horde: [type, budget cost, unlocks after this many seconds of fighting, weight, group min, group max,
 ## extra group max per minute].
@@ -213,6 +296,12 @@ var meta_damage := 0.0
 var meta_xp := 0.0
 var meta_gold := 0.0
 var meta_luck := 0
+## The run's difficulty (apply_seal): SEAL_EASY (-1) easy, 0 normal, 1 hard, 2..SEAL_MAX the Seals I to VIII.
+const SEAL_EASY := -1
+const SEAL_MAX := 9
+var seal := 0
+## Slots each wizard has: (spells, passives). Upgrades.UNCAPPED until the slots job lands.
+var slots := Upgrades.UNCAPPED
 ## The party's shared level and XP pool; every Player.level follows party_level.
 var party_level := 1
 var party_xp := 0
@@ -261,7 +350,9 @@ var tune: Tuning
 
 ## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one. `wizards` maps a
 ## slot to the Wizards index its player picked in the lobby; a slot not in it plays the wizard of its own colour.
-func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Dictionary = {}) -> void:
+## `seats` maps a slot to its roster extras (Net.seat_builds(): ai, race, cls, look, cls_level), copied onto the
+## Player untouched; nothing reads them yet.
+func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Dictionary = {}, seats: Dictionary = {}) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
 	horde_budget = tune.horde_start_budget
 	shrine_t = tune.shrine_first
@@ -277,6 +368,12 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		p.slot = s
 		p.pos = c + offs[s % 4]
 		p.wizard = clampi(int(wizards.get(s, s % Wizards.count())), 0, Wizards.count() - 1)
+		var seat: Dictionary = seats.get(s, {})
+		p.ai = bool(seat.get("ai", false))
+		p.race = int(seat.get("race", 0))
+		p.cls = int(seat.get("cls", 0))
+		p.look = int(seat.get("look", 0))
+		p.cls_level = int(seat.get("cls_level", 0))
 		p.cds.resize(Spells.COUNT)
 		p.cds.fill(0.0)
 		p.upgrades[Upgrades.weapon_entry(Wizards.start_spell(p.wizard))] = 1
@@ -301,14 +398,47 @@ func apply_meta(b: Dictionary) -> void:
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
 
+## Starts the run at a difficulty level (Net.seal, SEAL_EASY..SEAL_MAX). Call once, after apply_meta. A stub: it
+## records the level and changes nothing else yet (level 0 never will).
+func apply_seal(level: int) -> void:
+	seal = clampi(level, SEAL_EASY, SEAL_MAX)
+
+func slot_cap() -> Vector2i:
+	return slots
+
+## The wizards human players control, in slot order (apprentices left out).
+func humans() -> Array[Player]:
+	var out: Array[Player] = []
+	for p: Player in players.values():
+		if not p.ai:
+			out.append(p)
+	return out
+
+## The fallen waiting for a revive: [slot, x, y, revive 0..1, down_left s] each. Empty until revives land.
+func graves() -> Array:
+	var out: Array = []
+	for p: Player in players.values():
+		if p.down:
+			out.append([p.slot, p.pos.x, p.pos.y, p.revive, p.down_left])
+	return out
+
+## True if a wizard who is not standing can still come back into this run (today: a life left).
+func can_return(p: Player) -> bool:
+	return p.lives > 0
+
 func total_kills() -> int:
 	var n := 0
 	for p: Player in players.values():
 		n += p.kills
 	return n
 
+## The horde's party multiplier. Each wizard counts 1, a fallen one tune.down_spawn_weight and an apprentice
+## tune.apprentice_scale (both 1 by default).
 func pscale() -> float:
-	return 1.0 + tune.spawn_party_scale * (players.size() - 1)
+	var n := 0.0
+	for p: Player in players.values():
+		n += (tune.down_spawn_weight if p.down else 1.0) * (tune.apprentice_scale if p.ai else 1.0)
+	return 1.0 + tune.spawn_party_scale * (n - 1.0)
 
 func emit(code: int, x: float = 0.0, y: float = 0.0, a: Variant = 0, b: Variant = 0) -> void:
 	events.append([code, x, y, a, b])
@@ -361,7 +491,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if phase != PH_GAMEOVER and not won:
 		var any := false
 		for p in players.values():
-			if p.alive or p.lives > 0:
+			if p.alive or can_return(p):
 				any = true
 		if not any:
 			_end_run()
@@ -480,29 +610,73 @@ func _snapshot_urns() -> PackedFloat32Array:
 
 func snapshot() -> Dictionary:
 	var pl := PackedFloat32Array()
-	for p in players.values():
-		pl.append_array([p.slot, p.pos.x, p.pos.y, p.aim.x, p.aim.y, p.hp, p.lives,
-			1.0 if p.alive else 0.0, p.invuln, p.spell, p.wizard, p.bombs, p.score,
-			p.combo, p.haste, p.orbit, p.orbit_ang, p.flash, 1.0 if p.moving else 0.0,
-			party_xp, xp_needed(), party_level, p.offer])
-		for c in 3:
+	var row := PackedFloat32Array()
+	row.resize(P_FLOATS)
+	for p: Player in players.values():
+		row.fill(0.0)
+		row[P_SLOT] = p.slot
+		row[P_X] = p.pos.x
+		row[P_Y] = p.pos.y
+		row[P_AIM_X] = p.aim.x
+		row[P_AIM_Y] = p.aim.y
+		row[P_HP] = p.hp
+		row[P_LIVES] = p.lives
+		row[P_ALIVE] = 1.0 if p.alive else 0.0
+		row[P_INVULN] = p.invuln
+		row[P_SPELL] = p.spell
+		row[P_WIZARD] = p.wizard
+		row[P_BOMBS] = p.bombs
+		row[P_SCORE] = p.score
+		row[P_COMBO] = p.combo
+		row[P_HASTE] = p.haste
+		row[P_ORBIT] = p.orbit
+		row[P_ORBIT_ANG] = p.orbit_ang
+		row[P_FLASH] = p.flash
+		row[P_MOVING] = 1.0 if p.moving else 0.0
+		row[P_XP] = party_xp
+		row[P_XP_NEED] = xp_needed()
+		row[P_LEVEL] = party_level
+		row[P_OFFER] = p.offer
+		for c in P_CHOICE_COUNT:
 			var idx: int = p.choices[c] if c < p.choices.size() else -1
-			pl.append(idx)
-			pl.append(Upgrades.level_of(p.upgrades, idx) + 1 if idx >= 0 else 0)
-		for sp in Spells.COUNT:
-			pl.append(WorldCasting._weapon_snap(self, p, sp))
-		pl.append(floorf(p.gold))
-		pl.append(p.max_hp)
-		pl.append(p.pending + (0 if p.choices.is_empty() else 1))
+			row[P_CHOICES + c * 2] = idx
+			row[P_CHOICES + c * 2 + 1] = Upgrades.level_of(p.upgrades, idx) + 1 if idx >= 0 else 0
+		var owned := Upgrades.slot_ids(p.upgrades, Upgrades.SPELL)
+		for k in P_SLOTS:
+			var id: int = owned[k] if k < owned.size() else -1
+			row[P_SPELLS + k * 2] = id
+			row[P_SPELLS + k * 2 + 1] = WorldCasting._weapon_snap(self, p, Upgrades.spell_of(id)) if id >= 0 else 0
+		var passives := Upgrades.slot_ids(p.upgrades, Upgrades.PASSIVE)
+		for k in P_SLOTS:
+			var id: int = passives[k] if k < passives.size() else -1
+			row[P_PASSIVES + k * 2] = id
+			row[P_PASSIVES + k * 2 + 1] = Upgrades.level_of(p.upgrades, id) if id >= 0 else 0
+		row[P_GOLD] = floorf(p.gold)
+		row[P_MAX_HP] = p.max_hp
+		row[P_DRAWS] = p.pending + (0 if p.choices.is_empty() else 1)
+		row[P_REDRAWS] = p.redraws
+		row[P_BANISHES] = p.banishes
+		row[P_DOWN] = 1.0 if p.down else 0.0
+		row[P_DOWN_LEFT] = p.down_left
+		row[P_REVIVE] = p.revive
+		row[P_AI] = 1.0 if p.ai else 0.0
+		row[P_TRAIT_A] = p.trait_a
+		row[P_TRAIT_B] = p.trait_b
+		row[P_RACE] = p.race
+		row[P_CLASS] = p.cls
+		row[P_LOOK] = p.look
+		row[P_CLASS_LEVEL] = p.cls_level
+		pl.append_array(row)
 	var en := PackedFloat32Array()
 	for e in enemies:
-		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow, 2.0 if e.final else (1.0 if e.elite else 0.0)])
+		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow,
+			2.0 if e.final else (1.0 if e.elite else 0.0), e.status])
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
 	var rn := PackedFloat32Array()
 	for c: Rune in runes:
-		rn.append_array([c.pos.x, c.pos.y, c.r, c.age, c.life, c.owner, 1.0 if c.evo else 0.0])
+		rn.append_array([c.pos.x, c.pos.y, c.r, c.age, c.life, c.owner, 1.0 if c.evo else 0.0, c.kind])
 	var es := PackedFloat32Array()
 	for s in eshots:
 		es.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y])
@@ -513,12 +687,12 @@ func snapshot() -> Dictionary:
 	if boss and not boss.dead:
 		bf = boss.hp / boss.maxhp
 	var shr := PackedFloat32Array()
-	for row: Array in WorldShrines.snapshot_shrines(self):
-		shr.append_array(row)
+	for r: Array in WorldShrines.snapshot_shrines(self):
+		shr.append_array(r)
 	return {
-		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(),
+		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(), "o": PackedFloat32Array(),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
-			1.0 if boss != null and boss.final else 0.0, lull_left]),
+			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y]),
 	}
 
 # =========================================================== FORWARDERS ===

@@ -3,6 +3,13 @@ extends RefCounted
 ## Arena: the HUD, the party bar, the off-screen markers and the heart, hat and star glyphs.
 ## Static helpers: `a` is the Arena that owns the state.
 
+## The HUD strip: one 108 px panel per seat at PANEL_X and a 44 px column in the middle (CENTRE). Each panel's
+## content starts PANEL_PAD in; the level-up tab and tray of a seat hang under its panel (ArenaTray).
+const PANEL_X: Array[int] = [2, 110, 262, 370]
+const PANEL_W := 108
+const PANEL_PAD := 2
+const CENTRE := Rect2(218, 0, 44, G.HUD_H)
+
 static func _draw_hud(a: Arena) -> void:
 	var ci := a.hud
 	var dark := Color("0b0716")
@@ -12,7 +19,7 @@ static func _draw_hud(a: Arena) -> void:
 	_draw_offscreen(a, ci)
 	# Player panels
 	for slot in 4:
-		var x := slot * 120 + 4
+		var x: float = PANEL_X[slot] + PANEL_PAD
 		var col := G.player_color(slot)
 		if not a.vp.has(slot):
 			if not a.game_over and int(a.time * 2.0) % 2 == 0:
@@ -21,32 +28,17 @@ static func _draw_hud(a: Arena) -> void:
 		var p: Dictionary = a.vp[slot]
 		PixelFont.draw(ci, "P%d" % (slot + 1), Vector2(x, 2), 1, col, dark)
 		PixelFont.draw(ci, "%07d" % p.score, Vector2(x + 18, 2), 1, Color("fff6e0"), dark)
-		# Hearts
-		var mh: int = p.get("max_hp", World.BASE_HEARTS)
-		var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
-		for h in mh:
-			_heart(a, ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
-		# Lives (small hats) and nova charges (stars)
-		for l in mini(p.lives, 5):
-			_hat(a, ci, Vector2(x + 38 + l * 6, 10), col)
-		for b in mini(p.bombs, 4):
-			_star(a, ci, Vector2(x + 72 + b * 7, 10))
-		# Spell weapons: one pip per spell, filled by level; an evolved one glows white at the rim.
-		var wl: Array = p.get("weapons", [])
-		for sp in wl.size():
-			var wlv: int = wl[sp]
-			if wlv <= 0:
-				continue
-			var px := x + 64 + sp * 9
-			ci.draw_rect(Rect2(px, 3, 8, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
-			ci.draw_rect(Rect2(px + 1, 4, 6.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), a.SPELL_COLORS[sp])
+		vitals(a, ci, slot, x, p, dark)
+		build(a, ci, slot, x, p, dark)
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(a.time * 8) % 2 == 0 else G.player_fx(slot)
 			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x, 17), 1, cc, dark)
-		if not p.alive and p.lives > 0:
-			PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
-		Sprites.draw_at(ci, "coin", Vector2(x + 80, 23))
-		PixelFont.draw(ci, "%d" % p.get("gold", 0), Vector2(x + 85, 17), 1, Color("ffd23d"), dark)
+		# Gold keeps to its own panel: four digits and more push the coin left.
+		var gold_text := "%d" % p.get("gold", 0)
+		var gx := minf(x + 85, x + PANEL_W - PANEL_PAD * 2 - 1 - PixelFont.text_width(gold_text))
+		Sprites.draw_at(ci, "coin", Vector2(gx - 5, 23))
+		PixelFont.draw(ci, gold_text, Vector2(gx, 17), 1, Color("ffd23d"), dark)
+	centre(a, ci, dark)
 	_draw_party_bar(a, ci, dark)
 	# Boss bar
 	if a.boss_f > 0.0:
@@ -91,6 +83,7 @@ static func _draw_hud(a: Arena) -> void:
 			PixelFont.draw_gradient(ci, a.banner.text, Vector2(240 - tw / 2.0 + slide, y), 3,
 				Color.WHITE, a.banner.color, a.time * 6.0, 1.5)
 			PixelFont.draw_centered(ci, a.banner.sub, 240 + slide, y + 25, 1, Color("fff6e0"), dark)
+	ArenaTalk.draw(a, ci, dark)
 	# The level-up cards go over the banners and the act card, so a banner never hides a tray's last row.
 	if not a.game_over and not a.paused:
 		ArenaTray._draw_draws(a, ci, dark)
@@ -101,6 +94,43 @@ static func _draw_hud(a: Arena) -> void:
 		ArenaResultsView._draw_game_over(a, ci)
 	elif a.paused:
 		ArenaResultsView._draw_pause(a, ci)
+
+
+## A seat's vitals in its panel (content from `x`): hearts, lives (small hats) and nova charges (stars) on the
+## second row, and "..." on the third while the wizard waits to respawn.
+static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary, _dark: Color) -> void:
+	var col := G.player_color(slot)
+	var mh: int = p.get("max_hp", World.BASE_HEARTS)
+	var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
+	for h in mh:
+		_heart(a, ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
+	for l in mini(p.lives, 5):
+		_hat(a, ci, Vector2(x + 38 + l * 6, 10), col)
+	for b in mini(p.bombs, 4):
+		_star(a, ci, Vector2(x + 72 + b * 7, 10))
+	if not p.alive and p.lives > 0:
+		PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
+
+
+## A seat's build in its panel (content from `x`): one pip per spell in the order taken, filled by level; an
+## evolved one glows white at the rim. Passives are not drawn yet.
+static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary, _dark: Color) -> void:
+	var spells: Array = p.get("spells", [])
+	for k in spells.size():
+		var sp := Upgrades.spell_of(int(spells[k][0]))
+		var wlv: int = spells[k][1]
+		if wlv <= 0 or sp < 0:
+			continue
+		# Four pips fit at 9 px a step; a fifth and sixth (no slot cap yet) squeeze them to 7 px.
+		var step := 9.0 if spells.size() <= 4 else 7.0
+		var px := x + 64 + k * step
+		ci.draw_rect(Rect2(px, 3, step - 1, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
+		ci.draw_rect(Rect2(px + 1, 4, (step - 3) * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), a.SPELL_COLORS[sp])
+
+
+## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
+static func centre(_a: Arena, _ci: CanvasItem, _dark: Color) -> void:
+	pass
 
 
 ## The party's one XP bar along the bottom edge of the HUD strip; at the foot of the screen (above the boss bar

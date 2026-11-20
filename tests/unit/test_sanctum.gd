@@ -46,7 +46,7 @@ func test_one_smashed_pot_does_not_break_the_rest_next_visit() -> void:
 	assert_true(s.broken[0])
 	assert_false(s.broken[1], "another pot came back broken")
 	assert_eq(s.broken.count(true), 1)
-	p.finish_run(10, 30.0, 0, 0)
+	p.finish_run({"score": 10, "seconds": 30.0})
 	assert_eq(p.pots_mask_now(), 0, "pots did not refill after a run")
 	var old := Profile.from_dict({"runs": 2, "pots_run": 2})
 	assert_eq(old.pots_mask_now(), Sanctum.ALL_POTS, "an old save keeps its pots broken")
