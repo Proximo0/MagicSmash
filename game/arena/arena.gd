@@ -91,7 +91,7 @@ const HINT_LINES := [
 	["MOVE", "WASD / LEFT STICK"],
 	["AIM", "ARROWS, MOUSE / RIGHT STICK"],
 	["", "YOUR SPELLS CAST THEMSELVES"],
-	["NOVA", "SPACE / RB  -  LEVEL UP: DRAW A CARD"],
+	["NOVA", "SPACE / RB  -  DRAW CARDS: E / LB"],
 ]
 ## The act of the tower the run is in (Lore.ACTS); the backdrop fades to the next act's.
 var act := 0
@@ -112,22 +112,36 @@ var cam := Vector2.ZERO
 const CAM_EASE := 6.0
 var _hitstop := 0.0
 var _last_aim := {}
-## Level-up pick screen, per local slot: highlighted card, and the [card, offer] confirmed and being sent.
-var _pick_sel := {}
+## Level-up cards, per wizard: a tab under the HUD panel while draws wait, or the open tray. _pick_sent is the
+## [card, offer] a local player took and is sending; _tray_open is whose tray is open (local wizards only);
+## _tray_dealt is slot -> [offer, time its rows began to turn over, rows whose flip sound played, true if it
+## turned over on screen]; _pick_t is when a slot last took a card; _tab_flash is when a wizard's draws last went
+## up; _lt_held is per pad, so a pull of the left trigger toggles once.
 var _pick_sent := {}
-const CARD_W := 140
-const CARD_H := 40
-const CARD_GAP := 8
-## One player picking: full tarot cards.
-const TAROT_W := 100
-const TAROT_H := 162
-const TAROT_GAP := 16
-const TAROT_TOP := 52
-## slot -> [offer, time it was dealt], for the deal animation.
-var _pick_dealt := {}
-const PICK_ROW_H := 52
-const PICK_TOP := 44
+var _tray_open := {}
+var _tray_dealt := {}
+var _pick_t := {}
+var _tab_flash := {}
+var _lt_held := {}
+## The party's shared level and XP pool and the lull's seconds left, from the snapshot. _lull_full is the lull's
+## length (its countdown bar's full width); _lv_flash_t is when the party last levelled (for the HUD flash).
+var party_level := 1
+var party_xp := 0
+var party_need := 1
+var lull_left := 0.0
+var _lull_full := 1.0
+var _lv_flash_t := -10.0
+var _pick_sfx_t := -10.0
+## Autotest only (--pick-hold): seconds the bot in slot 0 looks at its cards before picking.
+var autotest_pick_hold := 0.0
+const TRAY_W := 118
+const TRAY_ROW_H := 17 # a row's top pixel stays dark, between it and the row above
+const TAB_H := 11
+const TRAY_FLIP := 0.25 # seconds for a new hand's rows to turn over, all of them
+const TRAY_READ := 0.2 # a hand that turned over on screen takes no press until it has been face up this long
+const PICK_GAP := 0.3 # seconds after a take before the same wizard's next press counts
 const BOT_PICK_THINK := 0.9
+## slot -> [offer, seconds a demo bot has looked at it].
 var _bot_pick_wait := {}
 
 var root := Node2D.new()
@@ -356,18 +370,27 @@ func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
 	if not vp.has(slot):
 		return SmashBot.with_pick(inp, [] as Array[int], 0)
 	var p: Dictionary = vp[slot]
+	var held := not (p.choices as Array).is_empty()
 	if PlayerInput.bot:
-		# Demo bots look at the cards for a moment, so watchers and captures see the pick screen.
-		if (p.choices as Array).is_empty():
-			_bot_pick_wait[slot] = 0.0
+		# Demo bots show their tray while they hold cards and take one after a moment, so watchers and captures see
+		# it. With --pick-hold the slot 0 bot keeps its tray shut for the first second of the hold, or half a hold
+		# shorter than two seconds (its tab shows), so it never takes a card with the tray shut.
+		var wait: Array = _bot_pick_wait.get(slot, [-1, 0.0])
+		if not held:
+			wait = [-1, 0.0]
+		elif int(wait[0]) != int(p.offer):
+			wait = [int(p.offer), 0.0]
 		else:
-			_bot_pick_wait[slot] = float(_bot_pick_wait.get(slot, 0.0)) + get_physics_process_delta_time()
-		if float(_bot_pick_wait.get(slot, 0.0)) < BOT_PICK_THINK:
+			wait[1] = float(wait[1]) + get_physics_process_delta_time()
+		_bot_pick_wait[slot] = wait
+		var hold := slot == 0 and autotest_pick_hold > 0.0
+		_set_tray(slot, held and (not hold or float(wait[1]) >= minf(1.0, autotest_pick_hold * 0.5)))
+		if float(wait[1]) < (autotest_pick_hold if hold else BOT_PICK_THINK):
 			return SmashBot.with_pick(inp, [] as Array[int], p.offer)
 		return SmashBot.with_pick(inp, p.choices, p.offer)
 	var out: PackedFloat32Array = inp.duplicate()
 	var sent: Array = _pick_sent.get(slot, [-1, -1])
-	if int(sent[1]) == int(p.offer) and not (p.choices as Array).is_empty():
+	if int(sent[1]) == int(p.offer) and held:
 		out.append_array([float(sent[0]), float(p.offer)])
 	else:
 		out.append_array([-1.0, float(p.offer)])
@@ -496,9 +519,14 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.xp = int(pl[i + 19])
 		p.xp_need = maxi(1, int(pl[i + 20]))
 		p.level = int(pl[i + 21])
+		party_xp = p.xp
+		party_need = p.xp_need
+		party_level = p.level
 		var offer := int(pl[i + 22])
 		if offer != int(p.get("offer", -1)):
-			_pick_sel[slot] = 0
+			# A new hand: its rows turn over if the tray is open (or was opened while the hand was on its way: a
+			# level's hand comes a tick after its draw), and are already face up when the tray opens later.
+			_deal_tray(slot, offer, bool(_tray_open.get(slot, false)))
 		p.offer = offer
 		var ch: Array[int] = []
 		var lv: Array[int] = []
@@ -515,6 +543,16 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 		p.weapons = wl
 		p.gold = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT])
 		p.max_hp = int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT + 1])
+		var draws := int(pl[i + World.PLAYER_WEAPONS + Spells.COUNT + 2])
+		if draws > int(p.get("draws", 0)):
+			_tab_flash[slot] = time
+			if lull_left > 0.0 and int(p.get("draws", 0)) == 0 and _is_local_slot(slot):
+				_tray_open[slot] = true # in the quiet the cards come out by themselves
+				if not ch.is_empty():
+					_deal_tray(slot, offer, true) # the hand came with the draw (a merged snapshot): it turns over too
+		p.draws = draws
+		if draws == 0:
+			_tray_open[slot] = false # the last card is taken: the tray closes
 		if not p.alive:
 			p.pos = p.target
 		i += World.PLAYER_FLOATS
@@ -588,6 +626,11 @@ func _apply_snapshot(snap: Dictionary, instant: bool) -> void:
 	boss_f = w[3]
 	run_t = w[8]
 	boss_final = w.size() > 9 and w[9] > 0.5
+	var was_lull := lull_left
+	lull_left = w[10] if w.size() > 10 else 0.0
+	if was_lull > 0.0 and lull_left <= 0.0 and phase != World.PH_GAMEOVER:
+		_banner("THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
+		Sfx.play("gong", -2.0)
 	for d in 4:
 		doors[d] = w[4 + d]
 
@@ -880,14 +923,26 @@ func _handle_events(evs: Array) -> void:
 					Sfx.music("music_gameover")
 			World.EV_LEVELUP:
 				var col := G.player_fx(int(ev[3]))
+				_lv_flash_t = time
 				fx.text(pos, "LEVEL UP!", col, 1.4, 1)
-				fx.ring(pos + Vector2(0, 8), 1.0, 26.0, 0.5, col, 2.0)
+				fx.level_up(pos + Vector2(0, 8), col)
 				Sfx.play("powerup", -2.0, 1.1)
 			World.EV_PICK:
 				var col := G.player_fx(int(ev[3]))
 				fx.text(pos, Upgrades.display_name(int(ev[4])) + "!", col, 1.4, 1)
 				fx.sparkle(pos + Vector2(0, 10), col, 16)
-				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
+				if time - _pick_sfx_t > 0.12:
+					_pick_sfx_t = time # four wizards picking at once play it once
+					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
+			World.EV_LULL:
+				_lull_full = maxf(1.0, float(ev[3]))
+				_banner("RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
+				Sfx.play("wave_clear", -2.0, 0.8)
+				for r in Net.my_slots():
+					if vp.has(r.slot) and int(vp[r.slot].get("draws", 0)) > 0 and not _tray_shown(r.slot):
+						_tray_open[r.slot] = true
+						if not (vp[r.slot].choices as Array).is_empty():
+							_deal_tray(r.slot, int(vp[r.slot].offer), true) # opened by itself: the hand turns over
 			World.EV_FROST:
 				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, SPELL_COLORS[World.SP_FROST], true)
 				if float(ev[3]) > 0.0:
@@ -1871,19 +1926,12 @@ func _draw_hud() -> void:
 			ci.draw_rect(Rect2(px + 1, 4, 6.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), SPELL_COLORS[sp])
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(time * 8) % 2 == 0 else G.player_fx(slot)
-			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x + 96, 10), 1, cc, dark)
+			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x, 17), 1, cc, dark)
 		if not p.alive and p.lives > 0:
-			PixelFont.draw(ci, "...", Vector2(x + 96, 10), 1, col)
-		# XP bar and level
-		var xf := clampf(float(p.xp) / float(p.xp_need), 0.0, 1.0)
-		PixelFont.draw(ci, "LV%d" % p.level, Vector2(x, 17), 1, Color("5dff7a"), dark)
+			PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
 		Sprites.draw_at(ci, "coin", Vector2(x + 80, 23))
 		PixelFont.draw(ci, "%d" % p.get("gold", 0), Vector2(x + 85, 17), 1, Color("ffd23d"), dark)
-		ci.draw_rect(Rect2(x + 24, 19, 50, 3), dark)
-		ci.draw_rect(Rect2(x + 25, 20, 48 * xf, 1), Color("5dff7a"))
-	# Wave label on the top wall
-	var wl := _clock(run_t)
-	PixelFont.draw_centered(ci, wl, 240, 22, 1, Color("c9b8ff"), dark)
+	_draw_party_bar(ci, dark)
 	# Boss bar
 	if boss_f > 0.0:
 		var bw := 300.0
@@ -1927,15 +1975,58 @@ func _draw_hud() -> void:
 			PixelFont.draw_gradient(ci, banner.text, Vector2(240 - tw / 2.0 + slide, y), 3,
 				Color.WHITE, banner.color, time * 6.0, 1.5)
 			PixelFont.draw_centered(ci, banner.sub, 240 + slide, y + 25, 1, Color("fff6e0"), dark)
+	# The level-up cards go over the banners and the act card, so a banner never hides a tray's last row.
+	if not game_over and not paused:
+		_draw_draws(ci, dark)
 	# Screen flash
 	if screen_flash.a > 0.0:
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), screen_flash)
 	if game_over:
 		_draw_game_over(ci)
-	elif _anyone_picking():
-		_draw_levelup(ci)
 	elif paused:
 		_draw_pause(ci)
+
+## The party's one XP bar along the bottom edge of the HUD strip; at the foot of the screen (above the boss bar
+## while a boss is up) the party level beside the run clock, and the lull's countdown next to them. The columns
+## under the HUD strip belong to the wizards' card tabs and trays.
+func _draw_party_bar(ci: CanvasItem, dark: Color) -> void:
+	var xf := clampf(float(party_xp) / float(maxi(1, party_need)), 0.0, 1.0)
+	var y := G.HUD_H - 2.0
+	var flash := clampf(1.0 - (time - _lv_flash_t) / 0.6, 0.0, 1.0)
+	ci.draw_rect(Rect2(0, y, G.SCREEN.x, 2), Color("1c2a24"))
+	ci.draw_rect(Rect2(0, y, G.SCREEN.x * xf, 2), Color("5dff7a").lerp(Color.WHITE, flash))
+	if flash > 0.0:
+		ci.draw_rect(Rect2(0, y - 1, G.SCREEN.x, 3), Color(1, 1, 1, flash * 0.35))
+	if game_over:
+		return
+	var lv := "LV %d" % party_level
+	var clock := _clock(run_t)
+	var gap := 6
+	var lw := PixelFont.text_width(lv, 1)
+	var cw := PixelFont.text_width(clock, 1)
+	var pw := lw + gap + cw + 8
+	# The pill stays centred on its own and the lull plate hangs off its right side at one width, so nothing
+	# jumps sideways when a lull starts or ends or its count drops a digit.
+	var x0 := floorf(240.0 - pw / 2.0)
+	var py := 234.0 if boss_f > 0.0 else G.SCREEN.y - 13.0
+	var lc := Color("5dff7a").lerp(Color.WHITE, flash)
+	ci.draw_rect(Rect2(x0, py, pw, 12), Color(dark, 0.92))
+	ci.draw_rect(Rect2(x0, py - 1, pw, 1), Color("2f2450"))
+	PixelFont.draw(ci, lv, Vector2(x0 + 4, py + 3), 1, lc, dark)
+	PixelFont.draw(ci, clock, Vector2(x0 + 4 + lw + gap, py + 3), 1, Color("c9b8ff"), dark)
+	if lull_left <= 0.0:
+		return
+	# The lull: a gold plate counting down, its bar draining; red in the last three seconds.
+	var lull := "RESPITE %d" % ceili(lull_left)
+	var rw := PixelFont.text_width("RESPITE 00", 1) + 8
+	var lx := x0 + pw + 4
+	var urgent := lull_left <= 3.0
+	var pulse := 0.5 + 0.5 * sin(time * (10.0 if urgent else 4.0))
+	var gc := Color("ffd94d").lerp(Color("ff6a4d"), pulse) if urgent else Color("ffd94d")
+	ci.draw_rect(Rect2(lx - 1, py - 1, rw + 2, 14), Color(gc, 0.35 + 0.35 * pulse))
+	ci.draw_rect(Rect2(lx, py, rw, 12), Color(dark, 0.95))
+	PixelFont.draw(ci, lull, Vector2(lx + 4, py + 3), 1, gc, dark)
+	ci.draw_rect(Rect2(lx + 1, py + 11, (rw - 2) * clampf(lull_left / _lull_full, 0.0, 1.0), 1), gc)
 
 ## Arrows at the screen's edge pointing at what matters out of view: chests, cards and the Lich.
 func _draw_offscreen(ci: CanvasItem) -> void:
@@ -1986,151 +2077,258 @@ func _draw_act_card(ci: CanvasItem, k: float, slide: float) -> void:
 	Occult.candle(ci, Vector2(band.end.x - 14, band.end.y - 4), time, 3.0, 9)
 
 
-# ======================================================== LEVEL-UP PICKS ===
+# ======================================================== LEVEL-UP CARDS ===
+## True while any wizard holds cards (the autotest keys shots on it).
 func _anyone_picking() -> bool:
 	for p: Dictionary in vp.values():
 		if not (p.get("choices", []) as Array).is_empty():
 			return true
 	return false
 
-## Local slots that have an offer open, in slot order: one row of cards each.
-func _local_pick_slots() -> Array[int]:
-	var out: Array[int] = []
+func _draws(slot: int) -> int:
+	return int(vp[slot].get("draws", 0)) if vp.has(slot) else 0
+
+## The input device of a local wizard, or -99 for a remote one.
+func _slot_device(slot: int) -> int:
 	for r in Net.my_slots():
-		if vp.has(r.slot) and not (vp[r.slot].choices as Array).is_empty():
-			out.append(r.slot)
-	out.sort()
-	return out
+		if r.slot == slot:
+			return r.device
+	return -99
 
-func _card_rect(row: int, c: int) -> Rect2:
-	if _local_pick_slots().size() == 1:
-		var bx := (480 - (TAROT_W * 3 + TAROT_GAP * 2)) / 2
-		return Rect2(bx + c * (TAROT_W + TAROT_GAP), TAROT_TOP, TAROT_W, TAROT_H)
-	var x0 := (480 - (CARD_W * 3 + CARD_GAP * 2)) / 2
-	return Rect2(x0 + c * (CARD_W + CARD_GAP), PICK_TOP + row * PICK_ROW_H + 9, CARD_W, CARD_H)
+## True while `slot`'s tray is open on this screen: a local wizard holding cards who opened it.
+func _tray_shown(slot: int) -> bool:
+	return bool(_tray_open.get(slot, false)) and vp.has(slot) and not (vp[slot].choices as Array).is_empty()
 
+func _set_tray(slot: int, open: bool) -> void:
+	if open != _tray_shown(slot):
+		Sfx.play("card_flip" if open else "menu_move", -4.0)
+	_tray_open[slot] = open
 
-## How far the dealt card `c` of `slot`'s offer has turned over: 0 face down, 1 face up.
-func _deal(slot: int, c: int) -> float:
-	var offer := int(vp[slot].offer)
-	var seen: Array = _pick_dealt.get(slot, [-1, 0.0, 0])
-	if int(seen[0]) != offer:
-		seen = [offer, time, 0]
-		_pick_dealt[slot] = seen
-		Sfx.play("card_deal", -2.0)
-	var k := clampf((time - float(seen[1]) - 0.1 * c) / 0.3, 0.0, 1.0)
+## The tab and the tray sit in the wizard's own HUD column, directly under the HUD strip.
+func _tab_rect(slot: int) -> Rect2:
+	return Rect2(slot * 120 + 1, G.HUD_H + 1, TRAY_W, TAB_H)
+
+func _tray_rect(slot: int) -> Rect2:
+	var n: int = (vp[slot].choices as Array).size()
+	return Rect2(slot * 120 + 1, G.HUD_H + 1, TRAY_W, 1 + n * TRAY_ROW_H + 8)
+
+func _tray_row_rect(slot: int, c: int) -> Rect2:
+	return Rect2(slot * 120 + 2, G.HUD_H + 1 + c * TRAY_ROW_H, TRAY_W - 2, TRAY_ROW_H)
+
+## How far row `c` of `slot`'s hand has turned over: 0 face down, 1 face up. A hand dealt while the tray is
+## open turns over in TRAY_FLIP seconds, row by row, with the card sounds.
+func _tray_turn(slot: int, c: int) -> float:
+	var seen: Array = _tray_dealt.get(slot, [-1, -10.0, 7, false])
+	var step := TRAY_FLIP / 5.0
+	var k := clampf((time - float(seen[1]) - step * c) / (step * 3.0), 0.0, 1.0)
 	if k >= 0.5 and (int(seen[2]) & (1 << c)) == 0:
 		seen[2] = int(seen[2]) | (1 << c)
-		Sfx.play("card_flip", -4.0, 1.0 + c * 0.06, 0.0)
+		Sfx.play("card_flip", -4.0, 1.0 + c * 0.06, 0.03)
 	return k
 
-func _draw_levelup(ci: CanvasItem) -> void:
-	var dark := Color("0b0716")
-	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.72))
-	var tw := PixelFont.text_width("LEVEL UP", 3)
-	PixelFont.draw_gradient(ci, "LEVEL UP", Vector2(240 - tw / 2.0, 14), 3, Color.WHITE, Color("ffd94d"), time * 5.0, 1.5)
-	var rows := _local_pick_slots()
-	var big := rows.size() == 1
-	for row in rows.size():
-		var slot: int = rows[row]
-		var p: Dictionary = vp[slot]
-		var col := G.player_color(slot)
-		var sent: Array = _pick_sent.get(slot, [-1, -1])
-		var done := int(sent[1]) == int(p.offer)
-		var y0 := (TAROT_TOP - 14) if big else PICK_TOP + row * PICK_ROW_H
-		var line := "P%d  LEVEL %d  -  %s" % [slot + 1, p.level, "WAITING FOR THE OTHERS" if done else "DRAW A CARD"]
-		if big:
-			PixelFont.draw_centered(ci, line, 240, y0, 1, col, dark)
-		else:
-			PixelFont.draw(ci, line, Vector2(_card_rect(row, 0).position.x, y0), 1, col, dark)
-		var choices: Array = p.choices
-		for c in choices.size():
-			var r := _card_rect(row, c)
-			var sel: bool = (int(sent[0]) == c) if done else (int(_pick_sel.get(slot, 0)) == c)
-			var idx: int = choices[c]
-			var lv: int = p.choice_lv[c]
-			var lv_text := "NEW" if lv == 1 else "LEVEL %d/%d" % [lv, Upgrades.max_level(idx)]
-			var k := _deal(slot, c)
-			if k < 0.5:
-				var w := r.size.x * (1.0 - k * 2.0)
-				TarotArt.draw_back(ci, Rect2(r.get_center().x - w / 2.0, r.position.y, w, r.size.y))
-				continue
-			if big and sel:
-				r.position.y -= 6
-			if big:
-				TarotArt.draw_card(ci, r, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
-					lv_text, sel, col, time)
-				if sel:
-					Occult.cursor(ci, Vector2(r.get_center().x, r.end.y + 12), time)
-			else:
-				TarotArt.draw_card_small(ci, r, Upgrades.key(idx), Upgrades.display_name(idx),
-					Upgrades.description(idx), lv_text, sel, col, time)
-			if k < 0.75:
-				ci.draw_rect(r, Color(1, 1, 1, (0.75 - k) * 3.0))
-	var waiting: Array[String] = []
-	for s in vp.keys():
-		if not rows.has(s) and not (vp[s].choices as Array).is_empty():
-			waiting.append("P%d" % (s + 1))
-	if not waiting.is_empty():
-		PixelFont.draw_centered(ci, " ".join(waiting) + " CHOOSING...", 240, 258, 1, Color("c9b8ff"), dark)
+## Records `slot`'s new hand `offer`: with `turn` its rows turn over from now, with the deal sound; without, it
+## is face up already (a hand dealt while the tray was shut, shown when the player opens it).
+func _deal_tray(slot: int, offer: int, turn: bool) -> void:
+	_tray_dealt[slot] = [offer, time, 0, true] if turn else [offer, time - TRAY_FLIP, 7, false]
+	if turn:
+		Sfx.play("card_deal", -2.0)
 
-## Routes menu input to the pick rows of local players. Returns true if the event was used.
-func _pick_input(event: InputEvent) -> bool:
-	var rows := _local_pick_slots()
-	if rows.is_empty():
-		return false
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		var pos: Vector2 = event.position
-		for row in rows.size():
-			for c in (vp[rows[row]].choices as Array).size():
-				if _card_rect(row, c).has_point(pos):
-					_confirm_pick(rows[row], c)
-					return true
+## True while a monster card reveal or a fate bet fills the middle of the screen: the trays fold down to their
+## tabs and the take buttons do nothing (opening and closing still work).
+func _tray_covered() -> bool:
+	if not _cards.is_empty():
 		return true
-	for slot: int in rows:
-		var dev := -99
-		for r in Net.my_slots():
-			if r.slot == slot:
-				dev = r.device
-		var mine := (dev == G.DEV_KBM and (event is InputEventKey)) or \
-			(dev != G.DEV_KBM and (event is InputEventJoypadButton or event is InputEventJoypadMotion) and event.device == dev)
-		if not mine:
-			continue
-		var n: int = (vp[slot].choices as Array).size()
-		var d := _pick_dir(event)
-		if d != 0:
-			_pick_sel[slot] = wrapi(int(_pick_sel.get(slot, 0)) + d, 0, n)
-			Sfx.play("menu_move")
-			return true
-		if PlayerInput.confirm_device(event) != -99:
-			_confirm_pick(slot, int(_pick_sel.get(slot, 0)))
+	for b: Dictionary in _bets:
+		if b.kind == Gamble.TEAM:
 			return true
 	return false
 
-func _confirm_pick(slot: int, c: int) -> void:
+## The level-up cards on screen: a tab under the HUD panel of every wizard with draws waiting, or the open tray of
+## a local wizard; then a marker over each living wizard with a tab, drawn last so no tray hides it.
+func _draw_draws(ci: CanvasItem, dark: Color) -> void:
+	var covered := _tray_covered()
+	var marked: Array[int] = []
+	for slot: int in vp.keys():
+		if _draws(slot) <= 0:
+			continue
+		if _tray_shown(slot) and not covered:
+			_draw_tray(ci, slot, dark)
+			continue
+		_draw_tab(ci, slot, dark)
+		# The marker waits out the LEVEL UP call-out, which rises from the same spot.
+		if vp[slot].alive and time - float(_tab_flash.get(slot, -10.0)) > 0.6:
+			marked.append(slot)
+	for slot: int in marked:
+		_draw_draw_marker(ci, slot)
+
+## The tab: a card back, DRAW, the number of draws past one, and the button that opens the tray.
+func _draw_tab(ci: CanvasItem, slot: int, dark: Color) -> void:
+	var r := _tab_rect(slot)
+	var col := G.player_color(slot)
+	var flash := clampf(1.0 - (time - float(_tab_flash.get(slot, -10.0))) / 0.5, 0.0, 1.0)
+	var pulse := 0.5 + 0.5 * sin(time * 5.0)
+	# The border pulses in the wizard's colour and turns gold at each peak, so it stands out on any floor.
+	var rim := col.lerp(Color("ffd94d"), clampf((pulse - 0.75) * 4.0, 0.0, 1.0)).lerp(Color.WHITE, flash)
+	ci.draw_rect(r.grow(1), Color(rim, 0.45 + 0.45 * pulse))
+	ci.draw_rect(r, dark.lerp(col, 0.12 + 0.14 * pulse))
+	TarotArt.draw_back_icon(ci, Rect2(r.position + Vector2(3, 1), Vector2(7, 9)), col)
+	var tc := Color("ffd94d").lerp(Color.WHITE, maxf(flash, pulse * 0.4))
+	PixelFont.draw(ci, "DRAW", Vector2(r.position.x + 14, r.position.y + 2), 1, tc, dark)
+	if _draws(slot) > 1:
+		PixelFont.draw(ci, "x%d" % _draws(slot), Vector2(r.position.x + 43, r.position.y + 2), 1, Color.WHITE, dark)
+	var dev := _slot_device(slot)
+	if dev != -99:
+		var label := "E" if dev == G.DEV_KBM else "LB"
+		_draw_keycap(ci, Vector2(r.end.x - 3 - PixelFont.text_width(label) - 2, r.position.y + 1), label)
+	if flash > 0.0:
+		ci.draw_rect(r, Color(1, 1, 1, flash * 0.45))
+
+## The open tray: one row per card, each with the button that takes it; the footer says how many draws wait
+## behind this hand and which button hides the tray.
+func _draw_tray(ci: CanvasItem, slot: int, dark: Color) -> void:
+	var p: Dictionary = vp[slot]
+	var col := G.player_color(slot)
+	var r := _tray_rect(slot)
+	var dev := _slot_device(slot)
+	# The body and footer let a little of the arena through; the card rows are solid behind their text.
+	ci.draw_rect(r.grow(1), Color(col, 0.55))
+	ci.draw_rect(r, Color(dark, 0.75))
+	var choices: Array = p.choices
+	for c in choices.size():
+		var rr := _tray_row_rect(slot, c)
+		var k := _tray_turn(slot, c)
+		if k < 0.5:
+			var w := rr.size.x * (1.0 - k * 2.0)
+			TarotArt.draw_back(ci, Rect2(rr.get_center().x - w / 2.0, rr.position.y, w, rr.size.y))
+			continue
+		var idx: int = choices[c]
+		var lv: int = p.choice_lv[c]
+		var lv_text := "NEW" if lv == 1 else "%d/%d" % [lv, Upgrades.max_level(idx)]
+		TarotArt.draw_card_row(ci, rr, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
+			lv_text, 11.0)
+		_draw_pick_button(ci, rr.position + Vector2(1, 4), dev, c)
+		if k < 0.75:
+			ci.draw_rect(rr, Color(1, 1, 1, (0.75 - k) * 3.0))
+	var fy := r.end.y - 8.0
+	if _draws(slot) > 1:
+		PixelFont.draw(ci, "+%d MORE" % (_draws(slot) - 1), Vector2(r.position.x + 3, fy), 1, Color("ffd94d"), dark)
+	var label := "E" if dev == G.DEV_KBM else "LB"
+	var hx := r.end.x - 2 - PixelFont.text_width("HIDE")
+	PixelFont.draw(ci, "HIDE", Vector2(hx, fy), 1, Color("8a7aa8"), dark)
+	_draw_keycap(ci, Vector2(hx - 4 - PixelFont.text_width(label) - 2, fy - 1), label, false)
+
+## A small light keycap with a label, 9 px tall (11 with its dark outline).
+func _draw_keycap(ci: CanvasItem, at: Vector2, label: String, outline: bool = true) -> void:
+	var w := PixelFont.text_width(label) + 2
+	if outline:
+		ci.draw_rect(Rect2(at - Vector2(1, 1), Vector2(w + 2, 11)), Occult.INK)
+	ci.draw_rect(Rect2(at, Vector2(w, 9)), Color("e8dcc0"))
+	ci.draw_rect(Rect2(at + Vector2(0, 8), Vector2(w, 1)), Color("a89a80"))
+	PixelFont.draw(ci, label, at + Vector2(1, 1), 1, Occult.INK)
+
+## The button that takes card `c`: 1, 2, 3 on a keycap for the keyboard; for a pad, a diamond of four dots with
+## the left, the top or the right one lit (pads print different letters on those buttons). `at` is the glyph's
+## top-left: the keycap starts 1 px in; the diamond is 9x9 with a 1 px dark outline, 11 px in all.
+func _draw_pick_button(ci: CanvasItem, at: Vector2, dev: int, c: int) -> void:
+	if dev == G.DEV_KBM or dev == -99:
+		_draw_keycap(ci, at + Vector2(1, 0), str(c + 1), false)
+		return
+	var dots := [Vector2(0, 3), Vector2(3, 0), Vector2(6, 3), Vector2(3, 6)] # left, top, right, bottom
+	for d: Vector2 in dots:
+		ci.draw_rect(Rect2(at + d - Vector2(1, 1), Vector2(5, 5)), Occult.INK)
+	for d in dots.size():
+		ci.draw_rect(Rect2(at + dots[d], Vector2(3, 3)), Color("ffd94d") if d == c else Color("8a7aa8"))
+	ci.draw_rect(Rect2(at + dots[c] + Vector2(1, 1), Vector2(1, 1)), Color.WHITE)
+
+## A card bobbing over a wizard with draws waiting, so the player sees it where they look; under the feet when
+## the wizard is so near the top of the view that the tabs would cover it.
+func _draw_draw_marker(ci: CanvasItem, slot: int) -> void:
+	var col := G.player_color(slot)
+	var feet := _on_screen(vp[slot].pos)
+	var bob := floorf(sin(time * 4.0 + slot) * 1.5)
+	var at := (feet + Vector2(-3, -36 + bob)).floor()
+	if at.y < G.HUD_H + TAB_H + 4.0:
+		at.y = floorf(feet.y + 6.0 + bob)
+	var pulse := 0.5 + 0.5 * sin(time * 5.0)
+	var r := Rect2(at, Vector2(7, 9))
+	ci.draw_rect(r.grow(2), Color(col, 0.25 + 0.35 * pulse))
+	TarotArt.draw_back_icon(ci, r, col)
+
+## Routes the card buttons to local trays: E, LB or LT (or a click on the tab, or on the tray's footer) opens and
+## closes a wizard's tray; 1 2 3 or X Y B (or a click on a row) takes a card while it is open. The mouse and touch
+## work the keyboard wizard's tray. Returns true if the event was used.
+func _tray_input(event: InputEvent) -> bool:
+	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+			or (event is InputEventScreenTouch and event.pressed):
+		var ks := -1
+		for r in Net.my_slots():
+			if r.device == G.DEV_KBM:
+				ks = r.slot
+		if ks < 0 or _draws(ks) <= 0:
+			return false
+		var pos: Vector2 = event.position
+		if not _tray_shown(ks) or _tray_covered():
+			if not _tab_rect(ks).has_point(pos):
+				return false
+			_set_tray(ks, not _tray_shown(ks))
+			return true
+		if not _tray_rect(ks).grow(1).has_point(pos):
+			return false
+		var n: int = (vp[ks].choices as Array).size()
+		for c in n:
+			if _tray_row_rect(ks, c).has_point(pos):
+				_take_card(ks, c)
+		if pos.y >= _tray_row_rect(ks, n - 1).end.y:
+			_set_tray(ks, false) # the footer with HIDE
+		return true
+	for r in Net.my_slots():
+		var slot: int = r.slot
+		var dev: int = r.device
+		var toggle := false
+		var card := -1
+		if dev == G.DEV_KBM and event is InputEventKey and event.pressed and not event.echo:
+			match event.physical_keycode:
+				KEY_E: toggle = true
+				KEY_1, KEY_KP_1: card = 0
+				KEY_2, KEY_KP_2: card = 1
+				KEY_3, KEY_KP_3: card = 2
+		elif dev != G.DEV_KBM and event is InputEventJoypadButton and event.pressed and event.device == dev:
+			match event.button_index:
+				JOY_BUTTON_LEFT_SHOULDER: toggle = true
+				JOY_BUTTON_X: card = 0
+				JOY_BUTTON_Y: card = 1
+				JOY_BUTTON_B: card = 2
+		elif dev != G.DEV_KBM and event is InputEventJoypadMotion and event.device == dev \
+				and event.axis == JOY_AXIS_TRIGGER_LEFT:
+			var was: bool = _lt_held.get(dev, false)
+			_lt_held[dev] = event.axis_value > 0.5
+			toggle = event.axis_value > 0.5 and not was
+		if toggle and _draws(slot) > 0:
+			_set_tray(slot, not _tray_shown(slot))
+			return true
+		if card >= 0 and _tray_shown(slot):
+			if not _tray_covered(): # under a card reveal or a fate bet the tray is folded away
+				_take_card(slot, card)
+			return true
+	return false
+
+## Takes card `c` of `slot`'s hand, only if that row is there and face up. A hand that turned over on screen takes
+## no press until it has been face up for TRAY_READ, and no press counts within PICK_GAP of the wizard's last take,
+## so a mashed or held button cannot take the next card unseen.
+func _take_card(slot: int, c: int) -> void:
+	if c >= (vp[slot].choices as Array).size() or _tray_turn(slot, c) < 1.0:
+		return
+	var seen: Array = _tray_dealt.get(slot, [-1, -10.0, 7, false])
+	if bool(seen[3]) and time - float(seen[1]) < TRAY_FLIP + TRAY_READ:
+		return
+	if time - float(_pick_t.get(slot, -10.0)) < PICK_GAP:
+		return
 	var sent: Array = _pick_sent.get(slot, [-1, -1])
 	if int(sent[1]) == int(vp[slot].offer):
 		return
-	_pick_sel[slot] = c
 	_pick_sent[slot] = [c, int(vp[slot].offer)]
+	_pick_t[slot] = time
 	Sfx.play("card_pick", -2.0)
-
-## -1 left, +1 right, 0 none (keys, d-pad, or an edge of the left stick).
-func _pick_dir(event: InputEvent) -> int:
-	if event is InputEventKey and event.pressed and not event.echo:
-		match event.physical_keycode:
-			KEY_LEFT, KEY_A: return -1
-			KEY_RIGHT, KEY_D: return 1
-	if event is InputEventJoypadButton and event.pressed:
-		if event.button_index == JOY_BUTTON_DPAD_LEFT: return -1
-		if event.button_index == JOY_BUTTON_DPAD_RIGHT: return 1
-	if event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_X:
-		var key := "pickx%d" % event.device
-		var was: float = _pick_sel.get(key, 0.0)
-		_pick_sel[key] = event.axis_value
-		if event.axis_value < -0.6 and was >= -0.6: return -1
-		if event.axis_value > 0.6 and was <= 0.6: return 1
-	return 0
 
 func _heart(ci: CanvasItem, p: Vector2, full: bool) -> void:
 	var c := Color("ff3b5c") if full else Color("3a2240")
@@ -2286,7 +2484,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if start:
 		_toggle_pause()
 		return
-	if not paused and _pick_input(event):
+	if not paused and _tray_input(event):
 		get_viewport().set_input_as_handled()
 		return
 	if paused:

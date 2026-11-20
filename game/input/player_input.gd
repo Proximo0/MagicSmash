@@ -3,7 +3,8 @@ class_name PlayerInput
 ## [move_x, move_y, aim_x, aim_y, fire(0/1), bomb_count]
 ## Keyboard: WASD move, arrow keys fire in 8 directions (Smash TV style),
 ## or mouse to aim + left click to fire. Space / right click = Nova.
-## Gamepad: left stick move, right stick aim + fire, any shoulder/A = Nova.
+## Gamepad: left stick move, right stick aim + fire, RB, RT or A = Nova. LB and LT are not read here: they open
+## the level-up card tray (Arena).
 
 static var bomb_counts := {}
 static var _bomb_held := {}
@@ -57,7 +58,6 @@ static func read(device: int, player_screen_pos: Vector2, viewport: Viewport) ->
 			if Input.is_joy_button_pressed(device, JOY_BUTTON_X):
 				fire = true
 		bomb = Input.is_joy_button_pressed(device, JOY_BUTTON_RIGHT_SHOULDER) \
-			or Input.is_joy_button_pressed(device, JOY_BUTTON_LEFT_SHOULDER) \
 			or Input.is_joy_button_pressed(device, JOY_BUTTON_A) \
 			or Input.get_joy_axis(device, JOY_AXIS_TRIGGER_RIGHT) > 0.5
 	if move.length() > 1.0:

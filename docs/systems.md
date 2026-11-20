@@ -26,13 +26,13 @@ How each system works: read only the section for the system you touch (`grep -n 
 
 - Every kill drops an XP shard (`World.PK_XP`, value from `World.XP_VALUES`). Shards near a wizard fly to them
   (`Tuning.xp_magnet_*`); the wizard who collects a shard gets its XP. Levels need `Tuning.xp_to_next(level)`.
-- A level-up opens an offer of `Tuning.level_choices` upgrades from `game/logic/upgrades.gd` (seeded by
-  `World.rng`). The whole world waits while any player has an offer open; each player picks their own card.
-  A pick is input fields 6 and 7, [card, offer id], so a held or late pick never applies to the next offer.
-- Bots pick by `SmashBot.PICK_PRIORITY`. In the arena (autotest, bot shards) they wait `BOT_PICK_THINK` so the
-  pick screen shows; `--autotest` saves `levelup.png` the first time it does.
-- Open question for Curtis: XP goes to whoever picks the shard up. Shared party XP (everyone levels together)
-  is kinder to a mixed-skill Remote Play group; it is a small change in `World._collect`.
+- XP is shared: one party level (`World.party_level`, `party_xp`, `xp_needed()`); a level-up queues one draw for
+  every wizard. The world never waits: a wizard's draws show as a tab under their HUD column and a marker over
+  their head; E / LB / LT opens the tray, 1 2 3 / X Y B takes a card (input fields 6 and 7, [card, offer id]),
+  and taking a card pushes nearby enemies back. After a Lich (not the Archlich) falls, a 20 s lull
+  (`World.lull_left`, `EV_LULL`) stops spawns and opens the trays.
+- Bots take their cards at once (`SmashBot.PICK_PRIORITY`); `--autotest` saves `levelup.png`, `tab.png`,
+  `tray.png`, `lull.png`, `lull_end.png`.
 
 ## Spell weapons and evolutions (rework step 3)
 

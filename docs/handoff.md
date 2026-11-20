@@ -13,12 +13,16 @@ shrines, the party's fate card); a tower worth exploring (the Sanctum, secrets, 
   "Magic Smash"; the rename lands with the new title screen.
 - Steam setup is set aside until the game itself is Steam-worthy (Curtis, 19 Nov).
 - The big push runs in three waves; `docs/push_brief.md` holds wave 1's contracts.
-- Wave 1 is merging now: one shared party level, human-like test bots with a playtest report, and finished art
-  for the wizards, the enemies, the Act I floor and the title screen. Curtis decided on 19 Nov that level-ups
-  never pause the game: cards queue, a button opens them mid-fight, and they open by themselves in a lull after
-  each Lich.
-- Wave 2: spell slots (and a spell core new spells plug into), revives, AI apprentices, difficulty tiers, new enemies, art for acts II and III. Wave 3: 12
-  spells, 8 wizards, a boss per act, the rest of the art. After that: balance, store art, Steam.
+- Wave 1 is merged: one shared party level, level-ups that never pause (cards queue, E / LB opens a tray
+  mid-fight, a 20 s lull after each Lich opens them), human-like test bots with a playtest report, and new art
+  for the wizards, the enemies, the Act I floor and the title screen.
+- Art bar (Curtis, 20 Nov): finished art must hold up on a Steam store page beside shipped games. The lead's
+  re-judgement: the logo, title backdrop and Act I floor hold up; the fight HUD, wizard readability, room
+  lighting, lobby cards and menu text do not yet (job R in `docs/wave2_brief.md`, before new content).
+- Wave 2 (`docs/wave2_brief.md`, 21 Nov to 4 Dec): script split, core commit, polish job R, spell slots,
+  the fallen and rituals, apprentices, Seals, fate deck, new enemies and act bosses (`docs/bestiary_design.md`),
+  hub with NPC chats and full-height portraits, acts II and III art. Wave 3 (`docs/wave3_plan.md`, 5 to 15 Dec):
+  10 spells, 8 wizards, endless mode, achievements, balance. After that: store art, Steam.
 
 ## Launch scope (targets)
 
