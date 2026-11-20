@@ -80,4 +80,6 @@ audio in `assets/audio`, music synth in `tools/music`. Renderer: Compatibility o
 - Captures, tests and gates never write player data (`Flags.is_scripted_run()`).
 - No secrets in git: credentials live in git-ignored `config/*credentials*` and are injected at export.
 - Reproduce a bug (test, sim, bot, replay) before fixing it; fix the traced mechanism, not a guess.
-- Read `docs/lessons_learned.md` before starting; add a row whenever something goes wrong.
+- Lessons are read by section, not whole (34 KB, about 8,600 tokens): always read "Workflow and agents" and "Testing and
+  measurement" in `docs/lessons_learned.md`; read another section only when the task touches its topic
+  (`grep -n '^## ' docs/lessons_learned.md` lists them with line numbers). Add a row whenever something goes wrong.

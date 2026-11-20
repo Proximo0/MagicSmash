@@ -1,4 +1,7 @@
-# Lessons learned (read before starting work)
+# Lessons learned (read by section)
+
+Every task: "Workflow and agents" and "Testing and measurement". The other sections only when the task touches
+their topic. `grep -n '^## ' docs/lessons_learned.md` lists the sections with line numbers.
 
 Generic lessons from Skate Park (kid-friendly skateboarding) and Sandblood (M-rated physics fighter), both Godot 4.7.2
 built by a lead Claude with many subagents. Build guide: https://claude.ai/artifact/WtmrkVRtizP8oJBRwhxdWW.
