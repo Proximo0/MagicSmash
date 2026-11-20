@@ -13,6 +13,7 @@ var _team_shot := false
 var _arch_seen := 0.0
 var _arch_shot := false
 var _victory_shot := false
+var _act_shot := false
 var end_at := -1.0 # --end=SECONDS[:win] ends the run then (as a win with :win) to capture the results screen
 var end_win := false
 var perf := false # --perf: once the horde is big, time 300 frames per system and print a table, then quit
@@ -144,6 +145,11 @@ func _process(delta: float) -> void:
 		_victory_shot = true
 		get_viewport().get_texture().get_image().save_png("%s/victory.png" % out_dir)
 		print("shot victory")
+	# State-keyed shot: the backdrop halfway through its fade to the next act (--autotest=5 crosses into act II).
+	if not _act_shot and cur and "_act_fade" in cur and cur._act_fade >= 1.0:
+		_act_shot = true
+		get_viewport().get_texture().get_image().save_png("%s/act_fade.png" % out_dir)
+		print("shot act_fade")
 	if end_at > 0.0 and t >= end_at and cur and "world" in cur and cur.world and cur.world.phase != World.PH_GAMEOVER \
 			and not cur.world.is_picking():
 		end_at = -1.0
