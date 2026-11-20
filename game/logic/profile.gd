@@ -163,8 +163,14 @@ static func crystals_for_run(seconds: float, kills: int, liches: int, won: bool 
 	return int(seconds / CRYSTAL_SECONDS) + kills / CRYSTAL_KILLS + liches * CRYSTAL_LICH + (CRYSTAL_WIN if won else 0)
 
 
-## Books a finished run: best score and time, wins, crystals earned. Returns the crystals it paid.
-func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool = false) -> int:
+## Books a finished run: best score and time, wins, crystals earned. Returns the crystals it paid. `run` holds
+## score, seconds, kills, liches and won (missing keys count 0 / false); a "seal" key is carried but not read yet.
+func finish_run(run: Dictionary) -> int:
+	var score := int(run.get("score", 0))
+	var seconds := float(run.get("seconds", 0.0))
+	var kills := int(run.get("kills", 0))
+	var liches := int(run.get("liches", 0))
+	var won := bool(run.get("won", false))
 	runs += 1
 	if won:
 		wins += 1

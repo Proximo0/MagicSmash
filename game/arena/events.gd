@@ -274,7 +274,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.game_over_t = 0.0
 				a.final_score = int(ev[3])
 				a.run_t = float(ev[1])
-				a.crystals_earned = G.finish_run(a.final_score, float(ev[1]), int(ev[2]), int(ev[4]), a.victory)
+				a.crystals_earned = G.finish_run({"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]),
+					"liches": int(ev[4]), "won": a.victory, "seal": a.seal})
 				if a.is_host:
 					Platform.finish_run(a.results, a.victory, float(ev[1]))
 				if not a.victory:

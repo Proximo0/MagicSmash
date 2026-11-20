@@ -49,6 +49,9 @@ func _ready() -> void:
 				var parts := kv.split(":")
 				if parts.size() == 2:
 					Tuning.shared().set_value(parts[0], float(parts[1]))
+		# --seal=N plays the run at difficulty N, -1 (easy) to 9 (Net.seal; World.apply_seal).
+		if a.begins_with("--seal="):
+			Net.set_seal(int(a.substr(7)))
 		if a.begins_with("--end="):
 			var spec := a.substr(6).split(":")
 			end_at = float(spec[0])

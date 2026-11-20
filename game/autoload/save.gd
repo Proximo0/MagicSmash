@@ -87,8 +87,8 @@ func run_bonuses() -> Dictionary:
 
 
 ## Books a finished run and saves. Returns the crystals earned (shown on the game over screen).
-func finish_run(score: int, seconds: float, kills: int, liches: int, won: bool = false) -> int:
-	var earned := profile.finish_run(score, seconds, kills, liches, won)
+func finish_run(run: Dictionary) -> int:
+	var earned := profile.finish_run(run)
 	write()
 	return earned
 

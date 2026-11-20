@@ -32,11 +32,11 @@ func test_buy_spends_crystals_up_to_max() -> void:
 
 func test_runs_earn_crystals() -> void:
 	var p := Profile.new()
-	var earned: int = p.finish_run(12345, 300.0, 600, 1)
+	var earned: int = p.finish_run({"score": 12345, "seconds": 300.0, "kills": 600, "liches": 1})
 	assert_eq(earned, 10 + 2 + Profile.CRYSTAL_LICH)
 	assert_eq(p.crystals, earned)
 	assert_eq(p.high_score, 12345)
-	p.finish_run(10, 20.0, 0, 0)
+	p.finish_run({"score": 10, "seconds": 20.0})
 	assert_eq(p.high_score, 12345, "a worse run keeps the best score")
 	assert_eq(p.runs, 2)
 	assert_eq(p.wins, 0)
@@ -44,7 +44,7 @@ func test_runs_earn_crystals() -> void:
 
 func test_a_won_run_pays_the_win_bonus_and_counts() -> void:
 	var p := Profile.new()
-	var earned: int = p.finish_run(1, 0.0, 0, 0, true)
+	var earned: int = p.finish_run({"score": 1, "won": true})
 	assert_eq(earned, Profile.CRYSTAL_WIN)
 	assert_eq(p.wins, 1)
 	assert_eq(Profile.from_dict(p.to_dict()).wins, 1)
@@ -121,5 +121,5 @@ func test_secrets_pots_and_spending_save() -> void:
 	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
 	assert_true(back.has_secret("alcove"))
 	assert_true(back.pots_smashed())
-	back.finish_run(10, 30.0, 0, 0)
+	back.finish_run({"score": 10, "seconds": 30.0})
 	assert_false(back.pots_smashed(), "pots did not refill after a run")

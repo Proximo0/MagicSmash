@@ -36,6 +36,25 @@ class Player:
 	var max_hp := 5
 	var gold := 0.0 # run gold; only exists inside a run
 	var armor: Array = Loot.empty_stats() # Loot.ST_* totals from armor found in chests
+	## Wave 2 fields, all neutral until their jobs land (snapshot row: World.P_REDRAWS onward).
+	var redraws := 0 # redraws of the hand left
+	var banishes := 0 # banishes left
+	var banned := {} # Upgrades index -> true: rows banished from this wizard's pool
+	var down := false # fallen, waiting for a revive
+	var down_left := 0.0 # seconds until a fallen wizard gets up by itself; -1 = only a ritual brings them back
+	var down_t := 0.0 # seconds spent down this time
+	var revive := 0.0 # revive progress 0..1
+	var rituals := 0 # revives this wizard has performed
+	var call_t := 0.0 # seconds until this wizard may call for help again
+	var ai := false # an apprentice (a computer wizard), not a human seat
+	var trait_a := 0 # wave 3 traits; 0 = none
+	var trait_b := 0
+	## Reserved for races and classes (snapshot row P_RACE..P_CLASS_LEVEL); 0 until their job lands.
+	var race := 0
+	var cls := 0
+	var look := 0 # packed: skin, hair, style
+	var cls_level := 0
+	var threat := 1.0 # how much the horde minds this wizard; not in the snapshot row, nothing reads it yet
 
 class Enemy:
 	var id := 0
@@ -62,6 +81,7 @@ class Enemy:
 	var contact := 1
 	var elite := false
 	var final := false # the Archlich: the run's last boss
+	var status := 0 # status bits (burning, frozen and so on); none yet
 
 class Shot:
 	var pos := Vector2.ZERO
@@ -89,6 +109,7 @@ class Rune:
 	var owner := 0
 	var evo := false
 	var pull := 0.0
+	var kind := 0 # what kind of circle; 0 = the rune circle spell
 
 class EShot:
 	var pos := Vector2.ZERO

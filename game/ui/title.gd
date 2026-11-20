@@ -617,6 +617,10 @@ func _device_name(d: int) -> String:
 		return "TOUCH" if G.touch_active else "KEYBOARD"
 	return "GAMEPAD %d" % (d + 1)
 
+## Lobby seat height and the Seal row under the seats.
+const LOBBY_SEAT_H := 56
+const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
+
 func _draw_lobby(ci: CanvasItem) -> void:
 	var title := "LOCAL PLAY"
 	if Net.mode == Net.Mode.HOST:
@@ -625,41 +629,8 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		title = "LAN LOBBY"
 	_panel(ci, Rect2(24, 130, 432, 122))
 	PixelFont.draw_centered(ci, title, 240, 135, 1, Color("ffd94d"))
-	for slot in 4:
-		# A seat is tall enough for a 22 px wizard drawn double: 44 px clear between the name row and the spell.
-		var r := Rect2(34 + slot * 106, 148, 96, 78)
-		var entry = null
-		for e in Net.roster:
-			if e.slot == slot:
-				entry = e
-		var wiz: int = int(entry.get("wizard", slot)) if entry else slot
-		var col: Color = Sprites.PLAYER_COLORS[wiz].robe
-		ci.draw_rect(r, Color(col.r, col.g, col.b, 0.12 if entry else 0.04))
-		ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col if entry else col.darkened(0.6))
-		PixelFont.draw(ci, "P%d" % (slot + 1), r.position + Vector2(4, 4), 1, col)
-		if entry:
-			var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
-			Sprites.draw_at(ci, key, r.position + Vector2(48, 58), false, false, Color.WHITE, 2.0)
-			# The wizard picked, with arrows to step through the free ones, and the spell it starts with. The
-			# name shares the seat number's row, to the right of it, so that it never sits on the hat.
-			var cx := r.get_center().x
-			PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
-				Sprites.PLAYER_COLORS[wiz].fx)
-			if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
-				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 33), 1, Color.WHITE)
-				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 33), 1, Color.WHITE)
-			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
-			PixelFont.draw_centered(ci, spell, cx, r.end.y - 18, 1, Color("c9b8ff"))
-			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
-			PixelFont.draw_centered(ci, who, cx, r.end.y - 9, 1, Color.WHITE)
-		else:
-			# An empty seat at the coven: the wizard's shadow between two candles, waiting for a player.
-			var seat := r.position + Vector2(48, 55)
-			Sprites.draw_at(ci, "wiz%d_down_a" % slot, seat, false, false, Color(0.12, 0.06, 0.22, 0.75), 2.0)
-			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
-			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
-			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
-			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 14, 1, Color(1, 1, 1, blink))
+	_draw_seats(ci)
+	_draw_seal_row(ci)
 	var foot := ""
 	if Net.mode == Net.Mode.CLIENT:
 		foot = "WAITING FOR HOST TO START..."
@@ -672,6 +643,48 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		var ips := Net.local_ips()
 		var ip_text = "YOUR IP: " + (ips[0] if ips.size() > 0 else "?")
 		PixelFont.draw_centered(ci, ip_text, 240, 258, 1, Color("c9b8ff"))
+
+## The four seats of the lobby, LOBBY_SEAT_H tall: the seat number and wizard name on the top row, the wizard
+## drawn at 1x, then the spell it starts with and who plays it.
+func _draw_seats(ci: CanvasItem) -> void:
+	for slot in 4:
+		var r := Rect2(34 + slot * 106, 148, 96, LOBBY_SEAT_H)
+		var entry = null
+		for e in Net.roster:
+			if e.slot == slot:
+				entry = e
+		var wiz: int = int(entry.get("wizard", slot)) if entry else slot
+		var col: Color = Sprites.PLAYER_COLORS[wiz].robe
+		ci.draw_rect(r, Color(col.r, col.g, col.b, 0.12 if entry else 0.04))
+		ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col if entry else col.darkened(0.6))
+		PixelFont.draw(ci, "P%d" % (slot + 1), r.position + Vector2(4, 4), 1, col)
+		if entry:
+			var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
+			Sprites.draw_at(ci, key, r.position + Vector2(48, 38))
+			# The wizard picked, with arrows to step through the free ones, and the spell it starts with. The
+			# name shares the seat number's row, to the right of it, so that it never sits on the hat.
+			var cx := r.get_center().x
+			PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
+				Sprites.PLAYER_COLORS[wiz].fx)
+			if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
+				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 24), 1, Color.WHITE)
+				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 24), 1, Color.WHITE)
+			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
+			PixelFont.draw_centered(ci, spell, cx, r.end.y - 16, 1, Color("c9b8ff"))
+			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
+			PixelFont.draw_centered(ci, who, cx, r.end.y - 8, 1, Color.WHITE)
+		else:
+			# An empty seat at the coven: the wizard's shadow between two candles, waiting for a player.
+			var seat := r.position + Vector2(48, 38)
+			Sprites.draw_at(ci, "wiz%d_down_a" % slot, seat, false, false, Color(0.12, 0.06, 0.22, 0.75))
+			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
+			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
+			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
+			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 12, 1, Color(1, 1, 1, blink))
+
+## The row under the seats where the host picks the run's Seal (LOBBY_SEAL_ROW). Empty for now.
+func _draw_seal_row(_ci: CanvasItem) -> void:
+	pass
 
 func _draw_join(ci: CanvasItem) -> void:
 	_panel(ci, Rect2(80, 140, 320, 112))

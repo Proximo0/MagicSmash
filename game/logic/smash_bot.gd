@@ -82,10 +82,10 @@ const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5,
 
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.
-const PICK_PRIORITY: Array[int] = [Upgrades.EVO_FIRST, Upgrades.EVO_FIRST + 1, Upgrades.EVO_FIRST + 2,
-	Upgrades.EVO_FIRST + 3, Upgrades.EVO_FIRST + 4, Upgrades.EVO_FIRST + 5,
-	Upgrades.W_FIRST + 1, Upgrades.W_FIRST + 3, Upgrades.W_FIRST + 4, Upgrades.W_FIRST + 5, Upgrades.W_FIRST + 2,
-	Upgrades.W_FIRST,
+const PICK_PRIORITY: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.E_FROST,
+	Upgrades.E_STORM, Upgrades.E_STAR, Upgrades.E_RUNE,
+	Upgrades.W_FIRE, Upgrades.W_STORM, Upgrades.W_STAR, Upgrades.W_RUNE, Upgrades.W_FROST,
+	Upgrades.W_ARCANE,
 	Upgrades.POWER, Upgrades.QUICK, Upgrades.SWIFT, Upgrades.MAGNET,
 	Upgrades.WISDOM, Upgrades.REGEN, Upgrades.LIFE, Upgrades.NOVA]
 
@@ -729,7 +729,7 @@ func _plan_score(idx: int, lv: int, levels: Dictionary) -> float:
 		return 100.0
 	var target: int = _plan_target(levels)
 	if target >= 0:
-		for r: Array in Upgrades.CATALOG[target][5]:
+		for r: Array in Upgrades.CATALOG[target][Upgrades.C_REQUIRES]:
 			if int(r[0]) == idx and lv < int(r[1]):
 				# The required thing furthest along first: it finishes the plan soonest.
 				return 70.0 + float(lv) / float(maxi(1, int(r[1])))
@@ -737,7 +737,7 @@ func _plan_score(idx: int, lv: int, levels: Dictionary) -> float:
 	for e: int in range(Upgrades.count()):
 		if not Upgrades.is_evolution(e) or Upgrades.level_of(levels, e) > 0:
 			continue
-		for r: Array in Upgrades.CATALOG[e][5]:
+		for r: Array in Upgrades.CATALOG[e][Upgrades.C_REQUIRES]:
 			if int(r[0]) == idx and lv < int(r[1]) and lv > 0:
 				return 45.0 + lv
 	if Upgrades.is_weapon(idx):
@@ -754,7 +754,7 @@ func _plan_target(levels: Dictionary) -> int:
 			continue
 		var progress: float = 0.0
 		var reachable: bool = true
-		for r: Array in Upgrades.CATALOG[e][5]:
+		for r: Array in Upgrades.CATALOG[e][Upgrades.C_REQUIRES]:
 			var need: int = int(r[1])
 			if Upgrades.max_level(int(r[0])) < need:
 				reachable = false

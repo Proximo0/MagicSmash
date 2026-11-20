@@ -19,6 +19,8 @@ const FIELDS: Array = [
 	["horde_rate_base", 10.0, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
 	["horde_rate_per_min", 10.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
 	["spawn_party_scale", 1.1, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
+	["down_spawn_weight", 1.0, 0.0, 1.0, 0.05, "Spawning", "How much a fallen wizard counts toward the party size the horde scales with (1 = a full wizard)."],
+	["apprentice_scale", 1.0, 0.0, 1.0, 0.05, "Spawning", "How much an apprentice (computer wizard) counts toward the party size the horde scales with."],
 	["horde_boss_mul", 0.35, 0.0, 1.0, 0.05, "Spawning", "Spawn budget multiplier while the Lich is alive."],
 	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
 	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
@@ -90,6 +92,8 @@ var horde_start_budget: float
 var horde_rate_base: float
 var horde_rate_per_min: float
 var spawn_party_scale: float
+var down_spawn_weight: float
+var apprentice_scale: float
 var horde_boss_mul: float
 var rift_share: float
 var rift_warning: float
