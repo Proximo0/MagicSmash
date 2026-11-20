@@ -126,7 +126,7 @@ this for `balance_matrix` (string row and column labels plus a numeric rate) and
 
 ## Optional (cost routine upload)
 Written by `thread_costs.py` from the cloud session records of the project's threads (the daily cost routine; see
-docs/agent_dashboard.md). Thread ids come from the `session` field of `workers_src.json` rows.
+starter kit `docs/agent_dashboard.md`). Thread ids come from the `session` field of `workers_src.json` rows.
 
 ### threads: one row per thread session
 | field | type | meaning |

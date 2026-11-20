@@ -1,6 +1,6 @@
 # The big push, wave 1: brief for workers
 
-Read `CLAUDE.md`, `docs/agent_brief.md` (the hard rules) and `docs/lessons_learned.md` first. "Launch scope and
+Read `CLAUDE.md` and `docs/agent_brief.md` (the hard rules) first; `docs/lessons_learned.md` only the § your prompt names. "Launch scope and
 the big push" in `docs/handoff.md` says where the game is going. This file adds the rules and contracts for the
 six workers of wave 1. Workers code against it at the same time; nobody changes a contract here without the lead.
 
