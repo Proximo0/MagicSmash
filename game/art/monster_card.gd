@@ -9,6 +9,10 @@ const SOCKET_COLORS := [Color("8bdcff"), Color("ff8af0"), Color("ffd94d")]
 const INK := Color("0b0716")
 const FACE := Color("1b1030")
 const GOLD := Color("ffd94d")
+## The least share of a sprite's width and height a card must show to draw it at twice its size.
+const BUST := 0.65
+## The rectangle of each sprite that holds pixels, by sprite key (read once from its texture).
+static var _drawn := {}
 
 
 ## A card face filling `r` (best at 64x96 or larger). `found` false draws the silhouette and "?????".
@@ -30,12 +34,21 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 			ci.draw_line(c, c + Vector2.from_angle(a) * win.size.length() * 0.5, Color(SOCKET_COLORS[sock], 0.12), 2.0)
 	var tex: Texture2D = Sprites.get_tex(ENEMY_SPRITES[idx], not found)
 	if tex:
-		var scale := floorf(minf((win.size.x - 4) / tex.get_width(), (win.size.y - 4) / tex.get_height()))
-		scale = maxf(1.0, scale)
-		var size := Vector2(tex.get_width(), tex.get_height()) * scale
+		# The card frames the drawn part of the sprite (its map is padded so that it stays centred when it flips)
+		# at the largest whole scale that fits the window. A monster too big for twice its size is still drawn
+		# so when at least BUST of its width and height fits: what does not fit is cut from the feet up and
+		# evenly from both sides, which leaves a bust of the big monsters.
+		var src := _drawn_part(ENEMY_SPRITES[idx], tex)
+		var room := win.size - Vector2(2, 2)
+		var scale := maxf(1.0, floorf(minf(room.x / src.size.x, room.y / src.size.y)))
+		if scale < 2.0 and room.x >= src.size.x * 2.0 * BUST and room.y >= src.size.y * 2.0 * BUST:
+			scale = 2.0
+		var seen := Vector2(minf(src.size.x, floorf(room.x / scale)), minf(src.size.y, floorf(room.y / scale)))
+		src = Rect2(src.position.x + floorf((src.size.x - seen.x) / 2.0), src.position.y, seen.x, seen.y)
+		var size := seen * scale
 		var at := (win.get_center() - size / 2.0).floor()
 		var tint := Color.WHITE if found else Color(0.12, 0.06, 0.2)
-		ci.draw_texture_rect(tex, Rect2(at, size), false, tint)
+		ci.draw_texture_rect_region(tex, Rect2(at, size), src, tint)
 	ci.draw_rect(win, Color(GOLD, 0.5 if found else 0.2), false, 1.0)
 	var cx := r.get_center().x
 	PixelFont.draw_centered(ci, Cards.SOCKET_NAMES[sock], cx, r.position.y + 4, 1,
@@ -53,6 +66,12 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 			var x := sx + k
 			if x >= r.position.x and x < r.end.x:
 				ci.draw_rect(Rect2(x, r.position.y, 1, r.size.y), Color(1, 1, 1, 0.18 * shine))
+
+
+static func _drawn_part(key: String, tex: Texture2D) -> Rect2:
+	if not _drawn.has(key):
+		_drawn[key] = Rect2(tex.get_image().get_used_rect())
+	return _drawn[key]
 
 
 static func _fit_centered(ci: CanvasItem, text: String, cx: float, y: float, width: float, c: Color) -> void:

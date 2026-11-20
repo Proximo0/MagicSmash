@@ -796,7 +796,8 @@ static func draw_at(ci: CanvasItem, key: String, feet: Vector2, flip: bool = fal
 	var sz := src.size * scale
 	var p := (feet - Vector2(sz.x / 2.0, sz.y)).round()
 	# A negative width mirrors the sprite without a transform change, which would split the batch.
-	var dst := Rect2(p.x + sz.x, p.y, -sz.x, sz.y) if flip else Rect2(p, sz)
+	# A negative width mirrors the sprite in place: the position stays the top-left corner.
+	var dst := Rect2(p.x, p.y, -sz.x, sz.y) if flip else Rect2(p, sz)
 	ci.draw_texture_rect_region(_atlas, dst, src, modulate, false, false)
 
 ## Draws a sprite with its middle on `at`, pixel-snapped: shots, glows, sparks and marks on the floor.
