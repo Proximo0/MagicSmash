@@ -1,26 +1,45 @@
 extends Node2D
-## Title screen, lobby and LAN browser. Everything is drawn procedurally:
-## a twilight sky, a castle on the hill, an animated logo and four wizards
-## launching fireworks.
+## Title screen, lobby and LAN browser, on the FOUR OF WANDS backdrop: night, a huge moon behind the wizards'
+## tower, four staffs planted in the foreground with a garland strung between them, and the four wizards
+## celebrating under it. `TitleArt` bakes everything that stands still; this draws the layers and what moves:
+## the gems breathe, the lanterns sway, wisps cross the moon and the wizards send up fireworks.
 
 enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE, CARDS }
 
 const MENU := ["PLAY", "UNLOCKS", "CARDS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "QUIT"]
+
+## The menu hangs in the first bay of the garland, under the logo: its centre line, first row and row pitch.
+const MENU_X := 104
+const MENU_Y := 141
+const MENU_STEP := 11
+
+## The intro, in seconds: the gems light one by one, the lanterns in a wave from the left, the logo is struck
+## letter by letter and cools to gold, then its own four gems are set. The menu follows at 2.6 as it always has.
+const GEM_AT := 0.15
+const GEM_STEP := 0.14
+const LANTERN_AT := 0.5
+const LANTERN_WAVE := 0.7
+const LETTER_AT := 0.45
+const LETTER_STEP := 0.11
+const LETTER_COOL := 0.55
+const LOGO_GEM_AT := 1.75
+const LOGO_GEM_STEP := 0.08
+
+## The wisps of cloud that cross the moon: [x when the screen opens, y, pixels a second].
+const WISPS := [[236.0, 52, 2.0], [318.0, 98, 1.3], [282.0, 24, 2.6]]
 
 var state := S.INTRO
 var t := 0.0
 var sel := 0
 var join_sel := 0
 var unlock_sel := 0
-var stars: Array = []
-var mountains_a := PackedFloat32Array()
-var mountains_b := PackedFloat32Array()
 var fx: Fx
 var glow: Node2D
+var fore: Node2D
+var fore_glow: Node2D
 var front: Node2D
-var lightning := 0.0
-var lightning_pts := PackedVector2Array()
-var cast_timer := 1.0
+var cast_timer := 1.6
+var smoke_timer := 0.0
 var wiz_cast := [0.0, 0.0, 0.0, 0.0]
 var message := ""
 var message_t := 0.0
@@ -35,34 +54,28 @@ var tale_then := ""
 var tale_dev := 0
 var menu_items: Array = []
 var rng := RandomNumberGenerator.new()
-var _landed := {}
+## The steps of the intro that have happened, so each sounds once.
+var _struck := {}
+## How far the scene is dimmed behind a sub-screen's panel, 0..1.
+var dim := 0.0
 var eclipse := 0.0 # seconds left of the blood moon (click the moon)
 var ghost_t := -1.0 # seconds since the ghost left the tower's top window (click it), -1 when none
-const MOON := Vector2(410, 46)
-const TOP_WINDOW := Rect2(317, 163, 11, 10) # the lit window low on the right tower
+const MOON := TitleArt.MOON
+const TOP_WINDOW := TitleArt.TOP_WINDOW # the middle window of the tower's top room
 const ECLIPSE_LIFE := 8.0
 const GHOST_LIFE := 5.0
 
-const WIZ_X := [34, 74, 406, 446]
-
 func _ready() -> void:
 	rng.randomize()
-	for i in 110:
-		stars.append([Vector2(rng.randf_range(0, 480), rng.randf_range(0, 150)), rng.randf() * TAU, rng.randf_range(0.5, 2.5), rng.randi() % 3])
-	for x in 481:
-		mountains_a.append(175.0 - 40.0 * absf(sin(x * 0.011 + 1.0)) - 18.0 * absf(sin(x * 0.037)) - 6.0 * sin(x * 0.13))
-		mountains_b.append(205.0 - 22.0 * absf(sin(x * 0.017 + 3.0)) - 10.0 * absf(sin(x * 0.051)) - 4.0 * sin(x * 0.21))
-	glow = Node2D.new()
-	var m := CanvasItemMaterial.new()
-	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	glow.material = m
-	add_child(glow)
-	glow.draw.connect(_draw_glow)
+	TitleArt.warm()
+	# Back to front: the baked scene and the wizards (this node), their glow, the fireworks, the staffs and
+	# garland with their own glow, then the logo, menu and panels.
+	glow = _layer(true, _draw_glow)
 	fx = Fx.new()
 	add_child(fx)
-	front = Node2D.new()
-	add_child(front)
-	front.draw.connect(_draw_front)
+	fore = _layer(false, _draw_fore)
+	fore_glow = _layer(true, _draw_fore_glow)
+	front = _layer(false, _draw_front)
 	Net.roster_changed.connect(_on_roster)
 	Net.connection_failed.connect(_on_conn_failed)
 	Net.games_found_changed.connect(func(): pass)
@@ -82,7 +95,18 @@ func _ready() -> void:
 		Net.start_offline()
 		state = S.LOBBY
 		t = 4.0
+		dim = 1.0
 		_flash_burst()
+
+func _layer(additive: bool, draw_fn: Callable) -> Node2D:
+	var n := Node2D.new()
+	if additive:
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		n.material = m
+	add_child(n)
+	n.draw.connect(draw_fn)
+	return n
 
 func _msg(s: String) -> void:
 	message = s
@@ -90,202 +114,339 @@ func _msg(s: String) -> void:
 
 # ================================================================ LOOP ===
 func _process(delta: float) -> void:
-	t += delta
+	# The frame after a slow load is a long one: it must not swallow the start of the intro.
+	t += minf(delta, 0.1)
 	message_t = maxf(0.0, message_t - delta)
 	eclipse = maxf(0.0, eclipse - delta)
 	if ghost_t >= 0.0:
 		ghost_t += delta
 		if ghost_t > GHOST_LIFE:
 			ghost_t = -1.0
-	lightning = maxf(0.0, lightning - delta)
 	if state == S.INTRO and t > 3.2:
 		state = S.MAIN
-	# Occasional lightning strike on the castle spire
-	if rng.randf() < delta * 0.12 and lightning <= 0.0:
-		lightning = 0.35
-		lightning_pts = Fx.jag(Vector2(rng.randf_range(250, 330), 0), Vector2(292, 132), rng, 14.0)
-	# Wizards take turns launching fireworks
+	var panel := state in [S.LOBBY, S.JOIN, S.JOINING, S.HOWTO, S.UNLOCKS, S.OPTIONS]
+	dim = move_toward(dim, 1.0 if panel else 0.0, delta * 5.0)
+	_intro_steps()
+	# The wizards take turns sending up a rocket.
 	cast_timer -= delta
 	if cast_timer <= 0.0 and t > 1.0:
-		cast_timer = rng.randf_range(0.5, 1.1)
-		var w := rng.randi() % 4
-		wiz_cast[w] = 0.4
-		_launch(w)
+		cast_timer = rng.randf_range(1.2, 2.4)
+		_launch(rng.randi() % 4)
 	for i in 4:
 		wiz_cast[i] = maxf(0.0, wiz_cast[i] - delta)
 	_update_rockets(delta)
-	# Rising motes of magic
-	if rng.randf() < 0.6:
-		var c: Color = [Color("c9a6ff"), Color("4dfff0"), Color("ffd94d"), Color("ff7ae6")][rng.randi() % 4]
-		fx.spawn(Vector2(rng.randf_range(0, 480), 272), Vector2(rng.randf_range(-6, 6), rng.randf_range(-30, -12)),
-			rng.randf_range(3.0, 6.0), 1.0, c, Color(c.r, c.g, c.b, 0.0), true, 0.0)
-	# Letter landing impacts
-	for li in 2:
-		for i in 5:
-			var start := 0.15 + (li * 5 + i) * 0.12
-			var key := li * 10 + i
-			if not _landed.has(key) and t - start > 0.27:
-				_landed[key] = true
-				var sc := 6 if li == 0 else 8
-				var lx := 240.0 - PixelFont.text_width("MAGIC" if li == 0 else "SMASH", sc) / 2.0 + i * 6 * sc + 2.5 * sc
-				var ly := (20 if li == 0 else 68) + 7 * sc
-				var col := Color("b07bff") if li == 0 else Color("ff8a2a")
-				fx.burst(Vector2(lx, ly), 14, 90.0, 0.5, 1.0, Color.WHITE, col, true, 120.0)
-				Sfx.play("hit", -6.0, 0.6 + li * 0.15 + i * 0.05, 0.0)
-				if li == 1 and i == 4:
-					Sfx.play("explode", -4.0, 0.8, 0.0)
-					fx.flash(Vector2(240, 96), 120.0, Color(1.0, 0.6, 0.3), 0.25)
-	# Logo sparkles
-	if t > 2.4 and rng.randf() < 0.3:
-		var lp := Vector2(rng.randf_range(150, 330), rng.randf_range(24, 118))
-		fx.spawn(lp, Vector2.ZERO, 0.5, 1.0, Color.WHITE, Color("ffd94d"), true, 0.0)
+	_ambience(delta)
 	queue_redraw()
 	glow.queue_redraw()
+	fore.queue_redraw()
+	fore_glow.queue_redraw()
 	front.queue_redraw()
 	if state == S.OUIJA:
 		planchette = planchette.lerp(_ouija_pos(ouija.row, ouija.col), minf(1.0, delta * 14.0))
 
-var rockets: Array = [] # [pos, vel, color, fuse]
+## Runs `what` once as the intro passes `at`. A step skipped over (a key pressed, or the screen opened past its
+## intro) is marked without it, so nothing sounds late.
+func _strike(key: String, at: float, what: Callable) -> void:
+	if t < at or _struck.has(key):
+		return
+	_struck[key] = true
+	if t - at < 0.25:
+		what.call()
+
+func _intro_steps() -> void:
+	for i in 4:
+		_strike("gem%d" % i, GEM_AT + i * GEM_STEP, func() -> void:
+			var c: Color = TitleArt.WIZ[i][0]
+			var p := TitleArt.gem_pos(i)
+			fx.ring(p, 2.0, 20.0, 0.5, c, 1.0)
+			fx.burst(p, 10, 46.0, 0.5, 1.0, Color.WHITE, c, true, 0.0, true)
+			Sfx.play("candle", -8.0, 0.85 + i * 0.12, 0.0))
+	var letters := TitleArt.logo_letters()
+	var at := Vector2(TitleArt.LOGO_AT)
+	for i in letters.size():
+		_strike("letter%d" % i, LETTER_AT + i * LETTER_STEP, func() -> void:
+			var r := Rect2(letters[i])
+			fx.burst(at + r.position + Vector2(r.size.x * 0.5, r.size.y - 4.0), 7, 70.0, 0.45, 1.0, Color.WHITE,
+				Color("ffb326"), true, 130.0)
+			Sfx.play("hit", -9.0, 0.7 + i * 0.045, 0.0)
+			if i == letters.size() - 1:
+				Sfx.play("explode", -7.0, 0.85, 0.0))
+	for i in 4:
+		_strike("logo_gem%d" % i, LOGO_GEM_AT + i * LOGO_GEM_STEP, func() -> void:
+			var c: Color = TitleArt.WIZ[i][0]
+			fx.burst(at + TitleArt.logo_gems()[i], 6, 34.0, 0.4, 1.0, Color.WHITE, c, true)
+			Sfx.play("menu_move", -8.0, 1.3 + i * 0.16, 0.0))
+
+## The small slow things: fireflies over the meadow and the lake, smoke from the tower's chimney.
+func _ambience(delta: float) -> void:
+	if rng.randf() < delta * 1.4:
+		var p := Vector2(rng.randf_range(196, 472), rng.randf_range(198, 264))
+		var c := Color(0.85, 1.0, 0.45)
+		fx.spawn(p, Vector2(rng.randf_range(-5, 5), rng.randf_range(-6, 1)), rng.randf_range(2.0, 4.0), 1.0, c,
+			Color(c, 0.0), true, 0.0)
+	smoke_timer -= delta
+	if smoke_timer <= 0.0:
+		smoke_timer = rng.randf_range(0.5, 0.8)
+		var c := Color(TitleArt.NIGHT[3], 0.55)
+		fx.spawn(Vector2(TitleArt.TOWER_X + 21.5, 88), Vector2(rng.randf_range(1.0, 3.5), rng.randf_range(-6, -4)), 5.0, 1.0,
+			c, Color(c, 0.0), false, 0.0, 0.0, 3.0)
+
+var rockets: Array = [] # [pos, vel, light colour, fuse, deep colour]
+var blooms: Array = [] # a burst's light on the lake: [pos, colour, seconds left]
 
 func _launch(w: int) -> void:
-	var col: Color = Sprites.PLAYER_COLORS[w].fx
-	var start := Vector2(WIZ_X[w] + (14 if w < 2 else -14), 210)
-	var target := Vector2(rng.randf_range(60, 420), rng.randf_range(20, 110))
-	var vel := (target - start).normalized() * rng.randf_range(170, 230)
-	rockets.append([start, vel, col, rng.randf_range(0.5, 0.9)])
+	wiz_cast[w] = 0.45
+	var col: Color = TitleArt.WIZ[w][0]
+	var start: Vector2 = TitleArt.WIZ_SPOTS[w] + TitleArt.wand_tip(w, 2)
+	# Up into the open sky between the logo and the moon.
+	var target := Vector2(rng.randf_range(204, 322), rng.randf_range(22, 92))
+	var speed := rng.randf_range(170, 215)
+	rockets.append([start, (target - start).normalized() * speed, col, start.distance_to(target) / speed, TitleArt.WIZ[w][1]])
+	fx.burst(start, 5, 30.0, 0.3, 1.0, Color.WHITE, col, true)
 	Sfx.play("shoot_arcane", -18.0, rng.randf_range(0.8, 1.1), 0.1)
 
 func _update_rockets(delta: float) -> void:
 	for r in rockets:
 		r[0] += r[1] * delta
-		r[1].y += 60.0 * delta
+		r[1].y += 40.0 * delta
 		r[3] -= delta
 		fx.spawn(r[0], -r[1] * 0.1, 0.35, 1.0, Color.WHITE, r[2], true, 2.0)
 		if r[3] <= 0.0:
 			var c: Color = r[2]
-			fx.burst(r[0], 36, 110.0, 1.1, 1.0, Color.WHITE, c, true, 45.0, true)
-			fx.ring(r[0], 2.0, 26.0, 0.4, c, 1.0)
-			fx.flash(r[0], 16.0, c, 0.15)
+			_firework(r[0], c, r[4])
+			# The lake answers a burst over it with a dim bloom of the same colour.
+			if r[0].x > 200.0 and r[0].x < 262.0:
+				blooms.append([Vector2(r[0].x, 214.0), c, 0.7])
 			Sfx.play("explode", -20.0, rng.randf_range(1.3, 1.8), 0.15)
 	rockets = rockets.filter(func(r): return r[3] > 0.0)
+	for b in blooms:
+		b[2] -= delta
+	blooms = blooms.filter(func(b): return b[2] > 0.0)
+
+## A rocket bursts: a flower of rays in the wizard's colour that opens, hangs and fades, and gold glitter that
+## falls out of it.
+func _firework(pos: Vector2, light: Color, deep: Color) -> void:
+	var rays := 12 + rng.randi() % 5
+	var spin := rng.randf() * TAU
+	var reach := rng.randf_range(0.85, 1.2)
+	for k in rays:
+		var dir := Vector2.from_angle(spin + k * TAU / rays)
+		for shell in 4:
+			var c0: Color = [deep, deep.lerp(light, 0.5), light, Color.WHITE][shell]
+			fx.spawn(pos, dir * (22.0 + shell * 19.0) * reach, 1.5 + shell * 0.15, 1.0, c0, Color(deep, 0.0), true, 1.9, 14.0,
+				1.0, shell >= 2)
+	for k in 12:
+		var dir := Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(8.0, 36.0)
+		fx.spawn(pos, dir, rng.randf_range(1.6, 2.6), 1.0, Color("fff6c0"), Color(Color("ffb326"), 0.0), true, 1.2, 46.0, 1.0)
+	fx.flash(pos, 5.0, light, 0.12)
 
 # ============================================================= DRAWING ===
+## How deep the moon is in the eclipse, 0..1.
+func _blood() -> float:
+	return clampf(minf(eclipse, ECLIPSE_LIFE - eclipse) / 1.2, 0.0, 1.0) if eclipse > 0.0 else 0.0
+
+## Which frame wizard `i` is in: 0 and 1 cheer, 2 thrusts the wand up as a rocket leaves it.
+func _wiz_frame(i: int) -> int:
+	if wiz_cast[i] > 0.0:
+		return 2
+	return int(t * 2.2 + i * 0.6) % 2
+
 func _draw() -> void:
-	# Sky: dithered twilight bands
-	var bands := [Color("0b0420"), Color("140832"), Color("1f0c45"), Color("2e1255"), Color("47185f"), Color("6a1f66"), Color("932a68"), Color("b8406a")]
-	var bh := 24
-	for i in bands.size():
-		var c: Color = bands[i]
-		if lightning > 0.0:
-			c = c.lerp(Color("b8b0ff"), lightning * 0.6)
-		draw_rect(Rect2(0, i * bh, 480, bh), c)
-		if i + 1 < bands.size():
-			var n: Color = bands[i + 1]
-			for x in range(0, 480, 2):
-				draw_rect(Rect2(x + ((i * bh + bh - 2) % 2), i * bh + bh - 2, 1, 1), n)
-				draw_rect(Rect2(x + 1, i * bh + bh - 1, 1, 1), n)
-	draw_rect(Rect2(0, bands.size() * bh, 480, 270), bands[-1])
-	# Stars
-	for s in stars:
-		var tw := 0.5 + 0.5 * sin(t * s[2] + s[1])
-		var c := Color(1, 1, 1, 0.3 + 0.7 * tw)
-		if s[3] == 0 and tw > 0.8:
-			draw_rect(Rect2(s[0] + Vector2(-1, 0), Vector2(3, 1)), Color(c.r, c.g, c.b, 0.5))
-			draw_rect(Rect2(s[0] + Vector2(0, -1), Vector2(1, 3)), Color(c.r, c.g, c.b, 0.5))
-		draw_rect(Rect2(s[0], Vector2(1, 1)), c)
-	# Moon (blood red, with the earth's shadow crossing it, while eclipsed)
-	var mc := MOON
-	var blood := clampf(minf(eclipse, ECLIPSE_LIFE - eclipse) / 1.2, 0.0, 1.0) if eclipse > 0.0 else 0.0
-	draw_circle(mc, 20, Color("ffe9c4").lerp(Color("b0202a"), blood))
-	draw_circle(mc + Vector2(5, -3), 4, Color("f0d4a8").lerp(Color("801820"), blood))
-	draw_circle(mc + Vector2(-7, 6), 3, Color("f0d4a8").lerp(Color("801820"), blood))
-	draw_circle(mc + Vector2(-2, -9), 2, Color("f0d4a8").lerp(Color("801820"), blood))
+	draw_texture(TitleArt.sky(), Vector2.ZERO)
+	# The brightest stars twinkle: a small cross that comes and goes.
+	for s: Array in TitleArt.twinkles():
+		var tw := sin(t * float(s[2]) + float(s[1]))
+		if tw > 0.55:
+			var p: Vector2 = s[0]
+			var c := Color(s[3] as Color, (tw - 0.55) / 0.45 * 0.8)
+			draw_rect(Rect2(p.x - 1, p.y, 3, 1), c)
+			draw_rect(Rect2(p.x, p.y - 1, 1, 3), c)
+	var blood := _blood()
+	_draw_moon(blood)
+	_draw_wisps(blood)
+	draw_texture(TitleArt.land(), Vector2.ZERO)
 	if eclipse > 0.0:
-		var k := 1.0 - eclipse / ECLIPSE_LIFE
-		draw_circle(mc + Vector2(lerpf(-44.0, 44.0, k), 0), 19, Color(0.04, 0.0, 0.08, 0.55 * blood))
-		draw_rect(Rect2(0, 0, 480, 270), Color(0.5, 0.0, 0.05, 0.12 * blood))
+		draw_rect(Rect2(0, 0, 480, 270), Color(0.5, 0.0, 0.05, 0.14 * blood))
 		# Bats stream across the sky.
 		for i in 14:
 			var bx := fposmod(-60.0 + (ECLIPSE_LIFE - eclipse) * (70.0 + i * 9.0) + i * 37.0, 560.0) - 40.0
-			var by := 30.0 + fmod(i * 23.0, 90.0) + sin(t * 3.0 + i) * 6.0
+			var by := 26.0 + fmod(i * 23.0, 104.0) + sin(t * 3.0 + i) * 6.0
 			Sprites.draw_at(self, "bat_a" if int(t * 12.0 + i) % 2 == 0 else "bat_b", Vector2(bx, by), i % 2 == 0)
-	# Distant mountains
-	for x in 480:
-		draw_rect(Rect2(x, mountains_a[x], 1, 270 - mountains_a[x]), Color("2a1048"))
-	_draw_castle()
-	for x in 480:
-		draw_rect(Rect2(x, mountains_b[x], 1, 270 - mountains_b[x]), Color("1a0a30"))
-	# Foreground ledge
-	draw_rect(Rect2(0, 240, 480, 30), Color("0d0618"))
-	for x in range(0, 480, 4):
-		var h := 2 + int(abs(sin(x * 0.3)) * 3)
-		draw_rect(Rect2(x, 240 - h, 4, h), Color("0d0618"))
-	draw_rect(Rect2(0, 240, 480, 1), Color("3a1f5a"))
+	_draw_ghost()
+	# Behind a sub-screen's panel the wizards fall into shadow, so a hint written under the panel stays clear.
+	var shade := Color.WHITE.lerp(Color(0.2, 0.16, 0.3), dim)
+	for i in 4:
+		TitleArt.draw_sprite(self, "wiz%d_%s" % [i, "abc"[_wiz_frame(i)]], TitleArt.WIZ_SPOTS[i], shade)
 
-func _draw_castle() -> void:
-	var base := Color("150828")
-	var cx := 292
-	draw_rect(Rect2(cx - 50, 150, 100, 40), base)
-	# Towers
-	for tw in [[cx - 50, 120, 14], [cx + 36, 112, 14], [cx - 12, 92, 24]]:
-		draw_rect(Rect2(tw[0], tw[1], tw[2], 190 - tw[1]), base)
-		for b in range(0, tw[2], 4):
-			draw_rect(Rect2(tw[0] + b, tw[1] - 3, 2, 3), base)
-		# Roof spire
-		for k in 12:
-			var w: int = maxi(1, tw[2] - k * 2)
-			draw_rect(Rect2(tw[0] + (tw[2] - w) / 2, tw[1] - 4 - k * 2, w, 2), base)
-	draw_rect(Rect2(cx, 64, 1, 8), base)
-	# Battlements
-	for b in range(cx - 50, cx + 50, 6):
-		draw_rect(Rect2(b, 146, 3, 4), base)
-	# Windows with flickering light
-	var wins := [Vector2(cx - 45, 130), Vector2(cx + 41, 122), Vector2(cx - 4, 104), Vector2(cx + 2, 104),
-		Vector2(cx - 30, 160), Vector2(cx - 10, 165), Vector2(cx + 14, 160), Vector2(cx + 30, 168), Vector2(cx - 2, 124)]
-	for i in wins.size():
-		var f := 0.7 + 0.3 * sin(t * (3.0 + i) + i * 1.7)
-		draw_rect(Rect2(wins[i], Vector2(2, 3)), Color(1.0, 0.75 * f, 0.3 * f))
+## The moon; blood red, with the earth's shadow crossing it, while eclipsed.
+func _draw_moon(blood: float) -> void:
+	var r := TitleArt.MOON_R
+	var at := MOON - Vector2(r, r)
+	draw_texture(TitleArt.moon(), at)
+	if blood > 0.0:
+		draw_texture(TitleArt.moon(true), at, Color(1, 1, 1, blood))
+	if eclipse <= 0.0:
+		return
+	# The shadow is a disc sliding over the moon's own: drawn row by row where the two overlap.
+	var sx := MOON.x + lerpf(-2.1, 2.1, 1.0 - eclipse / ECLIPSE_LIFE) * r
+	var sr := r - 3.0
+	for dy in range(-r, r + 1):
+		if absf(dy) >= sr:
+			continue
+		var hm := floorf(sqrt((r + 0.5) * (r + 0.5) - dy * dy))
+		var hs := floorf(sqrt(sr * sr - dy * dy))
+		var x0 := maxf(MOON.x - hm, floorf(sx) - hs)
+		var x1 := minf(MOON.x + hm + 1.0, floorf(sx) + hs + 1.0)
+		if x1 > x0:
+			draw_rect(Rect2(x0, MOON.y + dy, x1 - x0, 1), Color(0.04, 0.0, 0.08, 0.6 * blood))
 
-## The tower's ghost: a pale wisp that slips out of the top window, sways up over the castle and fades.
-func _draw_ghost(ci: CanvasItem) -> void:
+## Wisps of cloud drifting across the sky. Where one crosses the moon's disc it is a lit veil: the second strip,
+## clipped row by row to the disc.
+func _draw_wisps(blood: float) -> void:
+	var tex := TitleArt.wisps()
+	var lit := TitleArt.wisps_lit()
+	var size := Vector2(TitleArt.WISP)
+	var r := TitleArt.MOON_R + 0.5
+	var tint := Color.WHITE.lerp(Color(0.8, 0.25, 0.3), blood)
+	for k in WISPS.size():
+		var wx := floorf(fposmod(float(WISPS[k][0]) + t * float(WISPS[k][2]) + size.x, 480.0 + size.x) - size.x)
+		var wy := float(WISPS[k][1])
+		draw_texture_rect_region(tex, Rect2(wx, wy, size.x, size.y), Rect2(0, k * size.y, size.x, size.y))
+		for row in int(size.y):
+			var dy := wy + row - MOON.y
+			if absf(dy) >= r:
+				continue
+			var half := floorf(sqrt(r * r - dy * dy))
+			var x0 := maxf(wx, MOON.x - half)
+			var x1 := minf(wx + size.x, MOON.x + half + 1.0)
+			if x1 > x0:
+				draw_texture_rect_region(lit, Rect2(x0, wy + row, x1 - x0, 1),
+					Rect2(x0 - wx, k * size.y + row, x1 - x0, 1), tint)
+
+## The tower's ghost: it slips out of the top window, sways up over the roof and fades.
+func _draw_ghost() -> void:
 	if ghost_t < 0.0:
 		return
 	var k := ghost_t / GHOST_LIFE
-	var a := clampf(minf(ghost_t * 2.0, (GHOST_LIFE - ghost_t) * 1.5), 0.0, 1.0) * 0.8
-	var p := Vector2(323 + sin(ghost_t * 2.2) * 10.0 + k * 30.0, 166 - k * 60.0).floor()
-	var c := Color(0.85, 0.95, 1.0, a)
-	ci.draw_rect(Rect2(p + Vector2(-3, -8), Vector2(7, 6)), c)
-	ci.draw_rect(Rect2(p + Vector2(-4, -3), Vector2(9, 7)), c)
-	for i in 3:
-		var wag := int(sin(ghost_t * 8.0 + i) * 1.5)
-		ci.draw_rect(Rect2(p + Vector2(-4 + i * 3, 4 + wag), Vector2(2, 2)), c)
-	ci.draw_rect(Rect2(p + Vector2(-1, -6), Vector2(1, 2)), Color(0.1, 0.0, 0.2, a))
-	ci.draw_rect(Rect2(p + Vector2(2, -6), Vector2(1, 2)), Color(0.1, 0.0, 0.2, a))
-
+	var a := clampf(minf(ghost_t * 2.0, (GHOST_LIFE - ghost_t) * 1.5), 0.0, 1.0) * 0.9
+	var from := TOP_WINDOW.get_center()
+	var p := Vector2(from.x - k * 50.0 + sin(ghost_t * 2.2) * 7.0, from.y + 8.0 - k * 36.0)
+	TitleArt.draw_sprite(self, "ghost_a" if int(ghost_t * 5.0) % 2 == 0 else "ghost_b", p.floor(), Color(1, 1, 1, a))
 
 func _draw_glow() -> void:
 	var ci := glow
-	_draw_ghost(ci)
-	ci.draw_circle(Vector2(410, 46), 34, Color(1.0, 0.85, 0.6, 0.08))
-	ci.draw_circle(Vector2(410, 46), 26, Color(1.0, 0.85, 0.6, 0.08))
-	ci.draw_circle(Vector2(292, 150), 70, Color(1.0, 0.5, 0.3, 0.04))
-	if lightning > 0.0:
-		var a := lightning / 0.35
-		ci.draw_polyline(lightning_pts, Color(0.6, 0.6, 1.0, 0.4 * a), 5.0)
-		ci.draw_polyline(lightning_pts, Color(1, 1, 1, a), 1.0)
+	var blood := _blood()
+	# The moon's halo, redder under the eclipse.
+	var halo := Color(0.72, 0.68, 1.0).lerp(Color(1.0, 0.12, 0.18), blood)
+	ci.draw_circle(MOON, 82, Color(halo, 0.03 + 0.03 * blood))
+	ci.draw_circle(MOON, 68, Color(halo, 0.035 + 0.03 * blood))
+	# Candlelight in the tower's windows and along the stair.
+	var wins := TitleArt.windows()
+	for i in wins.size():
+		var f := 0.75 + 0.25 * sin(t * (2.1 + i * 0.6) + i * 1.7)
+		var c: Vector2 = wins[i][0]
+		var r: float = wins[i][1]
+		_halo(ci, c, r + 2.0, Color(1.0, 0.62, 0.22), 0.26 * f, 4)
+	var lights := TitleArt.path_lights()
+	for i in lights.size():
+		_halo(ci, lights[i] + Vector2(0.5, 0.5), 4.5, Color(1.0, 0.62, 0.22), 0.3 + 0.1 * sin(t * 3.0 + i * 2.3), 3)
+	if ghost_t >= 0.0:
+		var a := clampf(minf(ghost_t * 2.0, (GHOST_LIFE - ghost_t) * 1.5), 0.0, 1.0)
+		var k := ghost_t / GHOST_LIFE
+		var from := TOP_WINDOW.get_center()
+		_halo(ci, Vector2(from.x - k * 50.0 + sin(ghost_t * 2.2) * 7.0, from.y - k * 36.0), 13.0, Color(0.2, 0.9, 0.8), 0.22 * a, 5)
 	for r in rockets:
-		ci.draw_circle(r[0], 4, Color(r[2].r, r[2].g, r[2].b, 0.4))
-	# Logo glow
-	if t > 0.5:
-		var a := clampf((t - 0.5) / 1.5, 0.0, 1.0)
-		var pulse := 0.8 + 0.2 * sin(t * 2.0)
-		ci.draw_circle(Vector2(240, 50), 70 * pulse, Color(0.5, 0.2, 1.0, 0.07 * a))
-		ci.draw_circle(Vector2(240, 98), 90 * pulse, Color(1.0, 0.4, 0.1, 0.07 * a))
+		_halo(ci, r[0], 5.0, r[2], 0.5, 3)
+	for b in blooms:
+		ci.draw_set_transform(b[0], 0.0, Vector2(1.0, 0.4))
+		_halo(ci, Vector2.ZERO, 22.0, b[1], 0.22 * minf(1.0, float(b[2]) / 0.4), 4)
+	ci.draw_set_transform(Vector2.ZERO)
+
+## The staffs and the garland, and what moves on them: the ribbons at the ties and the lanterns.
+func _draw_fore() -> void:
+	var ci := fore
+	ci.draw_texture(TitleArt.fore(), Vector2.ZERO)
+	for i in 4:
+		var tie := TitleArt.tie_pos(i)
+		var ramp: Array = TitleArt.WIZ[i]
+		for side in 2:
+			var n := 16 if side == 0 else 12
+			for r in n:
+				var u := float(r) / n
+				var sway := sin(t * 1.5 - r * 0.4 + i * 2.1 + side * 1.3) * 2.0 * u
+				var x := tie.x + (-4.0 if side == 0 else 2.0) + roundf(sway + (side * 2 - 1) * u * 3.0)
+				var y := tie.y + 4.0 + r
+				ci.draw_rect(Rect2(x - 1.0, y, 4, 2 if r == n - 1 else 1), TitleArt.INK)
+				@warning_ignore("integer_division")
+				ci.draw_rect(Rect2(x, y, 2, 1), ramp[1] if (r / 3) % 2 == 0 else ramp[2])
+	for l: Array in TitleArt.lanterns():
+		var knot: Vector2 = l[0]
+		var cord: int = l[1]
+		var lean := sin(t * 1.15 + float(l[2])) * 0.2
+		for k in cord:
+			ci.draw_rect(Rect2(knot.x + roundf(sin(lean) * k), knot.y + k, 1, 1), Color("7a2f14"))
+		var tex := TitleArt.sprite("lantern" if _lantern_lit(knot) else "lantern_off")
+		ci.draw_texture(tex, Vector2(knot.x + roundf(sin(lean) * (cord + 4)) - 4.0, knot.y + cord - 1.0))
+
+## The lanterns light in a wave from the left as the screen opens.
+func _lantern_lit(knot: Vector2) -> bool:
+	return t > LANTERN_AT + knot.x / 480.0 * LANTERN_WAVE
+
+func _draw_fore_glow() -> void:
+	var ci := fore_glow
+	# The logo's last letter lands with a breath of gold light behind the whole of it, which settles to a trace.
+	var last := LETTER_AT + (TitleArt.logo_letters().size() - 1) * LETTER_STEP
+	if t > last:
+		var k := clampf((t - last) / 1.2, 0.0, 1.0)
+		ci.draw_set_transform(Vector2(TitleArt.LOGO_AT) + Vector2(82, 40), 0.0, Vector2(1.0, 0.56))
+		_halo(ci, Vector2.ZERO, 112.0 - 14.0 * k, Color(1.0, 0.62, 0.2), 0.32 - 0.22 * k, 8)
+		ci.draw_set_transform(Vector2.ZERO)
+	for i in 4:
+		var lit := clampf((t - GEM_AT - i * GEM_STEP) / 0.3, 0.0, 1.0)
+		if lit <= 0.0:
+			continue
+		var p := TitleArt.gem_pos(i) + Vector2(0.5, 0.5)
+		var c: Color = TitleArt.WIZ[i][0]
+		# The gem breathes.
+		var breath := 0.5 + 0.5 * sin(t * 1.5 + i * 1.6)
+		_halo(ci, p, 22.0 + 3.0 * breath, c, (0.24 + 0.1 * breath) * lit, 8)
+		# A slow broken ring and three motes turn about it, as about the Sanctum's portal.
+		var dir := 1.0 if i % 2 == 0 else -1.0
+		for k in 2:
+			var a0 := dir * t * 0.5 + k * PI + i
+			ci.draw_arc(p, 15.5, a0, a0 + 1.4, 10, Color(c, 0.3 * lit), 1.0)
+		for k in 3:
+			var a := -dir * t * 0.8 + k * TAU / 3.0 + i
+			ci.draw_rect(Rect2((p + Vector2(cos(a), sin(a)) * 19.5).floor(), Vector2(1, 1)), Color(c, 0.85 * lit))
+	for l: Array in TitleArt.lanterns():
+		var knot: Vector2 = l[0]
+		if not _lantern_lit(knot):
+			continue
+		var cord: int = l[1]
+		var lean := sin(t * 1.15 + float(l[2])) * 0.2
+		var p := Vector2(knot.x + roundf(sin(lean) * (cord + 4)) + 0.5, knot.y + cord + 5.0)
+		var f := 0.8 + 0.2 * sin(t * 5.0 + float(l[2]) * 3.0)
+		_halo(ci, p, 11.0, Color(1.0, 0.66, 0.25), 0.22 * f, 5)
+	# The spark at each wizard's wand tip.
+	for i in 4:
+		var tip: Vector2 = TitleArt.WIZ_SPOTS[i] + TitleArt.wand_tip(i, _wiz_frame(i))
+		var c: Color = TitleArt.WIZ[i][0]
+		var tw := 0.6 + 0.4 * sin(t * 6.0 + i * 2.0)
+		ci.draw_rect(Rect2(tip.x - 1, tip.y, 3, 1), Color(c, tw))
+		ci.draw_rect(Rect2(tip.x, tip.y - 1, 1, 3), Color(c, tw))
+		_halo(ci, tip + Vector2(0.5, 0.5), 6.0, c, 0.2 * tw, 3)
+
+## A soft light on an additive layer: discs laid one inside the other, none strong enough to show its edge.
+func _halo(ci: CanvasItem, p: Vector2, r: float, c: Color, a: float, steps: int) -> void:
+	for k in steps:
+		var u := float(k) / steps
+		ci.draw_circle(p, r * (1.0 - u * 0.86), Color(c, a / steps))
 
 func _draw_front() -> void:
 	var ci := front
+	if dim > 0.0:
+		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.07, 0.55 * dim))
 	_draw_logo(ci)
-	_draw_wizards(ci)
 	match state:
 		S.INTRO:
 			pass
@@ -312,79 +473,62 @@ func _draw_front() -> void:
 			_draw_join(ci)
 			_draw_ouija(ci)
 	if message_t > 0.0:
-		PixelFont.draw_centered(ci, message, 240, 6, 1, Color("ff7a8a"), Color("0b0716"))
-	PixelFont.draw(ci, "V" + G.VERSION, Vector2(3, 262), 1, Color(1, 1, 1, 0.3))
+		# Beside the logo, in the open sky; over the full-screen boards, in the middle.
+		var mx := 240.0 if state in [S.OUIJA, S.TALE, S.CARDS] else 334.0
+		PixelFont.draw_centered(ci, message, mx, 6, 1, Color("ff7a8a"), Color("0b0716"))
+	if state == S.INTRO and t < 0.5:
+		# The screen opens out of the dark.
+		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(TitleArt.INK, 1.0 - t / 0.5))
+	PixelFont.draw(ci, "V" + G.VERSION, Vector2(31, 262), 1, Color(1, 1, 1, 0.3))
 	if G.high_score > 0:
 		var hs := "BEST %d" % G.high_score
-		PixelFont.draw(ci, hs, Vector2(477 - PixelFont.text_width(hs), 262), 1, Color(1, 0.9, 0.4, 0.6))
+		PixelFont.draw(ci, hs, Vector2(449 - PixelFont.text_width(hs), 262), 1, Color(1, 0.9, 0.4, 0.6))
 
+## The logo. In the intro each letter is struck in white-hot, two pixels high, drops into place and cools to
+## gold; afterwards a band of light crosses it now and then.
 func _draw_logo(ci: CanvasItem) -> void:
-	var lines := [["MAGIC", 6, 20, Color("ffffff"), Color("b07bff"), Color("3a0f7a")],
-		["SMASH", 8, 68, Color("fff27a"), Color("ff4a2a"), Color("6a0a1a")]]
-	var li := 0
-	for L in lines:
-		var text: String = L[0]
-		var sc: int = L[1]
-		var w := PixelFont.text_width(text, sc)
-		var x0 := 240.0 - w / 2.0
-		for i in text.length():
-			# Letters drop in one by one with a bounce
-			var start := 0.15 + (li * 5 + i) * 0.12
-			var k := clampf((t - start) / 0.45, 0.0, 1.0)
+	var at := Vector2(TitleArt.LOGO_AT)
+	var tex := TitleArt.logo()
+	var hot := TitleArt.logo_hot()
+	var letters := TitleArt.logo_letters()
+	var done := LOGO_GEM_AT + 4 * LOGO_GEM_STEP
+	if t >= done:
+		ci.draw_texture(tex, at)
+	else:
+		for i in letters.size():
+			var k := (t - LETTER_AT - i * LETTER_STEP) / LETTER_COOL
 			if k <= 0.0:
 				continue
-			var drop := (1.0 - _bounce(k)) * -140.0
-			var wob := floorf(sin(t * 2.5 + i * 0.7 + li) * 2.0) if t > 2.2 else 0.0
-			var ox := x0 + i * (PixelFont.W + 1) * sc
-			var oy: float = L[2] + drop + wob
-			var cells := PixelFont.cells(text[i])
-			# Extruded 3D side
-			for d in range(sc, 0, -1):
-				for c in cells:
-					ci.draw_rect(Rect2(ox + c.x * sc + d * 0.5, oy + c.y * sc + d, sc, sc), L[5].darkened(0.3 * (1.0 - float(d) / sc)))
-			# Outline
-			for c in cells:
-				ci.draw_rect(Rect2(ox + c.x * sc - 2, oy + c.y * sc - 2, sc + 4, sc + 4), Color("0b0716"))
-			# Face with gradient + moving shine
-			var shine := fmod(t * 140.0, 900.0) - 200.0
-			for c in cells:
-				var col: Color = L[3].lerp(L[4], c.y / float(PixelFont.H - 1))
-				var px := ox + c.x * sc
-				var py := oy + c.y * sc
-				ci.draw_rect(Rect2(px, py, sc, sc), col)
-				ci.draw_rect(Rect2(px, py, sc, 1), col.lightened(0.4))
-				ci.draw_rect(Rect2(px, py + sc - 1, sc, 1), col.darkened(0.2))
-				var sd := px + py * 0.6 - shine
-				if sd > 0.0 and sd < 22.0:
-					ci.draw_rect(Rect2(px, py, sc, sc), Color(1, 1, 1, 0.55))
-			# Impact flash when a letter lands
-			if k > 0.5 and k < 1.0 and t - start < 0.5:
-				pass
-		li += 1
-	if t > 2.0:
-		var a := clampf((t - 2.0) / 0.5, 0.0, 1.0)
-		PixelFont.draw_centered(ci, "HOLD  THE  TOWER", 240, 132, 1, Color(0.8, 0.9, 1.0, a), Color(0.05, 0.02, 0.1, a))
-
-func _bounce(k: float) -> float:
-	if k < 0.6:
-		return k / 0.6 * k / 0.6
-	var b := (k - 0.8) / 0.2
-	return 1.0 - 0.12 * (1.0 - b * b)
-
-func _draw_wizards(ci: CanvasItem) -> void:
-	for i in 4:
-		var flip := i >= 2
-		var casting: bool = wiz_cast[i] > 0.0
-		var key := "wiz%d_side_%s" % [i, "b" if casting else "a"]
-		var bob := 0.0 if casting else floorf(sin(t * 3.0 + i) * 1.0)
-		var feet := Vector2(WIZ_X[i], 241 + bob)
-		Sprites.draw_at(ci, key, feet, flip, false, Color.WHITE, 2.0)
-		var hand := feet + Vector2(-6 if flip else 6, -13)
-		var tip := hand + Vector2(-8 if flip else 8, -18 if casting else -14)
-		ci.draw_line(hand, tip, Color("1a0f24"), 4.0)
-		ci.draw_line(hand, tip, Color("b07a3a"), 2.0)
-		var c: Color = Sprites.PLAYER_COLORS[i].fx
-		ci.draw_rect(Rect2(tip - Vector2(2, 2), Vector2(5, 5)), c if not casting else Color.WHITE)
+			var to := at + Vector2(letters[i].position) + Vector2(0, -2.0 if k < 0.1 else 0.0)
+			ci.draw_texture(TitleArt.logo_letter(i, false), to)
+			if k < 1.0:
+				ci.draw_texture(TitleArt.logo_letter(i, true), to, Color(1, 1, 1, 1.0 - k))
+		var gems := TitleArt.logo_gems()
+		for i in gems.size():
+			if t >= LOGO_GEM_AT + i * LOGO_GEM_STEP:
+				var r := Rect2(gems[i].x - 4.5, gems[i].y - 5.5, 9, 11)
+				ci.draw_texture_rect_region(tex, Rect2(at + r.position, r.size), r)
+	# The shimmer: a slanted band of the white-hot logo, a row at a time.
+	var sweep := fmod(t - 3.4, 7.0)
+	if t > 3.4 and sweep < 1.2:
+		var w := float(tex.get_width())
+		var lead := lerpf(-16.0, w + 44.0, sweep / 1.2)
+		for y in tex.get_height():
+			var x0 := clampf(floorf(lead - y * 0.55), 0.0, w)
+			var x1 := clampf(x0 + 9.0, 0.0, w)
+			if x1 > x0:
+				ci.draw_texture_rect_region(hot, Rect2(at.x + x0, at.y + y, x1 - x0, 1), Rect2(x0, y, x1 - x0, 1),
+					Color(1, 1, 1, 0.8))
+	if t > 1.7:
+		var a := clampf((t - 1.7) / 0.5, 0.0, 1.0)
+		var ty := at.y + tex.get_height() + 5.0
+		PixelFont.draw_centered(ci, "HOLD  THE  TOWER", MENU_X, ty, 1, Color(Occult.BONE, a), Color(Occult.INK, a))
+		# A short gold rule either side of it, ending in a diamond.
+		for side in [-1.0, 1.0]:
+			var x: float = MENU_X + side * 56.0
+			ci.draw_rect(Rect2(minf(x, x + side * 10.0), ty + 3.0, 11, 1), Color(Color("c48a10"), a))
+			ci.draw_rect(Rect2(x - 1.0, ty + 2.0, 3, 3), Color(Occult.GOLD, a))
+			ci.draw_rect(Rect2(x, ty + 1.0, 1, 5), Color(Occult.GOLD, a))
 
 func _panel(ci: CanvasItem, r: Rect2) -> void:
 	Occult.frame(ci, r, t)
@@ -398,24 +542,41 @@ func _visible_menu() -> Array:
 func _draw_menu(ci: CanvasItem) -> void:
 	var items := _visible_menu()
 	menu_items.clear()
-	var a := clampf((t - 2.6) / 0.4, 0.0, 1.0)
-	if a <= 0.0:
+	if t < 2.6:
 		return
 	for i in items.size():
-		var y := 141 + i * 12
+		var y := MENU_Y + i * MENU_STEP
 		var s := i == sel
 		var label: String = items[i]
-		var c := Color("ffd94d") if s else Color("b8a8d8")
-		c.a = a
-		var w := PixelFont.text_width(label, 1)
-		menu_items.append(Rect2(240 - 70, y - 3, 140, 12))
+		# The rows come in one after another.
+		var a := clampf((t - 2.6 - i * 0.03) / 0.3, 0.0, 1.0)
+		menu_items.append(Rect2(MENU_X - 62, y - 2, 124, MENU_STEP))
 		if s:
-			Occult.highlight(ci, Rect2(240 - w / 2.0 - 18, y - 3, w + 36, 12), t)
-			Occult.cursor(ci, Vector2(240 - w / 2.0 - 10, y + 3), t)
-			Occult.cursor(ci, Vector2(240 + w / 2.0 + 9, y + 3), -t)
-		PixelFont.draw_centered(ci, label, 240, y, 1, c, Color(0.04, 0.0, 0.1, a))
+			_draw_menu_mark(ci, y, PixelFont.text_width(label, 1), a)
+		PixelFont.draw_centered(ci, label, MENU_X, y, 1, Color(Occult.GOLD if s else Occult.DIM, a), Color(Occult.INK, a))
 	var hint := "TAP TO SELECT" if G.touch_active else "ARROWS/STICK + ENTER/A"
-	PixelFont.draw_centered(ci, hint, 240, 252, 1, Color(1, 1, 1, 0.35 * a))
+	PixelFont.draw_centered(ci, hint, MENU_X, MENU_Y + items.size() * MENU_STEP + 6, 1,
+		Color(1, 1, 1, 0.35 * clampf((t - 2.9) / 0.4, 0.0, 1.0)))
+
+## The chosen row: a dark band ruled in gold, and a wand either side pointing at the label.
+func _draw_menu_mark(ci: CanvasItem, y: float, w: float, a: float) -> void:
+	var band := Rect2(MENU_X - 60, y - 2, 120, MENU_STEP - 1)
+	var rule := Color("c48a10")
+	ci.draw_rect(band, Color(Color("2a1f45"), 0.85 * a))
+	for edge: float in [band.position.y, band.end.y - 1.0]:
+		ci.draw_rect(Rect2(band.position.x + 8, edge, band.size.x - 16, 1), Color(rule, a))
+		ci.draw_rect(Rect2(band.position.x + 2, edge, 4, 1), Color(rule, 0.5 * a))
+		ci.draw_rect(Rect2(band.end.x - 6, edge, 4, 1), Color(rule, 0.5 * a))
+	var nudge := roundf(sin(t * 5.0))
+	var spark := 0.7 + 0.3 * sin(t * 9.0)
+	for side: float in [-1.0, 1.0]:
+		# The wand's tip is nearest the label; its shaft runs away from it.
+		var tip := roundf(MENU_X + side * (w / 2.0 + 7.0 + nudge))
+		ci.draw_rect(Rect2(minf(tip + side * 2.0, tip + side * 9.0), y + 3, 8, 1), Color(rule, a))
+		ci.draw_rect(Rect2(tip + side * 10.0, y + 3, 1, 1), Color(Color("7a2f14"), a))
+		ci.draw_rect(Rect2(tip - 1.0, y + 3, 3, 1), Color(Color("fff6c0"), a * spark))
+		ci.draw_rect(Rect2(tip, y + 2, 1, 3), Color(Color("fff6c0"), a * spark))
+		ci.draw_rect(Rect2(tip, y + 3, 1, 1), Color(1, 1, 1, a))
 
 ## Meta unlocks: crystals earned in runs buy permanent head starts for every run (never sold for money).
 func _draw_unlocks(ci: CanvasItem) -> void:
@@ -462,10 +623,11 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		title = "HOSTING LAN GAME"
 	elif Net.mode == Net.Mode.CLIENT:
 		title = "LAN LOBBY"
-	_panel(ci, Rect2(24, 140, 432, 112))
-	PixelFont.draw_centered(ci, title, 240, 145, 1, Color("ffd94d"))
+	_panel(ci, Rect2(24, 130, 432, 122))
+	PixelFont.draw_centered(ci, title, 240, 135, 1, Color("ffd94d"))
 	for slot in 4:
-		var r := Rect2(34 + slot * 106, 158, 96, 68)
+		# A seat is tall enough for a 22 px wizard drawn double: 44 px clear between the name row and the spell.
+		var r := Rect2(34 + slot * 106, 148, 96, 78)
 		var entry = null
 		for e in Net.roster:
 			if e.slot == slot:
@@ -477,20 +639,22 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		PixelFont.draw(ci, "P%d" % (slot + 1), r.position + Vector2(4, 4), 1, col)
 		if entry:
 			var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
-			Sprites.draw_at(ci, key, r.position + Vector2(48, 47), false, false, Color.WHITE, 2.0)
-			# The wizard picked, with arrows to step through the free ones, and the spell it starts with.
+			Sprites.draw_at(ci, key, r.position + Vector2(48, 58), false, false, Color.WHITE, 2.0)
+			# The wizard picked, with arrows to step through the free ones, and the spell it starts with. The
+			# name shares the seat number's row, to the right of it, so that it never sits on the hat.
 			var cx := r.get_center().x
-			PixelFont.draw_centered(ci, Wizards.title(wiz), cx, r.position.y + 13, 1, Sprites.PLAYER_COLORS[wiz].fx)
+			PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
+				Sprites.PLAYER_COLORS[wiz].fx)
 			if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
-				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 28), 1, Color.WHITE)
-				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 28), 1, Color.WHITE)
+				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 33), 1, Color.WHITE)
+				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 33), 1, Color.WHITE)
 			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
 			PixelFont.draw_centered(ci, spell, cx, r.end.y - 18, 1, Color("c9b8ff"))
 			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
 			PixelFont.draw_centered(ci, who, cx, r.end.y - 9, 1, Color.WHITE)
 		else:
 			# An empty seat at the coven: the wizard's shadow between two candles, waiting for a player.
-			var seat := r.position + Vector2(48, 44)
+			var seat := r.position + Vector2(48, 55)
 			Sprites.draw_at(ci, "wiz%d_down_a" % slot, seat, false, false, Color(0.12, 0.06, 0.22, 0.75), 2.0)
 			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
 			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
@@ -673,20 +837,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			if dev != -99:
 				_buy_unlock(unlock_sel)
 
-## Clicks on the scenery: the moon turns to blood, a ghost leaves a lit window of the castle. Each is a secret the first time.
+## Clicks on the scenery: the moon turns to blood, a ghost leaves the lit window at the top of the tower. Each is
+## a secret the first time. The window lies inside the moon's disc, so it is asked first.
 func _title_secret(at: Vector2) -> bool:
 	var key := ""
-	if at.distance_to(MOON) < 20.0 and eclipse <= 0.0:
+	if TOP_WINDOW.has_point(at):
+		if ghost_t >= 0.0:
+			return false
+		ghost_t = 0.0
+		key = "ghost"
+		Sfx.play("ghost")
+		_msg("SOMEONE STILL LIVES IN THE TOWER")
+	elif at.distance_to(MOON) < TitleArt.MOON_R and eclipse <= 0.0:
 		eclipse = ECLIPSE_LIFE
 		key = "eclipse"
 		Sfx.play("bell_toll")
 		Sfx.play("boss_roar", -14.0, 0.6)
 		_msg("THE MOON BLEEDS")
-	elif TOP_WINDOW.has_point(at) and ghost_t < 0.0:
-		ghost_t = 0.0
-		key = "ghost"
-		Sfx.play("ghost")
-		_msg("SOMEONE STILL LIVES IN THE CASTLE")
 	else:
 		return false
 	message_t = 3.0
