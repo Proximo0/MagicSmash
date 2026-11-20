@@ -35,15 +35,15 @@ const STATS: Array = [
 const EVOS: Array = [
 	{"name": "ASTRAL LANCE", "desc": "PIERCING BOLTS", "partner": 4,
 		"cd": 0.09, "dmg": 2.2, "n": 3, "pierce": 2},
-	{"name": "THUNDERFIRE", "desc": "BLASTS FORK LIGHTNING", "partner": 3,
+	{"name": "THUNDERFIRE", "desc": "ZAPPING BLASTS", "partner": 3,
 		"cd": 0.75, "dmg": 4.4, "n": 3, "chain": 3},
 	{"name": "BLIZZARD", "desc": "A STORM OF ICE", "partner": 0,
 		"cd": 0.7, "dmg": 2.8, "n": 9, "pierce": 1, "slow": 3.5},
-	{"name": "TEMPEST", "desc": "TWIN LIGHTNING CHAINS", "partner": 1,
+	{"name": "TEMPEST", "desc": "TWIN CHAINS", "partner": 1,
 		"cd": 0.5, "dmg": 4.4, "n": 9, "chains": 2},
-	{"name": "COMET RAIN", "desc": "STARS BURST INTO ICE", "partner": 2,
+	{"name": "COMET RAIN", "desc": "ICY STARBURSTS", "partner": 2,
 		"cd": 0.6, "dmg": 2.6, "n": 6, "burst": 30.0},
-	{"name": "SEAL OF SOLOMON", "desc": "CIRCLES DRAW FOES IN", "partner": 4,
+	{"name": "SEAL OF SOLOMON", "desc": "SIGILS PULL IN", "partner": 4,
 		"cd": 1.4, "dmg": 1.2, "n": 3, "r": 32.0, "life": 3.5, "pull": 42.0},
 ]
 

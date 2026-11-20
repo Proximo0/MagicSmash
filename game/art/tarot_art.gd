@@ -447,6 +447,41 @@ static func draw_card_small(ci: CanvasItem, r: Rect2, key: String, title: String
 		ci.draw_rect(Rect2(r.position.x, r.end.y - 2, r.size.x, 1), Color(accent, 0.5 + 0.5 * pulse))
 
 
+## The longest card title and effect text (in characters) a row of the level-up tray fits (draw_card_row in the
+## arena's 116 px rows, text from 11 px in, the effect a space clear of the level); Upgrades.CATALOG keeps to them.
+const ROW_TITLE_CHARS := 15
+const ROW_EFFECT_CHARS := 14
+
+
+## One card as a row of the level-up tray (17 px tall; its top pixel row is left dark to part it from the row
+## above): the kind's colours with a stripe at the left edge, the title over the effect, the level at the right.
+## The first `inset` px are left clear for the caller's button glyph.
+static func draw_card_row(ci: CanvasItem, r: Rect2, key: String, title: String, effect: String, level_text: String,
+		inset: float) -> void:
+	var cols := _frame_colors(key)
+	var fill := Rect2(r.position + Vector2(0, 1), r.size - Vector2(0, 1)) # the top pixel row stays dark
+	ci.draw_rect(fill, cols[0])
+	ci.draw_rect(Rect2(fill.position, Vector2(2, fill.size.y)), cols[1])
+	var tx := r.position.x + inset
+	PixelFont.draw(ci, title, Vector2(tx, r.position.y + 1), 1, Color.WHITE, INK)
+	PixelFont.draw(ci, effect, Vector2(tx, r.position.y + 9), 1, Color("d8cff0"), INK)
+	# The level sits on a dark chip of its own, so it never reads as the end of the effect text.
+	var w := PixelFont.text_width(level_text)
+	ci.draw_rect(Rect2(r.end.x - w - 2, r.position.y + 8, w + 2, 9), INK)
+	PixelFont.draw(ci, level_text, Vector2(r.end.x - w, r.position.y + 9), 1, Color("5dff7a"), INK)
+
+
+## A tiny card back for icons (about 7x9): a frame in `accent` around a dark field with an eye.
+static func draw_back_icon(ci: CanvasItem, r: Rect2, accent: Color) -> void:
+	ci.draw_rect(r.grow(1), INK)
+	ci.draw_rect(r, accent)
+	ci.draw_rect(r.grow(-1), Color("2a1650"))
+	var c := (r.position + r.size / 2.0).floor()
+	ci.draw_rect(Rect2(c.x - 1, c.y, 3, 1), Color("e8dcc0"))
+	ci.draw_rect(Rect2(c.x, c.y - 1, 1, 3), Color("e8dcc0"))
+	ci.draw_rect(Rect2(c.x, c.y, 1, 1), Color("7b4dff"))
+
+
 static func _box(ci: CanvasItem, r: Rect2, c: Color) -> void:
 	ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), c)
 	ci.draw_rect(Rect2(Vector2(r.position.x, r.end.y - 1), Vector2(r.size.x, 1)), c)

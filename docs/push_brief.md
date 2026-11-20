@@ -43,12 +43,15 @@ need a change there, give the exact lines in your report.
 
 - `World.party_level: int` (from 1) and `World.party_xp: int`. `World.xp_needed() -> int` is the XP the party
   needs for its next level. `Player.level` always equals `party_level`; `Player.xp` is no longer used for levelling.
-- `World.gain_xp(p, amount)` keeps its signature and adds to the party's pool. When the pool fills, every wizard in
-  the run gets one more pending offer, whether alive or down.
+- `World.gain_xp(p, amount)` keeps its signature and adds to the party's pool. When the pool fills, every wizard
+  (up, down or out) gets one more pending offer.
 - Offers stay per wizard: `Player.choices`, `Player.offer`, `Player.pending`, and input fields 6 and 7
   `[card, offer id]` work as before, so `SmashBot.with_pick` does not change.
-- `World.pick_left: float` is the seconds left on the party's pick clock (0 when nobody is picking or when the clock
-  is off). The clock runs only with two or more wizards. Snapshots carry it.
+- The world never waits for picks. `World.lull_left: float` is the seconds left of the quiet after a Lich (not the
+  Archlich) falls (snapshot `w[10]`, event `EV_LULL`). Each player row ends with `draws` (queued offers, plus 1
+  while holding cards). `World.is_picking()` is a plain query.
+- Screen areas taken: the `LV n m:ss` pill and the lull plate sit at the foot of the screen (y 257, or 234 under a
+  boss bar); HUD columns x = slot * 120, y 28 to 89 belong to the level-up tabs and trays.
 
 ## Contract: bots (worker B provides; the arena, sims and tools read it)
 
