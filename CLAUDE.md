@@ -1,53 +1,46 @@
-# Magic Smash (Godot 4.7.2, GDScript)
+# FOUR OF WANDS (repo MagicSmash) · Godot 4.7.2 · GDScript
+Co-op survivors-like wizard shooter, 1-4p (local+LAN, host-auth ENet). Steam 18 Dec 2026. 480x270 pixel art, Compat renderer.
 
-FOUR OF WANDS (working title Magic Smash): a co-op survivors-like wizard shooter, 1 to 4 players (local + LAN,
-host-authoritative ENet), Steam launch 18 Dec 2026. 480x270 pixel art, Compatibility renderer.
+Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summary line · `⇒` rule · L lead · W worker
+· pure = `RefCounted` + `class_name`, no Node · § = doc section
+
+## Find code (never read a script >400 lines whole)
+- `T/graph.sh [Class ...]` who uses it / what it uses · `T/map.sh [dir]` 1 line/script · `T/outline.sh f.gd` funcs + line ranges ⇒ read by range.
 
 ## Commands
-Key: `T/` = `tools/`. `GD` = `godot --headless --path .`. Every tool is quiet and ends with one summary line (in caps below).
-- `T/run_tests.sh [test_name]`: unit tests (`tests/unit/`, ~3 s). `TESTS`. Also fails on an engine error, no assert, or over 10 s.
-- `T/lint.sh`: parse and static checks. `LINT problems=<n>`.
-- `T/run_sims.sh [sim ...]`: sims in `tests/sim/` (listed in `sim_suite.gd`), in parallel. `SIMS`. `sim_horde` holds a CPU-time step
-  budget: real on CI's own `sims-horde` runner, doubled in `check_all`.
-- `T/check_all.sh`: unit, sims, lint, bot (and lab if present). `CHECK_ALL`.
-- `T/golden.sh [base=origin/main]`: same seeded bot runs here and in base, state hash every 15 s. `GOLDEN same|changed`.
-- `T/map.sh [dir ...]`: one line per script. `T/outline.sh <file.gd>`: its functions with line ranges.
-  `T/graph.sh [Class ...]`: who uses a class or autoload and what it uses.
-- `T/import.sh`: shared import step, skipped unless an import input changed; `FORCE_IMPORT=1` forces. Every tool calls it.
-- `.claude/hooks/lint-on-edit.sh`: lints a `.gd` file after each Edit or Write.
-- `GD -s tools/tool.gd -- <name> [args]`: runs `tools/<name>.gd` after autoloads exist (new tools go here). A bare `-s` script
-  that names a game class prints eight compile-error lines, then runs (`tools/full_run.gd` does).
-- `GD -s tools/full_run.gd -- --wizards=4`: bots play to the Archlich, one line a minute. Balancing only.
-- `T/export_windows.sh` (zip), `T/export_android.sh` (debug APK): into `build/`. `T/fetch_sentry.sh`: pinned addon into `addons/sentry`.
-- Play: `godot --path .` (`-- --seed=N`). Bots with screenshots: `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir]`.
+- `T/run_tests.sh [name]` unit ~3 s `TESTS` (fails on engine error, 0 asserts, >10 s) · `T/lint.sh` `LINT problems=n`
+- `T/run_sims.sh [sim]` parallel `SIMS` (`sim_horde` CPU budget: real on CI `sims-horde`, ×2 in check_all) · `T/check_all.sh` `CHECK_ALL`
+- `T/golden.sh [base=origin/main]` `GOLDEN same|changed` · `T/import.sh` only import path, skips no-ops (`FORCE_IMPORT=1`)
+- `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
+- `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_android.sh` → `build/` · `T/fetch_sentry.sh`
+- Play `godot --path . [-- --seed=N]` · bots+shots `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir] [--perf]`
 
 ## Layout
-- `game/logic/`: pure classes: `World` (the authoritative simulation), `SmashBot`, `Upgrades`, `Spells`, `Loot`, `Gamble`,
-  `Profile`, `Results`, `Wizards`, `Achievements`. `game/debug/`: `Tuning` (gameplay numbers, read as `world.tune`), autotest.
-- `game/autoload/`: `Flags`, `Controls`, `G`, `Save` (the only reader/writer of `user://profile.json`), `Sfx`, `Net`,
-  `Platform` (the only Steam code, `docs/steam.md`), `Crash` (the only Sentry code, `docs/sentry.md`).
-- `game/arena/` (renders snapshots), `game/ui/`, `game/input/`, `game/art/` (ASCII-map sprites), `assets/audio`.
-- `tests/unit/` (`test_<module>.gd`, `extends TestCase`), `tests/sim/`, `tests/bot/` (`bot.tscn`). `tools/`: shell and stdlib Python.
+- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards
+- `game/debug/` Tuning (all gameplay numbers, `world.tune`), autotest · `game/autoload/` Flags Controls G Save Sfx Net Platform Crash
+- Sole owners: Save ↔ `user://profile.json` · Platform ↔ Steam (`docs/steam.md`) · Crash ↔ Sentry (`docs/sentry.md`)
+- `game/arena/` renders snapshots · `game/ui/` `game/input/` `game/art/` (ASCII sprites) · `assets/audio`
+- `tests/unit/test_<mod>.gd` (TestCase) · `tests/sim/` · `tests/bot/bot.tscn` · `T/` sh + stdlib py
 
 ## Rules
-- Static typing everywhere (vars, params, returns). Tabs for indentation.
-- Gameplay logic is pure `RefCounted` classes with `class_name`: no Node, no wall clock, no `randf()`; take `delta` and a
-  seeded `RandomNumberGenerator`. Pure logic goes in `game/logic/` (or edit `PURE_PREFIXES` in `tools/lint.py`).
-- Gameplay numbers live in `Tuning` (or data files), never as literals in logic.
-- Every logic module has a unit test file. A change is done when `tools/run_tests.sh` and `tools/lint.sh` pass; a change not
-  meant to alter the game (refactor, speed-up) also needs `GOLDEN same`.
-- File-local helper names must be unique across the project (one `class_name` space).
-- Tools are quiet: errors and failures, then one summary line.
-- Scripted shots key on game state with a time fallback, never fixed seconds alone. Compare state hashes only on frames
-  where `Flags.commands == 0`. Captures, tests and gates never write player data (`Flags.is_scripted_run()`).
-- No secrets in git: credentials live in git-ignored `config/*credentials*`, injected at export.
-- Reproduce a bug (test, sim, bot, replay) before fixing it; fix the traced mechanism, not a guess.
-- Reading CI: list the run's jobs and steps first, then fetch only the failing job's log, last ~40 lines.
+- Static types everywhere; tabs. Helper names unique project-wide.
+- Logic pure: `delta` + seeded RNG; no wall clock, no `randf()`; in `game/logic/` (other dir ⇒ `PURE_PREFIXES` in `T/lint.py`).
+- Numbers ⇒ Tuning/data, never literals. Each logic module has a test.
+- Done = tests + lint; no-behaviour change also `GOLDEN same`.
+- Shots key on game state (time fallback). Hash compare only when `Flags.commands == 0`. Scripted runs never write player data (`Flags.is_scripted_run()`).
+- No secrets in git (ignored `config/*credentials*`, injected at export). Never commit `.import` churn.
+- Repro first (test/sim/bot/replay); fix the traced mechanism.
+- CI: list jobs first, then failing log tail ~40.
+- Tools quiet: errors/failures, then 1 summary line.
 
-## Reading (keep it small)
-- This file is enough to start most tasks. A worker's prompt carries its own contract; do not read the whole brief or handoff unless told to.
-- Helpers: use agent type `worker` for a change and `scout` for a question (`.claude/agents/`), never `general-purpose`: a general helper costs about 57,000 tokens before it reads anything.
-- Fan-out and feel-bug method live in the skills `agent-fanout-playbook` and `measure-fix-loop`: invoke the skill, do not read `docs/playbook.md`.
-- `tools/map.sh` lists every script on one screen; `tools/graph.sh <Class>` who uses it; `tools/outline.sh <file>` gives a script's functions. Read functions by line range (`sed -n '409,454p' game/logic/world.gd`); never read a script over 400 lines whole.
-- `docs/handoff.md`: the plan and the decisions, for whoever plans the next step. `docs/systems.md`: how each system works, one section per system; read only yours.
-- `docs/lessons_learned.md` is for the lead, by section. Workers skip it unless their prompt names a section. Add a row whenever something goes wrong.
+## Helpers and skills (invoke, don't copy into docs)
+- Agent types: `worker` (a change), `scout` (a question), never `general-purpose` (~57k tokens before reading anything).
+- Fan-out, briefs, ownership, models → skill `agent-fanout-playbook` · feel/perf bug → `measure-fix-loop` · new project / PC setup → `game-project-kickoff`
+- Generic lessons from other games → starter kit `Proximo0/game-starter-kit` `docs/lessons_learned.md`
+
+## Read only when needed
+- This file starts most tasks; a W prompt is its whole contract.
+- `docs/handoff.md` plan + decisions (L planning) · `docs/systems.md` 1 § per system, yours only
+- `docs/lessons_learned.md` shorthand, by §; W reads only a § its prompt names. Add a row when something breaks.
+- `docs/performance.md` · `docs/online.md` · `docs/android.md` · `docs/bots.md` on those topics
+- `docs/archive/` full long originals (lessons, brief, process docs); only when a prompt names one
