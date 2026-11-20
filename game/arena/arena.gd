@@ -17,8 +17,6 @@ const ENEMY_KEYS := ["goblin", "skeleton", "slime", "mslime", "bat", "orc", "mag
 ## Shadow width under each enemy type (bats and wraiths float without one).
 ## The smallest combo call written over a wizard; smaller ones only sparkle.
 const COMBO_WORDS := 50
-## The smallest score popup written over a pickup.
-const SCORE_WORDS := 1000
 const ENEMY_SHADOW := [10, 10, 12, 8, 8, 14, 10, 26, 0, 10, 14, 10]
 const ENEMY_ANIM := [7.0, 5.0, 0.0, 6.0, 12.0, 4.0, 3.0, 2.0, 3.0, 9.0, 6.0, 2.5]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
@@ -162,6 +160,7 @@ func _ready() -> void:
 	ent_layer = _layer(false)
 	ent_layer.draw.connect(_timed.bind("draw_entities", _draw_entities))
 	fx = Fx.new()
+	fx.calm = true
 	root.add_child(fx)
 	shot_layer = _layer(true)
 	shot_layer.draw.connect(_timed.bind("draw_shots", _draw_shots))
@@ -550,7 +549,7 @@ func _handle_events(evs: Array) -> void:
 			World.EV_CAST:
 				var sp := int(ev[3])
 				var col := _spell_color(sp, int(ev[4]))
-				fx.cast_flash(pos, col)
+				fx.cast_flash(pos, col, int(ev[4]))
 				match sp:
 					World.SP_ARCANE: Sfx.play("shoot_arcane", -6.0, 1.0, 0.06)
 					World.SP_FIRE: Sfx.play("shoot_fire", -3.0, 1.0, 0.08)
@@ -586,7 +585,7 @@ func _handle_events(evs: Array) -> void:
 				_decal(pos, Color("1a1020"), 10.0)
 			World.EV_ZAP:
 				var pts: PackedVector2Array = ev[3]
-				fx.bolt(pts, Color("7fd8ff"))
+				fx.bolt(pts, SPELL_COLORS[World.SP_STORM])
 				for pt in pts:
 					fx.burst(pt, 3, 60.0, 0.2, 1.0, Color.WHITE, Color("ffe84d"), true)
 				Sfx.play("zap", -5.0, _fx_rng.randf_range(0.9, 1.15), 0.07)
@@ -608,12 +607,9 @@ func _handle_events(evs: Array) -> void:
 					World.PK_GEM: Sfx.play("pickup", -3.0)
 					World.PK_POTION: Sfx.play("heal")
 					_: Sfx.play("powerup")
-				if PICKUP_NAMES[k] != "":
+				# A tome says what it is by its colour and its spell: only the other pickups write their name.
+				if PICKUP_NAMES[k] != "" and k not in World.TOMES:
 					fx.text(pos + Vector2(0, -12), PICKUP_NAMES[k], _pickup_color(k), 1.4)
-			World.EV_SCORE:
-				# Gems and coins score all the time; only the big pickups get a number, so the floor stays readable.
-				if int(ev[3]) >= SCORE_WORDS:
-					fx.text(pos, "+%d" % int(ev[3]), Color("ffe58a"), 0.7)
 			World.EV_HURT:
 				fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
 				Sfx.play("hurt")
@@ -639,7 +635,7 @@ func _handle_events(evs: Array) -> void:
 					Sfx.play("arrow", -8.0, 1.0, 0.08)
 				else:
 					Sfx.play("enemy_shot", -9.0, 1.0 if k == World.ES_ORB else 0.7, 0.1)
-					fx.flash(pos, 6.0, Color("ff4df2") if k == World.ES_ORB else Color("4dffb0"), 0.08)
+					fx.flash(pos, 6.0, Color("c0263a"), 0.08)
 			World.EV_SPLIT:
 				fx.burst(pos, 16, 80.0, 0.5, 2.0, Color("d8fff6"), Color("158f86"), false, 200.0)
 				Sfx.play("slime")
@@ -672,9 +668,9 @@ func _handle_events(evs: Array) -> void:
 			World.EV_RIFT:
 				# A shrinking ring and a dark core warn where the group will burst out.
 				var life := float(ev[4])
-				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("ff4df2"), 2.0)
-				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("4a1a7a"), 3.0)
-				fx.sparkle(pos, Color("ff4df2"), 8)
+				fx.ring(pos, float(ev[3]) + 10.0, 3.0, life, Color("c0263a"), 2.0)
+				fx.ring(pos, float(ev[3]) + 4.0, 1.0, life, Color("7a1226"), 3.0)
+				fx.sparkle(pos, Color("c0263a"), 8)
 			World.EV_URN:
 				for k: int in range(10):
 					fx.spawn(pos + Vector2(0, -4), Vector2.from_angle(_fx_rng.randf() * TAU) * _fx_rng.randf_range(30.0, 80.0)
@@ -761,8 +757,7 @@ func _handle_events(evs: Array) -> void:
 				Sfx.play("portal", -6.0, 1.3, 0.2)
 			World.EV_ELITE:
 				var elite_name: String = ENEMY_NAMES[clampi(int(ev[3]), 0, ENEMY_NAMES.size() - 1)]
-				fx.text(pos + Vector2(0, -24), Lore.elite_epithet(int(ev[1]) * 7 + int(ev[2])), Color("ffd23d"), 1.6, 1)
-				fx.text(pos + Vector2(0, -15), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
+				fx.text(pos + Vector2(0, -20), "ELITE " + elite_name, Color("ffb84d"), 1.6, 1)
 				fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
 				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
@@ -834,9 +829,9 @@ func _handle_events(evs: Array) -> void:
 				fx.sparkle(pos + Vector2(0, 10), col, 16)
 				Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_FROST:
-				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, Color("7fe8ff"), true)
+				fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, SPELL_COLORS[World.SP_FROST], true)
 				if float(ev[3]) > 0.0:
-					fx.ring(pos, 0.4, float(ev[3]), 0.3, Color("7fe8ff"), 2.0)
+					fx.ring(pos, 0.4, float(ev[3]), 0.3, SPELL_COLORS[World.SP_FROST], 2.0)
 
 ## Run time as M:SS.
 static func _clock(secs: float) -> String:
@@ -1211,7 +1206,7 @@ func _emit_trails(dt: float) -> void:
 					fx.spawn(p + Vector2(_fx_rng.randf_range(-2, 2), _fx_rng.randf_range(-2, 2)), Vector2(_fx_rng.randf_range(-8, 8), 10),
 						0.45, 1.0, Color.WHITE, SPELL_COLORS[World.SP_STAR], true, 2.0, 30.0)
 	# A star that was here a frame ago and is nowhere near now has landed: a burst, and a mark on the floor.
-	var reach := maxf(10.0, 420.0 * dt)
+	var reach := maxf(24.0, 420.0 * dt)
 	for old: Array in _stars_seen:
 		var alive := false
 		for s: Array in stars:
@@ -1249,18 +1244,15 @@ func _emit_trails(dt: float) -> void:
 			head = (TAG_UP_ORBS if p.orbit > 0.0 else TAG_UP) + 2.0
 		fx.keep_clear.append(Rect2(p.pos.x - 9.0, p.pos.y - head, 18.0, head + 2.0))
 		var tip: Vector2 = (p.target as Vector2) + Vector2(0, -7) + (p.aim as Vector2) * 9.0
-		for c: Vector2 in fx.casts:
-			if c.distance_squared_to(tip) < CAST_NEAR * CAST_NEAR:
+		for c: Array in fx.casts:
+			# Matched by the caster's slot; by staff distance only when the cast did not say who cast it.
+			var mine: bool = int(c[1]) == int(p.slot) if int(c[1]) >= 0 \
+					else (c[0] as Vector2).distance_squared_to(tip) < CAST_NEAR * CAST_NEAR
+			if mine:
 				p["flare_at"] = time
 				if time - float(p.get("cast_at", -9.0)) > CAST_EVERY:
 					p["cast_at"] = time
 				break
-		# The level-up burst waits for the card: the pick screen covers the arena from the moment the level is
-		# gained until then.
-		var picking: bool = not (p.get("choices", []) as Array).is_empty()
-		if not picking and bool(p.get("pick_seen", false)):
-			p["pillar"] = fx.level_up(p.pos, G.player_fx(p.slot))
-		p["pick_seen"] = picking
 		# The column of light walks with its wizard.
 		var pillar: Array = p.get("pillar", [])
 		if not pillar.is_empty():

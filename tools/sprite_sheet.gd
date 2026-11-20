@@ -1,8 +1,8 @@
-extends SceneTree
+extends RefCounted
 ## Writes every sprite frame to one picture, at 1x and enlarged, on a floor-dark background with labels: the art
 ## loop for sprites.gd, sprites_wizards.gd and sprites_enemies.gd. Each actor's animation is one strip (a row of
 ## its frames in order). Built from Images, so it needs no display and takes a few seconds:
-##   godot --headless --path . -s tools/sprite_sheet.gd -- [--out=DIR] [--only=PREFIX,PREFIX] [--scale=4] [--name=sheet]
+##   godot --headless --path . -s tools/tool.gd -- sprite_sheet [--out=DIR] [--only=...] [--scale=4] [--name=sheet]
 ## --only keeps the rows whose name starts with one of the prefixes (wiz0, goblin, fx_bolt...).
 ## Prints map problems (an unknown letter, ragged rows, an atlas that does not fit), then one summary line.
 ## Exit code 1 when there is a problem.
@@ -21,33 +21,13 @@ const PICKUPS := ["xp", "coin", "gem", "potion", "chest", "chest_rare", "chest_u
 const WIZ_FRAMES := ["i0", "i1", "w0", "w1", "w2", "w3", "i0c", "i1c", "w0c", "w1c", "w2c", "w3c",
 	"i0d", "i1d", "w0d", "w1d", "w2d", "w3d"]
 
-var _sprites: GDScript
-var _font: GDScript
-var _done := false
-var _ticks := 0
 
-
-func _init() -> void:
-	call_deferred("_run")
-
-
-## A script error stops `_run` half way and would leave the engine idling for ever: stop it here instead.
-func _process(_delta: float) -> bool:
-	_ticks += 1
-	if _ticks > 2 and not _done:
-		print("SPRITE_SHEET failed: see the errors above (after adding a class, run a tools/*.sh script once to import it)")
-		quit(1)
-	return false
-
-
-func _run() -> void:
-	_sprites = load("res://game/art/sprites.gd")
-	_font = load("res://game/ui/pixel_font.gd")
+func run(args: PackedStringArray) -> int:
 	var out := "build/sprites"
 	var only: PackedStringArray = []
 	var scale := 4
 	var name := "sheet"
-	for a: String in OS.get_cmdline_user_args():
+	for a: String in args:
 		if a.begins_with("--out="):
 			out = a.substr(6)
 		elif a.begins_with("--only="):
@@ -57,10 +37,10 @@ func _run() -> void:
 		elif a.begins_with("--name="):
 			name = a.substr(7)
 	DirAccess.make_dir_recursive_absolute(out)
-	_sprites.build_all()
-	var problems: Array = (_sprites.problems as Array).duplicate()
-	if _sprites.pack_error != "":
-		problems.append(_sprites.pack_error)
+	Sprites.build_all()
+	var problems: Array = Sprites.problems.duplicate()
+	if Sprites.pack_error != "":
+		problems.append(Sprites.pack_error)
 	var sections := _sections(only)
 	var sheet := _draw_sections(sections)
 	sheet.save_png("%s/%s_1x.png" % [out, name])
@@ -69,17 +49,16 @@ func _run() -> void:
 	big.save_png("%s/%s_%dx.png" % [out, name, scale])
 	for p: String in problems:
 		print("SPRITE_SHEET problem: ", p)
-	var atlas: Vector2 = (_sprites.atlas() as Texture2D).get_size() if _sprites.atlas() != null else Vector2.ZERO
+	var atlas: Vector2 = Sprites.atlas().get_size() if Sprites.atlas() != null else Vector2.ZERO
 	print("SPRITE_SHEET sprites=%d atlas=%dx%d problems=%d sheet=%dx%d out=%s/%s_1x.png and _%dx.png" % [
-		(_sprites.keys() as Array).size(), int(atlas.x), int(atlas.y), problems.size(), sheet.get_width(), sheet.get_height(),
+		Sprites.keys().size(), int(atlas.x), int(atlas.y), problems.size(), sheet.get_width(), sheet.get_height(),
 		out, name, scale])
-	_done = true
-	quit(1 if not problems.is_empty() else 0)
+	return 1 if not problems.is_empty() else 0
 
 
 ## The sheet's contents: [[title, [[row label, [keys], [frame labels]], ...]], ...].
 func _sections(only: PackedStringArray) -> Array:
-	var keys: Array = _sprites.keys()
+	var keys: Array = Sprites.keys()
 	var used := {}
 	var wiz: Array = []
 	for w in 4:
@@ -88,7 +67,7 @@ func _sections(only: PackedStringArray) -> Array:
 			var ls: Array = []
 			for f: String in WIZ_FRAMES:
 				var k := "wiz%d_%s_%s" % [w, dir, f]
-				if _sprites.has(k):
+				if Sprites.has(k):
 					ks.append(k)
 					ls.append(f)
 			if not ks.is_empty():
@@ -176,7 +155,7 @@ func _draw_sections(sections: Array) -> Image:
 			texts.append([row[0], 3, y + 2, LABEL])
 			for i in (row[1] as Array).size():
 				var key: String = row[1][i]
-				var size: Vector2 = (_sprites.region(key) as Rect2).size
+				var size: Vector2 = (Sprites.region(key) as Rect2).size
 				var lab: String = row[2][i]
 				var cell := maxi(int(size.x), _text_w(lab)) + GAP
 				if x + cell > MAX_W and x > label_w:
@@ -202,7 +181,7 @@ func _draw_sections(sections: Array) -> Image:
 		if b[2]:
 			img.fill_rect(Rect2i(0, b[0], width, b[1] - b[0]), BG_ALT)
 	for p: Array in placed:
-		var spr: Image = _sprites.image(p[0])
+		var spr: Image = Sprites.image(p[0])
 		# A lighter slab under every sprite's feet line shows it against the brightest floor too.
 		img.fill_rect(Rect2i(p[5], p[2] - 2, p[4], 3), BG_LIGHT)
 		img.blend_rect(spr, Rect2i(Vector2i.ZERO, spr.get_size()), Vector2i(p[1], p[2] - spr.get_height()))
@@ -214,13 +193,13 @@ func _draw_sections(sections: Array) -> Image:
 
 
 func _text_w(s: String) -> int:
-	return int(_font.text_width(s.to_upper()))
+	return int(PixelFont.text_width(s.to_upper()))
 
 
 func _text(img: Image, s: String, x: int, y: int, c: Color) -> void:
 	s = s.to_upper()
 	for i in s.length():
-		for cell: Vector2 in _font.cells(s[i]):
+		for cell: Vector2 in PixelFont.cells(s[i]):
 			var px := x + i * 6 + int(cell.x)
 			var py := y + int(cell.y)
 			if px >= 0 and py >= 0 and px < img.get_width() and py < img.get_height():

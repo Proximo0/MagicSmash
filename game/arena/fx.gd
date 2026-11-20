@@ -41,11 +41,15 @@ var flashes: Array = []  # [pos, radius, life, max, color]
 var anims: Array = []    # sprite effects that play once: [frames (atlas places), pos, vel, life, max, color, additive]
 var marks: Array = []    # glowing marks on the floor, drawn by `draw_floor`: [atlas place, pos, life, max, color]
 var pillars: Array = []  # columns of light: [pos, life, max, color]
-## Where spells were cast since the arena last looked (it raises the caster's arm and flares the staff).
-var casts: PackedVector2Array = PackedVector2Array()
+## Where spells were cast since the arena last looked (it raises the caster's arm and flares the staff):
+## [pos, caster slot or -1].
+var casts: Array = []
 ## Boxes new words stay out of: the arena keeps one over every wizard, so nobody is hidden behind their own
 ## "LEVEL UP!". A word that would start inside a box starts above it.
 var keep_clear: Array[Rect2] = []
+## The calm text rules (see the constants above) apply only when this is set: the arena sets it; the title and
+## the sanctum keep their long, large words.
+var calm := false
 var add_layer: Node2D
 var rng := RandomNumberGenerator.new()
 var _dying := 0.0
@@ -149,18 +153,20 @@ func bolt(points: PackedVector2Array, color: Color, life := 0.14) -> void:
 		shapes.append(lines)
 	bolts.append([shapes, life, life, color, points])
 
-## Floating words. Callers ask for a life and a scale; `text` keeps them calm (see the constants above).
+## Floating words. Callers ask for a life and a scale; with `calm` set, `text` keeps them calm (see the constants
+## above).
 func text(pos: Vector2, s: String, color: Color, life := 0.9, scale := 1) -> void:
-	life = minf(life * TEXT_LIFE_SCALE, TEXT_LIFE)
-	if s.length() > 2:
-		scale = 1
-	# The same words close by are written once: the one already up starts over.
-	for t in texts:
-		if t[1] == s and (t[0] as Vector2).distance_squared_to(pos) < TEXT_MERGE * TEXT_MERGE:
-			t[3] = maxf(t[3], life)
-			t[4] = maxf(t[4], life)
-			t[2] = color
-			return
+	if calm:
+		life = minf(life * TEXT_LIFE_SCALE, TEXT_LIFE)
+		if s.length() > 2:
+			scale = 1
+		# The same words close by are written once: the one already up starts over.
+		for t in texts:
+			if t[1] == s and (t[0] as Vector2).distance_squared_to(pos) < TEXT_MERGE * TEXT_MERGE:
+				t[3] = maxf(t[3], life)
+				t[4] = maxf(t[4], life)
+				t[2] = color
+				return
 	var half := PixelFont.text_width(s, scale) * 0.5
 	for box: Rect2 in keep_clear:
 		if pos.x + half > box.position.x and pos.x - half < box.end.x and pos.y + PixelFont.H * scale > box.position.y \
@@ -177,7 +183,7 @@ func text(pos: Vector2, s: String, color: Color, life := 0.9, scale := 1) -> voi
 			break
 		pos.y -= 9.0
 	# Past the cap, the words with the least time left make room.
-	while texts.size() >= MAX_TEXTS:
+	while calm and texts.size() >= MAX_TEXTS:
 		var gone := 0
 		for i in texts.size():
 			if texts[i][3] < texts[gone][3]:
@@ -207,8 +213,8 @@ func hit_spark(pos: Vector2, color: Color) -> void:
 		spawn(pos, Vector2(cos(a), sin(a)) * rng.randf_range(40.0, 90.0), rng.randf_range(0.12, 0.22), 1.0, Color.WHITE, color, true, 3.0)
 
 ## A spell leaves a staff: remembered for the arena (the caster's pose, the staff's flare), and a blink.
-func cast_flash(pos: Vector2, color: Color) -> void:
-	casts.append(pos)
+func cast_flash(pos: Vector2, color: Color, slot := -1) -> void:
+	casts.append([pos, slot])
 	flash(pos, 4.0, color, 0.06)
 
 ## A fireball bursts: a flash the size of the blast, a ring, flames, and embers that arc out and fall.

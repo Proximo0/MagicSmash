@@ -692,6 +692,8 @@ static func _shelve(keys: Array, w: int, spots: Dictionary) -> int:
 	return y + shelf + ATLAS_PAD
 
 static func _add(key: String, rows: Array, pal: Dictionary) -> void:
+	if _atlas != null:
+		push_error("Sprites: '%s' added after the atlas was packed" % key)
 	var w := 0
 	for r in rows:
 		w = maxi(w, (r as String).length())
@@ -725,6 +727,8 @@ static func add_plain(key: String, rows: Array, pal: Dictionary) -> void:
 
 ## A sprite from a ready image, with no white twin.
 static func add_image(key: String, img: Image) -> void:
+	if _atlas != null:
+		push_error("Sprites: '%s' added after the atlas was packed" % key)
 	_imgs[key] = img
 
 ## Makes `key` another name for the sprite `target` (and for its white twin). Call before the atlas is packed.
@@ -756,6 +760,8 @@ static func strip(prefix: String, n: int) -> Array:
 		for i in n:
 			out.append(_region.get("%s_%d" % [prefix, i], Rect2()))
 		_strips[prefix] = out
+	else:
+		assert((_strips[prefix] as Array).size() == n)
 	return _strips[prefix]
 
 ## Which of the DIRS plotted directions is nearest to `v`.
