@@ -111,15 +111,24 @@ func test_secrets_pots_and_spending_save() -> void:
 	var p := Profile.new()
 	assert_true(p.find_secret("alcove"))
 	assert_false(p.find_secret("alcove"))
-	assert_false(p.pots_smashed())
-	p.pots_run = p.runs
-	assert_true(p.pots_smashed())
+	assert_eq(p.pots_mask_now(), 0)
+	p.break_pot(3)
+	assert_eq(p.pots_mask_now(), 8)
 	p.crystals = 5
 	assert_false(p.spend(6))
 	assert_true(p.spend(5))
 	assert_eq(p.crystals, 0)
 	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
 	assert_true(back.has_secret("alcove"))
-	assert_true(back.pots_smashed())
+	assert_eq(back.pots_mask_now(), 8)
 	back.finish_run({"score": 10, "seconds": 30.0})
-	assert_false(back.pots_smashed(), "pots did not refill after a run")
+	assert_eq(back.pots_mask_now(), 0, "pots did not refill after a run")
+
+
+func test_breaking_a_pot_in_a_new_run_drops_the_old_runs_bits() -> void:
+	var p := Profile.new()
+	p.break_pot(3)
+	p.finish_run({"score": 10, "seconds": 30.0})
+	assert_eq(p.pots_mask_now(), 0)
+	p.break_pot(1)
+	assert_eq(p.pots_mask_now(), 2, "a pot from an earlier run stayed broken")

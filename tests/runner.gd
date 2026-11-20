@@ -10,7 +10,7 @@ extends SceneTree
 ## With -- --claims=<dir> (tools/run_tests.sh), several processes share one queue: each takes the next test method
 ## no one has claimed yet (mkdir is atomic), so every test runs exactly once and a slow one holds up nobody.
 
-const SLOW_TEST_MS: int = 10000
+const SLOW_TEST_MS: int = 10000  ## env SLOW_TEST_MS overrides it (a slow station; CI keeps the default)
 
 
 ## Counts engine errors, so a test that crashed cannot pass. Warnings do not count.
@@ -35,6 +35,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var slow_env: String = OS.get_environment("SLOW_TEST_MS")
+	var slow_ms: int = int(slow_env) if slow_env.is_valid_int() else SLOW_TEST_MS
 	var only: String = ""
 	var claims: String = ""
 	for a: String in OS.get_cmdline_user_args():
@@ -76,8 +78,8 @@ func _run() -> void:
 				t.failures.append("engine error during the test: %s" % _errors.last)
 			elif t.checks == 0:
 				t.failures.append("ran no assert, so it proves nothing")
-			if ms > SLOW_TEST_MS:
-				t.failures.append("took %.1f s (limit %d s): shrink it or make it a sim" % [ms / 1000.0, SLOW_TEST_MS / 1000])
+			if ms > slow_ms:
+				t.failures.append("took %.1f s (limit %d s): shrink it or make it a sim" % [ms / 1000.0, slow_ms / 1000])
 			if t.failures.is_empty():
 				passed += 1
 			else:

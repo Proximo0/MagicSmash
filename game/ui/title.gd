@@ -1108,7 +1108,15 @@ func _ouija_input(event: InputEvent, tap: bool, tap_pos: Vector2) -> void:
 					Sfx.play("menu_move")
 				return
 			KEY_ENTER, KEY_KP_ENTER:
-				_submit_ouija()
+				match ouija.enter():
+					Ouija.TYPED, Ouija.ERASED:
+						Sfx.play("menu_select")
+						fx.burst(_ouija_pos(ouija.row, ouija.col), 8, 40.0, 0.4, 1.0, Occult.FLAME, Occult.BLOOD, true)
+					Ouija.SUBMIT:
+						_submit_ouija()
+					Ouija.CANCEL:
+						state = S.JOIN
+						Sfx.play("menu_select")
 				return
 			KEY_ESCAPE:
 				state = S.JOIN
