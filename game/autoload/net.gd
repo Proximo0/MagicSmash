@@ -13,7 +13,7 @@ enum Mode { OFFLINE, HOST, CLIENT }
 
 const GAME_PORT := 24680
 const DISCOVERY_PORT := 24681
-const MAGIC := "MAGICSMASH1"
+const MAGIC := "MAGICSMASH2" # 2: longer snapshot rows and roster rows; older builds do not see these games
 
 var mode := Mode.OFFLINE
 ## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, race:int, cls:int, look:int, cls_level:int}. An

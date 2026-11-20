@@ -138,7 +138,7 @@ var _lv_flash_t := -10.0
 var _pick_sfx_t := -10.0
 ## Autotest only (--pick-hold): seconds the bot in slot 0 looks at its cards before picking.
 var autotest_pick_hold := 0.0
-const TRAY_W := ArenaHud.PANEL_W # a tray is as wide as its seat's HUD panel
+const TRAY_W := 118 # wider than a HUD panel: the longest effect line and its level chip need 116 px
 const TRAY_ROW_H := 17 # a row's top pixel stays dark, between it and the row above
 const TAB_H := 11
 const TRAY_FLIP := 0.25 # seconds for a new hand's rows to turn over, all of them

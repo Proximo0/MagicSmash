@@ -33,8 +33,11 @@ static func _draw_hud(a: Arena) -> void:
 		if p.combo >= 5:
 			var cc := Color.WHITE if int(a.time * 8) % 2 == 0 else G.player_fx(slot)
 			PixelFont.draw(ci, "x%d" % p.combo, Vector2(x, 17), 1, cc, dark)
-		Sprites.draw_at(ci, "coin", Vector2(x + 80, 23))
-		PixelFont.draw(ci, "%d" % p.get("gold", 0), Vector2(x + 85, 17), 1, Color("ffd23d"), dark)
+		# Gold keeps to its own panel: four digits and more push the coin left.
+		var gold_text := "%d" % p.get("gold", 0)
+		var gx := minf(x + 85, x + PANEL_W - PANEL_PAD * 2 - 1 - PixelFont.text_width(gold_text))
+		Sprites.draw_at(ci, "coin", Vector2(gx - 5, 23))
+		PixelFont.draw(ci, gold_text, Vector2(gx, 17), 1, Color("ffd23d"), dark)
 	centre(a, ci, dark)
 	_draw_party_bar(a, ci, dark)
 	# Boss bar
@@ -118,9 +121,11 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 		var wlv: int = spells[k][1]
 		if wlv <= 0 or sp < 0:
 			continue
-		var px := x + 64 + k * 9
-		ci.draw_rect(Rect2(px, 3, 8, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
-		ci.draw_rect(Rect2(px + 1, 4, 6.0 * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), a.SPELL_COLORS[sp])
+		# Four pips fit at 9 px a step; a fifth and sixth (no slot cap yet) squeeze them to 7 px.
+		var step := 9.0 if spells.size() <= 4 else 7.0
+		var px := x + 64 + k * step
+		ci.draw_rect(Rect2(px, 3, step - 1, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
+		ci.draw_rect(Rect2(px + 1, 4, (step - 3) * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), a.SPELL_COLORS[sp])
 
 
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
