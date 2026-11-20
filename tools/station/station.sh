@@ -2,7 +2,7 @@
 # A station: a spare computer that runs long jobs with no Claude on it and reports a few lines.
 # Usage: tools/station/station.sh [--watch] [--no-push] job [job ...]
 #   jobs: boss    bots play STATION_SEEDS (default "7 21 33 101 102") to the Archlich, side by side
-#         checks  tools/check_all.sh
+#         checks  tools/check_all.sh; on FAIL the failing rows follow the JOB line
 #         frames  the real game at wave 10 with a full horde on this machine's screen and graphics card; FAIL when the
 #                 95th-percentile frame is over STATION_FRAME_P95_MS (default 25). Needs a desktop session.
 #         golden  tools/golden.sh against the commit this station tested last (INFO: did the game change?)
@@ -50,9 +50,12 @@ job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error,
   return $bad
 }
 job_checks() {
-  local line; line=$(tools/check_all.sh 2>&1 | tail -1)
-  [[ "$line" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
-  echo "JOB checks FAIL ${line:0:120}"; return 1
+  # The 10 s per-test limit is CI's to enforce; a slow station gets room (STATION_SLOW_TEST_MS, default 30000).
+  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" tools/check_all.sh 2>&1)
+  [[ "$(tail -1 <<<"$out")" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
+  echo "JOB checks FAIL"
+  grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -6 | cut -c1-160 | sed 's/^ */  /'
+  return 1
 }
 job_frames() {
   local line script p95 limit="${STATION_FRAME_P95_MS:-25}"
