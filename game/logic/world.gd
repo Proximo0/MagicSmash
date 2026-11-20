@@ -321,6 +321,9 @@ var victory_t := 0.0
 var _final_called := false
 ## Stats and best moments for the results screen.
 var record: Results
+## Statistics only: the damage source being resolved (a spell, Results.SRC_*), so record.source_damage can
+## split damage by spell. Never read by gameplay and not in state_hash().
+var stat_src := -1
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
@@ -855,6 +858,7 @@ func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 			if p.bombs > 0:
 				_nova(p)
 	if p.orbit > 0.0:
+		stat_src = Results.SRC_ORBIT
 		for i in 3:
 			var a := p.orbit_ang + i * TAU / 3.0
 			var op := p.pos + Vector2(0, -6) + Vector2(cos(a), sin(a)) * 22.0
@@ -919,6 +923,7 @@ func _nearest_enemy(pos: Vector2, radius: float) -> Enemy:
 	return best
 
 func _cast(p: Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
+	stat_src = sp
 	var tip := p.pos + Vector2(0, -7) + dir * 9.0
 	var n := Spells.count(sp, lv, evo)
 	var dmg := Spells.damage(sp, lv, evo)
@@ -1063,6 +1068,7 @@ func _weapon_snap(p: Player, sp: int) -> int:
 	return Upgrades.weapon_level(p.upgrades, sp)
 
 func _nova(p: Player) -> void:
+	stat_src = Results.SRC_NOVA
 	p.bombs -= 1
 	p.invuln = maxf(p.invuln, 0.8)
 	emit(EV_NOVA, p.pos.x, p.pos.y - 6, p.slot, 0)
@@ -1426,6 +1432,7 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 	if src:
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + meta_damage)
 	record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
+	record.add_source(stat_src, minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
 	e.knock += knock * _heft(e)
@@ -1634,6 +1641,7 @@ func _update_shots(dt: float) -> void:
 	for s in shots:
 		if s.dead:
 			continue
+		stat_src = s.spell
 		s.life -= dt
 		if s.spell == SP_STAR:
 			var best: Enemy = null
@@ -1705,6 +1713,7 @@ func _explode(s: Shot) -> void:
 
 ## Rune circles age, tick damage on every enemy standing in them, and (the Seal of Solomon) pull enemies in.
 func _update_runes(dt: float) -> void:
+	stat_src = SP_RUNE
 	for c: Rune in runes:
 		c.age += dt
 		if c.pull > 0.0:

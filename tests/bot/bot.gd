@@ -2,6 +2,7 @@ extends Node
 ## Play-bot: boots the real game (title -> lobby -> arena), lets SmashBot wizards play it offline for
 ## SECONDS of game time, then prints one "BOT ..." line. A shard plays its own seed and player count.
 ## Run: godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3
+## The bots play as CASUAL (the arena's default); `-- --persona=novice|veteran` plays another persona.
 
 const SECONDS: float = 75.0
 ## Seconds of fighting the run clock must reach (level-up picks pause the world, so it runs behind SECONDS).
@@ -15,6 +16,7 @@ var _arena: Node = null
 func _ready() -> void:
 	_shard = int(Flags.get_arg("shard", "0"))
 	Flags.args["seed"] = str(101 + _shard)
+	Flags.args["persona"] = Flags.get_arg("persona", "casual")
 	add_child(load("res://game/main.tscn").instantiate())
 	await get_tree().process_frame
 	var players: int = 1 + _shard % 4
@@ -40,6 +42,6 @@ func _physics_process(delta: float) -> void:
 	var ok: bool = w != null and (w.wave_time >= MIN_FIGHT or over)
 	print("BOT shard=%d players=%d seed=%d clock=%.0fs enemies=%d over=%s %s" % [_shard, w.players.size() if w else 0,
 		101 + _shard, w.wave_time if w else 0.0, w.enemies.size() if w else 0, over, "PASS" if ok else "FAIL "])
-	print("BOT score=%d" % (w.total_score() if w else 0))
+	print("BOT score=%d persona=%s" % [w.total_score() if w else 0, Flags.get_arg("persona")])
 	PlayerInput.bot = false
 	get_tree().quit(0 if ok else 1)

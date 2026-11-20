@@ -373,25 +373,79 @@ func _with_pick(slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
 		out.append_array([-1.0, float(p.offer)])
 	return out
 
-## Simple demo AI used by the autotest harness: kite in circles and blast
-## the nearest monster.
+## Bot wizards (autotest, the bot gate): SmashBot fed from the view state, so it also works on LAN clients.
+## `--persona=novice|casual|veteran` picks how well they play (casual by default).
 var _bots := {}  # slot -> SmashBot
+var _bot_track := {}  # enemy id -> [last seen position, estimated velocity, time seen], for the bots' senses
 func _bot_input(slot: int) -> PackedFloat32Array:
 	if not vp.has(slot):
 		return PackedFloat32Array([0, 0, 0, 0, 0, 0])
 	if not _bots.has(slot):
-		_bots[slot] = SmashBot.new(slot + 1)
+		var persona := SmashBot.persona_from_name(Flags.get_arg("persona", "casual"))
+		_bots[slot] = SmashBot.new(slot + 1, persona if persona >= 0 else SmashBot.CASUAL)
+	var bot: SmashBot = _bots[slot]
+	var me: Dictionary = vp[slot]
+	var at: Vector2 = me.get("target", me.pos)
 	var en: Array[Vector2] = []
-	for e: Dictionary in ve.values():
-		en.append(e.pos)
 	var es: Array[Vector2] = []
+	var pk: Array[Vector2] = []
+	if not bot.wants_senses(time):
+		return bot.decide(slot, at, G.ARENA.get_center(), time, en, es, pk)
+	var tune := Tuning.shared()
+	var ev: Array = []
+	var er: Array = []
+	var boss := Vector2.INF
+	var seen := {}
+	for id: int in ve:
+		var e: Dictionary = ve[id]
+		var pos: Vector2 = e.get("target", e.pos)
+		var tr: Array = _bot_track.get(id, [pos, Vector2.ZERO, time])
+		if time > float(tr[2]):
+			tr = [pos, (pos - (tr[0] as Vector2)) / (time - float(tr[2])), time]
+		_bot_track[id] = tr
+		seen[id] = true
+		en.append(pos)
+		ev.append(tr[1])
+		er.append(World.STATS[int(e.type)][2])
+		if int(e.type) == World.LICH:
+			boss = pos
+	for id: int in _bot_track.keys():
+		if not seen.has(id):
+			_bot_track.erase(id)
+	var sv: Array = []
+	var sr: Array = []
 	for s: Array in ves:
 		es.append(s[1])
-	var pk: Array[Vector2] = []
+		sv.append(s[2])
+		sr.append([2.5, 4.0, 5.0][clampi(int(s[0]), 0, 2)])
+	var kinds: Array = []
 	for k: Array in vk:
 		pk.append(k[1])
-	var goal := SmashBot.shrine_goal(vp[slot].pos, float(vp[slot].get("gold", 0)), vsh)
-	return _bots[slot].decide(slot, vp[slot].pos, G.ARENA.get_center(), time, en, es, pk, goal)
+		kinds.append(k[0])
+	var mates: Array = []
+	var party := Vector2.ZERO
+	var lo := Vector2(-1e6, -1e6)
+	var hi := Vector2(1e6, 1e6)
+	for q: Dictionary in vp.values():
+		if not q.get("alive", true):
+			continue
+		var qp: Vector2 = q.get("target", q.pos)
+		party += qp
+		if q.slot == slot:
+			continue
+		mates.append(qp)
+		lo = Vector2(maxf(lo.x, qp.x - tune.leash_x), maxf(lo.y, qp.y - tune.leash_y))
+		hi = Vector2(minf(hi.x, qp.x + tune.leash_x), minf(hi.y, qp.y + tune.leash_y))
+	var ctx := {
+		"hp": int(me.get("hp", 5)), "max_hp": int(me.get("max_hp", 5)), "bombs": int(me.get("bombs", 0)),
+		"speed": tune.player_speed * (tune.haste_speed_mul if float(me.get("haste", 0.0)) > 0.0 else 1.0),
+		"enemy_vel": ev, "enemy_r": er, "shot_vel": sv, "shot_r": sr, "pickup_kinds": kinds, "mates": mates,
+		"party": party / (mates.size() + 1),
+		"arena": Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8)),
+		"leash": Rect2(lo, hi - lo), "boss": boss,
+	}
+	var goal := SmashBot.shrine_goal(at, float(me.get("gold", 0)), vsh)
+	return bot.decide(slot, at, G.ARENA.get_center(), time, en, es, pk, goal, ctx)
 
 func _smooth(dt: float) -> void:
 	var k := 1.0 - exp(-dt * 20.0)
