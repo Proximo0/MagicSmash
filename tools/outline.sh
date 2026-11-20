@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A map of a script instead of the script: its section banners, inner classes and functions, each with the lines
 # it spans. Read this first, then read only the function you need (sed -n '1114,1284p' game/logic/world.gd).
-# world.gd is 69 KB (about 17,000 tokens); its outline is about 4 KB.
+# A big script costs thousands of tokens to read whole; its outline is a few KB.
 # Usage: tools/outline.sh <file.gd> [...]
 set -uo pipefail
 [ $# -gt 0 ] || { echo "usage: tools/outline.sh <file.gd> [...]" >&2; exit 2; }
