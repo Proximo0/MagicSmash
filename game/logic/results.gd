@@ -48,6 +48,13 @@ const TEAM_PLAYER := "TEAM PLAYER"
 
 var stats := {} # slot -> {stat key -> number}
 var moments: Array = [] # [t, kind, slot, value]
+## Damage dealt by source, for the playtest tool: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT. Not sent to
+## clients and not part of to_dict().
+var source_damage := {}
+
+## Damage sources that are not spells (spells use their World.SP_* index).
+const SRC_NOVA := 100
+const SRC_ORBIT := 101
 
 
 func _init(slots: Array = []) -> void:
@@ -68,6 +75,10 @@ func join(slot: int) -> void:
 func add(slot: int, key: String, amount: float) -> void:
 	if stats.has(slot):
 		stats[slot][key] = float(stats[slot][key]) + amount
+
+
+func add_source(src: int, amount: float) -> void:
+	source_damage[src] = float(source_damage.get(src, 0.0)) + amount
 
 
 ## Keeps the larger of the stat and `value`.

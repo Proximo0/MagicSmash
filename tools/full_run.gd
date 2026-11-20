@@ -2,7 +2,7 @@ extends SceneTree
 ## Bots play one whole run in the pure simulation, start to results screen, and print how it went: a line per
 ## minute (lives, levels, enemies), the Archlich's fight and how the run ended. For balancing the run's length
 ## and the final boss; too slow for check_all.
-## Usage: godot --headless --path . -s tools/full_run.gd -- [--wizards=4] [--seed=7] [--tune=field:value,...]
+## Usage: godot --headless --path . -s tools/full_run.gd -- [--wizards=4] [--seed=7] [--persona=casual] [--tune=field:value,...]
 
 const DT: float = 1.0 / 60.0
 const MAX_MINUTES: float = 30.0
@@ -12,11 +12,18 @@ func _init() -> void:
 	var wizards: int = 4
 	var seed_value: int = 7
 	var tune := Tuning.new()
+	var persona: int = SmashBot.CASUAL
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--wizards="):
 			wizards = clampi(int(arg.get_slice("=", 1)), 1, 4)
 		elif arg.begins_with("--seed="):
 			seed_value = int(arg.get_slice("=", 1))
+		elif arg.begins_with("--persona="):
+			persona = SmashBot.persona_from_name(arg.get_slice("=", 1))
+			if persona < 0:
+				push_error("unknown persona " + arg)
+				quit(2)
+				return
 		elif arg.begins_with("--tune="):
 			for pair: String in arg.get_slice("=", 1).split(","):
 				if not tune.set_value(pair.get_slice(":", 0), float(pair.get_slice(":", 1))):
@@ -25,7 +32,7 @@ func _init() -> void:
 	var w := World.new(slots, seed_value, tune)
 	var bots: Dictionary = {}
 	for s: int in slots:
-		bots[s] = SmashBot.new(seed_value + s)
+		bots[s] = SmashBot.new(seed_value + s, persona)
 	var minute: int = 0
 	var final_at: float = -1.0
 	var final_hp: float = 0.0
@@ -48,7 +55,8 @@ func _init() -> void:
 		else "LOST at %s" % _clock(w.wave_time)
 	if w.phase != World.PH_GAMEOVER:
 		how = "UNFINISHED at %s, Archlich %s" % [_clock(w.wave_time), _boss(w)]
-	print("FULL_RUN wizards=%d seed=%d %s score=%d" % [wizards, seed_value, how, w.total_score()])
+	print("FULL_RUN wizards=%d seed=%d persona=%s %s score=%d" % [wizards, seed_value, SmashBot.persona_name(persona), how,
+		w.total_score()])
 	quit()
 
 
