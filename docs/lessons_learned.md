@@ -8,6 +8,9 @@ other games (3D, physics, Houdini, UE, voxels, MSVC): `docs/archive/lessons_lear
 Add a row the day something breaks: `what (numbers) ⇒ rule`. At milestones copy generic rows to the kit.
 
 ## Workflow and agents
+- Spec said "shorten `Upgrades` texts" but `test_spells` asserts they equal `Spells.EVOS` ⇒ grep tests for a string before planning to change it; list mirrored data in the spec.
+- New per-column HUD element collided with the centred LV pill ⇒ map every HUD element's rectangle before giving a brief a screen region.
+- L showed owner a portrait with weak spots it had listed itself; owner: not Steam quality ⇒ finished art is judged against shipped store-page games; known weak spots = not ready to show as finished.
 - W messaged owner ⇒ W never calls `mcp__hearthbot__`; reports to L only.
 - Global `flock` on Godot runs deadlocked ⇒ only `godot --import` takes the import lock; never flock `T/*.sh`.
 - Subagents lack Agent tool ⇒ nested fan-out = Workflow tool, or L starts every W.

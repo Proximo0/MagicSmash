@@ -5,9 +5,10 @@ extends "res://tests/sim/sim_base.gd"
 const SEED: int = 7
 const MINUTES: float = 3.0
 const MIN_WAVE: int = 3
-## Every bot wizard should level up this many times in the run, and bots answer an offer within a few ticks.
+## The party should level up this many times in the run, and bots take their cards at once (the world never
+## waits for them, so a bot sitting on cards would only be a bot playing without its upgrades).
 const MIN_LEVEL: int = 5
-const MAX_PICK_TICKS: int = 3
+const MAX_HOLD_TICKS: int = 2
 
 
 func _play(slots: Array, ticks: int) -> Dictionary:
@@ -19,12 +20,16 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 	var streak: int = 0
 	var longest: int = 0
 	var bets: int = 0
+	var stalls: int = 0 # ticks on which the world's time did not advance
 	var t0: int = Time.get_ticks_usec()
 	for _i: int in range(ticks):
 		var inputs: Dictionary = {}
 		for s: int in slots:
 			inputs[s] = (bots[s] as SmashBot).decide_in_world(w, s)
+		var before: float = w.time
 		w.step(DT, inputs)
+		if w.time <= before:
+			stalls += 1
 		for ev: Array in w.take_events():
 			if ev[0] == World.EV_SHRINE:
 				bets += 1
@@ -32,10 +37,10 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 		streak = streak + 1 if w.is_picking() else 0
 		longest = maxi(longest, streak)
 	var us: float = float(Time.get_ticks_usec() - t0) / ticks
-	var lowest: int = 1 << 30
+	var lowest: int = w.party_level # the party levels together; every wizard's level follows it
 	for p: World.Player in w.players.values():
 		lowest = mini(lowest, p.level)
-	return {"lowest_level": lowest, "pick_ticks": longest, "wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
+	return {"lowest_level": lowest, "hold_ticks": longest, "stalls": stalls, "wave": w.wave, "score": w.total_score(), "hash": w.state_hash(), "peak": peak, "us": us,
 		"over": w.phase == World.PH_GAMEOVER, "bets": bets}
 
 
@@ -52,8 +57,10 @@ func run() -> Array:
 			"wave=%d score=%d over=%s" % [four.wave, four.score, four.over]),
 		row("levels_up_4p", four.lowest_level >= MIN_LEVEL,
 			"lowest_level=%d (need %d)" % [four.lowest_level, MIN_LEVEL]),
-		row("picks_resolve_4p", four.pick_ticks <= MAX_PICK_TICKS,
-			"longest_wait_ticks=%d (max %d)" % [four.pick_ticks, MAX_PICK_TICKS]),
+		row("bots_take_cards_4p", four.hold_ticks <= MAX_HOLD_TICKS,
+			"longest_hold_ticks=%d (max %d)" % [four.hold_ticks, MAX_HOLD_TICKS]),
+		row("world_never_waits_4p", four.stalls == 0 and a.stalls == 0,
+			"ticks_without_time 2p=%d 4p=%d" % [a.stalls, four.stalls]),
 		row("shrines_used_4p", four.bets >= 1, "bets=%d (bots pay shrines they can afford)" % four.bets),
 		row("step_cost_4p", null, "peak_enemies=%d us_per_step=%.0f" % [four.peak, four.us]),
 	]

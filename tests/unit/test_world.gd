@@ -86,7 +86,7 @@ func test_collecting_xp_levels_up_and_offers_choices() -> void:
 	var p := _player(w)
 	w.gain_xp(p, w.tune.xp_to_next(1))
 	assert_eq(p.level, 2)
-	assert_eq(p.xp, 0)
+	assert_eq(w.party_xp, 0)
 	assert_eq(p.pending, 1)
 	w.step(DT, {})
 	assert_eq(p.choices.size(), int(w.tune.level_choices))
@@ -94,18 +94,33 @@ func test_collecting_xp_levels_up_and_offers_choices() -> void:
 	assert_true(w.is_picking())
 
 
-func test_world_waits_while_a_player_picks() -> void:
-	var w := World.new([0, 1], 3)
-	for _i: int in range(60 * 5):
+func test_world_keeps_running_while_wizards_hold_cards() -> void:
+	for slots: Array in [[0], [0, 1, 2, 3]]:
+		var w := World.new(slots, 3)
+		for s: int in slots:
+			_player(w, s).invuln = 99999.0
+		for _i: int in range(60 * 5):
+			w.step(DT, {})
+		w.gain_xp(_player(w), w.xp_needed())
 		w.step(DT, {})
-	w.gain_xp(_player(w), w.tune.xp_to_next(1))
-	w.step(DT, {})
-	var t0: float = w.time
-	var e_pos: Array = w.enemies.map(func(e: World.Enemy) -> Vector2: return e.pos)
-	for _i: int in range(120):
-		w.step(DT, {})
-	assert_near(w.time, t0, 0.0001, "time moved during a pick")
-	assert_eq(w.enemies.map(func(e: World.Enemy) -> Vector2: return e.pos), e_pos, "enemies moved during a pick")
+		assert_true(w.is_picking(), "%d wizards: no cards were dealt" % slots.size())
+		var t0: float = w.time
+		var wt0: float = w.wave_time
+		var e_pos: Array = w.enemies.map(func(e: World.Enemy) -> Vector2: return e.pos)
+		var p_pos: Array = slots.map(func(s: int) -> Vector2: return _player(w, s).pos)
+		var walk := PackedFloat32Array([1, 0, 0, 0, 0, 0])
+		var inputs := {}
+		for s: int in slots:
+			inputs[s] = walk
+		for _i: int in range(60):
+			w.step(DT, inputs)
+		assert_true(w.is_picking(), "%d wizards: the cards left the hand without a pick" % slots.size())
+		assert_near(w.time, t0 + 1.0, 0.001, "%d wizards: time stood still" % slots.size())
+		assert_near(w.wave_time, wt0 + 1.0, 0.001, "%d wizards: the run clock stood still" % slots.size())
+		assert_true(e_pos.size() > 0, "%d wizards: no enemies to watch" % slots.size())
+		assert_true(w.enemies.map(func(e: World.Enemy) -> Vector2: return e.pos) != e_pos, "%d wizards: enemies stood still" % slots.size())
+		for i: int in slots.size():
+			assert_true(_player(w, slots[i]).pos.x > (p_pos[i] as Vector2).x + 20.0, "slot %d did not walk" % slots[i])
 
 
 func test_pick_applies_upgrade_and_resumes() -> void:
@@ -131,16 +146,26 @@ func test_pick_for_a_stale_offer_is_ignored() -> void:
 	assert_true(w.is_picking(), "a pick naming an old offer must not apply")
 
 
-func test_two_level_ups_offer_twice() -> void:
+func test_a_pick_with_a_draw_queued_deals_the_next_offer_in_the_same_tick() -> void:
 	var w := World.new([0], 3)
 	var p := _player(w)
 	w.gain_xp(p, w.tune.xp_to_next(1) + w.tune.xp_to_next(2))
 	assert_eq(p.level, 3)
 	w.step(DT, {})
 	var first_offer: int = p.offer
+	var first_hand: Array[int] = p.choices.duplicate()
+	assert_eq(p.pending, 1)
 	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, p.offer])})
-	assert_eq(p.offer, first_offer + 1, "second offer should open right after the first pick")
-	assert_true(w.is_picking())
+	assert_eq(Upgrades.level_of(p.upgrades, first_hand[0]), 1, "the first card was not taken")
+	assert_eq(p.offer, first_offer + 1, "the second offer should open on the pick tick")
+	assert_false(p.choices.is_empty(), "no second hand")
+	assert_eq(p.pending, 0)
+	var hand: Array[int] = p.choices.duplicate()
+	var before: Dictionary = p.upgrades.duplicate()
+	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 0, 1, first_offer])})
+	assert_eq(p.choices, hand, "a pick naming the old offer changed the hand")
+	assert_eq(p.upgrades, before, "a pick naming the old offer took a card")
+	assert_eq(p.offer, first_offer + 1)
 
 
 func test_each_player_picks_for_themselves() -> void:
@@ -155,20 +180,6 @@ func test_each_player_picks_for_themselves() -> void:
 	assert_true(w.is_picking(), "P2 has not picked yet")
 	w.step(DT, {1: PackedFloat32Array([0, 0, 0, 0, 0, 0, 2, p1.offer])})
 	assert_false(w.is_picking())
-
-
-func test_nova_press_during_pick_does_not_fire_later() -> void:
-	var w := World.new([0], 3)
-	var p := _player(w)
-	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 0])})
-	w.gain_xp(p, w.tune.xp_to_next(1))
-	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 0])})
-	var bombs: int = p.bombs
-	# Space confirms the card and also bumps the nova counter.
-	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 1, -1, p.offer])})
-	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 1, 0, p.offer])})
-	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 1])})
-	assert_eq(p.bombs, bombs + (1 if Upgrades.level_of(p.upgrades, Upgrades.NOVA) > 0 else 0), "nova fired after the pick")
 
 
 func test_power_upgrade_raises_damage() -> void:
@@ -188,7 +199,7 @@ func test_xp_gem_flies_to_a_near_wizard() -> void:
 	w._drop(World.PK_XP, p.pos + Vector2(20, 0), Vector2.ZERO, 30.0, 3)
 	for _i: int in range(60):
 		w.step(DT, {})
-	assert_eq(p.xp, 3, "the gem should have reached the wizard")
+	assert_eq(w.party_xp, 3, "the gem should have reached the wizard")
 
 
 func test_snapshot_player_block_size() -> void:
@@ -768,16 +779,6 @@ func test_solo_bet_takes_gold_then_pays_after_the_reel() -> void:
 	assert_true(done, "the outcome never landed")
 
 
-func test_team_blessing_levels_everyone() -> void:
-	var w := _shrine_world([0, 1, 2])
-	var levels: Array[int] = []
-	for s: int in [0, 1, 2]:
-		levels.append(_player(w, s).level)
-	w._resolve_gamble({"slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_BLESSING, "stake": 40, "pos": Vector2(200, 120)})
-	for s: int in [0, 1, 2]:
-		assert_eq(_player(w, s).level, levels[s] + Gamble.BLESSING_LEVELS)
-
-
 func test_team_curse_hurts_but_never_kills() -> void:
 	var w := _shrine_world([0, 1])
 	_player(w, 0).hp = 1
@@ -844,8 +845,6 @@ func test_no_lich_visits_after_the_final_minute() -> void:
 	_player(w).invuln = 99999.0
 	var lich_minutes: int = 0
 	for _i: int in range(60 * 70):
-		_player(w).choices.clear() # skip level-up picks so the clock keeps running
-		_player(w).pending = 0
 		w.step(DT, {})
 		for ev: Array in w.take_events():
 			if ev[0] == World.EV_WAVE and int(ev[4]) == 1:
@@ -1150,3 +1149,275 @@ func test_rifts_open_near_the_party_not_across_the_arena() -> void:
 		var at := w._spot_near_party(w.tune.rift_min_dist, w.tune.rift_max_dist, 22.0)
 		var d := at.distance_to(p.pos)
 		assert_true(d >= w.tune.rift_min_dist - 0.5 and d <= w.tune.rift_max_dist + 1.0, "rift %d px away" % d)
+
+
+# ================================================================ SHARED XP ===
+func _card_input(p: World.Player, card: int = 0) -> PackedFloat32Array:
+	return PackedFloat32Array([0, 0, 0, 0, 0, 0, card, p.offer])
+
+
+func test_a_gem_collected_by_any_wizard_levels_everyone() -> void:
+	var w := World.new([0, 1, 2], 3)
+	var p1 := _player(w, 1)
+	w._drop(World.PK_XP, p1.pos + Vector2(10, 0), Vector2.ZERO, 30.0, w.xp_needed())
+	for _i: int in range(30):
+		w.step(DT, {})
+	assert_eq(w.party_level, 2)
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).level, 2)
+		assert_true(not _player(w, s).choices.is_empty(), "slot %d was not dealt cards" % s)
+
+
+func test_xp_needed_scales_with_party_size() -> void:
+	var base: int = World.new([0], 3).xp_needed()
+	assert_eq(base, World.new([0], 3).tune.xp_to_next(1))
+	for n: int in [2, 3, 4]:
+		var slots: Array = range(n)
+		var w := World.new(slots, 3)
+		assert_eq(w.xp_needed(), int(round(base * (1.0 + w.tune.xp_party_scale * (n - 1)))))
+	var flat := Tuning.new()
+	flat.set_value("xp_party_scale", 0.0)
+	assert_eq(World.new([0, 1, 2, 3], 3, flat).xp_needed(), base)
+
+
+func test_one_large_gain_queues_several_levels() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), 2000)
+	assert_true(w.party_level >= 4, "level %d" % w.party_level)
+	for s: int in [0, 1]:
+		assert_eq(_player(w, s).pending, w.party_level - 1)
+		assert_eq(_player(w, s).level, w.party_level)
+
+
+func test_a_level_up_deals_cards_to_every_wizard_at_once() -> void:
+	var w := World.new([0, 1, 2], 3)
+	var down := _player(w, 1)
+	down.alive = false
+	down.lives = 2
+	down.respawn = 100.0
+	var out := _player(w, 2)
+	out.alive = false
+	out.lives = 0
+	w.gain_xp(_player(w, 0), w.xp_needed())
+	w.step(DT, {})
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).choices.size(), int(w.tune.level_choices), "slot %d was not dealt cards" % s)
+		assert_eq(_player(w, s).pending, 0)
+	w.step(DT, {1: _card_input(down, 1), 2: _card_input(out, 2)})
+	assert_true(down.choices.is_empty(), "the down wizard could not pick")
+	assert_true(out.choices.is_empty(), "the out wizard could not pick")
+	assert_false(_player(w, 0).choices.is_empty(), "slot 0 lost its cards to the others' picks")
+
+
+func test_cards_wait_in_hand_until_taken() -> void:
+	var w := World.new([0, 1], 3)
+	for s: int in [0, 1]:
+		_player(w, s).invuln = 99999.0
+	# No horde: a minute of empty room is enough to show that nothing times out, and it runs in a second.
+	w.horde_budget = -99999.0
+	w.elite_t = -99999.0
+	w.shrine_t = 99999.0
+	w.team_shrine_t = 99999.0
+	w.gain_xp(_player(w, 0), w.xp_needed())
+	w.step(DT, {})
+	var hands: Array = [_player(w, 0).choices.duplicate(), _player(w, 1).choices.duplicate()]
+	var offers: Array = [_player(w, 0).offer, _player(w, 1).offer]
+	var picks := 0
+	for i: int in range(60 * 60):
+		# The arena sends [-1, offer] every tick while a hand waits untaken; half the ticks send nothing at all.
+		var none: Dictionary = {0: _card_input(_player(w, 0), -1), 1: _card_input(_player(w, 1), -1)}
+		w.step(DT, none if i % 2 == 0 else {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_PICK:
+				picks += 1
+	assert_eq(picks, 0, "something picked for a player")
+	for s: int in [0, 1]:
+		var p := _player(w, s)
+		assert_eq(p.choices, hands[s] as Array[int], "slot %d's hand changed" % s)
+		assert_eq(p.offer, offers[s], "slot %d's offer changed" % s)
+
+
+## A world with one wizard holding cards at the centre and nothing else moving.
+func _shock_world(tuning: Tuning = null) -> World:
+	var w := World.new([0], 3, tuning)
+	w.phase = World.PH_FIGHT
+	w.horde_budget = -99999.0
+	w.elite_t = -99999.0
+	w.shrine_t = 99999.0
+	w.team_shrine_t = 99999.0
+	var p := _player(w)
+	p.invuln = 99999.0
+	p.pos = G.ARENA.get_center()
+	w.gain_xp(p, w.xp_needed())
+	w.step(DT, {})
+	return w
+
+
+func _still_enemy(w: World, at: Vector2) -> World.Enemy:
+	var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, at)
+	e.entering = false
+	e.spd = 0.0
+	return e
+
+
+func test_taking_a_card_pushes_near_enemies_away_without_harm() -> void:
+	var w := _shock_world()
+	var p := _player(w)
+	var near := _still_enemy(w, p.pos + Vector2(w.tune.pick_shock_radius - 10.0, 0))
+	var far := _still_enemy(w, p.pos + Vector2(0, w.tune.pick_shock_radius + 20.0))
+	var hp: float = near.hp
+	w.step(DT, {0: _card_input(p)})
+	assert_true(near.knock.x > 10.0, "the near enemy was not pushed away: knock %s" % near.knock)
+	assert_near(near.hp, hp, 0.0001, "the shock hurt the enemy")
+	assert_eq(far.knock, Vector2.ZERO, "an enemy outside the radius was pushed")
+	var x0: float = near.pos.x
+	for _i: int in range(10):
+		w.step(DT, {})
+	assert_true(near.pos.x > x0 + 5.0, "the pushed enemy did not move away")
+
+
+func test_no_shock_with_radius_zero_or_from_a_down_wizard() -> void:
+	var off := Tuning.new()
+	off.set_value("pick_shock_radius", 0.0)
+	var w := _shock_world(off)
+	var near := _still_enemy(w, _player(w).pos + Vector2(30, 0))
+	w.step(DT, {0: _card_input(_player(w))})
+	assert_true(_player(w).choices.is_empty(), "the card was not taken")
+	assert_eq(near.knock, Vector2.ZERO, "radius 0 still pushed")
+	var down_w := _shock_world()
+	var p := _player(down_w)
+	p.alive = false
+	p.lives = 1
+	p.respawn = 100.0
+	var e := _still_enemy(down_w, p.pos + Vector2(30, 0))
+	down_w.step(DT, {0: _card_input(p)})
+	assert_true(p.choices.is_empty(), "the down wizard's card was not taken")
+	assert_eq(e.knock, Vector2.ZERO, "a down wizard's card pushed an enemy")
+
+
+## A run at 5:10 with the Lich just slain; the horde has budget and a spawn is queued.
+func _lull_world(tuning: Tuning = null) -> World:
+	var w := _fighting(tuning, 5 * 60.0 + 10.0)
+	w.shrine_t = 99999.0
+	w.team_shrine_t = 99999.0
+	var lich: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w.boss = lich
+	w._kill_enemy(lich, 0)
+	w.horde_budget = 1000.0
+	w.elite_t = w.tune.elite_interval - 0.1
+	w.spawn_queue.append({"t": w.wave_time + 1.0, "type": World.GOBLIN, "door": 0})
+	return w
+
+
+func test_a_slain_lich_starts_a_lull_with_no_spawns() -> void:
+	var w := _lull_world()
+	assert_near(w.lull_left, w.tune.lull_seconds, 0.0001)
+	var lulls := w.take_events().filter(func(ev: Array) -> bool: return ev[0] == World.EV_LULL)
+	assert_eq(lulls.size(), 1, "no EV_LULL")
+	assert_near(float((lulls[0] as Array)[3]), w.tune.lull_seconds, 0.0001)
+	var wt0: float = w.wave_time
+	var ticks := 0
+	while w.lull_left > 0.0 and ticks < 60 * 120:
+		w.step(DT, {})
+		ticks += 1
+		if w.lull_left > 0.0:
+			assert_eq(w.enemies.size(), 0, "an enemy spawned %.2f s into the lull" % (ticks * DT))
+	assert_near(w.wave_time, wt0 + w.tune.lull_seconds, 0.05, "the run clock did not keep counting")
+	assert_false(w.spawn_queue.is_empty(), "the queued spawn was dropped")
+	for _i: int in range(30):
+		w.step(DT, {})
+	assert_true(w.enemies.size() > 0, "spawns did not resume after the lull")
+
+
+func test_spawns_queued_in_a_lull_keep_their_spacing_after_it() -> void:
+	var w := _lull_world()
+	w.horde_budget = -99999.0
+	w.elite_t = -99999.0
+	w.spawn_queue.clear()
+	w.step(DT, {})
+	# An omen's horde queued in the quiet, 1 s and 3 s out.
+	w.spawn_queue.append({"t": w.wave_time + 1.0, "type": World.GOBLIN, "door": 0})
+	w.spawn_queue.append({"t": w.wave_time + 3.0, "type": World.GOBLIN, "door": 0})
+	var ticks := 0
+	while w.lull_left > 0.0 and ticks < 60 * 120:
+		w.step(DT, {})
+		ticks += 1
+	assert_eq(w.enemies.size(), 0, "a queued spawn came during the lull or the tick it ended")
+	var arrived: Array[float] = []
+	var t0: float = w.wave_time
+	var id0: int = w.next_id
+	for _i: int in range(60 * 5):
+		w.step(DT, {})
+		while arrived.size() < w.next_id - id0: # by id: the wizard's spells may kill one as it comes
+			arrived.append(w.wave_time - t0)
+	assert_eq(arrived.size(), 2, "the queued spawns did not come after the lull")
+	assert_near(arrived[0], 1.0, 0.05, "the first queued spawn did not keep its 1 s lead after the lull")
+	assert_near(arrived[1] - arrived[0], 2.0, 0.05, "the queued spawns came together instead of 2 s apart")
+
+
+func test_a_lull_calls_every_xp_gem_to_the_party() -> void:
+	var w := _lull_world()
+	var p := _player(w)
+	p.pos = Vector2(G.ARENA.position.x + 30, G.ARENA.get_center().y)
+	var far := Vector2(G.ARENA.end.x - 20, G.ARENA.get_center().y)
+	w._drop(World.PK_XP, far, Vector2.ZERO, 60.0, 1)
+	var gem: World.Pickup = w.pickups.back()
+	w.step(DT, {})
+	assert_true(gem.pos.x < far.x - 1.0, "the far gem did not start moving to the wizard")
+	var calm := _fighting(null, 10.0)
+	_player(calm).pos = p.pos
+	calm._drop(World.PK_XP, far, Vector2.ZERO, 60.0, 1)
+	var still: World.Pickup = calm.pickups.back()
+	calm.step(DT, {})
+	assert_near(still.pos.x, far.x, 0.001, "a far gem moved without a lull")
+
+
+func test_no_lull_when_switched_off_or_after_the_archlich() -> void:
+	var off := Tuning.new()
+	off.set_value("lull_seconds", 0.0)
+	var w := _lull_world(off)
+	assert_eq(w.lull_left, 0.0)
+	assert_true(w.take_events().filter(func(ev: Array) -> bool: return ev[0] == World.EV_LULL).is_empty())
+	var fw := _final_world()
+	var arch: World.Enemy = fw.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	fw._make_final(arch)
+	fw.boss = arch
+	fw._kill_enemy(arch, 0)
+	assert_eq(fw.lull_left, 0.0, "the Archlich's death started a lull")
+	assert_true(fw.take_events().filter(func(ev: Array) -> bool: return ev[0] == World.EV_LULL).is_empty())
+
+
+func test_blessing_gives_the_party_its_levels() -> void:
+	var w := _shrine_world([0, 1, 2])
+	var before: int = w.party_level
+	w._resolve_gamble({"slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_BLESSING, "stake": 40, "pos": Vector2(200, 120)})
+	assert_eq(w.party_level, before + Gamble.BLESSING_LEVELS)
+	for s: int in [0, 1, 2]:
+		assert_eq(_player(w, s).level, w.party_level)
+
+
+func test_snapshot_carries_the_party_fields() -> void:
+	var w := World.new([0, 1], 3)
+	w.gain_xp(_player(w, 0), w.xp_needed() + w.tune.xp_to_next(2) * 2 + 5)
+	w.step(DT, {})
+	var snap: Dictionary = w.snapshot()
+	var pl: PackedFloat32Array = snap["p"]
+	for i: int in [0, World.PLAYER_FLOATS]:
+		assert_eq(int(pl[i + 19]), w.party_xp)
+		assert_eq(int(pl[i + 20]), w.xp_needed())
+		assert_eq(int(pl[i + 21]), w.party_level)
+		assert_eq(int(pl[i + World.PLAYER_FLOATS - 1]), w.party_level - 1, "draws: queued plus the hand")
+	_player(w, 1).choices.clear()
+	_player(w, 1).pending = 0
+	assert_eq(int((w.snapshot()["p"] as PackedFloat32Array)[World.PLAYER_FLOATS * 2 - 1]), 0)
+	w.lull_left = 7.5
+	assert_near((w.snapshot()["w"] as PackedFloat32Array)[10], 7.5)
+	var h: int = w.state_hash()
+	w.party_xp += 1
+	assert_true(w.state_hash() != h, "the hash ignores the party pool")
+	h = w.state_hash()
+	w.lull_left = 7.0
+	assert_true(w.state_hash() != h, "the hash ignores the lull")
+	h = w.state_hash()
+	_player(w, 0).pending += 1
+	assert_true(w.state_hash() != h, "the hash ignores a wizard's queued draws")

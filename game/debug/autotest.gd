@@ -29,8 +29,14 @@ var _results_shot := false
 var quit_at := 60.0
 var _quit_override := -1.0
 var net := ""
-var _pick_seen := 0.0
-var _pick_shot := false
+## Level-up shots: levelup.png (the first open tray), tab.png (a tab, tray closed, its wizard alive so the head
+## marker shows), tray.png (two trays open at once, or one with more draws waiting behind it), lull.png (a lull
+## 3.6 s in, its banner up), lull_end.png (the lull over, "THE HORDE RETURNS" up). Each keys on what the arena
+## shows, held for LEVEL_SHOT_AFTER seconds.
+var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_end": 0.0}
+var _level_shots := {}
+const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5} # tab: its marker
+var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -53,6 +59,8 @@ func _ready() -> void:
 			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--pick-hold="):
+			pick_hold = float(a.substr(12))
 		if a.begins_with("--players="):
 			players = clampi(int(a.substr(10)), 1, 4)
 		if a.begins_with("--perf-hide="):
@@ -97,14 +105,14 @@ func _process(delta: float) -> void:
 	t += delta
 	if perf:
 		_perf_tick()
-	# State-keyed shot: the first level-up pick screen, once it has been up for a moment.
 	var cur = G.main.current if G.main else null
-	if not _pick_shot and cur and cur.has_method("_anyone_picking") and cur._anyone_picking():
-		_pick_seen += delta
-		if _pick_seen > 0.4:
-			_pick_shot = true
-			get_viewport().get_texture().get_image().save_png("%s/levelup.png" % out_dir)
-			print("shot levelup")
+	# State-keyed shots of the level-up cards and the lull (_level_shot below).
+	if cur and "lull_left" in cur:
+		_level_shot("levelup", delta, _any_tray(cur, false), false)
+		_level_shot("tab", delta, _any_tab(cur), false)
+		_level_shot("tray", delta, _any_tray(cur, true), false)
+		_level_shot("lull", delta, cur.lull_left > 0.0, false)
+		_level_shot("lull_end", delta, cur.banner.t > 0.0 and cur.banner.text == "THE HORDE RETURNS", false)
 	# State-keyed shot: the first chest reel, just after it stops on the item.
 	if not _chest_shot and cur and "_reveals" in cur:
 		for r: Dictionary in cur._reveals:
@@ -222,6 +230,7 @@ func _process(delta: float) -> void:
 			Net.begin_game()
 			await get_tree().process_frame
 			var arena = G.main.current
+			arena.autotest_pick_hold = pick_hold
 			if arena.world and start_wave > 1:
 				# Jump the run clock to just before the start_wave:00 mark (5 brings the Lich); the horde announces
 				# the new minute itself.
@@ -232,8 +241,49 @@ func _process(delta: float) -> void:
 			img.save_png("%s/%s.png" % [out_dir, name])
 			print("shot ", name, " fps=", Engine.get_frames_per_second(),
 				" particles=", (G.main.current.fx.parts.size() if "fx" in G.main.current else 0))
-	if t > (_quit_override if _quit_override > 0.0 else quit_at):
+	var stop := _quit_override if _quit_override > 0.0 else quit_at
+	if t > stop - 0.3 and cur and "lull_left" in cur:
+		# Time fallback: a card shot whose state never came is taken anyway, marked as such, so a run always says why.
+		for k: String in _level_seen.keys():
+			_level_shot(k, 0.0, true, true)
+	if t > stop:
 		get_tree().quit()
+
+
+## Takes the shot `name` once `seen` has held for LEVEL_SHOT_AFTER[name] seconds in a row (or at once as a fallback).
+func _level_shot(name: String, delta: float, seen: bool, fallback: bool) -> void:
+	if _level_shots.has(name):
+		return
+	_level_seen[name] = float(_level_seen[name]) + delta if seen else 0.0
+	if not fallback and float(_level_seen[name]) < float(LEVEL_SHOT_AFTER[name]):
+		return
+	_level_shots[name] = true
+	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out_dir, name])
+	print("shot %s%s" % [name, " (fallback: the state never showed)" if fallback else ""])
+
+
+## True while some wizard's tray is open and fully face up (with `more`: two such trays, or one with more draws
+## waiting behind its hand).
+func _any_tray(cur: Node, more: bool) -> bool:
+	if cur.game_over or cur.paused:
+		return false
+	var open := 0
+	for slot: int in cur.vp.keys():
+		if cur._tray_shown(slot) and cur._tray_turn(slot, (cur.vp[slot].choices as Array).size() - 1) >= 1.0:
+			if not more or cur._draws(slot) > 1:
+				return true
+			open += 1
+	return more and open >= 2
+
+
+## True while some living wizard's tab shows (draws waiting, tray closed), so its head marker is up too.
+func _any_tab(cur: Node) -> bool:
+	if cur.game_over or cur.paused:
+		return false
+	for slot: int in cur.vp.keys():
+		if cur._draws(slot) > 0 and not cur._tray_shown(slot) and cur.vp[slot].alive:
+			return true
+	return false
 
 
 ## Waits for a big horde, then books PERF_FRAMES frames: wall frame time, each system's script time (PerfMeter)

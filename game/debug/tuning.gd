@@ -30,6 +30,7 @@ const FIELDS: Array = [
 	["enemy_cap", 260.0, 20.0, 600.0, 10.0, "Spawning", "Most enemies alive at once; the horde holds its budget while at the cap."],
 	["elite_interval", 45.0, 5.0, 300.0, 5.0, "Spawning", "Seconds between elite spawns (a big glowing orc or mage that drops loot)."],
 	["elite_hp_mul", 8.0, 1.0, 30.0, 0.5, "Spawning", "Elite HP as a multiple of a normal enemy of its type."],
+	["lull_seconds", 20.0, 0.0, 60.0, 1.0, "Spawning", "Seconds of quiet after a Lich (not the Archlich) falls: nothing spawns and every XP gem flies to the party. 0 = no lull."],
 	["chest_life", 40.0, 5.0, 300.0, 5.0, "Loot", "Seconds a chest stays on the floor."],
 	["elite_chest_luck", 1.0, 0.0, 5.0, 1.0, "Loot", "Luck of an elite's chest (each point moves a fifth of the common odds up the tiers)."],
 	["boss_chest_luck", 3.0, 0.0, 5.0, 1.0, "Loot", "Luck of the chests the Lich drops, one per wizard."],
@@ -71,7 +72,10 @@ const FIELDS: Array = [
 	["xp_gem_cap", 120.0, 10.0, 1000.0, 10.0, "XP", "Most XP gems on the floor; past it a new gem's XP joins the nearest gem instead."],
 	["xp_magnet_radius", 24.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
 	["xp_magnet_speed", 170.0, 40.0, 500.0, 5.0, "XP", "Speed of an XP gem flying to a wizard, px/s."],
-	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the pick screen hold 3)."],
+	["xp_party_scale", 1.0, 0.0, 2.0, 0.05, "XP", "XP a level costs grows by this fraction per extra wizard (the spawn budget grows with the party too)."],
+	["pick_shock_radius", 44.0, 0.0, 120.0, 2.0, "XP", "Taking a card pushes every enemy this close to the wizard away, px (no damage). 0 = off."],
+	["pick_shock_push", 220.0, 0.0, 600.0, 10.0, "XP", "Knockback of a card's shock, px/s, scaled like other knockback (the Nova's is 260)."],
+	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the card tray hold 3)."],
 	["maxed_level_score", 1000.0, 0.0, 10000.0, 50.0, "XP", "Score given instead of a pick when every upgrade is maxed."],
 ]
 
@@ -97,6 +101,7 @@ var door_near_share: float
 var enemy_cap: float
 var elite_interval: float
 var elite_hp_mul: float
+var lull_seconds: float
 var chest_life: float
 var elite_chest_luck: float
 var boss_chest_luck: float
@@ -138,6 +143,9 @@ var xp_gem_life: float
 var xp_gem_cap: float
 var xp_magnet_radius: float
 var xp_magnet_speed: float
+var xp_party_scale: float
+var pick_shock_radius: float
+var pick_shock_push: float
 var level_choices: float
 var maxed_level_score: float
 

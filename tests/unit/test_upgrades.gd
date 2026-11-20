@@ -93,3 +93,23 @@ func test_new_weapons_are_offered() -> void:
 				seen[idx] = true
 			assert_false(Upgrades.is_evolution(idx), "evolution offered from nothing")
 	assert_eq(seen.size(), Spells.COUNT, "weapons offered: %s" % [seen.keys()])
+
+
+func test_names_and_effects_fit_a_tray_row() -> void:
+	# The level-up tray shows each card as one row: the title on one line, the effect beside the level on the next.
+	var longest_name := ""
+	var longest_effect := ""
+	for i: int in Upgrades.count():
+		var name := Upgrades.display_name(i)
+		var effect := Upgrades.description(i)
+		assert_true(name.length() <= TarotArt.ROW_TITLE_CHARS, "%s: name longer than %d" % [name, TarotArt.ROW_TITLE_CHARS])
+		assert_true(effect.length() <= TarotArt.ROW_EFFECT_CHARS, "%s: effect '%s' longer than %d" % [name, effect, TarotArt.ROW_EFFECT_CHARS])
+		if name.length() > longest_name.length():
+			longest_name = name
+		if effect.length() > longest_effect.length():
+			longest_effect = effect
+	# A row is 116 px: 11 for the button, then the text; the effect keeps 4 px clear of the 3-letter level at the
+	# right edge (each glyph run has a 1 px outline).
+	assert_true(11 + PixelFont.text_width(longest_name) + 1 <= 116, "%s does not fit a row" % longest_name)
+	assert_true(11 + PixelFont.text_width(longest_effect) + 4 + PixelFont.text_width("2/5") <= 116,
+		"%s does not fit beside the level" % longest_effect)

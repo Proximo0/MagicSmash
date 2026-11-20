@@ -108,3 +108,28 @@ func test_faster_horde_rate_spawns_more_enemies() -> void:
 		b.step(DT, {})
 	assert_true(b.spawn_queue.size() + b.enemies.size() > 2 * (a.spawn_queue.size() + a.enemies.size()),
 		"rate 20 should field far more than rate 2 (%d vs %d)" % [b.spawn_queue.size() + b.enemies.size(), a.spawn_queue.size() + a.enemies.size()])
+
+
+func test_shared_xp_rows_have_their_defaults_and_ranges() -> void:
+	var t := Tuning.new()
+	assert_near(t.xp_party_scale, 1.0)
+	t.set_value("xp_party_scale", 5.0)
+	assert_near(t.xp_party_scale, 2.0, 0.0001, "xp_party_scale is not clamped to 2")
+
+
+func test_level_up_rows_have_their_defaults_and_the_pick_clock_is_gone() -> void:
+	var t := Tuning.new()
+	assert_near(t.pick_shock_radius, 44.0)
+	assert_near(t.pick_shock_push, 220.0)
+	assert_near(t.lull_seconds, 20.0)
+	assert_eq(Tuning.field_info("pick_shock_radius")["group"], "XP")
+	assert_eq(Tuning.field_info("pick_shock_push")["group"], "XP")
+	assert_eq(Tuning.field_info("lull_seconds")["group"], Tuning.field_info("horde_rate_base")["group"])
+	t.set_value("pick_shock_radius", -5.0)
+	assert_near(t.pick_shock_radius, 0.0, 0.0001, "pick_shock_radius is not clamped to 0")
+	t.set_value("pick_shock_push", 9999.0)
+	assert_near(t.pick_shock_push, 600.0, 0.0001, "pick_shock_push is not clamped to 600")
+	t.set_value("lull_seconds", 99.0)
+	assert_near(t.lull_seconds, 60.0, 0.0001, "lull_seconds is not clamped to 60")
+	assert_true(Tuning.field_info("pick_seconds").is_empty(), "the pick clock row is still there")
+	assert_false("pick_seconds" in t, "the pick clock field is still there")
