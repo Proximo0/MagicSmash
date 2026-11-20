@@ -40,7 +40,19 @@ func _ready() -> void:
 	if n.is_empty():
 		n = OS.get_environment("USER")
 	if not n.is_empty():
-		host_name = n.to_upper().left(10)
+		host_name = clean_name(n)
+
+## A name the pixel font can draw: upper case, only its glyphs (spaces kept, runs collapsed and trimmed; no "|",
+## which would break the discovery packet), at most 10 characters, "WIZARD" when nothing is left. Also applied to
+## names that arrive off the network.
+static func clean_name(n: String) -> String:
+	var out := ""
+	for ch: String in n.to_upper():
+		if ch == " " or (ch != "|" and PixelFont.GLYPHS.has(ch)):
+			if ch != " " or not out.ends_with(" "):
+				out += ch
+	out = out.strip_edges().left(10).strip_edges()
+	return "WIZARD" if out.is_empty() else out
 
 func is_host() -> bool:
 	return mode != Mode.CLIENT
@@ -134,7 +146,7 @@ func _process(delta: float) -> void:
 			if parts.size() >= 3 and parts[0] == MAGIC:
 				if not found_games.has(ip):
 					changed = true
-				found_games[ip] = {"name": parts[1], "players": int(parts[2]), "seen": Time.get_ticks_msec()}
+				found_games[ip] = {"name": clean_name(parts[1]), "players": int(parts[2]), "seen": Time.get_ticks_msec()}
 		for ip in found_games.keys():
 			if Time.get_ticks_msec() - int(found_games[ip].seen) > 4000:
 				found_games.erase(ip)

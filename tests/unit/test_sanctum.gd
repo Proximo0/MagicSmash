@@ -34,9 +34,32 @@ func test_walking_into_a_pot_breaks_it_once() -> void:
 
 
 func test_pots_start_broken_until_the_next_run() -> void:
-	var s := Sanctum.new(1, true)
+	var s := Sanctum.new(1, Sanctum.ALL_POTS)
 	for b: bool in s.broken:
 		assert_true(b)
+
+
+func test_one_smashed_pot_does_not_break_the_rest_next_visit() -> void:
+	var p := Profile.new()
+	p.break_pot(0)
+	var s := Sanctum.new(1, p.pots_mask_now())
+	assert_true(s.broken[0])
+	assert_false(s.broken[1], "another pot came back broken")
+	assert_eq(s.broken.count(true), 1)
+	p.finish_run(10, 30.0, 0, 0)
+	assert_eq(p.pots_mask_now(), 0, "pots did not refill after a run")
+	var old := Profile.from_dict({"runs": 2, "pots_run": 2})
+	assert_eq(old.pots_mask_now(), Sanctum.ALL_POTS, "an old save keeps its pots broken")
+
+
+func test_the_well_never_pays_out_more_than_it_takes() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 5
+	var total := 0
+	for i: int in range(1, 9001):
+		total += Sanctum.wish_payout(i, false, r)
+	assert_true(total < 9000, "the well paid %d crystals for 9000" % total)
+	assert_eq(Sanctum.wish_payout(9, true, r), Secrets.NINTH_CRYSTALS, "the first ninth wish pays")
 
 
 func test_pots_hold_crystals_and_rarely_cards() -> void:
@@ -94,3 +117,23 @@ func test_sealed_decks_draw_the_lich_rarely() -> void:
 func test_texts_fit_the_screen() -> void:
 	for f: String in Sanctum.FORTUNES:
 		assert_true(PixelFont.text_width(f, 1) <= 440, f)
+
+
+func test_the_ninth_wish_pays_only_the_first_time() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 11
+	var p := Profile.new()
+	var ninths := 0
+	var paid_30 := 0
+	for i: int in range(1, 28):
+		var res := Sanctum.toss(p, r)
+		if res.ninth:
+			ninths += 1
+			assert_eq(i, 9, "the secret was found on toss %d" % i)
+			assert_eq(res.back, Secrets.NINTH_CRYSTALS)
+		if res.back == Secrets.NINTH_CRYSTALS:
+			paid_30 += 1
+	assert_eq(p.wishes, 27)
+	assert_true(p.has_secret("ninth"))
+	assert_eq(ninths, 1, "tosses 9, 18 and 27 must find the secret exactly once")
+	assert_eq(paid_30, 1, "the prize was paid more than once")

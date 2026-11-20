@@ -63,3 +63,26 @@ func test_answers() -> void:
 	assert_eq(o.choose(), Ouija.SUBMIT)
 	o.point_at(4, 0)
 	assert_eq(o.choose(), Ouija.CANCEL)
+
+
+func test_enter_after_typing_submits() -> void:
+	var o := Ouija.new()
+	o.type_char("1")
+	assert_eq(o.enter(), Ouija.SUBMIT)
+
+
+func test_enter_after_moving_the_planchette_chooses_the_mark() -> void:
+	var o := Ouija.new()
+	o.type_char("1")
+	o.move(1, 0)
+	var mark := o.current()
+	assert_eq(o.enter(), Ouija.TYPED, "ENTER sent the address instead of choosing the mark")
+	assert_eq(o.text, "1" + mark)
+	assert_eq(o.enter(), Ouija.SUBMIT, "after the mark is written ENTER sends")
+
+
+func test_a_mouse_resting_on_the_board_does_not_turn_enter_into_choose() -> void:
+	var o := Ouija.new()
+	o.type_char("1")
+	assert_true(o.point_at(Ouija.DIGITS_ROW, 2))
+	assert_eq(o.enter(), Ouija.SUBMIT, "pointing with the mouse made ENTER type the mark under it")
