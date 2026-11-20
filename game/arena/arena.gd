@@ -151,6 +151,8 @@ var bg: Sprite2D
 var decal_layer: Node2D
 var env_layer: Node2D
 var ent_layer: Node2D
+var wiz_layer: Node2D
+var lighting: ArenaLighting
 var fx: Fx
 var shot_layer: Node2D
 var eshot_layer: Node2D
@@ -180,33 +182,18 @@ func _ready() -> void:
 	env_add.draw.connect(_timed.bind("draw_env_add", _draw_env_add))
 	ent_layer = _layer(false)
 	ent_layer.draw.connect(_timed.bind("draw_entities", _draw_entities))
+	# The room's light multiplies over the floor and the enemies; particles, shots and wizards draw above it.
+	lighting = ArenaLighting.attach(self)
 	fx = Fx.new()
 	fx.calm = true
 	root.add_child(fx)
 	shot_layer = _layer(true)
 	shot_layer.draw.connect(_timed.bind("draw_shots", _draw_shots))
+	# The wizards over their own magic and the crowd, only the enemies' shots above them.
+	wiz_layer = _layer(false)
+	wiz_layer.draw.connect(_timed.bind("draw_wizards", _draw_wizards))
 	eshot_layer = _layer(false)
 	eshot_layer.draw.connect(_timed.bind("draw_eshots", _draw_eshots))
-	var vignette := TextureRect.new()
-	var grad := GradientTexture2D.new()
-	grad.width = 240
-	grad.height = 135
-	grad.fill = GradientTexture2D.FILL_RADIAL
-	grad.fill_from = Vector2(0.5, 0.5)
-	grad.fill_to = Vector2(1.05, 1.05)
-	var g := Gradient.new()
-	g.set_color(0, Color(0, 0, 0, 0))
-	g.set_color(1, Color(0.02, 0.0, 0.06, 0.55))
-	g.add_point(0.6, Color(0, 0, 0, 0))
-	grad.gradient = g
-	vignette.texture = grad
-	vignette.size = G.SCREEN
-	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var vignette_layer := CanvasLayer.new()
-	vignette_layer.layer = 5
-	add_child(vignette_layer)
-	vignette_layer.add_child(vignette)
-
 	hud_layer = CanvasLayer.new()
 	hud_layer.layer = 10
 	add_child(hud_layer)
@@ -360,6 +347,7 @@ func _process_view(dt: float) -> void:
 	decal_layer.queue_redraw()
 	env_layer.queue_redraw()
 	ent_layer.queue_redraw()
+	wiz_layer.queue_redraw()
 	shot_layer.queue_redraw()
 	eshot_layer.queue_redraw()
 	env_add.queue_redraw()
@@ -529,6 +517,7 @@ func _draw_decals() -> void: ArenaDrawWorld._draw_decals(self)
 func _draw_env() -> void: ArenaDrawWorld._draw_env(self)
 func _draw_env_add() -> void: ArenaDrawWorld._draw_env_add(self)
 func _draw_entities() -> void: ArenaDrawWorld._draw_entities(self)
+func _draw_wizards() -> void: ArenaDrawWorld._draw_wizards(self)
 func _draw_shots() -> void: ArenaDrawFx._draw_shots(self)
 func _draw_eshots() -> void: ArenaDrawFx._draw_eshots(self)
 func _draw_hud() -> void: ArenaHud._draw_hud(self)

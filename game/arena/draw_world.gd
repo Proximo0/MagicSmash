@@ -59,12 +59,20 @@ static func _draw_env(a: Arena) -> void:
 
 static func _draw_env_add(a: Arena) -> void:
 	var ci := a.env_add
-	# The light of those flames, the seal breathing, and each door's glow, flaring while monsters come through.
+	# The light of those flames, the seal breathing, each door's glow, flaring while monsters come through, and
+	# the rings under the wizards.
 	var k := _act_blend(a)
 	if k < 1.0:
 		ArenaArtLive.draw_glow(ci, ArenaBg.scene(a._prev_act), a.time, a.door_anim, 1.0 - k)
 	ArenaArtLive.draw_glow(ci, ArenaBg.scene(a.act), a.time, a.door_anim, k)
 	_draw_runes(a, ci)
+	# Each wizard's ring glows on the floor in their colour, over the decals, under the shadows and every foot.
+	for p: Dictionary in a.vp.values():
+		if p.alive:
+			var at := (p.pos as Vector2) + Vector2(0, 0.5)
+			var beat := 0.85 + 0.15 * sin(a.time * 3.0 + float(p.slot))
+			Sprites.draw_mid(ci, "wiz_ring", at, Color(G.player_fx(p.slot), beat))
+			Sprites.draw_mid(ci, "wiz_ring", at, Color(G.player_color(p.slot), 0.5 * beat))
 
 
 ## How far the backdrop has faded to the current act: 1 when no fade is running.
@@ -176,11 +184,6 @@ static func _draw_entities(a: Arena) -> void:
 	for u: Vector2 in a.vu:
 		_shadow(a, ci, u + Vector2(0, 1), 10)
 		Sprites.draw_at(ci, "urn", u + Vector2(0, 1))
-	# Each wizard's ring lies on the floor in their colour, under the shadows and everything that stands.
-	for p: Dictionary in a.vp.values():
-		if p.alive:
-			Sprites.draw_mid(ci, "fx_ring", (p.pos as Vector2) + Vector2(0, 0.5),
-				Color(G.player_fx(p.slot), 0.8 + 0.15 * sin(a.time * 3.0 + float(p.slot))))
 	# Pickups: calm on the floor. The motes come in hundreds, so they neither bob nor cast a shadow, and each
 	# twinkles for a blink every couple of seconds.
 	var xp_r := Sprites.region("xp")
@@ -229,20 +232,65 @@ static func _draw_entities(a: Arena) -> void:
 			if a.ENEMY_SHADOW[e.type] > 0 and e.type != World.BAT and not (e.type == World.GARGOYLE and e.state == 1):
 				_shadow(a, ci, e.pos, a.ENEMY_SHADOW[e.type])
 	ArenaDrawEnemies._draw_enemy_glows(a, ci)
+	# The wizards themselves stand on their own layer, over the crowd and out of the room's dark (`_draw_wizards`).
 	for it in list:
-		if it[1] == 0:
-			_draw_player(a, ci, it[2])
-		else:
+		if it[1] == 1:
 			ArenaDrawEnemies._draw_enemy(a, ci, it[2])
+
+
+## How far below the old P-tag's top a wizard's pip sits, and how far apart two pips must be.
+const PIP_DROP := 4.0
+const PIP_GAP := 8.0
+## The dark disc behind a wizard (see `_draw_player`).
+const WIZ_BACKING := Color(0.03, 0.02, 0.08, 0.5)
+
+
+## The wizards' layer, above the room's light map and the enemy crowd: every wizard with its halo, the enemies'
+## bars, the pips that say whose wizard is whose, and the ghosts of the fallen.
+static func _draw_wizards(a: Arena) -> void:
+	var ci := a.wiz_layer
+	var list: Array = []
+	for p: Dictionary in a.vp.values():
+		if p.alive:
+			list.append(p)
+	list.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return (x.pos as Vector2).y < (y.pos as Vector2).y)
 	ArenaDrawEnemies._draw_enemy_bars(a, ci)
+	for p: Dictionary in list:
+		_draw_player(a, ci, p)
+	if a.vp.size() > 1 or Net.is_online():
+		_draw_pips(a, ci, list)
 	for g: Array in a._ghosts:
 		var k: float = g[1] / a.GHOST_LIFE
 		var gp: Vector2 = g[0] + Vector2(sin(k * 9.0) * 3.0, -40.0 * k)
 		Sprites.draw_at(ci, "wiz%d_up_i0" % g[2], gp.round(), false, false, Color(0.7, 0.9, 1.3, 0.6 * (1.0 - k)))
 
 
+## A small pip in each wizard's colour over the hat, in place of a P-tag. Pips of wizards standing together are
+## pushed apart sideways so no two overlap.
+static func _draw_pips(a: Arena, ci: CanvasItem, list: Array) -> void:
+	var at: Array[Vector2] = []
+	for p: Dictionary in list:
+		var up: float = (a.TAG_UP_ORBS if p.orbit > 0.0 else a.TAG_UP) - PIP_DROP
+		at.append(Vector2(roundf(p.pos.x), roundf(p.pos.y - up)))
+	for _pass in 3:
+		for i in at.size():
+			for j in range(i + 1, at.size()):
+				var d := at[j] - at[i]
+				if absf(d.x) < PIP_GAP and absf(d.y) < 6.0:
+					var push := ceilf((PIP_GAP - absf(d.x)) / 2.0)
+					var s := 1.0 if d.x > 0.0 or (d.x == 0.0 and j > i) else -1.0
+					at[i].x -= push * s
+					at[j].x += push * s
+	var bob := floorf(sin(a.time * 3.0) * 0.99 + 0.5)
+	for i in list.size():
+		var p: Dictionary = list[i]
+		if p.invuln > 0.0 and int(a.time * 20.0) % 2 == 0 and p.invuln < 2.4:
+			continue
+		Sprites.draw_mid(ci, "wiz_pip", at[i] + Vector2(0, bob), G.player_color(p.slot).lerp(Color.WHITE, 0.25))
+
+
 ## One wizard: the walk cycle (or the idle breath), the casting pose for a moment after a spell leaves, the staff
-## (behind the body when they face away), and the P-tag over the hat when there is a party.
+## (behind the body when they face away), over its halo.
 static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var slot: int = p.slot
 	if p.invuln > 0.0 and int(a.time * 20.0) % 2 == 0 and p.invuln < 2.4:
@@ -268,15 +316,14 @@ static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var tip: Vector2 = p.pos + Vector2(0, -7) + aim * 9.0
 	if dirkey == "up":
 		_draw_staff(a, ci, grip, tip, slot)
+	# A soft dark backing, so a wizard standing in a blast or a cloud of smoke still stands out of it.
+	Sprites.glow(ci, p.pos + Vector2(0, -10), 15.0, WIZ_BACKING)
+	# The halo: a rim in the wizard's colour round the sprite's own outline, and a dark line round that, so the
+	# wizard stands out of any crowd or floor.
+	Sprites.draw_at(ci, key + "~", feet + Vector2(0, SpritesWizards.HALO), flip, false, G.player_color(slot).lerp(Color.WHITE, 0.3))
 	Sprites.draw_at(ci, key, feet, flip, p.flash > 0.0)
 	if dirkey != "up":
 		_draw_staff(a, ci, grip, tip, slot)
-	if a.vp.size() > 1 or Net.is_online():
-		var col := G.player_color(slot)
-		var lbl := "P%d" % (slot + 1)
-		# The tag rides above the rune shield's orbs while they circle the hat.
-		var up := a.TAG_UP_ORBS if p.orbit > 0.0 else a.TAG_UP
-		PixelFont.draw_centered(ci, lbl, p.pos.x, p.pos.y - up + floorf(sin(a.time * 5) * 1.0), 1, col, Color("0b0716"))
 
 
 ## A wizard's staff: a wooden shaft through the grip with a short butt behind it and a gold band under the head,

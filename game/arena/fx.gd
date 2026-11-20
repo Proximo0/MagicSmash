@@ -50,6 +50,9 @@ var keep_clear: Array[Rect2] = []
 ## The calm text rules (see the constants above) apply only when this is set: the arena sets it; the title and
 ## the sanctum keep their long, large words.
 var calm := false
+## The light the normal-blended smoke, debris and puffs take (the arena sets it from the room's light, see
+## ArenaLighting); glowing fx and the floating words keep their own colour.
+var shade := Color.WHITE
 var add_layer: Node2D
 var rng := RandomNumberGenerator.new()
 var _dying := 0.0
@@ -365,6 +368,8 @@ func _draw_main() -> void:
 func _draw_p(ci: CanvasItem, p: P) -> void:
 	var k := p.life / p.max_life
 	var col := p.c1.lerp(p.c0, k)
+	if not p.add:
+		col *= shade
 	var s := lerpf(p.size_end, p.size, k)
 	if s < 0.5:
 		return
@@ -385,6 +390,8 @@ func _draw_anims(ci: CanvasItem, add: bool) -> void:
 		var col: Color = a[5]
 		if k > 0.75:
 			col.a *= (1.0 - k) * 4.0
+		if not add:
+			col *= shade
 		Sprites.draw_mid_r(ci, frames[mini(int(k * frames.size()), frames.size() - 1)], a[1], col)
 
 ## The marks on the floor. The arena calls this from its additive floor layer, under the actors.
