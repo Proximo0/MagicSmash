@@ -1123,7 +1123,9 @@ func _do_hitstop(d: float) -> void:
 	_hitstop = d
 
 func _decal(pos: Vector2, color: Color, size: float) -> void:
-	decals.append([pos, color, size, 12.0, _fx_rng.randi()])
+	# A stain soaks into the floor: whatever colour the monster bled, it is no brighter than a lit flagstone.
+	var stain := Color.from_hsv(color.h, minf(color.s, 0.8), minf(color.v, 0.26))
+	decals.append([pos, stain, size, 12.0, _fx_rng.randi()])
 	if decals.size() > 120:
 		decals.pop_front()
 
@@ -1198,16 +1200,13 @@ func _emit_trails(dt: float) -> void:
 			fx.spawn(tip, Vector2(_fx_rng.randf_range(-10, 10), _fx_rng.randf_range(-25, -5)), 0.4, 1.0, Color.WHITE, SPELL_COLORS[p.spell], true)
 
 func _torch_fx(dt: float) -> void:
-	for tp in torch_pos:
-		if _fx_rng.randf() < 0.5:
-			fx.spawn(tp + Vector2(_fx_rng.randf_range(-1.5, 1.5), -2), Vector2(_fx_rng.randf_range(-4, 4), _fx_rng.randf_range(-24, -12)),
-				_fx_rng.randf_range(0.25, 0.45), 2.0, Color(1, 0.9, 0.4), Color(0.9, 0.15, 0.05), true, 1.0, -10.0, 0.0)
+	ArenaArtLive.sparks(fx, ArenaBg.scene(act), _fx_rng, dt, door_anim)
 
 # ============================================================ DRAWING ===
 func _draw_decals() -> void:
 	for d in decals:
 		var c: Color = d[1]
-		c.a = clampf(d[3] / 4.0, 0.0, 1.0) * 0.5
+		c.a = clampf(d[3] / 4.0, 0.0, 1.0) * 0.42
 		var p: Vector2 = d[0]
 		var s: float = d[2]
 		var seed: int = d[4]
@@ -1223,66 +1222,18 @@ func _draw_decals() -> void:
 
 func _draw_env() -> void:
 	var ci := env_layer
-	# Doors: portcullis that lifts while monsters pour through.
-	for i in 4:
-		var dp: Vector2 = World.DOORS[i]
-		var horiz := i < 2
-		var sz := Vector2(36, 16) if horiz else Vector2(14, 34)
-		var r := Rect2(dp - sz / 2.0, sz)
-		ci.draw_rect(r.grow(2), Color("1a1230"))
-		ci.draw_rect(r, Color("07040d"))
-		var open: float = door_anim[i]
-		# Glow from inside when open
-		if open > 0.0:
-			ci.draw_rect(r.grow(-2), Color(0.6, 0.1, 0.2, 0.35 * open))
-		var bars := 6 if horiz else 4
-		for b in bars:
-			if horiz:
-				var x := r.position.x + 3 + b * (sz.x - 6) / (bars - 1)
-				var h := sz.y * (1.0 - open)
-				ci.draw_rect(Rect2(x - 1, r.position.y, 2, h), Color("6b6280"))
-			else:
-				var y := r.position.y + 3 + b * (sz.y - 6) / (bars - 1)
-				var w := sz.x * (1.0 - open)
-				var x0 := r.position.x if i == 2 else r.end.x - w
-				ci.draw_rect(Rect2(x0, y - 1, w, 2), Color("6b6280"))
-		# Stone frame
-		ci.draw_rect(Rect2(r.position - Vector2(3, 3), Vector2(r.size.x + 6, 2)), Color("7a68a8"))
 	# Rune circles: a dark scorched disc under the glow, so the ring reads on any floor.
 	for c: Array in vr:
 		var k := _rune_alpha(c)
 		ci.draw_circle(c[0], float(c[1]) * _rune_grow(c) + 1.0, Color(0.06, 0.0, 0.05, 0.45 * k))
-	# Torch brackets
-	for tp in torch_pos:
-		ci.draw_rect(Rect2(tp + Vector2(-2, 0), Vector2(4, 5)), Color("2b1d12"))
-		ci.draw_rect(Rect2(tp + Vector2(-1, 0), Vector2(2, 1)), Color("a06a2a"))
+	# Flames on the backdrop's candles and fire bowls; a new act's fade in with its backdrop.
+	ArenaArtLive.draw(ci, ArenaBg.scene(act), time, 1.0 if _act_fade < 0.0 else clampf(_act_fade / 2.0, 0.0, 1.0))
 
 func _draw_env_add() -> void:
 	var ci := env_add
-	var c := G.ARENA.get_center()
-	# Pulsing rune circle
-	var pulse := 0.5 + 0.5 * sin(time * 2.0)
-	var col := Color(0.2, 0.6, 0.9, 0.12 + 0.1 * pulse)
-	for r in [44.0, 38.0]:
-		var pts := PackedVector2Array()
-		for i in 65:
-			var a := i * TAU / 64.0
-			pts.append(c + Vector2(cos(a), sin(a) * 0.62) * r)
-		ci.draw_polyline(pts, col, 1.0)
-	for i in 12:
-		var a := i * TAU / 12 + time * 0.3
-		var p := c + Vector2(cos(a), sin(a) * 0.62) * 41.0
-		ci.draw_rect(Rect2(p.floor(), Vector2(1, 1)), Color(0.4, 0.9, 1.0, 0.4 + 0.4 * sin(time * 3 + i)))
+	# The light of those flames, the seal breathing, and each door's glow, flaring while monsters come through.
+	ArenaArtLive.draw_glow(ci, ArenaBg.scene(act), time, door_anim, 1.0 if _act_fade < 0.0 else clampf(_act_fade / 2.0, 0.0, 1.0))
 	_draw_runes(ci)
-	# Torch light pools
-	for tp in torch_pos:
-		var f := 0.85 + 0.15 * sin(time * 13.0 + tp.x) * sin(time * 7.3 + tp.y)
-		ci.draw_circle(tp, 26.0 * f, Color(1.0, 0.5, 0.15, 0.06))
-		ci.draw_circle(tp, 12.0 * f, Color(1.0, 0.6, 0.2, 0.1))
-	# Door glow
-	for i in 4:
-		if door_anim[i] > 0.0:
-			ci.draw_circle(World.DOORS[i], 24.0, Color(1.0, 0.2, 0.3, 0.12 * door_anim[i]))
 
 ## How far a rune circle has drawn itself in (0..1), from its age.
 func _rune_grow(c: Array) -> float:
