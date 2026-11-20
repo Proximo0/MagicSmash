@@ -37,6 +37,10 @@ const POTS: Array = [
 	Vector2(36, 160), Vector2(444, 150), Vector2(444, 164), Vector2(150, 242), Vector2(176, 242),
 	Vector2(300, 242), Vector2(326, 242),
 ]
+## Bit mask with every pot broken (bit i is POTS[i]).
+const ALL_POTS := (1 << 12) - 1
+## The note that drifts up from the music box (a character the pixel font can draw).
+const MUSIC_NOTE := "#"
 ## What a pot holds: chance of a monster card (ultra rare), of a crystal cache, of one crystal.
 const POT_CARD := 0.01
 const POT_CACHE := 0.06
@@ -71,12 +75,12 @@ var rng := RandomNumberGenerator.new()
 var events: Array = []
 
 
-## `pots_broken`: pots start broken (a visit since the last run already smashed them). `crack_open`: the alcove was
-## found before, so the wall stays open.
-func _init(seed_value: int = 0, pots_broken: bool = false, alcove_found: bool = false) -> void:
+## `pots_mask`: the pots that start broken (bit i is POTS[i]; the ones smashed since the last run). `alcove_found`:
+## the alcove was found before, so the wall stays open.
+func _init(seed_value: int = 0, pots_mask: int = 0, alcove_found: bool = false) -> void:
 	rng.seed = seed_value
 	for i: int in range(POTS.size()):
-		broken.append(pots_broken)
+		broken.append((pots_mask >> i) & 1 == 1)
 	crack_open = alcove_found
 
 
@@ -190,6 +194,23 @@ static func roll_card(r: RandomNumberGenerator) -> int:
 		if x < 0.0:
 			return i
 	return Cards.count() - 1
+
+
+## What toss number `wishes` (counting this one) pays: the ninth wish's 30 crystals only the first time the secret is
+## found (`first_ninth`), every other toss the normal roll, so the well stays a loss over time.
+static func wish_payout(wishes: int, first_ninth: bool, r: RandomNumberGenerator) -> int:
+	if first_ninth and wishes % Secrets.NINTH_WISH == 0:
+		return Secrets.NINTH_CRYSTALS
+	return wish(r)
+
+
+## One toss into the wishing well, after the crystal is paid: counts it on the profile and returns {"back": the
+## crystals paid, "ninth": whether this toss found the ninth-wish secret}. The 30 crystals are paid only the first
+## time (the toss that finds the secret); later ninths are ordinary tosses.
+static func toss(prof: Profile, r: RandomNumberGenerator) -> Dictionary:
+	prof.wishes += 1
+	var ninth := prof.wishes % Secrets.NINTH_WISH == 0 and prof.find_secret("ninth")
+	return {"back": wish_payout(prof.wishes, ninth, r), "ninth": ninth}
 
 
 ## A toss into the wishing well: the crystals it pays back (0 most of the time).

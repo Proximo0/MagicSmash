@@ -16,9 +16,11 @@ func _ready() -> void:
 		return
 	var cfg := ConfigFile.new()
 	if cfg.load(CONFIG) != OK:
+		push_warning("Steam is present but %s was not found: Steam stays off." % CONFIG)
 		return
 	app_id = int(cfg.get_value("steam", "app_id", 0))
 	if app_id <= 0:
+		push_warning("Steam is present but %s has no app_id: Steam stays off." % CONFIG)
 		return
 	_steam = Engine.get_singleton("Steam")
 	var res: Variant = _steam.call("steamInitEx", true, app_id)

@@ -103,6 +103,16 @@ func window_scale() -> int:
 	return 3 if display == FULLSCREEN else display + 2
 
 
+## The window scale that fits the usable screen `usable` (never below 1): the chosen scale, or smaller.
+func fit_scale(usable: Vector2i) -> int:
+	return maxi(1, mini(window_scale(), mini(usable.x / 480, usable.y / 270)))
+
+
+## The DISPLAY row for a first run: the largest window (up to x4) that fits `usable`.
+static func best_display(usable: Vector2i) -> int:
+	return clampi(mini(usable.x / 480, usable.y / 270) - 2, 0, FULLSCREEN - 1)
+
+
 func to_dict() -> Dictionary:
 	return {"music": music, "sound": sound, "display": display, "shake": shake, "crash_reports": crash_reports,
 		"seen_prologue": seen_prologue, "seen_tutorial": seen_tutorial}
