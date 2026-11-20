@@ -15,6 +15,7 @@
 # Quiet: prints the report's last line. Exit 0 pass, 1 a job failed, 2 could not run.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
+main() {  # the whole script is one function, so bash has read all of it before a checkout can change the file
 GODOT="${GODOT:-godot}"
 MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
@@ -119,7 +120,17 @@ run_once() {
   [ $failed -eq 0 ]
 }
 
+# Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
+self_sum() { cksum <"tools/station/station.sh"; }
 if [ "$watch" = 1 ]; then
-  while true; do run_once; sleep "$POLL"; done
+  started=$(self_sum)
+  while true; do
+    run_once
+    [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
+    sleep "$POLL"
+  done
 fi
 run_once
+exit $?
+}
+main "$@"
