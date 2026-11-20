@@ -19,10 +19,10 @@ static func _with_pick(a: Arena, slot: int, inp: PackedFloat32Array) -> PackedFl
 		elif int(wait[0]) != int(p.offer):
 			wait = [int(p.offer), 0.0]
 		else:
-			wait[1] = float(wait[1]) + get_physics_process_delta_time()
+			wait[1] = float(wait[1]) + a.get_physics_process_delta_time()
 		a._bot_pick_wait[slot] = wait
 		var hold := slot == 0 and a.autotest_pick_hold > 0.0
-		a._set_tray(slot, held and (not hold or float(wait[1]) >= minf(1.0, a.autotest_pick_hold * 0.5)))
+		ArenaTray._set_tray(a, slot, held and (not hold or float(wait[1]) >= minf(1.0, a.autotest_pick_hold * 0.5)))
 		if float(wait[1]) < (a.autotest_pick_hold if hold else a.BOT_PICK_THINK):
 			return SmashBot.with_pick(inp, [] as Array[int], p.offer)
 		return SmashBot.with_pick(inp, p.choices, p.offer)
@@ -34,19 +34,14 @@ static func _with_pick(a: Arena, slot: int, inp: PackedFloat32Array) -> PackedFl
 		out.append_array([-1.0, float(p.offer)])
 	return out
 
-## Bot wizards (autotest, the bot gate): SmashBot fed from the view state, so it also works on LAN clients.
-## `--persona=novice|casual|veteran` picks how well they play (casual by default).
-var _bots := {}  # slot -> SmashBot
-var _bot_track := {}  # enemy id -> [last seen position, estimated velocity, time seen], for the bots' senses
-
 
 static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 	if not a.vp.has(slot):
 		return PackedFloat32Array([0, 0, 0, 0, 0, 0])
-	if not _bots.has(slot):
+	if not a._bots.has(slot):
 		var persona := SmashBot.persona_from_name(Flags.get_arg("persona", "casual"))
-		_bots[slot] = SmashBot.new(slot + 1, persona if persona >= 0 else SmashBot.CASUAL)
-	var bot: SmashBot = _bots[slot]
+		a._bots[slot] = SmashBot.new(slot + 1, persona if persona >= 0 else SmashBot.CASUAL)
+	var bot: SmashBot = a._bots[slot]
 	var me: Dictionary = a.vp[slot]
 	var at: Vector2 = me.get("target", me.pos)
 	var en: Array[Vector2] = []
@@ -62,19 +57,19 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 	for id: int in a.ve:
 		var e: Dictionary = a.ve[id]
 		var pos: Vector2 = e.get("target", e.pos)
-		var tr: Array = _bot_track.get(id, [pos, Vector2.ZERO, a.time])
+		var tr: Array = a._bot_track.get(id, [pos, Vector2.ZERO, a.time])
 		if a.time > float(tr[2]):
 			tr = [pos, (pos - (tr[0] as Vector2)) / (a.time - float(tr[2])), a.time]
-		_bot_track[id] = tr
+		a._bot_track[id] = tr
 		seen[id] = true
 		en.append(pos)
 		ev.append(tr[1])
 		er.append(World.STATS[int(e.type)][2])
 		if int(e.type) == World.LICH:
 			boss = pos
-	for id: int in _bot_track.keys():
+	for id: int in a._bot_track.keys():
 		if not seen.has(id):
-			_bot_track.erase(id)
+			a._bot_track.erase(id)
 	var sv: Array = []
 	var sr: Array = []
 	for s: Array in a.ves:

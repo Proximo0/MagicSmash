@@ -41,7 +41,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 		if offer != int(p.get("offer", -1)):
 			# A new hand: its rows turn over if the tray is open (or was opened while the hand was on its way: a
 			# level's hand comes a tick after its draw), and are already face up when the tray opens later.
-			a._deal_tray(slot, offer, bool(a._tray_open.get(slot, false)))
+			ArenaTray._deal_tray(a, slot, offer, bool(a._tray_open.get(slot, false)))
 		p.offer = offer
 		var ch: Array[int] = []
 		var lv: Array[int] = []
@@ -64,7 +64,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 			if a.lull_left > 0.0 and int(p.get("draws", 0)) == 0 and a._is_local_slot(slot):
 				a._tray_open[slot] = true # in the quiet the cards come out by themselves
 				if not ch.is_empty():
-					a._deal_tray(slot, offer, true) # the hand came with the draw (a merged snapshot): it turns over too
+					ArenaTray._deal_tray(a, slot, offer, true) # the hand came with the draw (a merged snapshot): it turns over too
 		p.draws = draws
 		if draws == 0:
 			a._tray_open[slot] = false # the last card is taken: the tray closes
@@ -144,7 +144,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	var was_lull := a.lull_left
 	a.lull_left = w[10] if w.size() > 10 else 0.0
 	if was_lull > 0.0 and a.lull_left <= 0.0 and a.phase != World.PH_GAMEOVER:
-		a._banner("THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
+		ArenaFateView._banner(a, "THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
 		Sfx.play("gong", -2.0)
 	for d in 4:
 		a.doors[d] = w[4 + d]

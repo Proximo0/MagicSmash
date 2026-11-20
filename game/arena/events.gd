@@ -9,7 +9,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 		match int(ev[0]):
 			World.EV_CAST:
 				var sp := int(ev[3])
-				var col := a._spell_color(sp, int(ev[4]))
+				var col := ArenaDrawFx._spell_color(a, sp, int(ev[4]))
 				a.fx.cast_flash(pos, col, int(ev[4]))
 				match sp:
 					World.SP_ARCANE: Sfx.play("shoot_arcane", -6.0, 1.0, 0.06)
@@ -19,7 +19,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					World.SP_RUNE: Sfx.play("rune_cast", -5.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
 			World.EV_RUNE:
 				var evo := int(ev[4]) >= 8
-				var rc := a._spell_color(World.SP_RUNE, 0)
+				var rc := ArenaDrawFx._spell_color(a, World.SP_RUNE, 0)
 				a.fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, a.SEAL_WHITE if evo else rc, 1.0)
 				a.fx.burst(pos, 8, 40.0, 0.5, 1.0, a.RUNE_GOLD, rc, true, -30.0)
 				if evo:
@@ -62,7 +62,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				if k == World.PK_XP:
 					Sfx.play("coin", -14.0, 1.5, 0.05)
 					continue
-				a.fx.sparkle(pos, a._pickup_color(k))
+				a.fx.sparkle(pos, ArenaDrawFx._pickup_color(a, k))
 				match k:
 					World.PK_COIN: Sfx.play("coin", -4.0)
 					World.PK_GEM: Sfx.play("pickup", -3.0)
@@ -70,7 +70,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					_: Sfx.play("powerup")
 				# A tome says what it is by its colour and its spell: only the other pickups write their name.
 				if a.PICKUP_NAMES[k] != "" and k not in World.TOMES:
-					a.fx.text(pos + Vector2(0, -12), a.PICKUP_NAMES[k], a._pickup_color(k), 1.4)
+					a.fx.text(pos + Vector2(0, -12), a.PICKUP_NAMES[k], ArenaDrawFx._pickup_color(a, k), 1.4)
 			World.EV_HURT:
 				a.fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
 				Sfx.play("hurt")
@@ -110,22 +110,22 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				var w := int(ev[3])
 				# World waves count from 1 (wave 1 is 0:00 to 1:00); Lore counts run minutes from 0.
 				if Lore.opens_act(w - 1):
-					a._act_card(Lore.act_of(w - 1))
+					ArenaFateView._act_card(a, Lore.act_of(w - 1))
 				if int(ev[4]) == 2:
-					a._banner(Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
+					ArenaFateView._banner(a, Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
 					Sfx.play("boss_roar", 0.0, 0.7)
 					Sfx.play("bell_toll", -2.0)
 				elif int(ev[4]) == 1:
-					a._banner("THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
+					ArenaFateView._banner(a, "THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
 					Sfx.play("portal")
 				elif w > 1:
-					a._banner("MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
+					ArenaFateView._banner(a, "MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
 					Sfx.play("wave_start", -4.0)
 				else:
-					a._act_card(0)
+					ArenaFateView._act_card(a, 0)
 					Sfx.play("wave_start")
 				if int(ev[4]) == 0 and a.boss_f <= 0.0:
-					Sfx.music(a._act_music())
+					Sfx.music(ArenaFateView._act_music(a))
 			World.EV_RIFT:
 				# A shrinking ring and a dark core warn where the group will burst out.
 				var life := float(ev[4])
@@ -161,7 +161,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.ring(pos, 2.0, 30.0, 0.6, a.SHRINE_COLORS[sk], 2.0)
 				a.fx.sparkle(pos, a.SHRINE_COLORS[sk], 14)
 				if sk == Gamble.TEAM:
-					a._banner("THE FATE CARD", "ONE WIZARD DRAWS FOR THE WHOLE PARTY", a.SHRINE_COLORS[sk], 2.4)
+					ArenaFateView._banner(a, "THE FATE CARD", "ONE WIZARD DRAWS FOR THE WHOLE PARTY", a.SHRINE_COLORS[sk], 2.4)
 					Sfx.play("portal", -4.0)
 				else:
 					a.fx.text(pos + Vector2(0, -20), "RUNE ALTAR", a.SHRINE_COLORS[sk], 1.2, 1)
@@ -190,7 +190,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					a._add_shake(6.0 if good else 10.0)
 					Sfx.play("gong")
 					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
-					Sfx.music(a._act_music())
+					Sfx.music(ArenaFateView._act_music(a))
 				else:
 					a.fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
 					Sfx.play("rune_good" if good else "rune_bad", -2.0)
@@ -201,7 +201,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 			World.EV_OMEN:
 				var oi := int(ev[3])
 				var rr := float(ev[4])
-				a._banner(Lore.omen_name(oi), Lore.omen_subtitle(oi), Color("ff6a4d"), 2.2, true)
+				ArenaFateView._banner(a, Lore.omen_name(oi), Lore.omen_subtitle(oi), Color("ff6a4d"), 2.2, true)
 				Sfx.play("bell_toll", -3.0, 0.8)
 				Sfx.play("whisper", -4.0)
 				if rr > 0.0:
@@ -245,7 +245,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.ring(pos + Vector2(0, -6), 1.0, 30.0, 0.5, G.player_fx(int(ev[3])), 2.0)
 				Sfx.play("teleport")
 			World.EV_POWERUP:
-				a.fx.sparkle(pos, a._pickup_color(int(ev[3])), 16)
+				a.fx.sparkle(pos, ArenaDrawFx._pickup_color(a, int(ev[3])), 16)
 				Sfx.play("orbit", -6.0)
 			World.EV_BOSSDIE:
 				for k in 6:
@@ -257,10 +257,10 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.screen_flash = Color(1, 1, 1, 0.8)
 				a._do_hitstop(0.25)
 				if int(ev[4]) == 1:
-					a._banner("ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
+					ArenaFateView._banner(a, "ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
 				else:
-					a._banner("LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
-					Sfx.music(a._act_music())
+					ArenaFateView._banner(a, "LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
+					Sfx.music(ArenaFateView._act_music(a))
 			World.EV_VICTORY:
 				a.victory = true
 				Sfx.play("wave_clear", 0.0, 0.8)
@@ -294,13 +294,13 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
 			World.EV_LULL:
 				a._lull_full = maxf(1.0, float(ev[3]))
-				a._banner("RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
+				ArenaFateView._banner(a, "RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
 				Sfx.play("wave_clear", -2.0, 0.8)
 				for r in Net.my_slots():
-					if a.vp.has(r.slot) and int(a.vp[r.slot].get("draws", 0)) > 0 and not a._tray_shown(r.slot):
+					if a.vp.has(r.slot) and int(a.vp[r.slot].get("draws", 0)) > 0 and not ArenaTray._tray_shown(a, r.slot):
 						a._tray_open[r.slot] = true
 						if not (a.vp[r.slot].choices as Array).is_empty():
-							a._deal_tray(r.slot, int(a.vp[r.slot].offer), true) # opened by itself: the hand turns over
+							ArenaTray._deal_tray(a, r.slot, int(a.vp[r.slot].offer), true) # opened by itself: the hand turns over
 			World.EV_FROST:
 				a.fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, a.SPELL_COLORS[World.SP_FROST], true)
 				if float(ev[3]) > 0.0:
