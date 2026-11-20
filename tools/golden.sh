@@ -6,6 +6,8 @@
 # A refactor, a speed-up or a tooling change must say "same". A feature or a balance change is expected to say
 # "changed". Nothing is stored in the repo, so parallel pull requests never conflict over a golden value.
 # Usage: tools/golden.sh [base-ref]     (default origin/main; GOLDEN_SEEDS="7 21" GOLDEN_SECONDS=90)
+# GOLDEN_FIELDS=1 compares a fixed list of fields (golden_run --fields) instead of the full state hash: for a change
+# that alters the snapshot row but must not alter the game.
 # Exit 0 same, 1 changed, 2 could not compare. About 30 s on four cores.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -13,6 +15,7 @@ GODOT="${GODOT:-godot}"
 BASE="${1:-origin/main}"
 SEEDS="${GOLDEN_SEEDS:-7 21}"
 SECS="${GOLDEN_SECONDS:-90}"
+MODE=(); [ "${GOLDEN_FIELDS:-0}" = 1 ] && MODE=(--fields)
 git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "GOLDEN FAIL no such commit: $BASE"; exit 2; }
 tools/import.sh || { echo "GOLDEN FAIL import"; exit 2; }
 TMP=$(mktemp -d "/tmp/golden.$(basename "$PWD").XXXXXX")
@@ -25,7 +28,7 @@ cp tools/tool.gd tools/golden_run.gd "$TMP/base/tools/"
 for s in $SEEDS; do
   for tree in base head; do
     dir="$PWD"; [ "$tree" = base ] && dir="$TMP/base"
-    ( timeout 600 "$GODOT" --headless --path "$dir" -s tools/tool.gd -- golden_run "--seed=$s" "--seconds=$SECS" \
+    ( timeout 600 "$GODOT" --headless --path "$dir" -s tools/tool.gd -- golden_run "--seed=$s" "--seconds=$SECS" "${MODE[@]}" \
         >"$TMP/$tree.$s.log" 2>&1 ) &
   done
 done
