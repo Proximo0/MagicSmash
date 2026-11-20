@@ -53,6 +53,8 @@ have them) and the rule that prevents it. At the end of the project, copy the ge
 | A worker's new test, written to match its own hypothesis, still passed with the fix switched off | Every new test is shown red without the fix, then green with it; the lead reruns the red build, not just the green one. |
 | A chat-driven watcher on the owner's PC died between turns, so stalled lanes went unnoticed | Liveness is checked from outside: the cloud lead checks hourly that the newest PC push is under 45 min old, and restarts the lanes if not. |
 | A blacked-out-planet bug took hours of guessing until env-var debug traces (why a body is resident, probes of big bodies) named the missed call in minutes | Build cheap env-var-gated traces for each subsystem's "why" (why resident, why culled, why rejected) before the second guess. |
+| A worker's report said a change was made that was not in the code, and the test it added passed with or without the change | Reports state only what was verified. The lead, or a confirm step in the workflow, checks each claimed fix against the code, and a new test must be seen to fail without its fix. |
+| The weekly token limit stopped four workers and three design workflows mid-job for 23 hours | Pace the spending: cheapest capable model per worker, two-sided reviews, speculative design work after the merges. Snapshot every worktree to a `wip/*` branch at each milestone so a cut-off loses nothing. |
 ## Dashboards
 
 The full story is in `docs/lessons/ops_board.md` (VoxelSpace ops board: 20 commits and 4 debug runs before it saw every agent, then a second round about wrong values).
@@ -145,6 +147,8 @@ The full story is in `docs/lessons/ops_board.md` (VoxelSpace ops board: 20 commi
 | The first look at the planet from orbit showed the north mirroring the south exactly, and terrain smeared into stripes around the equator | On a spherical world, sample every surface term (height, heat, moisture, latitude) by direction, using 3D noise at the point on the datum sphere, never by world (x, z). Look at generated worlds from far away early. |
 | In space a white "second sun" floated beside the star | The sky atmosphere draws its sun disc along the light direction from the camera, which drifts away from the star as you leave the planet. Fade the disc (or the atmosphere) out with altitude. |
 | A procedural tile kept its old glowing look after its recipe changed | A "bake only what is missing" mode never re-bakes a changed recipe. Bake tools need a `--force <asset>` option; pass it for every changed source and look at the tile before pushing. |
+| A 4x4 ordered (Bayer) dither on a baked light map read as a screen-door texture over a dark pixel-art floor | On dark floors dither light with a 2x2 pattern and at least 32 levels, and look at the bake at 2x before keeping a pattern. |
+| At an act change the flames, glow and seal jumped to the new act in one frame while the old backdrop took 2 s to fade; nobody had looked at the fade | Whatever is drawn over a cross-fading picture cross-fades with it. Give every transition a state-keyed shot (`act_fade.png` in the autotest) and look at it. |
 
 ## Houdini and assets
 

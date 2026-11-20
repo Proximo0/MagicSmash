@@ -289,8 +289,10 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
 - **Story:** `Lore` holds the prologue (THE TALE on the title, shown once before the first PLAY), the three acts
   (I The Ossuary, II The Burning Library from 5:00, III The Starless Sanctum from 10:00), a line per minute,
   Morvane's names, omens, elite epithets and the endings. World waves count from 1; Lore minutes from 0.
-- **Acts:** `ArenaBg.build(act)` draws each act's floor and walls; the arena crossfades them and changes the
-  music (`music_battle`, `music_library`, `music_sanctum`) and ambient particles.
+- **Acts:** `ArenaBg.build(act)` bakes each act's floor and walls (the painters are `game/art/arena_art_*.gd`) and
+  `ArenaBg.scene(act)` lists what the arena draws live over it (flames, light pools, doors, the seal). The arena
+  crossfades both and changes the music (`music_battle`, `music_library`, `music_sanctum`) and ambient particles.
+  The Ossuary is finished art; the Library and the Sanctum share its base and get their full pass in wave 2.
 - **Gambling dressed up:** solo shrines are rune altars (three rune stones), the team shrine is the fate card
   (The Sun or Death).
 - **Horde:** wraith (phases out, spells pass through), cursed tome (circles, dashes), bone priest (raises
