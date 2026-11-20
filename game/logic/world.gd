@@ -392,7 +392,7 @@ func _fight(dt: float) -> void:
 	if powerup_timer <= 0.0:
 		powerup_timer = rng.randf_range(9.0, 14.0)
 		WorldWaves._spawn_random_powerup(self)
-	_update_shrines(dt)
+	WorldShrines._update_shrines(self, dt)
 
 # ============================================================ LEVEL-UPS ===
 
@@ -439,96 +439,6 @@ func party_center() -> Vector2:
 			c += p.pos
 			n += 1
 	return c / n if n > 0 else G.ARENA.get_center()
-
-# ============================================================= SHRINES ===
-## Shrines appear on timers. A wizard who can pay stands on one for tune.shrine_hold seconds to bet; the gold
-## goes at once, the reel plays, and the outcome lands when it stops. The team shrine bets for everybody.
-func _update_shrines(dt: float) -> void:
-	shrine_t -= dt
-	if shrine_t <= 0.0:
-		shrine_t += tune.shrine_interval
-		_place_shrine(Gamble.SOLO)
-	team_shrine_t -= dt
-	if team_shrine_t <= 0.0:
-		team_shrine_t += tune.team_shrine_interval
-		_place_shrine(Gamble.TEAM)
-	for sh: Shrine in shrines:
-		sh.life -= dt
-		var payer: Player = null
-		for p: Player in players.values():
-			if p.alive and p.gold >= sh.cost and p.pos.distance_to(sh.pos) < tune.shrine_radius:
-				payer = p
-				break
-		if payer == null:
-			sh.charge = maxf(0.0, sh.charge - dt * 2.0)
-			continue
-		if payer.slot != sh.who:
-			sh.who = payer.slot
-			sh.charge = 0.0
-		sh.charge += dt
-		if sh.charge >= tune.shrine_hold:
-			_bet(sh, payer)
-	shrines = shrines.filter(func(sh: Shrine) -> bool: return sh.life > 0.0)
-	while not _gambles.is_empty() and _gambles[0].t <= wave_time:
-		_resolve_gamble(_gambles.pop_front())
-
-## Shrine rows as the snapshot sends them: [kind, x, y, life, charge fraction, cost].
-func snapshot_shrines() -> Array:
-	var out: Array = []
-	for x: Shrine in shrines:
-		out.append([x.kind, x.pos.x, x.pos.y, x.life, x.charge / tune.shrine_hold, x.cost])
-	return out
-
-func _place_shrine(kind: int) -> void:
-	var sh := Shrine.new()
-	sh.kind = kind
-	sh.pos = WorldWaves._spot_near_party(self, tune.shrine_min_dist, tune.shrine_min_dist + 120.0, 30.0)
-	sh.life = tune.shrine_life * (tune.team_shrine_life_mul if kind == Gamble.TEAM else 1.0)
-	sh.cost = Gamble.cost(kind, wave, tune.shrine_cost_base, tune.shrine_cost_per_min, tune.team_cost_mul)
-	shrines.append(sh)
-	emit(EV_SHRINE_UP, sh.pos.x, sh.pos.y, kind, sh.cost)
-
-func _bet(sh: Shrine, p: Player) -> void:
-	sh.life = 0.0
-	p.gold -= sh.cost
-	record.add(p.slot, "bets", sh.cost)
-	var outcome := Gamble.roll(rng, sh.kind)
-	var reel := tune.team_reel if sh.kind == Gamble.TEAM else tune.shrine_reel
-	_gambles.append({"t": wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
-	_gambles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.t < b.t)
-	emit(EV_SHRINE, sh.pos.x, sh.pos.y, p.slot, sh.kind * 16 + outcome)
-
-func _resolve_gamble(g: Dictionary) -> void:
-	var p: Player = players.get(g.slot)
-	var pos: Vector2 = g.pos
-	if g.kind == Gamble.TEAM:
-		if g.outcome == Gamble.TO_BLESSING:
-			var who: Player = p if p != null else players.values()[0]
-			for i in Gamble.BLESSING_LEVELS:
-				gain_xp(who, maxi(1, xp_needed() - party_xp))
-		else:
-			for q: Player in players.values():
-				if q.alive:
-					q.hp = maxi(1, q.hp - 1)
-					q.flash = 0.3
-					WorldWaves._spawn_elite(self)
-	elif p != null:
-		match int(g.outcome):
-			Gamble.SO_JACKPOT:
-				WorldDrops._drop(self, PK_CHEST, pos, Vector2.ZERO, tune.chest_life, int(tune.boss_chest_luck))
-			Gamble.SO_CHEST:
-				WorldDrops._drop(self, PK_CHEST, pos, Vector2.ZERO, tune.chest_life, int(tune.elite_chest_luck))
-			Gamble.SO_DOUBLE:
-				p.gold += g.stake * 2
-			Gamble.SO_CURSE:
-				if p.alive:
-					p.hp = maxi(1, p.hp - 1)
-					p.flash = 0.3
-	if g.kind == Gamble.TEAM:
-		record.note(wave_time, Results.M_BLESSING if g.outcome == Gamble.TO_BLESSING else Results.M_CURSE, g.slot)
-	elif g.outcome == Gamble.SO_JACKPOT:
-		record.note(wave_time, Results.M_JACKPOT, g.slot)
-	emit(EV_GAMBLE, pos.x, pos.y, g.slot, int(g.kind) * 16 + int(g.outcome))
 
 # ================================================================ GRID ===
 func _build_grid() -> void:
@@ -603,7 +513,7 @@ func snapshot() -> Dictionary:
 	if boss and not boss.dead:
 		bf = boss.hp / boss.maxhp
 	var shr := PackedFloat32Array()
-	for row: Array in snapshot_shrines():
+	for row: Array in WorldShrines.snapshot_shrines(self):
 		shr.append_array(row)
 	return {
 		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(),
@@ -694,3 +604,12 @@ func _collect(p: Player, k: Pickup) -> void:
 
 func _open_chest(p: Player, k: Pickup) -> void:
 	WorldDrops._open_chest(self, p, k)
+
+func snapshot_shrines() -> Array:
+	return WorldShrines.snapshot_shrines(self)
+
+func _place_shrine(kind: int) -> void:
+	WorldShrines._place_shrine(self, kind)
+
+func _resolve_gamble(g: Dictionary) -> void:
+	WorldShrines._resolve_gamble(self, g)
