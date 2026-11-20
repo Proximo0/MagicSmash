@@ -451,8 +451,21 @@ const GOLD := [Color("ffd94d"), Color("c48a10")]
 const LEATHER := [Color("7a2f14"), Color("4a1a0c")]
 
 
+## A wizard's halo ("<frame>~", see Sprites.add_halo) is this many pixels wider on every side than the frame.
+const HALO := 2
+## The pip over a wizard's hat in a party: white takes the wizard's colour, the dark rim stays dark.
+const PIP := [
+	"ooooooo",
+	"oWWWWWo",
+	".oWWWo.",
+	"..oWo..",
+	"...o...",
+]
+
 static func add_all() -> void:
 	_wz_check()
+	Sprites.add_plain("wiz_pip", PIP, {"o": Color("0b0716"), "W": Color.WHITE})
+	Sprites.add_image("wiz_ring", Sprites._sp_oval(22, 9))
 	for w in 4:
 		var pal := palette(w)
 		for dir: String in DIRS:
@@ -460,6 +473,7 @@ static func add_all() -> void:
 				for pose in (TORSO[dir] as Array).size():
 					var key := "wiz%d_%s_%s%s" % [w, dir, f[0], POSES[pose]]
 					Sprites._add(key, frame_rows(w, dir, f[1], f[2], pose, f[3]), pal)
+					Sprites.add_halo(key, HALO)
 			Sprites.alias("wiz%d_%s_a" % [w, dir], "wiz%d_%s_i0" % [w, dir])
 			Sprites.alias("wiz%d_%s_b" % [w, dir], "wiz%d_%s_w0" % [w, dir])
 			Sprites.alias("wiz%d_%s_cast" % [w, dir], "wiz%d_%s_i0c" % [w, dir])

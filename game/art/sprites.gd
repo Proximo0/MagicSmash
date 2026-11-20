@@ -731,6 +731,35 @@ static func add_image(key: String, img: Image) -> void:
 		push_error("Sprites: '%s' added after the atlas was packed" % key)
 	_imgs[key] = img
 
+## A halo for the sprite `key` as `key + "~"`, `pad` pixels bigger on every side: a white rim on the pixels just
+## outside the sprite and a dark line outside that (4-neighbour, so its corners stay round). Drawn tinted under
+## the sprite, the white takes the tint and the dark stays dark. Call before the atlas is packed.
+static func add_halo(key: String, pad: int) -> void:
+	var src: Image = _imgs[key]
+	var w := src.get_width() + pad * 2
+	var h := src.get_height() + pad * 2
+	var solid := PackedByteArray()
+	solid.resize(w * h)
+	for y in src.get_height():
+		for x in src.get_width():
+			if src.get_pixel(x, y).a > 0.0:
+				solid[(y + pad) * w + x + pad] = 1
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var rims: Array[Color] = [Color.WHITE, Color(0.04, 0.03, 0.09, 0.9)]
+	for ring in 2:
+		var grown := solid.duplicate()
+		for y in h:
+			for x in w:
+				if solid[y * w + x] != 0:
+					continue
+				var near := (x > 0 and solid[y * w + x - 1] != 0) or (x < w - 1 and solid[y * w + x + 1] != 0) \
+					or (y > 0 and solid[(y - 1) * w + x] != 0) or (y < h - 1 and solid[(y + 1) * w + x] != 0)
+				if near:
+					grown[y * w + x] = 1
+					img.set_pixel(x, y, rims[ring])
+		solid = grown
+	_imgs[key + "~"] = img
+
 ## Makes `key` another name for the sprite `target` (and for its white twin). Call before the atlas is packed.
 static func alias(key: String, target: String) -> void:
 	_alias[key] = target
