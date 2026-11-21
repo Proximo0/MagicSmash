@@ -227,3 +227,7 @@ static func _draw_eshots(a: Arena) -> void:
 				Sprites.draw_mid_r(ci, orbs[beat], p)
 			World.ES_SKULL:
 				Sprites.draw_mid_r(ci, skulls[beat], p)
+			Bestiary.ES_SWORD:
+				var sv: Vector2 = (s[2] as Vector2).normalized() * 4.0
+				ci.draw_line(p - sv, p + sv, Color("e8eef8"), 2.0)
+				ci.draw_line(p - sv, p - sv * 0.5, Color("c48a10"), 2.0)

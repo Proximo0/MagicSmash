@@ -29,30 +29,36 @@ func test_horde_rows_cover_every_non_boss_kind_once() -> void:
 		assert_false(seen.has(t), "two rows for %d" % t)
 		seen[t] = true
 		assert_false(Bestiary.has_flag(t, Bestiary.F_BOSS), "a boss in the horde")
+	# Job K's act weights (docs/bestiary_design.md section 6, as tuned for solo wins).
+	var acts := {Bestiary.BLOAT: [1, 1, 1], Bestiary.COFFIN: [1, 1, 0], Bestiary.GUARD: [1, 1, 0],
+		Bestiary.CINDERLING: [0, 1, 1], Bestiary.CENSOR: [0, 1, 0], Bestiary.HOUND: [0, 1, 1], Bestiary.SHARD: [0, 0, 1],
+		Bestiary.SWORDS: [0, 0, 1]}
 	for t: int in range(Bestiary.BLOAT, Bestiary.SWORDS + 1):
 		assert_true(seen.has(t), "no horde row for reserved kind %d" % t)
+		assert_true(Bestiary.is_new_kind(t))
 		var row: Array = Bestiary.horde_row(t)
-		for c: int in range(Bestiary.H_W1, Bestiary.H_W1 + 3):
-			assert_eq(int(row[c]), 0, "a reserved kind already weighs in the horde")
+		assert_eq(row.slice(Bestiary.H_W1, Bestiary.H_W1 + 3), acts[t], "act weights of %d" % t)
+		assert_true(Bestiary.BRAINS.has(t), "kind %d has a brain" % t)
 
 
 func test_roll_group_matches_the_old_draw_order() -> void:
-	# Before job K's weights, roll_group draws exactly what WorldWaves._roll_group drew: randi(1, total), randi(size).
+	# With Tuning.new_kinds at 0, roll_group draws exactly what WorldWaves._roll_group drew before job K's kinds:
+	# randi(1, total), randi(size), no formation roll.
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
 	a.seed = 99
 	b.seed = 99
 	for i: int in range(200):
 		var t := float(i * 5)
-		var g: Array = Bestiary.roll_group(a, t, Lore.act_of(int(t / 60.0)), _alive(), 4, false)
+		var g: Array = Bestiary.roll_group(a, t, Lore.act_of(int(t / 60.0)), _alive(), 4, false, Bestiary.FORMATIONS, 0.0)
 		var total := 0
 		for row: Array in Bestiary.HORDE:
-			if t >= row[Bestiary.H_UNLOCK]:
+			if t >= row[Bestiary.H_UNLOCK] and not Bestiary.is_new_kind(row[0]):
 				total += int(row[Bestiary.H_W1])
 		var r := b.randi_range(1, total)
 		var want: Array = []
 		for row: Array in Bestiary.HORDE:
-			if t < row[Bestiary.H_UNLOCK] or int(row[Bestiary.H_W1]) == 0:
+			if t < row[Bestiary.H_UNLOCK] or int(row[Bestiary.H_W1]) == 0 or Bestiary.is_new_kind(row[0]):
 				continue
 			r -= int(row[Bestiary.H_W1])
 			if r <= 0:
@@ -85,7 +91,9 @@ func test_world_counts_the_living_per_type() -> void:
 	assert_eq(w.alive[Bestiary.BLOAT], 1)
 
 
-func test_a_reserved_kind_walks_at_the_wizard_until_its_brain_lands() -> void:
+func test_a_reserved_kind_with_no_brain_walks_at_the_wizard() -> void:
+	var saved: Dictionary = Brains.kind_brains
+	Brains.kind_brains = {}
 	var w := World.new([0], 5)
 	w.phase = World.PH_FIGHT
 	var p: World.Player = w.players[0]
@@ -101,6 +109,7 @@ func test_a_reserved_kind_walks_at_the_wizard_until_its_brain_lands() -> void:
 			assert_true(e.pos.distance_to(p.pos) < d0, "kind %d did not close in" % t)
 		e.dead = true
 	w.enemies.clear()
+	Brains.kind_brains = saved
 
 
 func test_eshots_stop_at_the_cap() -> void:
@@ -161,9 +170,10 @@ func test_queued_spawns_count_and_a_saved_group_is_checked_again() -> void:
 	assert_true(WorldWaves._boss_coming(w), "a queued boss counts")
 	# A saved bloat group is dropped once a boss is coming, and trimmed to the room under its cap.
 	assert_false(Bestiary.trim([[Bestiary.BLOAT, 2]], WorldWaves._fielded(w), 1, true))
-	var parts: Array = [[Bestiary.BLOAT, 6]]
+	var cap := Bestiary.cap_of(Bestiary.horde_row(Bestiary.BLOAT), 1)
+	var parts: Array = [[Bestiary.BLOAT, cap]]
 	assert_true(Bestiary.trim(parts, WorldWaves._fielded(w), 1, false))
-	assert_eq(parts[0][1], 6 - 2)
+	assert_eq(parts[0][1], cap - 2)
 	assert_false(Bestiary.needs_check([[World.GOBLIN, 9], [World.ORC, 1]]), "today's kinds are never checked again")
 	w.phase = World.PH_FIGHT
 	w._next_group = [Bestiary.GROUP, [[Bestiary.BLOAT, 2]]]
@@ -197,3 +207,80 @@ func test_rise_wall_and_opposite_doors_queue_where_they_should() -> void:
 	var d0: int = w.spawn_queue[0].door
 	assert_eq(int(w.spawn_queue[1].door), d0 ^ 1, "the second part takes the opposite door")
 	assert_eq(int(w.spawn_queue[2].door), d0)
+
+
+func test_new_kinds_scale_the_horde_and_zero_drops_them() -> void:
+	var rng := RandomNumberGenerator.new()
+	var seen := {}
+	for i: int in range(600):
+		var g: Array = Bestiary.roll_group(rng, 800.0, 2, _alive(), 1, false, Bestiary.FORMATIONS, 0.0)
+		assert_true(g[0] < 8, "no formation holds only old kinds")
+		for part: Array in g[1]:
+			assert_false(Bestiary.is_new_kind(part[0]), "a new kind rolled with new_kinds 0")
+		g = Bestiary.roll_group(rng, 800.0, 2, _alive(), 1, false, Bestiary.FORMATIONS, 0.5)
+		for part: Array in g[1]:
+			seen[part[0]] = true
+	assert_true(seen.has(Bestiary.SWORDS) and seen.has(Bestiary.SHARD), "act III's kinds roll at half weight")
+	var t := Tuning.new()
+	assert_near(t.new_kinds, 1.0, 0.0001)
+	assert_true(t.set_value("new_kinds", 0.0), "playtest --tune=new_kinds:0 reaches the row")
+
+
+func test_caps_hold_with_the_queue_counted() -> void:
+	var w := World.new([0], 5)
+	w.phase = World.PH_FIGHT
+	w.wave_time = 200.0
+	for i: int in range(6):
+		w.spawn_queue.append({"t": 999.0, "type": Bestiary.BLOAT, "door": 0})
+	for i: int in range(400):
+		var g: Array = WorldWaves._roll_group(w)
+		for part: Array in g[1]:
+			assert_true(int(part[0]) != Bestiary.BLOAT, "a bloat past its cap of 6 (all queued)")
+	w.spawn_queue.clear()
+	var alive := _alive()
+	alive[Bestiary.CINDERLING] = 2
+	assert_false(Bestiary.fits([[Bestiary.CINDERLING, 1], [Bestiary.CINDERLING, 1]], alive, 1, false), "parts of one type add up")
+	var parts: Array = [[Bestiary.CINDERLING, 1], [Bestiary.CINDERLING, 1], [Bestiary.CENSOR, 1]]
+	assert_false(Bestiary.trim(parts, alive, 1, false), "the second cinderling has no room")
+
+
+func test_no_hazard_kind_rolls_during_a_boss() -> void:
+	var rng := RandomNumberGenerator.new()
+	for act: int in range(3):
+		for i: int in range(500):
+			var g: Array = Bestiary.roll_group(rng, 900.0, act, _alive(), 4, true)
+			for part: Array in g[1]:
+				assert_false(Bestiary.has_flag(part[0], Bestiary.F_HAZARD), "kind %d rolled during a boss" % part[0])
+
+
+func test_every_new_kind_warning_is_fair() -> void:
+	var rows: Array = [
+		[KindsCrypt.BLOAT_BLAST_R, KindsCrypt.BLOAT_BLAST_WARN],
+		[KindsLibrary.CINDER_HALF, KindsLibrary.CINDER_KINDLE],
+		[KindsLibrary.CENSOR_FIRE_R, KindsLibrary.CENSOR_FIRE_WARN],
+		[KindsSanctum.SHARD_FALL_R, KindsSanctum.SHARD_FALL_WARN],
+		[KindsSanctum.SHARD_BEAM_HALF, KindsSanctum.SHARD_BEAM_WARN],
+		[KindsSanctum.SWORDS_BURST_R, KindsSanctum.SWORDS_KNEEL],
+	]
+	for r: Array in rows:
+		assert_true(float(r[1]) >= Hazards.min_warn(float(r[0])), "warning %.2f s for r %.0f" % [r[1], r[0]])
+
+
+func test_formations_shrink_for_a_small_party_and_with_new_kinds() -> void:
+	var train: Array = [[World.GOBLIN, 8], [Bestiary.BLOAT, 1]]
+	assert_eq(Bestiary.form_parts(train, 1), [[World.GOBLIN, 4], [Bestiary.BLOAT, 1]], "half a train for one wizard")
+	assert_eq(Bestiary.form_parts(train, 4), train, "the whole train for four")
+	assert_eq(Bestiary.form_parts([[Bestiary.GUARD, 3]], 2), [[Bestiary.GUARD, 2]])
+	# One roll in FORMATION_ROLL is a formation at new_kinds 1, one in twice that at 0.5.
+	var forms: Array = [["T", 0.0, 1, [[Bestiary.BLOAT, 1]], Bestiary.AT_RIFT]]
+	var alive := PackedInt32Array()
+	alive.resize(Bestiary.count())
+	var got := {1.0: 0, 0.5: 0}
+	for nk: float in got:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7
+		for i in 2000:
+			if int(Bestiary.roll_group(rng, 300.0, 0, alive, 1, false, forms, nk)[0]) >= 8:
+				got[nk] += 1
+	assert_near(float(got[1.0]) / 2000.0, 1.0 / Bestiary.FORMATION_ROLL, 0.03)
+	assert_near(float(got[0.5]) / 2000.0, 0.5 / Bestiary.FORMATION_ROLL, 0.03)
