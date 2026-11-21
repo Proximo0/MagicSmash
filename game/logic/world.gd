@@ -360,6 +360,16 @@ var time := 0.0
 var _grid := {}
 const CELL := 32.0
 const _NO_CELL: Array = []
+## Separation's copy of the horde, rebuilt with the grid: the grid's cells again as rows into `_sep_who`, and each
+## row's position and radius in packed arrays (filled by WorldEnemies._sep_fill, kept current by _update_enemy).
+## Separation tests every neighbour of half the horde each tick; reading two fields of each neighbour object for
+## that was over half of the enemy update at the cap, a packed read is a fraction of it.
+var _sep_cells := {}
+var _sep_who: Array[Enemy] = []
+var _sep_pos := PackedVector2Array()
+var _sep_r := PackedFloat64Array()
+var _sep_ok := false
+const _NO_ROWS: PackedInt32Array = []
 ## The wizards as a typed list, refreshed every step: `players.values()` builds a new untyped array on every call,
 ## and the enemy update asked for it twice per enemy (5% of a whole step at the enemy cap).
 var _plist: Array[Player] = []
@@ -402,6 +412,7 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		p.upgrades[Upgrades.weapon_entry(Wizards.start_spell(p.wizard))] = 1
 		WorldCasting._refresh_spell(self, p)
 		players[s] = p
+	_plist.assign(players.values())
 	WorldLevels._update_slots(self)
 	record = Results.new(slots)
 	events.append([EV_WAVE, 0, 0, wave, 0])
@@ -534,6 +545,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	_plist.assign(players.values())
 	for p in players.values():
 		WorldPlayers._update_player(self, p, dt, inputs.get(p.slot, PackedFloat32Array()))
+	WorldEnemies._sep_fill(self) # after the wizards: a ritual can push enemies
 	for e in enemies:
 		if not e.dead:
 			WorldEnemies._update_enemy(self, e, dt)
@@ -624,7 +636,7 @@ func total_score() -> int:
 func party_center() -> Vector2:
 	var c := Vector2.ZERO
 	var n := 0
-	for p: Player in players.values():
+	for p: Player in _plist: # not players.values(): that builds an array, and brains ask every tick
 		if p.alive:
 			c += p.pos
 			n += 1
@@ -633,16 +645,25 @@ func party_center() -> Vector2:
 # ================================================================ GRID ===
 func _build_grid() -> void:
 	_grid.clear()
+	_sep_cells.clear()
+	_sep_who.assign(enemies)
+	_sep_ok = false
 	alive.fill(0)
+	var i := -1
 	for e in enemies:
+		i += 1
 		if e.dead:
 			continue
 		alive[e.type] += 1
-		var k := Vector2i(floori(e.pos.x / CELL), floori(e.pos.y / CELL))
-		if _grid.has(k):
-			_grid[k].append(e)
+		var at: Vector2 = e.pos
+		var k := Vector2i(floori(at.x / CELL), floori(at.y / CELL))
+		var cell: Variant = _grid.get(k)
+		if cell != null:
+			cell.append(e)
+			_sep_cells[k].append(i)
 		else:
 			_grid[k] = [e]
+			_sep_cells[k] = PackedInt32Array([i])
 
 func _query(pos: Vector2, radius: float) -> Array:
 	var out := []

@@ -16,6 +16,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 main() {  # the whole script is one function, so bash has read all of it before a checkout can change the file
+ARGS=("$@")
 GODOT="${GODOT:-godot}"
 MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
@@ -54,7 +55,8 @@ job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error,
 }
 job_checks() {
   # The 10 s per-test limit is CI's to enforce; a slow station gets room (STATION_SLOW_TEST_MS, default 30000).
-  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" tools/check_all.sh 2>&1)
+  # Same for the horde sim's CPU budget, which is set for CI's processor (STATION_SIM_BUDGET_SCALE, default 4).
+  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-4}" tools/check_all.sh 2>&1)
   [[ "$(tail -1 <<<"$out")" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
   echo "JOB checks FAIL"
   grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -6 | cut -c1-160 | sed 's/^ */  /'
@@ -95,10 +97,17 @@ publish() {  # $1 = report text. Adds <machine>.txt to the results branch withou
   echo "station: could not push the report" >&2; return 1
 }
 
+# Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
+self_sum() { cksum <"tools/station/station.sh"; }
+started=$(self_sum)
 run_once() {
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
   git config core.autocrlf false  # Godot rewrites .import files with LF; Windows Git's autocrlf=true would call the clone changed
-  [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "station: this clone has local changes; keep a clone for the station alone" >&2; return 2; }
+  local dirty; dirty=$(git status --porcelain --untracked-files=no)
+  if [ -n "$dirty" ] && ! grep -qv '\.import$' <<<"$dirty"; then  # only Godot's import files (line endings): put them back
+    git rm -r -q --cached . >/dev/null 2>&1; git reset -q --hard; dirty=$(git status --porcelain --untracked-files=no)
+  fi
+  [ -z "$dirty" ] || { echo "station: this clone has local changes; keep a clone for the station alone" >&2; return 2; }
   local head; head=$(git rev-parse origin/main)
   [ "$watch" = 1 ] && [ "$head" = "$(cat "$STATE" 2>/dev/null)" ] && return 3  # nothing new
   local held=""
@@ -109,6 +118,8 @@ run_once() {
     grep -q '^STATION PASS' <<<"$prev" || held="$after did not pass"
   fi
   git checkout -q --detach "$head"
+  # This commit changed the script: restart first, so the commit is tested by its own version (the state is not saved yet).
+  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then exec bash tools/station/station.sh "${ARGS[@]}"; fi
   tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
   local start=$SECONDS failed=0 body=""
   local verdict
@@ -127,10 +138,7 @@ run_once() {
   [ $failed -eq 0 ]
 }
 
-# Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
-self_sum() { cksum <"tools/station/station.sh"; }
 if [ "$watch" = 1 ]; then
-  started=$(self_sum)
   while true; do
     run_once
     [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"

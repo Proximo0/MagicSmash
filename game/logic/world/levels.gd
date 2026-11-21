@@ -24,6 +24,8 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 				var c := int(inp[6])
 				if c >= 0 and c < p.choices.size():
 					_pick(w, p, p.choices[c])
+					if inp.size() >= 6 and int(inp[5]) > p.last_bomb:
+						p.last_bomb = int(inp[5]) # a button that confirms a card is no Nova in the same input
 				elif c == Upgrades.REDRAW_INPUT:
 					_redraw(w, p)
 				elif c >= Upgrades.BANISH_INPUT and c - Upgrades.BANISH_INPUT < p.choices.size():

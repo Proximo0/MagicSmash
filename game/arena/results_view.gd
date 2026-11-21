@@ -98,7 +98,7 @@ static func _draw_moments(a: Arena, ci: CanvasItem, dark: Color, y0: int) -> voi
 		var m: Array = top[i]
 		var line := ArenaFateView._clock(float(m[0])) + "  " + Results.moment_text(m)
 		PixelFont.draw_centered(ci, line, 240, y, 1, G.player_fx(int(m[2])), dark)
-		y += 12
+		y += 10
 
 
 static func _draw_pause(a: Arena, ci: CanvasItem) -> void:

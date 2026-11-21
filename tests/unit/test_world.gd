@@ -1430,3 +1430,117 @@ func test_snapshot_carries_the_party_fields() -> void:
 	h = w.state_hash()
 	_player(w, 0).pending += 1
 	assert_true(w.state_hash() != h, "the hash ignores a wizard's queued draws")
+
+
+## Separation as it was first written, reading every neighbour's own fields: what WorldEnemies._separate, which
+## reads World's packed copy of the horde, must still return to the last bit.
+func _separate_by_fields(w: World, e: World.Enemy) -> Vector2:
+	var pos: Vector2 = e.pos
+	var x0: int = floori((pos.x - 16.0) / World.CELL)
+	var y0: int = floori((pos.y - 16.0) / World.CELL)
+	for cx: int in range(x0, x0 + 2):
+		for cy: int in range(y0, y0 + 2):
+			for o: World.Enemy in w._grid.get(Vector2i(cx, cy), []):
+				if o == e or o.dead or o.flags & Bestiary.F_NO_BLOCK or o.entering:
+					continue
+				var dv: Vector2 = pos - o.pos
+				var min_d: float = e.r + o.r
+				var d2: float = dv.length_squared()
+				if d2 < min_d * min_d and d2 > 0.0001:
+					var dd: float = sqrt(d2)
+					pos += dv / dd * (min_d - dd) * (0.5 if o.flags & Bestiary.F_BOSS == 0 else 1.0)
+	return pos
+
+
+## A crowd of `n` enemies of four kinds packed around one spot, one of them dead and one still entering.
+func _crowd(w: World, n: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	for i: int in range(n):
+		var at := Vector2(300, 200) + Vector2(rng.randf_range(-40, 40), rng.randf_range(-40, 40))
+		var e: World.Enemy = w.spawn_enemy([World.GOBLIN, World.ORC, World.SLIME, World.SKELETON][i % 4], 0, at)
+		e.entering = i == 7
+		e.dead = i == 11
+
+
+func test_separation_from_the_packed_copy_matches_the_enemies_own_fields() -> void:
+	var w := World.new([0, 1], 9)
+	_crowd(w, 60)
+	w._build_grid()
+	var moved: int = 0
+	for e: World.Enemy in w.enemies:
+		if e.dead:
+			continue
+		var was: Vector2 = e.pos
+		var want: Vector2 = _separate_by_fields(w, e)
+		WorldEnemies._separate(w, e)
+		assert_eq(e.pos, want, "enemy %d" % e.id)
+		w._sep_pos[e.gi] = e.pos # as _update_enemy does: the next enemy must see where this one went
+		moved += 1 if e.pos != was else 0
+	assert_true(moved > 30, "the crowd overlaps, so most of it is pushed (%d)" % moved)
+
+
+func test_the_separation_copy_follows_every_enemy_through_its_update() -> void:
+	var w := World.new([0, 1], 9)
+	_crowd(w, 60)
+	for _i: int in range(5):
+		w._tick += 1
+		w._build_grid()
+		WorldEnemies._sep_fill(w)
+		for e: World.Enemy in w.enemies:
+			if not e.dead:
+				WorldEnemies._update_enemy(w, e, DT)
+		for e: World.Enemy in w.enemies:
+			if not e.dead:
+				assert_eq(w._sep_pos[e.gi], e.pos, "enemy %d" % e.id)
+
+
+func _gem(w: World, at: Vector2) -> World.Pickup:
+	WorldDrops._drop(w, World.PK_XP, at, Vector2.ZERO, 5.0, 3)
+	return w.pickups[-1]
+
+
+func test_a_gem_flies_to_the_nearest_living_wizard_in_reach() -> void:
+	var w := World.new([0, 1], 4)
+	var a: World.Player = _player(w, 0)
+	var b: World.Player = _player(w, 1)
+	a.pos = Vector2(200, 200)
+	b.pos = Vector2(600, 200)
+	var reach: float = w.tune.xp_magnet_radius
+	var near: World.Pickup = _gem(w, a.pos + Vector2(reach - 2.0, 0))
+	var far: World.Pickup = _gem(w, a.pos + Vector2(reach + 20.0, 0))
+	var by_b: World.Pickup = _gem(w, b.pos + Vector2(0, reach - 2.0))
+	WorldDrops._update_pickups(w, DT)
+	assert_true(near.vel.x < 0.0 and is_equal_approx(near.vel.length(), w.tune.xp_magnet_speed - DT * 120.0), "pulled to A")
+	assert_eq(far.vel, Vector2.ZERO, "out of reach")
+	assert_true(by_b.vel.y < 0.0, "pulled to B")
+	b.alive = false
+	var was: Vector2 = by_b.pos
+	by_b.vel = Vector2.ZERO
+	WorldDrops._update_pickups(w, DT)
+	assert_eq(by_b.pos, was, "a fallen wizard pulls nothing")
+	w.lull_left = 1.0
+	WorldDrops._update_pickups(w, DT)
+	assert_true(far.vel.x < 0.0 and by_b.vel.x < 0.0, "in a lull every gem flies to the nearest wizard standing")
+
+
+func test_pickups_are_taken_on_touch_and_fade_when_their_time_is_up() -> void:
+	var w := World.new([0, 1], 4)
+	var a: World.Player = _player(w, 0)
+	a.pos = Vector2(200, 200)
+	_player(w, 1).pos = Vector2(600, 200)
+	var touched: World.Pickup = _gem(w, a.pos + Vector2(6, 0))
+	var old: World.Pickup = _gem(w, Vector2(400, 300))
+	old.life = DT * 0.5
+	var kept: World.Pickup = _gem(w, Vector2(400, 100))
+	var xp: int = w.party_xp + w.party_level * 100000
+	WorldDrops._update_pickups(w, DT)
+	assert_eq(w.pickups.size(), 1)
+	assert_true(w.pickups[0] == kept and not w.pickups.has(touched) and not w.pickups.has(old))
+	assert_true(w.party_xp + w.party_level * 100000 > xp, "the touched gem paid its XP")
+	# A pickup that drifts is slowed and held inside the room.
+	kept.pos = Vector2(G.ARENA.position.x + 20, 100)
+	kept.vel = Vector2(-9000, 0)
+	WorldDrops._update_pickups(w, DT)
+	assert_eq(kept.pos.x, G.ARENA.position.x + 6)
+	assert_near(kept.vel.x, -9000 + DT * 120.0)

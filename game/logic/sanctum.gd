@@ -22,6 +22,8 @@ const RELIQUARY := 2
 const MUSIC := 3
 const WELL := 4
 const CAT := 5
+const SHOPKEEPER := 6
+const CARD_READER := 7
 const THINGS: Array = [
 	["portal", Vector2(240, 82), "ENTER THE TOWER"],
 	["altar", Vector2(84, 118), "THE CARD ALBUM"],
@@ -29,6 +31,8 @@ const THINGS: Array = [
 	["music", Vector2(70, 222), "MUSIC BOX"],
 	["well", Vector2(410, 222), "WISHING WELL  1 CRYSTAL"],
 	["cat", Vector2(420, 44), "PET THE CAT"],
+	["shopkeeper", Vector2(118, 176), "TALK TO THE SHOPKEEPER"],
+	["card_reader", Vector2(362, 176), "TALK TO THE CARD READER"],
 ]
 
 ## Pots along the walls. Broken pots stay broken until the next run is played.

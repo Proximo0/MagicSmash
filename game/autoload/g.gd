@@ -23,6 +23,12 @@ var main: Node = null
 var last_score := 0
 var high_score := 0
 var title_message := ""
+## The run that just ended, for Morvane's line in the Sanctum: {result: "loss"|"win", act, seal}. Taken once.
+var last_run: Dictionary = {}
+## Talk lines said this session ("<speaker>/<condition>"), so a first-time line is said once.
+var talk_seen: Dictionary = {}
+## The id of the last line each speaker said (Talk.pick's `last`).
+var talk_last: Dictionary = {}
 
 ## Local devices that joined in the lobby on this machine.
 var local_devices: Array[int] = []
@@ -38,6 +44,9 @@ func _input(event: InputEvent) -> void:
 	# Switch the on-screen sticks on as soon as a finger touches the screen.
 	if event is InputEventScreenTouch and not touch_active:
 		touch_active = true
+	# A keyboard player presses WASD at once: the last input used wins, so one touch does not end mouse aiming.
+	elif event is InputEventKey and event.pressed and not is_mobile:
+		touch_active = false
 
 func goto_title() -> void:
 	if main:
@@ -50,6 +59,8 @@ func goto_sanctum() -> void:
 
 ## Back to the title, straight into the lobby with `device` already in (the Sanctum's portal).
 var title_lobby_device := -99
+## The title opens on the unlocks (the Sanctum's shopkeeper) and its back goes to the Sanctum.
+var title_shop := false
 
 func goto_title_lobby(device: int) -> void:
 	title_lobby_device = device
@@ -63,6 +74,8 @@ func goto_game() -> void:
 ## `run` is Profile.finish_run's dictionary: score, seconds, kills, liches, won (and seal).
 func finish_run(run: Dictionary) -> int:
 	last_score = int(run.get("score", 0))
+	last_run = {"result": "win" if bool(run.get("won", false)) else "loss", "act": int(run.get("act", -1)),
+		"seal": int(run.get("seal", 0))}
 	var earned := Save.finish_run(run)
 	high_score = Save.profile.high_score
 	return earned

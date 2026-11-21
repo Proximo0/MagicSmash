@@ -148,9 +148,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				var cidx := int(ev[3])
 				if int(ev[4]) >= 8 and Save.profile.find_secret("urn_card"):
 					a.fx.text(pos + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
-				ev[4] = int(ev[4]) % 8
+				var card_slot := int(ev[4]) % 8 # never written back: the same event goes on to the clients
 				var first := Save.add_card(cidx)
-				a._cards.append({"idx": cidx, "slot": int(ev[4]), "t": 0.0, "first": first})
+				a._cards.append({"idx": cidx, "slot": card_slot, "t": 0.0, "first": first})
 				a.fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
 				a.fx.ring(pos, 4.0, 60.0, 0.7, Color("ffd94d"), 2.0)
 				a._add_shake(4.0)
@@ -283,7 +283,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.final_score = int(ev[3])
 				a.run_t = float(ev[1])
 				a.crystals_earned = G.finish_run({"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]),
-					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "results": a.results})
+					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "act": a.act, "results": a.results})
 				if a.is_host:
 					Platform.finish_run(a.results, a.victory, float(ev[1]))
 				if not a.victory:
@@ -309,6 +309,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._lull_full = maxf(1.0, float(ev[3]))
 				ArenaFateView._banner(a, "RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
 				Sfx.play("wave_clear", -2.0, 0.8)
+				ArenaTalk.start(a)
 				for r in Net.my_slots():
 					if a.vp.has(r.slot) and int(a.vp[r.slot].get("draws", 0)) > 0 and not ArenaTray._tray_shown(a, r.slot):
 						a._tray_open[r.slot] = true

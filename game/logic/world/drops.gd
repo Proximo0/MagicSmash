@@ -149,35 +149,67 @@ static func _drop(w: World, kind: int, pos: Vector2, vel: Vector2, life: float =
 
 
 static func _update_pickups(w: World, dt: float) -> void:
-	for k in w.pickups:
+	# A late floor holds hundreds of gems, so everything that is the same for each of them is worked out once a
+	# tick: who is alive, how far each magnet reaches, the room's edges (sim_horde's mixed row).
+	if w._plist.size() != w.players.size():
+		w._plist.assign(w.players.values())
+	var who: Array[World.Player] = []
+	var reach := PackedFloat64Array()
+	_magnets(w, who, reach)
+	var n := who.size()
+	var x0: float = G.ARENA.position.x + 6
+	var x1: float = G.ARENA.end.x - 6
+	var y0: float = G.ARENA.position.y + 8
+	var y1: float = G.ARENA.end.y - 4
+	var pull: float = w.tune.xp_magnet_speed
+	var drag := dt * 120.0
+	var gone := false
+	for k: World.Pickup in w.pickups:
 		k.life -= dt
+		var pos: Vector2 = k.pos
+		var vel: Vector2 = k.vel
+		var best := -1
 		if k.kind == World.PK_XP:
-			_magnet_xp(w, k)
-		k.pos += k.vel * dt
-		k.vel = k.vel.move_toward(Vector2.ZERO, dt * 120.0)
-		k.pos.x = clampf(k.pos.x, G.ARENA.position.x + 6, G.ARENA.end.x - 6)
-		k.pos.y = clampf(k.pos.y, G.ARENA.position.y + 8, G.ARENA.end.y - 4)
-		for p in w.players.values():
-			if p.alive and p.pos.distance_to(k.pos) < 11.0:
+			# An XP gem near a wizard flies to the nearest one in reach (during a lull or a gem rush: any reach).
+			var bd := INF
+			for i: int in n:
+				var d: float = who[i].pos.distance_to(pos)
+				if d < reach[i] and d < bd:
+					bd = d
+					best = i
+			if best >= 0:
+				vel = (who[best].pos - pos).normalized() * pull
+		if vel != Vector2.ZERO:
+			pos += vel * dt
+			k.vel = vel.move_toward(Vector2.ZERO, drag)
+		elif best >= 0:
+			k.vel = vel # a gem right on its wizard: pulled nowhere
+		pos.x = clampf(pos.x, x0, x1)
+		pos.y = clampf(pos.y, y0, y1)
+		k.pos = pos
+		for p: World.Player in who:
+			if p.pos.distance_to(pos) < 11.0:
 				_collect(w, p, k)
 				k.life = -1.0
+				_magnets(w, who, reach) # a pick-up can change what the next gem sees
+				n = who.size()
 				break
-	w.pickups = w.pickups.filter(func(k): return k.life > 0.0)
+		if k.life <= 0.0:
+			gone = true
+	if gone:
+		w.pickups = w.pickups.filter(func(k): return k.life > 0.0)
 
 
-## An XP gem near a wizard flies to the nearest one in reach; during a lull every gem flies to the nearest one.
-static func _magnet_xp(w: World, k: World.Pickup) -> void:
-	var best: World.Player = null
-	var bd := INF
-	for p: World.Player in w.players.values():
-		if not p.alive:
-			continue
-		var d := p.pos.distance_to(k.pos)
-		if (w.lull_left > 0.0 or w.gem_rush > 0.0 or d < w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)) and d < bd:
-			bd = d
-			best = p
-	if best:
-		k.vel = (best.pos - k.pos).normalized() * w.tune.xp_magnet_speed
+## Fills `who` with the living wizards and `reach` with how far each one's magnet pulls XP gems (no limit
+## during a lull or a gem rush).
+static func _magnets(w: World, who: Array[World.Player], reach: PackedFloat64Array) -> void:
+	who.clear()
+	reach.clear()
+	var all := w.lull_left > 0.0 or w.gem_rush > 0.0
+	for p: World.Player in w._plist:
+		if p.alive:
+			who.append(p)
+			reach.append(INF if all else w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades))
 
 
 static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
