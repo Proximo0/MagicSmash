@@ -499,3 +499,22 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   greeting is told (nothing in a scripted run); old saves load with none.
 - **Deleting a hero** shifts held indices: `Profile.index_after_removal` is the one rule; `Profile.remove_hero` applies it
   to the active hero, `Net.hero_removed(i)` to every local seat (a seat that held her takes the first free hero).
+
+## Figures from still pictures, icons and scenes (21 Nov)
+- **Groups.** `Art.GROUPS` gained `sprites`, `icons` and `scenes`; they are found like the others (`Art.find`), and
+  `Art.wanted()` lists every name (`Still.names()`, `Still.icon_names()`, `Art.SCENES`). `Art.drop_root` (the
+  autotest flag `--art=<dir>`) is a folder searched before all others, for art shots with test pictures.
+- **`Still`** (`game/art/still.gd`) is the one place: `hero_name(cls, ai)` (apprentice picture, else the class's, else
+  "" and the code sprite stays), `enemy_name(type, final)` (`enemy_<key>`, `boss_<key>`, `enemy_archlich`), `draw`
+  (the figure, `motion` applied, hit flash as a white copy), `draw_static` (hub pieces), `icon`/`draw_icon`,
+  `draw_scene`, `deed_icon` and `DEED_MARKS` (the Achievements.RULES kind -> win, slay, time or secret mark).
+- **`Still.motion(t, moving, facing)`** is pure: `{off, lean, squash}`. Walking: a bob (`WALK_BOB` px at `WALK_RATE`) and
+  a lean toward the facing (`LEAN_MOVE` plus `LEAN_SWAY`); standing: a breath (`BREATH`, share of height). Sizes are
+  rounded to whole pixels, so the figure steps rather than blurs.
+- **Callers.** Arena heroes `ArenaDrawWorld._draw_player` (seat ring and pip kept, no staff) and the spirit
+  `ArenaDrawFallen._draw_spirit`; the hub walker `SanctumView._draw_wizard`; monsters and bosses through
+  `EnemyView.draw_still` from `ArenaDrawEnemies._draw_enemy` (pose offsets and tints arrive in `feet` and `mod`); hub
+  `_draw_lectern`, `_draw_mirror`, `_draw_npc`. Icons: `ArenaHud.build` slots, `TarotArt.emblem` (level-up cards,
+  tray, results awards), the builder's class and race rows, the Book of Deeds marks. Scenes: builder, sheet, album,
+  deeds (drawn again inside the frame, `Still.SCENE_INNER`) and the lobby (`Title._draw_front`).
+- Tests: `tests/unit/test_still.gd`. Shots: any autotest mode with `--art=<dir>`.

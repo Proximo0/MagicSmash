@@ -457,6 +457,8 @@ func _draw_front() -> void:
 	var ci := front
 	if dim > 0.0:
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.07, 0.55 * dim))
+	if state == S.LOBBY:
+		Still.draw_scene(ci, "lobby")
 	_draw_logo(ci)
 	match state:
 		S.INTRO:

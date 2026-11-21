@@ -140,7 +140,8 @@ static func _draw_enemy(a: Arena, ci: CanvasItem, e: Dictionary) -> void:
 	if elite:
 		key = "elite_" + key
 	var flash: bool = e.flash > 0.0 and (t != World.LICH or int(a.time * 40.0) % 3 == 0)
-	Sprites.draw_at(ci, key, feet, e.flip, flash, mod)
+	if not EnemyView.draw_still(ci, e, feet, flash, mod, a.time):
+		Sprites.draw_at(ci, key, feet, e.flip, flash, mod)
 	if Bestiary.is_new_kind(t):
 		EnemyView.draw_state(a, ci, e, feet)
 	if elite:

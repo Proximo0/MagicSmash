@@ -190,8 +190,10 @@ func draw(ci: CanvasItem, t: float) -> void:
 	if not active:
 		return
 	var h := hero()
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
+	if not Still.draw_scene(ci, "sheet"):
+		ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
 	Occult.frame(ci, Rect2(4, 4, 472, 262), t)
+	Still.draw_scene(ci, "sheet", Still.SCENE_INNER)
 	# Left: the portrait and the records.
 	Occult.frame(ci, PORTRAIT_PANEL, t, false)
 	draw_portrait(ci, PORTRAIT_PANEL.grow(-3), h.race, h.cls, h.name)

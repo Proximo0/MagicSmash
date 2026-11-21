@@ -160,6 +160,9 @@ func _ready() -> void:
 			net = a.split("=")[1]
 		if a.begins_with("--out="):
 			out_dir = a.split("=")[1]
+		if a.begins_with("--art="): # a folder searched first for pictures, laid out like assets/art (art shots)
+			Art.drop_root = a.split("=")[1].rstrip("/") + "/"
+			Art.forget()
 	if out_dir.is_empty():
 		out_dir = OS.get_user_data_dir() + "/shots"
 	DirAccess.make_dir_recursive_absolute(out_dir)
