@@ -1544,3 +1544,73 @@ func test_pickups_are_taken_on_touch_and_fade_when_their_time_is_up() -> void:
 	WorldDrops._update_pickups(w, DT)
 	assert_eq(kept.pos.x, G.ARENA.position.x + 6)
 	assert_near(kept.vel.x, -9000 + DT * 120.0)
+
+
+## E1: the Lich's aimed volley leaves its muzzle for the wizard's hit centre, so a wizard at its side is hit.
+func test_lich_volley_aims_from_the_muzzle_at_the_hit_centre() -> void:
+	var w := _fighting(null, 0.0)
+	var p: World.Player = _player(w)
+	p.pos = Vector2(260, 120)
+	var e: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	e.state = 2
+	e.timer = 99.0
+	e.timer2 = 0.0
+	w.eshots.clear()
+	BossLich.think(w, e, DT, p, Vector2.RIGHT, 20.0)
+	assert_eq(w.eshots.size(), 3)
+	var want: Vector2 = (p.pos + Vector2(0, -6) - (e.pos + Vector2(0, -16))).normalized()
+	assert_near((w.eshots[1] as World.EShot).vel.normalized().dot(want), 1.0, 0.0001)
+
+
+## E8: a lost run's Lich summons nothing under the results screen.
+func test_lich_summons_nothing_after_the_run_is_lost() -> void:
+	var w := _fighting(null, 0.0)
+	var e: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	e.state = 4
+	w.phase = World.PH_GAMEOVER
+	var n := w.enemies.size() + w.spawn_queue.size()
+	BossLich.think(w, e, DT, _player(w), Vector2.RIGHT, 100.0)
+	assert_eq(w.enemies.size() + w.spawn_queue.size(), n)
+
+
+## E7: an orc's charge in the bottom rows of the arena runs its course (the room's clamp keeps it inside).
+func test_orc_charge_does_not_fizzle_at_the_bottom_edge() -> void:
+	var w := _fighting(null, 0.0)
+	var e: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(240, G.ARENA.end.y - 3.0))
+	e.state = 2
+	e.dir = Vector2.RIGHT
+	e.timer2 = 0.5
+	Brains.think(w, e, DT, _player(w), Vector2.RIGHT, 100.0)
+	assert_eq(e.state, 2)
+
+
+## E3: knockback adds up only to Bestiary.KNOCK_MAX (scaled by heft); one nova's push still lands in full.
+func test_knockback_is_capped_but_one_push_lands_in_full() -> void:
+	var w := _fighting(null, 0.0)
+	var e: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200, 120))
+	e.hp = 1e9
+	var h: float = WorldEnemies._heft(w, e)
+	w._damage_enemy(e, 1.0, 0, Vector2(260, 0))
+	assert_near(e.knock.length(), 260.0 * h, 0.001)
+	for _i: int in 20:
+		w._damage_enemy(e, 1.0, 0, Vector2(260, 0))
+	assert_near(e.knock.length(), Bestiary.KNOCK_MAX * h, 0.001)
+
+
+## L7: the Archlich's card on the floor goes to the slayer when the run is won, before the victory.
+func test_the_archlich_card_is_taken_when_the_run_is_won() -> void:
+	var w := _final_world([0, 1])
+	var arch: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._make_final(arch)
+	WorldDrops._drop(w, World.PK_CARD, arch.pos, Vector2.ZERO, 9.0, 3)
+	w.take_events()
+	w._kill_enemy(arch, 1)
+	assert_true(w.cards_found.has(3), "the card was left on the floor")
+	var order: Array = []
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CARD or ev[0] == World.EV_VICTORY:
+			order.append(ev[0])
+	assert_eq(order[0], World.EV_CARD)
+	assert_true(order.has(World.EV_VICTORY))
+	for k: World.Pickup in w.pickups:
+		assert_true(k.kind != World.PK_CARD or k.life <= 0.0)

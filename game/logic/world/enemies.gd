@@ -184,7 +184,8 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 	w.record.add_slot_source(slot, w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
-	e.knock += knock * _heft(w, e)
+	var heft := _heft(w, e)
+	e.knock = (e.knock + knock * heft).limit_length(Bestiary.KNOCK_MAX * heft) # shoves add up, but only to a cap
 	w.emit(World.EV_HIT, e.pos.x, e.pos.y - e.r, e.type, slot)
 	if e.hp <= 0.0:
 		_kill_enemy(w, e, slot)

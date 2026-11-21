@@ -40,6 +40,10 @@ const F_ARROW := 32 # the HUD points at it when it is off screen
 const F_NO_BLOCK := 64 # the crowd does not push off it (bats)
 const F_BLINK := 128 # can teleport, so its contact test always runs
 
+## The most knockback an enemy can carry, px/s, before its heft: shoves add up to this and no further, so one nova
+## (260) still pushes in full but a crowd of hits cannot throw an elite to the wall.
+const KNOCK_MAX := 280.0
+
 ## [key, hp, spd, r, score, contact, xp, heft, flags]. hp and spd before the minute's scaling; heft scales knockback.
 const K_KEY := 0
 const K_HP := 1
