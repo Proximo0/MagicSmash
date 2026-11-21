@@ -115,3 +115,32 @@ What changed:
 - Blood decals are rect blobs, not circles (each circle was its own draw call).
 - Elite glows and health bars are drawn in their own passes before and after the sprites.
 
+
+### Pass 2, 21 Nov 2026: the world step at the enemy cap
+
+`tools/run_sims.sh sim_horde` (4 bots, the cap of 260 enemies; the mixed row adds the eight new kinds, 48 hazard
+rows and a floor of gems). The mixed row went over its 4000 us budget on slow CI runners once the eight kinds
+were merged. Cloud box, µs of CPU per step:
+
+| | before | after |
+| --- | --- | --- |
+| `horde_peak_cost_4p` | 3100 | 2550 to 2750 |
+| `horde_mixed_cost_4p` | 3650 to 3900 (4450 to 4570 on CI) | 3100 to 3350 |
+| enemy update, per enemy | 6.8 | 5.1 |
+| separation, per call (55 neighbours) | 8.0 | 4.4 |
+| a new kind's brain, per call | 4.5 to 10.4 | 1.3 to 3.5 |
+| 156 gems on the floor, per step | 350 | 90 |
+
+What changed (all of it exact: the pinned solo run is unchanged):
+- `Brains.think` calls the stock kinds' brains directly; before, each enemy fell through the old kinds' `match`
+  and was then looked up and called by name.
+- Separation reads a packed copy of the horde (`World._sep_cells`, `_sep_pos`, `_sep_r`), not two fields of every
+  neighbour object, and tests the distance before anything else.
+- `_update_enemy` finds the nearest wizard in place, leaves stopped timers alone and reads each field once.
+- `_update_pickups` works out the living wizards, their magnet reach and the room's edges once a tick, not once
+  a gem.
+- `World.party_center` uses the cached wizard list.
+
+How to find the next one: time the phases of `World.step` separately (copy its body into a scratch `-s` script
+with `Time.get_ticks_usec()` between the calls), then the pieces of the slowest phase. Take the lowest of several
+runs; the box is noisy.

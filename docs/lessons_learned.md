@@ -110,3 +110,4 @@ Story: kit `docs/lessons/ops_board.md`.
 - `dl.google.com` blocked in cloud ⇒ `T/export_android.sh` builds JDK 17 + SDK from distro packages; real machine: `ANDROID_SDK_ROOT`.
 - Android export refused ⇒ keep `import_etc2_astc=true` in `project.godot`.
 - APK has no side folder for credentials ⇒ credentials file in the preset's `include_filter`.
+- `sims-horde` passed on a fast CI runner, auto-merged, then failed on main (runners differ 1.5x) ⇒ a time-budget row needs 15%+ headroom on the slowest runner before merging; read the row's number in the PR's own log, not only pass/fail.

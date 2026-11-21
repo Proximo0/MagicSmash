@@ -16,8 +16,18 @@ static var kind_brains: Dictionary = Bestiary.BRAINS
 static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: Vector2, dist: float) -> Vector2:
 	if e.flags & Bestiary.F_BOSS:
 		return Bosses.think(w, e, dt, tgt, dirv, dist)
+	var type: int = e.type
+	if type >= Bestiary.BLOAT and is_same(kind_brains, Bestiary.BRAINS):
+		# The stock brains of job K's kinds, called directly and ahead of the match below: looked up and called by
+		# name for every enemy on every tick they cost a full mixed floor a fifth of World.step (sim_horde).
+		if type <= Bestiary.GUARD:
+			return KindsCrypt.think(w, e, dt, tgt, dirv, dist)
+		if type <= Bestiary.HOUND:
+			return KindsLibrary.think(w, e, dt, tgt, dirv, dist)
+		if type <= Bestiary.SWORDS:
+			return KindsSanctum.think(w, e, dt, tgt, dirv, dist)
 	var desired := Vector2.ZERO
-	match e.type:
+	match type:
 		World.GOBLIN, World.MSLIME:
 			desired = (dirv + dirv.orthogonal() * sin(e.t * 3.0 + e.id) * 0.35).normalized() * e.spd
 		World.BAT:
@@ -151,7 +161,7 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 				if n > 0:
 					w.emit(World.EV_RAISE, e.pos.x, e.pos.y, n, 0)
 		_:
-			var kind: GDScript = _kind_script(e.type)
+			var kind: GDScript = _kind_script(type)
 			if kind != null:
 				return kind.call("think", w, e, dt, tgt, dirv, dist)
 			if not e.flags & Bestiary.F_ANCHORED:
@@ -184,6 +194,9 @@ static func filter_damage(w: World, e: World.Enemy, dmg: float, knock: Vector2, 
 		return -1.0 # a boss between phases
 	if e.type == World.GARGOYLE and e.state == 0:
 		return dmg * World.STONE_DAMAGE
+	if is_same(kind_brains, Bestiary.BRAINS) and not e.flags & Bestiary.F_BOSS:
+		# The stock kinds: only the guard filters a hit (see think on why this is not a looked-up call).
+		return KindsCrypt.filter_damage(w, e, dmg, knock, sure) if e.type == Bestiary.GUARD else dmg
 	var kind: GDScript = _kind_script(e.type)
 	if kind != null:
 		return kind.call("filter_damage", w, e, dmg, knock, sure)
