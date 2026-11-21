@@ -5,4 +5,4 @@
 ubuntu: realm
 msi: realm
 laptop: realm
-heatherspc: idle
+heatherspc: realm

@@ -14,7 +14,7 @@ a new role is a commit. Start every station as `station.sh --watch <any job>`; t
 | Ubuntu HP ENVY | `realm` | Horde & Hearth: core, server and store checks, the crash fuzz |
 | MSI (fast, RTX 5050) | `realm` | the same on Windows; later the field client's frame time and the test host |
 | DESKTOP-BENMA68 laptop (Radeon 610M) | `realm` | the same checks; later the field client's frame test (low end) |
-| Heatherspc (Celeron N4100, UHD 600) | `idle` | waits for the same test, below minimum spec, recorded only |
+| Heatherspc (Celeron N4100, UHD 600) | `realm` | the same checks on the slowest processor; later the frame test below minimum spec, recorded only |
 
 Four of Wands is stopped (21 Nov 2026), so no station runs `boss`, `checks`, `frames` or `golden`; the jobs remain for
 the day they are wanted. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot

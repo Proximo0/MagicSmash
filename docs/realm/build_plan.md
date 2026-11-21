@@ -60,7 +60,7 @@ stations run this game only and skip merges that changed nothing they test.
 | Ubuntu HP ENVY | `realm`: core, server and store checks with the crash fuzz | W1: a long soak (bots through the wire server for hours), O1: backup and restore drill |
 | MSI (RTX 5050) | `realm` on Windows | C1: the field client's frame time with 10,000 on screen on a real card; the **test host** for the closed test |
 | Ryzen laptop (Radeon 610M) | `realm` (the same checks, once Rust is on it) | C1: the same frame test at the low end, the number that sets minimum spec |
-| Heatherspc (Celeron) | idle | C1: the frame test below minimum spec, recorded only |
+| Heatherspc (Celeron) | `realm` (the same checks, once Rust is on it) | C1: the frame test below minimum spec, recorded only |
 
 Each job that adds a station test adds its word to `station.sh` and its line to `roles.txt` in the same PR. Ubuntu
 and MSI need Rust installed once (README there).
