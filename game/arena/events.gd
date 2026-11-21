@@ -17,6 +17,18 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					World.SP_FROST: Sfx.play("shoot_frost", -5.0, 1.0, 0.08)
 					World.SP_STAR: Sfx.play("star", -6.0, 1.0, 0.08)
 					World.SP_RUNE: Sfx.play("rune_cast", -5.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
+					World.SP_BONE: Sfx.play("arrow", -5.0, a._fx_rng.randf_range(0.9, 1.05), 0.08)
+					World.SP_CANDLE: Sfx.play("candle", -6.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
+					World.SP_CLEAVE: Sfx.play("hit", -3.0, 0.7, 0.08)
+			World.EV_SWEEP: # a CLEAVE: a steel arc flash toward the swing
+				var slot := int(ev[4])
+				var half := Spells.stat(World.SP_CLEAVE, "arc") * 0.5
+				a.fx.swing(pos, Spells.stat(World.SP_CLEAVE, "r"), float(ev[3]), half, ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
+			World.EV_BURST: # a JUSTICE burst: a pale ring the size of its reach and bone shards
+				var br := float(ev[3])
+				a.fx.ring(pos, br * 0.3, br, 0.25, Color("fff6e0"), 2.0)
+				a.fx.burst(pos, 8, 70.0, 0.35, 1.0, Color.WHITE, Color("ffd94d"), true)
+				Sfx.play("explode", -9.0, 1.4, 0.08)
 			World.EV_RUNE:
 				var evo := int(ev[4]) >= 8
 				var rc := ArenaDrawFx._spell_color(a, World.SP_RUNE, 0)
@@ -302,7 +314,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				Sfx.play("powerup", -2.0, 1.1)
 			World.EV_PICK:
 				var col := G.player_fx(int(ev[3]))
-				a.fx.text(pos, Upgrades.display_name(int(ev[4])) + "!", col, 1.4, 1)
+				a.fx.text(pos, Classes.card_name(int(a.vp.get(int(ev[3]), {}).get("cls", 0)), int(ev[4])) + "!", col, 1.4, 1)
 				a.fx.sparkle(pos + Vector2(0, 10), col, 16)
 				if a.time - a._pick_sfx_t > 0.12:
 					a._pick_sfx_t = a.time # four wizards picking at once play it once

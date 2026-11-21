@@ -11,6 +11,10 @@ const SPELL_COLORS := Sprites.SPELL_COLORS
 const RUNE_GOLD := Color("ffd94d")
 const SEAL_WHITE := Color("fff2c0")
 const SEAL_RING := Color("ffb347")
+## Class weapon skins (Classes.SKINS) in their own colours: the longbow's arrows, the paladin's hammers of light,
+## the priest's white light and the knight's steel arc.
+const SKIN_COLORS := {"longbow": Color("c9844a"), "smite": Color("fff2c0"), "holy_light": Color("fff6e0"),
+	"cleave": Color("d8e4f0")}
 ## Seconds a rune circle takes to draw itself in and to fade out.
 const RUNE_DRAW_IN := 0.25
 const RUNE_FADE := 0.4

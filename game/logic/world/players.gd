@@ -19,6 +19,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 	p.flash = maxf(0.0, p.flash - dt)
 	p.invuln = maxf(0.0, p.invuln - dt)
 	p.haste = maxf(0.0, p.haste - dt)
+	p.vigil = maxf(0.0, p.vigil - dt)
 	p.orbit = maxf(0.0, p.orbit - dt)
 	p.orbit_ang += dt * 5.5
 	if p.combo_t > 0.0:

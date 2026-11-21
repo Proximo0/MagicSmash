@@ -155,7 +155,7 @@ static func _draw_tray(a: Arena, ci: CanvasItem, slot: int, dark: Color) -> void
 		var lv_text := "NEW" if lv == 1 else "%d/%d" % [lv, Upgrades.max_level(idx)]
 		if Upgrades.kind(idx) == Upgrades.MINOR:
 			lv_text = "MINOR"
-		TarotArt.draw_card_row(ci, rr, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
+		TarotArt.draw_card_row(ci, rr, Upgrades.key(idx), Classes.card_name(int(p.get("cls", 0)), idx), Upgrades.description(idx),
 			lv_text, 11.0)
 		_draw_pick_button(a, ci, rr.position + Vector2(1, 4), dev, c)
 		if k < 0.75:

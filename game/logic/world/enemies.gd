@@ -213,6 +213,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 		if e.elite:
 			w.record.add(slot, "elites", 1)
 	w.emit(World.EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
+	WorldCasting._justice(w, e, slot)
 	WorldDrops._drop_xp(w, e.pos, Vector2.from_angle(w.rng.randf() * TAU) * 25.0, Bestiary.KINDS[e.type][Bestiary.K_XP] * (World.ELITE_REWARD if e.elite else 1))
 	WorldDrops._roll_card(w, e)
 	if e.elite:

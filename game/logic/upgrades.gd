@@ -104,13 +104,13 @@ const CATALOG: Array = [
 	["pentacles", "PENTACLES", "+10 GOLD", 1.0, [10.0], [], MINOR, -1],
 	["swords", "SWORDS", "+1 NOVA", 1.0, [1.0], [], MINOR, -1],
 	["wands", "WANDS", "+3% DAMAGE", 1.0, [0.03], [], MINOR, -1],
-	["w_bone", "BONE SPEAR", "PIERCES ALL FOES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 6],
-	["w_candle", "VIGIL CANDLE", "A HASTING LIGHT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 7],
+	["w_bone", "BONE SPEAR", "PIERCES ALL", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 6],
+	["w_candle", "VIGIL CANDLE", "HASTING LIGHT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 7],
 	# JUSTICE: the chance a slain foe bursts (JUSTICE_SHARE of its health within JUSTICE_RADIUS px).
-	["justice", "JUSTICE", "SLAIN FOES BURST", 7.0, [0.06, 0.12, 0.18], [], PASSIVE, -1],
+	["justice", "JUSTICE", "FOES BURST", 7.0, [0.06, 0.12, 0.18], [], PASSIVE, -1],
 	# THE LOVERS: cast speed within LOVERS_RANGE px of an ally (an apprentice counts), LOVERS_ALONE of it alone.
-	["lovers", "THE LOVERS", "FASTER TOGETHER", 7.0, [0.08, 0.16, 0.24], [], PASSIVE, -1],
-	["e_bone", "OSSUARY LANCE", "SPLINTERING HITS", 40.0, [1.0], [[W_BONE, 5], [JUSTICE, 1]], EVOLUTION, 6],
+	["lovers", "THE LOVERS", "HASTE TOGETHER", 7.0, [0.08, 0.16, 0.24], [], PASSIVE, -1],
+	["e_bone", "OSSUARY LANCE", "SPLINTER HITS", 40.0, [1.0], [[W_BONE, 5], [JUSTICE, 1]], EVOLUTION, 6],
 	["e_candle", "CONSECRATION", "HEALING LIGHT", 40.0, [1.0], [[W_CANDLE, 5], [LOVERS, 1]], EVOLUTION, 7],
 	["w_cleave", "CLEAVE", "A SWEEPING ARC", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [[W_CLEAVE, 1]], SPELL, 8],
 ]

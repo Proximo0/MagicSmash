@@ -139,6 +139,16 @@ static func skin_value(sk: String, field: String, none: float = 0.0) -> float:
 	return float((SKINS.get(sk, {}) as Dictionary).get(field, none))
 
 
+## The name a level-up card of Upgrades row `idx` shows a hero of class `c`: her class weapon's skin name on its
+## spell row (an archer's BONE SPEAR card reads LONGBOW), the row's own name on every other card.
+static func card_name(c: int, idx: int) -> String:
+	if Upgrades.is_weapon(idx):
+		var nm := str((SKINS.get(weapon_skin(c, Upgrades.spell_of(idx)), {}) as Dictionary).get("name", ""))
+		if nm != "":
+			return nm
+	return Upgrades.display_name(idx)
+
+
 ## The class weapon's name: the skin's name, else the spell's (a mage's: her school's spell).
 static func weapon_name(c: int, school: int = 0) -> String:
 	var nm := str((SKINS.get(skin(c), {}) as Dictionary).get("name", ""))

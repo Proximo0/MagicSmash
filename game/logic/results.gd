@@ -54,7 +54,7 @@ const TEAM_PLAYER := "TEAM PLAYER"
 
 var stats := {} # slot -> {stat key -> number}
 var moments: Array = [] # [t, kind, slot, value]
-## Damage dealt by source: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT. Travels in to_dict() for the results
+## Damage dealt by source: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT / SRC_JUSTICE. Travels in to_dict() for the results
 ## screen's damage by spell.
 var source_damage := {}
 ## The same per wizard, for the results screen's damage by spell: slot -> {source -> damage}.
@@ -67,6 +67,7 @@ var fates: Array[int] = []
 ## Damage sources that are not spells (spells use their World.SP_* index).
 const SRC_NOVA := 100
 const SRC_ORBIT := 101
+const SRC_JUSTICE := 102 # JUSTICE's bursts
 
 
 func _init(slots: Array = []) -> void:

@@ -61,7 +61,13 @@ func _fill_hazards(w: World, rng: RandomNumberGenerator) -> void:
 			rng.randf_range(0.5, 2.0), rng.randf_range(1.0, 3.0), 0, 0, true)
 
 
-func _peak(mixed: bool = false) -> Dictionary:
+## The wave 3 cast kinds, one four-wizard row each (docs/wave3_plan.md): every wizard holds the spell evolved (at
+## its top level when it has no evolution) on top of the first six at level 3, so its cost is measured at the cap.
+const WAVE3_ROWS: Array = [["horde_bone_spear_4p", World.SP_BONE], ["horde_vigil_candle_4p", World.SP_CANDLE],
+	["horde_cleave_4p", World.SP_CLEAVE]]
+
+
+func _peak(mixed: bool = false, extra: int = -1) -> Dictionary:
 	var slots: Array = [0, 1, 2, 3]
 	# Enemies that cannot die keep the arena full, so the cost measured is the cost at the cap.
 	var t := Tuning.new()
@@ -78,8 +84,12 @@ func _peak(mixed: bool = false) -> Dictionary:
 		w.spawn_enemy(MIXED_KINDS[i % MIXED_KINDS.size()] if mixed else [World.GOBLIN, World.BAT, World.SLIME, World.SKELETON][i % 4], 0, at)
 	for p: World.Player in w.players.values():
 		p.invuln = 99999.0
-		for sp: int in range(Spells.COUNT):
+		for sp: int in range(World.SP_RUNE + 1): # the first six spells: the row as it was before wave 3
 			p.upgrades[Upgrades.weapon_entry(sp)] = 3
+		if extra >= 0:
+			p.upgrades[Upgrades.weapon_entry(extra)] = Spells.MAX_LEVEL
+			if Spells.has_evolution(extra):
+				p.upgrades[Upgrades.evo_entry(extra)] = 1
 	var bots := _bots(slots)
 	for _i: int in range(SETTLE_TICKS):
 		if mixed:
@@ -150,6 +160,11 @@ func run() -> Array:
 	rows.append(row("horde_mixed_cost_4p", mixed.us <= _budget_us() and mixed.low >= cap / 2,
 		"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d hazard rows>=%d with %d kinds" % [
 			mixed.us, "cpu" if mixed.by_cpu else "stopwatch", _budget_us(), mixed.wall, mixed.low, mixed.rows, MIXED_KINDS.size()]))
+	for r: Array in WAVE3_ROWS:
+		var k := _peak(false, int(r[1]))
+		rows.append(row(str(r[0]), k.us <= _budget_us() and k.low >= cap / 2,
+			"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d of cap %d" % [
+				k.us, "cpu" if k.by_cpu else "stopwatch", _budget_us(), k.wall, k.low, cap]))
 	for n: int in [2]:
 		var slots: Array = range(n)
 		var s := _survive(slots)

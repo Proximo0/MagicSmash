@@ -38,9 +38,17 @@ func test_catalogue_columns() -> void:
 	assert_eq(Upgrades.kind(Upgrades.NOVA), Upgrades.INSTANT)
 	for sp: int in Spells.COUNT:
 		assert_eq(Upgrades.spell_of(Upgrades.weapon_entry(sp)), sp)
+		if not Spells.has_evolution(sp):
+			assert_eq(Upgrades.evo_entry(sp), -1)
+			assert_eq(Upgrades.partner_row(sp), -1)
+			continue
 		assert_eq(Upgrades.kind(Upgrades.evo_entry(sp)), Upgrades.EVOLUTION)
 		assert_eq(Upgrades.evolves(Upgrades.evo_entry(sp)), Upgrades.weapon_entry(sp))
-		assert_eq(Upgrades.partner_row(sp), Upgrades.weapon_entry(Spells.partner(sp)))
+		if Spells.partner(sp) >= 0:
+			assert_eq(Upgrades.partner_row(sp), Upgrades.weapon_entry(Spells.partner(sp)))
+		else:
+			assert_eq(Upgrades.kind(Upgrades.partner_row(sp)), Upgrades.PASSIVE)
+			assert_eq(Upgrades.key(Upgrades.partner_row(sp)), Spells.passive_partner(sp))
 	for m: int in Upgrades.MINORS:
 		assert_eq(Upgrades.kind(m), Upgrades.MINOR)
 	assert_eq(Upgrades.evolves(Upgrades.POWER), -1)
