@@ -446,14 +446,26 @@ const TIMEOUT: Duration = Duration::from_secs(5);
 
 fn serve(args: &Args) {
     let sock = UdpSocket::bind(("0.0.0.0", args.port)).unwrap_or_else(|e| die(&format!("bind {}: {e}", args.port)));
-    sock.set_nonblocking(true).expect("nonblocking");
+    // A thread does nothing but receive: the default receive buffer holds a few hundred datagrams, fewer
+    // than a thousand clients send while one tick encodes.
+    let (tx, rx) = std::sync::mpsc::channel::<(SocketAddr, Vec<u8>)>();
+    let rsock = sock.try_clone().expect("clone socket");
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 2048];
+        while let Ok((len, from)) = rsock.recv_from(&mut buf) {
+            if tx.send((from, buf[..len].to_vec())).is_err() {
+                break;
+            }
+        }
+    });
     eprintln!("realm-server: udp {} seed={} bots={} monsters={} rally={}/1000 threads={}", args.port, args.seed, args.bots, args.monsters, args.rally_permille, args.threads);
     let mut sim = Sim::new(args);
     let mut clients: HashMap<SocketAddr, Client> = HashMap::new();
     let mut w = Window::default();
     let mut scratch = Scratch::default();
     let mut out = Vec::new();
-    let mut buf = [0u8; 2048];
+    let mut inbox: Vec<(SocketAddr, Vec<u8>)> = Vec::new();
+    let (mut send_errors, mut hellos, mut received) = (0u64, 0u64, 0u64);
     let mut rng = args.seed ^ 0xC11E;
     let start = Instant::now();
     let period = Duration::from_millis(50);
@@ -468,20 +480,23 @@ fn serve(args: &Args) {
         if due > now {
             std::thread::sleep(due - now);
         }
+        inbox.extend(rx.try_iter());
+        received += inbox.len() as u64;
         n += 1;
         // Read everything that arrived.
         let mut joins = Vec::new();
         let mut join_addrs = Vec::new();
         let mut leaves = Vec::new();
-        while let Ok((len, from)) = sock.recv_from(&mut buf) {
-            let mut r = Rd::new(&buf[..len]);
+        for (from, msg) in inbox.drain(..) {
+            let mut r = Rd::new(&msg);
             match r.u8() {
                 Some(MSG_HELLO) => {
+                    hellos += 1;
                     let (Some(proto), Some(class), Some(race)) = (r.u32(), r.u8(), r.u8()) else { continue };
                     if let Some(c) = clients.get(&from) {
                         // A repeated HELLO: the WELCOME was lost.
                         if let Some(id) = c.id {
-                            let _ = sock.send_to(&welcome(id as u32, sim.field.tick()), from);
+                            if sock.send_to(&welcome(id as u32, sim.field.tick()), from).is_err() { send_errors += 1; }
                         }
                         continue;
                     }
@@ -526,7 +541,7 @@ fn serve(args: &Args) {
         for (addr, id) in join_addrs.iter().zip(ids) {
             if let Some(c) = clients.get_mut(addr) {
                 c.id = Some(id);
-                let _ = sock.send_to(&welcome(id as u32, tick), addr);
+                if sock.send_to(&welcome(id as u32, tick), addr).is_err() { send_errors += 1; }
             }
         }
         // Snapshots at 10 Hz, B every tick.
@@ -540,7 +555,7 @@ fn serve(args: &Args) {
                         c.state = state_parts(tick, &sim.ls.state_bytes(&sim.field));
                         c.state_tick = Some(tick);
                         c.state_next = 0;
-                        let _ = sock.send_to(&welcome(u32::MAX, tick), addr);
+                        if sock.send_to(&welcome(u32::MAX, tick), addr).is_err() { send_errors += 1; }
                     }
                     let st = c.state_tick.unwrap_or(0);
                     if c.ack < st {
@@ -550,13 +565,13 @@ fn serve(args: &Args) {
                             let p = &c.state[c.state_next % c.state.len()];
                             c.state_next += 1;
                             c.bytes += p.len() as u64;
-                            let _ = sock.send_to(p, addr);
+                            if sock.send_to(p, addr).is_err() { send_errors += 1; }
                         }
                     }
                     sim.b_datagrams(c.ack.max(st), &mut out);
                     for d in &out {
                         c.bytes += d.len() as u64;
-                        let _ = sock.send_to(d, addr);
+                        if sock.send_to(d, addr).is_err() { send_errors += 1; }
                     }
                     row[C_B] += tc.elapsed().as_secs_f64() * 1000.0;
                 }
@@ -572,7 +587,7 @@ fn serve(args: &Args) {
                     }
                     for d in &out {
                         c.bytes += d.len() as u64;
-                        let _ = sock.send_to(d, addr);
+                        if sock.send_to(d, addr).is_err() { send_errors += 1; }
                     }
                     c.view_mon = v.monsters.len() as u32;
                     c.view_ply = (v.players.len() + v.crowd.len()) as u32;
@@ -606,6 +621,7 @@ fn serve(args: &Args) {
         }
         if tick % (args.report * 20) == 0 {
             report(&sim, &w, sim.ls.state_bytes(&sim.field).len());
+            eprintln!("net clients={} received={received} hellos={hellos} send_errors={send_errors}", clients.len());
             w = Window::default();
         }
     }

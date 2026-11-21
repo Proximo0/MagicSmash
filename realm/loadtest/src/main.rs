@@ -139,13 +139,15 @@ fn main() {
     let start = Instant::now();
     let end = start + Duration::from_secs(a.secs as u64);
     let mut next_input = start;
+    let mut input_round = 0u64;
     let mut next_second = start + Duration::from_secs(1);
     let mut buf = [0u8; 2048];
     while Instant::now() < end {
         let now = Instant::now();
         if now >= next_input {
             next_input += Duration::from_millis(50);
-            let hello_again = (now - start).as_millis() / 50 % 20 == 19;
+            input_round += 1;
+            let hello_again = input_round % 20 == 0;
             for (k, p) in players.iter_mut().enumerate() {
                 if p.id.is_none() && hello_again {
                     let _ = p.sock.send(&hello(a.proto, (k % 5) as u8, (k % 4) as u8));
@@ -159,7 +161,7 @@ fn main() {
             if let (Some(s), Some((f, _))) = (&fsock, &follower) {
                 let _ = s.send(&input(f.tick(), 0, 1));
             } else if let Some(s) = &fsock {
-                if (now - start).as_millis() / 50 % 20 == 19 && state_tick == 0 {
+                if hello_again && state_tick == 0 {
                     let _ = s.send(&hello(PROTO_B, 0, 0));
                 }
                 let _ = s.send(&input(0, 0, 1));

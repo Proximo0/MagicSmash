@@ -89,3 +89,12 @@ player's.
 Per setting (players x monsters): tick time mean and 99th percentile, split by phase (flow, move, grid, fight,
 spawn, encode A, encode B); threads used; bytes per second per client for A v0, A v1 and B (mean and 99th
 percentile, with the monsters and players in view); join size for B; follower CPU per tick; hash agreement.
+
+## As built (additions the core job made; the viewer needs none of them)
+- `HELLO` proto: 1 is A v0, 2 is A v1, 3 is a B follower with no player (its `WELCOME` carries player id
+  0xFFFFFFFF). A v1 is message `0x83`; B is `0x90` (tick records) and `0x91` (join state). Formats: the top of
+  `realm/server/src/snap.rs` and `lockstep.rs`.
+- Varint is LEB128. A joiner supplies its start position; the respawn point is the centre.
+- "Never inside anyone's view" cannot hold the monster target with 5 000 players spread evenly over this field
+  (58 565 of 100 000 placed): a known limit of the test's field size.
+- Results: `crowd_results.md`.
