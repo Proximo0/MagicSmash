@@ -340,7 +340,9 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   evolution (an empty `Spells.EVOS` row, `Spells.has_evolution`). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
   260 px (her VOLLEY's arrows too). PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
   one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
-  of light. Job P's numbers (solo casual bots at WIZARD, 12 seeds, each class within 2 wins of the mage):
+  of light. Job P's numbers (solo casual bots at WIZARD, 12 seeds: mage 9, priest 8, paladin 8, knight 7, archer 7 wins when
+  tuned; mage 6, knight 6, archer 10, priest 5, paladin 8 after the audit fixes of #84 merged, so read a 12-seed
+  table as plus or minus 2 to 3 wins; before, the four classes won 0 or 1 of 6):
   CLEAVE x0.7 damage, x0.85 cooldown, x2.5 knock-back; LONGBOW x1.5, x0.5; HOLY LIGHT x1.3; SMITE x1.6, x0.55;
   hearts knight 9 (was 7), archer 5 (4), priest 6 (5); `Classes.C_HURT_SAFE`, the seconds a hit leaves a hero
   unhurt (`hurt_player`, was 1.1 for all): knight 2.0, archer 1.6, others 1.1; class stat points knight MIGHT 30
