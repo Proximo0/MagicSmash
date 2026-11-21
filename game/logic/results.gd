@@ -57,6 +57,8 @@ var source_damage := {}
 var slot_source_damage := {}
 ## slot -> true for an apprentice's column (none yet).
 var ai := {}
+## The party's fates in the order they landed (Gamble.TEAM_OUTCOMES ids). Data only: nothing shows it yet.
+var fates: Array[int] = []
 
 ## Damage sources that are not spells (spells use their World.SP_* index).
 const SRC_NOVA := 100
@@ -183,7 +185,7 @@ func to_dict() -> Dictionary:
 	for s: int in stats:
 		st[s] = (stats[s] as Dictionary).duplicate()
 	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate(),
-		"slot_source_damage": slot_source_damage.duplicate(true)}
+		"slot_source_damage": slot_source_damage.duplicate(true), "fates": fates.duplicate()}
 
 
 ## Times `slot` fell this run, and rituals it helped finish.
@@ -222,6 +224,10 @@ static func from_dict(d: Dictionary) -> Results:
 			if row is Dictionary:
 				for k: Variant in row:
 					r.add_slot_source(int(s), int(k), float(row[k]))
+	var fd: Variant = d.get("fates", [])
+	if fd is Array:
+		for f: Variant in fd:
+			r.fates.append(int(f))
 	var ms: Variant = d.get("moments", [])
 	if ms is Array:
 		for m: Variant in ms:

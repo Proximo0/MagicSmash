@@ -126,6 +126,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 		var sk := int(sh[i])
 		a.vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
 		i += 6
+	a.vhz = snap.get("hz", PackedFloat32Array())
 	a.vr.clear()
 	var rn: PackedFloat32Array = snap.get("r", PackedFloat32Array())
 	i = 0
@@ -174,6 +175,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	a.lull_left = w[World.W_LULL]
 	a.seal = int(w[World.W_SEAL])
 	a.slot_cap = Vector2i(int(w[World.W_CAP_SPELLS]), int(w[World.W_CAP_PASSIVES]))
+	a.fates = snap.get("f", PackedFloat32Array())
 	if was_lull > 0.0 and a.lull_left <= 0.0 and a.phase != World.PH_GAMEOVER:
 		ArenaFateView._banner(a, "THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
 		Sfx.play("gong", -2.0)

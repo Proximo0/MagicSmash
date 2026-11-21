@@ -160,8 +160,21 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 
 
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
-static func centre(_a: Arena, _ci: CanvasItem, _dark: Color) -> void:
-	pass
+static func centre(a: Arena, ci: CanvasItem, dark: Color) -> void:
+	# The fates in force: plain tags stacked over the level-and-clock pill at the foot of the screen.
+	if a.game_over or a.victory or a.fates.size() < 2:
+		return
+	var tags: Array[String] = []
+	if a.fates[0] > 0.0:
+		tags.append("NOVAS SEALED %d" % ceili(a.fates[0]))
+	if a.fates[1] > 0.0:
+		tags.append("NO POTIONS %d" % ceili(a.fates[1]))
+	var y := (234.0 if a.boss_f > 0.0 else G.SCREEN.y - 13.0) - 12.0
+	for tag: String in tags:
+		var tw := PixelFont.text_width(tag, 1) + 8
+		ci.draw_rect(Rect2(floorf(240.0 - tw / 2.0), y, tw, 11), Color(dark, 0.85))
+		PixelFont.draw_centered(ci, tag, 240, y + 2, 1, Color("ff8a9a"), dark)
+		y -= 12.0
 
 
 ## The party's one XP bar along the bottom edge of the HUD strip; at the foot of the screen (above the boss bar

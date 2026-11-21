@@ -190,6 +190,7 @@ func test_the_ritual_pushes_enemies_away_at_both_ends() -> void:
 	var q: World.Player = w.players[0]
 	var e := w.spawn_enemy(World.ORC, 0, p.pos + Vector2(20, 0))
 	e.spd = 0.0
+	e.hp = 1e6 # it must outlive the ritual, whatever the starting spell deals
 	q.pos = p.pos
 	_run(w, DT)
 	assert_near(e.pos.distance_to(p.pos), w.tune.ritual_push, 2.0, "pushed when the first ally enters")
@@ -367,4 +368,4 @@ func test_solo_run_is_pinned() -> void:
 	assert_eq(hash(rows), SOLO_PIN, "solo plays as before")
 
 
-const SOLO_PIN := 3551514773
+const SOLO_PIN := 2643833258

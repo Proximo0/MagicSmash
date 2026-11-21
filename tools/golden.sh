@@ -8,6 +8,8 @@
 # Usage: tools/golden.sh [base-ref]     (default origin/main; GOLDEN_SEEDS="7 21" GOLDEN_SECONDS=90)
 # GOLDEN_FIELDS=1 compares a fixed list of fields (golden_run --fields) instead of the full state hash: for a change
 # that alters the snapshot row but must not alter the game.
+# GOLDEN_EVERY=1 marks every second instead of every 15 (a hash trace: identical traces, mark by mark), and
+# GOLDEN_PLAYERS=n plays n bots (default 4). tools/hash_trace.sh prints such a trace for the working tree alone.
 # Exit 0 same, 1 changed, 2 could not compare. About 30 s on four cores.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -16,6 +18,8 @@ BASE="${1:-origin/main}"
 SEEDS="${GOLDEN_SEEDS:-7 21}"
 SECS="${GOLDEN_SECONDS:-90}"
 MODE=(); [ "${GOLDEN_FIELDS:-0}" = 1 ] && MODE=(--fields)
+EVERY="${GOLDEN_EVERY:-15}"
+MODE+=("--every=$EVERY" "--players=${GOLDEN_PLAYERS:-4}")
 git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "GOLDEN FAIL no such commit: $BASE"; exit 2; }
 tools/import.sh || { echo "GOLDEN FAIL import"; exit 2; }
 TMP=$(mktemp -d "/tmp/golden.$(basename "$PWD").XXXXXX")
@@ -49,7 +53,7 @@ for s in $SEEDS; do
   IFS=, read -ra bm <<<"${b##*marks=}"; IFS=, read -ra hm <<<"${h##*marks=}"
   at="after the last mark, or only in the run's record"
   for i in "${!bm[@]}"; do
-    if [ "${bm[$i]}" != "${hm[$i]:-}" ]; then at="by $(( (i + 1) * 15 )) s of game time (still the same at $(( i * 15 )) s)"; break; fi
+    if [ "${bm[$i]}" != "${hm[$i]:-}" ]; then at="by $(( (i + 1) * EVERY )) s of game time (still the same at $(( i * EVERY )) s)"; break; fi
   done
   echo "GOLDEN seed=$s changed $at"
 done

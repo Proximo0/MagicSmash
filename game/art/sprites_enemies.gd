@@ -1014,7 +1014,21 @@ const BOSS_HALO := [
 const ELITE_KINDS := ["skeleton", "orc", "mage", "priest", "gargoyle"]
 ## Height in pixels of each kind's standing frame, by enemy type (the `World` constants): the health bar and the
 ## elite mark sit just above it.
-const TOP := [14, 18, 11, 7, 12, 22, 20, 41, 20, 13, 18, 20]
+const TOP := [14, 18, 11, 7, 12, 22, 20, 41, 20, 13, 18, 20, 16, 20, 20, 12, 20, 11, 20, 18, 40, 30]
+## Plain stand-ins for the reserved kinds (Bestiary BLOAT .. GHOSTWRITER), nobody's idea of finished art: one flat
+## shape in one colour with a dark outline, at the size the design gives. [key, width, height, round?, colour].
+const STAND_INS: Array = [
+	["bloat_a", 16, 16, true, "8fae4a"],
+	["coffin_a", 14, 20, false, "7a5236"],
+	["guard_a", 16, 20, false, "8c8fa3"],
+	["cinderling_a", 12, 12, true, "ff8a2a"],
+	["censor_a", 14, 20, false, "b0408a"],
+	["hound_a", 16, 11, true, "5c5a66"],
+	["shard_a", 14, 20, true, "6fd6ff"],
+	["swords_a", 16, 18, false, "c9c9d6"],
+	["chandelier_a", 48, 40, true, "d9c79a"],
+	["ghostwriter_a", 34, 30, false, "e6dccb"],
+]
 
 ## Every frame as [key, rows, palette], kind by kind. `add_all` registers them; sheet tools read the same list.
 static func frames() -> Array:
@@ -1070,6 +1084,8 @@ static func frames() -> Array:
 		"C": Color("ff4df2"), "F": Color("ffd0fb"), "c": Color("a02a9a")}, true)
 	for key: String in lich_maps:
 		out.append(["arch" + key, lich_maps[key], arch])
+	for row: Array in STAND_INS:
+		out.append([row[0], _stand_in_map(row[1], row[2], row[3]), {"K": ol, "S": Color(row[4])}])
 	# Elites: a gilded copy of every frame of the kinds that can be one.
 	var gold := {"1": Color("ffd94d"), "2": Color("c48a10")}
 	for i: int in out.size():
@@ -1085,6 +1101,30 @@ static func frames() -> Array:
 	out.append(["lich_halo", BOSS_HALO, {"1": Color(0.3, 1.0, 0.94, 0.5), "2": Color(0.2, 0.88, 0.77, 0.24), "3": Color(0.2, 0.88, 0.77, 0.1)}])
 	out.append(["archlich_halo", BOSS_HALO, {"1": Color(1.0, 0.3, 0.95, 0.6), "2": Color(1.0, 0.85, 0.3, 0.3), "3": Color(1.0, 0.3, 0.95, 0.12)}])
 	return out
+
+
+## A stand-in map: a filled ellipse (`round`) or box of "S", w x h, with a one-pixel "K" outline.
+static func _stand_in_map(w: int, h: int, round: bool) -> Array:
+	var rows: Array = []
+	var c := Vector2((w - 1) / 2.0, (h - 1) / 2.0)
+	var inside := func(x: int, y: int) -> bool:
+		if x < 0 or y < 0 or x >= w or y >= h:
+			return false
+		if not round:
+			return true
+		var d := Vector2((x - c.x) / (w / 2.0), (y - c.y) / (h / 2.0))
+		return d.length_squared() <= 1.0
+	for y: int in h:
+		var line := ""
+		for x: int in w:
+			if not inside.call(x, y):
+				line += "."
+			elif inside.call(x - 1, y) and inside.call(x + 1, y) and inside.call(x, y - 1) and inside.call(x, y + 1):
+				line += "S"
+			else:
+				line += "K"
+		rows.append(line)
+	return rows
 
 
 static func _enemy_set(out: Array, pal: Dictionary, maps: Dictionary) -> void:

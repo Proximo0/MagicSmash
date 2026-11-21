@@ -14,18 +14,12 @@ const SEAL_RING := Color("ffb347")
 ## Seconds a rune circle takes to draw itself in and to fade out.
 const RUNE_DRAW_IN := 0.25
 const RUNE_FADE := 0.4
-## The walk or hover cycle of each enemy type, stepped at ENEMY_ANIM frames a second. `_draw_enemy` swaps in the
-## frame of a hop, a wind-up, a cast or a swoop.
-const ENEMY_KEYS := [["goblin_a", "goblin_c", "goblin_b", "goblin_d"], ["skeleton_a", "skeleton_c", "skeleton_b", "skeleton_d"],
-	["slime_a"], ["mslime_a", "mslime_c", "mslime_a", "mslime_b"], ["bat_a", "bat_c", "bat_b", "bat_d"],
-	["orc_a", "orc_c", "orc_b", "orc_c"], ["mage_a", "mage_b"], ["lich", "lich_b"], ["wraith_a", "wraith_b"],
-	["tome_a", "tome_b", "tome_c", "tome_b"], ["gargoyle_b", "gargoyle_c"], ["priest_a", "priest_b"]]
+## Enemy looks by type (EnemyView): walk cycles, their frame rates, shadows and names.
+const ENEMY_KEYS := EnemyView.KEYS
 ## The smallest combo call written over a wizard; smaller ones only sparkle.
 const COMBO_WORDS := 50
-## Width of the shadow `_draw_entities` puts under each enemy type. 0: none there. The wraith has none; the bat,
-## the tome and the swooping gargoyle get theirs from `_draw_enemy_glows`, further down the floor.
-const ENEMY_SHADOW := [10, 10, 12, 8, 0, 16, 10, 26, 0, 0, 16, 10]
-const ENEMY_ANIM := [10.0, 7.0, 0.0, 7.0, 14.0, 5.0, 2.5, 3.0, 3.0, 10.0, 7.0, 3.0]
+const ENEMY_SHADOW := EnemyView.SHADOW
+const ENEMY_ANIM := EnemyView.ANIM
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
 	"tome_rune", "card", "chest_rare", "chest_ultra", "tome_star"] # the party tome wears the star tome's look
 const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", "",
@@ -35,7 +29,7 @@ const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color
 ## Seconds a chest reel spins before it shows the item, and how long the item stays up after.
 const REEL_SPIN := 1.0
 const REEL_SHOW := 1.6
-const ENEMY_NAMES := ["GOBLIN", "SKELETON", "SLIME", "SLIMELING", "BAT", "ORC BRUTE", "DARK MAGE", "LICH LORD", "WRAITH", "CURSED TOME", "GARGOYLE", "BONE PRIEST"]
+const ENEMY_NAMES := EnemyView.NAMES
 
 ## Cosmetic randomness only (particles, shake, pitch). Gameplay randomness lives in World.rng.
 var _fx_rng := RandomNumberGenerator.new()
@@ -49,6 +43,7 @@ var vp := {}  # slot -> Dictionary
 var ve := {}  # id -> Dictionary
 var vs: Array = []  # [spell, pos, vel, owner, evolved]
 var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved, kind]
+var vhz := PackedFloat32Array() # hazard rows, Hazards.FLOATS each (snapshot "hz")
 var vo: Array = []  # spell objects, World.O_FLOATS floats each (none exist yet)
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
@@ -69,6 +64,7 @@ var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
 var seal := 0 # the run's Seal level, from the snapshot header
 var slot_cap := Upgrades.UNCAPPED # spell and passive slots, from the snapshot header
+var fates := PackedFloat32Array() # the fates in force, from the snapshot (WorldShrines.snapshot_fates); empty: none
 var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
 var _cards: Array = [] # monster card reveals, one at a time: {idx, slot, t, first}
 const CARD_SHOW := 4.0

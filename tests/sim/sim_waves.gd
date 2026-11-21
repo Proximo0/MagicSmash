@@ -3,7 +3,7 @@ extends "res://tests/sim/sim_base.gd"
 ## deterministic. Pure logic, so it runs far faster than real time.
 
 const SEED: int = 7
-const MINUTES: float = 3.0
+const MINUTES: float = 4.0
 const MIN_WAVE: int = 3
 ## The party should level up this many times in the run, and bots take their cards at once (the world never
 ## waits for them, so a bot sitting on cards would only be a bot playing without its upgrades).
@@ -31,7 +31,7 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 		if w.time <= before:
 			stalls += 1
 		for ev: Array in w.take_events():
-			if ev[0] == World.EV_SHRINE:
+			if ev[0] == World.EV_SHRINE and int(ev[3]) < 8: # a card a WHEEL OF FORTUNE dealt (slot + 8) is no bet
 				bets += 1
 		peak = maxi(peak, w.enemies.size())
 		streak = streak + 1 if w.is_picking() else 0

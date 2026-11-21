@@ -82,6 +82,9 @@ class Enemy:
 	var elite := false
 	var final := false # the Archlich: the run's last boss
 	var status := 0 # status bits (burning, frozen and so on); none yet
+	var flags := 0 # Bestiary.F_* of its kind, copied at spawn
+	var cloak := false # shots fly through it and nothing hurts it (a brain sets it; see WorldEnemies._faded)
+	var turn := 0.0 # s left of a boss's phase turn (Bosses.phase_turn): it holds still and takes no damage
 
 class Shot:
 	var pos := Vector2.ZERO
