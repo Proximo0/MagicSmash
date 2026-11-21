@@ -119,8 +119,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					Sfx.play("boss_roar", 0.0, 0.7)
 					Sfx.play("bell_toll", -2.0)
 				elif int(ev[4]) == 1:
-					ArenaFateView._banner(a, "THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
-					ArenaFateView._arrival(a, "cards/monsters", "lich", "THE LICH LORD", Color("ff4d6a"))
+					# A boss minute: the boss's own banner comes with it (EV_BOSS).
+					ArenaFateView._banner(a, "MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
 					Sfx.play("portal")
 				elif w > 1:
 					ArenaFateView._banner(a, "MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)
@@ -227,6 +227,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.ring(pos, 2.0, 24.0, 0.5, Color("ffb84d"), 2.0)
 				Sfx.play("charge", -2.0, 0.8)
 			World.EV_BOSS:
+				if int(ev[3]) == 0 and not ArenaDrawBoss.arrive(a, int(ev[4])) and not ArenaDrawBoss.made_final(evs):
+					ArenaFateView._banner(a, "THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
+					ArenaFateView._arrival(a, "cards/monsters", "lich", "THE LICH LORD", Color("ff4d6a"))
 				Sfx.play("boss_roar", 0.0, 0.7 if int(ev[3]) == 1 else 1.0)
 				Sfx.music("music_boss")
 				a._add_shake(12.0 if int(ev[3]) == 1 else 8.0)
@@ -264,7 +267,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				if int(ev[4]) == 1:
 					ArenaFateView._banner(a, "ARCHLICH DESTROYED!", "+%d x COMBO" % (Bestiary.KINDS[World.LICH][Bestiary.K_SCORE] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
 				else:
-					ArenaFateView._banner(a, "LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
+					ArenaFateView._banner(a, ArenaDrawBoss.slain_title(false), "+5000 x COMBO", Color("4dfff0"), 3.0)
 					Sfx.music(ArenaFateView._act_music(a))
 			World.EV_VICTORY:
 				a.victory = true
@@ -280,7 +283,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.final_score = int(ev[3])
 				a.run_t = float(ev[1])
 				a.crystals_earned = G.finish_run({"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]),
-					"liches": int(ev[4]), "won": a.victory, "seal": a.seal})
+					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "results": a.results})
 				if a.is_host:
 					Platform.finish_run(a.results, a.victory, float(ev[1]))
 				if not a.victory:

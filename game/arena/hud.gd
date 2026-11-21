@@ -40,26 +40,8 @@ static func _draw_hud(a: Arena) -> void:
 		PixelFont.draw(ci, gold_text, Vector2(gx, 17), 1, Color("ffd23d"), dark)
 	centre(a, ci, dark)
 	_draw_party_bar(a, ci, dark)
-	# Boss bar
-	if a.boss_f > 0.0:
-		var bw := 300.0
-		var bx := 240 - bw / 2
-		PixelFont.draw_centered(ci, Lore.ARCHLICH_NAME if a.boss_final else Lore.LICH_NAME, 240, 249, 1, Color("ff4df2") if a.boss_final else Color("4dfff0"), dark)
-		var rim := Color("ff4df2") if a.boss_final else Color("4dfff0")
-		ci.draw_rect(Rect2(bx - 3, 257, bw + 6, 10), dark)
-		ci.draw_rect(Rect2(bx - 2, 258, bw + 4, 1), rim)
-		ci.draw_rect(Rect2(bx - 2, 265, bw + 4, 1), rim)
-		ci.draw_rect(Rect2(bx, 260, bw, 4), Color("2c0d4d"))
-		# A sigil at each end and runes either side of the name: Morvane's seal on his bar.
-		Occult.sigil(ci, Vector2(bx - 8, 262), 5.0, a.time)
-		Occult.sigil(ci, Vector2(bx + bw + 8, 262), 5.0, a.time)
-		var nw := PixelFont.text_width(Lore.ARCHLICH_NAME if a.boss_final else Lore.LICH_NAME, 1)
-		for k in 3:
-			var glow := Color(rim, 0.55 + 0.45 * maxf(0.0, sin(a.time * 3.0 - k)))
-			Occult.rune(ci, Vector2(240 - nw / 2.0 - 12 - k * 7, 249), k + 2, glow)
-			Occult.rune(ci, Vector2(240 + nw / 2.0 + 8 + k * 7, 249), k + 5, glow)
-		ci.draw_rect(Rect2(bx, 260, bw * a.boss_f, 4), Color("4dfff0") if a.boss_f > 0.5 else Color("ff4d6a"))
-		ci.draw_rect(Rect2(bx, 260, bw * a.boss_f, 1), Color.WHITE)
+	ArenaDrawBoss.bar(a, ci, dark)
+	ArenaDrawBoss.word(a, ci, dark)
 	ArenaDrawWorld._draw_hint(a, ci)
 	ArenaFateView._draw_reveals(a, ci, dark)
 	ArenaFateView._draw_card_reveal(a, ci, dark)
@@ -145,8 +127,20 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
 static func centre(a: Arena, ci: CanvasItem, dark: Color) -> void:
+	# The run's step (any but WIZARD) on a plate left of the level-and-clock pill, the way the lull's hangs right.
+	if a.game_over or a.victory:
+		return
+	if a.seal != 0:
+		var pw := PixelFont.text_width("LV %d" % a.party_level, 1) + 6 + PixelFont.text_width(ArenaFateView._clock(a.run_t), 1) + 8
+		var step := Seals.title(a.seal)
+		var sw := PixelFont.text_width(step, 1) + 8
+		var sy := 234.0 if a.boss_f > 0.0 else G.SCREEN.y - 13.0
+		var sx := floorf(240.0 - pw / 2.0) - 3.0 - sw
+		ci.draw_rect(Rect2(sx, sy, sw, 12), Color(dark, 0.92))
+		ci.draw_rect(Rect2(sx, sy - 1, sw, 1), Color("2f2450"))
+		PixelFont.draw(ci, step, Vector2(sx + 4, sy + 3), 1, Color("8bff9e") if a.seal < 0 else Color("ffb347"), dark)
 	# The fates in force: plain tags stacked over the level-and-clock pill at the foot of the screen.
-	if a.game_over or a.victory or a.fates.size() < 2:
+	if a.fates.size() < 2:
 		return
 	var tags: Array[String] = []
 	if a.fates[0] > 0.0:

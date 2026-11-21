@@ -21,7 +21,7 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 static func _offer(w: World, p: World.Player) -> void:
 	p.pending -= 1
 	p.offer += 1
-	p.choices = Upgrades.roll(w.rng, p.upgrades, int(w.tune.level_choices), w.slot_cap(), p.banned)
+	p.choices = Upgrades.roll(w.rng, p.upgrades, w.seal_hand if w.seal_hand > 0 else int(w.tune.level_choices), w.slot_cap(), p.banned) # SILENCE
 	if p.choices.is_empty():
 		var pts := int(w.tune.maxed_level_score)
 		p.score += pts

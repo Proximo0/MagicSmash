@@ -122,6 +122,12 @@ Reading a group's table:
 - `evolved`: runs with an evolution, and when the first came.
 - `xp lost`: XP motes that faded on the floor, of all that dropped; gold earned and spent; shrine bets by outcome.
 - `boss n`: each Lich visit and the Archlich: arrival, fight length, downs during it, slain.
+- `kills` (per minute, in the minute table), `shrines` used per run with the Archlich fight time and slain count
+  (also in the `PLAYTEST` line), and `per wiz`: each wizard's pressure and hits per minute, for party parity.
+- `hits by` splits shots by kind: `shot:arrow`, `shot:orb`, `shot:skull`, with `_boss` while a Lich is up; `other`
+  is a hit from a body that died in the same step.
+- Use `--minutes=18` when the Archlich matters: his fight runs 90 to 150 s from 15:00, and a 16-minute cap counts
+  an unfinished fight as a loss.
 
 The last line starts `PLAYTEST` and sums every group: wins and the median end.
 

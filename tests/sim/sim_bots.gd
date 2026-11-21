@@ -8,12 +8,21 @@ const MINUTES: float = 0.7
 const MARGIN: float = 1.2
 
 
+## A Tuning whose horde is thick from the first second: the run's own opening is too gentle to tell the personas
+## apart inside MINUTES.
+func _crowded() -> Tuning:
+	var t := Tuning.new()
+	t.horde_start_budget = 10.0
+	t.horde_rate_base = 10.0
+	return t
+
+
 ## Hits per minute of run clock a persona takes playing solo over SEEDS.
 func _hits_per_min(persona: int) -> float:
 	var hits: int = 0
 	var time: float = 0.0
 	for sd: int in SEEDS:
-		var w := World.new([0], sd)
+		var w := World.new([0], sd, _crowded())
 		var bot := SmashBot.new(sd * 10, persona)
 		while w.phase != World.PH_GAMEOVER and w.wave_time < MINUTES * 60.0:
 			w.step(DT, {0: bot.decide_in_world(w, 0)})
