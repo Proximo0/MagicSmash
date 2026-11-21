@@ -338,7 +338,6 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   non-finite one. A client leaves the results screen with fire; the host tells clients to go to the title and closes
   0.25 s later, and a client closes its side quietly when the message comes.
 
-<<<<<<< HEAD
 ## Heroes in a run
 - Lobby: every human seat holds a hero. `Net.seat_heroes` (device -> index into `Save.profile.heroes`, -1 a guest that
   earns nothing) is this machine's; seat 1 starts on the active hero, the others on the first no local seat holds.
@@ -352,8 +351,7 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Class XP: `Net._start` sets `G.run_heroes` (`Net.played_heroes`: local human seats' saved heroes, once each);
   `G.finish_run` passes them as `run.heroes` (empty when scripted) and `Profile.finish_run` gives each
   `run_xp(seconds, liches, won, seal mul)`. Levels gained: `Profile.last_hero_levels` and `G.last_run.hero_levels`.
-=======
+
 ## Hero screens
 The Sanctum's MIRROR (`Sanctum.MIRROR`, left of the portal) opens `HeroRoster` (`game/ui/hero_roster.gd`, over `Save.profile`; it takes all input and draws over the hub like the card album). The roster lists up to `Profile.MAX_HEROES` heroes and has four actions: PICK (makes the row the active hero, `picked` = its index, closes), SHEET (opens `HeroSheet`), NEW HERO (opens `HeroBuilder`; hidden when full) and DELETE (hold confirm `HOLD_TIME` s; never the last hero). `HeroBuilder` steps RACE, CLASS, SCHOOL (mage only: the four `Wizards` spells), NAME (Ouija board), confirm; it adds the hero, makes it active and saves. `HeroSheet` shows level and XP, hearts, the six stats by source (race, class, spent, cards), spends points (`Hero.spend_point`), weapon and skill numbers, the race trait, the three card sockets and runs and wins. All three save through `HeroSheet.save_now` (nothing in a scripted run). Portraits come from `assets/art/portraits/heroes/hero_<race>_<class>.png` through `Art`, with `DialogueBox.draw_stand_in` when a file is missing. Each screen has `active`, `open`, `handle(event) -> bool`, `update`, `draw(ci, t)`.
 Autotest: `xvfb-run -a godot --path . -- --autotest --heroes --out=<dir>` shoots the Sanctum with the mirror, the roster, each builder step, and a sheet.
->>>>>>> hero-screens
