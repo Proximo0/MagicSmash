@@ -14,6 +14,8 @@ const SPIRIT_REACH := 11.0
 
 
 static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloat32Array) -> void:
+	if not input_finite(inp):
+		inp = PackedFloat32Array() # a bad packet (NaN or inf) moves nothing and aims nowhere
 	p.flash = maxf(0.0, p.flash - dt)
 	p.invuln = maxf(0.0, p.invuln - dt)
 	p.haste = maxf(0.0, p.haste - dt)
@@ -91,6 +93,14 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 				if e.orbit_cd <= 0.0 and op.distance_to(e.pos) < e.r + 6.0:
 					e.orbit_cd = 0.3
 					WorldEnemies._damage_enemy(w, e, 1.5, p.slot, (e.pos - p.pos).normalized() * 80.0)
+
+
+## True when every number of an input packet is finite.
+static func input_finite(inp: PackedFloat32Array) -> bool:
+	for v: float in inp:
+		if not is_finite(v):
+			return false
+	return true
 
 
 ## Wizards share one screen: none may get further than tune.leash_x / leash_y from any other living wizard.
@@ -183,6 +193,9 @@ static func _update_spirit(w: World, p: World.Player, dt: float, inp: PackedFloa
 	if w.phase == World.PH_GAMEOVER:
 		return
 	_spirit_xp(w, p)
+	if WorldApprentices.gets_up(w, p):
+		_rise(w, p, -1) # an apprentice gets up by itself, free
+		return
 	var inside: Array[World.Player] = []
 	var near := false
 	for q: World.Player in w.players.values():

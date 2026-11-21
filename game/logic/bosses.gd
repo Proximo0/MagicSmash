@@ -68,16 +68,27 @@ static func party_hp_from(tune: Tuning) -> Array:
 	return out
 
 
+## The PARTY_HP share for World `w`'s party: the row of its size, or, with apprentices (each counts
+## tune.apprentice_scale of a wizard, World.party_weight), a straight line between the two rows around its weight.
+static func party_share(w: World) -> float:
+	var table := party_hp_from(w.tune)
+	var n := clampf(w.party_weight(), 1.0, float(table.size()))
+	var lo := int(floor(n))
+	if lo >= table.size() or n == float(lo):
+		return float(table[lo - 1])
+	return lerpf(float(table[lo - 1]), float(table[lo]), n - float(lo))
+
+
 ## A boss's health in World `w` now (its schedule, party size and Tuning levers).
 static func health_in(w: World, type: int) -> float:
-	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), w.seal_boss, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
+	return w.tune.boss_hp_mul * health(type, w.wave, 1, w.seal_boss, 0.0, w.schedule, [party_share(w)], w.tune.boss_hp_per_cycle)
 
 
 ## The final boss's health in World `w`: its kind's health with no cycle growth (FINAL_HP stands for it), times
 ## final_hp_mul and the final_hp_per_player share.
 static func final_health_in(w: World, type: int) -> float:
-	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), w.seal_boss, 0.0, w.schedule, party_hp_from(w.tune), 0.0) \
-		* FINAL_HP * w.tune.final_hp_mul * (1.0 + w.tune.final_hp_per_player * (w.players.size() - 1))
+	return w.tune.boss_hp_mul * health(type, w.wave, 1, w.seal_boss, 0.0, w.schedule, [party_share(w)], 0.0) \
+		* FINAL_HP * w.tune.final_hp_mul * (1.0 + w.tune.final_hp_per_player * (w.party_weight() - 1.0))
 
 
 ## How many rows of `type` come at or before run second `t` (the Lich's visits so far).

@@ -212,6 +212,7 @@ func _ready() -> void:
 
 	G.slot_wizard = Net.wizard_picks()
 	Net.snapshot_received.connect(_on_snapshot)
+	Net.events_received.connect(_on_events)
 	Net.roster_changed.connect(_on_roster_changed)
 	if is_host:
 		var slots := []
@@ -282,7 +283,7 @@ func _physics_process(dt: float) -> void:
 		t0 = Time.get_ticks_usec()
 		_handle_events(evs)
 		PerfMeter.since("events", t0)
-		pending_events.append_array(evs)
+		pending_events.append_array(Net.send_events(evs) if Net.is_online() else evs) # run-ending ones go reliably
 		frame += 1
 		if frame % SNAP_EVERY == 0 and Net.is_online():
 			snap["ev"] = pending_events
@@ -383,6 +384,18 @@ func _on_snapshot(snap: Dictionary) -> void:
 	_apply_snapshot(snap, false)
 	if snap.has("ev"):
 		_handle_events(snap.ev)
+	# Second guard for the reliable events: the host's run has been over a while and no game over came.
+	if phase == World.PH_GAMEOVER and not game_over and phase_t > GAMEOVER_GUARD:
+		game_over = true
+		game_over_t = 0.0
+
+## Seconds a client sees the host's game over phase before it ends the run without the event.
+const GAMEOVER_GUARD := 1.5
+
+## Client: the host's run-ending and saved-data events (Net.RELIABLE_EVENTS), by reliable RPC.
+func _on_events(evs: Array) -> void:
+	if not is_host:
+		_handle_events(evs)
 
 func _on_roster_changed() -> void:
 	if not is_host or world == null:
@@ -390,9 +403,16 @@ func _on_roster_changed() -> void:
 	var live := {}
 	for r in Net.roster:
 		live[r.slot] = true
+		if world.players.has(r.slot):
+			var p: World.Player = world.players[r.slot]
+			var played := Net.played_by_ai(r) # an away seat is played as an apprentice
+			if played != p.ai:
+				p.last_bomb = -1 # the hand and the bot count their Nova presses apart: start again from the next input
+			p.ai = played
+			p.away = played and bool(r.get("away", false))
 	for s in world.players.keys():
 		if not live.has(s):
-			world.players.erase(s)
+			world.remove_player(s) # her score and kills stay in the run
 
 ## A world position on the screen (for HUD things that point at the arena).
 func _on_screen(p: Vector2) -> Vector2:
@@ -440,7 +460,9 @@ var _stars_seen: Array = []
 
 func _unhandled_input(event: InputEvent) -> void:
 	if game_over:
-		if game_over_t > 2.0 and is_host:
+		if game_over_t > 2.0 and not is_host and PlayerInput.results_dismiss(event):
+			_quit_to_title() # a client leaves the results on its own
+		elif game_over_t > 2.0 and is_host:
 			if PlayerInput.results_dismiss(event):
 				if Net.mode == Net.Mode.OFFLINE:
 					Engine.time_scale = 1.0
@@ -531,9 +553,7 @@ func _local_tray_open() -> bool:
 
 func _quit_to_title() -> void:
 	Engine.time_scale = 1.0
-	if Net.mode == Net.Mode.HOST:
-		Net.send_back_to_title()
-	Net.shutdown()
+	Net.send_back_to_title() # a host closes a moment after telling the clients; anyone else at once
 	G.goto_title()
 
 # ----- Forwarders: the moved code (game/arena/*.gd) keeps these names callable on the Arena -----

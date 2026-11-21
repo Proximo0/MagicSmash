@@ -46,7 +46,8 @@ class Player:
 	var revive := 0.0 # revive progress 0..1
 	var rituals := 0 # rituals that raised this wizard (each later one takes tune.ritual_step longer)
 	var call_t := 0.0 # seconds until this wizard may call for help again
-	var ai := false # an apprentice (a computer wizard), not a human seat
+	var ai := false # the World plays this seat: an apprentice (a computer wizard), or a human seat gone silent
+	var away := false # with ai: a human seat gone silent (played, but still a human for the free get-up and her cards)
 	var trait_a := 0 # wave 3 traits; 0 = none
 	var trait_b := 0
 	## Reserved for races and classes (snapshot row P_RACE..P_CLASS_LEVEL); 0 until their job lands.

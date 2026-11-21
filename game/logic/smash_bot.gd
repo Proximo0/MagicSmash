@@ -100,6 +100,17 @@ const SHRINE_VALUE: float = 2.5
 ## On a shrine this close (World counts tune.shrine_radius, 14 px by default) the bot stands still to bet.
 const SHRINE_STAND: float = 12.0
 
+## Apprentices (computer wizards that fill a seat; WorldApprentices drives them inside World.step): they decide
+## every APPRENTICE_TICKS ticks of 60 Hz, all of a World's apprentices on one shared sensing context
+## (shared_senses), with the casual persona's eyes and hands. What an apprentice may pick up (the World enforces
+## the same rule): XP, coins and gems (the gold goes to the nearest human), boots and the rune shield, and a potion
+## only at the World's apprentice_potion_hp hearts or fewer while no standing human is hurt.
+const APPRENTICE_TICKS := 3
+const APPRENTICE_KINDS: Array[int] = [World.PK_XP, World.PK_COIN, World.PK_GEM, World.PK_BOOTS, World.PK_ORBIT, World.PK_POTION,
+	World.PK_TOME_PARTY] # the party tome is everyone's: an apprentice may fetch it
+## An answered call (a fallen human pressed her nova) pulls this much harder than a rescue the bot chose itself.
+const CALL_VALUE: float = 4.5
+
 static var _dirs: PackedVector2Array = PackedVector2Array()
 
 var rng := RandomNumberGenerator.new()
@@ -169,6 +180,12 @@ var _q_out: Array[PackedFloat32Array] = []
 var _q_nova: Array[bool] = []
 var _panic: bool = false # cornered on the last think (one nova decision per panic)
 var _started: bool = false
+
+## True for an apprentice's brain (make_apprentice): no shrines, its own pickup rules, it answers calls.
+var apprentice: bool = false
+var _human_hurt: bool = false
+var _potion_hp: int = 2
+var _answering: Dictionary = {} # slot -> true: fallen humans whose call this apprentice is answering
 
 ## Read-only diagnostics of the last think (tests, tools).
 var last_danger: float = 0.0
@@ -282,6 +299,51 @@ func decide_in_world(world: World, slot: int) -> PackedFloat32Array:
 		_sense_world(world, p)
 		_think(p.pos, world.time)
 	return _with_my_pick(_held(world.time), p)
+
+
+## An apprentice's brain: the casual persona, thinking every APPRENTICE_TICKS ticks.
+static func make_apprentice(seed_value: int) -> SmashBot:
+	var b := SmashBot.new(seed_value, CASUAL)
+	b.apprentice = true
+	b._interval = APPRENTICE_TICKS / 60.0
+	return b
+
+
+## One tick of an apprentice's input. `ctx` is the World's shared_senses on a deciding tick, empty on the others
+## (the hands carry out the last decision). No pick fields: World picks for an apprentice when it deals.
+func apprentice_input(w: World, p: World.Player, ctx: Dictionary) -> PackedFloat32Array:
+	if not p.alive:
+		return _spirit_input(w, p)
+	if not ctx.is_empty():
+		_sense_from(w, p, ctx)
+		_think(p.pos, w.time)
+	return _held(w.time)
+
+
+## What every bot of a World senses alike, worked out once per deciding tick: the living wizards, hazard rows,
+## the boss, shrine rows, the fallen (positions, slots and who is calling) and whether a standing human is hurt.
+static func shared_senses(w: World) -> Dictionary:
+	var alive: Array[World.Player] = []
+	var fallen: Array = []
+	var fallen_slots: Array[int] = []
+	var calling: Array[int] = []
+	var hurt := false
+	for q: World.Player in w.players.values():
+		if q.alive:
+			alive.append(q)
+			if not q.ai and q.hp < q.max_hp:
+				hurt = true
+		elif q.down:
+			fallen.append(q.pos)
+			fallen_slots.append(q.slot)
+			if not q.ai and q.call_t > 0.0:
+				calling.append(q.slot)
+	return {
+		"alive": alive, "fallen": fallen, "fallen_slots": fallen_slots, "calling": calling, "human_hurt": hurt,
+		"hz": Hazards.pack(w.hazards) if not w.hazards.is_empty() else PackedFloat32Array(),
+		"boss": w.boss.pos if w.boss != null and not w.boss.dead else Vector2.INF,
+		"shrines": w.snapshot_shrines() if not w.shrines.is_empty() else [],
+	}
 
 
 ## Which card to take from an offer (an index into `choices`), or -1 for an empty offer.
@@ -419,6 +481,10 @@ func _begin_goal() -> void:
 
 
 func _pickup_worth(kind: int) -> float:
+	if apprentice and not APPRENTICE_KINDS.has(kind):
+		return 0.0
+	if apprentice and kind == World.PK_POTION and (_hp > _potion_hp or _human_hurt):
+		return 0.0
 	if kind == World.PK_POTION:
 		var missing: int = _max_hp - _hp
 		# A potion heals 2: a person fetches it when hurt, sooner the more hurt, and never at full health.
@@ -465,6 +531,11 @@ func _consider_shrine(me: Vector2, at: Vector2) -> void:
 
 
 func _sense_world(w: World, p: World.Player) -> void:
+	_sense_from(w, p, shared_senses(w))
+
+
+## Senses for one wizard from the World and a shared_senses context (the enemies come from World's grid).
+func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	var me: Vector2 = p.pos
 	_hp = p.hp
 	_max_hp = p.max_hp
@@ -472,15 +543,15 @@ func _sense_world(w: World, p: World.Player) -> void:
 	_speed = w.tune.player_speed * Upgrades.move_mul(p.upgrades) * (1.0 + float(p.armor[Loot.ST_SWIFT])) \
 		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	_arena = Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8))
-	_hz = Hazards.pack(w.hazards) if not w.hazards.is_empty() else PackedFloat32Array()
+	_hz = ctx.hz
+	_human_hurt = bool(ctx.human_hurt)
+	_potion_hp = int(w.tune.apprentice_potion_hp)
 	var lo := Vector2(-1e6, -1e6)
 	var hi := Vector2(1e6, 1e6)
 	_mates.clear()
 	var party := Vector2.ZERO
 	var alive: int = 0
-	for q: World.Player in w.players.values():
-		if not q.alive:
-			continue
+	for q: World.Player in ctx.alive:
 		party += q.pos
 		alive += 1
 		if q == p:
@@ -490,7 +561,7 @@ func _sense_world(w: World, p: World.Player) -> void:
 		hi = Vector2(minf(hi.x, q.pos.x + w.tune.leash_x), minf(hi.y, q.pos.y + w.tune.leash_y))
 	_leash = Rect2(lo, hi - lo)
 	_set_anchor(p.slot, party / alive if not _mates.is_empty() else G.ARENA.get_center())
-	_boss = w.boss.pos if w.boss != null and not w.boss.dead else Vector2.INF
+	_boss = ctx.boss
 	_begin_senses()
 	# Read the enemies near the wizard from World's spatial grid (rebuilt every step): no scan of the whole horde.
 	var c0: int = floori((me.x - _sense) / World.CELL)
@@ -519,14 +590,34 @@ func _sense_world(w: World, p: World.Player) -> void:
 	_begin_goal()
 	for k: World.Pickup in w.pickups:
 		_consider_pickup(me, k.pos, k.kind)
-	var shrine := shrine_goal(me, p.gold, w.snapshot_shrines()) if not w.shrines.is_empty() else Vector2.INF
-	if shrine.is_finite():
-		_consider_shrine(me, shrine)
-	var fallen: Array = []
-	for q: World.Player in w.players.values():
-		if q.down:
-			fallen.append(q.pos)
-	_consider_rescue(me, fallen)
+	if not apprentice:
+		var rows: Array = ctx.shrines
+		var shrine := shrine_goal(me, p.gold, rows) if not rows.is_empty() else Vector2.INF
+		if shrine.is_finite():
+			_consider_shrine(me, shrine)
+	_consider_rescue(me, ctx.fallen)
+	if apprentice:
+		_answer_calls(me, ctx)
+
+
+## An apprentice answers a fallen human's call (her nova pressed while down): it walks into her circle from
+## anywhere and stays until she stands, before any pickup or a rescue it chose itself.
+func _answer_calls(me: Vector2, ctx: Dictionary) -> void:
+	var slots: Array[int] = ctx.fallen_slots
+	for s: int in ctx.calling:
+		_answering[s] = true
+	for s: int in _answering.keys():
+		if not slots.has(s):
+			_answering.erase(s)
+	var best := Vector2.INF
+	for s: int in _answering:
+		var at: Vector2 = ctx.fallen[slots.find(s)]
+		if not best.is_finite() or at.distance_to(me) < best.distance_to(me):
+			best = at
+	if best.is_finite():
+		_goal = best
+		_goal_stand = true
+		_goal_best = CALL_VALUE
 
 
 ## A fallen ally within RESCUE_REACH: while it is calm here, the bot walks into her ritual circle and stands there.

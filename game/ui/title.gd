@@ -85,7 +85,7 @@ func _ready() -> void:
 		G.title_message = ""
 		state = S.MAIN
 		t = 4.0
-	if Net.mode != Net.Mode.OFFLINE:
+	if Net.mode != Net.Mode.OFFLINE and not Net.closing: # a host on its way out closes by itself in a moment
 		Net.shutdown()
 	G.local_devices.clear()
 	if G.title_shop:
@@ -622,6 +622,8 @@ func _buy_unlock(i: int) -> void:
 func _device_name(d: int) -> String:
 	if d == G.DEV_KBM:
 		return "TOUCH" if G.touch_active else "KEYBOARD"
+	if d == G.DEV_KB2:
+		return "KEYBOARD 2"
 	return "GAMEPAD %d" % (d + 1)
 
 ## Lobby seat height and the Seal row under the seats.
@@ -656,6 +658,9 @@ func _draw_lobby(ci: CanvasItem) -> void:
 ## The four seats of the lobby, LOBBY_SEAT_H tall: the seat number and wizard name on the top row, the wizard
 ## drawn at 1x, then the spell it starts with and who plays it.
 func _draw_seats(ci: CanvasItem) -> void:
+	if Platform.ready_ok and Net.mode != Net.Mode.CLIENT:
+		var inv := "I/SELECT: INVITE"
+		PixelFont.draw(ci, inv, Vector2(450 - PixelFont.text_width(inv, 1), 135), 1, Color("8bdcff"))
 	for slot in 4:
 		var r := Rect2(34 + slot * 106, 148, 96, LOBBY_SEAT_H)
 		var entry = null
@@ -675,13 +680,25 @@ func _draw_seats(ci: CanvasItem) -> void:
 			var cx := r.get_center().x
 			PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
 				Sprites.PLAYER_COLORS[wiz].fx)
-			if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
+			var ai := bool(entry.get("ai", false))
+			if ai:
+				# An apprentice: a dashed hem under the seat, and its line says so (X or - unseats it).
+				for x in range(int(r.position.x) + 2, int(r.end.x) - 2, 6):
+					ci.draw_rect(Rect2(x, r.end.y - 1, 3, 1), Color(col, 0.7))
+			elif entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
 				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 24), 1, Color.WHITE)
 				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 24), 1, Color.WHITE)
 			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
 			PixelFont.draw_centered(ci, spell, cx, r.end.y - 16, 1, Color("c9b8ff"))
 			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
-			PixelFont.draw_centered(ci, who, cx, r.end.y - 8, 1, Color.WHITE)
+			var who_col := Color.WHITE
+			if ai:
+				who = "APPRENTICE"
+				who_col = Color("8bff9e")
+			elif bool(entry.get("away", false)):
+				who = "AWAY"
+				who_col = Color("ffb347")
+			PixelFont.draw_centered(ci, who, cx, r.end.y - 8, 1, who_col)
 		else:
 			# An empty seat at the coven: the wizard's shadow between two candles, waiting for a player.
 			var seat := r.position + Vector2(48, 38)
@@ -689,7 +706,9 @@ func _draw_seats(ci: CanvasItem) -> void:
 			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
 			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
 			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
-			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 12, 1, Color(1, 1, 1, blink))
+			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 16, 1, Color(1, 1, 1, blink))
+			if Net.mode != Net.Mode.CLIENT:
+				PixelFont.draw_centered(ci, "Y/+ APPRENTICE", r.get_center().x, r.end.y - 8, 1, Color(0.55, 1.0, 0.62, blink))
 
 ## The row under the seats where player 1 picks the run's step on the difficulty ladder (Seals): its name, its
 ## rule, the crystal multiplier and the unclaimed first-win prize. Player 1 moves onto it with up/down and steps
@@ -746,21 +765,35 @@ func _step_seal(d: int) -> void:
 	Sfx.play("menu_move")
 
 
-## The local device sitting in seat 1 (player 1), or -99.
+## The local device of player 1 (the lowest seat a human on this machine sits in), or -99.
 func _p1_device() -> int:
 	for e in Net.roster:
-		if e.slot == 0 and e.peer == Net.my_peer:
+		if e.peer == Net.my_peer and not bool(e.get("ai", false)):
 			return int(e.device)
 	return -99
 
 
-## The device a key or pad event came from (G.DEV_KBM for keys), or -99.
+## The device a key or pad event came from (keyboard seat 2 for its keys while it is seated), or -99.
 static func _event_device(event: InputEvent) -> int:
-	if event is InputEventKey:
-		return G.DEV_KBM
-	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
-		return event.device
-	return -99
+	return PlayerInput.key_device(event)
+
+
+## The lobby's own buttons: 1 adds an apprentice (Y, +), -1 removes one (X, -), 2 starts the run (START, Enter),
+## 3 invites friends (SELECT, I), 0 none.
+static func lobby_button(event: InputEvent) -> int:
+	if event is InputEventJoypadButton and event.pressed:
+		match event.button_index:
+			JOY_BUTTON_Y: return 1
+			JOY_BUTTON_X: return -1
+			JOY_BUTTON_START: return 2
+			JOY_BUTTON_BACK: return 3
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_EQUAL, KEY_KP_ADD, KEY_PLUS: return 1
+			KEY_MINUS, KEY_KP_SUBTRACT: return -1
+			KEY_ENTER, KEY_KP_ENTER: return 2
+			KEY_I: return 3
+	return 0
 
 func _draw_join(ci: CanvasItem) -> void:
 	_panel(ci, Rect2(80, 140, 320, 112))
@@ -857,6 +890,27 @@ func _unhandled_input(event: InputEvent) -> void:
 				elif zone == 2 and Net.mode != Net.Mode.CLIENT:
 					_begin()
 				return
+			var button := lobby_button(event)
+			var host := Net.mode != Net.Mode.CLIENT
+			if button == 1 and host:
+				if Net.add_apprentice() >= 0:
+					Sfx.play("powerup")
+				return
+			if button == -1 and host:
+				if Net.remove_apprentice():
+					Sfx.play("menu_select")
+				return
+			if button == 3:
+				Platform.invite_friends()
+				return
+			# Player 1's START begins the run; a joined device's A (or any other confirm) never does.
+			var presser := _event_device(event)
+			if button == 2 and event is InputEventKey and _p1_device() == G.DEV_KB2:
+				presser = G.DEV_KB2 # Enter is seat 2's key as well
+			if button == 2 and G.local_devices.has(presser):
+				if host and presser == _p1_device():
+					_begin()
+				return
 			var side: Array = PlayerInput.menu_side(event)
 			# Player 1 alone moves onto the Seal row (up/down) and steps the ladder there (left/right).
 			var p1 := _p1_device()
@@ -872,13 +926,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				Net.cycle_wizard(int(side[0]), int(side[1]))
 				Sfx.play("menu_move")
 				return
-			if dev != -99:
-				if G.local_devices.has(dev):
-					if Net.mode != Net.Mode.CLIENT:
-						_begin()
-				else:
-					Net.add_local_device(dev)
-					Sfx.play("powerup")
+			if dev != -99 and not G.local_devices.has(dev):
+				Net.add_local_device(dev)
+				Sfx.play("powerup")
 		S.JOIN:
 			var n := Net.found_games.size() + 1
 			if back:

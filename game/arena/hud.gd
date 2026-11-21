@@ -26,7 +26,7 @@ static func _draw_hud(a: Arena) -> void:
 				PixelFont.draw(ci, "P%d" % (slot + 1), Vector2(x, 2), 1, col.darkened(0.5))
 			continue
 		var p: Dictionary = a.vp[slot]
-		PixelFont.draw(ci, "P%d" % (slot + 1), Vector2(x, 2), 1, col, dark)
+		PixelFont.draw(ci, ("A%d" if p.get("ai", false) else "P%d") % (slot + 1), Vector2(x, 2), 1, col, dark) # A: an apprentice
 		PixelFont.draw(ci, "%07d" % p.score, Vector2(x + 18, 2), 1, Color("fff6e0"), dark)
 		vitals(a, ci, slot, x, p, dark)
 		build(a, ci, slot, x, p, dark)

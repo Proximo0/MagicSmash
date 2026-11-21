@@ -12,7 +12,7 @@ const HUD_H := 27.0
 const MAX_PLAYERS := 4
 
 ## Device id -1 is keyboard + mouse + touch, 0..7 are gamepads. -2 is an apprentice (a computer wizard, no
-## device) and -3 the second keyboard half; nothing seats either yet.
+## device; Net.add_apprentice) and -3 the second keyboard seat (arrows and right Ctrl, PlayerInput).
 const DEV_KBM := -1
 const DEV_AI := -2
 const DEV_KB2 := -3
@@ -41,6 +41,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 func _input(event: InputEvent) -> void:
+	PlayerInput.note_key(event) # keyboard seat 2's right-hand keys
 	# Switch the on-screen sticks on as soon as a finger touches the screen.
 	if event is InputEventScreenTouch and not touch_active:
 		touch_active = true

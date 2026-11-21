@@ -94,12 +94,36 @@ keeps the nearest few in fixed buffers, and allocates nothing while scoring. Bet
 held decision. In `sim_waves`' 4-wizard scenario the casual bots cost 342 us per step against 325 for the old
 orbit bot (which copied every enemy every tick), measured side by side.
 
+## Apprentices
+
+An apprentice is a computer wizard in a seat (`Net.add_apprentice`, `World.Player.ai`). The World plays it itself
+(`WorldApprentices.with_inputs`, called first in `World.step`) for any apprentice the caller gave no input, so the
+arena, the sims and the playtest need no code for it. Its brain is `SmashBot.make_apprentice`: the casual persona's
+eyes and hands, deciding every `SmashBot.APPRENTICE_TICKS` (3) ticks. All of a World's apprentices decide on the
+same tick from one `SmashBot.shared_senses(w)` (the living wizards, hazard rows, boss, shrine rows, the fallen and
+who is calling, whether a standing human is hurt); each still reads its own enemies from World's grid. Between
+decisions the hands repeat the last one. An apprentice values only what it may take (`APPRENTICE_KINDS`: XP, coins
+and gems, which pay the nearest human, boots, the rune shield, a potion at `apprentice_potion_hp` hearts or fewer
+while no standing human is hurt), never walks to a shrine, and answers a call: once a fallen human presses her nova
+it walks into her circle from anywhere (`CALL_VALUE`) until she stands. Its cards are taken by the World when they
+are dealt (`WorldLevels`, `Upgrades.best_pick`), so it never holds a hand.
+
+Cost (21 Nov, the shared box with a playtest running beside it): a 4-wizard World with 300 enemies, 600 steps,
+three apprentices against three idle humans: 2.8 to 3.0 ms per step either way; the difference is inside the noise
+(about 0.1 ms). Shots: `--autotest --seats` (one human, two apprentices).
+
 ## The playtest tool
 
 ```
 godot --headless --path . -s tools/playtest.gd -- --runs=6 --wizards=1,2,4 \
   --persona=novice,casual,veteran --seed=1 --minutes=16 --tune=field:value,... --json=/tmp/out.json
+godot --headless --path . -s tools/playtest.gd -- --runs=3 --party=casual,apprentice,apprentice --seed=1 --minutes=18
 ```
+
+`--party` plays one party instead of the persona x wizards groups: each seat a persona name (a human bot) or
+`apprentice` (the World plays it). Its table is headed like `casual+2ap`, `human down` is the first down of a seat
+that is no apprentice, and the `PLAYTEST` line gives wins, the median end, first down, human down and the party
+level at 6:00 (`lv6`).
 
 Each persona and party size plays `--runs` whole runs on seeds `--seed..seed+runs-1` (the same seeds for every
 group, so groups compare), up to `--minutes` of run clock (16 covers the Archlich at 15:00). `--tune` applies
