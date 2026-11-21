@@ -24,6 +24,7 @@ const WELL := 4
 const CAT := 5
 const SHOPKEEPER := 6
 const CARD_READER := 7
+const MIRROR := 8
 const THINGS: Array = [
 	["portal", Vector2(240, 82), "ENTER THE TOWER"],
 	["altar", Vector2(84, 118), "THE CARD ALBUM"],
@@ -33,6 +34,7 @@ const THINGS: Array = [
 	["cat", Vector2(420, 44), "PET THE CAT"],
 	["shopkeeper", Vector2(118, 176), "TALK TO THE SHOPKEEPER"],
 	["card_reader", Vector2(362, 176), "TALK TO THE CARD READER"],
+	["mirror", Vector2(176, 114), "LOOK INTO THE MIRROR"],
 ]
 
 ## Pots along the walls. Broken pots stay broken until the next run is played.

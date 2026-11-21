@@ -173,6 +173,13 @@ func _ready() -> void:
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.5, "@talk_shop"], [4.0, "talk_shopkeeper"], [4.1, "@talk_reader"],
 			[4.6, "talk_card_reader"], [4.7, "@talk_morvane"], [5.2, "talk_morvane_loss"]]
 		quit_at = 5.6
+	# --heroes: the Sanctum's mirror: the hero roster, the builder on each step (a mage, so SCHOOL shows), then a sheet.
+	if "--heroes" in OS.get_cmdline_user_args():
+		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.1, "@heroes_near"], [3.4, "heroes_sanctum"], [3.5, "@heroes_roster"], [4.0, "heroes_roster"],
+			[4.1, "@heroes_race"], [4.5, "heroes_builder_race"], [4.6, "@heroes_class"], [5.0, "heroes_builder_class"],
+			[5.1, "@heroes_school"], [5.5, "heroes_builder_school"], [5.6, "@heroes_name"], [6.2, "heroes_builder_name"],
+			[6.3, "@heroes_confirm"], [6.8, "heroes_builder_confirm"], [6.9, "@heroes_sheet"], [7.4, "heroes_sheet"]]
+		quit_at = 7.8
 	if "--talk-lull" in OS.get_cmdline_user_args():
 		shots = [[4.5, "@lobby"], [5.5, "@play"], [8.0, "@talk_lull"], [9.5, "talk_lull"]]
 		quit_at = 10.0
@@ -323,6 +330,8 @@ func _process(delta: float) -> void:
 			else:
 				tv._talk(Talk.MORVANE, {"result": "loss", "seal": 0})
 			tv.dlg.finish()
+		elif name.begins_with("@heroes_"):
+			_heroes_step(name)
 		elif name == "@talk_lull":
 			var ta = G.main.current
 			ta.act = 1
@@ -624,3 +633,49 @@ func _boss_tick(w: World, delta: float) -> void:
 				_boss_shots[name + "_hot"] = true
 				_fall_shot(name + "_hot")
 				break
+
+
+## One setup step of the --heroes shots: a few heroes in the profile (never saved: scripted runs write nothing), the
+## roster open over the Sanctum, then the builder on each step and a sheet.
+func _heroes_step(name: String) -> void:
+	var view = G.main.current
+	var prof: Profile = Save.profile
+	var ro: HeroRoster = view.roster
+	var b: HeroBuilder = ro.builder
+	match name:
+		"@heroes_near":
+			view.room.pos = Sanctum.THINGS[Sanctum.MIRROR][1] + Vector2(10, 10)
+		"@heroes_roster":
+			prof.heroes = [Hero.make(Races.HUMAN, Classes.MAGE, 1, "MORVANE"), Hero.make(Races.ORC, Classes.KNIGHT, 0, "GRAKK"),
+				Hero.make(Races.ELF, Classes.ARCHER, 0, "SYLVANAS"), Hero.make(Races.DWARF, Classes.PRIEST, 0, "BRUNA")]
+			prof.heroes[0].add_xp(900)
+			prof.heroes[1].add_xp(250)
+			prof.hero = 0
+			prof.runs = 14
+			prof.wins = 3
+			for i: int in [0, 4, 5]:
+				prof.add_card(i)
+			ro.open(prof, G.DEV_KBM)
+			ro.sel = 1
+			view.roster_open = true
+		"@heroes_race":
+			ro.do_action(HeroRoster.A_NEW)
+			b.sel = Races.ORC
+		"@heroes_class":
+			b.choose(Races.ORC)
+			b.sel = Classes.PALADIN
+		"@heroes_school":
+			b.choose(Classes.MAGE)
+			b.sel = 1
+		"@heroes_name":
+			b.choose(1)
+			b.ouija.text = "ASHEN"
+			b.ouija.row = 2
+			b.ouija.col = 4
+		"@heroes_confirm":
+			b.submit_name()
+		"@heroes_sheet":
+			b.active = false
+			prof.heroes[0].sockets[Cards.socket(4)] = Cards.key(4)
+			ro.sheet.open(prof, 0)
+			ro.sheet.sel = 2
