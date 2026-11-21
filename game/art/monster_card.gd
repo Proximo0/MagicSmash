@@ -40,7 +40,11 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 		for i: int in range(8):
 			var a := t * 0.4 + i * TAU / 8.0
 			ci.draw_line(c, c + Vector2.from_angle(a) * win.size.length() * 0.5, Color(SOCKET_COLORS[sock], 0.12), 2.0)
-	var tex: Texture2D = Sprites.get_tex(ENEMY_SPRITES[idx], not found)
+	var tex: Texture2D = Sprites.get_tex(ENEMY_SPRITES[idx], not found) if idx < ENEMY_SPRITES.size() else null
+	if idx >= ENEMY_SPRITES.size(): # a Seal card: a plain stand-in face, its numeral, until its painting lands
+		var num := Seals.numeral(Seals.of_card(idx))
+		var ns := clampi(int((win.size.x - 4.0) / PixelFont.text_width(num, 1)), 1, 3)
+		PixelFont.draw_centered(ci, num, win.get_center().x, win.get_center().y - 3.5 * ns, ns, Color(GOLD, 0.9 if found else 0.3), INK)
 	if tex:
 		# The card frames the drawn part of the sprite (its map is padded so that it stays centred when it flips)
 		# at the largest whole scale that fits the window. A monster too big for twice its size is still drawn

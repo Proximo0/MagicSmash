@@ -620,6 +620,8 @@ func _device_name(d: int) -> String:
 ## Lobby seat height and the Seal row under the seats.
 const LOBBY_SEAT_H := 56
 const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
+var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
+var seal_view := 0 # the step the row shows; Net.seal unless player 1 has browsed onto a locked one
 
 func _draw_lobby(ci: CanvasItem) -> void:
 	var title := "LOCAL PLAY"
@@ -637,7 +639,7 @@ func _draw_lobby(ci: CanvasItem) -> void:
 	elif G.touch_active:
 		foot = "TAP HERE TO START"
 	else:
-		foot = "LEFT/RIGHT: WIZARD   ENTER/START: BEGIN   ESC/B: BACK"
+		foot = "LEFT/RIGHT: WIZARD  UP/DOWN: SEAL  ENTER/START: BEGIN  ESC/B: BACK"
 	PixelFont.draw_centered(ci, foot, 240, 236, 1, Color("8bff9e") if int(t * 2) % 2 == 0 else Color.WHITE)
 	if Net.mode == Net.Mode.HOST:
 		var ips := Net.local_ips()
@@ -682,9 +684,61 @@ func _draw_seats(ci: CanvasItem) -> void:
 			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
 			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 12, 1, Color(1, 1, 1, blink))
 
-## The row under the seats where the host picks the run's Seal (LOBBY_SEAL_ROW). Empty for now.
-func _draw_seal_row(_ci: CanvasItem) -> void:
-	pass
+## The row under the seats where player 1 picks the run's step on the difficulty ladder (Seals): its name, its
+## rule, the crystal multiplier and the unclaimed first-win prize. Player 1 moves onto it with up/down and steps
+## with left/right; locked steps show (dim, LOCKED) but are never picked, so the run keeps the last open one.
+## A client shows the host's pick.
+func _draw_seal_row(ci: CanvasItem) -> void:
+	var r := LOBBY_SEAL_ROW
+	var host := Net.mode != Net.Mode.CLIENT
+	if not seal_focus or not host:
+		seal_view = Net.seal
+	var prof: Profile = Save.profile
+	var open := not host or prof.seal_open(seal_view)
+	var texts := Seals.row(seal_view, open, prof.prize_left(seal_view) if host else 0)
+	if seal_focus and host:
+		Occult.highlight(ci, r, t)
+	else:
+		ci.draw_rect(r, Color(1, 1, 1, 0.04))
+	var y := r.position.y + 4
+	var col := Color("ffb347") if seal_view > 0 else (Color("8bff9e") if seal_view < 0 else Color("ffd94d"))
+	if not open:
+		col = Color(col, 0.4)
+	PixelFont.draw(ci, texts[0], Vector2(r.position.x + 4, y), 1, col)
+	var rw := PixelFont.text_width(texts[2], 1)
+	PixelFont.draw(ci, texts[2], Vector2(r.end.x - 4 - rw, y), 1, Color("8bdcff") if open else Color(1, 1, 1, 0.4))
+	var left := r.position.x + 4 + PixelFont.text_width(texts[0], 1)
+	PixelFont.draw_centered(ci, texts[1], (left + r.end.x - 4 - rw) / 2.0, y, 1, Color("e8dcc0") if open else Color(1, 1, 1, 0.4))
+	if seal_focus and host and int(t * 2) % 2 == 0:
+		if seal_view > Seals.MIN:
+			PixelFont.draw(ci, "<", Vector2(r.position.x - 7, y), 1, Color.WHITE)
+		if seal_view < Seals.MAX:
+			PixelFont.draw(ci, ">", Vector2(r.end.x + 2, y), 1, Color.WHITE)
+
+
+## Player 1 steps the ladder: the row shows every step, an open one becomes the run's (Net.set_seal).
+func _step_seal(d: int) -> void:
+	seal_view = clampi(seal_view + d, Seals.MIN, Seals.MAX)
+	if Save.profile.seal_open(seal_view):
+		Net.set_seal(seal_view)
+	Sfx.play("menu_move")
+
+
+## The local device sitting in seat 1 (player 1), or -99.
+func _p1_device() -> int:
+	for e in Net.roster:
+		if e.slot == 0 and e.peer == Net.my_peer:
+			return int(e.device)
+	return -99
+
+
+## The device a key or pad event came from (G.DEV_KBM for keys), or -99.
+static func _event_device(event: InputEvent) -> int:
+	if event is InputEventKey:
+		return G.DEV_KBM
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		return event.device
+	return -99
 
 func _draw_join(ci: CanvasItem) -> void:
 	_panel(ci, Rect2(80, 140, 320, 112))
@@ -770,13 +824,27 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_select")
 				Net.shutdown()
 				G.local_devices.clear()
+				seal_focus = false
 				state = S.MAIN
 				return
 			if tap:
-				if tap_pos.y > 228 and Net.mode != Net.Mode.CLIENT:
+				if LOBBY_SEAL_ROW.has_point(tap_pos) and Net.mode != Net.Mode.CLIENT:
+					seal_focus = true
+					_step_seal(-1 if tap_pos.x < LOBBY_SEAL_ROW.get_center().x else 1)
+				elif tap_pos.y > 228 and Net.mode != Net.Mode.CLIENT:
 					_begin()
 				return
 			var side: Array = PlayerInput.menu_side(event)
+			# Player 1 alone moves onto the Seal row (up/down) and steps the ladder there (left/right).
+			var p1 := _p1_device()
+			if Net.mode != Net.Mode.CLIENT and p1 != -99:
+				if dir != 0 and _event_device(event) == p1:
+					seal_focus = dir > 0
+					Sfx.play("menu_move")
+					return
+				if seal_focus and int(side[1]) != 0 and int(side[0]) == p1:
+					_step_seal(int(side[1]))
+					return
 			if int(side[1]) != 0 and G.local_devices.has(int(side[0])):
 				Net.cycle_wizard(int(side[0]), int(side[1]))
 				Sfx.play("menu_move")

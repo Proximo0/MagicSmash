@@ -186,14 +186,14 @@ func use() -> int:
 ## A card drawn from a sealed deck or found in a pot: any card, the Lich card far rarer.
 static func roll_card(r: RandomNumberGenerator) -> int:
 	var total := 0.0
-	for i: int in range(Cards.count()):
+	for i: int in range(Cards.MONSTERS):
 		total += LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
 	var x := r.randf() * total
-	for i: int in range(Cards.count()):
+	for i: int in range(Cards.MONSTERS):
 		x -= LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
 		if x < 0.0:
 			return i
-	return Cards.count() - 1
+	return Cards.MONSTERS - 1
 
 
 ## What toss number `wishes` (counting this one) pays: the ninth wish's 30 crystals only the first time the secret is

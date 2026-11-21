@@ -47,6 +47,17 @@ var secrets := {} # secret key -> true, once found (the Sanctum alcove, title ea
 var wishes := 0 # crystals tossed into the Sanctum's wishing well, ever
 var pots_run := -1 # the run count when the Sanctum's pots were last smashed; they refill after the next run
 var pots_mask := 0 # which pots (a bit per Sanctum.POTS index) were smashed then; valid only while pots_run == runs
+## The difficulty ladder (Seals): the highest step open, the highest step won (Seals.MIN - 1 for none) and the
+## steps whose first-win prize is paid (str(step) -> true). Totals over every run: kills and rituals finished.
+var seal_unlocked := Seals.START_UNLOCKED
+var seal_best := Seals.MIN - 1
+var seal_prizes := {}
+var kills_total := 0
+var revives_total := 0
+## What the last finish_run paid for its step, for the results screen (not saved): seal, mul (the bounty
+## multiplier), bounty (crystals the multiplier added or took), prize (a first win's crystals), card (the Seal card
+## a first win paid, -1 none).
+var last_pay := {}
 
 
 static func meta_index(key: String) -> int:
@@ -166,31 +177,74 @@ func unsocket(s: int) -> void:
 		sockets[s] = ""
 
 
-static func crystals_for_run(seconds: float, kills: int, liches: int, won: bool = false) -> int:
-	return int(seconds / CRYSTAL_SECONDS) + kills / CRYSTAL_KILLS + liches * CRYSTAL_LICH + (CRYSTAL_WIN if won else 0)
+## `mul` (Seals.crystal_mul) scales only the Lich and win bounties, so losing fast at a high step pays nothing extra.
+static func crystals_for_run(seconds: float, kills: int, liches: int, won: bool = false, mul: float = 1.0) -> int:
+	return int(seconds / CRYSTAL_SECONDS) + kills / CRYSTAL_KILLS + bounty(liches, won, mul)
+
+
+## The Lich and win bounties at a step's multiplier, rounded.
+static func bounty(liches: int, won: bool, mul: float = 1.0) -> int:
+	return roundi((liches * CRYSTAL_LICH + (CRYSTAL_WIN if won else 0)) * mul)
+
+
+func seal_open(level: int) -> bool:
+	return level >= Seals.MIN and level <= seal_unlocked
+
+
+func prize_claimed(level: int) -> bool:
+	return seal_prizes.has(str(level))
+
+
+## The first-win prize still waiting at a step (0 when paid or when the step pays none).
+func prize_left(level: int) -> int:
+	return 0 if prize_claimed(level) else Seals.prize(level)
 
 
 ## Books a finished run: best score and time, wins, crystals earned. Returns the crystals it paid. `run` holds
-## score, seconds, kills, liches and won (missing keys count 0 / false); a "seal" key is carried but not read yet.
+## score, seconds, kills, liches, won, seal, and revives or results (the run's Results, whose rituals are added up);
+## missing keys count 0 / false. The step (seal) scales the bounties; a win opens the next step and, the first
+## time at a step, pays its prize and Seal card.
 func finish_run(run: Dictionary) -> int:
 	var score := int(run.get("score", 0))
 	var seconds := float(run.get("seconds", 0.0))
 	var kills := int(run.get("kills", 0))
 	var liches := int(run.get("liches", 0))
 	var won := bool(run.get("won", false))
+	var seal := clampi(int(run.get("seal", 0)), Seals.MIN, Seals.MAX)
 	runs += 1
+	kills_total += maxi(0, kills)
+	revives_total += maxi(0, int(run.get("revives", 0)))
+	var res: Variant = run.get("results")
+	if res is Results:
+		for slot: Variant in (res as Results).stats:
+			revives_total += (res as Results).revives(int(slot))
 	if won:
 		wins += 1
 	high_score = maxi(high_score, score)
 	best_time = maxf(best_time, seconds)
-	var earned: int = crystals_for_run(seconds, kills, liches, won)
+	var mul := Seals.crystal_mul(seal)
+	var earned: int = crystals_for_run(seconds, kills, liches, won, mul)
+	last_pay = {"seal": seal, "mul": mul, "bounty": bounty(liches, won, mul) - bounty(liches, won), "prize": 0, "card": -1}
+	if won:
+		seal_best = maxi(seal_best, seal)
+		seal_unlocked = clampi(maxi(seal_unlocked, seal + 1), Seals.START_UNLOCKED, Seals.MAX)
+		if not prize_claimed(seal) and (Seals.prize(seal) > 0 or Seals.card(seal) >= 0):
+			seal_prizes[str(seal)] = true
+			last_pay.prize = Seals.prize(seal)
+			earned += Seals.prize(seal)
+			var sc := Seals.card(seal)
+			if sc >= 0 and card_count(sc) == 0:
+				cards[Cards.key(sc)] = 1
+				last_pay.card = sc
 	crystals += earned
 	return earned
 
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
-		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes}
+		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes,
+		"seal_unlocked": seal_unlocked, "seal_best": seal_best, "seal_prizes": seal_prizes.keys(), "kills_total": kills_total,
+		"revives_total": revives_total}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -221,6 +275,16 @@ static func from_dict(d: Dictionary) -> Profile:
 	# An old save has no mask: its pots all stay broken until the next run, as they always did.
 	p.pots_mask = int(d.get("pots_mask", Sanctum.ALL_POTS)) & Sanctum.ALL_POTS
 	p.wishes = maxi(0, int(d.get("wishes", 0)))
+	# The ladder: an old save has none of these and starts at the default (ARCHMAGE open, nothing won).
+	p.seal_unlocked = clampi(int(d.get("seal_unlocked", Seals.START_UNLOCKED)), Seals.START_UNLOCKED, Seals.MAX)
+	p.seal_best = clampi(int(d.get("seal_best", Seals.MIN - 1)), Seals.MIN - 1, Seals.MAX)
+	var sp: Variant = d.get("seal_prizes", [])
+	if sp is Array:
+		for k: Variant in sp:
+			if str(k).is_valid_int() and int(str(k)) >= Seals.MIN and int(str(k)) <= Seals.MAX:
+				p.seal_prizes[str(int(str(k)))] = true
+	p.kills_total = maxi(0, int(d.get("kills_total", 0)))
+	p.revives_total = maxi(0, int(d.get("revives_total", 0)))
 	var so: Variant = d.get("sockets", [])
 	if so is Array:
 		for s: int in range(mini((so as Array).size(), Cards.SOCKETS)):

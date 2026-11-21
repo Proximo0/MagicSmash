@@ -26,7 +26,18 @@ const CARDS: Array = [
 	["tome", "THE GRIMOIRE", HAT, Loot.ST_FOCUS, 0.08, "-8% COOLDOWN", "IT READS YOU BACK."],
 	["gargoyle", "THE GARGOYLE", ROBE, Loot.ST_VIGOR, 2.0, "+2 HEARTS", "STONE BY DAY. HUNGRY BY NIGHT."],
 	["priest", "THE BONE PRIEST", HAT, Loot.ST_MIGHT, 0.08, "+8% DAMAGE", "HIS SERMONS RAISE THE DEAD."],
+	# The Seal cards (Seals.card): one per Seal, dropped only by that Seal's Archlich and paid on its first win.
+	["seal_1", "THE HUNGER", ROBE, Loot.ST_VIGOR, 2.0, "+2 HEARTS", "IT ATE ITS FILL AND WAS STILL EMPTY."],
+	["seal_2", "THE AMBUSH", HAT, Loot.ST_SWIFT, 0.12, "+12% SPEED", "THE DOOR WAS NEVER WHERE YOU LOOKED."],
+	["seal_3", "THE FAMINE", ROBE, Loot.ST_GREED, 0.40, "+40% GOLD", "THE TOWER'S GRANARIES ARE DUST."],
+	["seal_4", "THE LEGION", STAFF, Loot.ST_MIGHT, 0.25, "+25% DAMAGE", "WE ARE MANY. WE ARE ONE."],
+	["seal_5", "THE CHAMPION", ROBE, Loot.ST_WARD, 0.15, "15% WARD", "IT NEVER WALKS ALONE."],
+	["seal_6", "MISFORTUNE", HAT, Loot.ST_FOCUS, 0.12, "-12% COOLDOWN", "THE DECK WAS MARKED BEFORE YOU SAT."],
+	["seal_7", "THE SILENCE", STAFF, Loot.ST_FOCUS, 0.15, "-15% COOLDOWN", "NO SPELL IS SPOKEN HERE TWICE."],
+	["seal_8", "THE DARKNESS", STAFF, Loot.ST_MIGHT, 0.35, "+35% DAMAGE", "BEYOND THE LAST SEAL, NOTHING."],
 ]
+## The monster cards come first, one per World enemy type; the Seal cards follow them.
+const MONSTERS := 12
 
 
 static func count() -> int:

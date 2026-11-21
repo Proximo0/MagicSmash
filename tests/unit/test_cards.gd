@@ -3,7 +3,8 @@ extends TestCase
 
 
 func test_one_card_per_enemy_type() -> void:
-	assert_eq(Cards.count(), 12)
+	assert_eq(Cards.count(), Cards.MONSTERS + 8, "a card per enemy type, then one per Seal")
+	assert_eq(Cards.MONSTERS, MonsterCard.ENEMY_SPRITES.size())
 	var keys := {}
 	for i: int in range(Cards.count()):
 		assert_false(keys.has(Cards.key(i)), "duplicate key " + Cards.key(i))
@@ -61,3 +62,17 @@ func test_secrets_are_listed_once_and_words_answer() -> void:
 	p.find_secret("cat")
 	p.find_secret("not_listed")
 	assert_eq(Secrets.found(p), 1)
+
+
+## The eight Seal cards: socketable like the others, never dropped by a monster's own roll.
+func test_seal_cards_follow_the_monsters() -> void:
+	for level: int in range(2, Seals.MAX + 1):
+		var c := Seals.card(level)
+		assert_eq(Cards.key(c), "seal_%d" % (level - 1))
+		assert_true(Cards.socket(c) >= 0 and Cards.socket(c) < Cards.SOCKETS)
+		var sockets := [-1, -1, -1]
+		sockets[Cards.socket(c)] = c
+		var st := Cards.socket_stats(sockets)
+		assert_true(float(st[Cards.CARDS[c][3]]) > 0.0, Cards.key(c) + " adds its stat when socketed")
+	for i: int in range(Cards.MONSTERS):
+		assert_false(Cards.key(i).begins_with("seal_"))

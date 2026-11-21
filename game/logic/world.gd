@@ -300,6 +300,25 @@ var meta_luck := 0
 const SEAL_EASY := -1
 const SEAL_MAX := 9
 var seal := 0
+## What the Seal changes, copied from Seals.values in apply_seal (see Seals.BASE); neutral at WIZARD (0).
+var seal_hp := 1.0 # enemy health
+var seal_horde := 1.0 # horde budget rate
+var seal_boss := 1.0 # Lich and Archlich health
+var seal_speed := 1.0 # enemy speed
+var seal_potions := 1.0 # a plain kill's potion chance
+var seal_luck := 0 # chest luck
+var seal_cards := 1.0 # card drop odds
+var seal_ultra := true # ultra-rare chests and ULTRA RARE loot can drop
+var seal_hunger := false # HUNGER: plain kills drop no potion
+var seal_rift := 1.0 # AMBUSH: rift warning
+var seal_potion_heal := 2 # FAMINE: hearts a potion heals
+var seal_group := 1.0 # LEGION: group size
+var seal_cap := 0 # LEGION: enemy cap (0: tune.enemy_cap)
+var seal_elite_hp := 1.0 # CHAMPIONS: elite health
+var seal_escort := 0 # CHAMPIONS: plain enemies with each elite
+var seal_hand := 0 # SILENCE: cards a level-up deals (0: tune.level_choices)
+var seal_ritual := 1.0 # DARKNESS: ritual time
+var seal_card := -1 # the Cards index the Archlich drops (a Seal's card), -1 none
 ## Slots each wizard has: (spells, passives). Upgrades.UNCAPPED until the slots job lands.
 var slots := Upgrades.UNCAPPED
 ## The party's shared level and XP pool; every Player.level follows party_level.
@@ -407,10 +426,39 @@ func apply_meta(b: Dictionary) -> void:
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
 
-## Starts the run at a difficulty level (Net.seal, SEAL_EASY..SEAL_MAX). Call once, after apply_meta. A stub: it
-## records the level and changes nothing else yet (level 0 never will).
+## Starts the run at a difficulty level (Net.seal, SEAL_EASY..SEAL_MAX): copies Seals.values into the seal_*
+## fields (never into Tuning) and sets the wizards' hearts, lives and banned cards. Call once, after apply_meta.
+## Level 0 changes nothing.
 func apply_seal(level: int) -> void:
 	seal = clampi(level, SEAL_EASY, SEAL_MAX)
+	var v := Seals.values(seal)
+	seal_hp = float(v.hp)
+	seal_horde = float(v.horde)
+	seal_boss = float(v.boss)
+	seal_speed = float(v.speed)
+	seal_potions = float(v.potions)
+	seal_luck = int(v.luck)
+	seal_cards = 1.0 + Seals.CARD_PER_LUCK * int(v.luck)
+	seal_ultra = bool(v.ultra)
+	seal_hunger = bool(v.hunger)
+	seal_rift = float(v.rift)
+	seal_potion_heal = int(v.potion_heal)
+	seal_group = float(v.group)
+	seal_cap = int(v.cap)
+	seal_elite_hp = float(v.elite_hp)
+	seal_escort = int(v.escort)
+	seal_hand = int(v.hand)
+	seal_ritual = float(v.ritual)
+	seal_card = Seals.card(seal)
+	if float(v.cruel) > 0.0:
+		fate_cruel = float(v.cruel)
+	for p: Player in players.values():
+		p.max_hp += int(v.hearts)
+		p.hp += int(v.hearts)
+		if int(v.lives) > 0:
+			p.lives = int(v.solo_lives) if players.size() == 1 else int(v.lives)
+		if not bool(v.judgement):
+			p.banned[Upgrades.LIFE] = true
 
 func slot_cap() -> Vector2i:
 	return slots

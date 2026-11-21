@@ -15,7 +15,7 @@ static func _make_final(w: World, e: World.Enemy) -> void:
 
 
 static func _lich_hp_scale(w: World) -> float:
-	return (1.0 + w.tune.boss_hp_per_player * (w.players.size() - 1)) * (1.0 + w.tune.boss_hp_per_cycle * maxi(0, _lich_visits(w, w.wave) - 1))
+	return (1.0 + w.tune.boss_hp_per_player * (w.players.size() - 1)) * (1.0 + w.tune.boss_hp_per_cycle * maxi(0, _lich_visits(w, w.wave) - 1)) * w.seal_boss
 
 
 ## How many Lich visits are due by the start of `minute` (minute 1 starts at 0:00).

@@ -132,3 +132,100 @@ func test_breaking_a_pot_in_a_new_run_drops_the_old_runs_bits() -> void:
 	assert_eq(p.pots_mask_now(), 0)
 	p.break_pot(1)
 	assert_eq(p.pots_mask_now(), 2, "a pot from an earlier run stayed broken")
+
+
+func test_bounties_scale_with_the_step_and_losing_pays_nothing_extra() -> void:
+	var a := Profile.new()
+	var b := Profile.new()
+	var lost := {"seconds": 120.0, "kills": 500}
+	assert_eq(b.finish_run(lost.merged({"seal": 9})), a.finish_run(lost), "a fast loss pays the same at any step")
+	var won := {"seconds": 960.0, "kills": 3000, "liches": 4, "won": true}
+	var at0 := Profile.new().finish_run(won)
+	var at5 := Profile.new()
+	var paid := at5.finish_run(won.merged({"seal": 5}))
+	var bounty := 4 * Profile.CRYSTAL_LICH + Profile.CRYSTAL_WIN
+	assert_eq(paid, at0 + roundi(bounty * Seals.crystal_mul(5)) - bounty + Seals.prize(5))
+	assert_eq(at5.last_pay.prize, Seals.prize(5))
+	assert_eq(at5.last_pay.card, Seals.card(5))
+	assert_eq(Profile.new().finish_run(won.merged({"seal": -1})), at0 - bounty + roundi(bounty * 0.5), "APPRENTICE halves")
+
+
+func test_prizes_pay_once_per_profile_and_step() -> void:
+	var p := Profile.new()
+	var won := {"won": true, "seal": 3}
+	var first := p.finish_run(won)
+	assert_eq(p.card_count(Seals.card(3)), 1, "the first win pays the Seal card")
+	assert_eq(p.prize_left(3), 0)
+	var second := p.finish_run(won)
+	assert_eq(first - second, Seals.prize(3), "the prize pays once")
+	assert_eq(p.card_count(Seals.card(3)), 1)
+	assert_eq(p.last_pay.prize, 0)
+	var q := Profile.from_dict(p.to_dict())
+	assert_eq(q.finish_run(won), second, "a reloaded profile remembers the prize")
+	assert_eq(Profile.new().finish_run({"won": true, "seal": 0}), Profile.CRYSTAL_WIN, "WIZARD pays no prize")
+	assert_eq(Profile.new().prize_left(1), 50)
+
+
+func test_wins_unlock_the_ladder_in_order() -> void:
+	var p := Profile.new()
+	for level: int in range(Seals.MIN, Seals.MAX + 1):
+		assert_eq(p.seal_open(level), level <= 1, "a new profile opens APPRENTICE to ARCHMAGE: %d" % level)
+	p.finish_run({"won": false, "seal": 1})
+	assert_false(p.seal_open(2), "a loss opens nothing")
+	p.finish_run({"won": true, "seal": -1})
+	assert_false(p.seal_open(2), "winning lower opens nothing new")
+	p.finish_run({"won": true, "seal": 1})
+	assert_true(p.seal_open(2))
+	assert_false(p.seal_open(3))
+	assert_eq(p.seal_best, 1)
+	p.finish_run({"won": true, "seal": 9})
+	assert_eq(p.seal_unlocked, Seals.MAX)
+	assert_eq(p.seal_best, 9)
+	var q := Profile.from_dict(p.to_dict())
+	assert_eq(q.seal_unlocked, Seals.MAX)
+	assert_eq(q.seal_best, 9)
+
+
+func test_kills_and_revives_add_up() -> void:
+	var p := Profile.new()
+	var res := Results.new([0, 1])
+	res.add(0, "revives", 2)
+	res.add(1, "revives", 1)
+	p.finish_run({"kills": 300, "results": res})
+	p.finish_run({"kills": 200, "revives": 4})
+	assert_eq(p.kills_total, 500)
+	assert_eq(p.revives_total, 7)
+	var q := Profile.from_dict(p.to_dict())
+	assert_eq(q.kills_total, 500)
+	assert_eq(q.revives_total, 7)
+
+
+## A profile saved before the ladder (this exact dictionary, as JSON gives it back) loads as it did, with the
+## ladder at its start.
+func test_an_old_profile_loads_unchanged() -> void:
+	var old: Variant = JSON.parse_string('{"version": 1, "high_score": 4321, "crystals": 77, "runs": 9, "wins": 2, ' +
+		'"best_time": 812.5, "unlocks": {"vigor": 1, "luck": 2}, "cards": {"orc": 2, "lich": 1}, ' +
+		'"sockets": ["", "", "orc"], "secrets": ["moon"], "pots_run": 9, "pots_mask": 3, "wishes": 5}')
+	var p := Profile.from_dict(old)
+	assert_eq(p.high_score, 4321)
+	assert_eq(p.crystals, 77)
+	assert_eq(p.runs, 9)
+	assert_eq(p.wins, 2)
+	assert_eq(p.level("luck"), 2)
+	assert_eq(p.card_count(World.ORC), 2)
+	assert_eq(p.sockets[2], "orc")
+	assert_true(p.has_secret("moon"))
+	assert_eq(p.wishes, 5)
+	assert_eq(p.seal_unlocked, Seals.START_UNLOCKED)
+	assert_eq(p.seal_best, Seals.MIN - 1)
+	assert_true(p.seal_prizes.is_empty())
+	assert_eq(p.kills_total, 0)
+	assert_eq(p.revives_total, 0)
+	var back: Dictionary = JSON.parse_string(JSON.stringify(p.to_dict()))
+	for k: String in old:
+		if k != "version":
+			assert_eq(back[k], old[k], k)
+	var bad := Profile.from_dict({"seal_unlocked": 99, "seal_best": -50, "seal_prizes": ["3", "x", 77]})
+	assert_eq(bad.seal_unlocked, Seals.MAX)
+	assert_eq(bad.seal_best, Seals.MIN - 1)
+	assert_eq(bad.seal_prizes.keys(), ["3"])

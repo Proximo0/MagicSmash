@@ -73,9 +73,9 @@ static func _direct_horde(w: World, dt: float) -> void:
 	if w.elite_t >= w.tune.elite_interval:
 		w.elite_t -= w.tune.elite_interval
 		_spawn_elite(w)
-	if w.enemies.size() + w.spawn_queue.size() >= int(w.tune.enemy_cap):
+	if w.enemies.size() + w.spawn_queue.size() >= (w.seal_cap if w.seal_cap > 0 else int(w.tune.enemy_cap)): # LEGION
 		return
-	var rate := (w.tune.horde_rate_base + w.tune.horde_rate_per_min * w.wave_time / 60.0) * w.pscale()
+	var rate := (w.tune.horde_rate_base + w.tune.horde_rate_per_min * w.wave_time / 60.0) * w.pscale() * w.seal_horde
 	if w.boss != null:
 		rate *= w.tune.horde_boss_mul
 	w.horde_budget += rate * dt
@@ -97,10 +97,10 @@ static func _direct_horde(w: World, dt: float) -> void:
 static func _queue_rift(w: World, type: int, n: int) -> void:
 	var best := _spot_near_party(w, w.tune.rift_min_dist, w.tune.rift_max_dist, 22.0)
 	var spread := 6.0 + 3.0 * sqrt(float(n))
-	w.emit(World.EV_RIFT, best.x, best.y, spread, w.tune.rift_warning)
+	w.emit(World.EV_RIFT, best.x, best.y, spread, w.tune.rift_warning * w.seal_rift) # AMBUSH
 	for i in n:
 		var off := Vector2.from_angle(w.rng.randf() * TAU) * w.rng.randf() * spread
-		w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
+		w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning * w.seal_rift + i * 0.03, "type": type, "door": 0, "at": best + off})
 
 
 ## A door for a group: usually the one nearest the party (the arena is bigger than the screen, and a far door
@@ -151,7 +151,7 @@ static func _roll_group(w: World) -> Array:
 			continue
 		r -= int(row[3])
 		if r <= 0:
-			return [row[0], w.rng.randi_range(row[4], row[5] + row[6] * (w.wave - 1))]
+			return [row[0], int(round(w.rng.randi_range(row[4], row[5] + row[6] * (w.wave - 1)) * w.seal_group))] # LEGION
 	return [World.GOBLIN, 1]
 
 
@@ -176,10 +176,13 @@ static func _spawn_elite(w: World) -> void:
 		type = World.ORC
 	var e := spawn_enemy(w, type, _pick_door(w))
 	e.elite = true
-	e.hp *= w.tune.elite_hp_mul
+	e.hp *= w.tune.elite_hp_mul * w.seal_elite_hp # CHAMPIONS
 	e.maxhp = e.hp
 	e.r += 2.0
 	w.emit(World.EV_ELITE, e.pos.x, e.pos.y, e.type, 0)
+	if w.seal_escort > 0: # CHAMPIONS: an escort of its own kind through its door
+		_queue_group(w, e.type, w.seal_escort, World.DOOR_DIRS.find(e.enter_dir), w.wave_time + World.DOOR_STAGGER)
+		_sort_queue(w)
 
 
 static func _queue_group(w: World, type: int, n: int, door: int, t: float) -> void:
@@ -210,9 +213,9 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 	var hp_scale := 1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)
 	if type == World.LICH:
 		hp_scale = WorldBosses._lich_hp_scale(w)
-	e.hp = st[0] * hp_scale
+	e.hp = st[0] * hp_scale * (1.0 if type == World.LICH else w.seal_hp)
 	e.maxhp = e.hp
-	e.spd = st[1] * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
+	e.spd = st[1] * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap)) * w.seal_speed
 	e.r = st[2]
 	e.contact = st[4]
 	e.t = w.rng.randf() * 10.0
