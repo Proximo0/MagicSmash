@@ -95,30 +95,6 @@ func remove_hero(i: int) -> bool:
 	return true
 
 
-## The hero the next run plays.
-func active_hero() -> Hero:
-	return heroes[clampi(hero, 0, heroes.size() - 1)]
-
-
-## Adds a hero and makes it the active one. False when MAX_HEROES are saved already.
-func add_hero(h: Hero) -> bool:
-	if heroes.size() >= MAX_HEROES:
-		return false
-	heroes.append(h)
-	hero = heroes.size() - 1
-	return true
-
-
-## Deletes hero `i`. The last hero cannot go (a profile always has one); the active index follows.
-func remove_hero(i: int) -> bool:
-	if i < 0 or i >= heroes.size() or heroes.size() <= 1:
-		return false
-	heroes.remove_at(i)
-	if hero > i or hero >= heroes.size():
-		hero = maxi(0, hero - 1)
-	return true
-
-
 static func meta_index(key: String) -> int:
 	for i: int in range(META.size()):
 		if META[i][0] == key:
