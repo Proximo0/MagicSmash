@@ -92,7 +92,9 @@ func test_new_weapons_are_offered() -> void:
 			if Upgrades.is_weapon(idx):
 				seen[idx] = true
 			assert_false(Upgrades.is_evolution(idx), "evolution offered from nothing")
-	assert_eq(seen.size(), Spells.COUNT, "weapons offered: %s" % [seen.keys()])
+	# Every spell but CLEAVE, a class weapon only a knight starts with (its row requires itself).
+	assert_eq(seen.size(), Spells.COUNT - 1, "weapons offered: %s" % [seen.keys()])
+	assert_false(seen.has(Upgrades.W_CLEAVE), "CLEAVE offered to a wizard who does not hold it")
 
 
 func test_names_and_effects_fit_a_tray_row() -> void:

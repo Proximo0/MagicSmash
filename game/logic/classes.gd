@@ -27,7 +27,7 @@ const C_NAME := 1
 const C_ROLE := 2
 const C_HEARTS := 3
 const C_WEAPON := 4 # a World.SP_* row, or SCHOOL_WEAPON
-const C_SKIN := 5 # how the weapon is drawn (the class skin; C2 and the art read it)
+const C_SKIN := 5 # the class weapon's skin: a SKINS key (how it is named and drawn, and what it does differently)
 const C_SKILL := 6 # a SKILLS index
 const C_THREAT := 7 # how near a hero looks to the horde: distance / threat
 const C_STATS := 8 # stat points [MIGHT, FOCUS, SWIFT, VIGOR, WARD, FORTUNE] (Loot.ST_* order)
@@ -38,16 +38,29 @@ const C_AURA_R := 12 # px: heroes this near (her too) get C_AURA_WARD points of 
 const C_AURA_WARD := 13
 
 ## [key, name, role, hearts, weapon, skin, skill, threat, stats, walk, ritual, redraws, aura radius, aura ward].
-## KNIGHT, ARCHER and PRIEST fight with a stand-in row until their own spells land (job C2 swaps C_WEAPON):
-## CLEAVE is the FROST FAN (a short cone), LONGBOW the ARCANE BOLT (a straight bolt), HOLY LIGHT the RUNE CIRCLE
-## (a spot on the floor). The class stat points are a first cut for the balance gates (job P).
+## A class weapon is a skinned entry of a spell row (job C2): the hero holds that spell's own Upgrades entry, so it
+## levels and evolves like the row, and C_SKIN names how it differs (SKINS). The class stat points are a first cut
+## for the balance gates (job P).
 const ROWS: Array = [
 	["mage", "MAGE", ROLE_DAMAGE, 5, SCHOOL_WEAPON, "staff", 0, 1.0, [0, 2, 0, 0, 0, 0], 1.0, 1.0, 2, 0.0, 0],
-	["knight", "KNIGHT", ROLE_TANK, 7, World.SP_FROST, "cleave", 1, 2.5, [1, 0, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0],
-	["archer", "ARCHER", ROLE_RANGED, 4, World.SP_ARCANE, "longbow", 2, 0.8, [1, 1, 1, 0, 0, 0], 1.08, 1.0, 0, 0.0, 0],
-	["priest", "PRIEST", ROLE_HEALER, 5, World.SP_RUNE, "holy_light", 3, 0.7, [0, 1, 0, 0, 2, 0], 1.0, 2.0, 0, 0.0, 0],
+	["knight", "KNIGHT", ROLE_TANK, 7, World.SP_CLEAVE, "cleave", 1, 2.5, [1, 0, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0],
+	["archer", "ARCHER", ROLE_RANGED, 4, World.SP_BONE, "longbow", 2, 0.8, [1, 1, 1, 0, 0, 0], 1.08, 1.0, 0, 0.0, 0],
+	["priest", "PRIEST", ROLE_HEALER, 5, World.SP_CANDLE, "holy_light", 3, 0.7, [0, 1, 0, 0, 2, 0], 1.0, 2.0, 0, 0.0, 0],
 	["paladin", "PALADIN", ROLE_SUPPORT, 6, World.SP_STAR, "smite", 4, 1.6, [1, 0, 0, 0, 1, 0], 1.0, 1.0, 0, 50.0, 8],
 ]
+
+## Class weapon skins (C_SKIN), by key. name: the weapon's name on its card and the hero screens ("" or absent:
+## the spell's own). range: px a bolt flies (in place of the row's speed x life). heal, heal_every: a light (a
+## "candle" row) heals the most hurt hero inside it `heal` hearts every `heal_every` s. The arena draws each skin
+## its own way (ArenaDrawFx, ArenaDrawWorld, Fx.swing): arrows, hammers of light, a white light with a cross, an arc.
+## The mage's "staff" is no skin: her school's spell as it is.
+const SKINS: Dictionary = {
+	"staff": {},
+	"cleave": {"name": "CLEAVE"},
+	"longbow": {"name": "LONGBOW", "range": 260.0},
+	"holy_light": {"name": "HOLY LIGHT", "heal": 1, "heal_every": 6.0},
+	"smite": {"name": "SMITE"},
+}
 
 ## Skills, fired by the nova button; each spends one nova charge.
 const SK_NOVA := 0
@@ -111,6 +124,35 @@ static func weapon(c: int, school: int = 0) -> int:
 
 static func skin(c: int) -> String:
 	return _cls_row(c)[C_SKIN]
+
+
+## The skin that dresses spell `sp` for class `c`: its C_SKIN when `sp` is the class's own weapon, else "" (a
+## mage's school spell and every spell a hero picks up later are drawn as they are).
+static func weapon_skin(c: int, sp: int) -> String:
+	if int(_cls_row(c)[C_WEAPON]) == SCHOOL_WEAPON or int(_cls_row(c)[C_WEAPON]) != sp:
+		return ""
+	return skin(c)
+
+
+## A number of skin `sk` (see SKINS), or `none` when it has none (or there is no such skin).
+static func skin_value(sk: String, field: String, none: float = 0.0) -> float:
+	return float((SKINS.get(sk, {}) as Dictionary).get(field, none))
+
+
+## The name a level-up card of Upgrades row `idx` shows a hero of class `c`: her class weapon's skin name on its
+## spell row (an archer's BONE SPEAR card reads LONGBOW), the row's own name on every other card.
+static func card_name(c: int, idx: int) -> String:
+	if Upgrades.is_weapon(idx):
+		var nm := str((SKINS.get(weapon_skin(c, Upgrades.spell_of(idx)), {}) as Dictionary).get("name", ""))
+		if nm != "":
+			return nm
+	return Upgrades.display_name(idx)
+
+
+## The class weapon's name: the skin's name, else the spell's (a mage's: her school's spell).
+static func weapon_name(c: int, school: int = 0) -> String:
+	var nm := str((SKINS.get(skin(c), {}) as Dictionary).get("name", ""))
+	return nm if nm != "" else Spells.spell_name(weapon(c, school))
 
 
 static func skill(c: int) -> int:

@@ -41,6 +41,7 @@ var flashes: Array = []  # [pos, radius, life, max, color]
 var anims: Array = []    # sprite effects that play once: [frames (atlas places), pos, vel, life, max, color, additive]
 var marks: Array = []    # glowing marks on the floor, drawn by `draw_floor`: [atlas place, pos, life, max, color]
 var pillars: Array = []  # columns of light: [pos, life, max, color]
+var swings: Array = []   # a CLEAVE's arc flash: [pos, radius, middle angle, half width, life, max, color]
 ## Where spells were cast since the arena last looked (it raises the caster's arm and flares the staff):
 ## [pos, caster slot or -1].
 var casts: Array = []
@@ -103,6 +104,9 @@ func _step(delta: float) -> void:
 	for c in pillars:
 		c[1] -= delta
 	pillars = pillars.filter(func(c: Array) -> bool: return c[1] > 0.0)
+	for w in swings:
+		w[4] -= delta
+	swings = swings.filter(func(w: Array) -> bool: return w[4] > 0.0)
 	if casts.size() > 64:
 		casts.clear()
 	_dying = maxf(0.0, _dying - delta * DEATH_DRAIN)
@@ -139,6 +143,10 @@ func burst(pos: Vector2, n: int, speed: float, life: float, size: float, c0: Col
 
 func ring(pos: Vector2, r0: float, r1: float, life: float, color: Color, width := 2.0) -> void:
 	rings.append([pos, r0, r1, life, life, color, width])
+
+## A sweep's flash: an arc `half` radians either side of `ang`, `radius` px from `pos`, that thins as it fades.
+func swing(pos: Vector2, radius: float, ang: float, half: float, color: Color, life := 0.25) -> void:
+	swings.append([pos, radius, ang, half, life, life, color])
 
 ## Lightning through `points`: it keeps BOLT_SHAPES jagged shapes and jumps between them while it lives.
 func bolt(points: PackedVector2Array, color: Color, life := 0.14) -> void:
@@ -448,6 +456,14 @@ func _draw_add() -> void:
 		for i in range(1, nodes.size()):
 			Sprites.glow(ci, nodes[i], 5.0, node_c)
 			Sprites.draw_mid(ci, "fx_core_1", nodes[i], core)
+	for w in swings:
+		var k: float = w[4] / w[5]
+		var c: Color = w[6]
+		var from: float = w[2] - w[3]
+		var to: float = w[2] + w[3]
+		ci.draw_arc(w[0], w[1], from, to, 16, Color(c, 0.9 * k), 1.0 + 2.0 * k)
+		ci.draw_arc(w[0], w[1] - 5.0, from, to, 14, Color(c, 0.45 * k), 1.0)
+		ci.draw_arc(w[0], w[1] - 10.0, from + w[3] * 0.3, to - w[3] * 0.3, 10, Color(Color.WHITE, 0.3 * k), 1.0)
 	for r in rings:
 		var k: float = 1.0 - r[3] / r[4]
 		var rad: float = lerpf(r[1], r[2], 1.0 - pow(1.0 - k, 2.0))

@@ -125,6 +125,9 @@ static func _draw_runes(a: Arena, ci: CanvasItem) -> void:
 		var k := _rune_alpha(a, c)
 		var since := fposmod(float(c[2]) - Spells.RUNE_ARM, Spells.RUNE_TICK)
 		var flare := clampf(1.0 - since / (Spells.RUNE_TICK * 0.5), 0.0, 1.0) if float(c[2]) >= Spells.RUNE_ARM else 0.0
+		if int(c[6]) == Spells.CIRCLE_CANDLE:
+			_draw_candle(a, ci, c, at, r, k, flare)
+			continue
 		var col: Color = a.SEAL_RING if evo else a.SPELL_COLORS[World.SP_RUNE]
 		var glyph: Color = a.SEAL_WHITE if evo else a.RUNE_GOLD
 		var turn := (a.time * 0.5 + float(c[4])) * (1.0 if int(c[4]) % 2 == 0 else -1.0)
@@ -153,6 +156,36 @@ static func _draw_runes(a: Arena, ci: CanvasItem) -> void:
 				Sprites.rect(ci, Rect2(mp.floor(), Vector2(1, 1)), Color(a.SEAL_WHITE, 0.7 * k * (1.0 - f * 0.5)))
 		elif inner > 3.0:
 			Occult.pentagram(ci, at, inner, Color(col, (0.3 + 0.4 * flare) * k), -turn * 0.5)
+
+
+## The colour of a circle in the snapshot: a rune circle's (the Seal's when evolved) or a light's (VIGIL CANDLE's
+## flame, or the class skin's: the priest's HOLY LIGHT is white).
+static func _circle_color(a: Arena, c: Array) -> Color:
+	if int(c[6]) == Spells.CIRCLE_CANDLE:
+		return ArenaDrawFx._spell_color(a, World.SP_CANDLE, int(c[4]))
+	return a.SEAL_RING if c[5] else a.SPELL_COLORS[World.SP_RUNE]
+
+
+## A vigil candle's light: a warm disc with a ring, flaring on each burn, and a candle in the middle; the priest's
+## HOLY LIGHT is white with a cross instead, and CONSECRATION adds a gold outer ring.
+static func _draw_candle(a: Arena, ci: CanvasItem, c: Array, at: Vector2, r: float, k: float, flare: float) -> void:
+	var col := _circle_color(a, c)
+	var holy := ArenaDrawFx._skin(a, int(c[4]), World.SP_CANDLE) == "holy_light"
+	ci.draw_circle(at, r, Color(col, (0.08 + 0.1 * flare) * k))
+	var segs := 40 if r > 24.0 else 28
+	ci.draw_arc(at, r, 0.0, TAU, segs, Color(col, (0.7 + 0.3 * flare) * k), 1.0)
+	if c[5]:
+		ci.draw_arc(at, r + 2.0, 0.0, TAU, segs, Color(a.RUNE_GOLD, 0.6 * k), 1.0)
+	var base := at.floor()
+	var flick := 1.0 if int(a.time * 8.0 + float(c[4])) % 2 == 0 else 0.0
+	Sprites.glow(ci, base + Vector2(0, -4), 8.0 + 3.0 * flare, Color(col, 0.5 * k))
+	if holy:
+		Sprites.rect(ci, Rect2(base.x, base.y - 9.0, 1.0, 11.0), Color(Color.WHITE, k))
+		Sprites.rect(ci, Rect2(base.x - 3.0, base.y - 6.0, 7.0, 1.0), Color(Color.WHITE, k))
+	else:
+		Sprites.rect(ci, Rect2(base.x - 1.0, base.y - 4.0, 3.0, 6.0), Color(Color("fff6e0"), k))
+		Sprites.rect(ci, Rect2(base.x, base.y - 7.0 - flick, 1.0, 3.0 + flick), Color(Color.WHITE, k))
+		Sprites.rect(ci, Rect2(base.x - 1.0, base.y - 6.0, 3.0, 2.0), Color(col, k))
 
 
 ## The shadow under an actor or a pickup: a squat lozenge `w` wide, from the atlas so it batches with the sprites.

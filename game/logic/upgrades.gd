@@ -32,6 +32,15 @@ const M_PENTACLES := 21
 const M_SWORDS := 22
 const M_WANDS := 23
 const MINORS: Array[int] = [M_CUPS, M_PENTACLES, M_SWORDS, M_WANDS]
+## Wave 3: two spells, their partner passives and their evolutions, then the knight's CLEAVE (a class weapon: it
+## requires itself, so only a hero who starts with it is ever offered it).
+const W_BONE := 24
+const W_CANDLE := 25
+const JUSTICE := 26
+const LOVERS := 27
+const E_BONE := 28
+const E_CANDLE := 29
+const W_CLEAVE := 30
 
 ## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE a passive slot (World.slot_cap); an
 ## INSTANT acts once when taken; an EVOLUTION replaces its spell in the same slot; a MINOR arcana card fills a
@@ -95,7 +104,22 @@ const CATALOG: Array = [
 	["pentacles", "PENTACLES", "+10 GOLD", 1.0, [10.0], [], MINOR, -1],
 	["swords", "SWORDS", "+1 NOVA", 1.0, [1.0], [], MINOR, -1],
 	["wands", "WANDS", "+3% DAMAGE", 1.0, [0.03], [], MINOR, -1],
+	["w_bone", "BONE SPEAR", "PIERCES ALL", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 6],
+	["w_candle", "VIGIL CANDLE", "HASTING LIGHT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 7],
+	# JUSTICE: the chance a slain foe bursts (JUSTICE_SHARE of its health within JUSTICE_RADIUS px).
+	["justice", "JUSTICE", "FOES BURST", 7.0, [0.06, 0.12, 0.18], [], PASSIVE, -1],
+	# THE LOVERS: cast speed within LOVERS_RANGE px of an ally (an apprentice counts), LOVERS_ALONE of it alone.
+	["lovers", "THE LOVERS", "HASTE TOGETHER", 7.0, [0.08, 0.16, 0.24], [], PASSIVE, -1],
+	["e_bone", "OSSUARY LANCE", "SPLINTER HITS", 40.0, [1.0], [[W_BONE, 5], [JUSTICE, 1]], EVOLUTION, 6],
+	["e_candle", "CONSECRATION", "HEALING LIGHT", 40.0, [1.0], [[W_CANDLE, 5], [LOVERS, 1]], EVOLUTION, 7],
+	["w_cleave", "CLEAVE", "A SWEEPING ARC", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [[W_CLEAVE, 1]], SPELL, 8],
 ]
+## JUSTICE's burst: the share of the slain foe's max health it deals, and its radius, px.
+const JUSTICE_SHARE := 0.6
+const JUSTICE_RADIUS := 30.0
+## THE LOVERS: how near an ally must stand, px, and the share of the bonus she keeps alone.
+const LOVERS_RANGE := 60.0
+const LOVERS_ALONE := 0.5
 
 
 static func count() -> int:
@@ -360,6 +384,16 @@ static func magnet_mul(levels: Dictionary) -> float:
 
 static func xp_mul(levels: Dictionary) -> float:
 	return value(levels, WISDOM, 1.0)
+
+
+## JUSTICE: the chance a foe this wizard slays bursts, 0 without it.
+static func justice_chance(levels: Dictionary) -> float:
+	return value(levels, JUSTICE, 0.0)
+
+
+## THE LOVERS: the cast speed added near an ally (`together`) or alone, 0 without it.
+static func lovers_bonus(levels: Dictionary, together: bool) -> float:
+	return value(levels, LOVERS, 0.0) * (1.0 if together else LOVERS_ALONE)
 
 
 ## Up to `n` different upgrades the player can still take (available under `cap` and `banned`), drawn by

@@ -355,6 +355,8 @@ func _source_name(src: int) -> String:
 		return "nova"
 	if src == Results.SRC_ORBIT:
 		return "orbit"
+	if src == Results.SRC_JUSTICE:
+		return "justice"
 	if src >= 0 and src < Spells.COUNT:
 		return Upgrades.key(Upgrades.weapon_entry(src)).trim_prefix("w_")
 	return "other"

@@ -430,7 +430,7 @@ func _draw_detail(ci: CanvasItem, t: float) -> void:
 			_y += 12
 			_line(ci, "ROLE", String(Classes.ROLE_NAMES[Classes.role(sel)]), Occult.BONE)
 			var wp := "THE SPELL OF YOUR SCHOOL" if Classes.weapon(sel) == Classes.SCHOOL_WEAPON else \
-				Spells.spell_name(Classes.weapon(sel))
+				Classes.weapon_name(sel)
 			_line(ci, "WEAPON", wp, Occult.BONE)
 			_line(ci, "SKILL", Classes.skill_name(Classes.skill(sel)), Occult.BONE)
 			_y += 4
@@ -463,9 +463,8 @@ func _draw_confirm(ci: CanvasItem, t: float) -> void:
 		PixelFont.draw(ci, str(pts[st]), Vector2(sx + 52, sy), 1, Occult.BONE if int(pts[st]) > 0 else Color(1, 1, 1, 0.3), Occult.INK)
 	PixelFont.draw(ci, "HEARTS", Vector2(x, 118), 1, Occult.GOLD, Occult.INK)
 	HeroSheet.draw_hearts(ci, Vector2(x + 48, 117), Classes.hearts(cls))
-	var wp := Hero.make(race, cls, school).weapon()
 	PixelFont.draw(ci, "WEAPON", Vector2(x, 130), 1, Occult.GOLD, Occult.INK)
-	PixelFont.draw(ci, Spells.spell_name(wp), Vector2(x + 48, 130), 1, Occult.BONE, Occult.INK)
+	PixelFont.draw(ci, Classes.weapon_name(cls, school), Vector2(x + 48, 130), 1, Occult.BONE, Occult.INK)
 	PixelFont.draw(ci, "SKILL", Vector2(x, 142), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, Classes.skill_name(Classes.skill(cls)), Vector2(x + 48, 142), 1, Occult.BONE, Occult.INK)
 	PixelFont.draw(ci, "TRAIT", Vector2(x, 154), 1, Occult.GOLD, Occult.INK)

@@ -41,10 +41,13 @@ const PLAYER_COLORS := [
 		"deep": Color("7a3d0a")},
 ]
 
-## One colour per spell (World.SP_ARCANE .. SP_RUNE): its shots, its tome and its icon. The arcane bolt is drawn
+## One colour per spell (World.SP_ARCANE .. SP_CLEAVE): its shots, its tome and its icon. The arcane bolt is drawn
 ## in its caster's `fx` colour instead. No spell is red: red on the floor is always an enemy's shot.
-const SPELL_COLORS := [Color("c9a6ff"), Color("ff9a3c"), Color("8fe3ff"), Color("ffe58a"), Color("ff4df2"), Color("b07bff")]
-const SPELL_DARK := [Color("7b4dff"), Color("c85a1e"), Color("4fa3d8"), Color("c48a10"), Color("a01d9a"), Color("5a2ac8")]
+## Wave 3 appends BONE SPEAR (bone), VIGIL CANDLE (candle flame) and CLEAVE (steel).
+const SPELL_COLORS := [Color("c9a6ff"), Color("ff9a3c"), Color("8fe3ff"), Color("ffe58a"), Color("ff4df2"), Color("b07bff"),
+	Color("e8dcc0"), Color("ffcf5a"), Color("d8e4f0")]
+const SPELL_DARK := [Color("7b4dff"), Color("c85a1e"), Color("4fa3d8"), Color("c48a10"), Color("a01d9a"), Color("5a2ac8"),
+	Color("b7a98e"), Color("c48a10"), Color("6c7a90")]
 ## The rune shield's orbs and its tome.
 const ORBIT_COLOR := Color("32e0c4")
 ## Experience motes.

@@ -124,7 +124,8 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	i = 0
 	while i + 6 <= sh.size():
 		var sk := int(sh[i])
-		a.vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
+		a.vs.append([Spells.shot_spell(sk), Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]),
+			Spells.shot_evolved(sk)])
 		i += 6
 	a.vhz = snap.get("hz", PackedFloat32Array())
 	a.vr.clear()

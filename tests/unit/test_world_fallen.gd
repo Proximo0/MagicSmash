@@ -368,4 +368,6 @@ func test_solo_run_is_pinned() -> void:
 	assert_eq(hash(rows), SOLO_PIN, "solo plays as before")
 
 
-const SOLO_PIN := 1036301149
+## Re-pinned when wave 3 grew the catalogue (BONE SPEAR, VIGIL CANDLE, JUSTICE, THE LOVERS and their evolutions,
+## CLEAVE): the level-up offers changed. With those rows banished the run still hashes 1036301149, the old pin.
+const SOLO_PIN := 3618684229
