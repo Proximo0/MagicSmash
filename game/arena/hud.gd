@@ -145,8 +145,20 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
 static func centre(a: Arena, ci: CanvasItem, dark: Color) -> void:
+	# The run's step (any but WIZARD) on a plate left of the level-and-clock pill, the way the lull's hangs right.
+	if a.game_over or a.victory:
+		return
+	if a.seal != 0:
+		var pw := PixelFont.text_width("LV %d" % a.party_level, 1) + 6 + PixelFont.text_width(ArenaFateView._clock(a.run_t), 1) + 8
+		var step := Seals.title(a.seal)
+		var sw := PixelFont.text_width(step, 1) + 8
+		var sy := 234.0 if a.boss_f > 0.0 else G.SCREEN.y - 13.0
+		var sx := floorf(240.0 - pw / 2.0) - 3.0 - sw
+		ci.draw_rect(Rect2(sx, sy, sw, 12), Color(dark, 0.92))
+		ci.draw_rect(Rect2(sx, sy - 1, sw, 1), Color("2f2450"))
+		PixelFont.draw(ci, step, Vector2(sx + 4, sy + 3), 1, Color("8bff9e") if a.seal < 0 else Color("ffb347"), dark)
 	# The fates in force: plain tags stacked over the level-and-clock pill at the foot of the screen.
-	if a.game_over or a.victory or a.fates.size() < 2:
+	if a.fates.size() < 2:
 		return
 	var tags: Array[String] = []
 	if a.fates[0] > 0.0:

@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_one_card_per_enemy_type() -> void:
-	assert_eq(Cards.count(), 12)
+	assert_eq(Cards.count(), 12 + 8, "a card per first-act monster, then one per Seal")
 	var keys := {}
 	for i: int in range(Cards.count()):
 		assert_false(keys.has(Cards.key(i)), "duplicate key " + Cards.key(i))
@@ -61,3 +61,66 @@ func test_secrets_are_listed_once_and_words_answer() -> void:
 	p.find_secret("cat")
 	p.find_secret("not_listed")
 	assert_eq(Secrets.found(p), 1)
+
+
+## The eight Seal cards: socketable like the others, never dropped by a monster's own roll.
+func test_seal_cards_follow_the_monsters() -> void:
+	for level: int in range(2, Seals.MAX + 1):
+		var c := Seals.card(level)
+		assert_eq(Cards.key(c), "seal_%d" % (level - 1))
+		assert_true(Cards.socket(c) >= 0 and Cards.socket(c) < Cards.SOCKETS)
+		var sockets := [-1, -1, -1]
+		sockets[Cards.socket(c)] = c
+		var st := Cards.socket_stats(sockets)
+		assert_true(float(st[Cards.CARDS[c][3]]) > 0.0, Cards.key(c) + " adds its stat when socketed")
+	for i: int in range(Cards.count()):
+		assert_eq(Cards.enemy(i) < 0, Cards.key(i).begins_with("seal_"), Cards.key(i))
+
+
+## Cards map to enemy kinds explicitly: the first twelve kinds have their card, Seal cards have no kind, and the
+## newer kinds (Bestiary ids 12 and up) have none, so their kills never drop a Seal card.
+func test_cards_map_to_enemies_by_kind_not_index() -> void:
+	for t: int in range(12):
+		var c := Cards.for_enemy(t)
+		assert_true(c >= 0, "kind %d has a card" % t)
+		assert_eq(Cards.enemy(c), t)
+		assert_true(Cards.enemy(c) < MonsterCard.ENEMY_SPRITES.size(), "a sprite for its face")
+	for t: int in range(12, Bestiary.count()):
+		assert_eq(Cards.for_enemy(t), -1, "kind %d has no card yet" % t)
+		assert_eq(Cards.drop_chance(t, true, 0.5, 2.0, 0.5), 0.0)
+	assert_eq(Cards.for_enemy(-1), -1)
+	assert_eq(Cards.enemy(-1), -1)
+	assert_eq(Cards.enemy(99), -1)
+	for i: int in range(200):
+		var r := RandomNumberGenerator.new()
+		r.seed = i
+		assert_true(Cards.enemy(Sanctum.roll_card(r)) >= 0, "pots and urns never hand out a Seal card")
+
+
+## The album (game/ui/card_album.gd) pages its grid: every page's cells sit above the info panel, inside 270 px,
+## and up/down reach every card.
+func test_album_pages_fit_and_reach_every_card() -> void:
+	var album := CardAlbum.new()
+	assert_eq(CardAlbum.pages(), 2)
+	for i: int in range(Cards.count()):
+		album.sel = i
+		var r := album._cell(i)
+		assert_true(r.end.y + 2 <= 202 and r.position.y >= 30, "card %d sits in the grid" % i)
+		assert_true(r.end.x <= 472)
+	var seen := {}
+	for start: int in range(CardAlbum.COLS):
+		var i := start
+		for k: int in range(10):
+			seen[i] = true
+			i = CardAlbum._row_step(i, 1)
+	assert_eq(seen.size(), Cards.count(), "down reaches every card")
+	assert_eq(CardAlbum._row_step(0, -1), 18, "up from the top wraps to the last card in that column")
+	assert_eq(CardAlbum._row_step(15, 1), 3, "down past a short last row wraps to the first row")
+	album.sel = 3
+	album._turn(1)
+	assert_eq(album.sel, 15)
+	album._turn(1)
+	assert_eq(album.sel, 3)
+	album.sel = 11
+	album._turn(1)
+	assert_eq(album.sel, 19, "a short page takes its last card")

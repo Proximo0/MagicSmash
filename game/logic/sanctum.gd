@@ -187,13 +187,20 @@ func use() -> int:
 static func roll_card(r: RandomNumberGenerator) -> int:
 	var total := 0.0
 	for i: int in range(Cards.count()):
-		total += LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
+		total += _card_weight(i)
 	var x := r.randf() * total
 	for i: int in range(Cards.count()):
-		x -= LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
+		x -= _card_weight(i)
 		if x < 0.0:
 			return i
-	return Cards.count() - 1
+	return Cards.for_enemy(Bestiary.PRIEST)
+
+
+## A card's weight in roll_card: none for a Seal card (no monster drops it), the Lich card far rarer.
+static func _card_weight(i: int) -> float:
+	if Cards.enemy(i) < 0:
+		return 0.0
+	return LICH_WEIGHT if Cards.key(i) == "lich" else CARD_WEIGHT
 
 
 ## What toss number `wishes` (counting this one) pays: the ninth wish's 30 crystals only the first time the secret is

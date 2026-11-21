@@ -196,7 +196,7 @@ static func _update_spirit(w: World, p: World.Player, dt: float, inp: PackedFloa
 	if not inside.is_empty():
 		if p.revive <= 0.0:
 			_ritual_push(w, p.pos)
-		p.revive += dt * inside.size() / (w.tune.ritual_time + w.tune.ritual_step * p.rituals)
+		p.revive += dt * inside.size() / ((w.tune.ritual_time + w.tune.ritual_step * p.rituals) * w.seal_ritual) # DARKNESS
 		if p.revive >= 1.0:
 			p.rituals += 1
 			for q: World.Player in inside:

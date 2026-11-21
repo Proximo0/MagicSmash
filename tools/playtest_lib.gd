@@ -40,7 +40,8 @@ func run() -> int:
 			push_error("cannot write " + _json)
 		else:
 			f.store_string(JSON.stringify({"args": OS.get_cmdline_user_args(), "groups": groups}, " "))
-	print("PLAYTEST runs=%d minutes=%.0f seed=%d | %s" % [_runs * groups.size(), _minutes, _seed, " | ".join(summary)])
+	print("PLAYTEST runs=%d minutes=%.0f seed=%d seal=%d %s | %s" % [_runs * groups.size(), _minutes, _seed, _seal,
+		Seals.title(_seal), " | ".join(summary)])
 	return 0
 
 
@@ -455,7 +456,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 # ============================================================== PRINT ===
 func _print_group(g: Dictionary) -> void:
 	var n: int = (g.runs as Array).size()
-	print("== %s x%d: %d runs, seeds %d-%d ==" % [g.persona, g.wizards, n, _seed, _seed + n - 1])
+	print("== %s x%d: %d runs, seeds %d-%d, %s ==" % [g.persona, g.wizards, n, _seed, _seed + n - 1, Seals.title(_seal)])
 	print("win %d/%d  end %s  wipe %s  first down %s  out %s" % [g.wins, n, _span(g.end), _span(g.wipe),
 		_span(g.first_down), _span(g.out)])
 	print("per min: downs %.2f  hits %.2f  picks %.2f  damage %.0f" % [g.downs_per_min, g.hits_per_min,
