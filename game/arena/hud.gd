@@ -112,20 +112,36 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 		PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
 
 
-## A seat's build in its panel (content from `x`): one pip per spell in the order taken, filled by level; an
-## evolved one glows white at the rim. Passives are not drawn yet.
+## A seat's build in its panel (content from `x`): one pip per spell slot in the order taken, filled by level (an
+## evolved one glows white at the rim), and under it a thinner pip per passive slot; a free slot is a dim outline,
+## so the player sees how many are left (the cap rises after the first Lich).
 static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary, _dark: Color) -> void:
 	var spells: Array = p.get("spells", [])
-	for k in spells.size():
-		var sp := Upgrades.spell_of(int(spells[k][0]))
-		var wlv: int = spells[k][1]
-		if wlv <= 0 or sp < 0:
-			continue
-		# Four pips fit at 9 px a step; a fifth and sixth (no slot cap yet) squeeze them to 7 px.
-		var step := 9.0 if spells.size() <= 4 else 7.0
+	var passives: Array = p.get("passives", [])
+	var cap: Vector2i = a.slot_cap
+	var n_sp := clampi(maxi(spells.size(), cap.x), 1, World.P_SLOTS)
+	var n_pa := clampi(maxi(passives.size(), cap.y), 0, World.P_SLOTS)
+	# Four pips fit at 9 px a step; a fifth and sixth squeeze them to 7 px.
+	var step := 9.0 if maxi(n_sp, n_pa) <= 4 else 7.0
+	for k in n_sp:
 		var px := x + 64 + k * step
+		var wlv: int = int(spells[k][1]) if k < spells.size() else 0
+		var sp := Upgrades.spell_of(int(spells[k][0])) if k < spells.size() else -1
+		if wlv <= 0 or sp < 0:
+			ci.draw_rect(Rect2(px, 3, step - 1, 4), Color("2a2140")) # a free slot: a dim frame
+			ci.draw_rect(Rect2(px + 1, 4, step - 3, 2), Color("0b0716"))
+			continue
 		ci.draw_rect(Rect2(px, 3, step - 1, 4), Color.WHITE if wlv > Spells.MAX_LEVEL else Color("3a2f55"))
 		ci.draw_rect(Rect2(px + 1, 4, (step - 3) * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 2), a.SPELL_COLORS[sp])
+	for k in n_pa:
+		var px := x + 64 + k * step
+		if k >= passives.size():
+			ci.draw_rect(Rect2(px, 8, step - 1, 2), Color("2a2140"))
+			continue
+		var idx := int(passives[k][0])
+		var top := maxi(1, Upgrades.max_level(idx))
+		ci.draw_rect(Rect2(px, 8, step - 1, 2), Color("3a2f55"))
+		ci.draw_rect(Rect2(px, 8, (step - 1) * mini(int(passives[k][1]), top) / top, 2), Color("ffd94d"))
 
 
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.

@@ -5,6 +5,9 @@ class_name PlayerInput
 ## or mouse to aim + left click to fire. Space / right click = Nova.
 ## Gamepad: left stick move, right stick aim + fire, RB, RT or A = Nova. LB and LT are not read here: they open
 ## the level-up card tray (Arena).
+## The arena appends fields 6 and 7, [card, offer id] (ArenaSeats._with_pick): card 0..2 takes that card,
+## Upgrades.REDRAW_INPUT (-2; R or the d-pad's down with the tray open) redraws the hand, Upgrades.BANISH_INPUT + c
+## (10 + c; the card's button held ArenaTray.BANISH_HOLD s) banishes card c, -1 does nothing.
 
 static var bomb_counts := {}
 static var _bomb_held := {}

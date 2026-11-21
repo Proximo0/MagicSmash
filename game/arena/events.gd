@@ -293,6 +293,10 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				if a.time - a._pick_sfx_t > 0.12:
 					a._pick_sfx_t = a.time # four wizards picking at once play it once
 					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
+			World.EV_SLOTS:
+				# The cap rises after the first Lich (the first snapshot's cap is no news).
+				if int(ev[3]) > Upgrades.SLOTS_EARLY.x:
+					ArenaFateView._banner(a, "A FOURTH SLOT OPENS", "ONE MORE SPELL AND ONE MORE PASSIVE", Color("ffd94d"), 2.4, true)
 			World.EV_LULL:
 				a._lull_full = maxf(1.0, float(ev[3]))
 				ArenaFateView._banner(a, "RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)

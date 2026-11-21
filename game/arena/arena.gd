@@ -27,9 +27,9 @@ const COMBO_WORDS := 50
 const ENEMY_SHADOW := [10, 10, 12, 8, 0, 16, 10, 26, 0, 0, 16, 10]
 const ENEMY_ANIM := [10.0, 7.0, 0.0, 7.0, 14.0, 5.0, 2.5, 3.0, 3.0, 10.0, 7.0, 3.0]
 const PICKUP_KEYS := ["coin", "gem", "potion", "tome_fire", "tome_frost", "tome_storm", "tome_star", "boot", "tome_orbit", "xp", "chest",
-	"tome_rune", "card", "chest_rare", "chest_ultra"]
+	"tome_rune", "card", "chest_rare", "chest_ultra", "tome_star"] # the party tome wears the star tome's look
 const PICKUP_NAMES := ["", "", "POTION +2", "FIREBALL!", "FROST FAN!", "CHAIN LIGHTNING!", "STARFALL!", "HASTE!", "RUNE SHIELD!", "", "",
-	"RUNE CIRCLE!", "", "", ""]
+	"RUNE CIRCLE!", "", "", "", "PARTY TOME"]
 ## Loot tier colours (Loot.COMMON .. Loot.ULTRA): readable in 3 seconds with the sound off.
 const RARITY_COLORS := [Color("c9c9d6"), Color("4d9bff"), Color("c04dff"), Color("ffb84d"), Color("ff4df2")]
 ## Seconds a chest reel spins before it shows the item, and how long the item stays up after.

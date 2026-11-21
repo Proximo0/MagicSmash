@@ -241,6 +241,7 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage)
 	w.record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_source(w.stat_src, minf(dmg, maxf(0.0, e.hp)))
+	w.record.add_slot_source(slot, w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
 	e.knock += knock * _heft(w, e)
@@ -278,6 +279,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 		for i in World.ELITE_GEMS:
 			WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / World.ELITE_GEMS) * 70.0)
 		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2(0, 30), w.tune.chest_life, int(w.tune.elite_chest_luck))
+		WorldLevels._drop_party_tome(w, e.pos, WorldLevels.PARTY_TOME_ELITE)
 		return
 	match e.type:
 		World.SLIME:
@@ -298,6 +300,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 			for i in 14:
 				WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
 			WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40))
+			WorldLevels._drop_party_tome(w, e.pos)
 			for i in w.players.size():
 				WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
 					w.tune.chest_life, int(w.tune.boss_chest_luck))
