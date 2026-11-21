@@ -77,7 +77,7 @@ static func _clock_runs(a: Arena, p: Dictionary) -> bool:
 	if float(p.get("down_left", -1.0)) <= 0.0:
 		return false
 	for q: Dictionary in a.vp.values():
-		if q.alive and (q.pos as Vector2).distance_to(p.pos) <= WorldPlayers.RITUAL_R:
+		if q.alive and (q.pos as Vector2).distance_to(p.pos) <= Tuning.shared().ritual_radius:
 			return false
 	return true
 
@@ -85,7 +85,7 @@ static func _clock_runs(a: Arena, p: Dictionary) -> bool:
 ## The ritual circle: a dark ring with a dim rim in her colour, filled clockwise from the top by the progress.
 static func _draw_circle(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var c: Vector2 = p.pos
-	var r := WorldPlayers.RITUAL_R
+	var r := Tuning.shared().ritual_radius
 	var col := G.player_color(int(p.slot))
 	var beat := 0.75 + 0.25 * sin(a.time * 3.0)
 	ci.draw_arc(c, r, 0.0, TAU, 48, RING_BACK, 4.0)
@@ -109,8 +109,12 @@ static func _draw_spirit(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, false, 0, int(a.time * 2.0 + slot * 0.5), false, aim.x >= 0.0)
 	var feet: Vector2 = (p.pos as Vector2) + Vector2(0, -2.0 + roundf(sin(a.time * 2.5 + slot) * 1.5))
 	var col := G.player_color(slot)
-	Sprites.draw_at(ci, key + "~", feet + Vector2(0, SpritesWizards.HALO), flip, false, Color(col.lerp(Color.WHITE, 0.3), 0.6))
-	Sprites.draw_at(ci, key, feet, flip, false, Color(col.lerp(Color.WHITE, 0.8) * 1.3, 0.5))
+	# A 1 px rim in her seat's colour (the sprite's white flash frame, tinted, one pixel out each way), so she can be
+	# found in a crowd, then the body pale and half see-through over it.
+	var rim := Color(col.lerp(Color.WHITE, 0.15), 0.9)
+	for o: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+		Sprites.draw_at(ci, key, feet + o, flip, true, rim)
+	Sprites.draw_at(ci, key, feet, flip, false, Color(col.lerp(Color.WHITE, 0.85) * 1.4, 0.72))
 
 
 static func _pings(a: Arena) -> Array:

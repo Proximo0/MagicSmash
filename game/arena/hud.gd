@@ -108,7 +108,7 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 		# Row two is 8 px tall between the score and the third row: the 7 px text fits only without an outline.
 		PixelFont.draw(ci, "DOWN", Vector2(x, 9), 1, Color("ff6a4d") if blink else Color("fff6e0"))
 		if left > 0.0:
-			PixelFont.draw(ci, "%d" % ceili(left), Vector2(x + 26, 9), 1, col.lerp(Color.WHITE, 0.5))
+			PixelFont.draw(ci, "%d" % ceili(left), Vector2(x + 24, 9), 1, col.lerp(Color.WHITE, 0.5)) # ends 3 px before the hats at x + 38
 		var prog := clampf(float(p.get("revive", 0.0)), 0.0, 1.0)
 		if prog > 0.0:
 			ci.draw_rect(Rect2(x, 16, 23, 1), Color(dark, 1.0).lightened(0.15))

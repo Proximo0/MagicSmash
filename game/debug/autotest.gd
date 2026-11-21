@@ -38,7 +38,8 @@ var _level_shots := {}
 const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5} # tab: its marker
 var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
 ## --fall=SECONDS (2+ players): at that run time slot 1 falls; fallen.png shows her spirit with its clock running,
-## then slot 0 is held in her circle and fallen_ritual.png shows the circle about half filled (HUD: DOWN).
+## fallen_call.png her call's ping, then slot 0 is held in her circle and fallen_ritual.png shows the circle about
+## half filled (HUD: DOWN).
 var fall_at := -1.0
 var _fall_step := 0
 var _fall_t := 0.0
@@ -337,7 +338,8 @@ func _perf_tick() -> void:
 	get_tree().quit()
 
 
-## --fall: slot 1 falls at fall_at s of run time; shots of her spirit (clock running) and of a ritual half done.
+## --fall: slot 1 falls at fall_at s of run time and calls for help at once (as her nova would); shots of the call's
+## ping, of her spirit (clock running) and of a ritual about half done. Bots may raise her before the last one.
 func _fall_tick(cur: Node) -> void:
 	var w: World = cur.world
 	if not w.players.has(1) or w.players.size() < 2:
@@ -348,21 +350,31 @@ func _fall_tick(cur: Node) -> void:
 			if w.wave_time >= fall_at and p.alive and not w.is_picking():
 				p.invuln = 0.0
 				w.hurt_player(p, 99)
-				_fall_step = 1 if p.down else 0
-				_fall_t = t
+				if p.down:
+					w.emit(World.EV_CALL, p.pos.x, p.pos.y, p.slot, 0)
+					_fall_step = 1
+					_fall_t = t
 		1:
-			if t - _fall_t > 1.2:
-				get_viewport().get_texture().get_image().save_png("%s/fallen.png" % out_dir)
-				print("shot fallen")
+			if t - _fall_t > 0.3:
+				_fall_shot("fallen_call")
 				_fall_step = 2
 		2:
+			if t - _fall_t > 0.8:
+				_fall_shot("fallen")
+				_fall_step = 3
+		3:
 			if not p.down:
+				print("fallen_ritual: she rose before the shot")
 				_fall_step = 4
 				return
 			var q: World.Player = w.players[0]
 			q.pos = p.pos + Vector2(4, 3)
 			q.invuln = maxf(q.invuln, 0.5)
-			if p.revive >= 0.5:
-				get_viewport().get_texture().get_image().save_png("%s/fallen_ritual.png" % out_dir)
-				print("shot fallen_ritual")
+			if p.revive >= 0.45:
+				_fall_shot("fallen_ritual")
 				_fall_step = 4
+
+
+func _fall_shot(name: String) -> void:
+	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out_dir, name])
+	print("shot ", name)
