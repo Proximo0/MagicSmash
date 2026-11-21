@@ -27,6 +27,8 @@ var seats := false # --seats: two apprentices join the lobby
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
+var _damage_shot := false
+var _damage_shot_at := -1.0
 var quit_at := 60.0
 var _quit_override := -1.0
 var net := ""
@@ -303,6 +305,14 @@ func _process(delta: float) -> void:
 		_results_shot = true
 		get_viewport().get_texture().get_image().save_png("%s/results.png" % out_dir)
 		print("shot results")
+	if _results_shot and not _damage_shot and cur and "results_page" in cur and cur.game_over and cur.game_over_t > 3.6:
+		cur.results_page = ArenaResultsView.DMG_PAGE # the damage page, as the fire press leaves the first
+		_damage_shot = true
+		_damage_shot_at = t + 0.2
+	if _damage_shot and _damage_shot_at > 0.0 and t >= _damage_shot_at:
+		_damage_shot_at = -1.0
+		get_viewport().get_texture().get_image().save_png("%s/results_damage.png" % out_dir)
+		print("shot results_damage")
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
@@ -327,7 +337,7 @@ func _process(delta: float) -> void:
 			tv.message_t = 0.0
 			tv.dlg.active = false
 			for sp: int in range(3):
-				G.talk_seen["%d/first" % sp] = true # the shots show the run-based lines, not the first visit's
+				Save.profile.first_time(Profile.first_key(sp)) # the shots show the run-based lines, not the first visit's
 			if name == "@talk_shop":
 				tv._talk(Talk.SHOPKEEPER, {"result": "loss", "act": 1, "seal": 0})
 			elif name == "@talk_reader":

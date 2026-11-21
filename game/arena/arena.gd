@@ -77,6 +77,7 @@ var doors := [0.0, 0.0, 0.0, 0.0]
 var door_anim := [0.0, 0.0, 0.0, 0.0]
 var game_over := false
 var game_over_t := 0.0
+var results_page := 0 # 0 the first page, 1 the damage page (ArenaResultsView)
 var final_score := 0
 var crystals_earned := 0
 var results: Results = null # the run record, from EV_RESULTS
@@ -479,16 +480,17 @@ var _stars_seen: Array = []
 
 func _unhandled_input(event: InputEvent) -> void:
 	if game_over:
-		if game_over_t > 2.0 and not is_host and PlayerInput.results_dismiss(event):
-			_quit_to_title() # a client leaves the results on its own
-		elif game_over_t > 2.0 and is_host:
-			if PlayerInput.results_dismiss(event):
-				if Net.mode == Net.Mode.OFFLINE:
-					Engine.time_scale = 1.0
-					Net.shutdown()
-					G.goto_sanctum()
-				else:
-					_quit_to_title()
+		if game_over_t > 2.0 and PlayerInput.results_dismiss(event):
+			if ArenaResultsView.next_page(self):
+				return
+			if not is_host:
+				_quit_to_title() # a client leaves the results on its own
+			elif Net.mode == Net.Mode.OFFLINE:
+				Engine.time_scale = 1.0
+				Net.shutdown()
+				G.goto_sanctum()
+			else:
+				_quit_to_title()
 		return
 	var start = (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ESCAPE, KEY_P]) \
 		or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)

@@ -354,6 +354,18 @@ func refresh_seat_heroes() -> void:
 			seat_heroes[d] = _first_free_hero(int(d))
 		_send_seat_hero(int(d))
 
+## Hero `removed` was just deleted from the profile: every local seat's held index follows the shift (one lower above
+## her), and a seat that held her takes the first free hero. Call it once per deletion, before refresh_seat_heroes.
+func hero_removed(removed: int) -> void:
+	var lost: Array[int] = []
+	for d: Variant in seat_heroes.keys():
+		var held := int(seat_heroes[d])
+		seat_heroes[d] = Profile.index_after_removal(held, removed)
+		if held == removed:
+			lost.append(int(d))
+	for d: int in lost:
+		seat_heroes[d] = _first_free_hero(d)
+
 ## The profile hero indices this machine's human seats play, each once, no guests (G.run_heroes).
 func played_heroes() -> Array[int]:
 	var out: Array[int] = []

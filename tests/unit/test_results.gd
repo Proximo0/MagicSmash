@@ -98,3 +98,49 @@ func test_world_records_damage_by_spell_per_wizard() -> void:
 	w._damage_enemy(e, 2.0, 1, Vector2.ZERO)
 	assert_true(float(w.record.slot_source_damage[1][World.SP_FROST]) > 0.0)
 	assert_false(w.record.slot_source_damage.has(0))
+
+
+func test_damage_rows_order_ties_and_cut() -> void:
+	var r := Results.new([0, 1])
+	r.add_slot_source(0, World.SP_FIRE, 300.0)
+	r.add_slot_source(0, World.SP_FROST, 300.0)
+	r.add_slot_source(0, World.SP_ARCANE, 300.0)
+	r.add_slot_source(0, Results.SRC_NOVA, 500.0)
+	r.add_slot_source(0, Results.SRC_ORBIT, 5.0) # 0.4%: under the cut
+	var rows: Array = r.damage_rows(0)
+	assert_eq(rows.size(), 4, "the tiny source is left out")
+	assert_eq(int(rows[0][0]), Results.SRC_NOVA, "most damage first")
+	assert_eq([int(rows[1][0]), int(rows[2][0]), int(rows[3][0])], [World.SP_ARCANE, World.SP_FIRE, World.SP_FROST], "ties: lower source first")
+	assert_eq(int(rows[0][2]), 35)
+	var sum := 0
+	for row: Array in rows:
+		sum += int(row[2])
+	assert_true(sum <= 100, "shares add up to at most 100")
+
+
+func test_damage_rows_limit_and_nothing_dealt() -> void:
+	var r := Results.new([0, 1])
+	for sp: int in range(Results.DAMAGE_ROWS + 2):
+		r.add_slot_source(0, sp, 100.0)
+	assert_eq(r.damage_rows(0).size(), Results.DAMAGE_ROWS)
+	assert_eq(r.damage_rows(0, 2).size(), 2)
+	assert_true(r.damage_rows(1).is_empty(), "a wizard who dealt nothing")
+	assert_true(r.damage_rows(7).is_empty(), "no such wizard")
+	r.add_slot_source(1, World.SP_FIRE, 0.0)
+	assert_true(r.damage_rows(1).is_empty(), "zero damage is no row")
+
+
+func test_damage_rows_survive_the_wire() -> void:
+	var r := Results.new([0])
+	r.add_slot_source(0, World.SP_FIRE, 70.0)
+	r.add_slot_source(0, Results.SRC_ORBIT, 30.0)
+	assert_eq(Results.from_dict(r.to_dict()).damage_rows(0), r.damage_rows(0))
+
+
+func test_source_names() -> void:
+	assert_eq(Results.source_name(Results.SRC_NOVA, Classes.KNIGHT), "NOVA")
+	assert_eq(Results.source_name(Results.SRC_JUSTICE, Classes.KNIGHT), "JUSTICE")
+	var cls := Classes.KNIGHT
+	assert_eq(Results.source_name(Classes.weapon(cls), cls), Classes.weapon_name(cls), "the class weapon by its class name")
+	assert_eq(Results.source_name(World.SP_FIRE, cls), Spells.spell_name(World.SP_FIRE))
+	assert_eq(Results.source_name(999, cls), "OTHER")

@@ -261,3 +261,21 @@ func test_a_joining_human_drops_the_apprentices_class() -> void:
 	assert_eq(int(Net.roster[1].cls), Classes.MAGE, "no hero in a scripted run: a plain wizard")
 	assert_eq(int(Net.roster[1].cls_level), 0)
 	_restore()
+
+
+func test_deleting_a_hero_keeps_every_seat_on_her_own_hero() -> void:
+	_save()
+	var was := _heroes_setup()
+	Save.profile.add_hero(Hero.make(Races.HUMAN, Classes.MAGE, 0, "THREE"))
+	Net.seat_heroes = {G.DEV_KBM: 2, 0: 1}
+	assert_true(Save.profile.remove_hero(0))
+	Net.hero_removed(0)
+	assert_eq(Net.hero_at(Net.hero_of(G.DEV_KBM)).name, "THREE", "a seat above the deleted hero keeps her hero")
+	assert_eq(Net.hero_at(Net.hero_of(0)).name, "TWO", "so does the other")
+	Net.seat_heroes = {G.DEV_KBM: 0, 0: 1}
+	assert_true(Save.profile.remove_hero(1))
+	Net.hero_removed(1)
+	assert_eq(Net.hero_at(Net.hero_of(G.DEV_KBM)).name, "TWO", "the seat below the deleted hero is untouched")
+	assert_eq(Net.hero_of(0), -1, "the seat that held the deleted hero finds none free: a guest")
+	_heroes_teardown(was)
+	_restore()

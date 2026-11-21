@@ -420,3 +420,43 @@ func test_deeds_round_trip_and_unknown_names_stay() -> void:
 	assert_eq(q.deeds.keys(), ["SOLO_WIN", "FROM_A_NEWER_BUILD"])
 	assert_eq(q.deeds_earned(), 1, "the count is of the catalogue only")
 	assert_true(q.to_dict().deeds is Array)
+
+
+func test_removing_a_hero_moves_the_held_indices() -> void:
+	assert_eq(Profile.index_after_removal(3, 1), 2, "above the removed one shifts down")
+	assert_eq(Profile.index_after_removal(0, 1), 0, "below stays")
+	assert_eq(Profile.index_after_removal(1, 1), -1, "the removed one is gone")
+	assert_eq(Profile.index_after_removal(-1, 1), -1, "a guest stays a guest")
+
+
+func test_removing_hero_keeps_the_active_hero_right() -> void:
+	var p := Profile.new()
+	p.heroes.clear()
+	for nm: String in ["A", "B", "C", "D"]:
+		p.add_hero(Hero.make(Races.HUMAN, Classes.KNIGHT, 0, nm))
+	p.hero = 2
+	assert_true(p.remove_hero(0))
+	assert_eq(p.active_hero().name, "C", "a hero below the active one went")
+	assert_true(p.remove_hero(p.hero))
+	assert_eq(p.active_hero().name, "D", "the active one went: the next takes her place")
+	assert_true(p.remove_hero(p.hero))
+	assert_eq(p.active_hero().name, "B", "the last active one went: the one before")
+
+
+func test_first_visit_is_told_once_across_a_reload() -> void:
+	var p := Profile.new()
+	var key := Profile.first_key(Talk.SHOPKEEPER)
+	assert_true(p.first_time(key))
+	assert_false(p.first_time(key), "a second visit")
+	var q := Profile.from_dict(p.to_dict())
+	assert_false(q.first_time(key), "a second visit after a reload")
+	assert_true(q.first_time(Profile.first_key(Talk.MORVANE)), "another speaker is still new")
+	assert_true(Profile.from_dict({}).talked.is_empty(), "an old save has none")
+
+
+func test_run_gain_adds_the_deeds_pay() -> void:
+	var p := Profile.new()
+	p.last_pay = {"deeds_pay": 30}
+	assert_eq(p.run_gain(100), 130)
+	p.last_pay = {}
+	assert_eq(p.run_gain(100), 100, "no deeds booked")
