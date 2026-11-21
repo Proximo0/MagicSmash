@@ -273,6 +273,10 @@ static func _after_reel_music(boss_f: float, act_music: String) -> String:
 	return "music_boss" if boss_f > 0.0 else act_music
 
 
+## A chest item's picture on its reveal box, px (the box is 19 tall).
+const LOOT_ICON := 16
+
+
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.
 static func _draw_reveals(a: Arena, ci: CanvasItem, dark: Color) -> void:
 	for r: Dictionary in a._reveals:
@@ -284,12 +288,18 @@ static func _draw_reveals(a: Arena, ci: CanvasItem, dark: Color) -> void:
 			col = col.lerp(Color.WHITE, 0.5 + 0.5 * sin(a.time * 12.0))
 		var label: String = Loot.RARITY_NAMES[tier]
 		var title: String = "?????" if spinning else Loot.item_name(r.item)
-		var w: float = maxf(PixelFont.text_width(label, 1), PixelFont.text_width(title, 1)) + 8.0
+		# The item's own picture (`icons/loot_<key>`) sits at the left of the box once the reel has stopped.
+		var mark: Texture2D = null if spinning else Still.icon(Still.loot_icon(int(r.item)), LOOT_ICON)
+		var pad: float = LOOT_ICON + 3.0 if mark != null else 0.0
+		var w: float = maxf(PixelFont.text_width(label, 1), PixelFont.text_width(title, 1)) + 8.0 + pad
 		var box := Rect2((at - Vector2(w / 2.0, 9)).floor(), Vector2(w, 19))
 		ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85))
 		ci.draw_rect(box, col, false, 1.0)
-		PixelFont.draw_centered(ci, label, at.x, box.position.y + 2, 1, col, dark)
-		PixelFont.draw_centered(ci, title, at.x, box.position.y + 11, 1, Color.WHITE if spinning else col, dark)
+		if mark != null:
+			ci.draw_texture(mark, box.position + Vector2(2, 1))
+		var tx: float = at.x + pad / 2.0
+		PixelFont.draw_centered(ci, label, tx, box.position.y + 2, 1, col, dark)
+		PixelFont.draw_centered(ci, title, tx, box.position.y + 11, 1, Color.WHITE if spinning else col, dark)
 
 
 ## Shows a banner now, or after the one on screen when `wait` is set.
