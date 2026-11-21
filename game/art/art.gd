@@ -25,6 +25,8 @@ const USER_ROOT := "user://art/"
 
 ## A folder searched before every other (set by `--art=<dir>` in the autotest harness); "" for none.
 static var drop_root := ""
+## Tests set this so that only `drop_root` answers: a rule is then tested without the project's own pictures.
+static var drop_only := false
 
 ## Where each picture was found: "group/key" -> path, or "" for none.
 static var _paths := {}
@@ -75,6 +77,8 @@ static func find(group: String, key: String) -> String:
 
 ## The folders pictures are looked for in, best first.
 static func roots() -> Array[String]:
+	if drop_only and not drop_root.is_empty():
+		return [drop_root]
 	var exe := OS.get_executable_path().get_base_dir().path_join("art") + "/"
 	if not drop_root.is_empty():
 		return [drop_root, exe, USER_ROOT, RES_ROOT]
