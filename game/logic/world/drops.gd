@@ -209,7 +209,7 @@ static func _magnets(w: World, who: Array[World.Player], reach: PackedFloat64Arr
 	for p: World.Player in w._plist:
 		if p.alive:
 			who.append(p)
-			reach.append(INF if all else w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades))
+			reach.append(INF if all else w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades) * p.reach_mul)
 
 
 static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
@@ -266,7 +266,7 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 ## A chest opens where it is touched: a tier (luck from the chest's value) and an item, applied at once. The
 ## arena plays the reel from EV_CHEST.
 static func _open_chest(w: World, p: World.Player, k: World.Pickup) -> void:
-	var tier := Loot.roll_rarity(w.rng, float(k.value + w.meta_luck + w.seal_luck))
+	var tier := Loot.roll_rarity(w.rng, float(k.value + w.meta_luck + w.seal_luck) + p.luck) # the opener's FORTUNE
 	if not w.seal_ultra: tier = mini(tier, Loot.LEGENDARY) # APPRENTICE: no ULTRA RARE
 	if k.kind == World.PK_CHEST_RARE:
 		tier = maxi(tier, Loot.RARE)

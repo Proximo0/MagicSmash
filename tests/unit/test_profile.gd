@@ -254,3 +254,77 @@ func test_an_old_profile_loads_unchanged() -> void:
 	assert_eq(bad.seal_unlocked, Seals.MAX)
 	assert_eq(bad.seal_best, Seals.MIN - 1)
 	assert_eq(bad.seal_prizes.keys(), ["3"])
+
+
+## Version 2: a version 1 save becomes one HUMAN MAGE holding its sockets, and nothing else it held is lost.
+func test_a_version_1_profile_becomes_one_human_mage() -> void:
+	var old: Variant = JSON.parse_string('{"version": 1, "high_score": 4321, "crystals": 77, "runs": 9, "wins": 2, ' +
+		'"best_time": 812.5, "unlocks": {"vigor": 1, "luck": 2}, "cards": {"orc": 2, "bat": 1}, ' +
+		'"sockets": ["bat", "", "orc"], "secrets": ["moon"], "pots_run": 9, "pots_mask": 3, "wishes": 5, ' +
+		'"seal_unlocked": 3, "seal_best": 2, "seal_prizes": ["1", "2"], "kills_total": 900, "revives_total": 4}')
+	var p := Profile.from_dict(old)
+	assert_eq(p.heroes.size(), 1)
+	var h: Hero = p.heroes[0]
+	assert_eq([h.race, h.cls, h.school, h.level], [Races.HUMAN, Classes.MAGE, 0, 1])
+	assert_eq(h.sockets, ["bat", "", "orc"] as Array[String], "the old sockets")
+	assert_eq(p.active_hero(), h)
+	assert_eq(p.socket_indices(), [Cards.index_of("bat"), -1, World.ORC] as Array[int])
+	var back: Dictionary = JSON.parse_string(JSON.stringify(p.to_dict()))
+	assert_eq(int(back["version"]), Profile.VERSION)
+	assert_eq(Profile.VERSION, 2)
+	for k: String in old:
+		if k != "version":
+			assert_eq(back[k], old[k], k)
+	assert_eq((back["heroes"] as Array).size(), 1)
+
+
+func test_heroes_round_trip_and_keep_their_own_sockets() -> void:
+	var p := Profile.new()
+	assert_eq(p.heroes.size(), 1, "a new profile has its first hero")
+	p.add_card(World.ORC)
+	p.add_card(Cards.index_of("bat"))
+	assert_true(p.socket_card(World.ORC))
+	var k := Hero.make(Races.ORC, Classes.KNIGHT, 0, "grok")
+	k.add_xp(300)
+	k.spend_point(Loot.ST_MIGHT)
+	assert_true(p.add_hero(k))
+	assert_eq(p.hero, 1, "a new hero is the active one")
+	assert_eq(p.socket_indices(), [-1, -1, -1] as Array[int], "each hero has its own sockets")
+	assert_true(p.socket_card(Cards.index_of("bat")))
+	assert_near(float((p.bonuses()["armor"] as Array)[Loot.ST_SWIFT]), 0.10, 0.0001, "the active hero's cards")
+	var q := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
+	assert_eq(q.heroes.size(), 2)
+	assert_eq(q.hero, 1)
+	assert_eq((q.heroes[0] as Hero).to_dict(), (p.heroes[0] as Hero).to_dict())
+	assert_eq((q.heroes[1] as Hero).to_dict(), k.to_dict())
+	assert_eq(q.active_hero().name, "GROK")
+	assert_eq(q.socket_indices(), [Cards.index_of("bat"), -1, -1] as Array[int])
+
+
+func test_at_most_eight_heroes_and_never_none() -> void:
+	var p := Profile.new()
+	for i: int in range(Profile.MAX_HEROES - 1):
+		assert_true(p.add_hero(Hero.make(Races.ELF, i % Classes.count())))
+	assert_false(p.add_hero(Hero.new()), "a ninth hero")
+	var d := p.to_dict()
+	(d["heroes"] as Array).append(Hero.new().to_dict())
+	assert_eq(Profile.from_dict(d).heroes.size(), Profile.MAX_HEROES, "a hand-edited ninth is dropped")
+	p.hero = 3
+	assert_true(p.remove_hero(1))
+	assert_eq(p.hero, 2, "the active hero is still the same one")
+	assert_false(p.remove_hero(99))
+	while p.heroes.size() > 1:
+		assert_true(p.remove_hero(0))
+	assert_false(p.remove_hero(0), "the last hero stays")
+	assert_eq(p.hero, 0)
+
+
+func test_saved_heroes_drop_cards_not_owned() -> void:
+	var d := {"cards": {"orc": 1}, "hero": 7, "heroes": [{"race": "elf", "cls": "archer", "sockets": ["", "", "orc"]},
+		{"race": "orc", "cls": "priest", "sockets": ["bat", "", ""]}, "junk"]}
+	var p := Profile.from_dict(d)
+	assert_eq(p.heroes.size(), 2)
+	assert_eq(p.hero, 1, "clamped")
+	assert_eq((p.heroes[0] as Hero).sockets[2], "orc")
+	assert_eq((p.heroes[1] as Hero).sockets[0], "", "the bat card is not owned")
+	assert_eq((p.heroes[1] as Hero).cls, Classes.PRIEST)

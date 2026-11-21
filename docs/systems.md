@@ -261,6 +261,44 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Run: `ArenaTalk.start` (called at EV_LULL; the World emits no EV_TALK) shows Morvane's line for the act in a small
   box at the top for 6 s. It takes no input. Shots: `--autotest --talk`, `--autotest --talk-lull`.
 
+## Classes and races (job C1: logic, data, saves; design in `docs/classes_design.md`)
+- Data: `Classes.ROWS` (key, name, role, hearts, weapon, skin, skill, threat, stat points, then the passive
+  columns: walk, ritual, redraws, aura radius, aura WARD points) and `Classes.SKILLS` (the nova button's skills and
+  their numbers); `Races.ROWS` (key, name, stat points, trait, build) and `Races.TRAITS`. Append only; saves store
+  the keys, seats and the snapshot row carry the indices.
+- Row 0 is HUMAN and MAGE, and nothing happens without a hero: a wizard gets a class only from
+  `World.apply_hero(p, hero_dict)` (after `apply_meta`). Every Player field it sets (`threat`, `threat_k`, `skill`,
+  `walk_mul`, `ritual_mul`, `aura_r`, `aura_ward`, `fury`, `reach_mul`, `knock_mul`, `luck`) is neutral by default,
+  so a seat with no hero plays exactly as before (the pinned solo run and the golden sims are unchanged).
+- `Hero` (`game/logic/hero.gd`): name, race, cls, school, look (skin + 4 x (hair + 6 x style)), level 1 to 20 (100 x
+  level XP each), xp, points[6] (one per level past the first, at most 10 in a stat), sockets[3]. `stats()` is
+  race + class + points at `Hero.POINT_VALUE` (MIGHT 2%, FOCUS 1%, SWIFT 1%, VIGOR 1/4 heart, WARD 1%, FORTUNE 3%
+  gold) plus the socketed cards, capped by `Loot.STAT_CAPS`; `luck()` is FORTUNE x 0.2. `Hero.class_xp(seconds,
+  bosses, won, mul)` = 10 per whole minute + 50 per boss + 150 for a win, x mul; `run_xp` adds the HUMAN's 5%. Not
+  wired to the end of a run yet (comes with the screens).
+- `Profile` version 2: `heroes` (1 to `MAX_HEROES` 8; a new profile has one) and `hero` (the active one). The socket
+  calls (`socket_card`, `unsocket`, `socket_indices`, `sockets`) work on the active hero, and `bonuses().armor` is its
+  cards, so the card album and a run play as before. A version 1 save becomes one HUMAN MAGE of school 0 (a v1 save
+  never stored a school) holding the old sockets; top-level `sockets` is still written (a copy of the active hero's).
+- Threat: enemies pick the wizard with the least distance / threat (`Player.threat_k` = 1 / threat^2 times the
+  squared distance, exactly 1 at threat 1; both in `WorldEnemies._nearest_player` and inline in `_update_enemy`).
+  `World.threat_spread` (largest / smallest threat) widens the contact test's reach so a threat pick never skips a
+  nearer wizard in touch. A PROVOKE sets `Enemy.taunt` / `taunt_t`.
+- Skills (`WorldPlayers._skill`, where the nova was; each spends a nova charge, emits `EV_SKILL` (slot, skill) and is
+  sealed by THE HANGED MAN like the nova): NOVA as ever (mage, and every wizard with no hero); PROVOKE (enemies
+  but bosses within 100 px taunted 5 s, knight unhurt 2 s); VOLLEY (50 px roll along her movement, unhurt 0.4 s, 12
+  shots of her weapon fanned behind her); SANCTUARY (standing heroes +2 hearts, `EV_HEAL` (slot, hearts); the fallen
+  within 80 px rise); AEGIS (heroes within 60 px unhurt 3 s, using `invuln`).
+- Passives: mage +2 redraws; knight walks x0.94, archer x1.08 (`walk_mul`); a priest counts twice in a ritual
+  (`ritual_mul`); a paladin's aura gives heroes within 50 px (her too) +8 WARD points (0.08, one aura, capped) in
+  `hurt_player`. Traits: ORC +10% damage at 2 hearts or fewer (`_damage_enemy`); ELF magnet x1.25 (`reach_mul`: read
+  by the spirit's magnet; the standing magnet in `WorldDrops._magnets` does not read it yet); DWARF
+  `knock_mul` 0.5 (nothing pushes a wizard yet); FORTUNE's `luck` is not read by chests yet (`WorldDrops`).
+- Weapons: MAGE the school's spell, PALADIN STARFALL. Stand-ins until job C2 swaps `Classes.C_WEAPON`: KNIGHT's
+  CLEAVE = FROST FAN, ARCHER's LONGBOW = ARCANE BOLT, PRIEST's HOLY LIGHT = RUNE CIRCLE.
+- Developer flag: `--hero=<race>,<class>[,<school>]` (keys, names or indices; school a Wizards index, name or title)
+  gives every local seat that hero (`Arena._ready`, after `apply_meta`). Nothing happens without it.
+
 ## Apprentices and seats
 - Roster (`game/autoload/net.gd`): a row is `{slot, peer, device, wizard, ai, away, ...}`. `Net.add_apprentice()`
   seats an apprentice (device `G.DEV_AI`) at the lowest free seat and returns it (-1 full, a client, or in a run);

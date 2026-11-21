@@ -108,6 +108,8 @@ const EV_FATE := 46 # a fate is drawn: a = fate, b = slot
 const EV_SLOTS := 47 # the slot cap changed: a = spell slots, b = passive slots
 const EV_TALK := 48 # Morvane speaks: a = line
 const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a = its type, b = the phase it turns to
+const EV_SKILL := 50 # a hero's class skill (not the NOVA, which is EV_NOVA): at the hero, a = slot, b = Classes.SK_*
+const EV_HEAL := 51 # a hero is healed by a skill: at the hero, a = slot, b = hearts
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -125,7 +127,7 @@ const URN_R := 5.0
 ## level; Spells.MAX_LEVEL + 1 = evolved), in the order taken. Passives: P_SLOTS x (PASSIVE row or -1, level),
 ## in the order taken. xp, xp needed and level are the party's (the same for every wizard); draws are queued
 ## level-up offers plus 1 while the wizard holds cards; down_left is s (-1 = a ritual only); race, class, look and
-## class level are reserved ints, 0 until their job lands.
+## class level are the seat's (0: HUMAN MAGE) until World.apply_hero sets the hero's.
 const P_SLOT := 0
 const P_X := 1
 const P_Y := 2
@@ -165,7 +167,7 @@ const P_REVIVE := P_GOLD + 7
 const P_AI := P_GOLD + 8
 const P_TRAIT_A := P_GOLD + 9
 const P_TRAIT_B := P_GOLD + 10
-const P_RACE := P_GOLD + 11 # reserved for races and classes: 0 until a later job fills them
+const P_RACE := P_GOLD + 11 # Races / Classes index (the seat's, or the hero's from apply_hero)
 const P_CLASS := P_GOLD + 12
 const P_LOOK := P_GOLD + 13 # a packed look: skin, hair, style
 const P_CLASS_LEVEL := P_GOLD + 14
@@ -373,6 +375,9 @@ const _NO_ROWS: PackedInt32Array = []
 ## The wizards as a typed list, refreshed every step: `players.values()` builds a new untyped array on every call,
 ## and the enemy update asked for it twice per enemy (5% of a whole step at the enemy cap).
 var _plist: Array[Player] = []
+## The most a threat pick can stretch past the nearest wizard: the largest threat over the smallest (apply_hero
+## sets it; 1 while every wizard's threat is the same). The contact test widens its reach by it.
+var threat_spread := 1.0
 ## The brains that play the apprentices (WorldApprentices), slot -> SmashBot; made when first needed.
 var apprentice_bots: Dictionary = {}
 ## Score and kills of wizards who left the run (remove_player): total_score and total_kills keep them.
@@ -387,7 +392,7 @@ var tune: Tuning
 ## seed_value 0 picks a random seed (normal play); tests, sims and replays pass a fixed one. `wizards` maps a
 ## slot to the Wizards index its player picked in the lobby; a slot not in it plays the wizard of its own colour.
 ## `seats` maps a slot to its roster extras (Net.seat_builds(): ai, race, cls, look, cls_level), copied onto the
-## Player untouched; nothing reads them yet.
+## Player untouched; nothing else reads them (apply_hero gives a wizard a whole hero).
 func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Dictionary = {}, seats: Dictionary = {}) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
 	schedule = Bosses.schedule_from(tune)
@@ -441,6 +446,51 @@ func apply_meta(b: Dictionary) -> void:
 		p.max_hp += int(float(armor[Loot.ST_VIGOR])) if armor.size() > Loot.ST_VIGOR else 0
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
+
+## Gives wizard `p` a saved hero (Hero.to_dict(); docs/classes_design.md). Call after apply_meta, before the first
+## step. The class's hearts replace BASE_HEARTS; the hero's stats (race, class, points and its own sockets) add to
+## the armour array within Loot.STAT_CAPS; then threat, the nova button's skill, the class weapon in place of the
+## starting spell (while it is still the only one, at level 1), the class passive and the race trait. A wizard
+## with no hero applied keeps every neutral default, so it plays exactly as before. The meta's sockets
+## (apply_meta's "armor") are the profile's: a caller passes a hero's sockets in one place only.
+func apply_hero(p: Player, hero: Dictionary) -> void:
+	var h := Hero.from_dict(hero)
+	p.race = h.race
+	p.cls = h.cls
+	p.look = h.look
+	p.cls_level = h.level
+	var st: Array = h.stats()
+	var vigor_before := int(float(p.armor[Loot.ST_VIGOR]))
+	for i: int in range(Loot.STAT_COUNT):
+		p.armor[i] = minf(float(p.armor[i]) + float(st[i]), float(Loot.STAT_CAPS[i]))
+	p.max_hp = maxi(1, p.max_hp + Classes.hearts(h.cls) - BASE_HEARTS + int(float(p.armor[Loot.ST_VIGOR])) - vigor_before)
+	p.hp = p.max_hp
+	p.threat = Classes.threat(h.cls)
+	p.threat_k = 1.0 / (p.threat * p.threat)
+	p.skill = Classes.skill(h.cls)
+	p.walk_mul = Classes.walk_mul(h.cls)
+	p.ritual_mul = Classes.ritual_mul(h.cls)
+	p.redraws += Classes.extra_redraws(h.cls)
+	p.aura_r = Classes.aura_radius(h.cls)
+	p.aura_ward = Classes.aura_ward(h.cls) * float(Hero.POINT_VALUE[Loot.ST_WARD])
+	p.fury = Races.trait_amount(h.race, Races.TR_FURY)
+	p.reach_mul = 1.0 + Races.trait_amount(h.race, Races.TR_FAR_SIGHT)
+	p.knock_mul = 1.0 - Races.trait_amount(h.race, Races.TR_STURDY)
+	p.luck = h.luck()
+	var start := Wizards.start_spell(p.wizard)
+	var sp := h.weapon()
+	var start_row := Upgrades.weapon_entry(start)
+	if sp != start and p.upgrades.size() == 1 and int(p.upgrades.get(start_row, 0)) == 1:
+		p.upgrades.erase(start_row)
+		p.upgrades[Upgrades.weapon_entry(sp)] = 1
+		p.cds.fill(0.0)
+	WorldCasting._refresh_spell(self, p)
+	var lo := INF
+	var hi := 0.0
+	for q: Player in players.values():
+		lo = minf(lo, q.threat)
+		hi = maxf(hi, q.threat)
+	threat_spread = maxf(1.0, hi / maxf(lo, 0.01))
 
 ## The live enemy cap: LEGION's seal_cap when a Seal sets one, else Tuning's enemy_cap.
 func enemy_cap() -> int:

@@ -64,7 +64,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 		aim = Vector2(inp[2], inp[3])
 		bomb_count = int(inp[5])
 	var speed: float = w.tune.player_speed * Upgrades.move_mul(p.upgrades) * (1.0 + p.armor[Loot.ST_SWIFT]) \
-		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0)
+		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0) * p.walk_mul
 	p.vel = move * speed
 	p.moving = move.length() > 0.1
 	p.pos += p.vel * dt
@@ -83,7 +83,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 		elif bomb_count > p.last_bomb:
 			p.last_bomb = bomb_count
 			if p.bombs > 0 and w.nova_sealed <= 0.0: # THE HANGED MAN: a press while sealed is spent, not kept
-				_nova(w, p)
+				_skill(w, p)
 	if p.orbit > 0.0:
 		w.stat_src = Results.SRC_ORBIT
 		for i in 3:
@@ -112,6 +112,93 @@ static func _leash(w: World, p: World.Player) -> void:
 		p.pos.y = clampf(p.pos.y, q.pos.y - w.tune.leash_y, q.pos.y + w.tune.leash_y)
 
 
+## The nova button: the wizard's class skill (Classes.SKILLS), each for one nova charge. A wizard with no hero,
+## and every MAGE, novas as ever.
+static func _skill(w: World, p: World.Player) -> void:
+	if p.skill == Classes.SK_NOVA:
+		_nova(w, p)
+		return
+	p.bombs -= 1
+	w.emit(World.EV_SKILL, p.pos.x, p.pos.y - 6, p.slot, p.skill)
+	match p.skill:
+		Classes.SK_PROVOKE:
+			_provoke(w, p)
+		Classes.SK_VOLLEY:
+			_volley(w, p)
+		Classes.SK_SANCTUARY:
+			_sanctuary(w, p)
+		Classes.SK_AEGIS:
+			_aegis(w, p)
+
+
+## PROVOKE (the knight): every enemy (not a boss) within its radius wants her for its taunt seconds, whoever is
+## nearer, and she takes no damage for its safe seconds.
+static func _provoke(w: World, p: World.Player) -> void:
+	var sk := Classes.SK_PROVOKE
+	var r := Classes.skill_value(sk, "radius")
+	var secs := Classes.skill_value(sk, "taunt")
+	for e: World.Enemy in w.enemies:
+		if e.dead or e.flags & Bestiary.F_BOSS or e.pos.distance_to(p.pos) > r:
+			continue
+		e.taunt = p
+		e.taunt_t = secs
+	p.invuln = maxf(p.invuln, Classes.skill_value(sk, "safe"))
+
+
+## VOLLEY (the archer): she rolls its roll px along her movement (along her aim when standing still), unhurt for
+## its safe seconds, then looses its arrows in a fan behind her: her weapon's shots at its level (a weapon that
+## flies no bolts looses ARCANE BOLTs).
+static func _volley(w: World, p: World.Player) -> void:
+	var sk := Classes.SK_VOLLEY
+	var dir := p.vel.normalized() if p.moving and p.vel.length() > 0.01 else p.aim.normalized()
+	if dir == Vector2.ZERO:
+		dir = Vector2.DOWN
+	p.pos += dir * Classes.skill_value(sk, "roll")
+	p.pos = p.pos.clamp(G.ARENA.position + Vector2(5, 6), G.ARENA.end - Vector2(5, 2))
+	_leash(w, p)
+	p.invuln = maxf(p.invuln, Classes.skill_value(sk, "safe"))
+	var sp := Classes.weapon(p.cls)
+	if Spells.cast_kind(sp) != "bolt":
+		sp = World.SP_ARCANE
+	var lv := maxi(1, Upgrades.weapon_level(p.upgrades, sp))
+	var dmg := Spells.damage(sp, lv, false)
+	var speed := Spells.stat(sp, "speed") * Classes.skill_value(sk, "speed_mul", 1.0)
+	var n := int(Classes.skill_value(sk, "arrows"))
+	var fan := Classes.skill_value(sk, "fan")
+	var back := -dir
+	var tip := p.pos + Vector2(0, -7)
+	w.stat_src = sp
+	for i: int in range(n):
+		var a := (i / maxf(1.0, n - 1.0) - 0.5) * fan
+		WorldCasting._shot(w, p.slot, sp, false, tip, back.rotated(a) * speed, dmg, 0)
+
+
+## SANCTUARY (the priest): every standing hero heals its hearts (EV_HEAL), then the fallen within its radius rise.
+static func _sanctuary(w: World, p: World.Player) -> void:
+	var sk := Classes.SK_SANCTUARY
+	var heal := int(Classes.skill_value(sk, "heal"))
+	var r := Classes.skill_value(sk, "radius")
+	for q: World.Player in w.players.values():
+		if q.alive and q.hp < q.max_hp:
+			var got := mini(heal, q.max_hp - q.hp)
+			q.hp += got
+			w.emit(World.EV_HEAL, q.pos.x, q.pos.y - 6, q.slot, got)
+	for q: World.Player in w.players.values():
+		if q.down and q.pos.distance_to(p.pos) <= r:
+			q.rituals += 1 # it counts as a ritual: the next one on this hero takes longer
+			w.record.add(p.slot, "revives", 1)
+			_rise(w, q, p.slot)
+
+
+## AEGIS (the paladin): heroes within its radius (her too) take no damage for its safe seconds.
+static func _aegis(w: World, p: World.Player) -> void:
+	var sk := Classes.SK_AEGIS
+	var r := Classes.skill_value(sk, "radius")
+	for q: World.Player in w.players.values():
+		if q.alive and q.pos.distance_to(p.pos) <= r:
+			q.invuln = maxf(q.invuln, Classes.skill_value(sk, "safe"))
+
+
 static func _nova(w: World, p: World.Player) -> void:
 	w.stat_src = Results.SRC_NOVA
 	p.bombs -= 1
@@ -134,7 +221,12 @@ static func _nova(w: World, p: World.Player) -> void:
 static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
 	if not p.alive or p.invuln > 0.0 or w.phase == World.PH_GAMEOVER:
 		return
-	if p.armor[Loot.ST_WARD] > 0.0 and w.rng.randf() < p.armor[Loot.ST_WARD]:
+	var ward: float = p.armor[Loot.ST_WARD]
+	for q: World.Player in w._plist: # a PALADIN's aura: one aura counts, within the cap
+		if q.aura_r > 0.0 and q.alive and q.pos.distance_to(p.pos) <= q.aura_r:
+			ward = minf(ward + q.aura_ward, float(Loot.STAT_CAPS[Loot.ST_WARD]))
+			break
+	if ward > 0.0 and w.rng.randf() < ward:
 		p.invuln = 0.5
 		w.emit(World.EV_WARD, p.pos.x, p.pos.y - 6, p.slot, 0)
 		return
@@ -209,7 +301,10 @@ static func _update_spirit(w: World, p: World.Player, dt: float, inp: PackedFloa
 	if not inside.is_empty():
 		if p.revive <= 0.0:
 			_ritual_push(w, p.pos)
-		p.revive += dt * inside.size() / ((w.tune.ritual_time + w.tune.ritual_step * p.rituals) * w.seal_ritual) # DARKNESS
+		var raise := 0.0 # each raiser counts her ritual_mul (a PRIEST twice): the count of them, exactly, otherwise
+		for q: World.Player in inside:
+			raise += q.ritual_mul
+		p.revive += dt * raise / ((w.tune.ritual_time + w.tune.ritual_step * p.rituals) * w.seal_ritual) # DARKNESS
 		if p.revive >= 1.0:
 			p.rituals += 1
 			for q: World.Player in inside:
@@ -234,7 +329,7 @@ static func _update_spirit(w: World, p: World.Player, dt: float, inp: PackedFloa
 ## A spirit takes the XP motes she touches and draws in the ones in her magnet's reach (a standing wizard's
 ## magnet, run after this, wins a mote both reach).
 static func _spirit_xp(w: World, p: World.Player) -> void:
-	var reach := w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)
+	var reach := w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades) * p.reach_mul
 	var took := false
 	for k: World.Pickup in w.pickups:
 		if k.kind != World.PK_XP or k.life <= 0.0:
