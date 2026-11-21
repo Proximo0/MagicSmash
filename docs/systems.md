@@ -339,9 +339,12 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   `SWEEP_KNOCK`, `EV_SWEEP` draws a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it. Its
   evolution WHIRLWIND (job K, `Upgrades.E_CLEAVE`: CLEAVE at level 5 and STRENGTH, the one passive no other
   evolution pairs with, so STRENGTH weighs `PARTNER_WEIGHT` only for a hero holding CLEAVE) swings a full circle
-  (`arc` TAU) reaching 60 px, 48 damage every 0.55 s, and strikes at most `most` 3 foes a swing, the nearest first
+  (`arc` TAU) reaching 60 px, 36 damage every 0.55 s, and strikes at most `most` 3 foes a swing, the nearest first
   (without the cap the full circle read 900 dps in `spell_dps`' dense crowd, four times the other evolutions; with
-  it 233, beside ASTRAL LANCE's 234). `EV_SWEEP`'s b carries + 8 when evolved (as `EV_RUNE`); the arena draws the
+  it and 48 damage 233, beside ASTRAL LANCE's 234). The damage came down from 48 to 36 once the bot fought at
+  WHIRLWIND's reach (`SmashBot._melee_r` reads the evolved reach) and a sweep reached wide bosses (its search is
+  reach + `World.CELL`): solo knight, 12 casual seeds and 6 veteran: 48 gave 12 and 5 wins, 36 gives 10 and 4
+  (0 wipes; the mage wins 6 and 5). `EV_SWEEP`'s b carries + 8 when evolved (as `EV_RUNE`); the arena draws the
   same steel flash all the way round (`Fx.swing` takes more arc points for a wider swing). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
   260 px (her VOLLEY's arrows too). PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
   one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
