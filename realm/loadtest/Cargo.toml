@@ -1,0 +1,8 @@
+[package]
+name = "realm-loadtest"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+realm-core = { path = "../core" }
+realm-server = { path = "../server" }
