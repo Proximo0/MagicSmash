@@ -162,6 +162,8 @@ var touch: TouchControls
 
 func _ready() -> void:
 	is_host = Net.is_host()
+	Input.joy_connection_changed.connect(_on_joy_changed)
+	Platform.overlay_toggled.connect(_on_overlay)
 	add_child(root)
 	bg = Sprite2D.new()
 	bg.centered = false
@@ -240,12 +242,18 @@ func _layer(additive: bool) -> Node2D:
 	return n
 
 func _exit_tree() -> void:
+	PlayerInput.bomb_muted = false
 	PlayerInput.touch = null
 	Engine.time_scale = 1.0
 
+## True while the run stands still: paused with nobody else connected (a LAN host alone can pause too).
+func _frozen() -> bool:
+	return paused and not Net.has_remote_players()
+
 func _physics_process(dt: float) -> void:
-	if paused and not Net.is_online():
+	if _frozen():
 		return
+	PlayerInput.bomb_muted = paused or _local_tray_open()
 	var inputs := {}
 	for r in Net.my_slots():
 		var ppos: Vector2 = vp[r.slot].pos + Vector2(0, -7) + root.position if vp.has(r.slot) else G.ARENA.get_center()
@@ -396,7 +404,7 @@ func _add_shake(v: float) -> void:
 	shake = minf(14.0, maxf(shake, v))
 
 func _do_hitstop(d: float) -> void:
-	if Net.is_online():
+	if Net.has_remote_players():
 		return
 	Engine.time_scale = 0.08
 	_hitstop = d
@@ -433,10 +441,7 @@ var _stars_seen: Array = []
 func _unhandled_input(event: InputEvent) -> void:
 	if game_over:
 		if game_over_t > 2.0 and is_host:
-			var tapped = event is InputEventScreenTouch and event.pressed
-			var clicked = event is InputEventMouseButton and event.pressed
-			if PlayerInput.confirm_device(event) != -99 or tapped or clicked or \
-					(event is InputEventKey and event.pressed and event.physical_keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]):
+			if PlayerInput.results_dismiss(event):
 				if Net.mode == Net.Mode.OFFLINE:
 					Engine.time_scale = 1.0
 					Net.shutdown()
@@ -490,10 +495,39 @@ func _toggle_pause() -> void:
 		return
 	paused = not paused
 	pause_sel = 0
+	if not paused:
+		for r in Net.my_slots(): # the button that chose Resume is still down: it is no Nova
+			PlayerInput.swallow_bomb(r.device)
 	if pause_options:
 		pause_options = false
 		Save.write_settings()
 	Sfx.play("menu_select")
+
+## Pauses a solo run when the player loses control (pad unplugged, window left, Steam overlay opened).
+func _auto_pause() -> void:
+	if Net.mode == Net.Mode.OFFLINE and not game_over and not paused:
+		_toggle_pause()
+
+func _on_joy_changed(device: int, connected: bool) -> void:
+	if connected:
+		return
+	for r in Net.my_slots():
+		if r.device == device:
+			_auto_pause()
+
+func _on_overlay(active: bool) -> void:
+	if active:
+		_auto_pause()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not Flags.is_scripted_run():
+		_auto_pause()
+
+func _local_tray_open() -> bool:
+	for r in Net.my_slots():
+		if ArenaTray._tray_shown(self, r.slot):
+			return true
+	return false
 
 func _quit_to_title() -> void:
 	Engine.time_scale = 1.0
