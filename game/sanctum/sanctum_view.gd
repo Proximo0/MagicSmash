@@ -538,7 +538,7 @@ func _draw_wizard() -> void:
 	var c := Color(0.05, 0.0, 0.1, 0.45)
 	draw_rect(Rect2(room.pos + Vector2(-4, -1), Vector2(8, 3)), c)
 	if _leaving < 0.0:
-		var still := Still.hero_name(Save.profile.active_hero().cls, false)
+		var still := Still.hero_name(Save.profile.active_hero().cls, false, Save.profile.active_hero().race)
 		if still.is_empty() or not Still.draw(self, still, room.pos + Vector2(0, 1), -1 if f.x < 0.0 else 1, t, room.moving):
 			Sprites.draw_at(self, key, room.pos + Vector2(0, 1), flip)
 

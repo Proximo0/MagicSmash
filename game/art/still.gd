@@ -53,6 +53,8 @@ static func names() -> Array[String]:
 	var out: Array[String] = []
 	for c: int in Classes.count():
 		out.append("hero_" + Classes.key(c))
+		for r: int in Races.count():
+			out.append("hero_%s_%s" % [Races.key(r), Classes.key(c)])
 	out.append("apprentice")
 	out.append_array([HUB_LECTERN, HUB_MIRROR, HUB_PLINTH])
 	for t: int in Bestiary.count():
@@ -100,10 +102,15 @@ static func has(name: String) -> bool:
 	return not name.is_empty() and Art.has(GROUP, name)
 
 
-## The picture a hero shows: an apprentice's own, else its class's; "" when neither exists.
-static func hero_name(cls: int, ai: bool) -> String:
+## The picture a hero shows: an apprentice's own, else her race and class's (`hero_<race>_<class>`, when `race` is
+## given), else her class's; "" when none exists.
+static func hero_name(cls: int, ai: bool, race: int = -1) -> String:
 	if ai and has("apprentice"):
 		return "apprentice"
+	if race >= 0 and race < Races.count():
+		var rn := "hero_%s_%s" % [Races.key(race), Classes.key(cls)]
+		if has(rn):
+			return rn
 	var n := "hero_" + Classes.key(cls)
 	return n if has(n) else ""
 

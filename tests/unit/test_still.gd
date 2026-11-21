@@ -70,6 +70,18 @@ func test_hero_falls_back_apprentice_then_class_then_code() -> void:
 	assert_eq(Still.hero_name(Classes.MAGE, true), "apprentice")
 	assert_eq(Still.hero_name(Classes.MAGE, false), "hero_mage")
 	assert_eq(Still.hero_name(Classes.KNIGHT, true), "apprentice")
+
+
+func test_hero_shows_her_race_and_class_picture_before_her_class_picture() -> void:
+	var elf := Races.index_of("elf")
+	_drop(["sprites/hero_mage.png"])
+	assert_eq(Still.hero_name(Classes.MAGE, false, elf), "hero_mage")
+	_drop(["sprites/hero_mage.png", "sprites/hero_elf_mage.png"])
+	assert_eq(Still.hero_name(Classes.MAGE, false, elf), "hero_elf_mage")
+	assert_eq(Still.hero_name(Classes.MAGE, false, Races.index_of("orc")), "hero_mage")
+	assert_eq(Still.hero_name(Classes.MAGE, false), "hero_mage") # no race given
+	assert_eq(Still.hero_name(Classes.MAGE, false, 99), "hero_mage") # a race the game does not know
+	assert_true(Still.names().has("hero_orc_paladin"))
 	_clear()
 
 

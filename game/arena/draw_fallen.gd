@@ -109,7 +109,7 @@ static func _draw_spirit(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, false, 0, int(a.time * 2.0 + slot * 0.5), false, aim.x >= 0.0)
 	var feet: Vector2 = (p.pos as Vector2) + Vector2(0, -2.0 + roundf(sin(a.time * 2.5 + slot) * 1.5))
 	var col := G.player_color(slot)
-	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)))
+	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)), int(p.get("race", -1)))
 	if not still.is_empty():
 		_draw_spirit_still(a, ci, still, feet, -1 if flip else 1, col, slot)
 		return
