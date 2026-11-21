@@ -19,7 +19,7 @@ static func _update_shrines(w: World, dt: float) -> void:
 		sh.life -= dt
 		var payer: World.Player = null
 		for p: World.Player in w.players.values():
-			if p.alive and p.gold >= sh.cost and p.pos.distance_to(sh.pos) < w.tune.shrine_radius:
+			if p.alive and not p.ai and p.gold >= sh.cost and p.pos.distance_to(sh.pos) < w.tune.shrine_radius:
 				payer = p
 				break
 		if payer == null:

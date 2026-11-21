@@ -234,3 +234,37 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
   remembered per session (`G.talk_seen`), a first visit is `Profile.runs == 0`.
 - Run: `ArenaTalk.start` (called at EV_LULL; the World emits no EV_TALK) shows Morvane's line for the act in a small
   box at the top for 6 s. It takes no input. Shots: `--autotest --talk`, `--autotest --talk-lull`.
+
+## Apprentices and seats
+- Roster (`game/autoload/net.gd`): a row is `{slot, peer, device, wizard, ai, away, ...}`. `Net.add_apprentice()`
+  seats an apprentice (device `G.DEV_AI`) at the lowest free seat and returns it (-1 full, a client, or in a run);
+  `Net.remove_apprentice(slot := -1)` removes that one or the highest. A joining human (local or LAN) takes the
+  highest apprentice's seat, keeping its wizard. `Net.kept_apprentices` (their wizards) seats them again in every
+  `start_offline` and `host_game` of the session. A human seat whose device is silent for `Tuning.seat_silence`
+  (5 s: no input packet or once-a-second hello from a LAN seat, an unplugged local pad; never the keyboard, never in
+  scripted runs) turns `away` (`Net.check_silence`): `seat_builds` and the arena make its `World.Player.ai` true and
+  the host's `my_slots` leaves it out, so the World plays it, until its device speaks again.
+- World (`game/logic/world/apprentices.gd`, `WorldApprentices`, numbers in Tuning's "Apprentices" rows):
+  `with_inputs` gives every ai wizard with no input a `SmashBot` (see `docs/bots.md`); `WorldLevels` takes its
+  card at once (`Upgrades.best_pick`); damage x `apprentice_damage`
+  (`WorldEnemies._damage_enemy`), party weight `apprentice_scale` (the horde, `pscale`, and the XP a level
+  needs, `xp_needed`); `may_take` keeps chests, tomes, cards
+  and (unless at `apprentice_potion_hp` hearts or fewer with no standing human hurt) potions off it; `payee` sends
+  its coins and gems to the nearest human; shrines take no bet from it (`WorldShrines._update_shrines`), so it never
+  draws a fate; `gets_up` raises it free after `apprentice_up_time` down, never under DARKNESS
+  (`seal_ritual > 1`). The run ends when no human can return (apprentices play on alone only with no human seat).
+  `World.remove_player(slot)` (a LAN leaver) keeps her score and kills in `total_score` and `total_kills`.
+- Input: keyboard seat 2 (`G.DEV_KB2`): arrows move, right Ctrl fires the way it faces and confirms, Enter is its
+  nova; while it is seated the arrows are its own (`PlayerInput.key_device`). Right Ctrl is told from the left by
+  key events (`PlayerInput.note_key`, fed by `G._input`).
+- Lobby (`game/ui/title.gd`): Y or + adds an apprentice, X or - removes one, player 1's START (or Enter) begins the
+  run, A never starts it (an unseated device's A or fire joins), SELECT or I calls `Platform.invite_friends()`
+  (Steam's Remote Play Together invite; a no-op without Steam). An apprentice's seat says APPRENTICE over a dashed
+  hem, an away seat AWAY. Shots: `--autotest --seats`.
+- LAN fixes: run-ending and saved-data events (`Net.RELIABLE_EVENTS`) go by reliable RPC (`Net.send_events`,
+  channel 3), the rest stay on the snapshot; a client that sees the host's game-over phase for 1.5 s without them
+  ends the run itself. The ENet throttle is off on connect. The host answers every join (`_refused`: version or
+  snapshot layout, a run on, full), hides other versions from discovery and refuses connections during a run. A
+  remote input packet must be 6 or 8 finite numbers (`Net.clean_input`), and `WorldPlayers._update_player` drops a
+  non-finite one. A client leaves the results screen with fire; the host tells clients to go to the title and closes
+  0.25 s later, and a client closes its side quietly when the message comes.

@@ -372,6 +372,11 @@ const _NO_ROWS: PackedInt32Array = []
 ## The wizards as a typed list, refreshed every step: `players.values()` builds a new untyped array on every call,
 ## and the enemy update asked for it twice per enemy (5% of a whole step at the enemy cap).
 var _plist: Array[Player] = []
+## The brains that play the apprentices (WorldApprentices), slot -> SmashBot; made when first needed.
+var apprentice_bots: Dictionary = {}
+## Score and kills of wizards who left the run (remove_player): total_score and total_kills keep them.
+var departed_score := 0
+var departed_kills := 0
 ## How near the nearest wizard must be at the start of an enemy's update for the contact test to run at all: the
 ## 5 px touch distance plus far more than any enemy travels in one step (the fastest dash is 4 px).
 const CONTACT_REACH := 45.0
@@ -413,6 +418,9 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		players[s] = p
 	_plist.assign(players.values())
 	record = Results.new(slots)
+	for p: Player in _plist:
+		if p.ai:
+			record.ai[p.slot] = true
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
 ## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
@@ -493,7 +501,7 @@ func can_return(p: Player) -> bool:
 	return p.lives > 1 if p.down else p.lives > 0
 
 func total_kills() -> int:
-	var n := 0
+	var n := departed_kills
 	for p: Player in players.values():
 		n += p.kills
 	return n
@@ -516,6 +524,7 @@ func take_events() -> Array:
 
 # ================================================================= STEP ===
 func step(dt: float, inputs: Dictionary) -> void:
+	inputs = WorldApprentices.with_inputs(self, inputs)
 	if phase != PH_GAMEOVER:
 		WorldLevels._update_levelups(self, inputs)
 	time += dt
@@ -560,8 +569,14 @@ func step(dt: float, inputs: Dictionary) -> void:
 	if phase != PH_GAMEOVER and not won:
 		WorldPlayers._last_stand(self)
 		var any := false
-		for p in players.values():
-			if p.alive or can_return(p):
+		# The run ends with its humans: one still in it, or fallen while anyone stands to raise her (apprentices play
+		# on alone only when no seat is human).
+		var seats := humans()
+		var standing := false
+		for p in _plist:
+			standing = standing or p.alive
+		for p in (seats if not seats.is_empty() else _plist):
+			if p.alive or can_return(p) or (p.down and standing):
 				any = true
 		if not any:
 			_end_run()
@@ -594,11 +609,28 @@ func _fight(dt: float) -> void:
 		WorldWaves._spawn_random_powerup(self)
 	WorldShrines._update_shrines(self, dt)
 
+## A wizard leaves the run (her machine left the game): her level and kills go to the record, her score and kills
+## stay in total_score and total_kills, and she is gone from the floor.
+func remove_player(slot: int) -> void:
+	var p: Player = players.get(slot)
+	if p == null:
+		return
+	record.set_stat(slot, "level", p.level)
+	record.set_stat(slot, "kills", p.kills)
+	departed_score += p.score
+	departed_kills += p.kills
+	players.erase(slot)
+	apprentice_bots.erase(slot)
+	_plist.assign(players.values())
+
 # ============================================================ LEVEL-UPS ===
 
 ## XP the party needs for its next level: the solo curve, grown with the party size.
 func xp_needed() -> int:
-	var scale := 1.0 + tune.xp_party_scale * (players.size() - 1)
+	var n := 0.0
+	for p: Player in players.values():
+		n += tune.apprentice_scale if p.ai else 1.0 # an apprentice counts like it does for the horde
+	var scale := 1.0 + tune.xp_party_scale * (n - 1.0)
 	return maxi(1, int(round(tune.xp_to_next(party_level) * maxf(scale, 0.0))))
 
 ## Adds to the party's shared pool; `p` is the wizard who gets the credit (where the LEVEL UP shows).
@@ -623,7 +655,7 @@ func is_picking() -> bool:
 	return false
 
 func total_score() -> int:
-	var s := 0
+	var s := departed_score
 	for p in players.values():
 		s += p.score
 	return s

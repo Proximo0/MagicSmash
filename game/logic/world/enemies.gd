@@ -165,7 +165,8 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 		return
 	var src: World.Player = w.players.get(slot)
 	if src:
-		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage)
+		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage) \
+			* (w.tune.apprentice_damage if src.ai else 1.0)
 	w.record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_source(w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
