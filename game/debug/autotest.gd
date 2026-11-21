@@ -33,9 +33,12 @@ var net := ""
 ## marker shows), tray.png (two trays open at once, or one with more draws waiting behind it), lull.png (a lull
 ## 3.6 s in, its banner up), lull_end.png (the lull over, "THE HORDE RETURNS" up). Each keys on what the arena
 ## shows, held for LEVEL_SHOT_AFTER seconds.
-var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_end": 0.0}
+var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_end": 0.0, "arrival": 0.0}
 var _level_shots := {}
-const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5} # tab: its marker
+const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5, "arrival": 0.9} # tab: its marker
+var hand: Array[int] = [] # --hand=quick,magnet,nova: every wizard's offered cards are replaced by these (art shots)
+var _hand_offer := {}
+var lull_hold := false # --lull: keeps the post-Lich lull running (art shots of the big hand)
 var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
 ## --fall=SECONDS (2+ players): at that run time slot 1 falls; fallen.png shows her spirit with its clock running,
 ## fallen_call.png her call's ping, then slot 0 is held in her circle and fallen_ritual.png shows the circle about
@@ -70,6 +73,13 @@ func _ready() -> void:
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--fall="):
 			fall_at = float(a.substr(7))
+		if a == "--lull":
+			lull_hold = true
+		if a.begins_with("--hand="):
+			for k: String in a.substr(7).split(","):
+				for i: int in range(Upgrades.count()):
+					if Upgrades.key(i) == k:
+						hand.append(i)
 		if a.begins_with("--pick-hold="):
 			pick_hold = float(a.substr(12))
 		if a.begins_with("--players="):
@@ -117,12 +127,23 @@ func _process(delta: float) -> void:
 	if perf:
 		_perf_tick()
 	var cur = G.main.current if G.main else null
+	if lull_hold and cur and "world" in cur and cur.world:
+		cur.world.lull_left = 20.0
+		for lp: World.Player in cur.world.players.values():
+			if lp.choices.is_empty() and lp.pending < 1:
+				lp.pending = 1
+	if not hand.is_empty() and cur and "world" in cur and cur.world:
+		for p: World.Player in cur.world.players.values():
+			if not p.choices.is_empty() and _hand_offer.get(p.slot, -1) != p.offer:
+				_hand_offer[p.slot] = p.offer
+				p.choices = hand.duplicate()
 	# State-keyed shots of the level-up cards and the lull (_level_shot below).
 	if cur and "lull_left" in cur:
 		_level_shot("levelup", delta, _any_tray(cur, false), false)
 		_level_shot("tab", delta, _any_tab(cur), false)
 		_level_shot("tray", delta, _any_tray(cur, true), false)
 		_level_shot("lull", delta, cur.lull_left > 0.0, false)
+		_level_shot("arrival", delta, ArenaFateView._arrival_rect(cur).position.x < 400.0 and ArenaFateView._arrival_rect(cur).size.x > 0.0, false)
 		_level_shot("lull_end", delta, cur.banner.t > 0.0 and cur.banner.text == "THE HORDE RETURNS", false)
 	# State-keyed shot: the first chest reel, just after it stops on the item.
 	if not _chest_shot and cur and "_reveals" in cur:
