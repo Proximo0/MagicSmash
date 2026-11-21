@@ -126,6 +126,23 @@ even a total of 52 downed the hero within 25 s, so the bot's skill matters as mu
 4. `CLASS_XP` (59 rows) is a placeholder curve and has not been tuned against bots.
 5. The bench gear assumption (all UNCOMMON at the hero's level) should be confirmed against the loot rates of section 9.
 
+## Found by the review (21 Nov) and what was done
+
+Fixed, with tests in `realm/core/tests/rejoin.rs`: a hero who left by the gate or a waystone kept her data in her
+slot while the save held none of it, and the flow kept sources from an older build in cells it no longer reached;
+either made a client that joined afterwards compute a different field. A slot is now emptied on LEAVE exactly as
+`Field::leave` does (W1: if the server needs her final outing at LEAVE, carry it in the event, the slot is gone).
+The spitter, lobber and leaper acted one tick late; they now act every 2, 3 and 5 s as the table says.
+
+Not confirmed, left for R2 to decide:
+- QUEEN OF PENTACLES: the code takes `coin / 2 x (10 - keep) / 10`, so one copy loses 45%; `FALL_LOSS_TENTHS` is
+  unused and suggests 40% was meant. The contract's "loses a tenth less" fits both.
+- A leap of up to 200 px, a pull or a push moves a monster after the tick's grid was built (12 px of slack), so
+  contact and area checks can miss it for that one tick.
+- A throw beyond the shot pool (4,096) is dropped after its timer was reset: that monster neither throws nor walks.
+- Effects read through `mods` last N ticks; the ones checked in the tick with `has_fx` (MARTYR, DEADEYE, CRUSADE,
+  PROVOKE) last N - 1.
+
 ## The wire and the window until W1
 
 - A client still sends one byte a tick (direction, bit 7 the skill). `realm_server::wire_input` turns it into the

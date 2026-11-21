@@ -111,7 +111,9 @@ impl Field {
             let (gx, gy) = self.terrain.gate;
             if uy > 0 && d2(h.x, h.y, gx, gy) <= (GATE_PX * SUB) as i64 * (GATE_PX * SUB) as i64 {
                 let coin = std::mem::take(&mut h.coin);
-                h.present = false;
+                // The slot is emptied as `leave` does: the save holds nothing of a hero who is gone, so the
+                // running field must not either.
+                *h = Hero::default();
                 self.events.push(Event::Bank { hero: id, coin, waystone: NO_WAYSTONE });
                 self.events.push(Event::Leave { hero: id });
                 continue;
@@ -130,8 +132,9 @@ impl Field {
                     if h.hold >= BANK_HOLD {
                         h.hold = 0;
                         if h.banked && h.waystone == w as u8 {
-                            h.present = false;
+                            *h = Hero::default();
                             self.events.push(Event::Leave { hero: id });
+                            continue;
                         } else {
                             let coin = std::mem::take(&mut h.coin);
                             h.waystone = w as u8;

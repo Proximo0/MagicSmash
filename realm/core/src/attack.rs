@@ -89,8 +89,10 @@ impl Field {
         }
         if mon.row(i).beh & SHIELDED != 0 {
             let (x, y) = (mon.x[i], mon.y[i]);
-            let q = &self.heroes[self.flow.src[cell_of(x, y)] as usize];
-            let dot = (sx - x) as i64 * (q.x - x) as i64 + (sy - y) as i64 * (q.y - y) as i64;
+            // Its shield faces the hero the flow leads it to; with no such hero alive it faces nobody.
+            let c = cell_of(x, y);
+            let q = self.heroes.get(self.flow.src[c] as usize).filter(|q| self.flow.dist[c] != crate::UNREACHED && q.alive());
+            let dot = q.map_or(0, |q| (sx - x) as i64 * (q.x - x) as i64 + (sy - y) as i64 * (q.y - y) as i64);
             if dot > 0 {
                 p = p * SHIELD_FRONT_TAKEN_PCT as u64 / 100;
             }

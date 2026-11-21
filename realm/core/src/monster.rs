@@ -284,7 +284,7 @@ impl Field {
                 stop = true;
                 if t == 0 {
                     throws.push(Throw { x, y, tx: hero.x, ty: hero.y, dmg: m.damage(i), lob });
-                    t = every;
+                    t = every - 1;
                 } else {
                     t -= 1;
                 }
@@ -311,7 +311,7 @@ impl Field {
                 if let Some((_, q)) = best {
                     let qh = &self.heroes[q as usize];
                     let (lx, ly) = self.terrain.slide(qh.x, qh.y, qh.x + (x - qh.x).signum() * STOP_PX * SUB, qh.y);
-                    return (lx, ly, LEAP_EVERY);
+                    return (lx, ly, LEAP_EVERY - 1);
                 }
             }
         }
@@ -349,7 +349,7 @@ impl Field {
                 let mut best = (i64::MAX, i64::MAX, cx, cy);
                 // Ties in the flow (every step costs the same) go to the cell nearest the hero it leads to,
                 // so a monster bends smoothly instead of favouring the first neighbour listed.
-                let (hx, hy) = self.heroes.get(self.flow.src[c] as usize).map_or((x, y), |h| (h.x, h.y));
+                let (hx, hy) = self.heroes.get(self.flow.src[c] as usize).filter(|h| h.alive()).map_or((x, y), |h| (h.x, h.y));
                 let half = 1 << (CELL_SHIFT - 1);
                 for (ox, oy) in NEIGHBOURS {
                     let nx = cx + ox;

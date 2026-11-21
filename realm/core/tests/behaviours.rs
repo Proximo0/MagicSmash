@@ -226,7 +226,7 @@ fn spitter_stops_at_150_px_and_throws_a_slow_bolt_every_2_s() {
         }
     }
     assert_eq!(f.monsters().x[s as usize], x0, "a spitter in range stands");
-    assert!(thrown.len() >= 2 && thrown[1] - thrown[0] == SPIT_EVERY as u32 + 1, "{thrown:?}");
+    assert!(thrown.len() >= 2 && thrown[1] - thrown[0] == SPIT_EVERY as u32, "{thrown:?}");
     assert!(hurt >= 2, "its bolts reach her");
 }
 
@@ -267,7 +267,7 @@ fn leaper_jumps_onto_the_hero_with_the_lowest_threat_every_5_s() {
     let (sx, sy) = (f.monsters().x[s as usize], f.monsters().y[s as usize]);
     let mh = &f.heroes()[m as usize];
     assert!(dist(sx, sy, mh.x, mh.y) <= px(STOP_PX + 1) as i64, "it lands by the mage");
-    assert_eq!(f.monsters().timer[s as usize], LEAP_EVERY);
+    assert_eq!(f.monsters().timer[s as usize], LEAP_EVERY - 1);
 }
 
 fn cultist_speed(with_piper: bool) -> i32 {

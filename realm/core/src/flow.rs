@@ -45,6 +45,8 @@ impl Flow {
     pub fn start(&mut self, mut sources: Vec<Source>) {
         sources.sort_by_key(|&(c, h, d)| (d, h, c));
         self.bdist.fill(UNREACHED);
+        // A cell the search does not reach keeps no source from an older build (a loaded field has none).
+        self.bsrc.fill(0);
         self.queue.clear();
         self.head = 0;
         self.seeded = 0;
