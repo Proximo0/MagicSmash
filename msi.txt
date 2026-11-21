@@ -1,4 +1,3 @@
-STATION machine=msi time=2026-11-21T22:45Z commit=171dfa6 took=183s
-JOB boss PASS seed7=WON@16:27 seed21=WON@17:27 seed33=WON@17:10 seed101=WON@16:15 seed102=WON@16:16
-JOB frames PASS frames=300 enemies_peak=181 particles=748 draw_calls=91 frame_ms p50=6.9 p95=8.9 script_ms=3.73 limit_p95=25
-STATION PASS jobs=2 failed=0
+STATION machine=msi time=2026-11-21T22:51Z commit=68de507 took=0s
+JOB realm SKIP nothing it tests changed since 171dfa6
+STATION PASS jobs=0 failed=0 skipped=1
