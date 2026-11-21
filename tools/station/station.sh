@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # A station: a spare computer that runs long jobs with no Claude on it and reports a few lines.
 # Usage: tools/station/station.sh [--watch] [--no-push] job [job ...]
-#   jobs: boss    bots play STATION_SEEDS (default "7 21 33 101 102") to the Archlich, side by side
+#   jobs: realm   Horde & Hearth: realm/check.sh and realm/store/check.sh (the Rust core, server and store). Needs cargo;
+#                 a station without it reports SKIP.
+#         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
+#         The four below test Four of Wands, which is stopped; no station runs them now.
+#         boss    bots play STATION_SEEDS (default "7 21 33 101 102") to the Archlich, side by side
 #         checks  tools/check_all.sh; on FAIL the failing rows follow the JOB line
 #         frames  the real game at wave 10 with a full horde on this machine's screen and graphics card; FAIL when the
 #                 95th-percentile frame is over STATION_FRAME_P95_MS (default 25; 0 = record only). Needs a desktop session.
@@ -25,7 +29,7 @@ POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 watch=0; push=1; after=""; jobs=()
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden) jobs+=("$a") ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -34,11 +38,11 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden) jobs+=("$a") ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
-[ ${#jobs[@]} -gt 0 ] || { echo "station: name at least one job (boss checks frames golden)" >&2; exit 2; }
+[ ${#jobs[@]} -gt 0 ] || { echo "station: name at least one job (realm idle boss checks frames golden)" >&2; exit 2; }
 STATE="$(git rev-parse --git-dir)/station_last"  # the commit this station tested last
 
 job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error, or a run that did not finish
@@ -93,6 +97,30 @@ job_golden() {  # information only: which pushes changed how the game plays
   echo "JOB golden INFO $(tools/golden.sh "$base" 2>&1 | tail -1) since ${base:0:7}"
 }
 
+job_realm() {  # one line: the summary line of each check script; FAIL when a script does not end with its "ok" line
+  command -v cargo >/dev/null 2>&1 || { echo "JOB realm SKIP cargo is not installed on this station"; return 0; }
+  local c out line bad=0 detail=""
+  for c in realm/check.sh realm/store/check.sh; do
+    [ -f "$c" ] || continue
+    out=$(timeout "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
+    if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
+    else bad=$((bad + 1)); detail+=" | $c: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  done
+  echo "JOB realm $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
+  return $bad
+}
+job_idle() { echo "JOB idle INFO this station has no job yet"; }
+
+# A job is skipped for a commit that changed nothing it tests. $1 = job, stdin = the paths changed since this station's
+# last commit. Godot jobs test everything except the realm, the docs and the stations themselves.
+touched() {
+  case "$1" in
+    idle) return 0 ;;
+    realm) grep -q '^realm/' ;;
+    *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
+  esac
+}
+
 publish() {  # $1 = report text. Adds <machine>.txt to the results branch without touching the work tree.
   local blob parent tree commit idx
   for _try in 1 2 3; do
@@ -133,16 +161,25 @@ run_once() {
   git checkout -q --detach "$head"
   # This commit changed the script: restart first, so the commit is tested by its own version (the state is not saved yet).
   if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then exec bash tools/station/station.sh "${ARGS[@]}"; fi
-  tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
-  local start=$SECONDS failed=0 body=""
+  local start=$SECONDS failed=0 body="" skipped=0 run=() j
+  local base changed="" known=0; base=$(cat "$STATE" 2>/dev/null)
+  if [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null); then known=1; fi
+  for j in "${jobs[@]}"; do
+    if [ $known = 1 ] && ! touched "$j" <<<"$changed"; then
+      body+="JOB $j SKIP nothing it tests changed since ${base:0:7}"$'\n'; skipped=$((skipped + 1))
+    else run+=("$j"); fi
+  done
   local verdict
   if [ -n "$held" ]; then
     verdict="STATION HELD $held"
   else
-    for j in "${jobs[@]}"; do
+    if grep -qE '(^| )(boss|checks|frames|golden)( |$)' <<<"${run[*]:-}"; then  # only Godot jobs need the import
+      tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
+    fi
+    for j in "${run[@]:+${run[@]}}"; do
       body+="$("job_$j")"$'\n' || failed=$((failed + 1))
     done
-    verdict="STATION $([ $failed -eq 0 ] && echo PASS || echo FAIL) jobs=${#jobs[@]} failed=$failed"
+    verdict="STATION $([ $failed -eq 0 ] && echo PASS || echo FAIL) jobs=${#run[@]} failed=$failed skipped=$skipped"
   fi
   local report="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=${head:0:7} took=$((SECONDS - start))s"$'\n'"$body$verdict"
   echo "$head" >"$STATE"

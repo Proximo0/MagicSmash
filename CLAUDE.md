@@ -1,3 +1,8 @@
+# HORDE & HEARTH is the only game in work (Curtis, 21 Nov 2026: "stop four of wands and work entirely on this title")
+It lives in `realm/` (Rust core, server, store; Godot client in `realm/client`). Start with `docs/realm/build_plan.md`
+and `realm/README.md`; checks are `realm/check.sh`, `realm/store/check.sh`, `realm/check_client.sh`. Everything below
+describes FOUR OF WANDS, which is stopped: leave it buildable and change it only when asked.
+
 # FOUR OF WANDS (repo MagicSmash) · Godot 4.7.2 · GDScript
 Co-op survivors-like wizard shooter, 1-4p (local+LAN, host-auth ENet). Steam 18 Dec 2026. 480x270 pixel art, Compat renderer.
 
@@ -10,7 +15,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 ## Commands
 - `T/run_tests.sh [name]` unit ~3 s `TESTS` (fails on engine error, 0 asserts, >10 s) · `T/lint.sh` `LINT problems=n`
 - `T/run_sims.sh [sim]` parallel `SIMS` (`sim_horde` CPU budget: real on CI `sims-horde`, ×2 in check_all) · `T/check_all.sh` `CHECK_ALL`
-- `T/station/read.sh` C's 4 PCs relay long jobs per merge (roles in `T/station/roles.txt`) `STATIONS n= failed= stale=`; setup `T/station/README.md`
+- `T/station/read.sh` C's 4 PCs test each merge with no tokens (roles `T/station/roles.txt`: now `realm` on ubuntu+msi, others idle; a job skips merges that changed nothing it tests) `STATIONS n= failed= stale=`; setup `T/station/README.md`
 - `T/golden.sh [base=origin/main]` `GOLDEN same|changed` · `T/import.sh` only import path, skips no-ops (`FORCE_IMPORT=1`)
 - `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
 - `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_android.sh` → `build/` · `T/fetch_sentry.sh`
