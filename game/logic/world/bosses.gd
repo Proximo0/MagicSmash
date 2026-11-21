@@ -15,7 +15,7 @@ static func _make_final(w: World, e: World.Enemy) -> void:
 
 
 static func _lich_hp_scale(w: World) -> float:
-	return (1.0 + w.tune.boss_hp_per_player * (w.players.size() - 1)) * (1.0 + w.tune.boss_hp_per_cycle * maxi(0, _lich_visits(w, w.wave) - 1))
+	return w.tune.boss_hp_mul * (1.0 + w.tune.boss_hp_per_player * (w.players.size() - 1)) * (1.0 + w.tune.boss_hp_per_cycle * maxi(0, _lich_visits(w, w.wave) - 1))
 
 
 ## How many Lich visits are due by the start of `minute` (minute 1 starts at 0:00).
@@ -56,7 +56,7 @@ static func _update_lich(w: World, e: World.Enemy, dt: float, tgt: World.Player,
 				e.count += 1.0
 				if e.count >= 3.0:
 					e.state = 0
-					e.timer = 1.4 if rage else 2.0
+					e.timer = (1.4 if rage else 2.0) * w.tune.boss_rest_mul
 		2: # aimed volleys at every wizard
 			if e.timer2 <= 0.0:
 				for p in w.players.values():
@@ -69,7 +69,7 @@ static func _update_lich(w: World, e: World.Enemy, dt: float, tgt: World.Player,
 				e.count += 1.0
 				if e.count >= (5.0 if rage else 4.0):
 					e.state = 0
-					e.timer = 1.6
+					e.timer = 1.6 * w.tune.boss_rest_mul
 		3: # spiral
 			desired = Vector2.ZERO
 			if e.timer2 <= 0.0:
@@ -82,7 +82,7 @@ static func _update_lich(w: World, e: World.Enemy, dt: float, tgt: World.Player,
 				w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 16, World.ES_SKULL, 2)
 			if e.timer <= 0.0:
 				e.state = 0
-				e.timer = 1.8
+				e.timer = 1.8 * w.tune.boss_rest_mul
 		4: # summon minions from every door
 			var kinds := [World.SKELETON, World.GOBLIN, World.BAT] if rage else [World.GOBLIN, World.GOBLIN, World.SKELETON]
 			for d in 4:
@@ -92,7 +92,7 @@ static func _update_lich(w: World, e: World.Enemy, dt: float, tgt: World.Player,
 				WorldWaves._spawn_elite(w)
 			w.emit(World.EV_TELE, e.pos.x, e.pos.y - 16, 2, 0)
 			e.state = 0
-			e.timer = 2.5
+			e.timer = 2.5 * w.tune.boss_rest_mul
 		5: # teleport to the far side of the nearest wizard, then burst
 			desired = Vector2.ZERO
 			if e.timer <= 0.0 and tgt:

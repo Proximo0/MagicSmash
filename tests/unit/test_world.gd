@@ -170,8 +170,9 @@ func test_a_pick_with_a_draw_queued_deals_the_next_offer_in_the_same_tick() -> v
 
 func test_each_player_picks_for_themselves() -> void:
 	var w := World.new([0, 1], 3)
-	w.gain_xp(_player(w, 0), w.tune.xp_to_next(1))
-	w.gain_xp(_player(w, 1), w.tune.xp_to_next(1))
+	var need := w.xp_needed()
+	w.gain_xp(_player(w, 0), need / 2)
+	w.gain_xp(_player(w, 1), need - need / 2)
 	w.step(DT, {})
 	var p0 := _player(w, 0)
 	var p1 := _player(w, 1)

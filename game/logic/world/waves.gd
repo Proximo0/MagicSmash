@@ -207,12 +207,13 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 	w.next_id += 1
 	e.type = type
 	var st: Array = World.STATS[type]
-	var hp_scale := 1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)
+	var hp_scale := (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)) * pow(w.tune.enemy_hp_growth, w.wave - 1) \
+		* (1.0 + w.tune.enemy_hp_per_player * (w.players.size() - 1))
 	if type == World.LICH:
 		hp_scale = WorldBosses._lich_hp_scale(w)
 	e.hp = st[0] * hp_scale
 	e.maxhp = e.hp
-	e.spd = st[1] * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
+	e.spd = st[1] * w.tune.enemy_speed_mul * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
 	e.r = st[2]
 	e.contact = st[4]
 	e.t = w.rng.randf() * 10.0

@@ -15,10 +15,10 @@ const FIELDS: Array = [
 	["haste_rate_mul", 0.72, 0.3, 1.0, 0.02, "Player", "Cast cooldown multiplier while hasted (lower casts faster)."],
 	["spell_cd_mul", 1.0, 0.2, 3.0, 0.05, "Casting", "Multiplier on every spell's cooldown (Spells.STATS); lower casts faster."],
 	["auto_aim_range", 200.0, 40.0, 480.0, 10.0, "Casting", "Spells auto-aim at the nearest enemy within this range, px, unless the player aims."],
-	["horde_start_budget", 10.0, 0.0, 100.0, 1.0, "Spawning", "Spawn budget the horde starts with, so the first enemies come at once."],
-	["horde_rate_base", 10.0, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
-	["horde_rate_per_min", 10.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
-	["spawn_party_scale", 1.1, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
+	["horde_start_budget", 0.0, 0.0, 100.0, 1.0, "Spawning", "Spawn budget the horde starts with, so the first enemies come at once."],
+	["horde_rate_base", 2.0, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
+	["horde_rate_per_min", 8.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
+	["spawn_party_scale", 1.0, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
 	["horde_boss_mul", 0.35, 0.0, 1.0, 0.05, "Spawning", "Spawn budget multiplier while the Lich is alive."],
 	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
 	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
@@ -42,14 +42,18 @@ const FIELDS: Array = [
 	["urn_card_chance", 0.004, 0.0, 0.1, 0.001, "Loot", "Chance an urn holds a monster card (any kind)."],
 	["urn_rare_chance", 0.03, 0.0, 0.5, 0.01, "Loot", "Chance an urn holds a rare chest."],
 	["card_boss_chance", 0.25, 0.0, 1.0, 0.05, "Loot", "Chance a slain Lich or the Archlich drops the Lich card."],
+	["coin_drop_chance", 0.1, 0.0, 1.0, 0.01, "Loot", "Chance a kill (not an orc or a mage) drops a gold coin."],
+	["tome_drop_chance", 0.005, 0.0, 0.2, 0.001, "Loot", "Chance a kill (not an orc or a mage) drops a spell tome (grants or levels that spell)."],
+	["big_tome_chance", 0.15, 0.0, 1.0, 0.01, "Loot", "Chance an orc or a mage drops a spell tome beside its gem."],
+	["potion_drop_chance", 0.05, 0.0, 0.5, 0.005, "Loot", "Chance a kill (not an orc or a mage) drops a healing potion."],
 	["shrine_first", 40.0, 0.0, 600.0, 5.0, "Shrines", "Seconds of fighting before the first gamble shrine."],
-	["shrine_interval", 60.0, 5.0, 600.0, 5.0, "Shrines", "Seconds between gamble shrines."],
-	["shrine_life", 30.0, 5.0, 120.0, 1.0, "Shrines", "Seconds a shrine waits for a bet before it fades."],
-	["shrine_cost_base", 15.0, 0.0, 500.0, 1.0, "Shrines", "Gold a shrine costs in minute 1."],
-	["shrine_cost_per_min", 6.0, 0.0, 100.0, 1.0, "Shrines", "Gold added to shrine costs per minute of the run."],
+	["shrine_interval", 25.0, 5.0, 600.0, 5.0, "Shrines", "Seconds between gamble shrines."],
+	["shrine_life", 50.0, 5.0, 120.0, 1.0, "Shrines", "Seconds a shrine waits for a bet before it fades."],
+	["shrine_cost_base", 60.0, 0.0, 500.0, 1.0, "Shrines", "Gold a shrine costs in minute 1."],
+	["shrine_cost_per_min", 25.0, 0.0, 100.0, 1.0, "Shrines", "Gold added to shrine costs per minute of the run."],
 	["shrine_hold", 1.0, 0.2, 5.0, 0.1, "Shrines", "Seconds a wizard who can pay stands on a shrine to bet."],
 	["shrine_radius", 14.0, 6.0, 40.0, 1.0, "Shrines", "How close a wizard must stand to use a shrine, px."],
-	["shrine_min_dist", 50.0, 0.0, 200.0, 5.0, "Shrines", "Shrines appear at least this far from every wizard, px."],
+	["shrine_min_dist", 30.0, 0.0, 200.0, 5.0, "Shrines", "Shrines appear at least this far from every wizard, px."],
 	["shrine_reel", 1.2, 0.3, 5.0, 0.1, "Shrines", "Seconds a solo shrine's reel spins before the outcome lands."],
 	["team_shrine_first", 120.0, 0.0, 900.0, 5.0, "Shrines", "Seconds of fighting before the first team shrine."],
 	["team_shrine_interval", 150.0, 10.0, 900.0, 5.0, "Shrines", "Seconds between team shrines."],
@@ -57,22 +61,30 @@ const FIELDS: Array = [
 	["team_cost_mul", 2.5, 1.0, 10.0, 0.1, "Shrines", "A team shrine costs this many times a solo one; one wizard pays it all."],
 	["team_reel", 3.0, 0.5, 8.0, 0.1, "Shrines", "Seconds the team shrine's reel spins while everyone watches."],
 	["boss_every_min", 5.0, 1.0, 20.0, 1.0, "Spawning", "The Lich arrives at the start of every this-many-th minute."],
+	["boss_rest_mul", 1.8, 0.25, 5.0, 0.05, "Spawning", "Multiplier on the seconds the Lich and the Archlich drift between attacks."],
 	["run_minutes", 15.0, 1.0, 30.0, 1.0, "Run", "Minutes of horde before the Archlich, the final boss, comes. Slaying it wins the run."],
-	["final_hp_mul", 10.0, 1.0, 40.0, 0.5, "Run", "The Archlich has this many times the HP the Lich would have on that minute."],
+	["final_hp_mul", 3.6, 1.0, 40.0, 0.5, "Run", "The Archlich has this many times the HP the Lich would have on that minute."],
 	["victory_delay", 3.0, 0.5, 10.0, 0.5, "Run", "Seconds between the Archlich falling and the results screen."],
-	["enemy_hp_per_min", 0.35, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
-	["enemy_speed_per_min", 0.03, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
+	["enemy_hp_per_min", 0.1, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
+	["enemy_speed_per_min", 0.05, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
 	["enemy_speed_min_cap", 12.0, 1.0, 60.0, 1.0, "Scaling", "Minute after which enemies stop getting faster."],
-	["boss_hp_per_player", 0.6, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
-	["boss_hp_per_cycle", 0.25, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth each time it returns."],
+	["boss_hp_per_player", 0.5, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
+	["boss_hp_per_cycle", 2.0, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth each time it returns."],
+	["boss_hp_mul", 3.5, 0.1, 20.0, 0.1, "Scaling", "Multiplier on the Lich's (and so the Archlich's) HP."],
+	["enemy_hp_per_player", 0.12, 0.0, 2.0, 0.05, "Scaling", "Horde and elite HP growth per extra wizard: HP x (1 + this x (players - 1))."],
+	["enemy_shot_cd_mul", 5.0, 0.25, 5.0, 0.05, "Scaling", "Multiplier on the seconds between a skeleton's arrows and a dark mage's volleys."],
+	["arrow_speed", 75.0, 40.0, 300.0, 5.0, "Scaling", "Speed of a skeleton's arrow, px/s."],
+	["enemy_speed_mul", 0.85, 0.3, 3.0, 0.05, "Scaling", "Multiplier on every enemy's walk speed (the Lich's too)."],
+	["mage_orb_speed", 80.0, 30.0, 300.0, 5.0, "Scaling", "Speed of a dark mage's orbs, px/s."],
+	["enemy_hp_growth", 1.12, 1.0, 1.5, 0.01, "Scaling", "Compound enemy HP growth per minute on top of enemy_hp_per_min: HP x this ^ (minute - 1)."],
 	["xp_first_level", 20.0, 1.0, 200.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
-	["xp_per_level", 60.0, 0.0, 200.0, 1.0, "XP", "Extra XP needed per level beyond the first (linear part)."],
+	["xp_per_level", 90.0, 0.0, 200.0, 1.0, "XP", "Extra XP needed per level beyond the first (linear part)."],
 	["xp_growth", 1.04, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
-	["xp_gem_life", 30.0, 5.0, 120.0, 1.0, "XP", "Seconds an XP gem stays on the floor."],
+	["xp_gem_life", 90.0, 5.0, 120.0, 1.0, "XP", "Seconds an XP gem stays on the floor."],
 	["xp_gem_cap", 120.0, 10.0, 1000.0, 10.0, "XP", "Most XP gems on the floor; past it a new gem's XP joins the nearest gem instead."],
-	["xp_magnet_radius", 24.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
+	["xp_magnet_radius", 44.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
 	["xp_magnet_speed", 170.0, 40.0, 500.0, 5.0, "XP", "Speed of an XP gem flying to a wizard, px/s."],
-	["xp_party_scale", 1.0, 0.0, 2.0, 0.05, "XP", "XP a level costs grows by this fraction per extra wizard (the spawn budget grows with the party too)."],
+	["xp_party_scale", 1.8, 0.0, 2.0, 0.05, "XP", "XP a level costs grows by this fraction per extra wizard (the spawn budget grows with the party too)."],
 	["pick_shock_radius", 44.0, 0.0, 120.0, 2.0, "XP", "Taking a card pushes every enemy this close to the wizard away, px (no damage). 0 = off."],
 	["pick_shock_push", 220.0, 0.0, 600.0, 10.0, "XP", "Knockback of a card's shock, px/s, scaled like other knockback (the Nova's is 260)."],
 	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the card tray hold 3)."],
@@ -110,6 +122,10 @@ var ultra_drop_chance: float
 var card_chance: float
 var card_elite_mul: float
 var card_boss_chance: float
+var coin_drop_chance: float
+var tome_drop_chance: float
+var big_tome_chance: float
+var potion_drop_chance: float
 var urn_count: float
 var urn_card_chance: float
 var urn_rare_chance: float
@@ -128,6 +144,7 @@ var team_shrine_life_mul: float
 var team_cost_mul: float
 var team_reel: float
 var boss_every_min: float
+var boss_rest_mul: float
 var run_minutes: float
 var final_hp_mul: float
 var victory_delay: float
@@ -136,6 +153,13 @@ var enemy_speed_per_min: float
 var enemy_speed_min_cap: float
 var boss_hp_per_player: float
 var boss_hp_per_cycle: float
+var boss_hp_mul: float
+var enemy_hp_per_player: float
+var enemy_shot_cd_mul: float
+var arrow_speed: float
+var enemy_speed_mul: float
+var enemy_hp_growth: float
+var mage_orb_speed: float
 var xp_first_level: float
 var xp_per_level: float
 var xp_growth: float
