@@ -325,15 +325,7 @@ static func _update_shots(w: World, dt: float) -> void:
 		s.life -= dt
 		var home := Spells.bolt_value(s.spell, "home", s.evo, 0.0)
 		if home > 0.0:
-			var best: World.Enemy = null
-			var bd := home
-			for e in w._query(s.pos, home):
-				if s.hits.has(e.id) or WorldEnemies._faded(w, e):
-					continue
-				var d = e.pos.distance_to(s.pos)
-				if d < bd:
-					bd = d
-					best = e
+			var best := _homing_target(w, s, home)
 			if best:
 				var speed := Spells.stat(s.spell, "speed")
 				var want := (best.pos + Vector2(0, -4) - s.pos).normalized() * speed
@@ -351,6 +343,30 @@ static func _update_shots(w: World, dt: float) -> void:
 			if s.pos.distance_to(hit_pos) < s.r + e.r + 1.0:
 				_shot_hit(w, s, e)
 				break
+
+
+## The nearest enemy within `home` of homing shot `s` that it has not hit and that has not faded, or null. It looks
+## close by first and widens only when it finds nobody near enough: a foe found well inside a ring is nearer than
+## every foe outside it, so the answer (ties too: _query walks the same cells in the same order) is that of one wide
+## search, for a fraction of the work in a crowd. One wide search per star per step was most of a step at the enemy
+## cap. The grid is a step old, so a ring only counts up to HOME_RING_SLACK short of its edge: a foe that walked in
+## since the grid was built is still found.
+static func _homing_target(w: World, s: World.Shot, home: float) -> World.Enemy:
+	var ring := minf(home, Spells.HOME_RING)
+	while true:
+		var best: World.Enemy = null
+		var bd := home
+		for e: World.Enemy in w._query(s.pos, ring):
+			if s.hits.has(e.id) or WorldEnemies._faded(w, e):
+				continue
+			var d := e.pos.distance_to(s.pos)
+			if d < bd:
+				bd = d
+				best = e
+		if ring >= home or (best != null and bd <= ring - Spells.HOME_RING_SLACK):
+			return best
+		ring = minf(home, ring * Spells.HOME_RING_GROW)
+	return null
 
 
 static func _shot_hit(w: World, s: World.Shot, e: World.Enemy) -> void:

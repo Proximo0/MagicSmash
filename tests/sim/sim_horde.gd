@@ -6,6 +6,10 @@ extends "res://tests/sim/sim_base.gd"
 const SEED: int = 21
 ## Ticks measured at the peak, after a short settle.
 const PEAK_TICKS: int = 600
+## The peak is timed in this many equal windows and the cheapest one is the row's cost: the same code ran 2483 to
+## 3217 us on one idle machine (a shared runner's neighbours, its clock speed), and that noise only ever adds. A
+## real cost is in every window. The CPU clock ticks every 10 ms, 1.7% of a 200-tick window.
+const PEAK_WINDOWS: int = 3
 const SETTLE_TICKS: int = 60
 ## World.step's budget, microseconds of CPU time: a quarter of a 16.7 ms frame leaves room for drawing and the network.
 ## CPU time, not a stopwatch: a stopwatch also counts the time other processes hold the cores, so check_all failed
@@ -95,21 +99,28 @@ func _peak(mixed: bool = false, extra: int = -1) -> Dictionary:
 		if mixed:
 			_fill_hazards(w, rng)
 		w.step(DT, _inputs(w, bots))
-	var c0: int = _cpu_usec()
-	var t0: int = Time.get_ticks_usec()
 	var low: int = 1 << 30
 	var rows_low: int = Hazards.CAP
-	for _i: int in range(PEAK_TICKS):
-		if mixed:
-			_fill_hazards(w, rng)
-			rows_low = mini(rows_low, w.hazards.size())
-		w.step(DT, _inputs(w, bots))
-		w.take_events()
-		low = mini(low, w.enemies.size())
-	var wall: float = float(Time.get_ticks_usec() - t0) / PEAK_TICKS
-	var c1: int = _cpu_usec()
-	var by_cpu: bool = c0 >= 0 and c1 >= 0
-	return {"us": float(c1 - c0) / PEAK_TICKS if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low, "rows": rows_low}
+	var us: float = INF
+	var wall: float = INF
+	var by_cpu := true
+	var per: int = PEAK_TICKS / PEAK_WINDOWS
+	for _win: int in range(PEAK_WINDOWS):
+		var c0: int = _cpu_usec()
+		var t0: int = Time.get_ticks_usec()
+		for _i: int in range(per):
+			if mixed:
+				_fill_hazards(w, rng)
+				rows_low = mini(rows_low, w.hazards.size())
+			w.step(DT, _inputs(w, bots))
+			w.take_events()
+			low = mini(low, w.enemies.size())
+		var win_wall: float = float(Time.get_ticks_usec() - t0) / per
+		var c1: int = _cpu_usec()
+		by_cpu = by_cpu and c0 >= 0 and c1 >= 0
+		wall = minf(wall, win_wall)
+		us = minf(us, float(c1 - c0) / per if by_cpu else win_wall)
+	return {"us": us if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low, "rows": rows_low}
 
 
 ## CPU time this process has used so far, microseconds, or -1 where the OS does not say (anything but Linux; the

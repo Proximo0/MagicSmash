@@ -369,6 +369,39 @@ func test_targeting_skips_a_faded_wraith() -> void:
 	assert_eq(s.vel, Vector2(0, 175), "a star turned toward a faded wraith")
 
 
+## A homing star looks near first (WorldCasting._homing_target): in crowds thin and thick, from anywhere in the
+## arena, it picks the foe one wide search of its whole reach would, and nobody when nobody is in reach.
+func test_a_homing_shot_finds_the_foe_a_wide_search_would() -> void:
+	var home := Spells.bolt_value(World.SP_STAR, "home", false, 0.0)
+	assert_true(home > Spells.HOME_RING, "STARFALL no longer homes past the first ring: nothing is tested")
+	var rng := _rng(11)
+	for crowd: int in [0, 1, 3, 12, 60, 240]:
+		var w := World.new([0], 3)
+		for _i: int in range(crowd):
+			var e := _still(w, World.GOBLIN, Vector2(rng.randf_range(G.ARENA.position.x, G.ARENA.end.x),
+				rng.randf_range(G.ARENA.position.y, G.ARENA.end.y)))
+			if rng.randf() < 0.1:
+				e.dead = true
+		w._build_grid()
+		for _i: int in range(40):
+			var s := World.Shot.new()
+			s.spell = World.SP_STAR
+			s.pos = Vector2(rng.randf_range(G.ARENA.position.x, G.ARENA.end.x), rng.randf_range(G.ARENA.position.y, G.ARENA.end.y))
+			for e: World.Enemy in w.enemies:
+				if rng.randf() < 0.05:
+					s.hits[e.id] = true
+			var want: World.Enemy = null
+			var bd := home
+			for e: World.Enemy in w._query(s.pos, home):
+				if s.hits.has(e.id):
+					continue
+				var d := e.pos.distance_to(s.pos)
+				if d < bd:
+					bd = d
+					want = e
+			assert_eq(WorldCasting._homing_target(w, s, home), want, "a crowd of %d: another foe than the wide search's" % crowd)
+
+
 ## One wizard alone for as long as a test wants: the intro never ends, so no horde, powerup or shrine comes.
 func _quiet(upgrades: Dictionary, tuning: Tuning = null) -> World:
 	var w := World.new([0], 3, tuning)

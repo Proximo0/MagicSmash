@@ -71,7 +71,8 @@ How each system works: read only the section for the system you touch (`grep -n 
   `Tuning.new_kinds` scales their weights; 0 plays the old horde exactly.
 - XP gems past `Tuning.xp_gem_cap` merge into the nearest gem, so the floor stays readable and cheap.
 - Cost: `tests/sim/sim_horde.gd` fills the arena to the cap with 4 wizards and asserts `World.step` stays under
-  4 ms. It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for
+  4 ms. It times the peak in three windows and takes the cheapest (noise only adds); `tools/step_profile.gd`
+  times each phase of the step for a loadout (`docs/performance.md`, pass 3). It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for
   half the crowd per tick). Drawing was the next cost; the perf pass on 19 Nov cut a 12:00 frame from about
   1000 draw calls to about 250 (see `docs/performance.md`).
 - Balance pass 1 (after step 4), measured with bot teams on seed 21:
