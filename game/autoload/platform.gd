@@ -5,6 +5,9 @@ extends Node
 
 const CONFIG := "res://config/steam.cfg"
 
+## The Steam overlay opened (true) or closed (false). Only ever emitted with GodotSteam.
+signal overlay_toggled(active: bool)
+
 var app_id := 0
 var ready_ok := false # Steam initialised and we may unlock achievements
 var _steam: Object = null
@@ -27,6 +30,9 @@ func _ready() -> void:
 	ready_ok = res is Dictionary and int((res as Dictionary).get("status", 1)) == 0
 	if not ready_ok:
 		push_warning("Steam did not start: %s" % str(res))
+	elif _steam.has_signal("overlay_toggled"):
+		_steam.connect("overlay_toggled", func(active: bool, _user_initiated: bool = false, _app: int = 0) -> void:
+			overlay_toggled.emit(active))
 
 
 func _process(_delta: float) -> void:

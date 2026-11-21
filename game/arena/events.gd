@@ -148,9 +148,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				var cidx := int(ev[3])
 				if int(ev[4]) >= 8 and Save.profile.find_secret("urn_card"):
 					a.fx.text(pos + Vector2(0, -24), "SECRET FOUND", Color("8bdcff"), 2.0)
-				ev[4] = int(ev[4]) % 8
+				var card_slot := int(ev[4]) % 8 # never written back: the same event goes on to the clients
 				var first := Save.add_card(cidx)
-				a._cards.append({"idx": cidx, "slot": int(ev[4]), "t": 0.0, "first": first})
+				a._cards.append({"idx": cidx, "slot": card_slot, "t": 0.0, "first": first})
 				a.fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
 				a.fx.ring(pos, 4.0, 60.0, 0.7, Color("ffd94d"), 2.0)
 				a._add_shake(4.0)
