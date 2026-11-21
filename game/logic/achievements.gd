@@ -18,7 +18,7 @@ const LIST: Array = [
 	["BLESSED", "BLESSED BE", "Draw The Sun for the whole party at the fate card.", 5],
 	["CURSED", "WORTH IT", "Draw Death for the whole party at the fate card.", 5, true],
 	["JACKPOT", "JACKPOT", "Hit the jackpot at a rune altar.", 10],
-	["ULTRA", "ULTRA RARE", "Find ultra rare loot in a chest.", 15],
+	["ULTRA", "ULTRA RARE", "Find ultra rare loot in a chest.", 50],
 	["EVOLVE", "EVOLUTION", "Evolve a spell.", 10],
 	["COMBO_200", "TOTAL SORCERY", "Chain a 200 kill combo.", 20],
 	["SEAL", "THE KEY OF SOLOMON", "Evolve Rune Circle into the Seal of Solomon.", 25, true],
@@ -62,6 +62,7 @@ const LIST: Array = [
 	["APPRENTICES", "THE MASTER'S HAND", "Win a run with only apprentices beside you.", 20, true],
 	["FAST_WIN", "ON SCHEDULE", "Win a run with four heroes before 16:30.", 30],
 	["EVO_CLEAVE", "WIDDERSHINS", "Evolve Cleave into Whirlwind.", 15],
+	["FIRST_CARD", "THE QUERENT", "Find your first monster card.", 25],
 ]
 
 const C_API := 0
@@ -81,14 +82,15 @@ const REVIVES_RUN := 3
 ## A hero's class level for HERO_10.
 const HERO_LEVEL := 10
 
-## Most lines the results screen gives the deeds a run earned; a longer list ends in "+K MORE DEEDS".
+## Most lines the results screen gives the cards found and deeds earned in a run; a longer list ends in "+K MORE".
 const RESULT_LINES := 3
 
 ## The rules of the deeds past the first 14: api name -> [kind, argument]. Kinds (what `earned` checks):
 ## win_class: won with this Classes index in the party. win_race: the same for a Races index. trinity: won with a
 ## tank, a healer and a ranged hero. evo: the Spells index whose evolution was taken. boss: a Bestiary type slain
 ## (an act boss moment). seal: won at this Seals step or above. revives_run, revives_all, kills_all, hero_level:
-## at least the argument of that count. cards, secrets: every one found (argument unused). apprentices: won with
+## at least the argument of that count. cards, secrets: every one found (argument unused). some_cards: at least the
+## argument of monster cards found. apprentices: won with
 ## one human and only apprentices beside them. fast: won with at least FAST_PARTY heroes in under the argument seconds.
 const RULES := {
 	"WIN_MAGE": ["win_class", Classes.MAGE],
@@ -127,6 +129,7 @@ const RULES := {
 	"KILLS_100K": ["kills_all", 100000],
 	"HERO_10": ["hero_level", HERO_LEVEL],
 	"ALL_CARDS": ["cards", 0],
+	"FIRST_CARD": ["some_cards", 1],
 	"ALL_SECRETS": ["secrets", 0],
 	"APPRENTICES": ["apprentices", 0],
 	"FAST_WIN": ["fast", FAST_SECONDS],
@@ -170,18 +173,22 @@ static func is_secret(api: String) -> bool:
 	return not row.is_empty() and row.size() > C_SECRET and bool(row[C_SECRET])
 
 
-## The results screen's lines for the deeds a run earned (Profile.last_pay.deeds): "DEED: NAME +CRYSTALS" each, at
-## most RESULT_LINES lines in all, the last one "+K MORE DEEDS" when they do not all fit.
-static func result_lines(api_names_earned: Array) -> Array[String]:
+## The results screen's lines for the cards found in the run (Cards indices, "CARD FOUND: NAME" each, first) and
+## the deeds it earned (Profile.last_pay.deeds, "DEED: NAME +CRYSTALS" each): at most RESULT_LINES lines in all,
+## the last one "+K MORE" when they do not all fit ("+K MORE DEEDS" when only deeds are left out).
+static func result_lines(api_names_earned: Array, cards: Array = []) -> Array[String]:
 	var out: Array[String] = []
-	var n := api_names_earned.size()
-	var shown := n if n <= RESULT_LINES else RESULT_LINES - 1
-	for i: int in range(shown):
-		var api := str(api_names_earned[i])
-		var row := row_of(api)
-		out.append("DEED: %s +%d" % [api if row.is_empty() else str(row[C_NAME]), crystals_of(api)])
-	if n > shown:
-		out.append("+%d MORE DEEDS" % (n - shown))
+	for c: Variant in cards:
+		out.append("CARD FOUND: %s" % Cards.card_name(int(c)))
+	for api: Variant in api_names_earned:
+		var row := row_of(str(api))
+		out.append("DEED: %s +%d" % [str(api) if row.is_empty() else str(row[C_NAME]), crystals_of(str(api))])
+	if out.size() <= RESULT_LINES:
+		return out
+	var left := out.size() - (RESULT_LINES - 1)
+	var only_deeds := cards.size() <= RESULT_LINES - 1
+	out.resize(RESULT_LINES - 1)
+	out.append("+%d MORE DEEDS" % left if only_deeds else "+%d MORE" % left)
 	return out
 
 
@@ -292,6 +299,8 @@ static func _rule_met(kind: String, arg: int, f: Dictionary) -> bool:
 			return int(party.get("hero_level", 0)) >= arg
 		"cards":
 			return int(party.get("cards", 0)) >= Cards.count()
+		"some_cards":
+			return int(party.get("cards", 0)) >= arg
 		"secrets":
 			return int(party.get("secrets", 0)) >= Secrets.count()
 		"apprentices":

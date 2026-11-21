@@ -50,13 +50,13 @@ const ALL_POTS := (1 << 12) - 1
 ## The note that drifts up from the music box (a character the pixel font can draw).
 const MUSIC_NOTE := "#"
 ## What a pot holds: chance of a monster card (ultra rare), of a crystal cache, of one crystal.
-const POT_CARD := 0.01
+const POT_CARD := 0.001
 const POT_CACHE := 0.06
 const POT_CACHE_CRYSTALS := 5
 const POT_CRYSTAL := 0.35
 
-## A sealed deck draws one card; the Lich card is ten times rarer than the rest.
-const DECK_COST := 40
+## A sealed deck draws one card (a long saving goal: the sure way to a card); the Lich card is ten times rarer.
+const DECK_COST := 1500
 const LICH_WEIGHT := 1.0
 const CARD_WEIGHT := 10.0
 ## The wishing well: a crystal in, a fortune out, and now and then the well pays back.

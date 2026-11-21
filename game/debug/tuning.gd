@@ -37,16 +37,18 @@ const FIELDS: Array = [
 	["elite_chest_luck", 1.0, 0.0, 5.0, 1.0, "Loot", "Luck of an elite's chest (each point moves a fifth of the common odds up the tiers)."],
 	["boss_chest_luck", 3.0, 0.0, 5.0, 1.0, "Loot", "Luck of the chests the Lich drops, one per wizard."],
 	["rare_drop_chance", 0.0015, 0.0, 0.1, 0.0005, "Loot", "Chance any kill drops a rare chest (blue, opens rare or better)."],
-	["ultra_drop_chance", 0.0002, 0.0, 0.01, 0.0001, "Loot", "Chance any kill drops an ultra-rare chest (prismatic, opens legendary or better)."],
-	["card_chance", 0.0004, 0.0, 0.05, 0.0001, "Loot", "Chance a kill drops that monster's card (ultra rare, kept between runs)."],
-	["card_elite_mul", 25.0, 1.0, 100.0, 1.0, "Loot", "An elite's card chance as a multiple of card_chance."],
+	["ultra_run_chance", 0.01, 0.0, 1.0, 0.005, "Loot", "Chance a run is an ULTRA RARE run (decided once, at the start): one prismatic chest drops from a kill at its seeded moment and opens ULTRA RARE. No other chest ever does."],
+	["ultra_run_luck", 0.002, 0.0, 0.02, 0.001, "Loot", "ultra_run_chance added per point of the run's chest luck (meta unlocks and the Seal's luck)."],
+	["ultra_run_cap", 0.03, 0.0, 1.0, 0.005, "Loot", "Most an ULTRA RARE run's chance can reach with luck."],
+	["card_run_chance", 0.01, 0.0, 1.0, 0.005, "Loot", "Chance a run is a card run (decided once, times the Seal's card odds): exactly one monster card drops, from the first kill with a card at its seeded moment. No other kill, urn or boss drops one."],
+	["card_run_urn", 0.15, 0.0, 1.0, 0.05, "Loot", "Share of card runs whose card waits in the first urn broken after the moment instead (any monster's card)."],
+	["loot_moment_from", 0.1, 0.0, 1.0, 0.05, "Loot", "Earliest moment of a run's ULTRA RARE chest or card, as a share of the run up to the Archlich."],
+	["loot_moment_to", 0.4, 0.0, 1.0, 0.05, "Loot", "Latest moment of a run's ULTRA RARE chest or card, as a share of the run up to the Archlich."],
 	["urn_count", 5.0, 0.0, 20.0, 1.0, "Loot", "Urns standing along the arena walls; broken ones are replaced each minute."],
-	["urn_card_chance", 0.004, 0.0, 0.1, 0.001, "Loot", "Chance an urn holds a monster card (any kind)."],
 	["urn_rare_chance", 0.03, 0.0, 0.5, 0.01, "Loot", "Chance an urn holds a rare chest."],
 	["floor_tomes", 0.0, 0.0, 1.0, 1.0, "Loot", "1 = spell tomes drop on the floor as before and there is no party tome; 0 (the default) = no floor tomes, the party tome drops instead (each Lich, party_tome_elite of elites, party_tome_urn of urns)."],
 	["party_tome_elite", 1.0, 0.0, 1.0, 0.05, "Loot", "Chance an elite drops a party tome (with floor_tomes 0; each Lich always drops one)."],
 	["party_tome_urn", 0.02, 0.0, 1.0, 0.01, "Loot", "Chance a broken urn holds a party tome (with floor_tomes 0)."],
-	["card_boss_chance", 0.25, 0.0, 1.0, 0.05, "Loot", "Chance a slain Lich or the Archlich drops the Lich card."],
 	["coin_drop_chance", 0.1, 0.0, 1.0, 0.01, "Loot", "Chance a kill (not an orc or a mage) drops a gold coin."],
 	["tome_drop_chance", 0.005, 0.0, 0.2, 0.001, "Loot", "Chance a kill (not an orc or a mage) drops a spell tome (grants or levels that spell)."],
 	["big_tome_chance", 0.15, 0.0, 1.0, 0.01, "Loot", "Chance an orc or a mage drops a spell tome beside its gem."],
@@ -154,16 +156,18 @@ var chest_life: float
 var elite_chest_luck: float
 var boss_chest_luck: float
 var rare_drop_chance: float
-var ultra_drop_chance: float
-var card_chance: float
-var card_elite_mul: float
-var card_boss_chance: float
+var ultra_run_chance: float
+var ultra_run_luck: float
+var ultra_run_cap: float
+var card_run_chance: float
+var card_run_urn: float
+var loot_moment_from: float
+var loot_moment_to: float
 var coin_drop_chance: float
 var tome_drop_chance: float
 var big_tome_chance: float
 var potion_drop_chance: float
 var urn_count: float
-var urn_card_chance: float
 var urn_rare_chance: float
 var floor_tomes: float
 var party_tome_elite: float

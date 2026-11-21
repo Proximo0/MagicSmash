@@ -89,6 +89,7 @@ as ??? in the Book until earned (and should be a hidden achievement on Steam). C
 | APPRENTICES | THE MASTER'S HAND | Win a run with only apprentices beside you. | 20 | yes |
 | FAST_WIN | ON SCHEDULE | Win a run with four heroes before 16:30. | 30 |  |
 | EVO_CLEAVE | WIDDERSHINS | Evolve Cleave into Whirlwind. | 15 |  |
+| FIRST_CARD | THE QUERENT | Find your first monster card. | 25 |  |
 
 ## Steamworks checklist (Curtis)
 

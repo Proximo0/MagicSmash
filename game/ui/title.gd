@@ -457,6 +457,8 @@ func _draw_front() -> void:
 	var ci := front
 	if dim > 0.0:
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.07, 0.55 * dim))
+	if state == S.LOBBY:
+		Still.draw_scene(ci, "lobby")
 	_draw_logo(ci)
 	match state:
 		S.INTRO:
@@ -636,6 +638,10 @@ func _device_name(d: int) -> String:
 const LOBBY_SEAT_H := 56
 const LOBBY_PORTRAIT := Vector2(24, 32)
 const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
+## The ladder step's mark (`icons/seal_<n>`, `step_wizard`, `step_archmage`, `class_apprentice`) left of its name in
+## the seal row, and an apprentice seat's class mark at the seat's foot, px.
+const STEP_ICON := 12
+const SEAT_ICON := 8
 var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
 var seal_view := 0 # the step the row shows; Net.seal unless player 1 has browsed onto a locked one
 
@@ -689,6 +695,7 @@ func _draw_seats(ci: CanvasItem) -> void:
 					Sprites.PLAYER_COLORS[wiz].fx)
 				for x in range(int(r.position.x) + 2, int(r.end.x) - 2, 6):
 					ci.draw_rect(Rect2(x, r.end.y - 1, 3, 1), Color(col, 0.7))
+				Still.draw_icon(ci, Still.APPRENTICE_ICON, Rect2(r.position.x + 4, r.end.y - 10, SEAT_ICON, SEAT_ICON))
 				var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
 				PixelFont.draw_centered(ci, spell, r.get_center().x, r.end.y - 16, 1, Color("c9b8ff"))
 			else:
@@ -765,10 +772,15 @@ func _draw_seal_row(ci: CanvasItem) -> void:
 	var col := Color("ffb347") if seal_view > 0 else (Color("8bff9e") if seal_view < 0 else Color("ffd94d"))
 	if not open:
 		col = Color(col, 0.4)
-	PixelFont.draw(ci, texts[0], Vector2(r.position.x + 4, y), 1, col)
+	var nx := r.position.x + 4
+	var step_tex := Still.icon(Still.step_icon(seal_view), STEP_ICON)
+	if step_tex != null:
+		ci.draw_texture(step_tex, Vector2(nx, r.position.y + 1).floor(), Color(1, 1, 1, 1.0 if open else 0.4))
+		nx += STEP_ICON + 3
+	PixelFont.draw(ci, texts[0], Vector2(nx, y), 1, col)
 	var rw := PixelFont.text_width(texts[2], 1)
 	PixelFont.draw(ci, texts[2], Vector2(r.end.x - 4 - rw, y), 1, Color("8bdcff") if open else Color(1, 1, 1, 0.4))
-	var left := r.position.x + 4 + PixelFont.text_width(texts[0], 1)
+	var left := nx + PixelFont.text_width(texts[0], 1)
 	PixelFont.draw_centered(ci, texts[1], (left + r.end.x - 4 - rw) / 2.0, y, 1, Color("e8dcc0") if open else Color(1, 1, 1, 0.4))
 	if seal_focus and host and int(t * 2) % 2 == 0:
 		if seal_view > Seals.MIN:

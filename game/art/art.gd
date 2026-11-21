@@ -1,12 +1,12 @@
 class_name Art
 extends RefCounted
-## The owner's painted pictures: monster cards, tarot cards, hero and character portraits. One loader for all of
+## The owner's painted pictures: monster cards, tarot cards, hero and character portraits, figures (`sprites`), `icons` and menu `scenes`. One loader for all of
 ## them. A picture is looked for in three places, the first hit wins: an `art/` folder beside the executable, then
 ## `user://art/`, then `res://assets/art/`, each with the same sub-paths (docs/art_dropin.md). The game reduces a
 ## picture once to the exact pixel size a screen needs (Lanczos) and draws it 1:1, never scaled at draw time.
 ## A picture that is not there gives null, and callers draw their own art instead.
 
-const GROUPS: Array[String] = ["cards/monsters", "cards/tarot", "portraits/heroes", "portraits/characters"]
+const GROUPS: Array[String] = ["cards/monsters", "cards/tarot", "portraits/heroes", "portraits/characters", "sprites", "icons", "scenes"]
 const HERO_RACES: Array[String] = ["human", "elf", "dwarf", "orc"]
 const HERO_CLASSES: Array[String] = ["archer", "priest", "paladin", "knight", "mage"]
 const CHARACTERS: Array[String] = ["shopkeeper", "card_reader", "bone_chandelier", "ghost_writer", "archlich", "apprentice"]
@@ -16,9 +16,17 @@ const MAJOR_ARCANA: Array[String] = ["THE FOOL", "THE MAGICIAN", "THE HIGH PRIES
 	"JUDGEMENT", "THE WORLD"]
 ## Cards of enemies the game does not have yet: the files are kept, nothing shows them.
 const NEW_MONSTERS: Array[String] = ["cinderling", "ten_of_swords"]
+## Backdrops of the menus (480 x 270): the hero builder, the hero sheet, the lobby, the card album, the Book of Deeds.
+## `shop`, `victory` and `defeat` are named for the shop and results screens (their owners wire them).
+const SCENES: Array[String] = ["builder", "sheet", "lobby", "album", "deeds", "shop", "victory", "defeat"]
 const SUITS: Array[String] = ["suit_cups", "suit_swords", "suit_wands", "suit_pentacles"]
 const RES_ROOT := "res://assets/art/"
 const USER_ROOT := "user://art/"
+
+## A folder searched before every other (set by `--art=<dir>` in the autotest harness); "" for none.
+static var drop_root := ""
+## Tests set this so that only `drop_root` answers: a rule is then tested without the project's own pictures.
+static var drop_only := false
 
 ## Where each picture was found: "group/key" -> path, or "" for none.
 static var _paths := {}
@@ -69,7 +77,11 @@ static func find(group: String, key: String) -> String:
 
 ## The folders pictures are looked for in, best first.
 static func roots() -> Array[String]:
+	if drop_only and not drop_root.is_empty():
+		return [drop_root]
 	var exe := OS.get_executable_path().get_base_dir().path_join("art") + "/"
+	if not drop_root.is_empty():
+		return [drop_root, exe, USER_ROOT, RES_ROOT]
 	return [exe, USER_ROOT, RES_ROOT]
 
 
@@ -98,6 +110,12 @@ static func wanted() -> Array:
 	for c: String in CHARACTERS:
 		out.append(["portraits/characters", c])
 		out.append(["portraits/characters", c + "_tall"])
+	for k: String in Still.names():
+		out.append(["sprites", k])
+	for k: String in Still.icon_names():
+		out.append(["icons", k])
+	for k: String in SCENES:
+		out.append(["scenes", k])
 	return out
 
 

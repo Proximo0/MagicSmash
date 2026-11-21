@@ -10,7 +10,7 @@ func test_wanted_keys_are_unique() -> void:
 		assert_false(seen.has(id), "duplicate " + id)
 		seen[id] = true
 		assert_true(Art.GROUPS.has(w[0]), "unknown group " + id)
-	assert_eq(seen.size(), 12 + 8 + 2 + 22 + 4 + 1 + 20 + 12) # 8: the Seal cards (cards/monsters/seal_1 to seal_8)
+	assert_eq(seen.size(), 12 + 8 + 2 + 22 + 4 + 1 + 20 + 12 + Still.names().size() + Still.icon_names().size() + Art.SCENES.size()) # 8: the Seal cards (cards/monsters/seal_1 to seal_8)
 
 
 func test_every_file_in_the_project_is_wanted() -> void:

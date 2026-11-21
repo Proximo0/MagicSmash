@@ -171,8 +171,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._cards.append({"idx": cidx, "slot": card_slot, "t": 0.0, "first": first})
 				a.fx.burst(pos, 30, 120.0, 0.9, 2.0, Color.WHITE, Color("ff4df2"), true)
 				a.fx.ring(pos, 4.0, 60.0, 0.7, Color("ffd94d"), 2.0)
-				a._add_shake(4.0)
-				Sfx.play("card_flip")
+				Sfx.play("card_flip") # no shake: the notice under the HUD (ArenaFateView._draw_card_reveal) must not jolt the fight
 				Sfx.play("wave_clear", -2.0, 1.4)
 			World.EV_CHEST:
 				var code := int(ev[4])

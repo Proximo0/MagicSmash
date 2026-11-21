@@ -23,6 +23,9 @@ const PORTRAIT_PANEL := Rect2(12, 14, 104, 154)
 const RECORD_PANEL := Rect2(12, 176, 104, 66)
 const WEAPON_PANEL := Rect2(126, 166, 172, 76)
 const TRAIT_PANEL := Rect2(306, 166, 162, 76)
+## Icon sizes, px: a stat's (left of its label), the weapon's and the skill's (right end of their lines).
+const STAT_ICON := 8
+const GEAR_ICON := 12
 const HEART_COL := Color("ff4d6d")
 ## The race trait said in words (Races.TR_* order).
 const TRAIT_WORDS := [
@@ -190,8 +193,10 @@ func draw(ci: CanvasItem, t: float) -> void:
 	if not active:
 		return
 	var h := hero()
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
+	if not Still.draw_scene(ci, "sheet"):
+		ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
 	Occult.frame(ci, Rect2(4, 4, 472, 262), t)
+	Still.draw_scene(ci, "sheet", Still.SCENE_INNER)
 	# Left: the portrait and the records.
 	Occult.frame(ci, PORTRAIT_PANEL, t, false)
 	draw_portrait(ci, PORTRAIT_PANEL.grow(-3), h.race, h.cls, h.name)
@@ -250,7 +255,12 @@ func _draw_stats(ci: CanvasItem, h: Hero, t: float) -> void:
 			Occult.highlight(ci, row, t)
 		var cards_pts := roundi(float(card[st]) / float(Hero.POINT_VALUE[st]))
 		var total := int(rp[st]) + int(cp[st]) + h.points[st] + cards_pts
-		PixelFont.draw(ci, String(STAT_LABELS[st]), Vector2(r.position.x + 8, y), 1, Occult.BONE, Occult.INK)
+		var sti := Still.icon(Still.stat_icon(st), STAT_ICON)
+		var lx := r.position.x + 8
+		if sti != null:
+			ci.draw_texture(sti, Vector2(lx, y - 1).floor())
+			lx += STAT_ICON + 2
+		PixelFont.draw(ci, String(STAT_LABELS[st]), Vector2(lx, y), 1, Occult.BONE, Occult.INK)
 		var vals := [int(rp[st]), int(cp[st]), h.points[st], cards_pts]
 		var cols := [COL_RACE, COL_CLASS, COL_POINTS, COL_CARDS]
 		for k: int in range(4):
@@ -288,12 +298,19 @@ func _draw_gear(ci: CanvasItem, h: Hero, t: float) -> void:
 	var x := r.position.x + 6
 	var wid := int(r.size.x) - 12
 	PixelFont.draw(ci, "WEAPON", Vector2(x, r.position.y + 6), 1, Occult.GOLD, Occult.INK)
-	PixelFont.draw(ci, fit_text(Classes.weapon_name(h.cls, h.school), wid - 44), Vector2(x + 44, r.position.y + 6), 1, Occult.BONE, Occult.INK)
+	var wtex := Still.weapon_tex(h.cls, w, GEAR_ICON)
+	var skill_tex := Still.icon(Still.skill_icon(Classes.skill(h.cls)), GEAR_ICON)
+	var name_w := wid - 44 - (GEAR_ICON + 2 if wtex != null else 0)
+	PixelFont.draw(ci, fit_text(Classes.weapon_name(h.cls, h.school), name_w), Vector2(x + 44, r.position.y + 6), 1, Occult.BONE, Occult.INK)
+	if wtex != null:
+		ci.draw_texture(wtex, Vector2(x + wid - GEAR_ICON, r.position.y + 3).floor())
 	PixelFont.draw(ci, weapon_line(w, h.cls), Vector2(x, r.position.y + 17), 1, Occult.DIM, Occult.INK)
 	var s := Classes.skill(h.cls)
 	var sy := r.position.y + 32
 	PixelFont.draw(ci, "SKILL", Vector2(x, sy), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, Classes.skill_name(s), Vector2(x + 44, sy), 1, Occult.BONE, Occult.INK)
+	if skill_tex != null:
+		ci.draw_texture(skill_tex, Vector2(x + wid - GEAR_ICON, sy - 3).floor())
 	var y := sy + 11
 	for line: String in wrap_words(String(SKILL_WORDS.get(Classes.skill_key(s), "")), wid):
 		PixelFont.draw(ci, line, Vector2(x, y), 1, Occult.DIM, Occult.INK)

@@ -422,7 +422,17 @@ static func kind(key: String) -> int:
 
 
 ## The emblem texture for an upgrade key; an evolution shows its spell's emblem.
-static func emblem(key: String) -> ImageTexture:
+## An icon file takes the place of the code emblem (`icons/spell_<key>`, `evo_<key>`, `passive_<key>`, reduced to
+## EMBLEM_ICON px; an evolution without its own file shows its spell's).
+const EMBLEM_ICON := 16
+
+
+static func emblem(key: String) -> Texture2D:
+	var icon := Still.icon(Still.icon_of(key), EMBLEM_ICON)
+	if icon == null and key.begins_with("e_"):
+		icon = Still.icon("spell_" + key.substr(2), EMBLEM_ICON)
+	if icon != null:
+		return icon
 	var k := ("w_" + key.substr(2)) if key.begins_with("e_") else key
 	if _tex.has(k):
 		return _tex[k]

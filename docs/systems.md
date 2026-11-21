@@ -114,8 +114,23 @@ How each system works: read only the section for the system you touch (`grep -n 
 
 - 5a, chests and run gold:
   - Rarity tiers, chest items, armor stats and gold values are data in `game/logic/loot.gd` (`Loot`).
-  - Tiers run from common to ultra rare at 60 / 26 / 10 / 3.4 / 0.6 weight. A chest's luck (elites 1, the
-    Lich 3) moves common odds up the tiers.
+  - A chest rolls common to legendary at 60 / 26 / 10 / 0.3 weight (`Loot.RARITY_WEIGHTS`; was 60 / 26 / 10 / 3.4
+    / 0.6 with ULTRA): about 1 solo run in 6 opens a legendary. A chest's luck (elites 1, the Lich 3) moves common
+    odds up the tiers.
+  - ULTRA RARE and monster cards are a property of the run, not of each kill (job U): `Loot.run_rolls` draws once
+    in `World._init` from the run's own stream (`Loot.run_stream`, the run's seed xor `Loot.RUN_SALT`; `w.rng` never
+    feeds it). An ULTRA RARE run (`ultra_run_chance` 0.01, + `ultra_run_luck` per point of meta and Seal luck, at
+    most `ultra_run_cap` 0.03; none under APPRENTICE) drops one prismatic chest (`PK_CHEST_ULTRA`, opens ULTRA RARE)
+    from the first plain kill after its moment (`WorldDrops.ultra_due`); no other chest opens ULTRA RARE. A card run
+    (`card_run_chance` 0.01 x `seal_cards`) drops exactly one card, from the first kill with a card after its moment,
+    a boss's too (`Cards.run_card`; a Seal's Archlich drops its Seal card), or for `card_run_urn` 0.15 of card runs
+    from the first urn broken after it (any monster's card: the urn_card secret). Moments fall between
+    `loot_moment_from` 0.1 and `loot_moment_to` 0.4 of the run up to the Archlich. Out of a card run no kill, urn or
+    boss drops a card; a first win at a Seal still pays its card (`Profile.finish_run`). The Sanctum: a pot holds a
+    card at `Sanctum.POT_CARD` 0.001, a sealed deck costs `Sanctum.DECK_COST` 1500 crystals.
+  - A card found in a fight shows as a small notice under the HUD for `Arena.CARD_SHOW` s ("CARD FOUND: NAME" and
+    the card's painting at 16x24 when it has one; no shake), then as a "CARD FOUND" line with the results' deeds.
+    `--autotest --tune=card_run_chance:1,loot_moment_from:0,loot_moment_to:0.01` saves `card.png` with the notice.
   - Elites drop a chest. The Lich drops one per wizard.
   - Opening a chest is instant in the simulation. The arena plays a 1 s reel over the wizard, then shows the
     item in its tier colour, with sound and bursts that grow by tier.
@@ -484,3 +499,22 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   greeting is told (nothing in a scripted run); old saves load with none.
 - **Deleting a hero** shifts held indices: `Profile.index_after_removal` is the one rule; `Profile.remove_hero` applies it
   to the active hero, `Net.hero_removed(i)` to every local seat (a seat that held her takes the first free hero).
+
+## Figures from still pictures, icons and scenes (21 Nov)
+- **Groups.** `Art.GROUPS` gained `sprites`, `icons` and `scenes`; they are found like the others (`Art.find`), and
+  `Art.wanted()` lists every name (`Still.names()`, `Still.icon_names()`, `Art.SCENES`). `Art.drop_root` (the
+  autotest flag `--art=<dir>`) is a folder searched before all others, for art shots with test pictures.
+- **`Still`** (`game/art/still.gd`) is the one place: `hero_name(cls, ai)` (apprentice picture, else the class's, else
+  "" and the code sprite stays), `enemy_name(type, final)` (`enemy_<key>`, `boss_<key>`, `enemy_archlich`), `draw`
+  (the figure, `motion` applied, hit flash as a white copy), `draw_static` (hub pieces), `icon`/`draw_icon`,
+  `draw_scene`, `deed_icon` and `DEED_MARKS` (the Achievements.RULES kind -> win, slay, time or secret mark).
+- **`Still.motion(t, moving, facing)`** is pure: `{off, lean, squash}`. Walking: a bob (`WALK_BOB` px at `WALK_RATE`) and
+  a lean toward the facing (`LEAN_MOVE` plus `LEAN_SWAY`); standing: a breath (`BREATH`, share of height). Sizes are
+  rounded to whole pixels, so the figure steps rather than blurs.
+- **Callers.** Arena heroes `ArenaDrawWorld._draw_player` (seat ring and pip kept, no staff) and the spirit
+  `ArenaDrawFallen._draw_spirit`; the hub walker `SanctumView._draw_wizard`; monsters and bosses through
+  `EnemyView.draw_still` from `ArenaDrawEnemies._draw_enemy` (pose offsets and tints arrive in `feet` and `mod`); hub
+  `_draw_lectern`, `_draw_mirror`, `_draw_npc`. Icons: `ArenaHud.build` slots, `TarotArt.emblem` (level-up cards,
+  tray, results awards), the builder's class and race rows, the Book of Deeds marks. Scenes: builder, sheet, album,
+  deeds (drawn again inside the frame, `Still.SCENE_INNER`) and the lobby (`Title._draw_front`).
+- Tests: `tests/unit/test_still.gd`. Shots: any autotest mode with `--art=<dir>`.

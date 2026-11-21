@@ -11,8 +11,10 @@ const LEGENDARY := 3
 const ULTRA := 4
 
 const RARITY_NAMES := ["COMMON", "RARE", "EPIC", "LEGENDARY", "ULTRA RARE"]
-## Chance weights per tier. A chest's luck (elites, the Lich) shifts weight up the tiers.
-const RARITY_WEIGHTS := [60.0, 26.0, 10.0, 3.4, 0.6]
+## Chance weights per tier. A chest's luck (elites, the Lich) shifts weight up the tiers. LEGENDARY is the tier a
+## lucky run sees (about 1 run in 6, solo); ULTRA RARE has no weight: it is never rolled in a chest, only given by
+## the one prismatic chest of an ULTRA RARE run (run_rolls, World.ultra_run).
+const RARITY_WEIGHTS := [60.0, 26.0, 10.0, 0.3, 0.0]
 ## How much stronger an item of each tier is than a common one.
 const RARITY_MUL := [1.0, 1.5, 2.0, 3.0, 5.0]
 
@@ -73,16 +75,16 @@ static func effect(idx: int) -> int:
 	return int(ITEMS[idx][3])
 
 
-## The tier of a new chest. `luck` 0 is a plain chest; each point of luck moves a fifth of the common weight
-## onto the tiers above it, so luck 5 never rolls common.
+## The tier of a new chest, COMMON to LEGENDARY (never ULTRA). `luck` 0 is a plain chest; each point of luck
+## moves a fifth of the common weight onto the tiers above it, so luck 5 never rolls common.
 static func roll_rarity(rng: RandomNumberGenerator, luck: float) -> int:
-	var w: Array = RARITY_WEIGHTS.duplicate()
+	var w: Array = RARITY_WEIGHTS.slice(0, LEGENDARY + 1)
 	var moved: float = float(w[COMMON]) * clampf(luck / 5.0, 0.0, 1.0)
 	w[COMMON] = float(w[COMMON]) - moved
 	var up: float = 0.0
-	for t: int in range(RARE, ULTRA + 1):
+	for t: int in range(RARE, LEGENDARY + 1):
 		up += float(RARITY_WEIGHTS[t])
-	for t: int in range(RARE, ULTRA + 1):
+	for t: int in range(RARE, LEGENDARY + 1):
 		w[t] = float(w[t]) + moved * float(RARITY_WEIGHTS[t]) / up
 	var total: float = 0.0
 	for v: float in w:
@@ -92,7 +94,44 @@ static func roll_rarity(rng: RandomNumberGenerator, luck: float) -> int:
 		r -= float(w[t])
 		if r < 0.0:
 			return t
-	return ULTRA
+	return LEGENDARY
+
+
+## Mixed into the run's seed for its own loot stream (run_stream), so that stream never repeats the main one.
+const RUN_SALT := 0x51DE_C0DE
+
+
+## The run's own loot stream, seeded by the run's seed: the main stream (World.rng) never feeds it, so drawing
+## from it leaves the rest of the run as it was.
+static func run_stream(seed_value: int) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value ^ RUN_SALT
+	return r
+
+
+## The run's loot draws, decided once when the run starts from its own stream (run_stream): "ultra" and "card"
+## are uniform draws that make the run an ULTRA RARE run or a card run when below that chance (ultra_run_chance,
+## Cards.card_run_chance); "ultra_at" and "card_at" are uniform draws for each one's moment (moment); "card_urn" a
+## uniform draw for whether a card run's card waits in an urn (Tuning.card_run_urn). The same seed always gives the
+## same draws.
+static func run_rolls(r: RandomNumberGenerator) -> Dictionary:
+	var ultra := r.randf()
+	var ultra_at := r.randf()
+	var card := r.randf()
+	var card_at := r.randf()
+	return {"ultra": ultra, "ultra_at": ultra_at, "card": card, "card_at": card_at, "card_urn": r.randf()}
+
+
+## The chance a run is an ULTRA RARE run: `base`, plus `per_luck` for each point of the run's chest luck (meta
+## unlocks and the Seal), never above `cap` (nor below base). Numbers from Tuning.
+static func ultra_run_chance(base: float, luck: float, per_luck: float, cap: float) -> float:
+	return clampf(base + per_luck * maxf(luck, 0.0), 0.0, maxf(cap, base))
+
+
+## Seconds into a run of a seeded moment: the draw `u` (0..1) placed between the shares `from` and `to` of a run
+## that lasts `run_seconds` up to the Archlich.
+static func moment(u: float, from: float, to: float, run_seconds: float) -> float:
+	return lerpf(from, to, clampf(u, 0.0, 1.0)) * run_seconds
 
 
 ## A chest item index, drawn by weight.
