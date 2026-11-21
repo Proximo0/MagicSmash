@@ -179,7 +179,8 @@ func test_a_seat_carries_a_cleaned_hero() -> void:
 	assert_true(int(junk.level) <= Hero.MAX_LEVEL)
 	assert_eq(Net.add_apprentice(), 2)
 	assert_true((Net.roster[2].hero as Dictionary).is_empty(), "an apprentice has no hero")
-	assert_eq(int(Net.roster[2].cls_level), 0)
+	assert_eq(int(Net.roster[2].cls_level), 1, "an apprentice is a level 1 hero of the role it fills")
+	assert_eq(int(Net.roster[2].race), Races.HUMAN)
 	_heroes_teardown(was)
 	_restore()
 
@@ -201,4 +202,62 @@ func test_two_local_seats_never_share_a_hero() -> void:
 	assert_true(Net.hero_of(0) != Net.hero_of(G.DEV_KBM))
 	assert_eq(Net.played_heroes(), [0], "a guest is not played")
 	_heroes_teardown(was)
+	_restore()
+
+
+func test_apprentices_fill_the_missing_roles_in_order() -> void:
+	_save() # a solo seat with no hero: a mage
+	assert_eq(Net.add_apprentice(), 1)
+	assert_eq(Net.add_apprentice(), 2)
+	assert_eq(Net.add_apprentice(), 3)
+	var want: Array[int] = [Classes.KNIGHT, Classes.PRIEST, Classes.ARCHER]
+	for i: int in range(3):
+		var r: Dictionary = Net.roster[i + 1]
+		assert_eq(int(r.cls), want[i], "seat %d" % (i + 1))
+		assert_eq(int(r.race), Races.HUMAN)
+		assert_eq(int(r.cls_level), 1)
+		assert_eq(int(Net.seat_builds()[i + 1].cls), want[i], "the World is told")
+	# A seat taken by a paladin already holds the tank: the next apprentice heals, then shoots, then hits.
+	Net.remove_apprentice()
+	Net.remove_apprentice()
+	Net.remove_apprentice()
+	Net.roster[0].cls = Classes.PALADIN
+	assert_eq(Net.apprentice_class(), Classes.PRIEST)
+	Net.add_apprentice()
+	Net.add_apprentice()
+	assert_eq(Net.apprentice_class(), Classes.MAGE)
+	Net.roster[0].cls = Classes.MAGE
+	_restore()
+
+
+func test_apprentices_are_dealt_again_when_a_human_changes_class() -> void:
+	_save() # a solo mage with a knight and a priest
+	Net.add_apprentice()
+	Net.add_apprentice()
+	assert_eq(int(Net.roster[1].cls), Classes.KNIGHT)
+	assert_eq(int(Net.roster[2].cls), Classes.PRIEST)
+	# She picks a knight of her own: the apprentices heal and shoot, nobody doubles the tank.
+	Net.roster[0].cls = Classes.KNIGHT
+	Net._push_roster()
+	assert_eq(int(Net.roster[1].cls), Classes.PRIEST)
+	assert_eq(int(Net.roster[2].cls), Classes.ARCHER)
+	assert_eq(int(Net.roster[1].cls_level), 1)
+	# A run that is on keeps the classes it started with.
+	Net.in_game = true
+	Net.roster[0].cls = Classes.PRIEST
+	Net._push_roster()
+	assert_eq(int(Net.roster[1].cls), Classes.PRIEST, "an apprentice changed class in a run")
+	Net.in_game = false
+	Net.roster[0].cls = Classes.MAGE
+	_restore()
+
+
+func test_a_joining_human_drops_the_apprentices_class() -> void:
+	_save()
+	Net.add_apprentice()
+	assert_eq(int(Net.roster[1].cls), Classes.KNIGHT)
+	Net._add_to_roster(1, 0)
+	assert_false(bool(Net.roster[1].ai))
+	assert_eq(int(Net.roster[1].cls), Classes.MAGE, "no hero in a scripted run: a plain wizard")
+	assert_eq(int(Net.roster[1].cls_level), 0)
 	_restore()

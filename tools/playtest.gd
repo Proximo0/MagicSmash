@@ -3,9 +3,11 @@ extends SceneTree
 ## hard, too easy, dull or unfair. One compact table per persona and party size, then one line starting PLAYTEST.
 ## Usage: godot --headless --path . -s tools/playtest.gd -- [--runs=6] [--wizards=1,2,4]
 ##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=16] [--tune=field:value,...] [--seal=N]
-##   [--json=/tmp/out.json] [--party=casual,apprentice,...]
+##   [--json=/tmp/out.json] [--party=casual,apprentice,...] [--hero=knight,archer:elf,...]
 ## --party plays one party of the named seats instead of the persona x wizards groups: a persona name seats a
 ## human bot, "apprentice" seats an apprentice (World plays it, WorldApprentices); e.g. --party=casual,apprentice.
+## A seat is persona[:class[:race]] (apprentice too), e.g. --party=casual:knight,casual:priest,apprentice:archer;
+## --hero=class[:race],... plays each persona x wizards group once per hero, every seat that class. No class: as before.
 ## Seeds run from --seed to --seed + runs - 1; every group plays the same seeds. How to read it: docs/bots.md.
 
 ## The work lives in tools/playtest_lib.gd, loaded after the autoloads so game classes compile.

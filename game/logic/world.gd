@@ -389,6 +389,8 @@ var _plist: Array[Player] = []
 var threat_spread := 1.0
 ## The brains that play the apprentices (WorldApprentices), slot -> SmashBot; made when first needed.
 var apprentice_bots: Dictionary = {}
+## True once the apprentices seated with a class took it (WorldApprentices.with_inputs, the run's first step).
+var classes_taken := false
 ## Score and kills of wizards who left the run (remove_player): total_score and total_kills keep them.
 var departed_score := 0
 var departed_kills := 0

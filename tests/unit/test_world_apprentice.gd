@@ -277,3 +277,61 @@ func test_a_nan_input_moves_nothing() -> void:
 	assert_true(is_finite(p.aim.x) and is_finite(p.aim.y))
 	assert_false(WorldPlayers.input_finite(PackedFloat32Array([0, NAN])))
 	assert_true(WorldPlayers.input_finite(PackedFloat32Array([0, 1])))
+
+
+func test_an_apprentice_seated_with_a_class_becomes_that_hero() -> void:
+	var w := World.new([0, 1, 2], 3, null, {}, {1: {"ai": true, "cls": Classes.KNIGHT, "race": 0, "cls_level": 1},
+		2: {"ai": true}})
+	w.apply_meta({"hearts": 1.0})
+	var knight: World.Player = w.players[1]
+	assert_eq(knight.skill, Classes.SK_NOVA, "nothing before the run starts")
+	w.step(DT, {0: _idle()})
+	var ref := World.new([0], 3)
+	ref.apply_meta({"hearts": 1.0})
+	ref.apply_hero(ref.players[0], Hero.make(Races.HUMAN, Classes.KNIGHT, knight.wizard).to_dict())
+	var want: World.Player = ref.players[0]
+	assert_eq(knight.cls, Classes.KNIGHT)
+	assert_eq(knight.skill, Classes.SK_PROVOKE)
+	assert_near(knight.threat, Classes.threat(Classes.KNIGHT))
+	assert_eq(knight.max_hp, want.max_hp, "applied after the meta, as Arena applies a human's hero")
+	assert_eq(knight.upgrades, want.upgrades, "the class weapon")
+	var plain: World.Player = w.players[2]
+	assert_eq(plain.skill, Classes.SK_NOVA, "a seat with no class level stays a plain wizard")
+	assert_near(plain.threat, 1.0)
+	# Still an apprentice: its damage, weight and loot rules stack on the class.
+	assert_true(knight.ai)
+	assert_false(WorldApprentices.may_take(w, knight, World.PK_CHEST))
+	# It plays the class: the brain reads the knight's skill.
+	assert_true(w.apprentice_bots.has(1))
+
+
+func test_an_apprentice_takes_its_class_once() -> void:
+	var w := World.new([0, 1], 3, null, {}, {1: {"ai": true, "cls": Classes.KNIGHT, "race": 0, "cls_level": 1}})
+	var knight: World.Player = w.players[1]
+	# A tool that asks for the apprentices' inputs itself and then steps: the class is applied by the first ask only.
+	WorldApprentices.with_inputs(w, {0: _idle()})
+	var hearts := knight.max_hp
+	var armor: Array = knight.armor.duplicate()
+	w.step(DT, WorldApprentices.with_inputs(w, {0: _idle()}))
+	assert_eq(knight.max_hp, hearts, "the knight's hearts were given twice")
+	assert_eq(knight.armor, armor, "the knight's stats were given twice")
+
+
+func test_a_classed_apprentice_answers_with_its_skill() -> void:
+	# A knight apprentice beside a human with goblins on her: it provokes (casual hands, so give it a few chances).
+	var w := World.new([0, 1], 4, null, {}, {1: {"ai": true, "cls": Classes.KNIGHT, "race": 0, "cls_level": 1}})
+	var c := G.ARENA.get_center()
+	w.players[0].pos = c
+	w.players[1].pos = c + Vector2(30, 0)
+	w.phase_t = 100.0
+	w.step(DT, {0: _idle()})
+	for i: int in range(5):
+		var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, c + Vector2.from_angle(i * 1.3) * 20.0)
+		e.hp = 1e6
+	var used := false
+	for i: int in range(300): # casual hands forget now and then (SmashBot.FORGET_HOLD): five seconds of chances
+		w.step(DT, {0: _idle()})
+		for ev: Array in w.take_events():
+			if int(ev[0]) == World.EV_SKILL and int(ev[3]) == 1:
+				used = true
+	assert_true(used, "PROVOKE when enemies are on an ally")

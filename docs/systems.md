@@ -397,3 +397,16 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 ## Hero screens
 The Sanctum's MIRROR (`Sanctum.MIRROR`, left of the portal) opens `HeroRoster` (`game/ui/hero_roster.gd`, over `Save.profile`; it takes all input and draws over the hub like the card album). The roster lists up to `Profile.MAX_HEROES` heroes and has four actions: PICK (makes the row the active hero, `picked` = its index, closes), SHEET (opens `HeroSheet`), NEW HERO (opens `HeroBuilder`; hidden when full) and DELETE (hold confirm `HOLD_TIME` s; never the last hero). `HeroBuilder` steps RACE, CLASS, SCHOOL (mage only: the four `Wizards` spells), NAME (Ouija board), confirm; it adds the hero, makes it active and saves. `HeroSheet` shows level and XP, hearts, the six stats by source (race, class, spent, cards), spends points (`Hero.spend_point`), weapon and skill numbers, the race trait, the three card sockets and runs and wins. All three save through `HeroSheet.save_now` (nothing in a scripted run). Portraits come from `assets/art/portraits/heroes/hero_<race>_<class>.png` through `Art`, with `DialogueBox.draw_stand_in` when a file is missing. Each screen has `active`, `open`, `handle(event) -> bool`, `update`, `draw(ci, t)`.
 Autotest: `xvfb-run -a godot --path . -- --autotest --heroes --out=<dir>` shoots the Sanctum with the mirror, the roster, each builder step, and a sheet.
+
+## Class play for bots and apprentices (21 Nov)
+- `SmashBot` plays a hero's class when `Player.skill` is not NOVA (`_class_play`; details and numbers in
+  `docs/bots.md` "Class play"): tanks guard the ally under the thickest crowd, the priest keeps the most hurt ally in
+  her light, the archer keeps range, and the nova button's skill is used for what it does. No hero, or a MAGE: as
+  before (pinned in `test_smash_bot`).
+- Apprentices: `Net.add_apprentice` (via `_add_to_roster`) gives the new seat `Net.apprentice_class()` (first missing
+  of tank, healer, ranged, damage; `Net.APPRENTICE_ROLES`), `race` 0, `cls_level` 1; `World.new` copies them from
+  `seat_builds`, and `WorldApprentices.take_class` (the first `with_inputs`, once: `World.classes_taken`) applies
+  the level 1 HUMAN hero. A human taking an apprentice's seat clears its class fields. Every roster change outside
+  a run deals the apprentices' classes again, humans counted first (`Net._fill_apprentice_roles`, from
+  `_push_roster`), so a human who picks another hero or joins never leaves two tanks and no healer.
+- `tools/playtest.gd`: `--party=persona[:class[:race]],...` and `--hero=class[:race],...`; a `skills` line.

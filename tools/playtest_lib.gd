@@ -18,6 +18,10 @@ var _seal: int = 0
 var _json: String = ""
 ## --party: one party of seats, each a SmashBot persona id or APPRENTICE (empty: the persona x wizards groups).
 var _party: Array[int] = []
+## Each --party seat's hero [Classes index, Races index], or [] for a seat with no class (plays as before).
+var _party_heroes: Array = []
+## --hero: the classes every persona x wizards group is played with, each [Classes index, Races index] or [] (none).
+var _heroes: Array = [[]]
 const APPRENTICE := -1
 
 
@@ -30,7 +34,7 @@ func run() -> int:
 	if not _party.is_empty():
 		var runs: Array = []
 		for i: int in range(_runs):
-			runs.append(_play(_party[0], _party.size(), _seed + i, _party))
+			runs.append(_play(_party[0], _party.size(), _seed + i, _party, _party_heroes))
 		var g: Dictionary = _aggregate(_party[0], _party.size(), runs)
 		g.persona = _party_name()
 		_print_group(g)
@@ -38,16 +42,21 @@ func run() -> int:
 		summary.append("%s win %d/%d end %s first down %s human %s lv6 %s" % [g.persona, g.wins, _runs, _clock(g.end.med),
 			_clock(float(g.first_down.get("med", -1.0))), _clock(float(g.human_down.get("med", -1.0))), _level_at(g, 6)])
 	for persona: int in (_personas if _party.is_empty() else [] as Array[int]):
-		for wz: int in _wizards:
-			var runs: Array = []
-			for i: int in range(_runs):
-				runs.append(_play(persona, wz, _seed + i))
-			var g: Dictionary = _aggregate(persona, wz, runs)
-			_print_group(g)
-			groups.append(g)
-			summary.append("%s x%d win %d/%d end %s arch %s first down %s lv6 %s" % [SmashBot.persona_name(persona), wz,
-				g.wins, _runs, _clock(g.end.med), _clock(float(g.arch.med)), _clock(float(g.first_down.get("med", -1.0))),
-				_level_at(g, 6)])
+		for hero: Array in _heroes:
+			for wz: int in _wizards:
+				var runs: Array = []
+				var classes: Array = []
+				for _s: int in range(wz):
+					classes.append(hero)
+				for i: int in range(_runs):
+					runs.append(_play(persona, wz, _seed + i, [] as Array[int], classes))
+				var g: Dictionary = _aggregate(persona, wz, runs)
+				g.persona = SmashBot.persona_name(persona) + _hero_name(hero)
+				_print_group(g)
+				groups.append(g)
+				summary.append("%s x%d win %d/%d end %s arch %s first down %s lv6 %s" % [g.persona, wz,
+					g.wins, _runs, _clock(g.end.med), _clock(float(g.arch.med)), _clock(float(g.first_down.get("med", -1.0))),
+					_level_at(g, 6)])
 	if _json != "":
 		var f := FileAccess.open(_json, FileAccess.WRITE)
 		if f == null:
@@ -86,27 +95,67 @@ func _parse_args() -> bool:
 			_seal = int(v)
 		elif arg.begins_with("--json="):
 			_json = v
+		elif arg.begins_with("--hero="):
+			_heroes.clear()
+			for x: String in v.split(","):
+				var hero: Array = _parse_hero(x)
+				if hero.is_empty():
+					push_error("unknown hero " + x + " (class[:race])")
+					return false
+				_heroes.append(hero)
 		elif arg.begins_with("--party="):
 			_party.clear()
+			_party_heroes.clear()
 			for x: String in v.split(","):
-				var id: int = APPRENTICE if x == "apprentice" else SmashBot.persona_from_name(x)
-				if id == -1 and x != "apprentice":
+				var who: String = x.get_slice(":", 0)
+				var id: int = APPRENTICE if who == "apprentice" else SmashBot.persona_from_name(who)
+				if id == -1 and who != "apprentice":
 					push_error("unknown seat " + x)
 					return false
+				var hero: Array = _parse_hero(x.substr(who.length() + 1)) if x.contains(":") else []
+				if x.contains(":") and hero.is_empty():
+					push_error("unknown class or race in seat " + x + " (persona[:class[:race]])")
+					return false
 				_party.append(id)
+				_party_heroes.append(hero)
 			if _party.size() > 4 or _party.count(APPRENTICE) == _party.size():
 				push_error("--party takes 1 to 4 seats and at least one persona")
 				return false
 	return true
 
 
-## The party's name for the tables, e.g. "casual+2ap".
+## "class[:race]" (keys or indices) as [Classes index, Races index]; HUMAN when no race is given; [] when unknown.
+func _parse_hero(spec: String) -> Array:
+	var cs: String = spec.get_slice(":", 0).strip_edges().to_lower()
+	var c: int = int(cs) if cs.is_valid_int() and int(cs) < Classes.count() else Classes.index_of(cs)
+	var r: int = Races.HUMAN
+	if spec.contains(":"):
+		var rs: String = spec.get_slice(":", 1).strip_edges().to_lower()
+		r = int(rs) if rs.is_valid_int() and int(rs) < Races.count() else Races.index_of(rs)
+	if c < 0 or r < 0:
+		return []
+	return [c, r]
+
+
+## ":knight", ":knight:orc" (a race other than HUMAN), or "" for no class.
+func _hero_name(hero: Array) -> String:
+	if hero.is_empty():
+		return ""
+	return ":" + Classes.key(int(hero[0])) + (":" + Races.key(int(hero[1])) if int(hero[1]) != Races.HUMAN else "")
+
+
+## The party's name for the tables, e.g. "casual+2ap" or "casual:knight+casual:priest+ap:archer".
 func _party_name() -> String:
 	var names: PackedStringArray = []
-	for id: int in _party:
-		if id != APPRENTICE:
-			names.append(SmashBot.persona_name(id))
-	var n: int = _party.count(APPRENTICE)
+	var n: int = 0
+	for i: int in range(_party.size()):
+		var hero: Array = _party_heroes[i] if i < _party_heroes.size() else []
+		if _party[i] != APPRENTICE:
+			names.append(SmashBot.persona_name(_party[i]) + _hero_name(hero))
+		elif not hero.is_empty():
+			names.append("ap" + _hero_name(hero))
+		else:
+			n += 1
 	return "+".join(names) + ("+%dap" % n if n > 0 else "")
 
 
@@ -127,13 +176,22 @@ func _make_tune() -> Tuning:
 
 
 # ================================================================= RUN ===
-func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = []) -> Dictionary:
+## One run. `classes` holds each seat's hero [Classes index, Races index] or [] (no class: as before). A human seat
+## with a class gets a level 1 Hero.make of it after World.new (where Arena would apply_meta first; the playtest
+## applies no meta); an apprentice seat with one is seated with that class and the World makes it the hero.
+func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], classes: Array = []) -> Dictionary:
 	var slots: Array = range(wizards)
 	var seats: Dictionary = {}
 	for s: int in slots:
+		var hero: Array = classes[s] if s < classes.size() else []
 		if s < party.size() and party[s] == APPRENTICE:
-			seats[s] = {"ai": true}
+			seats[s] = {"ai": true} if hero.is_empty() else {"ai": true, "cls": hero[0], "race": hero[1], "cls_level": 1}
 	var w := World.new(slots, seed_value, _make_tune(), {}, seats)
+	for s: int in slots:
+		var hero: Array = classes[s] if s < classes.size() else []
+		if not seats.has(s) and not hero.is_empty():
+			var p: World.Player = w.players[s]
+			w.apply_hero(p, Hero.make(int(hero[1]), int(hero[0]), p.wizard).to_dict())
 	w.apply_seal(_seal)
 	var bots: Dictionary = {}
 	for s: int in slots:
@@ -145,7 +203,7 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = []) 
 		"offered": {}, "taken": {}, "spell_level": {}, "evolutions": [], "xp_expired": 0, "xp_expired_value": 0,
 		"xp_dropped": 0, "gold": 0.0, "spent": 0.0, "bets": {}, "bosses": [], "damage": {}, "damage_total": 0.0,
 		"kills": [], "shrines": 0, "arch": -1.0, "arch_slain": false, "wiz_hits": [], "wiz_pressure": [],
-		"human_down": -1.0,
+		"human_down": -1.0, "skills": {},
 	}
 	var offers: Dictionary = {}
 	for s: int in slots:
@@ -236,6 +294,11 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = []) 
 					r.shrines += 1
 				World.EV_VICTORY:
 					r.won = true
+				World.EV_SKILL:
+					var sk: String = Classes.skill_key(int(ev[4]))
+					r.skills[sk] = int(r.skills.get(sk, 0)) + 1
+				World.EV_HEAL:
+					r.skills["hearts healed"] = int(r.skills.get("hearts healed", 0)) + int(ev[4])
 		for s: int in slots:
 			var p: World.Player = w.players[s]
 			if p.offer != offers[s]:
@@ -513,6 +576,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 		"gold": gold / runs.size(), "spent": spent / runs.size(), "bosses": visits,
 		"kills": _mean_series(runs, "kills"), "shrines": shrines / runs.size(), "arch": _stats(arch),
 		"arch_slain": arch_slain, "wiz_hits_per_min": wiz_hits, "wiz_pressure": wiz_press,
+		"skills": _sum_dicts(runs, "skills"),
 	}
 
 
@@ -551,6 +615,8 @@ func _print_group(g: Dictionary) -> void:
 	for i: int in range(int(g.wizards)):
 		wl.append("w%d press %.1f hits/min %.2f" % [i + 1, float(g.wiz_pressure[i]), float(g.wiz_hits_per_min[i])])
 	print("per wiz  " + "  ".join(wl))
+	if not (g.skills as Dictionary).is_empty(): # class skills (EV_SKILL) and hearts they healed, summed over the runs
+		print("skills   " + _counts(g.skills))
 	for i: int in range((g.bosses as Array).size()):
 		var b: Dictionary = g.bosses[i]
 		print("boss %d %s: came %s  fight %s  downs %s  slain %d/%d" % [i + 1, "ARCH" if b.final else str(b.get("kind", "lich")),

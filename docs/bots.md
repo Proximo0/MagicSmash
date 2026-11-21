@@ -39,7 +39,9 @@ too hard, too easy, dull or unfair.
    unless it forgets (`nova_forget`, rolled once per panic). A veteran (`nova_save`) also novas to save a heart from
    a ring or volley it cannot dodge.
 6. **Aim.** At the nearest enemy within 210 px; a casual or veteran aims at a boss when nothing is close.
-7. **Picks.** `SmashBot.choose_pick` (static, a fixed priority list) stays the default for the arena's demo bots.
+7. **Class play** (a wizard with a hero other than a MAGE; see below). A wizard with no hero, and a MAGE, play as
+   above.
+8. **Picks.** `SmashBot.choose_pick` (static, a fixed priority list) stays the default for the arena's demo bots.
    `pick_card(choices, levels)` is the persona policy and `decide_in_world` uses it: a novice takes what is new and
    shiny (an evolution, else something it does not own, at random); a casual takes damage first (evolution, power,
    its spells, cast rate); a veteran chooses an evolution whose requirements it can still meet (most progress
@@ -47,6 +49,40 @@ too hard, too easy, dull or unfair.
 
 Determinism: each bot has its own `RandomNumberGenerator` seeded by its constructor and uses the simulation's clock
 (`World.time`), never the wall clock. The same seed and persona give the same inputs.
+
+## Class play
+
+A bot reads its wizard's class from the World (`Player.skill`, `Player.cls`) on every think, in `decide_in_world`
+and `apprentice_input` (the arena's view-state `decide` has no hero data and plays as before). `Player.skill` other
+than NOVA switches it on, so a seat with no class presses exactly what it pressed before (pinned by
+`test_a_seat_with_no_class_plays_as_before`). The numbers are `SmashBot` constants (`ROLE_PLAY` and the rows under
+it); the personas' reaction delay, noise and forgetting are untouched.
+
+- **Movement by role** (`ROLE_PLAY`, multiplying the persona's caution and body margin and the circling bonus):
+  - tank (KNIGHT, and the PALADIN as tank and support), beside a teammate: caution x0.5 (paladin x0.6), margin
+    x0.7 (x0.8), no circling. Its goal (`_consider_role`, worth `GUARD_VALUE` against pickups) is the ally with the
+    most sensed enemies within `GUARD_R` 90 px (the weakest on a tie), at `GUARD_GAP` 65 px from her toward that
+    crowd (at most at the crowd's centre): between them, pulling the crowd off her. Solo it plays the damage row.
+  - healer (PRIEST), beside a teammate: caution x1.2, margin x1.25. Its goal is the most hurt ally, `HEAL_SPOT` x
+    `HEAL_REACH` (24 of 40 px) from her on the far side from the enemies near her: her light (a zone near her)
+    covers the ally and she stays out of the front. Solo it plays the damage row.
+  - ranged (ARCHER), always: caution x1.15, margin x1.5 (keeps range).
+  - while a skill keeps it unhurt (`Player.invuln`) a classed bot minds bodies x0.3 (`UNHURT_CAUTION`).
+- **The skill on the nova button** (`_decide_skill`; a forget roll at the persona's `nova_forget` per chance, a
+  forgotten chance comes back to mind after `FORGET_HOLD` 1 s if it is still there, and the button is left alone for the skill's taunt or safe seconds, at least `SKILL_GAP`, plus the reaction delay).
+  Every class also uses it to save itself when cornered, as the nova rule above (PROVOKE and AEGIS make her unhurt,
+  VOLLEY rolls her out).
+  - PROVOKE: `PROVOKE_CROWD` (3) enemies in its radius within `ALLY_NEAR` 40 px of an ally, or the boss within
+    `BOSS_ON_ALLY` 40 px of an ally while in its radius. Never solo unless cornered.
+  - VOLLEY: cornered with `VOLLEY_CROWD` (4) enemies within `VOLLEY_R` 40 px. The move of that same decision is the
+    roll: straight away from the sensed crowd, else the heading nearest to that whose roll stays in the arena.
+  - SANCTUARY: the hearts it heals (each standing hero's missing ones up to its heal) plus `RISE_WORTH` 4 per fallen
+    ally in its radius reach the heal (2) solo or the heal + 1 beside a teammate, or a hero is on her last heart.
+  - AEGIS: `AEGIS_HEROES` (2) heroes in its radius (her too) about to be hit (a sensed body within `HIT_SOON` 10 px
+    of touching, or the boss within 40 px), or one such hero on her last heart.
+
+The playtest prints `skills` (EV_SKILL by skill, and the hearts SANCTUARY healed, summed over the runs) for a group
+that used any.
 
 ## Personas
 
@@ -89,6 +125,14 @@ only `decide_in_world` (19 Nov, on the shared 4-CPU box with other workers runni
 
 (The higher number of each pair was taken at a load average of 5.8 on 4 CPUs.)
 
+Class play (21 Nov, the same probe, three repeats each, load average 2 to 3 on 4 CPUs with a playtest beside it; "classes" gives the four
+wizards a knight, a priest, an archer and a paladin):
+
+| persona | before, no class | after, no class | after, classes |
+|---|---|---|---|
+| CASUAL, us per decide / per tick of 4 | 49 to 58 / 198 to 232 | 52 to 56 / 208 to 224 | 59 to 62 / 234 to 249 |
+| VETERAN, us per decide / per tick of 4 | 70 to 79 / 279 to 316 | 71 to 80 / 286 to 320 | 77 to 87 / 309 to 348 |
+
 Budget: 400 us per tick for four bots. A think reads only the enemies in the spatial-grid cells round the wizard,
 keeps the nearest few in fixed buffers, and allocates nothing while scoring. Between thinks a decide returns the
 held decision. In `sim_waves`' 4-wizard scenario the casual bots cost 342 us per step against 325 for the old
@@ -108,6 +152,18 @@ while no standing human is hurt), never walks to a shrine, and answers a call: o
 it walks into her circle from anywhere (`CALL_VALUE`) until she stands. Its cards are taken by the World when they
 are dealt (`WorldLevels`, `Upgrades.best_pick`), so it never holds a hand.
 
+**Classes.** `Net.add_apprentice()` seats the apprentice with the class that fills the party's first missing role
+in `Net.APPRENTICE_ROLES` order: tank (KNIGHT; a PALADIN seat counts as the tank), healer (PRIEST), ranged
+(ARCHER), damage (MAGE). A solo mage's apprentices are a KNIGHT, a PRIEST and an ARCHER. The classes are dealt
+again on every roster change outside a run (`Net._fill_apprentice_roles`), humans counted first. Its roster row carries
+`cls`, `race` 0 and `cls_level` 1 (`hero` stays `{}`), which `Net.seat_builds()` already hands to `World.new`; on
+the run's first step (`WorldApprentices.take_class`, from the first `with_inputs`, so after `apply_meta`; once,
+`World.classes_taken`) the
+World applies a level 1 HUMAN hero of that class (a MAGE keeps her colour's spell). A seat with `cls_level` 0 (an
+old caller, the playtest's plain `apprentice`) stays a plain wizard. A human who takes an apprentice's seat drops
+its class. The apprentice plays its class (Class play above) with the cheaper apprentice thinking, and still deals
+`apprentice_damage`, counts `apprentice_scale` and takes no loot.
+
 Cost (21 Nov, the shared box with a playtest running beside it): a 4-wizard World with 300 enemies, 600 steps,
 three apprentices against three idle humans: 2.8 to 3.0 ms per step either way; the difference is inside the noise
 (about 0.1 ms). Shots: `--autotest --seats` (one human, two apprentices).
@@ -118,7 +174,17 @@ three apprentices against three idle humans: 2.8 to 3.0 ms per step either way; 
 godot --headless --path . -s tools/playtest.gd -- --runs=6 --wizards=1,2,4 \
   --persona=novice,casual,veteran --seed=1 --minutes=16 --tune=field:value,... --json=/tmp/out.json
 godot --headless --path . -s tools/playtest.gd -- --runs=3 --party=casual,apprentice,apprentice --seed=1 --minutes=18
+godot --headless --path . -s tools/playtest.gd -- --runs=6 --wizards=1 --persona=casual --hero=knight,archer:elf --minutes=18
+godot --headless --path . -s tools/playtest.gd -- --runs=3 --party=casual:knight,casual:priest,apprentice:archer,casual:mage
 ```
+
+Classes: a `--party` seat is `persona[:class[:race]]` (`apprentice` too), and `--hero=class[:race],...` plays every
+persona x wizards group once per listed class, every seat that hero. Keys or indices; HUMAN unless a race is given.
+A human seat with a class gets `World.apply_hero` of a level 1 `Hero.make` (school: its wizard, so a mage keeps her
+spell) right after `World.new` (the playtest applies no meta); an apprentice seat with one is seated with the class
+and the World makes it the hero. Without a class a seat plays exactly as before. Headers name the classes:
+`casual:knight x1`, `casual:knight+casual:priest+ap:archer+casual:mage x4` (a plain apprentice still counts in
+`+Nap`).
 
 `--party` plays one party instead of the persona x wizards groups: each seat a persona name (a human bot) or
 `apprentice` (the World plays it). Its table is headed like `casual+2ap`, `human down` is the first down of a seat
