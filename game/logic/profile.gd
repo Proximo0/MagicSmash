@@ -63,9 +63,12 @@ var seal_best := Seals.MIN - 1
 var seal_prizes := {}
 var kills_total := 0
 var revives_total := 0
+## The Book of Deeds: the api names (Achievements.LIST) of every deed earned, in the order earned (name -> true).
+## A name this build does not know stays in the save. Each deed's crystals are paid once, when it is first earned.
+var deeds := {}
 ## What the last finish_run paid for its step, for the results screen (not saved): seal, mul (the bounty
 ## multiplier), bounty (crystals the multiplier added or took), prize (a first win's crystals), card (the Seal card
-## a first win paid, -1 none).
+## a first win paid, -1 none), deeds (api names earned this run, in order) and deeds_pay (their crystals).
 var last_pay := {}
 ## Levels the last finish_run gave each saved hero (profile index -> levels gained; not saved).
 var last_hero_levels := {}
@@ -268,7 +271,8 @@ func finish_run(run: Dictionary) -> int:
 	best_time = maxf(best_time, seconds)
 	var mul := Seals.crystal_mul(seal)
 	var earned: int = crystals_for_run(seconds, kills, liches, won, mul)
-	last_pay = {"seal": seal, "mul": mul, "bounty": bounty(liches, won, mul) - bounty(liches, won), "prize": 0, "card": -1}
+	last_pay = {"seal": seal, "mul": mul, "bounty": bounty(liches, won, mul) - bounty(liches, won), "prize": 0, "card": -1,
+		"deeds": [], "deeds_pay": 0}
 	if won:
 		seal_best = maxi(seal_best, seal)
 		seal_unlocked = clampi(maxi(seal_unlocked, seal + 1), Seals.START_UNLOCKED, Seals.MAX)
@@ -290,14 +294,63 @@ func finish_run(run: Dictionary) -> int:
 			continue
 		seen.append(hi)
 		last_hero_levels[hi] = heroes[hi].add_xp(heroes[hi].run_xp(seconds, liches, won, mul))
+	if res is Results: # a run with no record (a bare dictionary) earns no deeds
+		_book_deeds(run, res as Results, won, seconds)
 	return earned
+
+
+## Adds the deeds this run earned (Achievements.earned with `run.party` and this profile's totals), pays their
+## crystals once and tells last_pay which they were. The crystals go to the balance, not to finish_run's return
+## (the run's own pay).
+func _book_deeds(run: Dictionary, record: Results, won: bool, seconds: float) -> void:
+	var party: Dictionary = {}
+	var given: Variant = run.get("party", {})
+	if given is Dictionary:
+		party = (given as Dictionary).duplicate()
+	party.merge(deed_facts(), true)
+	var fresh: Array = []
+	var pay := 0
+	for api: Variant in Achievements.earned(record, won, seconds, party):
+		if not deeds.has(str(api)):
+			deeds[str(api)] = true
+			fresh.append(str(api))
+			pay += Achievements.crystals_of(str(api))
+	crystals += pay
+	last_pay["deeds"] = fresh
+	last_pay["deeds_pay"] = pay
+
+
+## What the deeds that count over every run read from this profile (see Achievements.earned).
+func deed_facts() -> Dictionary:
+	var top := 0
+	for h: Hero in heroes:
+		top = maxi(top, h.level)
+	var found := 0
+	for row: Array in Secrets.ALL:
+		if secrets.has(str(row[0])):
+			found += 1
+	return {"revives_total": revives_total, "kills_total": kills_total, "hero_level": top, "cards": cards_owned(),
+		"secrets": found}
+
+
+func has_deed(api: String) -> bool:
+	return deeds.has(api)
+
+
+## How many of the catalogue's deeds are earned (a name this build does not know is kept but not counted).
+func deeds_earned() -> int:
+	var n := 0
+	for row: Array in Achievements.LIST:
+		if deeds.has(str(row[Achievements.C_API])):
+			n += 1
+	return n
 
 
 func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
 		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes,
 		"seal_unlocked": seal_unlocked, "seal_best": seal_best, "seal_prizes": seal_prizes.keys(), "kills_total": kills_total,
-		"revives_total": revives_total, "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
+		"revives_total": revives_total, "deeds": deeds.keys(), "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -338,6 +391,10 @@ static func from_dict(d: Dictionary) -> Profile:
 				p.seal_prizes[str(int(str(k)))] = true
 	p.kills_total = maxi(0, int(d.get("kills_total", 0)))
 	p.revives_total = maxi(0, int(d.get("revives_total", 0)))
+	var dd: Variant = d.get("deeds", [])
+	if dd is Array:
+		for k: Variant in dd:
+			p.deeds[str(k)] = true # unknown names stay: a newer build may know them
 	# Heroes. A version 1 save has none: it becomes one HUMAN MAGE holding its sockets (it never saved a school,
 	# so she casts slot 0's ARCANE BOLT). Top-level "sockets" is a copy of the active hero's, kept for old builds.
 	var hs: Variant = d.get("heroes", [])

@@ -424,3 +424,31 @@ All 35 verified findings are closed; 30 were fixed along the way by the wave 1 a
   else the nearest standing human, then a standing apprentice).
 
 The golden run of seed 21 changes from 60 s on (the knockback cap and the orc's charge), as meant.
+
+## The Book of Deeds (21 Nov)
+
+Achievements you can see and are paid for, without Steam. Files: `game/logic/achievements.gd`, `game/ui/deeds_book.gd`,
+the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results_view.gd`.
+- **Catalogue.** `Achievements.LIST` rows are `[api, name, description, crystals, secret?]`: the first 14 are
+  Steam's (order and names fixed), 38 more follow (win with each class and race, the tank/healer/ranged trinity, each
+  evolution but RUNE CIRCLE's, the two act bosses, ARCHMAGE and Seals I to VIII, revive, kill, hero level, card and
+  secret totals, apprentices only, a fast four-hero win). Rewards 5 to 50 crystals. A row past the 14 has its rule in
+  `Achievements.RULES` (`api -> [kind, argument]`, checked by `_rule_met`); numbers are named constants there.
+- **`Achievements.earned(record, won, seconds, party = {})`** returns every api name the run (and the profile's
+  totals) earns. `party` keys, all optional (a missing fact earns nothing): `classes`, `races` (one per hero a person
+  plays, apprentices left out, built by `Achievements.party_of` from the snapshot), `seal`, and the totals `Profile.deed_facts()`
+  adds: `revives_total`, `kills_total`, `hero_level` (highest class level), `cards`, `secrets`. Apprentices are
+  `record.ai`. A win at a Seal counts for every step below it. Only the Lich Lord and the Archlich were already
+  deeds (LICH, ARCHLICH needs a win); no new deed for the Archlich.
+- **Saved.** `Profile.deeds` (api name -> true, in the order earned) is saved as a list; an old save has none,
+  and a name this build does not know is kept (`deeds_earned()` counts the catalogue's only). `finish_run` books
+  the new ones after the totals and hero XP, adds their crystals to `crystals` once (the return value stays the
+  run's own pay) and sets `last_pay.deeds` (api names) and `last_pay.deeds_pay`. A run dictionary with no
+  `results` earns no deeds. `Platform.finish_run(record, won, seconds, party)` still sends every earned name.
+- **Results screen.** Under the pay line, `Achievements.result_lines`: "DEED: NAME +N", three lines at most in all, the
+  last "+K MORE DEEDS" when they do not fit; with deeds the ending line gives way (`ArenaResultsView.DEED_*`).
+- **The station.** `Sanctum.DEEDS` (a lectern at 338,112; a plain rect stand-in, `_draw_lectern`) opens `DeedsBook`
+  (`active`, `open(profile)`, `handle`, `update`, `draw`): 12 rows on view, up/down move, left/right a page, back closes,
+  earned rows gold with a tick, locked dim, locked secrets `???`, the selected description at the bottom.
+- Shots: `xvfb-run -a godot --path . -- --autotest --deeds --out=<dir>`; the results lines show on
+  `--autotest --players=2 --end=20:win`.

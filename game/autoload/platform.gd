@@ -49,11 +49,13 @@ func invite_friends() -> bool:
 	return true
 
 
-## Unlocks the achievements a finished run earned (see Achievements.earned). Returns how many were sent.
-func finish_run(record: Results, won: bool, seconds: float) -> int:
+## Unlocks the achievements a finished run earned (see Achievements.earned; `party` is who played). Returns how many were sent.
+func finish_run(record: Results, won: bool, seconds: float, party: Dictionary = {}) -> int:
 	if not ready_ok or record == null:
 		return 0
-	var names: Array = Achievements.earned(record, won, seconds)
+	var facts := party.duplicate()
+	facts.merge(Save.profile.deed_facts(), true) # the totals the run just changed
+	var names: Array = Achievements.earned(record, won, seconds, facts)
 	for n: String in names:
 		_steam.call("setAchievement", n)
 	if not names.is_empty():

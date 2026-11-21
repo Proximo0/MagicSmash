@@ -168,6 +168,11 @@ func _ready() -> void:
 	if "--sanctum" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]
 		quit_at = 6.0
+	# --deeds: the Sanctum's lectern and the Book of Deeds, at the top of the list and scrolled down.
+	if "--deeds" in OS.get_cmdline_user_args():
+		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.1, "@deeds_near"], [3.4, "deeds_sanctum"], [3.5, "@deeds_book"],
+			[4.0, "deeds_book"], [4.1, "@deeds_scroll"], [4.6, "deeds_book_scrolled"]]
+		quit_at = 5.2
 	# --talk: the Sanctum's talkers (shopkeeper, card reader, Morvane after a loss), then --talk-lull: Morvane in a lull.
 	if "--talk" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.5, "@talk_shop"], [4.0, "talk_shopkeeper"], [4.1, "@talk_reader"],
@@ -330,6 +335,8 @@ func _process(delta: float) -> void:
 			else:
 				tv._talk(Talk.MORVANE, {"result": "loss", "seal": 0})
 			tv.dlg.finish()
+		elif name.begins_with("@deeds_"):
+			_deeds_step(name)
 		elif name.begins_with("@heroes_"):
 			_heroes_step(name)
 		elif name == "@talk_lull":
@@ -633,6 +640,24 @@ func _boss_tick(w: World, delta: float) -> void:
 				_boss_shots[name + "_hot"] = true
 				_fall_shot(name + "_hot")
 				break
+
+
+## One setup step of the --deeds shots: a profile with some deeds earned (never saved: scripted runs write nothing).
+func _deeds_step(name: String) -> void:
+	var view = G.main.current
+	var prof: Profile = Save.profile
+	match name:
+		"@deeds_near":
+			view.room.pos = Sanctum.THINGS[Sanctum.DEEDS][1] + Vector2(10, 12)
+		"@deeds_book":
+			for api: String in ["ARCHLICH", "SOLO_WIN", "TEN_MINUTES", "EVOLVE", "WIN_MAGE", "WIN_HUMAN", "EVO_FIRE", "WIN_SEAL_8",
+					"KILLS_1K"]:
+				prof.deeds[api] = true
+			view.deeds_book.open(prof)
+			view.deeds_book.sel = 4
+			view.deeds_open = true
+		"@deeds_scroll":
+			view.deeds_book._select(34)
 
 
 ## One setup step of the --heroes shots: a few heroes in the profile (never saved: scripted runs write nothing), the
