@@ -174,6 +174,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	a.lull_left = w[World.W_LULL]
 	a.seal = int(w[World.W_SEAL])
 	a.slot_cap = Vector2i(int(w[World.W_CAP_SPELLS]), int(w[World.W_CAP_PASSIVES]))
+	a.fates = snap.get("f", PackedFloat32Array())
 	if was_lull > 0.0 and a.lull_left <= 0.0 and a.phase != World.PH_GAMEOVER:
 		ArenaFateView._banner(a, "THE HORDE RETURNS", "", Color("ff6a4d"), 1.6, true)
 		Sfx.play("gong", -2.0)

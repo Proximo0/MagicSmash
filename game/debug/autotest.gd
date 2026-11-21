@@ -44,6 +44,13 @@ var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick tha
 ## fallen_call.png her call's ping, then slot 0 is held in her circle and fallen_ritual.png shows the circle about
 ## half filled (HUD: DOWN).
 var fall_at := -1.0
+## --fate=ID[,ID...] (Gamble.TEAM_OUTCOMES ids): from 10 s of run time on, every 12 s slot 0 is dealt the next of
+## these fates as if it had paid the team shrine; fate_<id>.png shows each card face up, fate_hud.png the HUD
+## 4 s after the last one landed (sealed novas, no potions).
+var fates_forced: Array[int] = []
+var _fate_next := 10.0
+var _fate_shots := {}
+var _fate_hud_at := -1.0
 var _fall_step := 0
 var _fall_t := 0.0
 
@@ -73,6 +80,9 @@ func _ready() -> void:
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--fall="):
 			fall_at = float(a.substr(7))
+		if a.begins_with("--fate="):
+			for f: String in a.substr(7).split(","):
+				fates_forced.append(clampi(int(f), 0, Gamble.TEAM_OUTCOMES.size() - 1))
 		if a == "--lull":
 			lull_hold = true
 		if a.begins_with("--hand="):
@@ -167,6 +177,8 @@ func _process(delta: float) -> void:
 		get_viewport().get_texture().get_image().save_png("%s/card.png" % out_dir)
 		print("shot card")
 	# State-keyed shot: the team shrine's reel halfway through its spin, the clip moment.
+	if cur and "world" in cur and cur.world:
+		_fate_tick(cur)
 	if not _team_shot and cur and "_bets" in cur:
 		for b: Dictionary in cur._bets:
 			if b.kind == Gamble.TEAM and b.t > b.spin * 0.5:
@@ -399,3 +411,26 @@ func _fall_tick(cur: Node) -> void:
 func _fall_shot(name: String) -> void:
 	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out_dir, name])
 	print("shot ", name)
+
+
+## --fate: deals the forced fates and takes their shots (see fates_forced).
+func _fate_tick(cur: Node) -> void:
+	var w: World = cur.world
+	if not fates_forced.is_empty() and w.phase == World.PH_FIGHT and w.wave_time >= _fate_next:
+		_fate_next = w.wave_time + 12.0
+		var id: int = fates_forced.pop_front()
+		var at := w.party_center()
+		WorldShrines._queue_gamble(w, {"t": w.wave_time + w.tune.team_reel, "slot": 0, "kind": Gamble.TEAM, "outcome": id, "stake": 0, "pos": at})
+		w.emit(World.EV_SHRINE, at.x, at.y, 0, Gamble.TEAM * 16 + id)
+		if fates_forced.is_empty():
+			_fate_hud_at = w.wave_time + w.tune.team_reel + 4.0
+	for b: Dictionary in cur._bets:
+		var key := "fate_%d" % int(b.outcome)
+		if b.kind == Gamble.TEAM and b.t > b.spin + 0.6 and not _fate_shots.has(key):
+			_fate_shots[key] = true
+			get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out_dir, key])
+			print("shot ", key)
+	if _fate_hud_at > 0.0 and w.wave_time >= _fate_hud_at:
+		_fate_hud_at = -1.0
+		get_viewport().get_texture().get_image().save_png("%s/fate_hud.png" % out_dir)
+		print("shot fate_hud")

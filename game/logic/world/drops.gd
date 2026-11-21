@@ -30,6 +30,7 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 	elif r < 0.27:
 		_drop(w, World.PK_GEM, e.pos, pop)
 	elif r < 0.29:
+		if w.no_potions > 0.0: return # THE HIEROPHANT
 		_drop(w, World.PK_POTION, e.pos, pop)
 	elif r < 0.315:
 		_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, pop)
@@ -94,7 +95,7 @@ static func _break_urn(w: World, at: Vector2) -> void:
 	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance:
 		what = World.URN_CHEST
 		_drop(w, World.PK_CHEST_RARE, at, pop, w.tune.chest_life, 2)
-	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance + 0.06:
+	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance + 0.06 and w.no_potions <= 0.0: # THE HIEROPHANT: a gem instead
 		what = World.URN_POTION
 		_drop(w, World.PK_POTION, at, pop)
 	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance + 0.24:
@@ -163,7 +164,7 @@ static func _magnet_xp(w: World, k: World.Pickup) -> void:
 		if not p.alive:
 			continue
 		var d := p.pos.distance_to(k.pos)
-		if (w.lull_left > 0.0 or d < w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)) and d < bd:
+		if (w.lull_left > 0.0 or w.gem_rush > 0.0 or d < w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)) and d < bd:
 			bd = d
 			best = p
 	if best:

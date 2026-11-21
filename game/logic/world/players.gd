@@ -80,7 +80,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 			p.last_bomb = bomb_count
 		elif bomb_count > p.last_bomb:
 			p.last_bomb = bomb_count
-			if p.bombs > 0:
+			if p.bombs > 0 and w.nova_sealed <= 0.0: # THE HANGED MAN: a press while sealed is spent, not kept
 				_nova(w, p)
 	if p.orbit > 0.0:
 		w.stat_src = Results.SRC_ORBIT

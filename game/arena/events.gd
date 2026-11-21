@@ -194,7 +194,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					a._add_shake(6.0 if good else 10.0)
 					Sfx.play("gong")
 					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
-					Sfx.music(ArenaFateView._act_music(a))
+					Sfx.music(ArenaFateView._after_reel_music(a.boss_f, ArenaFateView._act_music(a)))
 				else:
 					a.fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
 					Sfx.play("rune_good" if good else "rune_bad", -2.0)

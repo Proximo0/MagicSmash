@@ -69,6 +69,7 @@ var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
 var seal := 0 # the run's Seal level, from the snapshot header
 var slot_cap := Upgrades.UNCAPPED # spell and passive slots, from the snapshot header
+var fates := PackedFloat32Array() # the fates in force, from the snapshot (WorldShrines.snapshot_fates); empty: none
 var _reveals: Array = [] # chest reels: {slot, pos, item, tier, t, shown}
 var _cards: Array = [] # monster card reveals, one at a time: {idx, slot, t, first}
 const CARD_SHOW := 4.0

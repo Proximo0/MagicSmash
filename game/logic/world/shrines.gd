@@ -6,6 +6,7 @@ extends RefCounted
 ## Shrines appear on timers. A wizard who can pay stands on one for tune.shrine_hold seconds to bet; the gold
 ## goes at once, the reel plays, and the outcome lands when it stops. The team shrine bets for everybody.
 static func _update_shrines(w: World, dt: float) -> void:
+	_tick_fates(w, dt)
 	w.shrine_t -= dt
 	if w.shrine_t <= 0.0:
 		w.shrine_t += w.tune.shrine_interval
@@ -57,27 +58,117 @@ static func _bet(w: World, sh: World.Shrine, p: World.Player) -> void:
 	sh.life = 0.0
 	p.gold -= sh.cost
 	w.record.add(p.slot, "bets", sh.cost)
-	var outcome := Gamble.roll(w.rng, sh.kind)
+	var outcome := _first_draw(w, sh.kind)
 	var reel := w.tune.team_reel if sh.kind == Gamble.TEAM else w.tune.shrine_reel
-	w._gambles.append({"t": w.wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
-	w._gambles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.t < b.t)
+	_queue_gamble(w, {"t": w.wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
 	w.emit(World.EV_SHRINE, sh.pos.x, sh.pos.y, p.slot, sh.kind * 16 + outcome)
+
+
+## What a shrine of `kind` turns up when paid. A party's team shrine draws from the fate deck; a solo run's team
+## shrine (and every solo shrine) keeps its weighted roll, so a solo run plays as it always did.
+static func _first_draw(w: World, kind: int) -> int:
+	if kind == Gamble.TEAM and w.players.size() > 1:
+		return Gamble.draw_fate(w.rng, w.fate_cruel)
+	return Gamble.roll(w.rng, kind)
+
+
+## The fates' timers run with the fight; THE WORLD's hearts reach a fallen wizard once she stands.
+static func _tick_fates(w: World, dt: float) -> void:
+	w.nova_sealed = maxf(0.0, w.nova_sealed - dt)
+	w.no_potions = maxf(0.0, w.no_potions - dt)
+	w.gem_rush = maxf(0.0, w.gem_rush - dt)
+	for slot: int in w.fate_heal.keys():
+		var p: World.Player = w.players.get(slot)
+		if p == null:
+			w.fate_heal.erase(slot)
+		elif p.alive:
+			p.hp = mini(p.max_hp, p.hp + int(w.fate_heal[slot]))
+			w.fate_heal.erase(slot)
+
+
+## The fates in the snapshot, only while one is in force (so a run without them hashes as before): "f" = [novas
+## sealed s, no potions s, gem rush s, 1 if THE FOOL's double is waiting].
+static func snapshot_fates(w: World, snap: Dictionary) -> void:
+	if w.nova_sealed > 0.0 or w.no_potions > 0.0 or w.gem_rush > 0.0 or w.fate_twice:
+		snap["f"] = PackedFloat32Array([w.nova_sealed, w.no_potions, w.gem_rush, 1.0 if w.fate_twice else 0.0])
+
+
+## A team fate lands: THE FOOL's double is spent on it, its effect applies, and a WHEEL OF FORTUNE draws more
+## fates at once. The rest of a chain is turned one card at a time: each waits tune.fate_chain_gap after the last
+## one landed (its "deal"), then spins its reel (EV_SHRINE) and lands like any team fate.
+static func _land_fate(w: World, g: Dictionary) -> void:
+	var fate := int(g.outcome)
+	var times := 1
+	if w.fate_twice:
+		w.fate_twice = false
+		times = 2
+	_apply_fate(w, fate, times, w.players.get(g.slot), g.pos)
+	w.record.fates.append(fate)
+	if fate == Gamble.TO_BLESSING or fate == Gamble.TO_CURSE:
+		w.record.note(w.wave_time, Results.M_BLESSING if fate == Gamble.TO_BLESSING else Results.M_CURSE, g.slot)
+	w.emit(World.EV_FATE, g.pos.x, g.pos.y, fate, g.slot)
+	var chain: Array = (g.get("chain", []) as Array).duplicate()
+	if fate == Gamble.TO_WHEEL:
+		for i: int in range(int(w.tune.fate_wheel_draws) * times):
+			chain.append(Gamble.draw_fate(w.rng, w.fate_cruel, false))
+	if chain.is_empty():
+		return
+	_queue_gamble(w, {"t": w.wave_time + w.tune.fate_chain_gap, "slot": g.slot, "kind": Gamble.TEAM, "outcome": chain[0],
+		"stake": 0, "pos": g.pos, "chain": chain.slice(1), "deal": true})
+
+
+static func _queue_gamble(w: World, g: Dictionary) -> void:
+	w._gambles.append(g)
+	w._gambles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.t < b.t)
+
+
+## One fate's effect, `times` over (THE FOOL doubles the next one).
+static func _apply_fate(w: World, fate: int, times: int, p: World.Player, pos: Vector2) -> void:
+	match fate:
+		Gamble.TO_BLESSING:
+			var who: World.Player = p if p != null else w.players.values()[0]
+			for i in Gamble.BLESSING_LEVELS * times:
+				w.gain_xp(who, maxi(1, w.xp_needed() - w.party_xp))
+		Gamble.TO_CURSE:
+			for i in times:
+				for q: World.Player in w.players.values():
+					if q.alive:
+						q.hp = maxi(1, q.hp - 1)
+						q.flash = 0.3
+						WorldWaves._spawn_elite(w)
+		Gamble.TO_WORLD:
+			w.gem_rush = maxf(w.gem_rush, w.tune.fate_world_pull)
+			var hearts := int(w.tune.fate_world_hearts) * times
+			for q: World.Player in w.players.values():
+				if q.alive:
+					q.hp = mini(q.max_hp, q.hp + hearts)
+				else:
+					w.fate_heal[q.slot] = int(w.fate_heal.get(q.slot, 0)) + hearts
+		Gamble.TO_EMPEROR:
+			for q: World.Player in w.humans():
+				for i in times:
+					WorldDrops._drop(w, World.PK_CHEST, q.pos, Vector2.from_angle(w.rng.randf() * TAU) * 40.0, w.tune.chest_life,
+						int(w.tune.elite_chest_luck))
+		Gamble.TO_FOOL:
+			w.fate_twice = true
+		Gamble.TO_HANGED:
+			w.nova_sealed += w.tune.fate_hanged_secs * times
+		Gamble.TO_HIEROPHANT:
+			w.no_potions += w.tune.fate_hierophant_secs * times
 
 
 static func _resolve_gamble(w: World, g: Dictionary) -> void:
 	var p: World.Player = w.players.get(g.slot)
 	var pos: Vector2 = g.pos
+	if g.get("deal", false):
+		# The next card of a chain is turned: its reel spins, then it lands.
+		g.deal = false
+		g.t = w.wave_time + w.tune.team_reel
+		_queue_gamble(w, g)
+		w.emit(World.EV_SHRINE, pos.x, pos.y, g.slot, Gamble.TEAM * 16 + int(g.outcome))
+		return
 	if g.kind == Gamble.TEAM:
-		if g.outcome == Gamble.TO_BLESSING:
-			var who: World.Player = p if p != null else w.players.values()[0]
-			for i in Gamble.BLESSING_LEVELS:
-				w.gain_xp(who, maxi(1, w.xp_needed() - w.party_xp))
-		else:
-			for q: World.Player in w.players.values():
-				if q.alive:
-					q.hp = maxi(1, q.hp - 1)
-					q.flash = 0.3
-					WorldWaves._spawn_elite(w)
+		_land_fate(w, g)
 	elif p != null:
 		match int(g.outcome):
 			Gamble.SO_JACKPOT:
@@ -90,8 +181,6 @@ static func _resolve_gamble(w: World, g: Dictionary) -> void:
 				if p.alive:
 					p.hp = maxi(1, p.hp - 1)
 					p.flash = 0.3
-	if g.kind == Gamble.TEAM:
-		w.record.note(w.wave_time, Results.M_BLESSING if g.outcome == Gamble.TO_BLESSING else Results.M_CURSE, g.slot)
-	elif g.outcome == Gamble.SO_JACKPOT:
+	if g.kind == Gamble.SOLO and g.outcome == Gamble.SO_JACKPOT:
 		w.record.note(w.wave_time, Results.M_JACKPOT, g.slot)
 	w.emit(World.EV_GAMBLE, pos.x, pos.y, g.slot, int(g.kind) * 16 + int(g.outcome))

@@ -305,6 +305,8 @@ const ARCANA := {
 	"swift": ["VII", "THE CHARIOT"], "quick": ["I", "THE MAGICIAN"], "power": ["VIII", "STRENGTH"],
 	"regen": ["XIV", "TEMPERANCE"], "magnet": ["XVIII", "THE MOON"], "wisdom": ["IX", "THE HERMIT"],
 	"nova": ["XVI", "THE TOWER"], "life": ["XX", "JUDGEMENT"], "sun": ["XIX", "THE SUN"], "death": ["XIII", "DEATH"],
+	"world": ["XXI", "THE WORLD"], "emperor": ["IV", "THE EMPEROR"], "fool": ["0", "THE FOOL"],
+	"hanged": ["XII", "THE HANGED MAN"], "hierophant": ["V", "THE HIEROPHANT"], "wheel": ["X", "WHEEL OF FORTUNE"],
 }
 
 const KIND_ARCANA := 0
