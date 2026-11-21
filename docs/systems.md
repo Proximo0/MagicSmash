@@ -410,3 +410,17 @@ Autotest: `xvfb-run -a godot --path . -- --autotest --heroes --out=<dir>` shoots
   a run deals the apprentices' classes again, humans counted first (`Net._fill_apprentice_roles`, from
   `_push_roster`), so a human who picks another hero or joins never leaves two tanks and no healer.
 - `tools/playtest.gd`: `--party=persona[:class[:race]],...` and `--hero=class[:race],...`; a `skills` line.
+
+## The last of the 19 Nov bug audit (21 Nov)
+
+All 35 verified findings are closed; 30 were fixed along the way by the wave 1 and 2 jobs. The last five:
+- The Lich aims its volley from the muzzle (16 px up) at a wizard's hit centre (6 px up), so one standing beside
+  it is hit (`BossLich.think`).
+- Knockback an enemy carries adds up only to `Bestiary.KNOCK_MAX` (280 px/s, times its heft): one nova still
+  pushes in full, a crowd of hits no longer throws an elite to the wall or pins the Lich (`_damage_enemy`).
+- An orc's charge ends on its timer only; the wall test that ended it also ended every charge in the bottom 7 px.
+- The Lich summons nothing once the run is lost.
+- A card still on the floor when the Archlich dies is taken for the party (`Bosses._pay_floor_cards`: the slayer,
+  else the nearest standing human, then a standing apprentice).
+
+The golden run of seed 21 changes from 60 s on (the knockback cap and the orc's charge), as meant.
