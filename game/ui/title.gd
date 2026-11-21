@@ -45,6 +45,8 @@ var message := ""
 var message_t := 0.0
 var options := OptionsPanel.new()
 var album := CardAlbum.new()
+var hero_roster := HeroRoster.new()
+var hero_roster_dev := -99 # the device whose seat the open hero list picks for
 var ouija := Ouija.new()
 var planchette := Vector2(240, 150)
 ## The prologue page on screen, when it was turned, and the menu item to carry on to after it.
@@ -148,6 +150,8 @@ func _process(delta: float) -> void:
 	fore.queue_redraw()
 	fore_glow.queue_redraw()
 	front.queue_redraw()
+	if hero_roster.active:
+		hero_roster.update(delta)
 	if state == S.OUIJA:
 		planchette = planchette.lerp(_ouija_pos(ouija.row, ouija.col), minf(1.0, delta * 14.0))
 
@@ -461,6 +465,8 @@ func _draw_front() -> void:
 			_draw_menu(ci)
 		S.LOBBY:
 			_draw_lobby(ci)
+			if hero_roster.active:
+				hero_roster.draw(ci, t)
 		S.JOIN:
 			_draw_join(ci)
 		S.JOINING:
@@ -628,6 +634,7 @@ func _device_name(d: int) -> String:
 
 ## Lobby seat height and the Seal row under the seats.
 const LOBBY_SEAT_H := 56
+const LOBBY_PORTRAIT := Vector2(24, 32)
 const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
 var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
 var seal_view := 0 # the step the row shows; Net.seal unless player 1 has browsed onto a locked one
@@ -648,7 +655,7 @@ func _draw_lobby(ci: CanvasItem) -> void:
 	elif G.touch_active:
 		foot = "TAP HERE TO START"
 	else:
-		foot = "LEFT/RIGHT: WIZARD  UP/DOWN: SEAL  ENTER/START: BEGIN  ESC/B: BACK"
+		foot = "LEFT/RIGHT: HERO  H/RB: HEROES  UP/DOWN: SEAL  ENTER/START: BEGIN  ESC/B: BACK"
 	PixelFont.draw_centered(ci, foot, 240, 236, 1, Color("8bff9e") if int(t * 2) % 2 == 0 else Color.WHITE)
 	if Net.mode == Net.Mode.HOST:
 		var ips := Net.local_ips()
@@ -673,23 +680,20 @@ func _draw_seats(ci: CanvasItem) -> void:
 		ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), col if entry else col.darkened(0.6))
 		PixelFont.draw(ci, "P%d" % (slot + 1), r.position + Vector2(4, 4), 1, col)
 		if entry:
-			var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
-			Sprites.draw_at(ci, key, r.position + Vector2(48, 38))
-			# The wizard picked, with arrows to step through the free ones, and the spell it starts with. The
-			# name shares the seat number's row, to the right of it, so that it never sits on the hat.
-			var cx := r.get_center().x
-			PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
-				Sprites.PLAYER_COLORS[wiz].fx)
 			var ai := bool(entry.get("ai", false))
 			if ai:
-				# An apprentice: a dashed hem under the seat, and its line says so (X or - unseats it).
+				# An apprentice: its wizard, the spell it starts with, and a dashed hem (X or - unseats it).
+				var key := "wiz%d_down_%s" % [wiz, "a" if int(t * 3 + slot) % 2 == 0 else "b"]
+				Sprites.draw_at(ci, key, r.position + Vector2(48, 38))
+				PixelFont.draw_centered(ci, Wizards.title(wiz), r.position.x + 55, r.position.y + 4, 1,
+					Sprites.PLAYER_COLORS[wiz].fx)
 				for x in range(int(r.position.x) + 2, int(r.end.x) - 2, 6):
 					ci.draw_rect(Rect2(x, r.end.y - 1, 3, 1), Color(col, 0.7))
-			elif entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
-				PixelFont.draw(ci, "<", Vector2(r.position.x + 4, r.position.y + 24), 1, Color.WHITE)
-				PixelFont.draw(ci, ">", Vector2(r.end.x - 9, r.position.y + 24), 1, Color.WHITE)
-			var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
-			PixelFont.draw_centered(ci, spell, cx, r.end.y - 16, 1, Color("c9b8ff"))
+				var spell := Upgrades.display_name(Upgrades.weapon_entry(Wizards.start_spell(wiz)))
+				PixelFont.draw_centered(ci, spell, r.get_center().x, r.end.y - 16, 1, Color("c9b8ff"))
+			else:
+				_draw_seat_hero(ci, r, entry, wiz)
+			var cx := r.get_center().x
 			var who := _device_name(entry.device) if entry.peer == Net.my_peer else "LAN PLAYER"
 			var who_col := Color.WHITE
 			if ai:
@@ -709,6 +713,37 @@ func _draw_seats(ci: CanvasItem) -> void:
 			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 16, 1, Color(1, 1, 1, blink))
 			if Net.mode != Net.Mode.CLIENT:
 				PixelFont.draw_centered(ci, "Y/+ APPRENTICE", r.get_center().x, r.end.y - 8, 1, Color(0.55, 1.0, 0.62, blink))
+
+## The hero list closed: the seats re-read their heroes (one may have been made or deleted), then the seat that
+## opened it takes the one picked when no other local seat holds it.
+func _hero_roster_closed() -> void:
+	Net.refresh_seat_heroes()
+	if hero_roster.picked >= 0:
+		Net.set_seat_hero(hero_roster_dev, hero_roster.picked)
+	hero_roster_dev = -99
+	Sfx.play("menu_select")
+
+## A human seat's hero: the small portrait, name, race, class, level and role. A seat whose row has no hero (a
+## scripted run, a LAN client not heard from yet) shows the guest.
+func _draw_seat_hero(ci: CanvasItem, r: Rect2, entry: Dictionary, wiz: int) -> void:
+	var hd: Dictionary = entry.get("hero", {})
+	var h := Hero.from_dict(hd) if not hd.is_empty() else Hero.new()
+	var fx: Color = Sprites.PLAYER_COLORS[wiz].fx
+	PixelFont.draw_centered(ci, h.name, r.position.x + 55, r.position.y + 4, 1, fx)
+	var pr := Rect2(r.position + Vector2(4, 13), LOBBY_PORTRAIT)
+	ci.draw_rect(pr.grow(1), Color(fx, 0.8))
+	ci.draw_rect(pr, Color("0e0a14"))
+	if not Art.draw(ci, "portraits/heroes", "hero_%s_%s" % [Races.key(h.race), Classes.key(h.cls)], pr):
+		DialogueBox.draw_stand_in(ci, pr, "")
+	var tx := pr.end.x + 6
+	PixelFont.draw(ci, Races.race_name(h.race), Vector2(tx, r.position.y + 14), 1, Color("e8dcc0"))
+	PixelFont.draw(ci, Classes.class_name_of(h.cls), Vector2(tx, r.position.y + 22), 1, Color("e8dcc0"))
+	PixelFont.draw(ci, "LV %d" % h.level, Vector2(tx, r.position.y + 30), 1, Color("ffd94d"))
+	# The role's first word (TANK AND SUPPORT reads TANK here: the seat is narrow).
+	PixelFont.draw(ci, String(Classes.ROLE_NAMES[Classes.role(h.cls)]).get_slice(" ", 0), Vector2(tx, r.position.y + 38), 1, Color("c9b8ff"))
+	if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
+		PixelFont.draw(ci, "<", Vector2(r.position.x + 2, r.end.y - 8), 1, Color.WHITE)
+		PixelFont.draw(ci, ">", Vector2(r.end.x - 7, r.end.y - 8), 1, Color.WHITE)
 
 ## The row under the seats where player 1 picks the run's step on the difficulty ladder (Seals): its name, its
 ## rule, the crystal multiplier and the unclaimed first-win prize. Player 1 moves onto it with up/down and steps
@@ -779,7 +814,7 @@ static func _event_device(event: InputEvent) -> int:
 
 
 ## The lobby's own buttons: 1 adds an apprentice (Y, +), -1 removes one (X, -), 2 starts the run (START, Enter),
-## 3 invites friends (SELECT, I), 0 none.
+## 3 invites friends (SELECT, I), 4 opens the hero list (right bumper, H), 0 none.
 static func lobby_button(event: InputEvent) -> int:
 	if event is InputEventJoypadButton and event.pressed:
 		match event.button_index:
@@ -787,12 +822,14 @@ static func lobby_button(event: InputEvent) -> int:
 			JOY_BUTTON_X: return -1
 			JOY_BUTTON_START: return 2
 			JOY_BUTTON_BACK: return 3
+			JOY_BUTTON_RIGHT_SHOULDER: return 4
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_EQUAL, KEY_KP_ADD, KEY_PLUS: return 1
 			KEY_MINUS, KEY_KP_SUBTRACT: return -1
 			KEY_ENTER, KEY_KP_ENTER: return 2
 			KEY_I: return 3
+			KEY_H: return 4
 	return 0
 
 func _draw_join(ci: CanvasItem) -> void:
@@ -875,6 +912,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			if dev != -99:
 				_activate(items[sel], dev)
 		S.LOBBY:
+			if hero_roster.active:
+				if hero_roster.handle(event):
+					_hero_roster_closed()
+				return
 			if back:
 				Sfx.play("menu_select")
 				Net.shutdown()
@@ -903,6 +944,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			if button == 3:
 				Platform.invite_friends()
 				return
+			if button == 4:
+				var hd := _event_device(event)
+				if G.local_devices.has(hd):
+					hero_roster_dev = hd
+					hero_roster.open(Save.profile, hd)
+					Sfx.play("menu_select")
+				return
 			# Player 1's START begins the run; a joined device's A (or any other confirm) never does.
 			var presser := _event_device(event)
 			if button == 2 and event is InputEventKey and _p1_device() == G.DEV_KB2:
@@ -923,7 +971,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_step_seal(int(side[1]))
 					return
 			if int(side[1]) != 0 and G.local_devices.has(int(side[0])):
-				Net.cycle_wizard(int(side[0]), int(side[1]))
+				Net.step_seat_hero(int(side[0]), int(side[1]))
 				Sfx.play("menu_move")
 				return
 			if dev != -99 and not G.local_devices.has(dev):

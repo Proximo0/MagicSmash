@@ -138,3 +138,67 @@ func test_run_ending_events_leave_the_snapshot() -> void:
 	assert_eq(int(rest[0][0]), World.EV_HIT)
 	for code: int in [World.EV_VICTORY, World.EV_RESULTS, World.EV_GAMEOVER, World.EV_CARD, World.EV_CHEST, World.EV_PICK]:
 		assert_true(Net.RELIABLE_EVENTS.has(code))
+
+
+func _heroes_setup() -> Profile:
+	var was: Profile = Save.profile
+	var p := Profile.new()
+	p.heroes.clear()
+	p.add_hero(Hero.make(Races.index_of("elf"), Classes.KNIGHT, 0, "ONE"))
+	p.add_hero(Hero.make(Races.HUMAN, Classes.PRIEST, 0, "TWO"))
+	p.hero = 0
+	Save.profile = p
+	Net.force_heroes = true
+	return was
+
+
+func _heroes_teardown(was: Profile) -> void:
+	Save.profile = was
+	Net.force_heroes = false
+	Net.seat_heroes.clear()
+
+
+func test_a_seat_carries_a_cleaned_hero() -> void:
+	_save()
+	var was := _heroes_setup()
+	Net.seat_heroes.clear()
+	Net.start_offline()
+	var row: Dictionary = Net.roster[0]
+	var h: Hero = Save.profile.heroes[Save.profile.hero]
+	assert_eq(row.hero, Hero.from_dict(h.to_dict()).to_dict())
+	assert_eq(int(row.race), h.race)
+	assert_eq(int(row.cls), h.cls)
+	assert_eq(int(row.cls_level), h.level)
+	Net.roster.append({"slot": 1, "peer": 99, "device": 0, "wizard": 1, "ai": false, "away": false, "race": 0, "cls": 0, "look": 0,
+		"cls_level": 0, "hero": {}})
+	Net._fill_hero(Net.roster[1], {"name": "x".repeat(50), "race": "nope", "cls": 7, "level": 999, "points": "junk", "look": -5})
+	var junk: Dictionary = Net.roster[1].hero
+	assert_true(String(junk.name).length() <= Hero.NAME_MAX)
+	assert_eq(int(Net.roster[1].race), Races.HUMAN)
+	assert_eq(int(Net.roster[1].cls), Classes.MAGE)
+	assert_true(int(junk.level) <= Hero.MAX_LEVEL)
+	assert_eq(Net.add_apprentice(), 2)
+	assert_true((Net.roster[2].hero as Dictionary).is_empty(), "an apprentice has no hero")
+	assert_eq(int(Net.roster[2].cls_level), 0)
+	_heroes_teardown(was)
+	_restore()
+
+
+func test_two_local_seats_never_share_a_hero() -> void:
+	_save()
+	var was := _heroes_setup()
+	Net.seat_heroes.clear()
+	G.local_devices.assign([G.DEV_KBM, 0])
+	Net.start_offline()
+	assert_eq(Net.hero_of(G.DEV_KBM), 0, "seat 1 starts on the active hero")
+	assert_eq(Net.hero_of(0), 1, "seat 2 the first free one")
+	assert_false(Net.set_seat_hero(0, 0), "held by seat 1")
+	Net.step_seat_hero(0, 1)
+	assert_eq(Net.hero_of(0), 1, "nothing else to step to")
+	assert_true(Net.set_seat_hero(G.DEV_KBM, -1))
+	Net.step_seat_hero(0, 1)
+	assert_eq(Net.hero_of(0), 0, "the freed hero")
+	assert_true(Net.hero_of(0) != Net.hero_of(G.DEV_KBM))
+	assert_eq(Net.played_heroes(), [0], "a guest is not played")
+	_heroes_teardown(was)
+	_restore()

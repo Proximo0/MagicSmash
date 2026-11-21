@@ -328,3 +328,26 @@ func test_saved_heroes_drop_cards_not_owned() -> void:
 	assert_eq((p.heroes[0] as Hero).sockets[2], "orc")
 	assert_eq((p.heroes[1] as Hero).sockets[0], "", "the bat card is not owned")
 	assert_eq((p.heroes[1] as Hero).cls, Classes.PRIEST)
+
+
+func test_finish_run_pays_class_xp_once_per_hero() -> void:
+	var p := Profile.new()
+	var want: int = p.heroes[0].run_xp(300.0, 1, true, 1.0)
+	assert_true(want > 0)
+	p.finish_run({"seconds": 300.0, "liches": 1, "won": true, "heroes": [0, 0]})
+	var q := Profile.new()
+	var h: Hero = q.heroes[0]
+	var gained := h.add_xp(want)
+	assert_eq(p.heroes[0].level, h.level, "once, not twice")
+	assert_eq(p.heroes[0].xp, h.xp)
+	assert_eq(int(p.last_hero_levels[0]), gained)
+
+
+func test_finish_run_without_or_with_bad_hero_indices_pays_nothing() -> void:
+	var p := Profile.new()
+	p.finish_run({"seconds": 600.0, "liches": 1, "won": true})
+	assert_eq(p.heroes[0].xp, 0)
+	assert_eq(p.heroes[0].level, 1)
+	p.finish_run({"seconds": 600.0, "won": true, "heroes": [5, -1]})
+	assert_eq(p.heroes[0].xp, 0)
+	assert_true(p.last_hero_levels.is_empty())

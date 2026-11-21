@@ -222,6 +222,11 @@ func _ready() -> void:
 			slots.append(0)
 		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks(), Net.seat_builds())
 		world.apply_meta(Save.run_bonuses())
+		# Saved heroes from the lobby (the roster rows carry the host-cleaned dict). Scripted runs seat none.
+		for r: Dictionary in Net.roster:
+			var hd: Variant = r.get("hero", {})
+			if hd is Dictionary and not (hd as Dictionary).is_empty() and world.players.has(r.slot):
+				world.apply_hero(world.players[r.slot], hd)
 		# Developer flag until the builder screens land: --hero=<race>,<class>[,<school>] gives every local seat
 		# that hero (Hero.from_flag). Nothing happens without it, scripted run or not.
 		if Flags.args.has("hero"):
