@@ -98,6 +98,8 @@ job_golden() {  # information only: which pushes changed how the game plays
 }
 
 job_realm() {  # one line: the summary line of each check script; FAIL when a script does not end with its "ok" line
+  # A station that was started before Rust was installed still has its old PATH: look in rustup's own folder too.
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB realm SKIP cargo is not installed on this station"; return 0; }
   local c out line bad=0 detail=""
   for c in realm/check.sh realm/store/check.sh; do
