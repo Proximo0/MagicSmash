@@ -29,7 +29,7 @@ for the whole game.
 |---|---|---|---|---|---|
 | G | the core inside the game window; lockstep player; internet relay; Windows binaries | `realm/godot`, `realm/client`, `realm/server` (lockstep), `realm/loadtest` (relay), CI | Opus | crowd test | a player walks the lockstep field in the client under loss and delay; Windows module and server built in CI |
 | R1 | rules sections 1 to 7 and 12: sheets, classes, skills, jobs, effects, 42 monster kinds and 14 behaviours, deck, six terrain maps, haul, falling, potions, events | `realm/core` only | Opus, 1 reviewer | crowd test | gates of section 13 that need no tide or boss |
-| S1 | the store: accounts, characters, items, wallets, bag, bank, entitlements, ledger, backup and restore, crash-fuzz | `realm/store` | Opus, 1 reviewer | none | 100,000 random operations with injected crashes never create or lose an item; ledger replay equals state |
+| S1 | the store: accounts, characters, items, wallets, bag, bank, entitlements, ledger, backup and restore, crash-fuzz; the botter tools (origin on every mint, account flags, trace, clawback, ban waves). Built: `store.md` | `realm/store` | Opus, 1 reviewer | none | 100,000 random operations with injected crashes never create or lose an item; ledger replay equals state |
 | R2 | rules 8, 10, 11: tides, altars, eight bosses, the world boss, vaults, moving heroes between copies; class bots | `realm/core`, `realm/loadtest` (bots) | Opus, 1 reviewer | R1 | all gates of section 13 |
 | W1 | wiring: the two-byte input and `Sheet` on the wire; gateway (dev login, character list, town rooms, field tickets); field hosts; outing results applied to the store | `realm/server`, `realm/gateway` | Opus | G, R1, S1 | bots log in, make heroes, fight, bank, log out and back in; a server killed mid-outing loses nothing banked |
 | L1 | loot on the server: rolls, gear, cards, runes, pages, materials, the smith; `economy.md` part 1 | `realm/loot` | Opus, 1 reviewer | S1, R1 | drop tables measured over a million kills match the contract; nothing mints without a ledger row |
@@ -48,6 +48,23 @@ for the whole game.
 Three heavy jobs run at once on this box (4 cores). The lead commits, reviews, merges and runs the checks; workers
 never run git, never message Curtis, never install packages beyond the crates named above.
 
+## The stations (Curtis's four computers)
+
+His four computers test every merge with no Claude and no tokens (`tools/station/`, results on the branch
+`station-results`, read with `tools/station/read.sh`; never rerun in a session what a station already ran).
+Four of Wands is stopped (Curtis, 21 Nov: "stop four of wands and work entirely on this title"), so from 21 Nov the
+stations run this game only and skip merges that changed nothing they test.
+
+| Station | Now | Added by |
+|---|---|---|
+| Ubuntu HP ENVY | `realm`: core, server and store checks with the crash fuzz | W1: a long soak (bots through the wire server for hours), O1: backup and restore drill |
+| MSI (RTX 5050) | `realm` on Windows | C1: the field client's frame time with 10,000 on screen on a real card; the **test host** for the closed test |
+| Ryzen laptop (Radeon 610M) | `realm` (the same checks, once Rust is on it) | C1: the same frame test at the low end, the number that sets minimum spec |
+| Heatherspc (Celeron) | idle | C1: the frame test below minimum spec, recorded only |
+
+Each job that adds a station test adds its word to `station.sh` and its line to `roles.txt` in the same PR. Ubuntu
+and MSI need Rust installed once (README there).
+
 ## Proofs in order
 
 1. Crowd test: passed 21 Nov (`crowd_results.md`).
@@ -61,4 +78,4 @@ never run git, never message Curtis, never install packages beyond the crates na
 
 Steam Next Fest runs 22 Feb to 1 Mar 2027; registration closes 10 Jan; the build and store page go to Valve by
 18 Jan for the press preview and by 1 Feb at the latest. Next Fest takes a playable build only: ours is this game
-as it stands, behind a level cap that is one switch. Four of Wands stays buildable on `main` as the backup entry.
+as it stands, behind a level cap that is one switch. Four of Wands is stopped (21 Nov); its code stays on `main`, untouched.

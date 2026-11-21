@@ -1,0 +1,117 @@
+# realm: the lockstep server, its tools and the Godot native module (realm/README.md).
+# Linux runs realm/check.sh; Linux and Windows run the store's check (realm/store/check.sh) and build the native module, Windows builds the server and the
+# load test for hosting on a Windows PC; both run the same bench and the hashes must match (lockstep needs
+# every machine to compute the same field).
+name: realm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "realm/**"
+      - ".github/workflows/realm.yml"
+  pull_request:
+    paths:
+      - "realm/**"
+      - ".github/workflows/realm.yml"
+
+permissions:
+  contents: read
+
+env:
+  # The toolchain the module and the workspace are built and tested with (gdext 0.5.5 needs 1.94 or newer).
+  RUST_TOOLCHAIN: "1.97.0"
+  CARGO_TERM_COLOR: never
+  # The determinism probe: the same bench on every platform must end on the same hash.
+  BENCH: --bench --bots=300 --monsters=8000 --rally=0.3 --threads=2 --ticks=200 --warmup=40 --report=100
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - name: realm/check.sh
+        run: realm/check.sh
+      - name: Native module
+        working-directory: realm/godot
+        run: |
+          cargo build --release 2>&1 | tee build.log
+          if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
+          cargo test --release
+      - name: realm/store/check.sh
+        run: realm/store/check.sh
+      - name: Bench hash
+        working-directory: realm
+        run: ./target/release/realm-server $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-linux.txt && cat ../hash-linux.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-godot-linux
+          path: realm/godot/target/release/librealm_godot.so
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hash-linux
+          path: hash-linux.txt
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - name: Server and load test
+        working-directory: realm
+        run: |
+          cargo build --release 2>&1 | tee build.log
+          if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
+          cargo test --release
+      - name: Native module
+        working-directory: realm/godot
+        run: |
+          cargo build --release 2>&1 | tee build.log
+          if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
+          cargo test --release
+      - name: realm/store/check.sh
+        run: bash realm/store/check.sh
+      - name: Bench hash
+        working-directory: realm
+        run: ./target/release/realm-server.exe $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-windows.txt && cat ../hash-windows.txt
+      - name: Gather the server package
+        run: |
+          mkdir -p realm-server-windows
+          cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/store/target/release/realm-store.exe realm/run_server.bat realm-server-windows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-server-windows
+          path: realm-server-windows
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-godot-windows
+          path: realm/godot/target/release/realm_godot.dll
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hash-windows
+          path: hash-windows.txt
+
+  same-hash:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hash-*
+          merge-multiple: true
+      - name: Linux and Windows compute the same field
+        run: |
+          cat hash-linux.txt hash-windows.txt
+          cmp hash-linux.txt hash-windows.txt

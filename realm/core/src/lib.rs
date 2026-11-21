@@ -22,6 +22,7 @@ mod terrain;
 mod terrain_gen;
 mod util;
 
+pub use act::walk_step;
 pub use attack::Hit;
 pub use deck::{card_mods, roll as roll_offer, CardMods};
 pub use events::Event;
@@ -275,6 +276,12 @@ impl Field {
     /// This tick's derived numbers of a hero.
     pub fn mods(&self, id: u16) -> Option<&Mods> {
         self.mods.get(id as usize)
+    }
+    /// Where hero `id` would be after one tick of walking from (x, y) with `input`, at the speed she had in
+    /// the last tick (none before her first). Skills that move a hero (a charge, a tumble) are not part of it.
+    pub fn walk(&self, id: u16, x: i32, y: i32, input: u16) -> (i32, i32) {
+        let move_pct = self.mods.get(id as usize).map_or(0, |m| m.move_pct);
+        walk_step(&self.terrain, move_pct, x, y, (input & IN_DIR) as usize)
     }
     /// Luck for the server's item rolls: FORTUNE and GAMBLER'S COIN.
     pub fn luck(&self, id: u16) -> i32 {

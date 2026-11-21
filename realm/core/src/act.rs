@@ -9,6 +9,18 @@ use crate::tables::*;
 use crate::util::{d2, grid_box, pct};
 use crate::{Field, Zone, FIELD, PCELLS_W, PCELL_SHIFT, SUB};
 
+/// One tick of walking in direction `dir` (0 none, 1..8) at `move_pct` percent more speed, sliding along
+/// walls. The simulation and the client's prediction both move a hero with this and nothing else.
+pub fn walk_step(terrain: &crate::Terrain, move_pct: i32, x: i32, y: i32, dir: usize) -> (i32, i32) {
+    let (ux, uy) = DIRS[dir.min(8)];
+    if (ux, uy) == (0, 0) {
+        return (x, y);
+    }
+    let step = (HERO_STEP as i64 * (100 + move_pct).max(MIN_SPEED_PCT) as i64 / 100) as i32;
+    let s = if ux != 0 && uy != 0 { step * DIAG_NUM / DIAG_DEN } else { step };
+    terrain.slide(x, y, x + ux * s, y + uy * s)
+}
+
 impl Field {
     /// The input phase: every present hero in id order.
     pub(crate) fn phase_heroes(&mut self, inputs: &[u16]) {
@@ -80,16 +92,12 @@ impl Field {
             h.moving = dir != 0;
             if dir != 0 {
                 h.dir = dir as u8;
-                let step = (HERO_STEP as i64 * (100 + m.move_pct).max(MIN_SPEED_PCT) as i64 / 100) as i32;
-                let (sx, sy) = if ux != 0 && uy != 0 { (step * DIAG_NUM / DIAG_DEN, step * DIAG_NUM / DIAG_DEN) } else { (step, step) };
                 if ux < 0 {
                     h.facing_left = true;
                 } else if ux > 0 {
                     h.facing_left = false;
                 }
-                let (nx, ny) = self.terrain.slide(h.x, h.y, h.x + ux * sx, h.y + uy * sy);
-                h.x = nx;
-                h.y = ny;
+                (h.x, h.y) = walk_step(&self.terrain, m.move_pct, h.x, h.y, dir);
             }
             // The weapon.
             let every = h.class_row().weapon.every * 100;

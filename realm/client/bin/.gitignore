@@ -1,0 +1,3 @@
+# Built by realm/check_client.sh (or the CI) from realm/godot
+*
+!.gitignore

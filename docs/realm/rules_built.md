@@ -125,3 +125,13 @@ even a total of 52 downed the hero within 25 s, so the bot's skill matters as mu
 3. ARCHER and MAGE drop below 0.6 s from level 40, through the jobs and FOCUS.
 4. `CLASS_XP` (59 rows) is a placeholder curve and has not been tuned against bots.
 5. The bench gear assumption (all UNCOMMON at the hero's level) should be confirmed against the loot rates of section 9.
+
+## The wire and the window until W1
+
+- A client still sends one byte a tick (direction, bit 7 the skill). `realm_server::wire_input` turns it into the
+  core's two-byte input (bit 7 becomes skill 1); the HELLO's class 0..4 joins as KNIGHT..PALADIN at the level the
+  server was started with (`--level`, default the field's top). W1 puts the two-byte input and the `Sheet` on the wire.
+- The client predicts its hero with `Field::walk`, which is the same `walk_step` the simulation moves her with
+  (walls and speed included). A skill that moves her, or a speed change in the same tick, is a misprediction that
+  the client smooths out as before.
+- The window draws the 42 kinds with the eight stand-in monster pictures (kind modulo 8) and a NOVICE as a KNIGHT.

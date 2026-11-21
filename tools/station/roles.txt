@@ -1,6 +1,8 @@
 # What each watching station runs on every merge: <STATION_NAME>: jobs [--after=<station>] [--p95=<frame limit ms, 0 = record only>]
 # A station restarts itself when this file changes. No --after means it does not wait for another station.
-ubuntu: checks golden
-msi: boss frames
-laptop: frames
-heatherspc: frames --p95=0
+# Four of Wands is stopped (21 Nov 2026): no station runs boss, checks, frames or golden. A job is skipped for a merge
+# that changed nothing it tests, so a merge of docs or art costs the stations nothing.
+ubuntu: realm
+msi: realm
+laptop: realm
+heatherspc: idle

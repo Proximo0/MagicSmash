@@ -11,10 +11,17 @@ a new role is a commit. Start every station as `station.sh --watch <any job>`; t
 
 | Machine | Job | Why |
 |---|---|---|
-| Ubuntu HP ENVY | `checks golden` | full check_all, did the game change |
-| MSI (fast, RTX 5050) | `boss frames` | five bot runs to the Archlich, frame time on real graphics |
-| DESKTOP-BENMA68 laptop (Radeon 610M) | `frames` | low-end frame time |
-| Heatherspc (Celeron N4100, UHD 600) | `frames --p95=0` | below minimum spec (p95 81 ms): recorded, never fails |
+| Ubuntu HP ENVY | `realm` | Horde & Hearth: core, server and store checks, the crash fuzz |
+| MSI (fast, RTX 5050) | `realm` | the same on Windows; later the field client's frame time and the test host |
+| DESKTOP-BENMA68 laptop (Radeon 610M) | `realm` | the same checks; later the field client's frame test (low end) |
+| Heatherspc (Celeron N4100, UHD 600) | `idle` | waits for the same test, below minimum spec, recorded only |
+
+Four of Wands is stopped (21 Nov 2026), so no station runs `boss`, `checks`, `frames` or `golden`; the jobs remain for
+the day they are wanted. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot
+jobs test everything except `realm/`, `docs/`, `.github/` and the stations), so the stations do no work for docs or art.
+
+`realm` needs Rust on the station (`cargo` on PATH, from rustup; on Windows also the Visual Studio C++ build tools,
+which the store's bundled SQLite needs). A station without it reports `JOB realm SKIP cargo is not installed`.
 
 ## Set up a station
 1. Git with a shell (Linux: any; Windows: full Git for Windows, whose Git Bash runs these scripts) and Godot 4.7.2;

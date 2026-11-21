@@ -11,10 +11,18 @@
 //! Joining: `0x91, u32 tick, u16 part, u16 parts, bytes` carries the state after `tick`: the field
 //! `u32 n` and the persistent `u16` inputs, then the field (`Field::to_bytes`).
 //!
+//! A lockstep player (HELLO proto 4) is a follower whose own inputs enter the stream. Its INPUT adds
+//! `u32 seq, u8 n, n x u8 move` (a number per input sent, from 1, and the moves of seqs `seq - 1` back to
+//! `seq - n`, so one lost INPUT costs nothing). The server queues them and uses one a tick
+//! (`InputQueue`). The first B datagram of each tick's send to a player is
+//! `0x92, u32 first tick, u8 n, n x u32 seq` (the seq of the input in force for that player at ticks
+//! `first .. first + n`, every tick after its acknowledgement) followed by a whole `0x90` datagram. That is
+//! what lets the player replay only the inputs the server has not used yet (`predict.rs`).
+//!
 //! The server drives its own field through `Lockstep::apply`, the same code the follower runs, so both
 //! apply joins, leaves and inputs in the same order.
 
-use crate::{put_i32, put_u16, put_u32, put_u64, put_varint, Rd, MAX_DATAGRAM, MSG_STATE, MSG_TICKS};
+use crate::{put_i32, put_u16, put_u32, put_u64, put_varint, Rd, MAX_DATAGRAM, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS};
 use realm_core::{Field, Outing, Phase, Sheet};
 
 pub const HASH_EVERY: u32 = 20;
@@ -163,15 +171,18 @@ impl Lockstep {
 const REC_HEAD: usize = 8;
 const FRAG_MAX: usize = MAX_DATAGRAM - 2 - REC_HEAD;
 
-/// Packs encoded tick records (tick, bytes) into datagrams, fragmenting big ones.
-pub fn pack(recs: &[(u32, &[u8])], out: &mut Vec<Vec<u8>>) {
+/// Packs encoded tick records (tick, bytes) into datagrams, fragmenting big ones, leaving `reserve` bytes
+/// free in the first datagram for a head put in front of it (`put_seq_head`).
+pub fn pack_reserving(recs: &[(u32, &[u8])], reserve: usize, out: &mut Vec<Vec<u8>>) {
     out.clear();
     let mut cur: Vec<u8> = Vec::new();
     for &(tick, bytes) in recs {
-        let frags = bytes.len().div_ceil(FRAG_MAX).max(1);
+        let frags = bytes.len().div_ceil(FRAG_MAX - reserve).max(1);
+        let size = bytes.len().div_ceil(frags).max(1);
         for k in 0..frags {
-            let piece = &bytes[k * FRAG_MAX..((k + 1) * FRAG_MAX).min(bytes.len())];
-            if !cur.is_empty() && cur.len() + REC_HEAD + piece.len() > MAX_DATAGRAM {
+            let piece = &bytes[k * size..((k + 1) * size).min(bytes.len())];
+            let room = if out.is_empty() { MAX_DATAGRAM - reserve } else { MAX_DATAGRAM };
+            if !cur.is_empty() && cur.len() + REC_HEAD + piece.len() > room {
                 out.push(std::mem::take(&mut cur));
             }
             if cur.is_empty() {
@@ -187,6 +198,84 @@ pub fn pack(recs: &[(u32, &[u8])], out: &mut Vec<Vec<u8>>) {
     }
     if !cur.is_empty() {
         out.push(cur);
+    }
+}
+
+/// The longest seq list a player head carries (the server keeps this many ticks of history).
+pub const SEQS_MAX: usize = 64;
+/// `0x92, u32 first tick, u8 n`.
+const SEQ_HEAD: usize = 6;
+
+/// The bytes a player head adds in front of the first datagram for `n` seqs.
+pub fn seq_head_len(n: usize) -> usize {
+    SEQ_HEAD + 4 * n.min(SEQS_MAX)
+}
+
+/// Turns the first datagram of a send into a `0x92` one: the seqs in force at ticks `first..`, then the
+/// datagram as it was. Only the last `SEQS_MAX` seqs are kept.
+pub fn put_seq_head(first: u32, seqs: &[u32], dgram: &mut Vec<u8>) {
+    let skip = seqs.len().saturating_sub(SEQS_MAX);
+    let seqs = &seqs[skip..];
+    let mut w = Vec::with_capacity(seq_head_len(seqs.len()) + dgram.len());
+    w.push(MSG_PLAYER_TICKS);
+    put_u32(&mut w, first + skip as u32);
+    w.push(seqs.len() as u8);
+    for &s in seqs {
+        put_u32(&mut w, s);
+    }
+    w.extend_from_slice(dgram);
+    *dgram = w;
+}
+
+/// Splits a `0x92` datagram into (first tick, seqs) and the `0x90` datagram it carries.
+pub fn take_seq_head(b: &[u8]) -> Option<(u32, Vec<u32>, &[u8])> {
+    let mut r = Rd::new(b);
+    if r.u8()? != MSG_PLAYER_TICKS {
+        return None;
+    }
+    let first = r.u32()?;
+    let n = r.u8()? as usize;
+    let seqs = (0..n).map(|_| r.u32()).collect::<Option<Vec<u32>>>()?;
+    Some((first, seqs, &b[r.at..]))
+}
+
+/// Earlier moves repeated in each lockstep player's INPUT.
+pub const INPUT_REPEAT: usize = 3;
+/// Inputs a player may have waiting on the server; beyond this the oldest go (the client runs fast).
+pub const INPUT_QUEUE_MAX: usize = 3;
+
+/// A lockstep player's inputs on the server: each tick uses the next one in seq order, so inputs that
+/// arrive unevenly (jitter) still move the hero one input a tick, as the player's prediction assumes. With
+/// none waiting the last one holds.
+#[derive(Clone, Debug, Default)]
+pub struct InputQueue {
+    newest: u32,
+    queue: std::collections::VecDeque<(u32, u8)>,
+    /// The input in force and its seq.
+    pub seq: u32,
+    pub input: u8,
+}
+
+impl InputQueue {
+    /// An INPUT: `moves[0]` is `seq`'s move, `moves[k]` is `seq - k`'s. Seqs already seen are ignored.
+    pub fn take(&mut self, seq: u32, moves: &[u8]) {
+        for k in (0..moves.len()).rev() {
+            let Some(s) = seq.checked_sub(k as u32).filter(|&s| s > self.newest) else { continue };
+            self.newest = s;
+            self.queue.push_back((s, moves[k] & 0x8F));
+        }
+        while self.queue.len() > INPUT_QUEUE_MAX {
+            self.queue.pop_front();
+        }
+    }
+
+    /// The input for the next tick.
+    pub fn next_tick(&mut self) -> u8 {
+        if let Some((s, m)) = self.queue.pop_front() {
+            self.seq = s;
+            self.input = m;
+        }
+        self.input
     }
 }
 
@@ -289,7 +378,7 @@ mod tests {
                 follower = Some(Lockstep::from_state(&st, 1).expect("state"));
                 continue;
             }
-            pack(&[(t, &bytes)], &mut dgrams);
+            pack_reserving(&[(t, &bytes)], 0, &mut dgrams);
             if let Some((f, fl)) = follower.as_mut() {
                 for d in &dgrams {
                     asm.take(d, f.tick()).unwrap();
@@ -305,4 +394,57 @@ mod tests {
         }
         assert!(checked >= 17);
     }
+
+    #[test]
+    fn a_seq_head_fits_in_front_of_full_datagrams() {
+        let big: Vec<u8> = (0..5000u32).map(|i| (i * 7) as u8).collect();
+        let small = vec![9u8; 300];
+        let recs: Vec<(u32, &[u8])> = vec![(10, &small), (11, &big), (12, &small)];
+        let seqs: Vec<u32> = (100..200).collect();
+        let mut out = Vec::new();
+        pack_reserving(&recs, seq_head_len(seqs.len()), &mut out);
+        put_seq_head(10, &seqs, &mut out[0]);
+        assert!(out.iter().all(|d| d.len() <= MAX_DATAGRAM));
+        let (first, got, rest) = take_seq_head(&out[0]).expect("head");
+        // Only the last SEQS_MAX seqs travel, so the first tick moves up with them.
+        assert_eq!((first, got.len(), got[0]), (10 + 36, SEQS_MAX, 136));
+        let mut asm = Assembler::default();
+        asm.take(rest, 9).expect("rest is a 0x90 datagram");
+        for d in &out[1..] {
+            asm.take(d, 9).expect("datagram");
+        }
+        assert_eq!(asm.next(10), Some(small.clone()));
+        assert_eq!(asm.next(11), Some(big));
+        assert_eq!(asm.next(12), Some(small));
+    }
+
+    #[test]
+    fn the_input_queue_uses_one_input_a_tick_in_seq_order() {
+        let mut q = InputQueue::default();
+        // Two INPUTs arrive in one tick (jitter), then none: still one a tick.
+        q.take(1, &[3]);
+        q.take(2, &[4, 3]);
+        assert_eq!((q.next_tick(), q.seq), (3, 1));
+        assert_eq!((q.next_tick(), q.seq), (4, 2));
+        assert_eq!((q.next_tick(), q.seq), (4, 2), "nothing waiting: the last input holds");
+        // INPUT 3 is lost; 4 repeats its move.
+        q.take(4, &[6, 5, 4]);
+        assert_eq!((q.next_tick(), q.seq), (5, 3));
+        assert_eq!((q.next_tick(), q.seq), (6, 4));
+        // A stale INPUT changes nothing.
+        q.take(2, &[1]);
+        assert_eq!((q.next_tick(), q.seq), (6, 4));
+    }
+
+    #[test]
+    fn the_input_queue_drops_the_oldest_beyond_its_limit() {
+        let mut q = InputQueue::default();
+        for s in 1..=6u32 {
+            q.take(s, &[s as u8 | INPUT_SKILL_BIT]);
+        }
+        assert_eq!(q.next_tick(), 4 | INPUT_SKILL_BIT);
+        assert_eq!(q.seq, 4);
+    }
+
+    const INPUT_SKILL_BIT: u8 = crate::WIRE_SKILL;
 }

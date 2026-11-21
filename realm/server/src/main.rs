@@ -3,7 +3,7 @@
 
 use realm_core::{Config, Field, Phase, FIELD, SUB};
 use realm_server::bots::{join_spot, Bot};
-use realm_server::lockstep::{pack, state_parts, Assembler, Join, Lockstep, TickRec, HASH_EVERY};
+use realm_server::lockstep::{pack_reserving, InputQueue, put_seq_head, seq_head_len, state_parts, Assembler, Join, Lockstep, TickRec, HASH_EVERY};
 use realm_server::snap::{encode_v0, encode_v1};
 use realm_server::stats::{dist, kb, Dist};
 use realm_server::view::{build, Scratch, View};
@@ -185,8 +185,7 @@ impl Sim {
         }
         for &(id, inp) in client_inputs {
             if let Some(w) = want.get_mut(id as usize) {
-                // The A protocols' one byte: direction, and its old skill bit (7) as skill 1.
-                *w = (inp & 0x0F) as u16 | ((inp & 0x80) as u16 >> 3);
+                *w = wire_input(inp);
             }
         }
         for &l in leaves {
@@ -232,8 +231,24 @@ impl Sim {
 
     /// B datagrams for a client that has applied up to `ack` (at most `HISTORY` ticks back).
     fn b_datagrams(&self, ack: u32, out: &mut Vec<Vec<u8>>) {
+        self.b_datagrams_for(ack, &VecDeque::new(), out);
+    }
+
+    /// As `b_datagrams`; a lockstep player's `seqs` (tick, seq of its input in force) after `ack` go in
+    /// a `0x92` head on the first datagram.
+    fn b_datagrams_for(&self, ack: u32, seqs: &VecDeque<(u32, u32)>, out: &mut Vec<Vec<u8>>) {
         let recs: Vec<(u32, &[u8])> = self.history.iter().filter(|(t, _)| *t > ack).map(|(t, b)| (*t, b.as_slice())).collect();
-        pack(&recs, out);
+        let mine: Vec<u32> = seqs.iter().filter(|(t, _)| *t > ack).map(|&(_, s)| s).collect();
+        let first = seqs.iter().find(|(t, _)| *t > ack).map(|&(t, _)| t);
+        match first {
+            Some(first) => {
+                pack_reserving(&recs, seq_head_len(mine.len()), out);
+                if let Some(d) = out.first_mut() {
+                    put_seq_head(first, &mine, d);
+                }
+            }
+            None => pack_reserving(&recs, 0, out),
+        }
     }
 }
 
@@ -442,6 +457,9 @@ struct Client {
     /// B: the state being sent, a few parts a tick, and the next part.
     state: Vec<Vec<u8>>,
     state_next: usize,
+    /// A lockstep player: its numbered inputs, and the seq in force at each recent tick.
+    queue: InputQueue,
+    seqs: VecDeque<(u32, u32)>,
     bytes: u64,
     view_mon: u32,
     view_ply: u32,
@@ -458,9 +476,20 @@ fn serve(args: &Args) {
     let rsock = sock.try_clone().expect("clone socket");
     std::thread::spawn(move || {
         let mut buf = [0u8; 2048];
-        while let Ok((len, from)) = rsock.recv_from(&mut buf) {
-            if tx.send((from, buf[..len].to_vec())).is_err() {
-                break;
+        loop {
+            match rsock.recv_from(&mut buf) {
+                Ok((len, from)) => {
+                    if tx.send((from, buf[..len].to_vec())).is_err() {
+                        break;
+                    }
+                }
+                // Windows reports an earlier send to a client that has gone (ICMP port unreachable) as an
+                // error on the next receive: the socket is still good.
+                Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => {}
+                Err(e) => {
+                    eprintln!("realm-server: receive: {e}");
+                    std::thread::sleep(Duration::from_millis(10));
+                }
             }
         }
     });
@@ -506,12 +535,13 @@ fn serve(args: &Args) {
                         }
                         continue;
                     }
-                    let c = Client { proto, id: None, input: 0, zoom: 1, ack: 0, heard: Instant::now(), ring: VecDeque::new(), state_tick: None, state: Vec::new(), state_next: 0, bytes: 0, view_mon: 0, view_ply: 0 };
+                    let c = Client { proto, id: None, input: 0, zoom: 1, ack: 0, heard: Instant::now(), ring: VecDeque::new(), state_tick: None, state: Vec::new(), state_next: 0, queue: InputQueue::default(), seqs: VecDeque::new(), bytes: 0, view_mon: 0, view_ply: 0 };
                     if proto != PROTO_B {
                         let rr = realm_core::rng_next(&mut rng);
                         let x = FIELD / 2 + ((rr % 400) as i32 - 200) * SUB;
                         let y = FIELD / 2 + (((rr >> 20) % 400) as i32 - 200) * SUB;
-                        joins.push((class, race, x, y));
+                        // The HELLO's class is 0..4 (KNIGHT to PALADIN); the core's class 0 is the NOVICE.
+                        joins.push((1 + class.min(4), race.min(3), x, y));
                         join_addrs.push(from);
                     }
                     clients.insert(from, c);
@@ -519,9 +549,19 @@ fn serve(args: &Args) {
                 Some(MSG_INPUT) => {
                     if let (Some(c), Some(ack), Some(mv), Some(zoom)) = (clients.get_mut(&from), r.u32(), r.u8(), r.u8()) {
                         c.ack = c.ack.max(ack);
-                        c.input = mv & 0x8F;
                         c.zoom = zoom;
                         c.heard = Instant::now();
+                        // A lockstep player numbers its inputs and repeats the last few; they wait in its queue.
+                        match r.u32() {
+                            Some(seq) => {
+                                let mut moves = vec![mv];
+                                if let Some(n) = r.u8() {
+                                    moves.extend(r.bytes(n as usize).unwrap_or_default());
+                                }
+                                c.queue.take(seq, &moves);
+                            }
+                            None => c.input = mv & 0x8F,
+                        }
                     }
                 }
                 Some(MSG_BYE) => {
@@ -539,6 +579,9 @@ fn serve(args: &Args) {
             }
             keep
         });
+        for c in clients.values_mut().filter(|c| c.proto == PROTO_BP) {
+            c.input = c.queue.next_tick();
+        }
         let inputs: Vec<(u16, u8)> = clients.values().filter_map(|c| c.id.map(|id| (id, c.input))).collect();
         let mut row = [0f64; NCOL];
         let t0 = Instant::now();
@@ -550,10 +593,16 @@ fn serve(args: &Args) {
                 if sock.send_to(&welcome(id as u32, tick), addr).is_err() { send_errors += 1; }
             }
         }
+        for c in clients.values_mut().filter(|c| c.proto == PROTO_BP && c.id.is_some()) {
+            c.seqs.push_back((tick, c.queue.seq));
+            if c.seqs.len() > HISTORY {
+                c.seqs.pop_front();
+            }
+        }
         // Snapshots at 10 Hz, B every tick.
         for (addr, c) in clients.iter_mut() {
             match (c.proto, c.id) {
-                (PROTO_B, _) => {
+                (PROTO_B | PROTO_BP, _) => {
                     let tc = Instant::now();
                     let behind = c.state_tick.is_some_and(|st| c.ack >= st && c.ack + (HISTORY as u32) < tick);
                     let stale = c.state_tick.is_some_and(|st| c.ack < st && tick >= st + HISTORY as u32 - 8);
@@ -561,7 +610,8 @@ fn serve(args: &Args) {
                         c.state = state_parts(tick, &sim.ls.state_bytes(&sim.field));
                         c.state_tick = Some(tick);
                         c.state_next = 0;
-                        if sock.send_to(&welcome(u32::MAX, tick), addr).is_err() { send_errors += 1; }
+                        let id = c.id.map_or(u32::MAX, |i| i as u32);
+                        if sock.send_to(&welcome(id, tick), addr).is_err() { send_errors += 1; }
                     }
                     let st = c.state_tick.unwrap_or(0);
                     if c.ack < st {
@@ -574,7 +624,7 @@ fn serve(args: &Args) {
                             if sock.send_to(p, addr).is_err() { send_errors += 1; }
                         }
                     }
-                    sim.b_datagrams(c.ack.max(st), &mut out);
+                    sim.b_datagrams_for(c.ack.max(st), &c.seqs, &mut out);
                     for d in &out {
                         c.bytes += d.len() as u64;
                         if sock.send_to(d, addr).is_err() { send_errors += 1; }
@@ -618,7 +668,7 @@ fn serve(args: &Args) {
                     PROTO_A1 => w.a1.push(v),
                     _ => w.b.push(v),
                 }
-                if c.proto != PROTO_B && c.id.is_some() {
+                if matches!(c.proto, PROTO_A0 | PROTO_A1) && c.id.is_some() {
                     w.view_mon.push(c.view_mon as f64);
                     w.view_ply.push(c.view_ply as f64);
                 }
