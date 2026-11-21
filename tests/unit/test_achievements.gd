@@ -151,7 +151,7 @@ func test_each_evolution_has_a_deed_and_earns_it() -> void:
 		assert_true(got.has(api), api)
 		assert_eq(got.size(), 2 + (1 if sp == World.SP_RUNE else 0), "EVOLVE and only this spell's deed")
 		seen += 1
-	assert_eq(seen, 7)
+	assert_eq(seen, 8)
 
 
 func test_act_bosses_earn_their_deeds() -> void:

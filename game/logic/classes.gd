@@ -45,7 +45,7 @@ const C_HURT_SAFE := 14 # s a hit leaves this hero unhurt (a shrugged hit: World
 ## for the balance gates (job P).
 const ROWS: Array = [
 	["mage", "MAGE", ROLE_DAMAGE, 5, SCHOOL_WEAPON, "staff", 0, 1.0, [0, 2, 0, 0, 0, 0], 1.0, 1.0, 2, 0.0, 0, 1.1],
-	["knight", "KNIGHT", ROLE_TANK, 9, World.SP_CLEAVE, "cleave", 1, 2.5, [30, 10, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0, 2.0],
+	["knight", "KNIGHT", ROLE_TANK, 9, World.SP_CLEAVE, "cleave", 1, 2.5, [5, 2, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0, 2.0],
 	["archer", "ARCHER", ROLE_RANGED, 5, World.SP_BONE, "longbow", 2, 0.8, [1, 1, 1, 0, 0, 0], 1.08, 1.0, 0, 0.0, 0, 1.6],
 	["priest", "PRIEST", ROLE_HEALER, 6, World.SP_CANDLE, "holy_light", 3, 0.7, [25, 1, 0, 0, 2, 0], 1.0, 2.0, 0, 0.0, 0, 1.1],
 	["paladin", "PALADIN", ROLE_SUPPORT, 6, World.SP_STAR, "smite", 4, 1.6, [1, 0, 0, 0, 1, 0], 1.0, 1.0, 0, 50.0, 8, 1.1],
@@ -61,7 +61,7 @@ const ROWS: Array = [
 ## The mage's "staff" is no skin: her school's spell as it is.
 const SKINS: Dictionary = {
 	"staff": {},
-	"cleave": {"name": "CLEAVE", "dmg_mul": 0.7, "cd_mul": 0.85, "knock_mul": 2.5},
+	"cleave": {"name": "CLEAVE", "dmg_mul": 1.2, "cd_mul": 0.85, "knock_mul": 2.5},
 	"longbow": {"name": "LONGBOW", "range": 260.0, "dmg_mul": 1.5, "cd_mul": 0.5},
 	"holy_light": {"name": "HOLY LIGHT", "heal": 1, "heal_every": 6.0, "dmg_mul": 1.3},
 	"smite": {"name": "SMITE", "dmg_mul": 1.6, "cd_mul": 0.55},

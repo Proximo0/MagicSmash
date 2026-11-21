@@ -3,8 +3,8 @@ extends RefCounted
 ## Spell weapons: per-level stats and the evolutions. Pure data plus lookups; World casts with these numbers.
 ## A wizard's weapon level lives in their upgrades Dictionary (Upgrades.weapon_entry(spell)); an evolution is
 ## its own upgrade entry (Upgrades.evo_entry(spell)) that needs the weapon at MAX_LEVEL plus a partner (a spell
-## for the first six, a passive for BONE SPEAR and VIGIL CANDLE). CLEAVE, the knight's class weapon, has no
-## evolution (its EVOS row is empty: has_evolution).
+## for the first six, a passive for BONE SPEAR, VIGIL CANDLE and CLEAVE). CLEAVE is the knight's class weapon: only
+## a knight holds it, so only a knight is offered WHIRLWIND.
 
 const COUNT := 9
 const MAX_LEVEL := 5
@@ -49,8 +49,9 @@ const STATS: Array = [
 ## slow: seconds an enemy stays slowed. burst: radius of a frost burst where a star hits.
 ## r, life: a rune circle's radius and seconds. pull: px/s a circle draws enemies toward its centre.
 ## splinter: splinters a hit throws sideways (Ossuary Lance). heal_every: s between the hearts the light gives the
-## most hurt hero inside (Consecration). A spell whose partner is a passive has partner -1 and names the passive's
-## Upgrades key in `passive`. An empty row: the spell has no evolution.
+## most hurt hero inside (Consecration). r, arc: a sweep's reach px and width radians (Whirlwind: TAU, a full
+## circle); most: the foes one swing strikes at most, the nearest first. A spell whose partner is a passive has partner -1 and names the passive's Upgrades key in `passive`. An
+## empty row: the spell has no evolution.
 const EVOS: Array = [
 	{"name": "ASTRAL LANCE", "desc": "PIERCING BOLTS", "partner": 4,
 		"cd": 0.11, "dmg": 3.0, "n": 3, "pierce": 2},
@@ -68,7 +69,8 @@ const EVOS: Array = [
 		"cd": 0.9, "dmg": 5.5, "n": 3, "splinter": 2},
 	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "partner": -1, "passive": "lovers",
 		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 32.0, "life": 3.5, "heal_every": 10.0},
-	{},
+	{"name": "WHIRLWIND", "desc": "A FULL CIRCLE", "partner": -1, "passive": "power",
+		"cd": 0.55, "dmg": 36.0, "n": 1, "r": 60.0, "arc": TAU, "most": 3},
 ]
 
 ## Slow applied by a frost shard that has not evolved (its row's "slow"), and by Comet Rain's burst, seconds.

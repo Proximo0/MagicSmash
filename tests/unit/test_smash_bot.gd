@@ -121,6 +121,19 @@ func test_veteran_finishes_an_evolution() -> void:
 	assert_eq(bot.pick_card(evo, lv), 1, "then the evolution")
 
 
+## WHIRLWIND needs CLEAVE, which only a knight holds: a veteran without it never plans for it (its STRENGTH alone
+## would look like a finished half), and a knight does.
+func test_veteran_plans_whirlwind_only_with_cleave() -> void:
+	var bot := SmashBot.new(1, SmashBot.VETERAN)
+	var mage := {Upgrades.POWER: 1, Upgrades.weapon_entry(World.SP_ARCANE): 3}
+	assert_true(bot._plan_target(mage) != Upgrades.E_CLEAVE, "a mage chases WHIRLWIND")
+	var knight := {Upgrades.POWER: 1, Upgrades.W_CLEAVE: 3}
+	assert_eq(bot._plan_target(knight), Upgrades.E_CLEAVE)
+	var offer: Array[int] = [Upgrades.SWIFT, Upgrades.W_CLEAVE]
+	assert_eq(bot.pick_card(offer, knight), 1, "the knight does not level CLEAVE toward WHIRLWIND")
+	assert_true(SmashBot.PICK_PRIORITY.has(Upgrades.E_CLEAVE))
+
+
 func test_casual_takes_damage_first() -> void:
 	var bot := SmashBot.new(1, SmashBot.CASUAL)
 	var offer: Array[int] = [Upgrades.SWIFT, Upgrades.MAGNET, Upgrades.POWER]
@@ -373,3 +386,20 @@ func test_a_knight_keeps_the_boss_within_its_sweep() -> void:
 		out.append(SmashBot.new(3, SmashBot.CASUAL).decide_in_world(w, 0))
 	assert_true((out[0] as PackedFloat32Array)[0] >= 0.0, "the knight backed off the boss")
 	assert_true((out[1] as PackedFloat32Array)[0] < 0.0, "the mage stood inside her band")
+
+
+func test_a_knight_with_whirlwind_fights_at_its_longer_reach() -> void:
+	var reaches: Array[float] = []
+	for evolved: bool in [false, true]:
+		var w := _heroes({0: Classes.KNIGHT}, {0: Vector2(-45, 0)}, [])
+		var p: World.Player = w.players[0]
+		if evolved:
+			p.upgrades[Upgrades.weapon_entry(World.SP_CLEAVE)] = Spells.MAX_LEVEL
+			p.upgrades[Upgrades.E_CLEAVE] = 1
+		w._build_grid()
+		var bot := SmashBot.new(3, SmashBot.CASUAL)
+		bot.decide_in_world(w, 0)
+		reaches.append(bot._melee_r)
+	assert_near(reaches[0], Spells.stat(World.SP_CLEAVE, "r"), 0.001)
+	assert_near(reaches[1], Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, true), 0.001)
+	assert_true(reaches[1] > reaches[0], "WHIRLWIND reaches further than CLEAVE")

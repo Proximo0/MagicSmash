@@ -33,7 +33,9 @@ const M_SWORDS := 22
 const M_WANDS := 23
 const MINORS: Array[int] = [M_CUPS, M_PENTACLES, M_SWORDS, M_WANDS]
 ## Wave 3: two spells, their partner passives and their evolutions, then the knight's CLEAVE (a class weapon: it
-## requires itself, so only a hero who starts with it is ever offered it).
+## requires itself, so only a hero who starts with it is ever offered it), then its evolution WHIRLWIND
+## (CLEAVE at its top level and STRENGTH, a passive no other spell pairs with: requiring CLEAVE, it is a knight's
+## alone).
 const W_BONE := 24
 const W_CANDLE := 25
 const JUSTICE := 26
@@ -41,6 +43,7 @@ const LOVERS := 27
 const E_BONE := 28
 const E_CANDLE := 29
 const W_CLEAVE := 30
+const E_CLEAVE := 31
 
 ## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE a passive slot (World.slot_cap); an
 ## INSTANT acts once when taken; an EVOLUTION replaces its spell in the same slot; a MINOR arcana card fills a
@@ -113,6 +116,7 @@ const CATALOG: Array = [
 	["e_bone", "OSSUARY LANCE", "SPLINTER HITS", 40.0, [1.0], [[W_BONE, 5], [JUSTICE, 1]], EVOLUTION, 6],
 	["e_candle", "CONSECRATION", "HEALING LIGHT", 40.0, [1.0], [[W_CANDLE, 5], [LOVERS, 1]], EVOLUTION, 7],
 	["w_cleave", "CLEAVE", "A SWEEPING ARC", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [[W_CLEAVE, 1]], SPELL, 8],
+	["e_cleave", "WHIRLWIND", "A FULL CIRCLE", 40.0, [1.0], [[W_CLEAVE, 5], [POWER, 1]], EVOLUTION, 8],
 ]
 ## JUSTICE's burst: the share of the slain foe's max health it deals, and its radius, px.
 const JUSTICE_SHARE := 0.6

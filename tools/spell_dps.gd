@@ -5,7 +5,8 @@ extends RefCounted
 ##   godot --headless --path . -s tools/tool.gd -- spell_dps [--foes=40] [--seconds=10] [--spell=N]
 ## Default: every spell at level 5, plain and evolved, among --foes orcs.
 ## --gate: the wave 3 spell gate (docs/wave3_plan.md), four numbers per spell: level 1 on one target and in a
-## sparse crowd (GATE_SPARSE orcs), level 5 in a dense crowd (GATE_DENSE) and on one target.
+## sparse crowd (GATE_SPARSE orcs), level 5 in a dense crowd (GATE_DENSE) and on one target; then its evolution (every
+## one, WHIRLWIND too) in the dense crowd and on one target.
 ## --clear: how long one wizard holding the spell at level 1 takes to slay CLEAR_KILLS of CLEAR_FOES plain orcs
 ## of minute 1 walking in (the class weapon check: a level 1 knight's CLEAVE against a level 1 mage's ARCANE BOLT).
 ## Not all of them: a foe that reaches a standing wizard's feet is under her bolts' first step, and a probe
@@ -52,6 +53,9 @@ func run(args: PackedStringArray) -> int:
 			print("%-16s L1 one=%.1f sparse=%.1f  L5 dense=%.1f one=%.1f" % [label, _dps(sp, 1, false, 1, seconds),
 				_dps(sp, 1, false, GATE_SPARSE, seconds), _dps(sp, Spells.MAX_LEVEL, false, GATE_DENSE, seconds),
 				_dps(sp, Spells.MAX_LEVEL, false, 1, seconds)])
+			if Spells.has_evolution(sp):
+				print("%-16s evolved           dense=%.1f one=%.1f" % [str(Spells.EVOS[sp]["name"]),
+					_dps(sp, Spells.MAX_LEVEL, true, GATE_DENSE, seconds), _dps(sp, Spells.MAX_LEVEL, true, 1, seconds)])
 		else:
 			print("%-16s dps=%.1f" % [label, _dps(sp, Spells.MAX_LEVEL, false, foes_n, seconds)])
 			if Spells.has_evolution(sp):

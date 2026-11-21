@@ -42,6 +42,8 @@ var anims: Array = []    # sprite effects that play once: [frames (atlas places)
 var marks: Array = []    # glowing marks on the floor, drawn by `draw_floor`: [atlas place, pos, life, max, color]
 var pillars: Array = []  # columns of light: [pos, life, max, color]
 var swings: Array = []   # a CLEAVE's arc flash: [pos, radius, middle angle, half width, life, max, color]
+## Points per radian of half width a swing's arcs are drawn with (at least 16).
+const SWING_POINTS := 18.0
 ## Where spells were cast since the arena last looked (it raises the caster's arm and flares the staff):
 ## [pos, caster slot or -1].
 var casts: Array = []
@@ -461,9 +463,11 @@ func _draw_add() -> void:
 		var c: Color = w[6]
 		var from: float = w[2] - w[3]
 		var to: float = w[2] + w[3]
-		ci.draw_arc(w[0], w[1], from, to, 16, Color(c, 0.9 * k), 1.0 + 2.0 * k)
-		ci.draw_arc(w[0], w[1] - 5.0, from, to, 14, Color(c, 0.45 * k), 1.0)
-		ci.draw_arc(w[0], w[1] - 10.0, from + w[3] * 0.3, to - w[3] * 0.3, 10, Color(Color.WHITE, 0.3 * k), 1.0)
+		# A wider arc (WHIRLWIND's full circle) takes more points so it stays round: 16 for CLEAVE's 100 degrees.
+		var pts: int = maxi(16, int(w[3] * SWING_POINTS))
+		ci.draw_arc(w[0], w[1], from, to, pts, Color(c, 0.9 * k), 1.0 + 2.0 * k)
+		ci.draw_arc(w[0], w[1] - 5.0, from, to, pts - 2, Color(c, 0.45 * k), 1.0)
+		ci.draw_arc(w[0], w[1] - 10.0, from + w[3] * 0.3, to - w[3] * 0.3, pts - 6, Color(Color.WHITE, 0.3 * k), 1.0)
 	for r in rings:
 		var k: float = 1.0 - r[3] / r[4]
 		var rad: float = lerpf(r[1], r[2], 1.0 - pow(1.0 - k, 2.0))

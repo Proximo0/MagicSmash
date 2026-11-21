@@ -248,8 +248,8 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Before and after bot tables: the job E hand-back (wave 2).
 
 ## Wave 3 spells and passives (BONE SPEAR, VIGIL CANDLE, JUSTICE, THE LOVERS)
-- Rows: `World.SP_BONE` 6, `SP_CANDLE` 7, `SP_CLEAVE` 8 (`Spells.STATS`, `Spells.EVOS`); catalogue rows 24 to 30
-  (`Upgrades.W_BONE`, `W_CANDLE`, `JUSTICE`, `LOVERS`, `E_BONE`, `E_CANDLE`, `W_CLEAVE`). An evolution's partner may
+- Rows: `World.SP_BONE` 6, `SP_CANDLE` 7, `SP_CLEAVE` 8 (`Spells.STATS`, `Spells.EVOS`); catalogue rows 24 to 31
+  (`Upgrades.W_BONE`, `W_CANDLE`, `JUSTICE`, `LOVERS`, `E_BONE`, `E_CANDLE`, `W_CLEAVE`, `E_CLEAVE`). An evolution's partner may
   be a passive: its `Spells.EVOS` row has `partner` -1 and `passive` (the key), the catalogue's `requires` is the truth.
 - BONE SPEAR: a "bolt" row with `pierce` `Spells.PIERCE_ALL` (a shot with pierce -1 never runs out), 220 px (speed x
   life). OSSUARY LANCE (with JUSTICE): each hit throws `splinter` splinters square to the spear (`SPLINTER_DMG` of
@@ -336,18 +336,26 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   unskinned. KNIGHT: CLEAVE, its own row (`SP_CLEAVE`, cast kind `sweep`: a `arc` 100 degree swing reaching `r`
   34 px along the aim when a foe stands in that arc, else toward the nearest foe it can reach, and it waits while
   it can reach none (`_sweep_dir` uses `_cast_sweep`'s reach test); every foe in it hit once, knock-back
-  `SWEEP_KNOCK`, `EV_SWEEP` draws a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it, and it has no
-  evolution (an empty `Spells.EVOS` row, `Spells.has_evolution`). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
+  `SWEEP_KNOCK`, `EV_SWEEP` draws a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it. Its
+  evolution WHIRLWIND (job K, `Upgrades.E_CLEAVE`: CLEAVE at level 5 and STRENGTH, the one passive no other
+  evolution pairs with, so STRENGTH weighs `PARTNER_WEIGHT` only for a hero holding CLEAVE) swings a full circle
+  (`arc` TAU) reaching 60 px, 36 damage every 0.55 s, and strikes at most `most` 3 foes a swing, the nearest first
+  (without the cap the full circle read 900 dps in `spell_dps`' dense crowd, four times the other evolutions; with
+  it and 48 damage 233, beside ASTRAL LANCE's 234). The damage came down from 48 to 36 once the bot fought at
+  WHIRLWIND's reach (`SmashBot._melee_r` reads the evolved reach) and a sweep reached wide bosses (its search is
+  reach + `World.CELL`): solo knight, 12 casual seeds and 6 veteran: 48 gave 12 and 5 wins, 36 gives 10 and 4
+  (0 wipes; the mage wins 6 and 5). `EV_SWEEP`'s b carries + 8 when evolved (as `EV_RUNE`); the arena draws the
+  same steel flash all the way round (`Fx.swing` takes more arc points for a wider swing). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
   260 px (her VOLLEY's arrows too). PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
   one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
   of light. Job P's numbers (solo casual bots at WIZARD, 12 seeds: mage 9, priest 8, paladin 8, knight 7, archer 7 wins when
   tuned; mage 6, knight 6, archer 10, priest 5, paladin 8 after the audit fixes of #84 merged, so read a 12-seed
   table as plus or minus 2 to 3 wins; before, the four classes won 0 or 1 of 6):
-  CLEAVE x0.7 damage, x0.85 cooldown, x2.5 knock-back; LONGBOW x1.5, x0.5; HOLY LIGHT x1.3; SMITE x1.6, x0.55;
+  CLEAVE x0.7 damage (x1.2 since job K), x0.85 cooldown, x2.5 knock-back; LONGBOW x1.5, x0.5; HOLY LIGHT x1.3; SMITE x1.6, x0.55;
   hearts knight 9 (was 7), archer 5 (4), priest 6 (5); `Classes.C_HURT_SAFE`, the seconds a hit leaves a hero
   unhurt (`hurt_player`, was 1.1 for all): knight 2.0, archer 1.6, others 1.1; class stat points knight MIGHT 30
-  FOCUS 10, priest MIGHT 25. CLEAVE's row (only a knight is offered it) grows to 20 damage every 0.7 s at level 5
-  (was 12 every 0.8 s): it has no evolution. `spell_dps --clear` prints each class's weapon with its skin and its
+  FOCUS 10 (MIGHT 5 FOCUS 2 since job K, his damage moved into CLEAVE's skin and WHIRLWIND), priest MIGHT 25.
+  CLEAVE's row (only a knight is offered it) grows to 20 damage every 0.7 s at level 5 (was 12 every 0.8 s). `spell_dps --clear` prints each class's weapon with its skin and its
   class stats (a HUMAN of class level 1): every one within 15% of the mage's ARCANE BOLT.
 - Developer flag: `--hero=<race>,<class>[,<school>]` (keys, names or indices; school a Wizards index, name or title)
   gives every local seat that hero (`Arena._ready`, after `apply_meta`). Nothing happens without it.

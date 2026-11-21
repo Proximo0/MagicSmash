@@ -1,6 +1,6 @@
 extends TestCase
 ## Wave 3 spells in the World (WorldCasting): BONE SPEAR and OSSUARY LANCE, VIGIL CANDLE and CONSECRATION, the
-## passives JUSTICE and THE LOVERS, the knight's CLEAVE (cast kind "sweep") and the class weapon skins (LONGBOW,
+## passives JUSTICE and THE LOVERS, the knight's CLEAVE (cast kind "sweep") and WHIRLWIND, and the class weapon skins (LONGBOW,
 ## HOLY LIGHT) that World.apply_hero gives.
 
 const DT := 1.0 / 60.0
@@ -259,6 +259,7 @@ func test_cleave_sweeps_the_arc_once_and_knocks_back() -> void:
 	var sweeps := _codes(w.take_events(), World.EV_SWEEP)
 	assert_eq(sweeps.size(), 1)
 	assert_near(float(sweeps[0][3]), 0.0, 0.001)
+	assert_eq(int(sweeps[0][4]), 0, "a plain CLEAVE's event is the slot alone")
 
 
 func test_cleave_waits_for_a_foe_it_can_reach_and_turns_to_it() -> void:
@@ -285,8 +286,82 @@ func test_cleave_is_only_offered_to_who_holds_it() -> void:
 	var levels := {Upgrades.W_CLEAVE: 1}
 	assert_true(Upgrades.available(levels, Upgrades.W_CLEAVE), "a knight cannot level CLEAVE")
 	assert_true(Upgrades.take(levels, Upgrades.W_CLEAVE))
-	assert_eq(Upgrades.evo_entry(World.SP_CLEAVE), -1, "CLEAVE has no evolution")
-	assert_false(Spells.has_evolution(World.SP_CLEAVE))
+
+
+## WHIRLWIND: CLEAVE at its top level and STRENGTH, a passive no other evolution pairs with; a wizard without CLEAVE
+## is never offered it, and STRENGTH weighs as a partner only for one who holds CLEAVE.
+func test_whirlwind_needs_cleave_at_its_top_and_strength() -> void:
+	assert_eq(Upgrades.evo_entry(World.SP_CLEAVE), Upgrades.E_CLEAVE)
+	assert_true(Spells.has_evolution(World.SP_CLEAVE))
+	assert_eq(Spells.passive_partner(World.SP_CLEAVE), "power")
+	assert_eq(Upgrades.partner_row(World.SP_CLEAVE), Upgrades.POWER)
+	for sp: int in range(Spells.COUNT):
+		if sp != World.SP_CLEAVE:
+			assert_true(Upgrades.partner_row(sp) != Upgrades.POWER, "STRENGTH partners spell %d too" % sp)
+	assert_false(Upgrades.available({Upgrades.POWER: 5, Upgrades.W_ARCANE: 5}, Upgrades.E_CLEAVE), "offered to a mage")
+	assert_false(Upgrades.pairs_with({Upgrades.W_ARCANE: 5}, Upgrades.POWER), "STRENGTH pairs for a mage")
+	assert_eq(Upgrades.roll_weight({Upgrades.W_ARCANE: 5}, Upgrades.POWER), float(Upgrades.CATALOG[Upgrades.POWER][Upgrades.C_WEIGHT]))
+	assert_true(Upgrades.pairs_with({Upgrades.W_CLEAVE: 2}, Upgrades.POWER), "STRENGTH does not pair for a knight")
+	assert_false(Upgrades.available({Upgrades.W_CLEAVE: 4, Upgrades.POWER: 1}, Upgrades.E_CLEAVE), "offered below the top level")
+	assert_false(Upgrades.available({Upgrades.W_CLEAVE: 5}, Upgrades.E_CLEAVE), "offered without STRENGTH")
+	assert_true(Upgrades.available({Upgrades.W_CLEAVE: 5, Upgrades.POWER: 1}, Upgrades.E_CLEAVE))
+
+
+## WHIRLWIND strikes at most its `most` foes a swing, the nearest first; CLEAVE has no such cap.
+func test_whirlwind_strikes_only_its_nearest_few() -> void:
+	var w := _world()
+	var knight := _hero(w, 0, Classes.KNIGHT)
+	var most := int(Spells.evo_value(World.SP_CLEAVE, "most", 0.0))
+	assert_true(most > 0, "WHIRLWIND has no cap")
+	var from := knight.pos + Vector2(0, -4)
+	var orcs: Array[World.Enemy] = []
+	for i: int in range(most + 2):
+		orcs.append(_orc(w, from + Vector2.from_angle(i * 1.3) * (12.0 + 4.0 * i)))
+	w._build_grid()
+	w._cast(knight, World.SP_CLEAVE, Spells.MAX_LEVEL, true, Vector2.RIGHT)
+	for i: int in range(orcs.size()):
+		assert_eq(orcs[i].hp < orcs[i].maxhp, i < most, "orc %d (nearest first)" % i)
+	assert_eq(Spells.evo_value(World.SP_CLEAVE, "most", 0.0), float(most))
+	assert_false(Spells.STATS[World.SP_CLEAVE].has("most"), "CLEAVE itself is capped")
+
+
+## WHIRLWIND swings all the way round with a longer reach and its own numbers, and its event says it is evolved.
+func test_whirlwind_sweeps_a_full_circle_further() -> void:
+	var w := _world()
+	var knight := _hero(w, 0, Classes.KNIGHT)
+	knight.upgrades[Upgrades.W_CLEAVE] = Spells.MAX_LEVEL
+	knight.upgrades[Upgrades.E_CLEAVE] = 1
+	var from := knight.pos + Vector2(0, -4)
+	var reach := Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, true)
+	assert_true(reach > Spells.stat(World.SP_CLEAVE, "r"), "no longer reach")
+	assert_near(Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, true), TAU, 0.0001)
+	var front := _orc(w, from + Vector2(25, 0))
+	var behind := _orc(w, from + Vector2(-25, 0))
+	var far := _orc(w, from + Vector2(0, Spells.stat(World.SP_CLEAVE, "r") + 8.0 + 2.0))
+	var beyond := _orc(w, from + Vector2(reach + 25.0, 0))
+	w._build_grid()
+	w.take_events()
+	w._cast(knight, World.SP_CLEAVE, Spells.MAX_LEVEL, true, Vector2.RIGHT)
+	var want := Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, true) * Classes.skin_value("cleave", "dmg_mul", 1.0)
+	assert_true(front.maxhp - front.hp > 0.0, "the foe in front was not hit")
+	assert_near(behind.maxhp - behind.hp, front.maxhp - front.hp, 0.001, "the foe behind was not hit alike")
+	assert_true(far.hp < far.maxhp, "the longer reach did not hit")
+	assert_eq(beyond.hp, beyond.maxhp, "it reached too far")
+	assert_true(behind.knock.x < 0.0, "the foe behind is not knocked away")
+	assert_true(want > Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, false) * Classes.skin_value("cleave", "dmg_mul", 1.0))
+	var sweeps := _codes(w.take_events(), World.EV_SWEEP)
+	assert_eq(sweeps.size(), 1)
+	assert_eq(int(sweeps[0][4]) & 7, 0, "the slot")
+	assert_true(int(sweeps[0][4]) & 8 != 0, "the event does not say it is evolved")
+	for e: World.Enemy in [front, far, beyond]:
+		e.pos = from + Vector2(400, 0)
+	behind.pos = from + Vector2(-(reach + behind.r - 2.0), 0)
+	w._build_grid()
+	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, false), Vector2.ZERO, "CLEAVE reaches it")
+	assert_near(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, true).x, -1.0, 0.001,
+		"WHIRLWIND does not turn to a foe in its reach")
+	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT, true), Vector2.RIGHT,
+		"a full circle swings along the aim with a foe anywhere in reach")
 
 
 func test_holy_light_heals_the_most_hurt_hero_inside_her_too() -> void:
@@ -387,3 +462,15 @@ func test_the_knights_cleave_knocks_further() -> void:
 	var want: float = minf(b.knock.x * Classes.skin_value("cleave", "knock_mul", 1.0), Bestiary.KNOCK_MAX * heft)
 	assert_near(a.knock.x, want, 0.001)
 	assert_true(a.knock.x > b.knock.x * 2.0, "the knight's cleave knocks at least twice as far")
+
+
+func test_a_sweep_reaches_a_wide_body_by_its_edge() -> void:
+	var w := _world(1)
+	var knight := _hero(w, 0, Classes.KNIGHT)
+	var reach := Spells.stat(World.SP_CLEAVE, "r")
+	var big := _orc(w, knight.pos)
+	big.r = 30.0 # as wide as a boss: its centre lies outside the reach and half a grid cell
+	big.pos = knight.pos + Vector2(0, -4) + Vector2(0, reach + big.r - 1.0) # its edge a pixel inside the reach
+	w._build_grid()
+	w._cast(knight, World.SP_CLEAVE, 1, false, Vector2.DOWN)
+	assert_true(big.hp < big.maxhp, "the sweep missed a wide body whose edge it reaches")

@@ -84,7 +84,7 @@ const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5,
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.
 const PICK_PRIORITY: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.E_FROST,
-	Upgrades.E_STORM, Upgrades.E_STAR, Upgrades.E_RUNE, Upgrades.E_BONE, Upgrades.E_CANDLE,
+	Upgrades.E_STORM, Upgrades.E_STAR, Upgrades.E_RUNE, Upgrades.E_BONE, Upgrades.E_CANDLE, Upgrades.E_CLEAVE,
 	Upgrades.W_FIRE, Upgrades.W_STORM, Upgrades.W_STAR, Upgrades.W_RUNE, Upgrades.W_BONE, Upgrades.W_FROST,
 	Upgrades.W_CANDLE, Upgrades.W_ARCANE,
 	Upgrades.POWER, Upgrades.QUICK, Upgrades.SWIFT, Upgrades.MAGNET,
@@ -618,8 +618,10 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_role = Classes.role(p.cls)
 	_class_play = _skill != Classes.SK_NOVA # every class but the MAGE (and a wizard with no hero) has its own skill
 	_role_row = ROLE_PLAY[_role] if _role >= 0 and _role < ROLE_PLAY.size() else ROLE_PLAY[Classes.ROLE_DAMAGE]
-	_melee_r = Spells.stat(p.class_weapon, "r") if _class_play and p.class_weapon >= 0 \
-		and Spells.cast_kind(p.class_weapon) == "sweep" else 0.0
+	_melee_r = 0.0
+	if _class_play and p.class_weapon >= 0 and Spells.cast_kind(p.class_weapon) == "sweep":
+		# the reach it has now: WHIRLWIND's once CLEAVE has evolved
+		_melee_r = Spells.level_value(p.class_weapon, "r", Spells.MAX_LEVEL, Upgrades.evolved(p.upgrades, p.class_weapon))
 	_unhurt = p.invuln > 0.0
 	_mate_hp.clear()
 	_mate_max.clear()
@@ -1212,7 +1214,9 @@ func _plan_target(levels: Dictionary) -> int:
 		var reachable: bool = true
 		for r: Array in Upgrades.CATALOG[e][Upgrades.C_REQUIRES]:
 			var need: int = int(r[1])
-			if Upgrades.max_level(int(r[0])) < need:
+			# A row it can never be offered (a class weapon it does not hold: WHIRLWIND's CLEAVE) is out of reach.
+			if Upgrades.max_level(int(r[0])) < need or (Upgrades.level_of(levels, int(r[0])) == 0
+					and not Upgrades._requirements_met(levels, int(r[0]))):
 				reachable = false
 				break
 			progress += minf(1.0, float(Upgrades.level_of(levels, int(r[0]))) / float(maxi(1, need)))

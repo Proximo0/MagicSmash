@@ -44,7 +44,7 @@ The API names must match exactly.
 | OMENS | OMEN-PROOF | Survive all three omens. |
 
 The first 14 rows are the Steam list. The Book of Deeds (the Sanctum's lectern) adds the rows below to the same
-catalogue (`Achievements.LIST`, 52 in all): `Platform.finish_run` sends every earned name, and Steam ignores a name
+catalogue (`Achievements.LIST`, 53 in all): `Platform.finish_run` sends every earned name, and Steam ignores a name
 the admin page does not have, so add these there only if they should be Steam achievements too. A secret deed shows
 as ??? in the Book until earned (and should be a hidden achievement on Steam). Crystals are paid once in the game.
 
@@ -88,6 +88,7 @@ as ??? in the Book until earned (and should be a hidden achievement on Steam). C
 | ALL_SECRETS | NOTHING LEFT UNSAID | Find every secret in the game. | 30 | yes |
 | APPRENTICES | THE MASTER'S HAND | Win a run with only apprentices beside you. | 20 | yes |
 | FAST_WIN | ON SCHEDULE | Win a run with four heroes before 16:30. | 30 |  |
+| EVO_CLEAVE | WIDDERSHINS | Evolve Cleave into Whirlwind. | 15 |  |
 
 ## Steamworks checklist (Curtis)
 
