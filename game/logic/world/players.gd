@@ -1,6 +1,38 @@
 class_name WorldPlayers
 extends RefCounted
-## Wizards for World: movement, the leash, the nova and taking hits. Static helpers; the first argument is the World.
+## Wizards for World: movement, the leash, the nova, taking hits and the fallen. Static helpers; the first argument
+## is the World.
+##
+## The fallen (a party of two or more; a solo wizard dies and respawns as before): at 0 hearts a wizard falls
+## (EV_DOWN) and walks as a spirit, slow, leashed to the standing, unhurt and not casting, still gathering XP. A
+## ritual circle sits on her: each standing ally inside it raises her, and the progress holds while one stays near.
+## With more than one life she also gets up by herself after DOWN_TIME (for a life); with one life only a ritual,
+## a slain Lich, or nothing raises her.
+
+## A spirit's walk speed, px/s.
+const SPIRIT_SPEED := 45.0
+## The ritual circle's radius, and how near an ally must stay for the progress to hold, px.
+const RITUAL_R := 30.0
+const RITUAL_HOLD_R := 60.0
+## Seconds one ally needs to raise a wizard, and how much longer each later ritual on her takes.
+const RITUAL_TIME := 2.0
+const RITUAL_STEP := 0.5
+## Seconds a full circle takes to drain away with nobody near.
+const RITUAL_DRAIN := 8.0
+## How far enemies are pushed from the circle when a ritual starts and when it ends, px.
+const RITUAL_PUSH := 80.0
+## Seconds the risen wizard and her raisers are safe from damage.
+const RITUAL_SAFE := 2.0
+## Seconds a fallen wizard with more than one life stays down before getting up by herself (for a life).
+const DOWN_TIME := 10.0
+## With nobody standing: seconds until the longest-down wizard with a life to spare gets up.
+const LAST_STAND := 1.5
+## Seconds between two calls for help.
+const CALL_GAP := 2.0
+## Seconds safe after getting up by herself (the old respawn's grace).
+const RETURN_SAFE := 2.5
+## How close a spirit must be to an XP mote to take it, px.
+const SPIRIT_REACH := 11.0
 
 
 static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloat32Array) -> void:
@@ -14,6 +46,16 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 		if p.combo_t <= 0.0:
 			p.combo = 0
 	if not p.alive:
+		# A nova pressed while not standing is spent here (a call for help, or nothing), never at the return.
+		var pressed := false
+		if inp.size() >= 6:
+			var bc := int(inp[5])
+			pressed = p.last_bomb >= 0 and bc > p.last_bomb
+			if p.last_bomb < 0 or bc > p.last_bomb:
+				p.last_bomb = bc
+		if p.down:
+			_update_spirit(w, p, dt, inp, pressed)
+			return
 		if p.lives > 0 and w.phase != World.PH_GAMEOVER:
 			p.respawn -= dt
 			if p.respawn <= 0.0:
@@ -112,6 +154,9 @@ static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
 	p.invuln = 1.1
 	w.emit(World.EV_HURT, p.pos.x, p.pos.y - 6, p.slot, 0)
 	if p.hp <= 0:
+		if w.players.size() >= 2:
+			_fall(w, p)
+			return
 		p.alive = false
 		p.lives -= 1
 		p.respawn = 2.5
@@ -120,3 +165,164 @@ static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
 		p.combo = 0
 		w.record.add(p.slot, "deaths", 1)
 		w.emit(World.EV_PDIE, p.pos.x, p.pos.y - 6, p.slot, p.lives)
+
+
+# ========================================================== THE FALLEN ===
+
+## A wizard of a party falls: she becomes a spirit with her lives untouched.
+static func _fall(w: World, p: World.Player) -> void:
+	p.hp = 0
+	p.alive = false
+	p.down = true
+	p.down_t = 0.0
+	p.revive = 0.0
+	p.down_left = DOWN_TIME if p.lives > 1 else -1.0
+	p.haste = 0.0
+	p.orbit = 0.0
+	p.combo = 0
+	w.record.add(p.slot, "downs", 1)
+	w.emit(World.EV_DOWN, p.pos.x, p.pos.y, p.slot, 0)
+	# The old death event still carries the fall's burst, sound and "DOWN!" text (and the playtest's counts).
+	w.emit(World.EV_PDIE, p.pos.x, p.pos.y - 6, p.slot, p.lives)
+
+
+## One tick of a spirit: the call, the slow walk, the XP she touches, the ritual on her and her own clock.
+static func _update_spirit(w: World, p: World.Player, dt: float, inp: PackedFloat32Array, pressed: bool) -> void:
+	p.down_t += dt
+	p.call_t = maxf(0.0, p.call_t - dt)
+	if pressed and p.call_t <= 0.0 and w.phase != World.PH_GAMEOVER:
+		p.call_t = CALL_GAP
+		w.emit(World.EV_CALL, p.pos.x, p.pos.y, p.slot, 0)
+	var move := Vector2(inp[0], inp[1]).limit_length(1.0) if inp.size() >= 2 else Vector2.ZERO
+	p.vel = move * SPIRIT_SPEED
+	p.moving = move.length() > 0.1
+	if p.moving:
+		p.aim = move.normalized()
+	p.pos += p.vel * dt
+	p.pos = p.pos.clamp(G.ARENA.position + Vector2(5, 6), G.ARENA.end - Vector2(5, 2))
+	_leash(w, p)
+	if w.phase == World.PH_GAMEOVER:
+		return
+	_spirit_xp(w, p)
+	var inside: Array[World.Player] = []
+	var near := false
+	for q: World.Player in w.players.values():
+		if q == p or not q.alive:
+			continue
+		var d := q.pos.distance_to(p.pos)
+		if d <= RITUAL_R:
+			inside.append(q)
+		if d <= RITUAL_HOLD_R:
+			near = true
+	if not inside.is_empty():
+		if p.revive <= 0.0:
+			_ritual_push(w, p.pos)
+		p.revive += dt * inside.size() / (RITUAL_TIME + RITUAL_STEP * p.rituals)
+		if p.revive >= 1.0:
+			p.rituals += 1
+			for q: World.Player in inside:
+				q.invuln = maxf(q.invuln, RITUAL_SAFE)
+				w.record.add(q.slot, "revives", 1)
+			_ritual_push(w, p.pos)
+			_rise(w, p, inside[0].slot)
+			return
+	elif not near:
+		p.revive = maxf(0.0, p.revive - dt / RITUAL_DRAIN)
+	if p.lives <= 1:
+		p.down_left = -1.0
+		return
+	if p.down_left < 0.0:
+		p.down_left = DOWN_TIME # a life gained while down starts her clock
+	if inside.is_empty():
+		p.down_left -= dt
+	if p.down_left <= 0.0:
+		_get_up(w, p)
+
+
+## A spirit takes the XP motes she touches and draws in the ones in her magnet's reach (a standing wizard's
+## magnet, run after this, wins a mote both reach).
+static func _spirit_xp(w: World, p: World.Player) -> void:
+	var reach := w.tune.xp_magnet_radius * Upgrades.magnet_mul(p.upgrades)
+	var took := false
+	for k: World.Pickup in w.pickups:
+		if k.kind != World.PK_XP or k.life <= 0.0:
+			continue
+		var d := k.pos.distance_to(p.pos)
+		if d < SPIRIT_REACH:
+			WorldDrops._collect(w, p, k)
+			k.life = -1.0
+			took = true
+		elif d < reach:
+			k.vel = (p.pos - k.pos).normalized() * w.tune.xp_magnet_speed
+	if took:
+		w.pickups = w.pickups.filter(func(k: World.Pickup) -> bool: return k.life > 0.0)
+
+
+## Every enemy (not a Lich) within RITUAL_PUSH of `at` is set down RITUAL_PUSH away from it.
+static func _ritual_push(w: World, at: Vector2) -> void:
+	for e: World.Enemy in w._query(at, RITUAL_PUSH):
+		if e.type == World.LICH or e.entering:
+			continue
+		var d := e.pos - at
+		var l := d.length()
+		if l >= RITUAL_PUSH:
+			continue
+		var dir := d / l if l > 0.01 else Vector2.RIGHT
+		e.pos = (at + dir * RITUAL_PUSH).clamp(G.ARENA.position + Vector2(e.r, e.r), G.ARENA.end - Vector2(e.r, e.r))
+
+
+## The fallen wizard stands again where her spirit is, with half her hearts (rounded up) and her novas, safe for
+## RITUAL_SAFE. `by` is the slot that raised her (-1: none).
+static func _rise(w: World, p: World.Player, by: int) -> void:
+	_stand(w, p)
+	p.hp = ceili(p.max_hp / 2.0)
+	p.invuln = maxf(p.invuln, RITUAL_SAFE)
+	w.emit(World.EV_REVIVE, p.pos.x, p.pos.y, p.slot, by)
+	w.emit(World.EV_SPAWN, p.pos.x, p.pos.y, p.slot, 0)
+
+
+## The fallen wizard gets up by herself for a life: full hearts, beside the party (where she is, if nobody stands).
+static func _get_up(w: World, p: World.Player) -> void:
+	p.lives -= 1
+	w.record.add(p.slot, "deaths", 1)
+	var anyone := false
+	for q: World.Player in w.players.values():
+		if q.alive:
+			anyone = true
+	if anyone:
+		p.pos = w.party_center() + Vector2(w.rng.randf_range(-20, 20), w.rng.randf_range(-10, 10))
+		p.pos = p.pos.clamp(G.ARENA.position + Vector2(5, 6), G.ARENA.end - Vector2(5, 2))
+	_stand(w, p)
+	p.hp = p.max_hp
+	p.invuln = RETURN_SAFE
+	p.bombs = maxi(p.bombs, 2)
+	w.emit(World.EV_REVIVE, p.pos.x, p.pos.y, p.slot, -1)
+	w.emit(World.EV_SPAWN, p.pos.x, p.pos.y, p.slot, 0)
+
+
+static func _stand(_w: World, p: World.Player) -> void:
+	p.alive = true
+	p.down = false
+	p.down_t = 0.0
+	p.down_left = 0.0
+	p.revive = 0.0
+
+
+## A slain Lich raises every fallen wizard (`slot` slew it).
+static func raise_fallen(w: World, slot: int) -> void:
+	for p: World.Player in w.players.values():
+		if p.down:
+			_rise(w, p, slot)
+
+
+## With nobody standing, the longest-down wizard with a life to spare gets up within LAST_STAND. Called each step
+## before the wipe test.
+static func _last_stand(w: World) -> void:
+	var best: World.Player = null
+	for p: World.Player in w.players.values():
+		if p.alive:
+			return
+		if p.down and p.lives > 1 and (best == null or p.down_t > best.down_t):
+			best = p
+	if best != null:
+		best.down_left = minf(best.down_left, LAST_STAND)

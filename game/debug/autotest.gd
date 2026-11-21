@@ -37,6 +37,11 @@ var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_
 var _level_shots := {}
 const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5} # tab: its marker
 var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
+## --fall=SECONDS (2+ players): at that run time slot 1 falls; fallen.png shows her spirit with its clock running,
+## then slot 0 is held in her circle and fallen_ritual.png shows the circle about half filled (HUD: DOWN).
+var fall_at := -1.0
+var _fall_step := 0
+var _fall_t := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -62,6 +67,8 @@ func _ready() -> void:
 			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--fall="):
+			fall_at = float(a.substr(7))
 		if a.begins_with("--pick-hold="):
 			pick_hold = float(a.substr(12))
 		if a.begins_with("--players="):
@@ -168,6 +175,8 @@ func _process(delta: float) -> void:
 			cur.world.won = true
 			cur.world.emit(World.EV_VICTORY, 240, 140, 0, 0)
 		cur.world._end_run()
+	if fall_at > 0.0 and cur and "world" in cur and cur.world:
+		_fall_tick(cur)
 	if perf and _perf_frames.size() >= PERF_FRAMES:
 		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
@@ -326,3 +335,34 @@ func _perf_tick() -> void:
 		print("PERF %-14s %6.2f ms/frame" % [k, ms])
 	print("PERF %-14s %6.2f ms/frame" % ["total_script", total])
 	get_tree().quit()
+
+
+## --fall: slot 1 falls at fall_at s of run time; shots of her spirit (clock running) and of a ritual half done.
+func _fall_tick(cur: Node) -> void:
+	var w: World = cur.world
+	if not w.players.has(1) or w.players.size() < 2:
+		return
+	var p: World.Player = w.players[1]
+	match _fall_step:
+		0:
+			if w.wave_time >= fall_at and p.alive and not w.is_picking():
+				p.invuln = 0.0
+				w.hurt_player(p, 99)
+				_fall_step = 1 if p.down else 0
+				_fall_t = t
+		1:
+			if t - _fall_t > 1.2:
+				get_viewport().get_texture().get_image().save_png("%s/fallen.png" % out_dir)
+				print("shot fallen")
+				_fall_step = 2
+		2:
+			if not p.down:
+				_fall_step = 4
+				return
+			var q: World.Player = w.players[0]
+			q.pos = p.pos + Vector2(4, 3)
+			q.invuln = maxf(q.invuln, 0.5)
+			if p.revive >= 0.5:
+				get_viewport().get_texture().get_image().save_png("%s/fallen_ritual.png" % out_dir)
+				print("shot fallen_ritual")
+				_fall_step = 4
