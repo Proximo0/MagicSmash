@@ -16,6 +16,9 @@ var _minutes: float = 16.0
 var _tune_pairs: PackedStringArray = []
 var _seal: int = 0
 var _json: String = ""
+## --party: one party of seats, each a SmashBot persona id or APPRENTICE (empty: the persona x wizards groups).
+var _party: Array[int] = []
+const APPRENTICE := -1
 
 
 ## Runs the whole playtest; returns the process exit code.
@@ -24,7 +27,17 @@ func run() -> int:
 		return 2
 	var groups: Array = []
 	var summary: PackedStringArray = []
-	for persona: int in _personas:
+	if not _party.is_empty():
+		var runs: Array = []
+		for i: int in range(_runs):
+			runs.append(_play(_party[0], _party.size(), _seed + i, _party))
+		var g: Dictionary = _aggregate(_party[0], _party.size(), runs)
+		g.persona = _party_name()
+		_print_group(g)
+		groups.append(g)
+		summary.append("%s win %d/%d end %s first down %s human %s lv6 %s" % [g.persona, g.wins, _runs, _clock(g.end.med),
+			_clock(float(g.first_down.get("med", -1.0))), _clock(float(g.human_down.get("med", -1.0))), _level_at(g, 6)])
+	for persona: int in (_personas if _party.is_empty() else [] as Array[int]):
 		for wz: int in _wizards:
 			var runs: Array = []
 			for i: int in range(_runs):
@@ -32,8 +45,9 @@ func run() -> int:
 			var g: Dictionary = _aggregate(persona, wz, runs)
 			_print_group(g)
 			groups.append(g)
-			summary.append("%s x%d win %d/%d end %s arch %s" % [SmashBot.persona_name(persona), wz, g.wins, _runs,
-				_clock(g.end.med), _clock(float(g.arch.med))])
+			summary.append("%s x%d win %d/%d end %s arch %s first down %s lv6 %s" % [SmashBot.persona_name(persona), wz,
+				g.wins, _runs, _clock(g.end.med), _clock(float(g.arch.med)), _clock(float(g.first_down.get("med", -1.0))),
+				_level_at(g, 6)])
 	if _json != "":
 		var f := FileAccess.open(_json, FileAccess.WRITE)
 		if f == null:
@@ -72,7 +86,34 @@ func _parse_args() -> bool:
 			_seal = int(v)
 		elif arg.begins_with("--json="):
 			_json = v
+		elif arg.begins_with("--party="):
+			_party.clear()
+			for x: String in v.split(","):
+				var id: int = APPRENTICE if x == "apprentice" else SmashBot.persona_from_name(x)
+				if id == -1 and x != "apprentice":
+					push_error("unknown seat " + x)
+					return false
+				_party.append(id)
+			if _party.size() > 4 or _party.count(APPRENTICE) == _party.size():
+				push_error("--party takes 1 to 4 seats and at least one persona")
+				return false
 	return true
+
+
+## The party's name for the tables, e.g. "casual+2ap".
+func _party_name() -> String:
+	var names: PackedStringArray = []
+	for id: int in _party:
+		if id != APPRENTICE:
+			names.append(SmashBot.persona_name(id))
+	var n: int = _party.count(APPRENTICE)
+	return "+".join(names) + ("+%dap" % n if n > 0 else "")
+
+
+## The mean party level at minute `m`:00 ("-" when no run got that far).
+func _level_at(g: Dictionary, m: int) -> String:
+	var xs: Array = g.level
+	return "%.1f" % float(xs[m - 1]) if xs.size() >= m else "-"
 
 
 func _make_tune() -> Tuning:
@@ -86,19 +127,25 @@ func _make_tune() -> Tuning:
 
 
 # ================================================================= RUN ===
-func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
+func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = []) -> Dictionary:
 	var slots: Array = range(wizards)
-	var w := World.new(slots, seed_value, _make_tune())
+	var seats: Dictionary = {}
+	for s: int in slots:
+		if s < party.size() and party[s] == APPRENTICE:
+			seats[s] = {"ai": true}
+	var w := World.new(slots, seed_value, _make_tune(), {}, seats)
 	w.apply_seal(_seal)
 	var bots: Dictionary = {}
 	for s: int in slots:
-		bots[s] = SmashBot.new(seed_value * 10 + s, persona)
+		if not seats.has(s): # an apprentice is played by the World itself
+			bots[s] = SmashBot.new(seed_value * 10 + s, party[s] if s < party.size() else persona)
 	var r := {
 		"seed": seed_value, "won": false, "end": 0.0, "wipe": -1.0, "first_down": -1.0, "outs": [],
 		"downs": 0, "hits": 0, "hits_by": {}, "level": [], "picks": [], "pressure": [], "dead_air": [],
 		"offered": {}, "taken": {}, "spell_level": {}, "evolutions": [], "xp_expired": 0, "xp_expired_value": 0,
 		"xp_dropped": 0, "gold": 0.0, "spent": 0.0, "bets": {}, "bosses": [], "damage": {}, "damage_total": 0.0,
 		"kills": [], "shrines": 0, "arch": -1.0, "arch_slain": false, "wiz_hits": [], "wiz_pressure": [],
+		"human_down": -1.0,
 	}
 	var offers: Dictionary = {}
 	for s: int in slots:
@@ -130,8 +177,9 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 			(r.level as Array).append(0.0)
 		var inputs: Dictionary = {}
 		var picking: Dictionary = {}
-		for s: int in slots:
+		for s: int in bots:
 			inputs[s] = (bots[s] as SmashBot).decide_in_world(w, s)
+		for s: int in slots:
 			picking[s] = not (w.players[s] as World.Player).choices.is_empty()
 		# XP motes about to fade: after the step, one that is gone and was not picked up (life -1) expired.
 		var fading: Array[World.Pickup] = []
@@ -172,6 +220,8 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 					r.downs += 1
 					if r.first_down < 0.0:
 						r.first_down = w.wave_time
+					if r.human_down < 0.0 and not seats.has(int(ev[3])):
+						r.human_down = w.wave_time
 					if int(ev[4]) <= 0:
 						(r.outs as Array).append(w.wave_time)
 					if not boss_row.is_empty():
@@ -371,6 +421,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 	var ends: Array = []
 	var wipes: Array = []
 	var firsts: Array = []
+	var hfirsts: Array = []
 	var outs: Array = []
 	var wins: int = 0
 	var downs: float = 0.0
@@ -408,6 +459,8 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 			wipes.append(r.wipe)
 		if float(r.first_down) >= 0.0:
 			firsts.append(r.first_down)
+		if float(r.human_down) >= 0.0:
+			hfirsts.append(r.human_down)
 		for o: float in r.outs:
 			outs.append(o)
 		downs += r.downs
@@ -448,6 +501,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 	return {
 		"persona": SmashBot.persona_name(persona), "wizards": wizards, "runs": runs, "wins": wins,
 		"end": _stats(ends), "wipe": _stats(wipes), "first_down": _stats(firsts), "out": _stats(outs),
+		"human_down": _stats(hfirsts),
 		"downs_per_min": downs / mins, "hits_per_min": hits / mins, "picks_per_min": picks / mins,
 		"damage_per_min": dmg / mins, "level": _mean_series(runs, "level"), "picks": _mean_series(runs, "picks"),
 		"pressure": _mean_series(runs, "pressure"), "dead_air": _mean_series(runs, "dead_air"),
@@ -464,8 +518,8 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 func _print_group(g: Dictionary) -> void:
 	var n: int = (g.runs as Array).size()
 	print("== %s x%d: %d runs, seeds %d-%d, %s ==" % [g.persona, g.wizards, n, _seed, _seed + n - 1, Seals.title(_seal)])
-	print("win %d/%d  end %s  wipe %s  first down %s  out %s" % [g.wins, n, _span(g.end), _span(g.wipe),
-		_span(g.first_down), _span(g.out)])
+	print("win %d/%d  end %s  wipe %s  first down %s  human down %s  out %s" % [g.wins, n, _span(g.end), _span(g.wipe),
+		_span(g.first_down), _span(g.human_down), _span(g.out)])
 	print("per min: downs %.2f  hits %.2f  picks %.2f  damage %.0f" % [g.downs_per_min, g.hits_per_min,
 		g.picks_per_min, g.damage_per_min])
 	var head := "minute "

@@ -274,7 +274,7 @@ static func _process_spawns(w: World) -> void:
 ## per minute and a share per extra wizard.
 static func _hp_scale(w: World) -> float:
 	return w.tune.enemy_hp_mul * w.seal_hp * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)) * pow(w.tune.enemy_hp_growth, w.wave - 1) \
-		* (1.0 + w.tune.enemy_hp_per_player * (w.players.size() - 1))
+		* (1.0 + w.tune.enemy_hp_per_player * (w.party_weight() - 1.0))
 
 
 static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> World.Enemy:

@@ -23,9 +23,7 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	if not Save.profile.last_pay.is_empty(): # the run's step and what it paid
 		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, 234, 1, Color("ffb347"), dark)
 	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
-		var msg := "PRESS FIRE TO CONTINUE" if a.is_host else "WAITING FOR HOST..."
-		if G.touch_active and a.is_host:
-			msg = "TAP TO CONTINUE"
+		var msg := "TAP TO CONTINUE" if G.touch_active else "PRESS FIRE TO CONTINUE" # a client leaves by itself too
 		PixelFont.draw_centered(ci, msg, 240, 244, 1, Color.WHITE, dark)
 
 ## The tarot card each award is read as on the results screen (TarotArt emblem keys); no award draws The Star.

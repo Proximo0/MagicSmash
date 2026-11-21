@@ -126,7 +126,7 @@ static func _draw_tab(a: Arena, ci: CanvasItem, slot: int, dark: Color) -> void:
 		PixelFont.draw(ci, "x%d" % _draws(a, slot), Vector2(r.position.x + 43, r.position.y + 2), 1, Color.WHITE, dark)
 	var dev := _slot_device(a, slot)
 	if dev != -99:
-		var label := "E" if dev == G.DEV_KBM else "LB"
+		var label := _tray_key(dev)
 		_draw_keycap(a, ci, Vector2(r.end.x - 3 - PixelFont.text_width(label) - 2, r.position.y + 1), label)
 	if flash > 0.0:
 		ci.draw_rect(r, Color(1, 1, 1, flash * 0.45))
@@ -173,7 +173,7 @@ static func _draw_tray(a: Arena, ci: CanvasItem, slot: int, dark: Color) -> void
 		PixelFont.draw(ci, "+%d" % (_draws(a, slot) - 1), Vector2(fx + 8, fy), 1, Color("ffd94d"), dark)
 		fx += 22
 	_draw_build_tools(a, ci, Vector2(fx, fy), dev, p, dark)
-	var label := "E" if dev == G.DEV_KBM else "LB"
+	var label := _tray_key(dev)
 	var hx := r.end.x - 2 - PixelFont.text_width("HIDE")
 	PixelFont.draw(ci, "HIDE", Vector2(hx, fy), 1, Color("8a7aa8"), dark)
 	_draw_keycap(a, ci, Vector2(hx - 4 - PixelFont.text_width(label) - 2, fy - 1), label, false)
@@ -184,7 +184,7 @@ static func _draw_tray(a: Arena, ci: CanvasItem, slot: int, dark: Color) -> void
 static func _draw_build_tools(a: Arena, ci: CanvasItem, at: Vector2, dev: int, p: Dictionary, dark: Color) -> void:
 	var redraws := int(p.get("redraws", 0))
 	var banishes := int(p.get("banishes", 0))
-	var key := "R" if dev == G.DEV_KBM or dev == -99 else "DN"
+	var key := "R" if dev == G.DEV_KBM or dev == -99 else ("O" if dev == G.DEV_KB2 else "DN")
 	_draw_keycap(a, ci, at + Vector2(0, -1), key, false)
 	var x := at.x + PixelFont.text_width(key) + 4
 	PixelFont.draw(ci, str(redraws), Vector2(x, at.y), 1, Color("8bff9e") if redraws > 0 else Color("5a4f70"), dark)
@@ -194,6 +194,15 @@ static func _draw_build_tools(a: Arena, ci: CanvasItem, at: Vector2, dev: int, p
 	for d in 5:
 		ci.draw_rect(Rect2(icon.position + Vector2(d, 1 + d), Vector2(1, 1)), Color("ff4d6a") if banishes > 0 else Color("5a4f70"))
 	PixelFont.draw(ci, str(banishes), Vector2(x + 8, at.y), 1, Color("ff8a9a") if banishes > 0 else Color("5a4f70"), dark)
+
+
+## Keyboard seat 2's card keys (its tray key is P, its redraw key O): the right hand's end of the number row.
+const KB2_CARDS: Array[String] = ["8", "9", "0"]
+
+
+## The key that opens and hides a seat's tray, as its keycap reads.
+static func _tray_key(dev: int) -> String:
+	return "E" if dev == G.DEV_KBM else ("I" if dev == G.DEV_KB2 else "LB")
 
 
 ## A small light keycap with a label, 9 px tall (11 with its dark outline).
@@ -212,6 +221,9 @@ static func _draw_keycap(a: Arena, ci: CanvasItem, at: Vector2, label: String, o
 static func _draw_pick_button(a: Arena, ci: CanvasItem, at: Vector2, dev: int, c: int) -> void:
 	if dev == G.DEV_KBM or dev == -99:
 		_draw_keycap(a, ci, at + Vector2(1, 0), str(c + 1), false)
+		return
+	if dev == G.DEV_KB2:
+		_draw_keycap(a, ci, at + Vector2(1, 0), KB2_CARDS[c], false)
 		return
 	var dots := [Vector2(0, 3), Vector2(3, 0), Vector2(6, 3), Vector2(3, 6)] # left, top, right, bottom
 	for d: Vector2 in dots:
@@ -286,6 +298,18 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 				KEY_1, KEY_KP_1: k = 0
 				KEY_2, KEY_KP_2: k = 1
 				KEY_3, KEY_KP_3: k = 2
+			if event.pressed:
+				card = k
+			else:
+				released = k
+		elif dev == G.DEV_KB2 and event is InputEventKey and not event.echo:
+			var k := -1
+			match event.physical_keycode:
+				KEY_I: toggle = event.pressed # not P: that pauses
+				KEY_O: redraw = event.pressed
+				KEY_8, KEY_KP_8: k = 0
+				KEY_9, KEY_KP_9: k = 1
+				KEY_0, KEY_KP_0: k = 2
 			if event.pressed:
 				card = k
 			else:

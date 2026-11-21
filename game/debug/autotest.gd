@@ -23,6 +23,7 @@ var _perf_draws := 0
 var _perf_peak := 0
 const PERF_FRAMES := 300
 const PERF_ENEMIES := 180
+var seats := false # --seats: two apprentices join the lobby
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
@@ -175,6 +176,13 @@ func _ready() -> void:
 	if "--talk-lull" in OS.get_cmdline_user_args():
 		shots = [[4.5, "@lobby"], [5.5, "@play"], [8.0, "@talk_lull"], [9.5, "talk_lull"]]
 		quit_at = 10.0
+	# --seats: the lobby with one human and two apprentices (seats_lobby), then the run they play (seats_run_*).
+	if "--seats" in OS.get_cmdline_user_args():
+		players = 1
+		seats = true
+		shots = [[1.2, "title_intro"], [4.5, "@lobby"], [5.0, "seats_lobby"], [5.5, "@play"], [9.0, "seats_run_a"],
+			[24.0, "seats_run_b"], [40.0, "seats_run_c"]]
+		quit_at = 41.0
 	# --eclipse: click the moon and the castle window on the title, shoot the blood moon and the ghost.
 	if "--eclipse" in OS.get_cmdline_user_args():
 		shots = [[3.0, "@eclipse"], [5.2, "title_eclipse"]]
@@ -352,6 +360,9 @@ func _process(delta: float) -> void:
 				title.state = 2
 			for _i in wizard_steps:
 				Net.cycle_wizard(G.DEV_KBM, 1)
+			if seats:
+				Net.add_apprentice()
+				Net.add_apprentice()
 		elif name == "@play":
 			PlayerInput.bot = true
 			if net == "join":

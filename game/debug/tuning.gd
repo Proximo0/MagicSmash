@@ -20,7 +20,7 @@ const FIELDS: Array = [
 	["horde_rate_per_min", 5.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
 	["spawn_party_scale", 1.0, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
 	["down_spawn_weight", 1.0, 0.0, 1.0, 0.05, "Spawning", "How much a fallen wizard counts toward the party size the horde scales with (1 = a full wizard)."],
-	["apprentice_scale", 1.0, 0.0, 1.0, 0.05, "Spawning", "How much an apprentice (computer wizard) counts toward the party size the horde scales with."],
+	["apprentice_scale", 0.7, 0.0, 1.0, 0.05, "Spawning", "How much an apprentice (computer wizard) counts toward the party size the horde scales with."],
 	["horde_boss_mul", 0.35, 0.0, 1.0, 0.05, "Spawning", "Spawn budget multiplier while the Lich is alive."],
 	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
 	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
@@ -115,6 +115,10 @@ const FIELDS: Array = [
 	["fate_wheel_draws", 2.0, 1.0, 4.0, 1.0, "Fate", "More fates WHEEL OF FORTUNE draws at once (never itself again in that chain)."],
 	["fate_chain_gap", 1.6, 1.6, 5.0, 0.1, "Fate", "Seconds between a fate landing and the next card of its chain being turned (at least the arena's reel show, Arena.REEL_SHOW)."],
 	["new_kinds", 1.0, 0.0, 3.0, 0.1, "Spawning", "Multiplier on the act weights of the eight bestiary kinds (bloat to ten of swords) and their formations; 0: they never roll and the horde is exactly the old one."],
+	["apprentice_damage", 0.7, 0.0, 1.0, 0.05, "Apprentices", "Multiplier on all damage an apprentice (computer wizard) deals."],
+	["apprentice_potion_hp", 2.0, 0.0, 10.0, 1.0, "Apprentices", "An apprentice takes a potion only at this many hearts or fewer, and only when no standing human is hurt."],
+	["apprentice_up_time", 6.0, 0.5, 30.0, 0.5, "Apprentices", "Seconds a fallen apprentice stays down before getting up by itself, free (never under DARKNESS)."],
+	["seat_silence", 5.0, 1.0, 30.0, 0.5, "Apprentices", "Seconds a human seat's device may stay silent (lobby or run) before an apprentice plays the seat."],
 ]
 
 static var _shared: Tuning = null
@@ -130,6 +134,10 @@ var horde_rate_per_min: float
 var spawn_party_scale: float
 var down_spawn_weight: float
 var apprentice_scale: float
+var apprentice_damage: float
+var apprentice_potion_hp: float
+var apprentice_up_time: float
+var seat_silence: float
 var horde_boss_mul: float
 var rift_share: float
 var rift_warning: float

@@ -40,6 +40,15 @@ func _process(_delta: float) -> void:
 		_steam.call("run_callbacks")
 
 
+## The lobby's INVITE: opens Steam's Remote Play Together invite, so friends join free. False (nothing happens)
+## without Steam.
+func invite_friends() -> bool:
+	if not ready_ok or not _steam.has_method("showRemotePlayTogetherUI"):
+		return false
+	_steam.call("showRemotePlayTogetherUI")
+	return true
+
+
 ## Unlocks the achievements a finished run earned (see Achievements.earned). Returns how many were sent.
 func finish_run(record: Results, won: bool, seconds: float) -> int:
 	if not ready_ok or record == null:

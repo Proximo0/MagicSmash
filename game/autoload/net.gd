@@ -8,18 +8,33 @@ signal game_started
 signal snapshot_received(snap: Dictionary)
 signal connection_failed(reason: String)
 signal games_found_changed
+## Run-ending and saved-data events (RELIABLE_EVENTS) from the host, by reliable RPC (client only).
+signal events_received(evs: Array)
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
 const GAME_PORT := 24680
 const DISCOVERY_PORT := 24681
-const MAGIC := "MAGICSMASH2" # 2: longer snapshot rows and roster rows; older builds do not see these games
+const MAGIC := "MAGICSMASH3" # 3: joins carry the seat; 2: longer snapshot and roster rows. Older builds do not see these games
 
 var mode := Mode.OFFLINE
-## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, race:int, cls:int, look:int, cls_level:int}. An
-## ai row is an apprentice (device G.DEV_AI) the host plays; none exist yet. race, cls, look and cls_level are
-## reserved (0) for races and classes.
+## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, away:bool, race:int, cls:int, look:int,
+## cls_level:int}. An ai row is an apprentice (device G.DEV_AI, add_apprentice) the host plays. An away row is a
+## human seat whose device has been silent for Tuning.seat_silence s: the host plays it as an apprentice until the
+## device speaks again (check_silence). race, cls, look and cls_level are reserved (0) for races and classes.
 var roster: Array = []
+## The wizards of this session's apprentices, kept across runs: start_offline and host_game seat them again.
+var kept_apprentices: Array[int] = []
+## Events a LAN client must not lose (they end the run or change saved data): they go by reliable RPC
+## (send_events), never inside the unreliable snapshot.
+const RELIABLE_EVENTS: Array[int] = [World.EV_VICTORY, World.EV_RESULTS, World.EV_GAMEOVER, World.EV_CARD, World.EV_CHEST,
+	World.EV_PICK]
+## slot -> Time.get_ticks_msec() when its device last spoke (host: remote packets and hellos, connected pads).
+var _heard := {}
+var _hello_timer := 0.0
+var _close_gen := 0
+## True while the host waits a moment before closing (send_back_to_title): the title leaves that close alone.
+var closing := false
 ## The difficulty the host chose for the next run (World.SEAL_EASY..World.SEAL_MAX, 0 normal); travels with the roster.
 var seal := 0
 ## slot -> PackedFloat32Array input from remote clients (host only)
@@ -80,6 +95,7 @@ func start_offline() -> void:
 	roster.clear()
 	for d in G.local_devices:
 		_add_to_roster(1, d)
+	_seat_kept()
 	roster_changed.emit()
 
 func host_game() -> bool:
@@ -95,6 +111,7 @@ func host_game() -> bool:
 	roster.clear()
 	for d in G.local_devices:
 		_add_to_roster(1, d)
+	_seat_kept()
 	_broadcast = PacketPeerUDP.new()
 	_broadcast.set_broadcast_enabled(true)
 	_broadcast.set_dest_address("255.255.255.255", DISCOVERY_PORT)
@@ -126,6 +143,8 @@ func stop_discovery() -> void:
 
 func shutdown() -> void:
 	in_game = false
+	closing = false
+	_close_gen += 1
 	if _broadcast:
 		_broadcast.close()
 		_broadcast = null
@@ -143,11 +162,19 @@ func local_ips() -> Array:
 	return out
 
 func _process(delta: float) -> void:
+	if mode != Mode.CLIENT:
+		check_silence(Time.get_ticks_msec(), Input.get_connected_joypads())
+	elif multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+		# A client says hello once a second, so the host hears its seats at the lobby and on the results screen too.
+		_hello_timer -= delta
+		if _hello_timer <= 0.0 and multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			_hello_timer = 1.0
+			_hello.rpc_id(1)
 	if _broadcast and mode == Mode.HOST and not in_game:
 		_bcast_timer -= delta
 		if _bcast_timer <= 0.0:
 			_bcast_timer = 1.0
-			var msg := "%s|%s|%d" % [MAGIC, host_name, roster.size()]
+			var msg := "%s|%s|%d|%s" % [MAGIC, host_name, roster.size(), G.VERSION]
 			_broadcast.put_packet(msg.to_utf8_buffer())
 	if _listen:
 		var changed := false
@@ -155,7 +182,7 @@ func _process(delta: float) -> void:
 			var pkt := _listen.get_packet().get_string_from_utf8()
 			var ip := _listen.get_packet_ip()
 			var parts := pkt.split("|")
-			if parts.size() >= 3 and parts[0] == MAGIC:
+			if parts.size() >= 4 and parts[0] == MAGIC and parts[3] == G.VERSION: # other versions stay hidden
 				if not found_games.has(ip):
 					changed = true
 				found_games[ip] = {"name": clean_name(parts[1]), "players": int(parts[2]), "seen": Time.get_ticks_msec()}
@@ -167,7 +194,20 @@ func _process(delta: float) -> void:
 			games_found_changed.emit()
 
 # ---------------------------------------------------------------- roster --
+## Seats a device (G.DEV_AI: an apprentice) and returns its slot, or -1 when every seat is taken. A human takes the
+## highest apprentice's seat when there is one (keeping its wizard), else the lowest free seat.
 func _add_to_roster(peer: int, device: int) -> int:
+	var ai := device == G.DEV_AI
+	if not ai:
+		var aps := ai_slots()
+		if not aps.is_empty():
+			var r: Dictionary = aps[aps.size() - 1]
+			r.peer = peer
+			r.device = device
+			r.ai = false
+			r.away = false
+			_heard[int(r.slot)] = Time.get_ticks_msec()
+			return int(r.slot)
 	if roster.size() >= G.MAX_PLAYERS:
 		return -1
 	var used := []
@@ -176,10 +216,74 @@ func _add_to_roster(peer: int, device: int) -> int:
 	for s in G.MAX_PLAYERS:
 		if not used.has(s):
 			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1)),
-				"ai": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0})
+				"ai": ai, "away": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0})
 			roster.sort_custom(func(a, b): return a.slot < b.slot)
+			_heard[s] = Time.get_ticks_msec()
 			return s
 	return -1
+
+## Seats an apprentice (host or offline, at the lobby): its slot, or -1 when every seat is taken.
+func add_apprentice() -> int:
+	if mode == Mode.CLIENT or in_game:
+		return -1
+	var s := _add_to_roster(1, G.DEV_AI)
+	if s >= 0:
+		_push_roster()
+	return s
+
+## Unseats an apprentice: `slot`, or the highest apprentice by default. False when there is none to remove.
+func remove_apprentice(slot := -1) -> bool:
+	if mode == Mode.CLIENT or in_game:
+		return false
+	var aps := ai_slots()
+	for i in range(aps.size() - 1, -1, -1):
+		if slot < 0 or int(aps[i].slot) == slot:
+			roster.erase(aps[i])
+			_push_roster()
+			return true
+	return false
+
+## Seats this session's kept apprentices again (start_offline, host_game), each with its wizard when that is free.
+func _seat_kept() -> void:
+	for wz: int in kept_apprentices.duplicate():
+		var s := _add_to_roster(1, G.DEV_AI)
+		if s < 0:
+			break
+		for r in roster:
+			if r.slot == s and not _wizards_taken(s).has(wz):
+				r.wizard = wz
+
+## The host hears its seats: a human seat whose device has been silent for Tuning.seat_silence s turns away (an
+## apprentice plays it) until the device speaks again. Remote seats speak with their input packets and hellos;
+## local pads by being connected (`pads`); the keyboard always speaks. Scripted runs leave local seats alone.
+func check_silence(now: int, pads: Array) -> void:
+	var limit := int(Tuning.shared().seat_silence * 1000.0)
+	var changed := false
+	for r in roster:
+		if bool(r.get("ai", false)):
+			continue
+		var slot := int(r.slot)
+		var local: bool = r.peer == my_peer
+		if local and (int(r.device) < 0 or pads.has(int(r.device)) or Flags.is_scripted_run()):
+			_heard[slot] = now
+		if not _heard.has(slot):
+			_heard[slot] = now
+		var silent: bool = now - int(_heard[slot]) > limit
+		if silent != bool(r.get("away", false)):
+			r.away = silent
+			changed = true
+			if silent:
+				remote_inputs.erase(slot)
+	if changed:
+		_push_roster()
+
+## A remote seat spoke (an input packet or a hello).
+func _note_heard(slot: int) -> void:
+	_heard[slot] = Time.get_ticks_msec()
+	for r in roster:
+		if int(r.slot) == slot and bool(r.get("away", false)):
+			r.away = false
+			_push_roster()
 
 ## Called by the lobby when a local device presses fire.
 func add_local_device(device: int) -> void:
@@ -187,7 +291,7 @@ func add_local_device(device: int) -> void:
 		return
 	if mode == Mode.CLIENT:
 		G.local_devices.append(device)
-		_request_join.rpc_id(1, device)
+		_request_join.rpc_id(1, device, G.VERSION, World.P_FLOATS)
 		return
 	if _add_to_roster(1, device) >= 0:
 		G.local_devices.append(device)
@@ -218,11 +322,12 @@ func wizard_picks() -> Dictionary:
 		out[r.slot] = int(r.get("wizard", r.slot))
 	return out
 
-## slot -> the roster extras World copies onto each Player untouched: ai, race, cls, look, cls_level.
+## slot -> the roster extras World copies onto each Player untouched: ai (an apprentice, or an away seat), away, race,
+## cls, look, cls_level.
 func seat_builds() -> Dictionary:
 	var out := {}
 	for r in roster:
-		out[r.slot] = {"ai": bool(r.get("ai", false)), "race": int(r.get("race", 0)), "cls": int(r.get("cls", 0)),
+		out[r.slot] = {"ai": played_by_ai(r), "away": bool(r.get("away", false)), "race": int(r.get("race", 0)), "cls": int(r.get("cls", 0)),
 			"look": int(r.get("look", 0)), "cls_level": int(r.get("cls_level", 0))}
 	return out
 
@@ -245,13 +350,17 @@ func _request_wizard(device: int, dir: int) -> void:
 		return
 	_cycle_wizard(multiplayer.get_remote_sender_id(), device, dir)
 
-## This machine's human seats (apprentices left out).
+## This machine's human seats (apprentices left out; on the host, away seats too: the World plays them).
 func my_slots() -> Array:
 	var out := []
 	for r in roster:
-		if r.peer == my_peer and not bool(r.get("ai", false)):
+		if r.peer == my_peer and not bool(r.get("ai", false)) and not (is_host() and bool(r.get("away", false))):
 			out.append(r)
 	return out
+
+## True when the World plays a roster row: an apprentice, or a human seat gone silent.
+static func played_by_ai(r: Dictionary) -> bool:
+	return bool(r.get("ai", false)) or bool(r.get("away", false))
 
 ## The apprentice seats (the host plays them).
 func ai_slots() -> Array:
@@ -269,17 +378,58 @@ func set_seal(level: int) -> void:
 	_push_roster()
 
 func _push_roster() -> void:
+	if mode != Mode.CLIENT:
+		kept_apprentices.clear()
+		for r in ai_slots():
+			kept_apprentices.append(int(r.get("wizard", r.slot)))
 	roster_changed.emit()
 	if mode == Mode.HOST:
 		_sync_roster.rpc(roster, seal)
 
+## A client asks for a seat for one of its devices. The host answers every join: a seat (the roster), or a
+## refusal (_refused) for another version or snapshot layout, a run already on, or a full table.
 @rpc("any_peer", "reliable")
-func _request_join(device: int) -> void:
-	if mode != Mode.HOST or in_game:
+func _request_join(device: int, version: String, layout: int) -> void:
+	if mode != Mode.HOST:
 		return
 	var peer := multiplayer.get_remote_sender_id()
-	_add_to_roster(peer, device)
+	var why := join_refusal(version, layout)
+	if why.is_empty() and _add_to_roster(peer, device) < 0:
+		why = "THE GAME IS FULL"
+	if not why.is_empty():
+		_refused.rpc_id(peer, why, device)
+		return
 	_push_roster()
+
+## Why the host refuses a join from `version` with snapshot rows of `layout` floats ("" when it does not).
+func join_refusal(version: String, layout: int) -> String:
+	if version != G.VERSION or layout != World.P_FLOATS:
+		return "HOST HAS VERSION %s" % G.VERSION
+	if in_game:
+		return "A RUN IS ON: JOIN AFTER IT"
+	return ""
+
+## Host -> a client it refused: a client without a seat leaves (the title shows why); one that has a seat only
+## drops the device that asked.
+@rpc("authority", "reliable")
+func _refused(reason: String, device: int) -> void:
+	G.local_devices.erase(device)
+	for r in roster:
+		if r.peer == my_peer:
+			return # seated already: only this device stays out
+	_leave_refused.call_deferred(reason)
+
+func _leave_refused(reason: String) -> void:
+	shutdown()
+	connection_failed.emit(reason)
+
+## Client -> host once a second: this machine's seats are not silent.
+@rpc("any_peer", "unreliable")
+func _hello() -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	for r in roster:
+		if r.peer == peer:
+			_note_heard(int(r.slot))
 
 @rpc("any_peer", "reliable")
 func _request_leave(device: int) -> void:
@@ -298,8 +448,21 @@ func _sync_roster(r: Array, s: int) -> void:
 	roster_changed.emit()
 
 func _on_peer_connected(id: int) -> void:
-	if mode == Mode.HOST:
+	_throttle_off(id)
+	if mode == Mode.HOST and not in_game:
 		_sync_roster.rpc_id(id, roster, seal)
+
+## ENet's defaults for the throttle's interval and acceleration; the deceleration is set to 0.
+const THROTTLE_INTERVAL_MS := 5000
+const THROTTLE_ACCEL := 2
+## ENet's packet throttle drops unreliable snapshots after a frame hitch (docs/online.md): off for every peer.
+func _throttle_off(id: int) -> void:
+	var ep := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if ep == null:
+		return
+	var pp := ep.get_peer(id)
+	if pp != null:
+		pp.throttle_configure(THROTTLE_INTERVAL_MS, THROTTLE_ACCEL, 0)
 
 func _on_peer_disconnected(id: int) -> void:
 	if mode != Mode.HOST:
@@ -312,8 +475,9 @@ func _on_peer_disconnected(id: int) -> void:
 
 func _on_connected() -> void:
 	my_peer = multiplayer.get_unique_id()
+	_throttle_off(1)
 	for d in G.local_devices:
-		_request_join.rpc_id(1, d)
+		_request_join.rpc_id(1, d, G.VERSION, World.P_FLOATS)
 
 func _on_failed() -> void:
 	shutdown()
@@ -329,6 +493,7 @@ func _on_server_gone() -> void:
 func begin_game() -> void:
 	if mode == Mode.HOST:
 		_start.rpc()
+		multiplayer.multiplayer_peer.refuse_new_connections = true # nobody joins a run on
 	_start()
 
 @rpc("authority", "reliable")
@@ -348,10 +513,33 @@ func send_input(slot: int, data: PackedFloat32Array) -> void:
 @rpc("any_peer", "unreliable_ordered", "call_remote", 1)
 func _input_packet(slot: int, data: PackedFloat32Array) -> void:
 	var peer := multiplayer.get_remote_sender_id()
+	var inp := clean_input(data)
+	if inp.is_empty():
+		return
 	for r in roster:
 		if r.slot == slot and r.peer == peer:
-			remote_inputs[slot] = data
+			remote_inputs[slot] = inp
+			_note_heard(slot)
 			return
+
+## A remote input packet made safe, or empty to drop it: 6 or 8 numbers, all finite; the move at most 1 long and
+## the aim a direction (a mouse aim is a screen offset, so it is normalised, not clamped).
+static func clean_input(data: PackedFloat32Array) -> PackedFloat32Array:
+	if data.size() != 6 and data.size() != 8:
+		return PackedFloat32Array()
+	for v: float in data:
+		if not is_finite(v):
+			return PackedFloat32Array()
+	var out := data.duplicate()
+	var move := Vector2(out[0], out[1]).limit_length(1.0)
+	var aim := Vector2(out[2], out[3])
+	if aim.length() > 1.0:
+		aim = aim.normalized()
+	out[0] = move.x
+	out[1] = move.y
+	out[2] = aim.x
+	out[3] = aim.y
+	return out
 
 ## Host -> clients.
 func send_snapshot(snap: Dictionary) -> void:
@@ -362,11 +550,43 @@ func send_snapshot(snap: Dictionary) -> void:
 func _snap(snap: Dictionary) -> void:
 	snapshot_received.emit(snap)
 
+## Host -> clients: the events in `evs` that must arrive (RELIABLE_EVENTS), in order, by reliable RPC on their own
+## channel; returns the rest for the snapshot.
+func send_events(evs: Array) -> Array:
+	var sure := []
+	var rest := []
+	for ev: Array in evs:
+		(sure if RELIABLE_EVENTS.has(int(ev[0])) else rest).append(ev)
+	if not sure.is_empty() and mode == Mode.HOST and multiplayer.get_peers().size() > 0:
+		_events.rpc(sure)
+	return rest
+
+@rpc("authority", "reliable", "call_remote", 3)
+func _events(evs: Array) -> void:
+	events_received.emit(evs)
+
+## The host leaves a LAN game: clients go back to the title first, the host closes a moment later so the message
+## is delivered (a client closes its own side when it arrives, with no HOST LEFT message).
 func send_back_to_title() -> void:
-	if mode == Mode.HOST:
-		_to_title.rpc()
+	if mode != Mode.HOST:
+		shutdown()
+		return
+	_to_title.rpc()
+	in_game = false
+	closing = true
+	if _broadcast:
+		_broadcast.close()
+		_broadcast = null
+	var gen := _close_gen
+	get_tree().create_timer(0.25, true, false, true).timeout.connect(func() -> void:
+		if gen == _close_gen:
+			shutdown())
 
 @rpc("authority", "reliable")
 func _to_title() -> void:
 	in_game = false
+	_close_quietly.call_deferred()
+
+func _close_quietly() -> void:
+	shutdown()
 	G.goto_title()

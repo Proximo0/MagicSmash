@@ -188,7 +188,7 @@ static func _update_pickups(w: World, dt: float) -> void:
 		pos.y = clampf(pos.y, y0, y1)
 		k.pos = pos
 		for p: World.Player in who:
-			if p.pos.distance_to(pos) < 11.0:
+			if p.pos.distance_to(pos) < 11.0 and WorldApprentices.may_take(w, p, k.kind):
 				_collect(w, p, k)
 				k.life = -1.0
 				_magnets(w, who, reach) # a pick-up can change what the next gem sees
@@ -230,6 +230,7 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 		WorldLevels._read_party_tome(w)
 		w.emit(World.EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 		return
+	p = WorldApprentices.payee(w, p, k.kind) # an apprentice's coin or gem goes to the nearest human
 	var pts := 0
 	var greed: float = 1.0 + p.armor[Loot.ST_GREED] + w.meta_gold
 	match k.kind:

@@ -18,7 +18,7 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 	for p: World.Player in w.players.values():
 		if not p.choices.is_empty():
 			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
-			if p.ai:
+			if p.ai and not p.away: # an away human keeps her draws for when she is back
 				_pick(w, p, p.choices[Upgrades.best_pick(p.upgrades, p.choices)])
 			elif inp.size() >= 8 and int(inp[7]) == p.offer and int(inp[6]) != -1:
 				var c := int(inp[6])
