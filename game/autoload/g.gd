@@ -30,6 +30,10 @@ var talk_seen: Dictionary = {}
 ## The id of the last line each speaker said (Talk.pick's `last`).
 var talk_last: Dictionary = {}
 
+## Profile hero indices the local human seats play this run (the lobby sets it, Net.seat_heroes; never a guest).
+## Empty in a scripted run, so no hero earns anything there.
+var run_heroes: Array[int] = []
+
 ## Local devices that joined in the lobby on this machine.
 var local_devices: Array[int] = []
 
@@ -77,7 +81,10 @@ func finish_run(run: Dictionary) -> int:
 	last_score = int(run.get("score", 0))
 	last_run = {"result": "win" if bool(run.get("won", false)) else "loss", "act": int(run.get("act", -1)),
 		"seal": int(run.get("seal", 0))}
-	var earned := Save.finish_run(run)
+	var booked := run.duplicate()
+	booked["heroes"] = [] if Flags.is_scripted_run() else run_heroes.duplicate()
+	var earned := Save.finish_run(booked)
+	last_run["hero_levels"] = Save.profile.last_hero_levels.duplicate()
 	high_score = Save.profile.high_score
 	return earned
 

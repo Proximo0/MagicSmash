@@ -21,8 +21,13 @@ var mode := Mode.OFFLINE
 ## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, away:bool, race:int, cls:int, look:int,
 ## cls_level:int}. An ai row is an apprentice (device G.DEV_AI, add_apprentice) the host plays. An away row is a
 ## human seat whose device has been silent for Tuning.seat_silence s: the host plays it as an apprentice until the
-## device speaks again (check_silence). race, cls, look and cls_level are reserved (0) for races and classes.
+## device speaks again (check_silence). A human seat of a played run also has hero (the cleaned Hero.to_dict) and
+## race, cls, look, cls_level (the hero's level) copied from it; an apprentice's hero is {} and those stay 0.
 var roster: Array = []
+## This machine's seats' heroes: device -> index into Save.profile.heroes, or -1 for a guest (Hero.new(), earns
+## nothing). Empty in a scripted run, so those seats get no hero (unless force_heroes, for tests).
+var seat_heroes := {}
+var force_heroes := false
 ## The wizards of this session's apprentices, kept across runs: start_offline and host_game seat them again.
 var kept_apprentices: Array[int] = []
 ## Events a LAN client must not lose (they end the run or change saved data): they go by reliable RPC
@@ -153,6 +158,7 @@ func shutdown() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.OFFLINE
 	remote_inputs.clear()
+	seat_heroes.clear()
 
 func local_ips() -> Array:
 	var out := []
@@ -207,6 +213,7 @@ func _add_to_roster(peer: int, device: int) -> int:
 			r.ai = false
 			r.away = false
 			_heard[int(r.slot)] = Time.get_ticks_msec()
+			_seat_local_hero(r)
 			return int(r.slot)
 	if roster.size() >= G.MAX_PLAYERS:
 		return -1
@@ -216,11 +223,150 @@ func _add_to_roster(peer: int, device: int) -> int:
 	for s in G.MAX_PLAYERS:
 		if not used.has(s):
 			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1)),
-				"ai": ai, "away": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0})
+				"ai": ai, "away": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0, "hero": {}})
 			roster.sort_custom(func(a, b): return a.slot < b.slot)
 			_heard[s] = Time.get_ticks_msec()
+			_seat_local_hero(_row_of(s))
 			return s
 	return -1
+
+func _row_of(slot: int) -> Dictionary:
+	for r: Dictionary in roster:
+		if int(r.slot) == slot:
+			return r
+	return {}
+
+func _heroes_wanted() -> bool:
+	return force_heroes or not Flags.is_scripted_run()
+
+## Profile hero indices the other local seats hold (never -1).
+func _heroes_taken(device: int) -> Array[int]:
+	var out: Array[int] = []
+	for d: Variant in seat_heroes:
+		if int(d) != device and int(seat_heroes[d]) >= 0:
+			out.append(int(seat_heroes[d]))
+	return out
+
+## The hero a new local seat starts on: the profile's active hero, else the first no other local seat holds, else
+## -1 (a guest).
+func _first_free_hero(device: int) -> int:
+	var heroes: Array = Save.profile.heroes
+	var taken := _heroes_taken(device)
+	var pref: int = Save.profile.hero
+	if pref >= 0 and pref < heroes.size() and not taken.has(pref):
+		return pref
+	for i in heroes.size():
+		if not taken.has(i):
+			return i
+	return -1
+
+## The hero a seat index stands for: the saved one, or a guest (Hero.new()) for -1 or a stale index.
+func hero_at(idx: int) -> Hero:
+	var heroes: Array = Save.profile.heroes
+	return heroes[idx] if idx >= 0 and idx < heroes.size() else Hero.new()
+
+## The saved hero index of a local device's seat (-1 a guest or none).
+func hero_of(device: int) -> int:
+	return int(seat_heroes.get(device, -1))
+
+## A fresh local human row (host or offline) takes its device's hero: seat_heroes keeps the index.
+func _seat_local_hero(r: Dictionary) -> void:
+	if r.is_empty() or bool(r.ai) or int(r.peer) != my_peer or not _heroes_wanted():
+		return
+	var d := int(r.device)
+	if not seat_heroes.has(d):
+		seat_heroes[d] = _first_free_hero(d)
+	_fill_hero(r, hero_at(int(seat_heroes[d])).to_dict())
+
+## Stores a hero on a row, cleaned (Hero.from_dict clamps whatever came in), with the extras copied from it. The
+## wizard colour follows a mage's school when free, else stays or takes the first free one.
+func _fill_hero(r: Dictionary, d: Dictionary) -> void:
+	var h := Hero.from_dict(d)
+	r.hero = h.to_dict()
+	r.race = h.race
+	r.cls = h.cls
+	r.look = h.look
+	r.cls_level = h.level
+	r.wizard = Wizards.first_free(h.school if h.cls == Classes.MAGE else int(r.get("wizard", r.slot)), _wizards_taken(int(r.slot)))
+
+## Human seats on this machine.
+func _local_seat_count() -> int:
+	var n := 0
+	for r: Dictionary in roster:
+		if int(r.peer) == my_peer and not bool(r.get("ai", false)):
+			n += 1
+	return n
+
+## Local seat `device` takes the saved hero `idx` (-1: guest). False when another local seat holds it or it
+## does not exist. The host fills its row; a client tells the host (`_submit_hero`).
+func set_seat_hero(device: int, idx: int) -> bool:
+	if not _heroes_wanted() or not G.local_devices.has(device):
+		return false
+	if idx >= Save.profile.heroes.size() or idx < -1 or _heroes_taken(device).has(idx):
+		return false
+	seat_heroes[device] = idx
+	_send_seat_hero(device)
+	return true
+
+func _send_seat_hero(device: int) -> void:
+	var d: Dictionary = hero_at(hero_of(device)).to_dict()
+	if mode == Mode.CLIENT:
+		_submit_hero.rpc_id(1, device, d)
+		return
+	for r: Dictionary in roster:
+		if int(r.peer) == my_peer and int(r.device) == device and not bool(r.ai):
+			_fill_hero(r, d)
+	_push_roster()
+
+## The lobby's left and right: step `device`'s seat through the saved heroes no other local seat holds, then the
+## guest when there are fewer heroes than local seats.
+func step_seat_hero(device: int, dir: int) -> void:
+	if not _heroes_wanted():
+		return
+	var cur := hero_of(device)
+	var taken := _heroes_taken(device)
+	var opts: Array[int] = []
+	for i in Save.profile.heroes.size():
+		if not taken.has(i):
+			opts.append(i)
+	if cur < 0 or Save.profile.heroes.size() < _local_seat_count():
+		opts.append(-1)
+	if opts.is_empty():
+		return
+	var at := opts.find(cur)
+	var next := opts[wrapi((at if at >= 0 else 0) + signi(dir), 0, opts.size())]
+	set_seat_hero(device, next)
+
+## After the hero list changed (the roster screen): every local seat re-reads its hero, a vanished one becoming the
+## first free hero or a guest.
+func refresh_seat_heroes() -> void:
+	if not _heroes_wanted():
+		return
+	for d: Variant in seat_heroes.keys():
+		var idx := int(seat_heroes[d])
+		if idx >= Save.profile.heroes.size() or _heroes_taken(int(d)).has(idx):
+			seat_heroes[d] = _first_free_hero(int(d))
+		_send_seat_hero(int(d))
+
+## The profile hero indices this machine's human seats play, each once, no guests (G.run_heroes).
+func played_heroes() -> Array[int]:
+	var out: Array[int] = []
+	for r: Dictionary in my_slots():
+		var idx := hero_of(int(r.device))
+		if idx >= 0 and idx < Save.profile.heroes.size() and not out.has(idx):
+			out.append(idx)
+	return out
+
+## Client -> host: the hero of one of its seats, cleaned here before it is kept.
+@rpc("any_peer", "reliable")
+func _submit_hero(device: int, d: Dictionary) -> void:
+	if mode != Mode.HOST or in_game:
+		return
+	var peer := multiplayer.get_remote_sender_id()
+	for r: Dictionary in roster:
+		if int(r.peer) == peer and int(r.device) == device and not bool(r.get("ai", false)):
+			_fill_hero(r, d)
+	_push_roster()
 
 ## Seats an apprentice (host or offline, at the lobby): its slot, or -1 when every seat is taken.
 func add_apprentice() -> int:
@@ -292,6 +438,9 @@ func add_local_device(device: int) -> void:
 	if mode == Mode.CLIENT:
 		G.local_devices.append(device)
 		_request_join.rpc_id(1, device, G.VERSION, World.P_FLOATS)
+		if _heroes_wanted():
+			seat_heroes[device] = _first_free_hero(device)
+			_send_seat_hero(device)
 		return
 	if _add_to_roster(1, device) >= 0:
 		G.local_devices.append(device)
@@ -299,6 +448,7 @@ func add_local_device(device: int) -> void:
 
 func remove_local_device(device: int) -> void:
 	G.local_devices.erase(device)
+	seat_heroes.erase(device)
 	if mode == Mode.CLIENT:
 		_request_leave.rpc_id(1, device)
 		return
@@ -499,6 +649,7 @@ func begin_game() -> void:
 @rpc("authority", "reliable")
 func _start() -> void:
 	in_game = true
+	G.run_heroes.assign(played_heroes())
 	game_started.emit()
 	G.goto_game()
 

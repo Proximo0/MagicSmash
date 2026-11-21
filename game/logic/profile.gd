@@ -67,6 +67,8 @@ var revives_total := 0
 ## multiplier), bounty (crystals the multiplier added or took), prize (a first win's crystals), card (the Seal card
 ## a first win paid, -1 none).
 var last_pay := {}
+## Levels the last finish_run gave each saved hero (profile index -> levels gained; not saved).
+var last_hero_levels := {}
 
 
 ## The hero the next run plays.
@@ -244,7 +246,8 @@ func prize_left(level: int) -> int:
 ## Books a finished run: best score and time, wins, crystals earned. Returns the crystals it paid. `run` holds
 ## score, seconds, kills, liches, won, seal, and revives or results (the run's Results, whose rituals are added up);
 ## missing keys count 0 / false. The step (seal) scales the bounties; a win opens the next step and, the first
-## time at a step, pays its prize and Seal card.
+## time at a step, pays its prize and Seal card. `heroes` (profile hero indices, each counted once) are the
+## saved heroes this machine's seats played: each earns the run's class XP (last_hero_levels says the levels gained).
 func finish_run(run: Dictionary) -> int:
 	var score := int(run.get("score", 0))
 	var seconds := float(run.get("seconds", 0.0))
@@ -279,6 +282,14 @@ func finish_run(run: Dictionary) -> int:
 				if card_count(sc) == 0:
 					cards[Cards.key(sc)] = 1
 	crystals += earned
+	last_hero_levels = {}
+	var seen: Array[int] = []
+	for v: Variant in run.get("heroes", []):
+		var hi := int(v)
+		if hi < 0 or hi >= heroes.size() or seen.has(hi):
+			continue
+		seen.append(hi)
+		last_hero_levels[hi] = heroes[hi].add_xp(heroes[hi].run_xp(seconds, liches, won, mul))
 	return earned
 
 
