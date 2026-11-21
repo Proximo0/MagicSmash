@@ -368,4 +368,4 @@ func test_solo_run_is_pinned() -> void:
 	assert_eq(hash(rows), SOLO_PIN, "solo plays as before")
 
 
-const SOLO_PIN := 3551514773
+const SOLO_PIN := 2643833258

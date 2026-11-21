@@ -82,9 +82,9 @@ How each system works: read only the section for the system you touch (`grep -n 
   `Tuning` default unless named otherwise:
   - The early wall was the start budget (10) and rate (10/s); the late cakewalk was drops and power that scale
     with the kill count (2.5% of kills dropped a spell tome, so every spell was maxed by 3:00) and evolutions worth
-    3 to 10 times level 5. Now: `horde_start_budget` 0, `horde_rate_base` 2, `horde_rate_per_min` 8,
+    3 to 10 times level 5. Now: `horde_start_budget` 0, `horde_rate_base` 2, `horde_rate_per_min` 7,
     `enemy_speed_mul` 0.85 with `enemy_speed_per_min` 0.05 (slow at 0:00, faster than before after 3:00),
-    enemy HP `enemy_hp_mul` 1 x (1 + `enemy_hp_per_min` 0.1 x (minute - 1)) x `enemy_hp_growth` 1.12 ^ (minute - 1).
+    enemy HP `enemy_hp_mul` 1 x (1 + `enemy_hp_per_min` 0.1 x (minute - 1)) x `enemy_hp_growth` 1.14 ^ (minute - 1).
   - Drops (`Tuning` Loot rows, read by `WorldDrops`): `tome_drop_chance` 0.005 (was 0.025), `big_tome_chance`
     0.15 (0.25), `coin_drop_chance` 0.1 (0.22), `potion_drop_chance` 0.05 (0.02).
   - XP: `xp_per_level` 90 (60), `xp_gem_life` 90 s (30), `xp_magnet_radius` 44 (24).
