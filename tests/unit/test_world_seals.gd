@@ -200,6 +200,7 @@ func test_champions_escorts_only_timed_elites_under_the_cap() -> void:
 	var lich := WorldWaves.spawn_enemy(boss, World.LICH, 0)
 	WorldBosses._make_final(boss, lich)
 	lich.hp = lich.maxhp * 0.1 # raging
+	lich.enter_dir.y = 2.0 # its two phase turns are behind it
 	lich.state = 4
 	lich.timer = 1.0
 	BossLich.think(boss, lich, 0.0, boss.players[0], Vector2.RIGHT, 80.0)

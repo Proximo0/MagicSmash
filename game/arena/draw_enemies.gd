@@ -18,6 +18,8 @@ static func _draw_enemy_glows(a: Arena, ci: CanvasItem) -> void:
 					ArenaDrawWorld._shadow(a, ci, e.pos + Vector2(0, 6), 14)
 			World.LICH:
 				halos.append(e)
+			Bestiary.CHANDELIER, Bestiary.GHOSTWRITER:
+				ArenaDrawBoss.shadow(a, ci, e)
 		if e.elite:
 			halos.append(e)
 	for e: Dictionary in halos:
@@ -122,6 +124,11 @@ static func _draw_enemy(a: Arena, ci: CanvasItem, e: Dictionary) -> void:
 		World.PRIEST:
 			if st == 1:
 				key = "priest_raise"
+		Bestiary.CHANDELIER, Bestiary.GHOSTWRITER:
+			var pose := ArenaDrawBoss.pose(a, e)
+			turn = false
+			feet += pose[0]
+			mod = mod * (pose[1] as Color)
 	if turn:
 		e.flip = near_dx < 0.0
 	var elite: bool = e.elite

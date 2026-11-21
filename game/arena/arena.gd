@@ -60,6 +60,7 @@ var phase := 0
 var phase_t := 0.0
 var boss_f := -1.0
 var boss_final := false # the boss on screen is the Archlich
+var vw := PackedFloat32Array() # the header, snapshot "w" (ArenaDrawBoss reads the boss rows)
 var victory := false # the Archlich fell: the run is won
 var run_t := 0.0 # seconds of fighting, from the snapshot
 var seal := 0 # the run's Seal level, from the snapshot header
