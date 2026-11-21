@@ -31,8 +31,11 @@ STATE="$(git rev-parse --git-dir)/station_last"  # the commit this station teste
 
 job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error, or a run that did not finish
   local out; out=$(mktemp -d) bad=0 detail=""
+  # At most one run per core at a time: a 4-core Celeron takes 17 min for one seed, and five at once would time out.
+  local n=0 cores; cores=$(nproc 2>/dev/null || echo 2)
   for s in $SEEDS; do
-    ( timeout 1800 "$GODOT" --headless --path . -s tools/full_run.gd -- --wizards=4 "--seed=$s" >"$out/$s.log" 2>&1 ) &
+    ( timeout "${STATION_BOSS_TIMEOUT:-3600}" "$GODOT" --headless --path . -s tools/full_run.gd -- --wizards=4 "--seed=$s" >"$out/$s.log" 2>&1 ) &
+    n=$((n + 1)); (( n % cores == 0 )) && wait
   done
   wait
   for s in $SEEDS; do
@@ -94,6 +97,7 @@ publish() {  # $1 = report text. Adds <machine>.txt to the results branch withou
 
 run_once() {
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
+  git config core.autocrlf false  # Godot rewrites .import files with LF; Windows Git's autocrlf=true would call the clone changed
   [ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "station: this clone has local changes; keep a clone for the station alone" >&2; return 2; }
   local head; head=$(git rev-parse origin/main)
   [ "$watch" = 1 ] && [ "$head" = "$(cat "$STATE" 2>/dev/null)" ] && return 3  # nothing new

@@ -106,6 +106,7 @@ static func _draw_draws(a: Arena, ci: CanvasItem, dark: Color) -> void:
 			marked.append(slot)
 	for slot: int in marked:
 		_draw_draw_marker(a, ci, slot)
+	ArenaTrayArt.draw_over(a, ci, dark)
 
 
 ## The tab: a card back, DRAW, the number of draws past one, and the button that opens the tray.

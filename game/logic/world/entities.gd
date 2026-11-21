@@ -44,7 +44,7 @@ class Player:
 	var down_left := 0.0 # seconds until a fallen wizard gets up by itself; -1 = only a ritual brings them back
 	var down_t := 0.0 # seconds spent down this time
 	var revive := 0.0 # revive progress 0..1
-	var rituals := 0 # revives this wizard has performed
+	var rituals := 0 # rituals that raised this wizard (each later one takes tune.ritual_step longer)
 	var call_t := 0.0 # seconds until this wizard may call for help again
 	var ai := false # an apprentice (a computer wizard), not a human seat
 	var trait_a := 0 # wave 3 traits; 0 = none

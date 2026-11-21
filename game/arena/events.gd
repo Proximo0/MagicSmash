@@ -88,6 +88,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._add_shake(7.0)
 				var left := int(ev[4])
 				a.fx.text(pos + Vector2(0, -16), "P%d DOWN!" % (int(ev[3]) + 1) if left > 0 else "P%d IS OUT!" % (int(ev[3]) + 1), col, 1.8, 1)
+			World.EV_CALL:
+				ArenaDrawFallen.on_call(a, ev)
 			World.EV_DOOR:
 				Sfx.play("door", -6.0, 1.0, 0.2)
 			World.EV_ESHOT:
@@ -113,10 +115,12 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					ArenaFateView._act_card(a, Lore.act_of(w - 1))
 				if int(ev[4]) == 2:
 					ArenaFateView._banner(a, Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
+					ArenaFateView._arrival(a, "portraits/characters", "archlich", Lore.ARCHLICH_TITLE, Color("ff4df2"))
 					Sfx.play("boss_roar", 0.0, 0.7)
 					Sfx.play("bell_toll", -2.0)
 				elif int(ev[4]) == 1:
 					ArenaFateView._banner(a, "THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
+					ArenaFateView._arrival(a, "cards/monsters", "lich", "THE LICH LORD", Color("ff4d6a"))
 					Sfx.play("portal")
 				elif w > 1:
 					ArenaFateView._banner(a, "MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)

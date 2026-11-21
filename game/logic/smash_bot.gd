@@ -231,7 +231,7 @@ func wants_senses(time: float) -> bool:
 ## also see (all keys optional): "hp", "max_hp", "bombs", "speed", "enemy_vel" and "enemy_r" (parallel to
 ## `enemies`), "shot_vel" and "shot_r" (parallel to `enemy_shots`), "pickup_kinds" (World.PK_*, parallel to
 ## `pickups`), "mates" (living teammates' positions), "party" (the party centre), "arena" (Rect2 the feet may
-## stand in), "leash" (Rect2 the leash allows), "boss" (Vector2 or INF).
+## stand in), "leash" (Rect2 the leash allows), "boss" (Vector2 or INF), "fallen" (fallen allies' positions).
 func decide(slot: int, me: Vector2, center: Vector2, time: float, enemies: Array[Vector2],
 		enemy_shots: Array[Vector2], pickups: Array[Vector2], goal: Vector2 = Vector2.INF,
 		ctx: Dictionary = {}) -> PackedFloat32Array:
@@ -263,6 +263,7 @@ func decide(slot: int, me: Vector2, center: Vector2, time: float, enemies: Array
 			_consider_pickup(me, pickups[i], int(kinds[i]) if i < kinds.size() else World.PK_XP)
 		if goal.is_finite():
 			_consider_shrine(me, goal)
+		_consider_rescue(me, ctx.get("fallen", []))
 		_think(me, time)
 	return _held(time)
 
@@ -273,7 +274,7 @@ func decide_in_world(world: World, slot: int) -> PackedFloat32Array:
 	if p == null:
 		return PackedFloat32Array([0, 0, 0, 0, 0, nova_count])
 	if not p.alive:
-		return _with_my_pick(PackedFloat32Array([0, 0, 0, 0, 0, nova_count]), p)
+		return _with_my_pick(_spirit_input(world, p), p)
 	if wants_senses(world.time):
 		_sense_world(world, p)
 		_think(p.pos, world.time)
@@ -517,6 +518,62 @@ func _sense_world(w: World, p: World.Player) -> void:
 	var shrine := shrine_goal(me, p.gold, w.snapshot_shrines()) if not w.shrines.is_empty() else Vector2.INF
 	if shrine.is_finite():
 		_consider_shrine(me, shrine)
+	var fallen: Array = []
+	for q: World.Player in w.players.values():
+		if q.down:
+			fallen.append(q.pos)
+	_consider_rescue(me, fallen)
+
+
+## A fallen ally within RESCUE_REACH: while it is calm here, the bot walks into her ritual circle and stands there.
+const RESCUE_REACH: float = 200.0
+const RESCUE_CALM: float = CORNERED * 0.5
+const RESCUE_VALUE: float = 3.0
+const RESCUE_STEP: float = 50.0
+## A fallen bot's spirit (unhurt, slow) drifts to the nearest standing ally, so her circle comes to the fight.
+const SPIRIT_CLOSE: float = 10.0
+
+
+func _spirit_input(w: World, p: World.Player) -> PackedFloat32Array:
+	if not p.down:
+		return PackedFloat32Array([0, 0, 0, 0, 0, nova_count])
+	var mates: Array = []
+	for q: World.Player in w.players.values():
+		if q.alive and q != p:
+			mates.append(q.pos)
+	return spirit_input(p.pos, mates)
+
+
+## A fallen bot's input (the sim and the arena share it): drift toward the nearest of `mates` (standing allies'
+## positions), no aim, the nova count held so nothing calls.
+func spirit_input(me: Vector2, mates: Array) -> PackedFloat32Array:
+	var move := spirit_drift(me, mates)
+	return PackedFloat32Array([move.x, move.y, 0, 0, 0, nova_count])
+
+
+## The unit direction toward the nearest of `mates`, or zero when there is none or she is within SPIRIT_CLOSE.
+static func spirit_drift(me: Vector2, mates: Array) -> Vector2:
+	var best := Vector2.INF
+	for m: Vector2 in mates:
+		if not best.is_finite() or m.distance_to(me) < best.distance_to(me):
+			best = m
+	if not best.is_finite() or best.distance_to(me) <= SPIRIT_CLOSE:
+		return Vector2.ZERO
+	return (best - me).normalized()
+
+
+func _consider_rescue(me: Vector2, fallen: Array) -> void:
+	var best := Vector2.INF
+	var bd: float = RESCUE_REACH
+	for at: Vector2 in fallen:
+		# Far off only while it is calm here; a step away, always.
+		if at.distance_to(me) < bd and (last_danger <= RESCUE_CALM or at.distance_to(me) < RESCUE_STEP):
+			bd = at.distance_to(me)
+			best = at
+	if best.is_finite():
+		_goal = best
+		_goal_stand = true
+		_goal_best = RESCUE_VALUE
 
 
 ## How an enemy will move. A veteran reads the tells: an orc or a tome rearing up, a gargoyle about to swoop.

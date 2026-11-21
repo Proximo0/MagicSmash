@@ -370,6 +370,9 @@ static func _frame_colors(key: String) -> Array:
 static func draw_back(ci: CanvasItem, r: Rect2) -> void:
 	if r.size.x < 2.0:
 		return
+	# The owner's painted back where it fits: a card shape of 20 px or more, not a wide strip.
+	if r.size.x >= 20.0 and r.size.y >= r.size.x * 0.9 and Art.draw(ci, "cards/tarot", "card_back", r):
+		return
 	ci.draw_rect(r.grow(1), INK)
 	ci.draw_rect(r, Color("2a1650"))
 	ci.draw_rect(r.grow(-3), Color("1b1030"))
@@ -398,6 +401,10 @@ static func draw_card(ci: CanvasItem, r: Rect2, key: String, title: String, effe
 	_box(ci, r.grow(-2), cols[1])
 	_box(ci, r.grow(-4), Color(cols[1], 0.45))
 	var cx := r.get_center().x
+	var painting := _painting(key)
+	if not painting.is_empty():
+		_draw_painted(ci, r, key, painting, title, effect, level_text, selected)
+		return
 	PixelFont.draw_centered(ci, heading(key), cx, r.position.y + 8, 1, cols[1], INK)
 	# The art window: a dusk sky with a few stars, the emblem at 3x.
 	var art := Rect2(r.position.x + 10, r.position.y + 19, r.size.x - 20, r.size.x - 20)
@@ -433,12 +440,19 @@ static func draw_card_small(ci: CanvasItem, r: Rect2, key: String, title: String
 	ci.draw_rect(r, cols[0])
 	_box(ci, r.grow(-1), Color(cols[1], 0.7 if selected else 0.4))
 	var win := Rect2(r.position.x + 3, r.position.y + 3, 18, 18)
-	ci.draw_rect(win, cols[2])
-	ci.draw_texture_rect(emblem(key), Rect2(win.position + Vector2(1, 1), Vector2(16, 16)), false)
+	var painting := _painting(key)
+	if not painting.is_empty():
+		# The painted card as a thumbnail the height of the card, its text clear of it.
+		win = Rect2(r.position.x + 3, r.position.y + 3, floorf((r.size.y - 6.0) * 0.49), r.size.y - 6.0)
+		ci.draw_rect(win, cols[2])
+		Art.draw(ci, "cards/tarot", painting, win)
+	else:
+		ci.draw_rect(win, cols[2])
+		ci.draw_texture_rect(emblem(key), Rect2(win.position + Vector2(1, 1), Vector2(16, 16)), false)
 	var head := heading(key)
 	PixelFont.draw(ci, head, Vector2(win.end.x + 4, r.position.y + 3), 1, Color(cols[1], 0.9), INK)
 	PixelFont.draw(ci, title, Vector2(win.end.x + 4, r.position.y + 13), 1, GOLD if selected else Color.WHITE, INK)
-	var cx := r.get_center().x
+	var cx := (win.end.x + r.end.x) / 2.0 if not painting.is_empty() else r.get_center().x
 	PixelFont.draw_centered(ci, effect, cx, r.position.y + 24, 1, Color("c9b8ff"), INK)
 	PixelFont.draw(ci, level_text, Vector2(r.end.x - 3 - PixelFont.text_width(level_text), r.position.y + 3), 1,
 		Color("5dff7a"), INK)
@@ -480,6 +494,55 @@ static func draw_back_icon(ci: CanvasItem, r: Rect2, accent: Color) -> void:
 	ci.draw_rect(Rect2(c.x - 1, c.y, 3, 1), Color("e8dcc0"))
 	ci.draw_rect(Rect2(c.x, c.y - 1, 1, 3), Color("e8dcc0"))
 	ci.draw_rect(Rect2(c.x, c.y, 1, 1), Color("7b4dff"))
+
+
+## The file name of the painted Major Arcana card for an upgrade key (its title, as a slug), or "" when the
+## upgrade has none or its file has not arrived.
+static func _painting(key: String) -> String:
+	if not ARCANA.has(key):
+		return ""
+	var slug := Art.slug(ARCANA[key][1])
+	return slug if Art.has("cards/tarot", slug) else ""
+
+
+## The inside of a card whose art is the owner's painting (the paintings carry no text): the picture (numeral
+## painted in) fills the frame and the title, effect and level sit on a dark plate over its lower part.
+static func _draw_painted(ci: CanvasItem, r: Rect2, key: String, painting: String, title: String, effect: String,
+		level_text: String, selected: bool) -> void:
+	var cols := _frame_colors(key)
+	var inner := r.grow(-4)
+	ci.draw_rect(inner, cols[2])
+	Art.draw(ci, "cards/tarot", painting, inner)
+	var cx := r.get_center().x
+	var lines := _lines(effect, inner.size.x - 6.0)
+	var plate_h := 14.0 + lines.size() * 10.0 + (11.0 if not level_text.is_empty() else 0.0)
+	var plate := Rect2(inner.position.x, inner.end.y - plate_h, inner.size.x, plate_h)
+	ci.draw_rect(plate, Color(INK, 0.86))
+	ci.draw_rect(Rect2(plate.position, Vector2(plate.size.x, 1)), Color(cols[1], 0.7))
+	var name := title if PixelFont.text_width(title) <= inner.size.x - 4.0 else title.trim_prefix("THE ")
+	PixelFont.draw_centered(ci, name, cx, plate.position.y + 3, 1, GOLD if selected else Color.WHITE, INK)
+	var y := plate.position.y + 14.0
+	for line: String in lines:
+		PixelFont.draw_centered(ci, line, cx, y, 1, Color("d8cff0"), INK)
+		y += 10.0
+	if not level_text.is_empty():
+		PixelFont.draw_centered(ci, level_text, cx, y, 1, Color("5dff7a"), INK)
+
+
+## `text` broken into lines that fit `width`.
+static func _lines(text: String, width: float) -> Array[String]:
+	var out: Array[String] = []
+	var line := ""
+	for word: String in text.split(" "):
+		var trial := word if line.is_empty() else line + " " + word
+		if PixelFont.text_width(trial) > width and not line.is_empty():
+			out.append(line)
+			line = word
+		else:
+			line = trial
+	if not line.is_empty():
+		out.append(line)
+	return out
 
 
 static func _box(ci: CanvasItem, r: Rect2, c: Color) -> void:

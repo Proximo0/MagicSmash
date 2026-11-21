@@ -47,7 +47,7 @@ static func earned(record: Results, won: bool, seconds: float) -> Array:
 	var party: int = record.stats.size()
 	var deaths: float = 0.0
 	for s: int in record.stats:
-		deaths += record.stat(s, "deaths")
+		deaths += record.stat(s, "deaths") + record.stat(s, "downs") # a fall that was raised still breaks FLAWLESS
 	var kinds := {}
 	var best_combo: int = 0
 	var best_tier: int = 0

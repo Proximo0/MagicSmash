@@ -3,6 +3,17 @@ extends RefCounted
 ## Arena: clock, chest and card reveals, shrines, bets and fate cards, banners and the act card.
 ## Static helpers: `a` is the Arena that owns the state.
 
+## The picture of a boss that slides in at the right edge, under the banner, when he arrives (the Archlich's portrait,
+## the Lich's card). The banner names him; `who` is kept for callers.
+const ARRIVE_SECS := 2.5
+const ARRIVE_SLIDE := 0.4
+const ARRIVE_PIC := Vector2i(80, 120)
+## Just under the banner band (y 88 to 132), so the banner is never covered.
+const ARRIVE_Y := 134.0
+## The arrival on show: {group, key, name, color, t0}, empty when none.
+static var _arrive := {}
+
+
 ## Run time as M:SS.
 static func _clock(secs: float) -> String:
 	var t := int(secs)
@@ -275,3 +286,40 @@ static func _draw_act_card(a: Arena, ci: CanvasItem, k: float, slide: float) -> 
 	PixelFont.draw_centered(ci, a.banner.sub, 240, band.position.y + 50, 1, Color("fff6e0"), Occult.INK)
 	Occult.candle(ci, Vector2(band.position.x + 14, band.end.y - 4), a.time, 0.0, 9)
 	Occult.candle(ci, Vector2(band.end.x - 14, band.end.y - 4), a.time, 3.0, 9)
+
+
+## A boss arrives: his picture and name slide in at the right edge for ARRIVE_SECS, then out. Play never waits.
+static func _arrival(a: Arena, group: String, key: String, who: String, color: Color) -> void:
+	_arrive = {"group": group, "key": key, "name": who, "color": color, "t0": a.time}
+
+
+## Where the arrival's panel is right now (name plate and picture), or an empty rect when none shows.
+static func _arrival_rect(a: Arena) -> Rect2:
+	if _arrive.is_empty():
+		return Rect2()
+	var k: float = a.time - float(_arrive.t0)
+	if k < 0.0 or k > ARRIVE_SECS or not Art.has(_arrive.group, _arrive.key):
+		return Rect2()
+	var slide := 1.0
+	if k < ARRIVE_SLIDE:
+		slide = k / ARRIVE_SLIDE
+	elif k > ARRIVE_SECS - ARRIVE_SLIDE:
+		slide = (ARRIVE_SECS - k) / ARRIVE_SLIDE
+	slide = 1.0 - pow(1.0 - clampf(slide, 0.0, 1.0), 3.0)
+	var size := Vector2(ARRIVE_PIC.x + 2, ARRIVE_PIC.y + 2)
+	return Rect2(Vector2(lerpf(480.0, 480.0 - size.x - 1.0, slide), ARRIVE_Y), size)
+
+
+static func _draw_arrival(a: Arena, ci: CanvasItem, dark: Color) -> void:
+	if not _arrive.is_empty() and a.banner.t > 0.0 and a.banner.act != "":
+		_arrive.t0 = a.time # the act card is up: the picture waits for it to end
+		return
+	var box := _arrival_rect(a)
+	if box.size.x <= 0.0:
+		return
+	var col: Color = _arrive.color
+	var pic := Rect2(box.position + Vector2(1, 1), Vector2(ARRIVE_PIC))
+	ci.draw_rect(box, col)
+	ci.draw_rect(box.grow(-1), dark)
+	Art.draw(ci, _arrive.group, _arrive.key, pic)
+	ci.draw_rect(pic.grow(1), col, false, 1.0)

@@ -33,10 +33,19 @@ var net := ""
 ## marker shows), tray.png (two trays open at once, or one with more draws waiting behind it), lull.png (a lull
 ## 3.6 s in, its banner up), lull_end.png (the lull over, "THE HORDE RETURNS" up). Each keys on what the arena
 ## shows, held for LEVEL_SHOT_AFTER seconds.
-var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_end": 0.0}
+var _level_seen := {"levelup": 0.0, "tab": 0.0, "tray": 0.0, "lull": 0.0, "lull_end": 0.0, "arrival": 0.0}
 var _level_shots := {}
-const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5} # tab: its marker
+const LEVEL_SHOT_AFTER := {"levelup": 0.4, "tab": 0.75, "tray": 0.4, "lull": 3.6, "lull_end": 0.5, "arrival": 0.9} # tab: its marker
+var hand: Array[int] = [] # --hand=quick,magnet,nova: every wizard's offered cards are replaced by these (art shots)
+var _hand_offer := {}
+var lull_hold := false # --lull: keeps the post-Lich lull running (art shots of the big hand)
 var pick_hold := 0.0 # --pick-hold=SECONDS: the bot in slot 0 holds its pick that long
+## --fall=SECONDS (2+ players): at that run time slot 1 falls; fallen.png shows her spirit with its clock running,
+## fallen_call.png her call's ping, then slot 0 is held in her circle and fallen_ritual.png shows the circle about
+## half filled (HUD: DOWN).
+var fall_at := -1.0
+var _fall_step := 0
+var _fall_t := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -62,6 +71,15 @@ func _ready() -> void:
 			_quit_override = float(a.substr(7))
 		if a.begins_with("--wizard="):
 			wizard_steps = int(a.substr(9))
+		if a.begins_with("--fall="):
+			fall_at = float(a.substr(7))
+		if a == "--lull":
+			lull_hold = true
+		if a.begins_with("--hand="):
+			for k: String in a.substr(7).split(","):
+				for i: int in range(Upgrades.count()):
+					if Upgrades.key(i) == k:
+						hand.append(i)
 		if a.begins_with("--pick-hold="):
 			pick_hold = float(a.substr(12))
 		if a.begins_with("--players="):
@@ -109,12 +127,23 @@ func _process(delta: float) -> void:
 	if perf:
 		_perf_tick()
 	var cur = G.main.current if G.main else null
+	if lull_hold and cur and "world" in cur and cur.world:
+		cur.world.lull_left = 20.0
+		for lp: World.Player in cur.world.players.values():
+			if lp.choices.is_empty() and lp.pending < 1:
+				lp.pending = 1
+	if not hand.is_empty() and cur and "world" in cur and cur.world:
+		for p: World.Player in cur.world.players.values():
+			if not p.choices.is_empty() and _hand_offer.get(p.slot, -1) != p.offer:
+				_hand_offer[p.slot] = p.offer
+				p.choices = hand.duplicate()
 	# State-keyed shots of the level-up cards and the lull (_level_shot below).
 	if cur and "lull_left" in cur:
 		_level_shot("levelup", delta, _any_tray(cur, false), false)
 		_level_shot("tab", delta, _any_tab(cur), false)
 		_level_shot("tray", delta, _any_tray(cur, true), false)
 		_level_shot("lull", delta, cur.lull_left > 0.0, false)
+		_level_shot("arrival", delta, ArenaFateView._arrival_rect(cur).position.x < 400.0 and ArenaFateView._arrival_rect(cur).size.x > 0.0, false)
 		_level_shot("lull_end", delta, cur.banner.t > 0.0 and cur.banner.text == "THE HORDE RETURNS", false)
 	# State-keyed shot: the first chest reel, just after it stops on the item.
 	if not _chest_shot and cur and "_reveals" in cur:
@@ -168,6 +197,8 @@ func _process(delta: float) -> void:
 			cur.world.won = true
 			cur.world.emit(World.EV_VICTORY, 240, 140, 0, 0)
 		cur.world._end_run()
+	if fall_at > 0.0 and cur and "world" in cur and cur.world:
+		_fall_tick(cur)
 	if perf and _perf_frames.size() >= PERF_FRAMES:
 		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
@@ -326,3 +357,45 @@ func _perf_tick() -> void:
 		print("PERF %-14s %6.2f ms/frame" % [k, ms])
 	print("PERF %-14s %6.2f ms/frame" % ["total_script", total])
 	get_tree().quit()
+
+
+## --fall: slot 1 falls at fall_at s of run time and calls for help at once (as her nova would); shots of the call's
+## ping, of her spirit (clock running) and of a ritual about half done. Bots may raise her before the last one.
+func _fall_tick(cur: Node) -> void:
+	var w: World = cur.world
+	if not w.players.has(1) or w.players.size() < 2:
+		return
+	var p: World.Player = w.players[1]
+	match _fall_step:
+		0:
+			if w.wave_time >= fall_at and p.alive and not w.is_picking():
+				p.invuln = 0.0
+				w.hurt_player(p, 99)
+				if p.down:
+					w.emit(World.EV_CALL, p.pos.x, p.pos.y, p.slot, 0)
+					_fall_step = 1
+					_fall_t = t
+		1:
+			if t - _fall_t > 0.3:
+				_fall_shot("fallen_call")
+				_fall_step = 2
+		2:
+			if t - _fall_t > 0.8:
+				_fall_shot("fallen")
+				_fall_step = 3
+		3:
+			if not p.down:
+				print("fallen_ritual: she rose before the shot")
+				_fall_step = 4
+				return
+			var q: World.Player = w.players[0]
+			q.pos = p.pos + Vector2(4, 3)
+			q.invuln = maxf(q.invuln, 0.5)
+			if p.revive >= 0.45:
+				_fall_shot("fallen_ritual")
+				_fall_step = 4
+
+
+func _fall_shot(name: String) -> void:
+	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out_dir, name])
+	print("shot ", name)

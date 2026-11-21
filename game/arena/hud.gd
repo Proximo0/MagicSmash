@@ -97,18 +97,33 @@ static func _draw_hud(a: Arena) -> void:
 
 
 ## A seat's vitals in its panel (content from `x`): hearts, lives (small hats) and nova charges (stars) on the
-## second row, and "..." on the third while the wizard waits to respawn.
-static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary, _dark: Color) -> void:
+## second row, and "..." on the third while the wizard waits to respawn. A fallen wizard's hearts give way to DOWN
+## and the seconds until she gets up by herself (none on her last life), over a bar of the ritual's progress; her
+## call's arrow at the screen's edge is drawn from here too.
+static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary, dark: Color) -> void:
 	var col := G.player_color(slot)
-	var mh: int = p.get("max_hp", World.BASE_HEARTS)
-	var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
-	for h in mh:
-		_heart(a, ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
+	if p.get("down", false):
+		var left: float = p.get("down_left", -1.0)
+		var blink := int(a.time * 2.0) % 2 == 0
+		# Row two is 8 px tall between the score and the third row: the 7 px text fits only without an outline.
+		PixelFont.draw(ci, "DOWN", Vector2(x, 9), 1, Color("ff6a4d") if blink else Color("fff6e0"))
+		if left > 0.0:
+			PixelFont.draw(ci, "%d" % ceili(left), Vector2(x + 24, 9), 1, col.lerp(Color.WHITE, 0.5)) # ends 3 px before the hats at x + 38
+		var prog := clampf(float(p.get("revive", 0.0)), 0.0, 1.0)
+		if prog > 0.0:
+			ci.draw_rect(Rect2(x, 16, 23, 1), Color(dark, 1.0).lightened(0.15))
+			ci.draw_rect(Rect2(x, 16, 23 * prog, 1), col.lerp(Color.WHITE, 0.4))
+		ArenaDrawFallen.call_arrow(a, ci, slot)
+	else:
+		var mh: int = p.get("max_hp", World.BASE_HEARTS)
+		var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
+		for h in mh:
+			_heart(a, ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
 	for l in mini(p.lives, 5):
 		_hat(a, ci, Vector2(x + 38 + l * 6, 10), col)
 	for b in mini(p.bombs, 4):
 		_star(a, ci, Vector2(x + 72 + b * 7, 10))
-	if not p.alive and p.lives > 0:
+	if not p.alive and not p.get("down", false) and p.lives > 0:
 		PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
 
 
