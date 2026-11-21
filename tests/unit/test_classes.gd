@@ -341,3 +341,16 @@ func test_paladin_aura_wards_heroes_near() -> void:
 		if mage.hp == hp:
 			blocked += 1
 	assert_eq(blocked, 0, "out of the aura, a wizard with no hero has no WARD")
+
+
+func test_the_elf_pulls_gems_from_farther() -> void:
+	var w := _world([Classes.MAGE, Classes.MAGE])
+	var elf: World.Player = w.players[1]
+	w.apply_hero(elf, _hero(Races.ELF, Classes.MAGE))
+	var who: Array[World.Player] = []
+	var reach := PackedFloat64Array()
+	WorldDrops._magnets(w, who, reach)
+	var base: float = w.tune.xp_magnet_radius
+	assert_near(reach[who.find(w.players[0])], base * Upgrades.magnet_mul(w.players[0].upgrades), 0.001)
+	assert_near(reach[who.find(elf)], base * Upgrades.magnet_mul(elf.upgrades) * elf.reach_mul, 0.001)
+	assert_true(elf.reach_mul > 1.0)

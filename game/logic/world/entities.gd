@@ -65,7 +65,7 @@ class Player:
 	var fury := 0.0 # race trait: damage share added at Races.FURY_HEARTS hearts or fewer
 	var reach_mul := 1.0 # race trait: XP magnet reach
 	var knock_mul := 1.0 # race trait: share of a push taken (nothing pushes a wizard yet)
-	var luck := 0.0 # FORTUNE's chest luck (read by nothing yet: chests are opened in WorldDrops)
+	var luck := 0.0 # FORTUNE's chest luck (WorldDrops._open_chest)
 
 class Enemy:
 	var id := 0
