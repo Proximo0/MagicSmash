@@ -3,7 +3,7 @@ extends "res://tests/sim/sim_base.gd"
 ## deterministic. Pure logic, so it runs far faster than real time.
 
 const SEED: int = 7
-const MINUTES: float = 3.0
+const MINUTES: float = 4.0
 const MIN_WAVE: int = 3
 ## The party should level up this many times in the run, and bots take their cards at once (the world never
 ## waits for them, so a bot sitting on cards would only be a bot playing without its upgrades).

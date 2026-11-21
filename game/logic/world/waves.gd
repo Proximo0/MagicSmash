@@ -258,6 +258,13 @@ static func _process_spawns(w: World) -> void:
 			Bosses._make_final(w, e)
 
 
+## The health multiplier of a horde enemy spawned this minute: the flat lever, a little per minute, compound growth
+## per minute and a share per extra wizard.
+static func _hp_scale(w: World) -> float:
+	return w.tune.enemy_hp_mul * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)) * pow(w.tune.enemy_hp_growth, w.wave - 1) \
+		* (1.0 + w.tune.enemy_hp_per_player * (w.players.size() - 1))
+
+
 static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> World.Enemy:
 	var e := World.Enemy.new()
 	e.id = w.next_id
@@ -265,15 +272,14 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 	e.type = type
 	var st: Array = Bestiary.KINDS[type]
 	e.flags = st[Bestiary.K_FLAGS]
-	var hp_scale := 1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)
 	if e.flags & Bestiary.F_BOSS:
 		e.hp = Bosses.health_in(w, type)
 	else:
-		e.hp = st[Bestiary.K_HP] * hp_scale
+		e.hp = st[Bestiary.K_HP] * _hp_scale(w)
 	e.maxhp = e.hp
 	e.spd = st[Bestiary.K_SPD]
 	if not e.flags & Bestiary.F_FIXED_SPEED:
-		e.spd *= 1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap)
+		e.spd *= w.tune.enemy_speed_mul * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
 	e.r = st[Bestiary.K_R]
 	e.contact = st[Bestiary.K_CONTACT]
 	e.t = w.rng.randf() * 10.0

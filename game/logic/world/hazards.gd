@@ -79,7 +79,7 @@ static func _fire(w: World, h: Hazards.Hazard) -> void:
 	var row: Array = Hazards.KINDS[h.kind]
 	match int(row[Hazards.K_ON_HOT]):
 		Hazards.ON_BLAST:
-			var dmg: float = float(row[Hazards.K_FOE_DMG]) * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1))
+			var dmg: float = float(row[Hazards.K_FOE_DMG]) * WorldWaves._hp_scale(w)
 			for e: World.Enemy in w._query(h.a, h.r + World.CELL):
 				if e.dead or e.id == h.owner or (h.boss and e.flags & Bestiary.F_BOSS):
 					continue # a blast spares its maker, and a boss's blast spares the bosses

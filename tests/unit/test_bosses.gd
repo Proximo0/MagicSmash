@@ -25,7 +25,7 @@ func test_health_grows_with_the_party_and_each_visit() -> void:
 	for n: int in range(1, 5):
 		assert_near(Bosses.health(World.LICH, 6, n, 1.0, 0.0), hp * Bosses.PARTY_HP[n - 1], 0.001)
 	assert_near(Bosses.health(World.LICH, 11, 1, 1.0, 0.0), hp * (1.0 + Bosses.CYCLE_HP), 0.001, "second visit")
-	assert_near(Bosses.health(World.LICH, 6, 2, 1.5, 0.06), hp * 1.6 * 1.5 * 0.94, 0.001, "seal and wounds")
+	assert_near(Bosses.health(World.LICH, 6, 2, 1.5, 0.06), hp * Bosses.PARTY_HP[1] * 1.5 * 0.94, 0.001, "seal and wounds")
 	assert_near(Bosses.health(Bestiary.CHANDELIER, 6, 1, 1.0, 0.0), 240.0, 0.001)
 
 
@@ -47,7 +47,7 @@ func test_world_spawns_and_kills_a_boss_through_bosses() -> void:
 	w.phase = World.PH_FIGHT
 	var e: World.Enemy = w._spawn_boss(World.LICH, false)
 	assert_true(w.boss == e)
-	assert_near(e.maxhp, Bosses.health(World.LICH, 1, 2, 1.0, 0.0), 0.001)
+	assert_near(e.maxhp, Bosses.health(World.LICH, 1, 2, 1.0, 0.0) * w.tune.boss_hp_mul, 0.001)
 	w.spawn_enemy(World.GOBLIN, 0, Vector2(200, 200))
 	w._kill_enemy(e, 0)
 	assert_true(w.boss == null, "the boss stayed")
@@ -109,7 +109,7 @@ func test_a_non_lich_boss_end_to_end() -> void:
 	var e: World.Enemy = w._spawn_boss(Bestiary.CHANDELIER, false)
 	assert_true(w.boss == e)
 	assert_near(e.maxhp, Bosses.health_in(w, Bestiary.CHANDELIER), 0.001)
-	assert_near(e.maxhp, 240.0 * Bosses.PARTY_HP[2], 0.001, "first visit, three wizards")
+	assert_near(e.maxhp, 240.0 * Bosses.PARTY_HP[2] * w.tune.boss_hp_mul, 0.001, "first visit, three wizards")
 	assert_near(e.spd, float(Bestiary.KINDS[Bestiary.CHANDELIER][Bestiary.K_SPD]), 0.001, "a fixed speed")
 	var p0: World.Player = w.players[0]
 	var d0 := e.pos.distance_to(p0.pos)
