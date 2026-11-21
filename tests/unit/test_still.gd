@@ -15,11 +15,13 @@ func _drop(files: Array) -> void:
 		img.fill(Color(0.8, 0.2, 0.2, 1.0))
 		img.save_png(p)
 	Art.drop_root = _dir
+	Art.drop_only = true
 	Art.forget()
 
 
 func _clear() -> void:
 	Art.drop_root = ""
+	Art.drop_only = false
 	Art.forget()
 	for f: Array in Art.listed(_dir):
 		DirAccess.remove_absolute("%s%s/%s.png" % [_dir, f[0], f[1]])
@@ -59,6 +61,7 @@ func test_every_stand_in_and_boss_has_a_name() -> void:
 
 
 func test_hero_falls_back_apprentice_then_class_then_code() -> void:
+	_drop([])
 	assert_eq(Still.hero_name(Classes.MAGE, true), "")
 	assert_eq(Still.hero_name(Classes.MAGE, false), "")
 	_drop(["sprites/hero_mage.png"])
@@ -86,13 +89,15 @@ func test_hero_shows_her_race_and_class_picture_before_her_class_picture() -> vo
 
 
 func test_enemy_name_and_archlich() -> void:
-	assert_eq(Still.enemy_name(Bestiary.BLOAT), "")
-	_drop(["sprites/enemy_bloat.png", "sprites/enemy_lich.png", "sprites/boss_chandelier.png"])
-	assert_eq(Still.enemy_name(Bestiary.BLOAT), "enemy_bloat")
+	# Kinds the project holds no picture for (the code draws them), so the drop-in folder decides.
+	_drop([])
+	assert_eq(Still.enemy_name(Bestiary.GOBLIN), "")
+	_drop(["sprites/enemy_goblin.png", "sprites/enemy_lich.png", "sprites/boss_chandelier.png"])
+	assert_eq(Still.enemy_name(Bestiary.GOBLIN), "enemy_goblin")
 	assert_eq(Still.enemy_name(Bestiary.CHANDELIER), "boss_chandelier")
 	assert_eq(Still.enemy_name(Bestiary.LICH, false), "enemy_lich")
 	assert_eq(Still.enemy_name(Bestiary.LICH, true), "") # the Archlich has its own picture
-	assert_eq(Still.enemy_name(Bestiary.GHOSTWRITER), "")
+	assert_eq(Still.enemy_name(Bestiary.SKELETON), "")
 	_clear()
 
 
@@ -104,8 +109,11 @@ func test_a_missing_file_draws_nothing_and_says_so() -> void:
 	assert_false(Still.draw_scene(n, "nobody"))
 	assert_eq(Still.icon("spell_nobody", 8), null)
 	assert_eq(Still.icon("", 8), null)
-	assert_false(EnemyView.draw_still(n, {"type": Bestiary.BLOAT, "elite": false, "flip": false, "t": 0.0}, Vector2.ZERO, false,
-		Color.WHITE, 0.0))
+	for kind: int in Bestiary.count(): # any kind whose picture has not arrived yet
+		if not Still.has(Still.enemy_name(kind)):
+			assert_false(EnemyView.draw_still(n, {"type": kind, "elite": false, "flip": false, "t": 0.0}, Vector2.ZERO,
+				false, Color.WHITE, 0.0))
+			break
 	n.free()
 
 

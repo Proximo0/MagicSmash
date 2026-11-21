@@ -33,8 +33,8 @@ Files are PNG, for example `art/cards/monsters/goblin.png`.
 - **Figures** are drawn at the picture's own pixel size, bottom centre on the figure's ground point, mirrored when it
   faces left, and moved by code: a small bob and lean while it walks, a slow breath when it stands. The hit flash
   (a white copy of the picture), an elite's gold tint and a boss's poses (shakes, tints, lift) all stay. Draw it
-  facing right, feet at the bottom edge of the picture, no shadow. For the size, the code sprites are a guide: a wizard
-  about 14 x 20, a goblin 12 x 14, the bosses 48 x 40 and 34 x 30. A hero keeps her seat's pip and ring.
+  facing right, feet at the bottom edge of the picture, no shadow. For the size, the pictures in `assets/art/sprites/`
+  are the guide: a hero about 22 x 28, a small monster 14 x 18, a large one 20 x 27, the bosses 44 x 76 and 33 x 57. A hero keeps her seat's pip and ring.
 - **Icons** are reduced (never enlarged) to the size a place shows them: 8 px in a fight HUD spell slot, 6 px for a
   passive, 16 px on a level-up card, 14 px in the builder's lists, 12 px for a deed mark. Paint them 16 x 16.
   An evolved spell shows `evo_<key>`, else its spell's picture.
