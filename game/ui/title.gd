@@ -634,7 +634,7 @@ func _device_name(d: int) -> String:
 
 ## Lobby seat height and the Seal row under the seats.
 const LOBBY_SEAT_H := 56
-const LOBBY_PORTRAIT := 26
+const LOBBY_PORTRAIT := Vector2(24, 32)
 const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
 var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
 var seal_view := 0 # the step the row shows; Net.seal unless player 1 has browsed onto a locked one
@@ -730,19 +730,20 @@ func _draw_seat_hero(ci: CanvasItem, r: Rect2, entry: Dictionary, wiz: int) -> v
 	var h := Hero.from_dict(hd) if not hd.is_empty() else Hero.new()
 	var fx: Color = Sprites.PLAYER_COLORS[wiz].fx
 	PixelFont.draw_centered(ci, h.name, r.position.x + 55, r.position.y + 4, 1, fx)
-	var pr := Rect2(r.position + Vector2(4, 14), Vector2(LOBBY_PORTRAIT, LOBBY_PORTRAIT))
+	var pr := Rect2(r.position + Vector2(4, 13), LOBBY_PORTRAIT)
 	ci.draw_rect(pr.grow(1), Color(fx, 0.8))
 	ci.draw_rect(pr, Color("0e0a14"))
 	if not Art.draw(ci, "portraits/heroes", "hero_%s_%s" % [Races.key(h.race), Classes.key(h.cls)], pr):
 		DialogueBox.draw_stand_in(ci, pr, "")
-	var tx := pr.end.x + 5
-	PixelFont.draw(ci, Races.race_name(h.race), Vector2(tx, r.position.y + 15), 1, Color("e8dcc0"))
-	PixelFont.draw(ci, Classes.class_name_of(h.cls), Vector2(tx, r.position.y + 23), 1, Color("e8dcc0"))
-	PixelFont.draw(ci, "LV %d" % h.level, Vector2(tx, r.position.y + 31), 1, Color("ffd94d"))
-	PixelFont.draw_centered(ci, Classes.ROLE_NAMES[Classes.role(h.cls)], r.get_center().x, r.end.y - 14, 1, Color("c9b8ff"))
+	var tx := pr.end.x + 6
+	PixelFont.draw(ci, Races.race_name(h.race), Vector2(tx, r.position.y + 14), 1, Color("e8dcc0"))
+	PixelFont.draw(ci, Classes.class_name_of(h.cls), Vector2(tx, r.position.y + 22), 1, Color("e8dcc0"))
+	PixelFont.draw(ci, "LV %d" % h.level, Vector2(tx, r.position.y + 30), 1, Color("ffd94d"))
+	# The role's first word (TANK AND SUPPORT reads TANK here: the seat is narrow).
+	PixelFont.draw(ci, String(Classes.ROLE_NAMES[Classes.role(h.cls)]).get_slice(" ", 0), Vector2(tx, r.position.y + 38), 1, Color("c9b8ff"))
 	if entry.peer == Net.my_peer and int(t * 2) % 2 == 0:
-		PixelFont.draw(ci, "<", Vector2(r.position.x + 2, r.end.y - 14), 1, Color.WHITE)
-		PixelFont.draw(ci, ">", Vector2(r.end.x - 7, r.end.y - 14), 1, Color.WHITE)
+		PixelFont.draw(ci, "<", Vector2(r.position.x + 2, r.end.y - 8), 1, Color.WHITE)
+		PixelFont.draw(ci, ">", Vector2(r.end.x - 7, r.end.y - 8), 1, Color.WHITE)
 
 ## The row under the seats where player 1 picks the run's step on the difficulty ladder (Seals): its name, its
 ## rule, the crystal multiplier and the unclaimed first-win prize. Player 1 moves onto it with up/down and steps

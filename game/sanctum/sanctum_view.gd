@@ -106,6 +106,7 @@ func _process(delta: float) -> void:
 		fx.spawn(Vector2(_rng.randf_range(Sanctum.CRACK_X.x, Sanctum.CRACK_X.y), Sanctum.ROOM.position.y - 2),
 			Vector2(_rng.randf_range(-10, 10), 20), 0.6, 1.0, Color("8a7a9a"), Color("3b2c55"))
 		shake = maxf(shake, room.crack_t * 1.5)
+	glow.visible = not album_open and not roster_open # the room's light never shines through a full-screen page
 	queue_redraw()
 	glow.queue_redraw()
 
