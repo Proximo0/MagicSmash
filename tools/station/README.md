@@ -4,15 +4,17 @@ A station runs `tools/station/station.sh` with no Claude on it. On every new com
 pushes a few lines to the branch `station-results` (`<machine>.txt`). `tools/station/read.sh` prints them all and
 ends with `STATIONS n= failed= stale=`; a session reads that instead of running the jobs.
 
-## The relay (each stage waits for the one before it to PASS the same commit)
-| Stage | Machine | Command |
-|---|---|---|
-| 1 | Ubuntu HP ENVY | `station.sh --watch checks golden` |
-| 2 | Heatherspc | `station.sh --watch --after=<stage 1 name> boss` |
-| 3 | DESKTOP-BENMA68 laptop | `station.sh --watch --after=<stage 2 name> frames` |
-| 4 | MSI | `station.sh --watch --after=<stage 3 name> frames` |
+## Who runs what
+`tools/station/roles.txt` holds one line per machine (jobs, optional `--after=<station>` to wait for another station's
+PASS, optional `--p95=<ms>` frame limit). Stations run side by side and restart themselves when that file changes, so
+a new role is a commit. Start every station as `station.sh --watch <any job>`; the file wins.
 
-A failed stage stops the line: later stages report `STATION HELD`.
+| Machine | Job | Why |
+|---|---|---|
+| Ubuntu HP ENVY | `checks golden` | full check_all, did the game change |
+| MSI (fast, RTX 5050) | `boss frames` | five bot runs to the Archlich, frame time on real graphics |
+| DESKTOP-BENMA68 laptop (Radeon 610M) | `frames` | low-end frame time |
+| Heatherspc (Celeron, UHD 600) | `frames --p95=50` | floor frame time |
 
 ## Set up a station
 1. Git with a shell (Linux: any; Windows: full Git for Windows, whose Git Bash runs these scripts) and Godot 4.7.2;
