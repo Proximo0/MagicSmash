@@ -11,6 +11,8 @@ crate). `realm/store/check.sh` builds it, runs the tests and a short crash fuzz,
 - **SQLite** with WAL, `synchronous=FULL`, foreign keys on. One writer thread owns the write connection. Callers send
   commands through a channel and wait for the reply. A second, read-only connection serves reads. A reader sees
   every change whose reply has already been returned.
+- **A savepoint that fails.** If a command's savepoint cannot be rolled back or released, the writer rolls back
+  the whole batch and answers every command in it with `Db`, which is not recorded, so each one can be retried.
 - **Group commit.** The writer starts a transaction with whatever commands are queued (up to 512) and gives each one
   its own savepoint, so a command that fails rolls back alone. It commits once, and only then sends every reply.
   `Options::group_window` can make it wait for more commands after the first (the design said 20 ms). The default
@@ -59,9 +61,25 @@ containers (kind, owner); bank stacks belong to the account, not to a tab.
 
 `Store` (`src/lib.rs`): `submit(Request) -> Result<Reply>` and `submit_batch(Vec<Request>) -> Vec<Result<Reply>>`
 for changes, the reads below, and a typed method for each command. `Meta { id, actor, now }`: actor 0 is the server.
-For any other actor, the store checks that the account exists and is not banned (`Banned`) and that the actor owns
-what it touches (`NotYours`). Ownership: hero containers belong to the hero's account, bank and house to the
-account. A guild's membership is for the gateway to check. Anyone may send mail.
+For any other actor, the store checks that the account exists and is not banned (`Banned`).
+
+### Who may run what
+
+The rule: an account actor may only do what a player could do with its own things. Everything that creates value,
+removes someone else's, or changes standing belongs to the server (actor 0). The rule is one table,
+`ops::who_may(&Cmd) -> Who`, which has no wildcard, so a new command does not compile until it has a row. `apply`
+refuses a server-only command from an account with `NotYours` before doing anything else.
+
+| Who | Commands | What an account may touch |
+|---|---|---|
+| server only | account_by_steam, account_by_dev_name, apply_flags, clawback, grant_entitlement, mint, stack_credit, stack_debit, apply_outing, sell_item (the price is the server's), trade_commit (the gateway commits after both players confirm; the store cannot see consent) | nothing |
+| server, or the owner on its own things | hero_create, hero_rename, hero_delete, hero_undelete, hero_save, learn_page (its own page stack), move_item, socket, unsocket, stack_transfer | its own heroes; its own bags, worn gear, bank, house, and mail to its own heroes. Guild banks, market listings and trade sessions are the server's (membership lives in the gateway; job T1 will pass it in). In hero_save an account may not raise class_level or class_xp; it may respend points, choose a job, and set the deck and belt within the rules |
+
+`tests/auth.rs` walks every command three ways: as a player against another account's things (refused with
+NotYours, state unchanged), as the server (works), and as the owner on its own things (works exactly for the
+Owner rows). The test fails to compile if a command has no case. It also reproduces the four holes the review
+found: a one-sided trade, clawback, self-unlocking or banning with apply_flags, and self-granted entitlements.
+Each is now refused.
 
 | Operation | Signature | Errors besides Banned / NotYours / RequestMismatch / Db |
 |---|---|---|
@@ -147,7 +165,7 @@ Within one read transaction:
 
 ## Proof
 
-**Unit tests** (23, `cargo test`): every operation and each of its errors, idempotency of each (a repeat returns
+**Unit tests** (30, `cargo test`, 7 of them in `tests/auth.rs`): every operation and each of its errors, idempotency of each (a repeat returns
 the first reply and changes nothing; the same id with other arguments is refused; a failed request keeps its
 error), batches where one command fails alone, group commit from 12 threads, backup while writes continue and
 restore, migration from version 1 with data, and `verify` catching a coin from nowhere, an unledgered move and a
@@ -156,7 +174,8 @@ request applied twice.
 **Crash fuzz** (`realm-store fuzz --seed=N --ops=N --kills=N`). A seeded stream: 60 accounts, 20 hero-slot
 purchases, 200 heroes, then random outing deltas, mints, moves, sells, sockets, unsockets, stack credits, debits
 and transfers, trades, saves, renames, deletes and undeletes, entitlements, flag waves, clawbacks (some from
-`clawback_plan`), learned pages, players acting on things that are not theirs, and repeats of old request ids (4%).
+`clawback_plan`), learned pages, players acting on things that are not theirs, and repeats of old request ids (4%). Server-only
+commands go as actor 0, except 3% of them, which go as a random player and must come back NotYours (or Banned).
 It runs in batches of 1 to 8 requests per transaction through child processes. Each child is armed to `abort()` at
 the Nth pass of one site: between statements, inside a statement (progress handler), inside the commit (commit
 hook, before the WAL write), before COMMIT, or after COMMIT before the reply. The parent learns each site's rate
@@ -172,6 +191,7 @@ passes, so a run repeats exactly.
 | seed 2026, 100,000 ops, 300 kills | ok in 128 s: kills by site stmt 87, progress 71, commit 41, aftercommit 47, beforecommit 54; 302 children, 302 verifies; 95,974 distinct requests acknowledged (24,027 of them domain errors); 300 batches resubmitted, 287 requests of them already committed before the kill and answered from the record; final 21,926 items, 7,829 stacks, 163,302 ledger rows |
 | the same again | identical: digest 2d7dcb4316164c56 both times |
 | check.sh: seed 7, 5,000 ops, 20 kills | ok in about 2 s (the whole check about 15 s) |
+| after the authorization fix: seed 2026, 20,000 ops, 60 kills | ok in 11 s, 19,228 requests acknowledged, 45 resubmitted requests already committed |
 
 The fuzz found nothing in the final code. To show it can catch a crash bug, a mutant that commits each change
 before writing its request record was caught on the first kill: "ledger rows of request ... with no request
@@ -211,7 +231,7 @@ is fast (0.3 ms for a whole command at one caller), so measure again on the host
 - An equip onto an occupied worn slot is `SlotTaken`; the client unequips first (two requests) or the gateway may
   want a swap operation.
 - Market listings and trade sessions exist as places, but nothing moves items into them yet (job E1). Guild
-  membership is not in the store; the gateway checks it.
+  membership is not in the store, so guild bank moves are server-only until T1 passes membership in.
 - Deleted heroes keep their items forever. A name frees 7 days after deletion, when another hero claims it.
 - The deck rule is ambiguous (rules section 5: "each even class level to 24 adds one" against section 9: "cards 13
   to 30 are found as pages"). The store owns cards 0 to 11, unlocks 12 to 23 at even levels 2 to 24, and owns any

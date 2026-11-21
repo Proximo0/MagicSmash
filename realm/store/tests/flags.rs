@@ -44,10 +44,10 @@ fn farm_trace_and_clawback() {
 	trade(&mut t, hf, vec![farm_items[3]], 100, hb[2], vec![]).unwrap();
 	// buyer 0 passes one farm item and coin onward, and an item of its own
 	trade(&mut t, hb[0], vec![farm_items[0], b0_own], 250, hc1, vec![]).unwrap();
-	// buyer 1 deposits into a guild bank; a guild mate takes it out
-	let m = t.by(buyers[1]);
+	// buyer 1 deposits into a guild bank; a guild mate takes it out (guild moves are the server's, for the gateway)
+	let m = t.m();
 	t.s.move_item(m, farm_items[2], Dest::any(PlaceKind::Guild, 7)).unwrap();
-	let m = t.by(c2);
+	let m = t.m();
 	t.s.move_item(m, farm_items[2], Dest::bag(hc2)).unwrap();
 	// the farm wears one, banks one, houses one, mails one to itself; the card goes into a worn item's socket
 	let m = t.m();

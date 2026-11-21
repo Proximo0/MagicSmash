@@ -270,12 +270,12 @@ impl<'c> Tx<'c> {
 		Ok(())
 	}
 
-	/// The actor may take from (or put into) this party's holdings. Guild membership is the gateway's to check.
+	/// The actor may take from (or put into) this party's holdings. An account touches only its own; guild banks,
+	/// listings and trade sessions are the server's (guild membership lives in the gateway).
 	fn may_touch(&self, p: Party, what: &str) -> Result<()> {
 		match p {
 			Party::Account(a) => self.mine(a, what),
-			Party::Guild(_) => Ok(()),
-			Party::Market(_) | Party::Trade(_) => {
+			Party::Guild(_) | Party::Market(_) | Party::Trade(_) => {
 				if self.req.actor != 0 {
 					Err(Error::NotYours(what.to_string()))
 				} else {
@@ -681,8 +681,47 @@ fn card_owned(t: &Tx, account: AccountId, level: u16, card: u16) -> Result<bool>
 }
 
 /// Applies one command. The caller wraps it in a savepoint.
+/// Who may run a command.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Who {
+	/// actor 0 only: it creates value, removes someone else's, or changes standing
+	Server,
+	/// the server, or an account acting on its own things (checked by each operation)
+	Owner,
+}
+
+/// The one table of who may run what. No wildcard: a new command must be placed here to compile.
+pub fn who_may(c: &Cmd) -> Who {
+	match c {
+		Cmd::AccountBySteam { .. } => Who::Server,
+		Cmd::AccountByDevName { .. } => Who::Server,
+		Cmd::ApplyFlags { .. } => Who::Server,
+		Cmd::Clawback { .. } => Who::Server,
+		Cmd::GrantEntitlement { .. } => Who::Server,
+		Cmd::Mint { .. } => Who::Server,
+		Cmd::StackCredit { .. } => Who::Server,
+		Cmd::StackDebit { .. } => Who::Server,
+		Cmd::Outing { .. } => Who::Server,
+		Cmd::SellItem { .. } => Who::Server,
+		Cmd::Trade { .. } => Who::Server,
+		Cmd::HeroCreate { .. } => Who::Owner,
+		Cmd::HeroRename { .. } => Who::Owner,
+		Cmd::HeroDelete { .. } => Who::Owner,
+		Cmd::HeroUndelete { .. } => Who::Owner,
+		Cmd::HeroSave { .. } => Who::Owner,
+		Cmd::LearnPage { .. } => Who::Owner,
+		Cmd::MoveItem { .. } => Who::Owner,
+		Cmd::Socket { .. } => Who::Owner,
+		Cmd::Unsocket { .. } => Who::Owner,
+		Cmd::StackTransfer { .. } => Who::Owner,
+	}
+}
+
 pub fn apply(t: &mut Tx) -> Result<Reply> {
 	t.check_actor()?;
+	if t.req.actor != 0 && who_may(&t.req.cmd) == Who::Server {
+		return Err(Error::NotYours(format!("{} is the server's", t.req.cmd.name())));
+	}
 	let req = t.req;
 	let now = req.now;
 	match &req.cmd {
@@ -824,6 +863,10 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			if (p.class_xp as i128) < xp as i128 {
 				return Err(inv("class xp never goes down"));
 			}
+			// only the server applies progress: an account may respend points, pick a job, set deck and belt
+			if t.req.actor != 0 && (p.class_level != lvl || p.class_xp as i128 != xp as i128) {
+				return Err(Error::NotYours("class level and xp are the server's".into()));
+			}
 			let spent: u32 = p.stats.iter().map(|s| *s as u32).sum::<u32>() + p.unspent as u32;
 			if spent != p.class_level as u32 - 1 {
 				return Err(inv(format!("stat points {spent} != level - 1")));
@@ -922,10 +965,8 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			if p == it.place {
 				return Err(inv("item is already there"));
 			}
-			// anyone may send mail; other destinations must be the actor's own (or a guild's)
-			if to.kind != PlaceKind::Mail {
-				t.may_touch(to_party, "destination")?;
-			}
+			// an account puts things only in its own places (mail to its own heroes); the server may send anywhere
+			t.may_touch(to_party, "destination")?;
 			t.check_flow(from_party, to_party)?;
 			t.set_place(it.id, &p)?;
 			t.move_row("MOVE", &it, from_party, &p, to_party)?;
@@ -1032,9 +1073,7 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			let fp = t.stack_owner(from)?;
 			t.may_touch(fp, "stack owner")?;
 			let tp = t.stack_owner(to)?;
-			if to.kind != PlaceKind::Mail {
-				t.may_touch(tp, "destination")?;
-			}
+			t.may_touch(tp, "destination")?;
 			t.check_flow(fp, tp)?;
 			let n = t.stack_sub(from, *kind, *count)?;
 			t.stack_add(to, *kind, *count)?;
@@ -1177,9 +1216,6 @@ fn trade(t: &mut Tx, a: &TradeSide, b: &TradeSide) -> Result<Reply> {
 	}
 	let ha = t.live_hero(a.hero)?;
 	let hb = t.live_hero(b.hero)?;
-	if t.req.actor != 0 && t.req.actor != ha.account && t.req.actor != hb.account {
-		return Err(Error::NotYours("trade".into()));
-	}
 	let pa = Party::Account(ha.account);
 	let pb = Party::Account(hb.account);
 	t.check_flow(pa, pb)?;

@@ -15,6 +15,7 @@ pub mod sqlite;
 pub mod types;
 
 pub use codec::trade_request_id;
+pub use ops::{Who, who_may};
 pub use sqlite::{Options, SqliteStore, backup_file, restore_file};
 pub use types::*;
 

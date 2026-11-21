@@ -286,10 +286,14 @@ fn moves() {
 	let m = t.by(a);
 	assert_eq!(t.s.move_item(m, k, Dest::any(PlaceKind::House, a)).unwrap().kind, PlaceKind::House);
 	let m = t.by(a);
+	assert!(matches!(t.s.move_item(m, k, Dest::any(PlaceKind::Guild, 9)), Err(Error::NotYours(_))), "guild banks are the server's");
+	let m = t.m();
 	assert_eq!(t.s.move_item(m, k, Dest::any(PlaceKind::Guild, 9)).unwrap().kind, PlaceKind::Guild);
+	let m = t.m();
+	assert_eq!(t.s.move_item(m, k, Dest::bag(g)).unwrap().owner, g, "guild member takes it out, through the server");
 	let m = t.by(b);
-	assert_eq!(t.s.move_item(m, k, Dest::bag(g)).unwrap().owner, g, "guild member takes it out");
-	let m = t.by(b);
+	assert!(matches!(t.s.move_item(m, k, Dest::any(PlaceKind::Mail, h2)), Err(Error::NotYours(_))), "a player mails only its own heroes");
+	let m = t.m();
 	assert_eq!(t.s.move_item(m, k, Dest::any(PlaceKind::Mail, h2)).unwrap().kind, PlaceKind::Mail);
 	// not yours
 	let m = t.by(b);

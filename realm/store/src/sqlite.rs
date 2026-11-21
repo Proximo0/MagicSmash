@@ -80,6 +80,8 @@ pub fn open_reader(path: &Path) -> Result<Connection> {
 struct Writer {
 	c: Connection,
 	seq: i64,
+	/// a savepoint could not be undone or released: the batch's transaction must not commit
+	poisoned: bool,
 }
 
 impl Writer {
@@ -107,8 +109,12 @@ impl Writer {
 			Err(e) => e.is_recorded(),
 		};
 		let mut last = first - 1;
-		if r.is_err() {
-			self.c.execute_batch("ROLLBACK TO cmd")?;
+		if let Err(e) = &r {
+			if let Err(rb) = self.c.execute_batch("ROLLBACK TO cmd") {
+				let _ = self.c.execute_batch("RELEASE cmd");
+				self.poisoned = true;
+				return Err(Error::Db(format!("rollback after {e}: {rb}")));
+			}
 		} else {
 			last = after - 1;
 		}
@@ -120,11 +126,18 @@ impl Writer {
 				)
 				.and_then(|mut s| s.execute(params![&key[..], args, req.cmd.name(), encode_result(&r), first, last, req.now]));
 			if let Err(e) = ins {
-				self.c.execute_batch("ROLLBACK TO cmd; RELEASE cmd")?;
+				let rb = self.c.execute_batch("ROLLBACK TO cmd");
+				let rel = self.c.execute_batch("RELEASE cmd");
+				if rb.is_err() || rel.is_err() {
+					self.poisoned = true;
+				}
 				return Err(e.into());
 			}
 		}
-		self.c.execute_batch("RELEASE cmd")?;
+		if let Err(e) = self.c.execute_batch("RELEASE cmd") {
+			self.poisoned = true;
+			return Err(e.into());
+		}
 		if r.is_ok() {
 			self.seq = after;
 		}
@@ -136,10 +149,21 @@ impl Writer {
 		if let Err(e) = self.c.execute_batch("BEGIN IMMEDIATE") {
 			return reqs.iter().map(|_| Err(Error::Db(e.to_string()))).collect();
 		}
+		self.poisoned = false;
 		let mut out = Vec::with_capacity(reqs.len());
 		for r in reqs {
+			if self.poisoned {
+				break;
+			}
 			let res = self.run_one(r);
 			out.push(res);
+		}
+		if self.poisoned {
+			// a savepoint was left in an unknown state: undo the whole batch, tell every caller it failed
+			let _ = self.c.execute_batch("ROLLBACK");
+			self.poisoned = false;
+			self.seq = Writer::load_seq(&self.c).unwrap_or(self.seq);
+			return reqs.iter().map(|_| Err(Error::Db("batch rolled back: a savepoint failed".into()))).collect();
 		}
 		crash::point(Site::BeforeCommit);
 		match self.c.execute_batch("COMMIT") {
@@ -233,7 +257,7 @@ impl SqliteStore {
 		let seq = Writer::load_seq(&c)?;
 		let read = open_reader(&path)?;
 		let (tx, rx) = mpsc::channel();
-		let w = Writer { c, seq };
+		let w = Writer { c, seq, poisoned: false };
 		let h = std::thread::Builder::new()
 			.name("store-writer".into())
 			.spawn(move || w.serve(rx, opts))

@@ -266,7 +266,9 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 			let hero = read::hero(w.c, h).ok().flatten();
 			let Some(hero) = hero else { return fallback(h) };
 			let mut p = hero.progress.clone();
-			p.class_xp += r.below(500);
+			if r.chance(30) {
+				p.class_xp += r.below(500); // only the server may raise it
+			}
 			let pts = p.class_level - 1;
 			let mut stats = [0u16; 6];
 			let spend = if pts > 0 { r.below(pts as u64 + 1) as u16 } else { 0 };
@@ -342,10 +344,20 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 	}
 }
 
-fn actor_for(seed: u64, idx: u64, cmd: &Cmd, w: &World) -> AccountId {
+/// The actor of a generated command: the server for server-only commands, except a probe (3%) that sends one as a
+/// player and must be refused; for the rest, the server or the owner, and sometimes a stranger.
+fn actor_for(seed: u64, idx: u64, cmd: &Cmd, w: &World) -> (AccountId, bool) {
 	let mut r = Rng::new(seed ^ idx.wrapping_mul(0x9e37_79b9) ^ 0xac7);
-	if !r.chance(40) {
-		return 0;
+	if crate::ops::who_may(cmd) == crate::ops::Who::Server {
+		if idx >= SETUP && r.chance(3) {
+			if let Some(a) = r.pick(&w.accounts) {
+				return (*a, true);
+			}
+		}
+		return (0, false);
+	}
+	if !r.chance(60) {
+		return (0, false);
 	}
 	let hero_acct = |h: HeroId| w.heroes.iter().find(|x| x.0 == h).map(|x| x.1);
 	let own = match cmd {
@@ -358,16 +370,20 @@ fn actor_for(seed: u64, idx: u64, cmd: &Cmd, w: &World) -> AccountId {
 				None
 			}
 		}
-		Cmd::SellItem { hero, .. } | Cmd::Socket { hero, .. } | Cmd::Unsocket { hero, .. } | Cmd::HeroSave { hero, .. } => hero_acct(*hero),
-		Cmd::HeroRename { hero, .. } | Cmd::HeroDelete { hero } | Cmd::LearnPage { hero, .. } => hero_acct(*hero),
-		Cmd::Trade { a, .. } => hero_acct(a.hero),
+		Cmd::StackTransfer { from, .. } => match from.kind {
+			PlaceKind::Bank | PlaceKind::House => Some(from.id),
+			k if k.hero_owned() => hero_acct(from.id),
+			_ => None,
+		},
+		Cmd::Socket { hero, .. } | Cmd::Unsocket { hero, .. } | Cmd::HeroSave { hero, .. } => hero_acct(*hero),
+		Cmd::HeroRename { hero, .. } | Cmd::HeroDelete { hero } | Cmd::HeroUndelete { hero } | Cmd::LearnPage { hero, .. } => {
+			hero_acct(*hero).or_else(|| w.c.query_row("SELECT account FROM heroes WHERE id = ?1", [hero], |r| r.get(0)).ok())
+		}
+		Cmd::HeroCreate { account, .. } => Some(*account),
 		_ => None,
 	};
-	if r.chance(10) {
-		*r.pick(&w.accounts).unwrap_or(&0)
-	} else {
-		own.unwrap_or(0)
-	}
+	let a = if r.chance(10) { *r.pick(&w.accounts).unwrap_or(&0) } else { own.unwrap_or(0) };
+	(a, false)
 }
 
 /// The child: runs stream indices from `start` to `end` (after resubmitting the batch in flight, if any).
@@ -394,7 +410,7 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 			}
 		}
 	}
-	let emit = |out: &mut std::io::StdoutLock, lo: u64, hi: u64, reqs: Vec<Request>, ring: &mut VecDeque<(Request, Result<Reply>)>, expect: &HashMap<RequestId, Result<Reply>>| -> bool {
+	let emit = |out: &mut std::io::StdoutLock, lo: u64, hi: u64, reqs: Vec<Request>, ring: &mut VecDeque<(Request, Result<Reply>)>, expect: &HashMap<RequestId, Result<Reply>>, probes: &std::collections::HashSet<RequestId>| -> bool {
 		writeln!(out, "B {lo} {hi} {}", reqs.len()).unwrap();
 		for q in &reqs {
 			writeln!(out, "C {}", encode_request(q)).unwrap();
@@ -404,6 +420,10 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 		for (q, a) in reqs.iter().zip(rs) {
 			if matches!(a, Err(Error::Db(_)) | Err(Error::Closed)) {
 				writeln!(out, "BAD db error {:032x} {}", q.id, encode_result(&a)).unwrap();
+				return false;
+			}
+			if probes.contains(&q.id) && !matches!(a, Err(Error::NotYours(_)) | Err(Error::Banned { .. })) {
+				writeln!(out, "BAD server-only {} by player {} gave {}", q.cmd.name(), q.actor, encode_result(&a)).unwrap();
 				return false;
 			}
 			if let Some(want) = expect.get(&q.id) {
@@ -435,7 +455,7 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 			let already = reqs.iter().filter(|q| matches!(read::request_reply(&rc, q.id), Ok(Some(_)))).count();
 			writeln!(out, "A {already}").unwrap();
 			if !reqs.is_empty() {
-				if !emit(&mut out, lo, hi, reqs, &mut ring, &HashMap::new()) {
+				if !emit(&mut out, lo, hi, reqs, &mut ring, &HashMap::new(), &std::collections::HashSet::new()) {
 					return 3;
 				}
 				idx = hi;
@@ -448,6 +468,7 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 		let w = World::load(&rc);
 		let mut reqs = Vec::with_capacity(k as usize);
 		let mut expect = HashMap::new();
+		let mut probes = std::collections::HashSet::new();
 		for j in idx..idx + k {
 			let now = 1_700_000_000_000 + j as i64 * 1000;
 			let mut rr = Rng::new(seed ^ j ^ 0x5eed);
@@ -460,11 +481,14 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 				}
 			}
 			let cmd = generate(seed, j, &w, now);
-			let actor = actor_for(seed, j, &cmd, &w);
+			let (actor, probe) = actor_for(seed, j, &cmd, &w);
 			let id = if let Cmd::Trade { a, b } = &cmd { crate::codec::trade_request_id(a, b, j) } else { request_id(seed, j) };
+			if probe {
+				probes.insert(id);
+			}
 			reqs.push(Request { id, actor, now, cmd });
 		}
-		if !emit(&mut out, idx, idx + k, reqs, &mut ring, &expect) {
+		if !emit(&mut out, idx, idx + k, reqs, &mut ring, &expect, &probes) {
 			return 3;
 		}
 		idx += k;
