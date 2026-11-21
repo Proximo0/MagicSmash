@@ -452,3 +452,16 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   earned rows gold with a tick, locked dim, locked secrets `???`, the selected description at the bottom.
 - Shots: `xvfb-run -a godot --path . -- --autotest --deeds --out=<dir>`; the results lines show on
   `--autotest --players=2 --end=20:win`.
+
+## Results: damage by spell, first-visit lines, deleted heroes (21 Nov)
+- **Damage page.** `Results.damage_rows(slot, limit)` -> `[source, damage, share]`, most damage first, ties to the lower
+  source, shares in whole percent (rounded down, so at most 100 together), sources under `MIN_SHARE_PCT` dropped, at
+  most `DAMAGE_ROWS`. `Results.source_name(src, cls)`: the class weapon's own name, a spell's name, NOVA / ORBIT / JUSTICE.
+- The first page has no room (columns, moments, pay, deeds), so the fire press that used to leave goes to the DAMAGE page
+  first (`Arena.results_page`, `ArenaResultsView.next_page`; the first page's hint reads PRESS FIRE FOR DAMAGE when any
+  wizard has rows) and leaves from there. Shot: `--autotest --players=N --end=40:win` also writes `results_damage.png`.
+- **Footer crystals** are `Profile.run_gain(earned)`: the run's pay plus the deeds' (`last_pay.deeds_pay`).
+- **First visits** are saved: `Profile.talked` (`first_time(key)`, `first_key(speaker)`), written by the Sanctum when a
+  greeting is told (nothing in a scripted run); old saves load with none.
+- **Deleting a hero** shifts held indices: `Profile.index_after_removal` is the one rule; `Profile.remove_hero` applies it
+  to the active hero, `Net.hero_removed(i)` to every local seat (a seat that held her takes the first free hero).

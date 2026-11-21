@@ -230,10 +230,9 @@ func talk_context(speaker: int, extra: Dictionary) -> Dictionary:
 	var ctx := extra.duplicate()
 	var seal := int(ctx.get("seal", Net.seal))
 	ctx.seal = seal
-	var seen_key := "%d/first" % speaker
-	if prof.runs == 0 and not G.talk_seen.has(seen_key):
+	if prof.runs == 0 and prof.first_time(Profile.first_key(speaker)):
 		ctx.first = true
-		G.talk_seen[seen_key] = true
+		Save.write() # the greeting is told once across launches (a scripted run writes nothing)
 	if bool(_new_card.get(speaker, false)):
 		ctx.new_card = true
 		_new_card[speaker] = false
