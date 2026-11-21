@@ -1,0 +1,9 @@
+[package]
+name = "realm-core"
+edition.workspace = true
+version.workspace = true
+
+[lib]
+name = "realm_core"
+
+[dependencies]

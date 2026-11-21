@@ -1,0 +1,14 @@
+[package]
+name = "realm-server"
+edition.workspace = true
+version.workspace = true
+
+[lib]
+name = "realm_server"
+
+[[bin]]
+name = "realm-server"
+path = "src/main.rs"
+
+[dependencies]
+realm-core = { path = "../core" }
