@@ -22,6 +22,11 @@ var message_t := 0.0
 var shake := 0.0
 var _shards: Array = [] # [pos, vel, life, color]
 var _deck: Dictionary = {} # a sealed deck opening: {idx, t, first}
+var dlg := DialogueBox.new()
+var _ran: Dictionary = {} # the run just ended (G.last_run) until each talker has remarked on it: speaker -> true
+var _ran_run: Dictionary = {}
+var _after_talk := "" # what the talk box opens when it closes: "shop" (the unlocks)
+var _new_card := {Talk.SHOPKEEPER: false, Talk.CARD_READER: false} # a card was found since this one last spoke
 var _cat_pet := 0.0
 var _rng := RandomNumberGenerator.new()
 var _leaving := -1.0
@@ -51,6 +56,13 @@ func _ready() -> void:
 	add_child(fx)
 	Sfx.music(TRACKS[0][0])
 	_say("THE SANCTUM. REST, WIZARD." if prof.runs > 0 else "YOUR SANCTUM. THE PORTAL LEADS TO THE TOWER.")
+	# Back from a run: Morvane has a word, once.
+	if not G.last_run.is_empty():
+		var run := G.last_run
+		G.last_run = {}
+		_ran_run = run
+		_ran[Talk.MORVANE] = true
+		_talk(Talk.MORVANE, _run_context(Talk.MORVANE))
 
 
 func _say(s: String, dur: float = 3.0) -> void:
@@ -70,7 +82,8 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		glow.queue_redraw()
 		return
-	if not album_open and _deck.is_empty():
+	dlg.update(delta)
+	if not album_open and _deck.is_empty() and not dlg.active:
 		var inp := PlayerInput.read(device, room.pos, get_viewport())
 		room.step(delta, Vector2(inp[0], inp[1]))
 	if not _deck.is_empty():
@@ -181,6 +194,11 @@ func _use(i: int) -> void:
 			else:
 				Sfx.play("hurt", -6.0)
 				_say("THE WELL WANTS A CRYSTAL.")
+		Sanctum.SHOPKEEPER:
+			_talk(Talk.SHOPKEEPER, _run_context(Talk.SHOPKEEPER))
+			_after_talk = "shop"
+		Sanctum.CARD_READER:
+			_talk(Talk.CARD_READER, _run_context(Talk.CARD_READER))
 		Sanctum.CAT:
 			_cat_pet = 1.5
 			Sfx.play("heal", -6.0, 0.7)
@@ -189,8 +207,49 @@ func _use(i: int) -> void:
 				Save.write()
 
 
+## The context a chat is picked in: what the run before it was, the step being played and what is new.
+func talk_context(speaker: int, extra: Dictionary) -> Dictionary:
+	var prof: Profile = Save.profile
+	var ctx := extra.duplicate()
+	var seal := int(ctx.get("seal", Net.seal))
+	ctx.seal = seal
+	var seen_key := "%d/first" % speaker
+	if prof.runs == 0 and not G.talk_seen.has(seen_key):
+		ctx.first = true
+		G.talk_seen[seen_key] = true
+	if bool(_new_card.get(speaker, false)):
+		ctx.new_card = true
+		_new_card[speaker] = false
+	var ap_key := "%d/apprentice" % speaker
+	if seal == Seals.MIN and not G.talk_seen.has(ap_key):
+		ctx.apprentice = true
+		G.talk_seen[ap_key] = true
+	ctx.last = int(G.talk_last.get(speaker, -1))
+	return ctx
+
+
+## What the run that just ended adds to a chat, the first time this speaker talks after it.
+func _run_context(speaker: int) -> Dictionary:
+	if _ran_run.is_empty() or _ran.has(speaker) and speaker != Talk.MORVANE:
+		return {}
+	_ran[speaker] = true
+	return {"result": _ran_run.get("result", ""), "act": int(_ran_run.get("act", -1)), "seal": int(_ran_run.get("seal", 0))}
+
+
+func _talk(speaker: int, extra: Dictionary) -> void:
+	var line := Talk.pick(speaker, talk_context(speaker, extra), _rng)
+	if line.is_empty():
+		return
+	G.talk_last[speaker] = int(line.id)
+	dlg.open(line)
+	Sfx.play("page_turn", -6.0, 1.2)
+
+
 func _open_card(idx: int, line: String) -> void:
 	var first := Save.profile.add_card(idx)
+	if first:
+		for k: int in _new_card:
+			_new_card[k] = true
 	Save.write()
 	_deck = {"idx": idx, "t": 0.0, "first": first}
 	Sfx.play("card_deal")
@@ -203,6 +262,14 @@ func _go_play() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if dlg.active:
+		if dlg.handle(event) and _after_talk == "shop":
+			_after_talk = ""
+			G.title_shop = true
+			G.goto_title()
+		elif not dlg.active:
+			_after_talk = ""
+		return
 	if album_open:
 		if album.handle(event):
 			album_open = false
@@ -242,6 +309,7 @@ func _draw() -> void:
 		_draw_deck()
 	if album_open:
 		album.draw(self, t)
+	dlg.draw(self, t)
 	if _leaving >= 0.0:
 		draw_rect(Rect2(0, 0, 480, 270), Color(0.6, 0.4, 1.0, clampf(_leaving / 0.8, 0.0, 1.0)))
 
@@ -328,7 +396,9 @@ func _draw_things() -> void:
 				if not awake and int(t) % 4 < 2:
 					var zt := fmod(t, 2.0)
 					PixelFont.draw(self, "z", head + Vector2(17 + zt * 3.0, -2 - zt * 5.0), 1, Color("c9b8ff", 1.0 - zt / 2.0), Occult.INK)
-		if i == near:
+		if i == Sanctum.SHOPKEEPER or i == Sanctum.CARD_READER:
+			_draw_npc(i)
+		if i == near and not dlg.active:
 			var prompt: String = String(Sanctum.THINGS[i][2])
 			if i == Sanctum.RELIQUARY:
 				prompt = prompt % Sanctum.DECK_COST
@@ -336,8 +406,24 @@ func _draw_things() -> void:
 			var text := key + ": " + prompt
 			var half := PixelFont.text_width(text) / 2.0
 			var px := clampf(p.x, half + 4.0, 476.0 - half)
-			var py := maxf(p.y - 34.0, 64.0) + sin(t * 4.0)
+			var py := maxf(p.y - (44.0 if i >= Sanctum.SHOPKEEPER else 34.0), 64.0) + sin(t * 4.0)
 			_prompt = [text, Vector2(px, py)]
+
+
+## A talker's spot: a small framed portrait on a plinth with the name below (a plain plate where there is no picture).
+func _draw_npc(i: int) -> void:
+	var p: Vector2 = Sanctum.THINGS[i][1]
+	var key := String(Sanctum.THINGS[i][0])
+	var frame := Rect2((p + Vector2(-13, -34)).floor(), Vector2(26, 30))
+	draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 6)), Color("1a0f24"))
+	draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 1)), Color("5a4e74"))
+	draw_rect(frame.grow(1), Occult.GOLD)
+	draw_rect(frame, Color("0e0a14"))
+	if not Art.draw(self, DialogueBox.GROUP, key, frame):
+		DialogueBox.draw_stand_in(self, frame, "")
+	var nm: String = Talk.SPEAKERS[Talk.SHOPKEEPER if i == Sanctum.SHOPKEEPER else Talk.CARD_READER][0]
+	if not dlg.active: # the talk's portrait panel stands over the left name
+		PixelFont.draw_centered(self, nm, p.x, p.y + 6, 1, Color("c9b8ff"), Occult.INK)
 
 
 ## The cauldron by the front wall bubbles away.
