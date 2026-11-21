@@ -105,14 +105,14 @@ const HORDE: Array = [
 	[TOME,       2.0, 300.0, 2, 2, 2, 3, 6,  0, 0, GROUP],
 	[PRIEST,     8.0, 420.0, 1, 1, 1, 1, 1,  0, 0, GROUP],
 	[GARGOYLE,   7.0, 600.0, 1, 1, 1, 1, 2,  0, 0, GROUP],
-	[BLOAT,      2.0, 90.0,  1, 1, 1, 1, 2,  0, 6, GROUP],
-	[COFFIN,     4.0, 120.0, 1, 1, 0, 1, 1,  0, 3, RISE],
-	[GUARD,      3.0, 210.0, 1, 1, 0, 2, 3,  0, 6, WALL],
-	[CINDERLING, 3.0, 330.0, 0, 2, 1, 1, 2,  0, 3, GROUP],
-	[CENSOR,     4.0, 360.0, 0, 2, 0, 1, 2,  0, 3, GROUP],
+	[BLOAT,      2.0, 90.0,  1, 1, 1, 1, 2,  0, 4, GROUP],
+	[COFFIN,     5.0, 120.0, 1, 1, 0, 1, 1,  0, 2, RISE],
+	[GUARD,      3.0, 210.0, 1, 1, 0, 2, 3,  0, 4, WALL],
+	[CINDERLING, 5.0, 330.0, 0, 1, 1, 1, 2,  0, 2, GROUP],
+	[CENSOR,     6.0, 360.0, 0, 1, 0, 1, 2,  0, 2, GROUP],
 	[HOUND,      2.0, 450.0, 0, 1, 1, 3, 3,  0, 6, GROUP],
-	[SHARD,      6.0, 660.0, 0, 0, 1, 1, 1,  0, 2, RISE],
-	[SWORDS,     5.0, 750.0, 0, 0, 2, 1, 3,  0, 4, GROUP],
+	[SHARD,      8.0, 660.0, 0, 0, 1, 1, 1,  0, 1, RISE],
+	[SWORDS,     7.0, 750.0, 0, 0, 1, 1, 3,  0, 3, GROUP],
 ]
 
 ## Where a formation comes in: one rift near the party, one door, or two opposite doors.
@@ -120,13 +120,15 @@ const AT_RIFT := 0
 const AT_DOOR := 1
 const AT_OPPOSITE := 2
 ## Set pieces: [name, unlocks after s, weight, [[type, n], ...], layout]. When any is unlocked, one roll in
-## FORMATION_ROLL is a formation.
+## FORMATION_ROLL / Tuning.new_kinds is a formation. A part of more than one shrinks with the party (FORM_PARTY).
 const FORMATIONS: Array = [
-	["POWDER TRAIN", 90.0, 1, [[GOBLIN, 8], [BLOAT, 1]], AT_RIFT],
+	["POWDER TRAIN", 150.0, 1, [[GOBLIN, 8], [BLOAT, 1]], AT_RIFT],
 	["SHIELD WALL", 210.0, 1, [[GUARD, 3], [SKELETON, 3]], AT_DOOR],
 	["FIRE DRILL", 390.0, 1, [[CINDERLING, 1], [CINDERLING, 1], [CENSOR, 1]], AT_OPPOSITE],
 ]
 const FORMATION_ROLL := 5
+## A formation part's size x this, by wizards 1..4 (rounded, at least 1), so a solo wizard meets half a POWDER TRAIN.
+const FORM_PARTY: Array[float] = [0.5, 0.67, 0.83, 1.0]
 ## Weight steps when Tuning.new_kinds is not a whole number (see _row_weight).
 const WEIGHT_STEPS := 10
 ## RISE: how far from the party's centre (and at least RISE_MIN from every wizard) a riser comes up, the arena
@@ -193,8 +195,9 @@ static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: Pa
 		formations: Array = FORMATIONS, new_kinds: float = 1.0) -> Array:
 	var steps := 1 if is_equal_approx(new_kinds, roundf(new_kinds)) else WEIGHT_STEPS
 	var forms: Array = formations.filter(func(f: Array) -> bool:
-		return t >= float(f[1]) and _form_weight(f, new_kinds, steps) > 0 and fits(f[3], alive, wizards, boss_alive))
-	if not forms.is_empty() and rng.randi_range(1, FORMATION_ROLL) == 1:
+		return t >= float(f[1]) and _form_weight(f, new_kinds, steps) > 0 \
+				and fits(form_parts(f[3], wizards), alive, wizards, boss_alive))
+	if not forms.is_empty() and rng.randi_range(1, roundi(FORMATION_ROLL / clampf(new_kinds, 0.1, 1.0))) == 1:
 		var fsum := 0
 		for f: Array in forms:
 			fsum += _form_weight(f, new_kinds, steps)
@@ -202,7 +205,7 @@ static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: Pa
 		for f: Array in forms:
 			fr -= _form_weight(f, new_kinds, steps)
 			if fr <= 0:
-				return [8 + int(f[4]), (f[3] as Array).duplicate(true)]
+				return [8 + int(f[4]), form_parts(f[3], wizards)]
 	var col := H_W1 + clampi(act, 0, 2)
 	var total := 0
 	for row: Array in HORDE:
@@ -223,6 +226,16 @@ static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: Pa
 				n = clampi(n, 1, maxi(1, cap - _alive_of(alive, row[H_TYPE])))
 			return [int(row[H_FORM]), [[int(row[H_TYPE]), n]]]
 	return [GROUP, [[GOBLIN, 1]]]
+
+
+## A formation's parts sized for the party: a part of more than one x FORM_PARTY (a fresh copy).
+static func form_parts(parts: Array, wizards: int) -> Array:
+	var k: float = FORM_PARTY[clampi(wizards, 1, FORM_PARTY.size()) - 1]
+	var out: Array = []
+	for part: Array in parts:
+		var n: int = part[1]
+		out.append([int(part[0]), maxi(1, roundi(n * k)) if n > 1 else n])
+	return out
 
 
 ## Job K's kinds (BLOAT..SWORDS): the ones Tuning.new_kinds scales.

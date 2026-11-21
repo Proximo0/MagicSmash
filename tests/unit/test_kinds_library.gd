@@ -58,7 +58,9 @@ func test_cinderling_marks_its_line_then_runs_it_in_fire() -> void:
 	_lib_tick(w, 1.0)
 	assert_eq(e.state, KindsLibrary.CS_HOLD, "the run ends")
 	assert_true(f.a.distance_to(f.b) >= KindsLibrary.CINDER_LEN - 12.0)
-	_lib_tick(w, KindsLibrary.CINDER_BURN - 0.3)
+	var left := f.warn + f.hot
+	assert_true(left > 0.5, "it burns on after the run")
+	_lib_tick(w, left - 0.3)
 	assert_eq(_rows(w, Hazards.FLAME).size(), 1, "it burns on")
 	_lib_tick(w, 0.6)
 	assert_false(w.hazards.has(f), "then it is out")
@@ -111,7 +113,10 @@ func test_censor_throws_at_the_release_point() -> void:
 	assert_near(h.r, KindsLibrary.CENSOR_FIRE_R)
 	assert_near(h.warn, KindsLibrary.CENSOR_FIRE_WARN, 0.02)
 	_lib_tick(w, KindsLibrary.CENSOR_EVERY - 0.2)
-	assert_eq(_rows(w, Hazards.FIRE).size(), 1, "one throw every 4 s")
+	assert_eq(_rows(w, Hazards.FIRE).filter(func(x: Hazards.Hazard) -> bool: return x != h).size(), 0,
+			"one throw every CENSOR_EVERY s")
+	_lib_tick(w, 0.2 + KindsLibrary.CENSOR_WIND + 0.1)
+	assert_eq(_rows(w, Hazards.FIRE).filter(func(x: Hazards.Hazard) -> bool: return x != h).size(), 1, "then the next")
 
 
 func test_censor_panics_inside_60_px() -> void:

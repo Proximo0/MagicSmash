@@ -28,6 +28,8 @@ const SHOT_R := 3.0
 const SHOT_RISE := 6.0
 ## The body a bot keeps out of a row, px.
 const BOT_MARGIN := 5.0
+## A turning row (a shard's BEAM) sweeps onto a wizard who stands still: bots keep this much more clear of it, px.
+const BOT_SWEEP := 24.0
 
 enum { MARK, BLAST, FIRE, FLAME, FALL, BEAM, BURST, LANE, SAFE }
 const DISC := 0
@@ -147,7 +149,7 @@ static func steer(hz: PackedFloat32Array, me: Vector2, speed: float, react: floa
 		if row[K_AVOID]:
 			var a := Vector2(hz[i + 2], hz[i + 3])
 			var b := Vector2(hz[i + 4], hz[i + 5])
-			var r: float = hz[i + 6] + BOT_MARGIN
+			var r: float = hz[i + 6] + _bot_margin(kind)
 			var warn: float = hz[i + 7]
 			var near := a if int(row[K_SHAPE]) == DISC else Geometry2D.get_closest_point_to_segment(me, a, b)
 			var off := me - near
@@ -156,7 +158,7 @@ static func steer(hz: PackedFloat32Array, me: Vector2, speed: float, react: floa
 				off = (b - a).orthogonal() if int(row[K_SHAPE]) == LINE and a != b else Vector2.RIGHT
 				d = 0.0
 			var dir := off.normalized()
-			var walk: float = ((r - d) if not row[K_INVERTED] else (d - hz[i + 6] + BOT_MARGIN)) / maxf(speed, 1.0)
+			var walk: float = ((r - d) if not row[K_INVERTED] else (d - hz[i + 6] + _bot_margin(kind))) / maxf(speed, 1.0)
 			if walk > 0.0:
 				var urgency := clampf(1.0 - (warn - react - walk) / 1.5, 0.2, 1.0)
 				out += (-dir if row[K_INVERTED] else dir) * urgency
@@ -178,7 +180,7 @@ static func prepare(hz: PackedFloat32Array, me: Vector2, reach: float, react: fl
 		if row[K_AVOID]:
 			var a := Vector2(hz[i + 2], hz[i + 3])
 			var b := Vector2(hz[i + 4], hz[i + 5])
-			var r: float = hz[i + 6] + BOT_MARGIN
+			var r: float = hz[i + 6] + _bot_margin(int(hz[i + 1]))
 			var reach_r := r + reach
 			if row[K_INVERTED] or me.distance_squared_to(Geometry2D.get_closest_point_to_segment(me, a, b)) <= reach_r * reach_r:
 				var urgency := clampf(1.0 - (hz[i + 7] - react - 0.5) / 1.5, 0.2, 1.0)
@@ -201,6 +203,36 @@ static func threat(prep: PackedFloat32Array, p: Vector2) -> float:
 			d2 = p.distance_squared_to(Geometry2D.get_closest_point_to_segment(p, a, Vector2(prep[i + 3], prep[i + 4])))
 		if (d2 <= prep[i + 5]) != (prep[i + 6] > 0.5):
 			sum += prep[i + 7]
+		i += PREP
+	return sum
+
+
+## The body a bot keeps out of a row of this kind, px: BOT_MARGIN, and BOT_SWEEP more round a turning BEAM.
+static func _bot_margin(kind: int) -> float:
+	return BOT_MARGIN + (BOT_SWEEP if kind == BEAM else 0.0)
+
+
+## How much a bot walking from `from` to `to` would cross the prepared rows (threat() along the path, not only at its
+## end): a thin line (a FLAME, a BEAM) between here and there counts, since walking through it is a hit. An inverted
+## row counts at the end only (the way out of the gold runs through the danger it leaves).
+static func threat_path(prep: PackedFloat32Array, from: Vector2, to: Vector2) -> float:
+	var sum := 0.0
+	var i := 0
+	while i + PREP <= prep.size():
+		var a := Vector2(prep[i + 1], prep[i + 2])
+		var d2: float
+		if prep[i + 6] > 0.5:
+			d2 = to.distance_squared_to(a)
+			if d2 > prep[i + 5]:
+				sum += prep[i + 7]
+		else:
+			if prep[i] == DISC:
+				d2 = Geometry2D.get_closest_point_to_segment(a, from, to).distance_squared_to(a)
+			else:
+				var pts := Geometry2D.get_closest_points_between_segments(from, to, a, Vector2(prep[i + 3], prep[i + 4]))
+				d2 = pts[0].distance_squared_to(pts[1])
+			if d2 <= prep[i + 5]:
+				sum += prep[i + 7]
 		i += PREP
 	return sum
 

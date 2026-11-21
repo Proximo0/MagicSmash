@@ -29,10 +29,10 @@ func test_horde_rows_cover_every_non_boss_kind_once() -> void:
 		assert_false(seen.has(t), "two rows for %d" % t)
 		seen[t] = true
 		assert_false(Bestiary.has_flag(t, Bestiary.F_BOSS), "a boss in the horde")
-	# Job K's act weights (docs/bestiary_design.md section 1, W I/II/III).
+	# Job K's act weights (docs/bestiary_design.md section 6, as tuned for solo wins).
 	var acts := {Bestiary.BLOAT: [1, 1, 1], Bestiary.COFFIN: [1, 1, 0], Bestiary.GUARD: [1, 1, 0],
-		Bestiary.CINDERLING: [0, 2, 1], Bestiary.CENSOR: [0, 2, 0], Bestiary.HOUND: [0, 1, 1], Bestiary.SHARD: [0, 0, 1],
-		Bestiary.SWORDS: [0, 0, 2]}
+		Bestiary.CINDERLING: [0, 1, 1], Bestiary.CENSOR: [0, 1, 0], Bestiary.HOUND: [0, 1, 1], Bestiary.SHARD: [0, 0, 1],
+		Bestiary.SWORDS: [0, 0, 1]}
 	for t: int in range(Bestiary.BLOAT, Bestiary.SWORDS + 1):
 		assert_true(seen.has(t), "no horde row for reserved kind %d" % t)
 		assert_true(Bestiary.is_new_kind(t))
@@ -170,9 +170,10 @@ func test_queued_spawns_count_and_a_saved_group_is_checked_again() -> void:
 	assert_true(WorldWaves._boss_coming(w), "a queued boss counts")
 	# A saved bloat group is dropped once a boss is coming, and trimmed to the room under its cap.
 	assert_false(Bestiary.trim([[Bestiary.BLOAT, 2]], WorldWaves._fielded(w), 1, true))
-	var parts: Array = [[Bestiary.BLOAT, 6]]
+	var cap := Bestiary.cap_of(Bestiary.horde_row(Bestiary.BLOAT), 1)
+	var parts: Array = [[Bestiary.BLOAT, cap]]
 	assert_true(Bestiary.trim(parts, WorldWaves._fielded(w), 1, false))
-	assert_eq(parts[0][1], 6 - 2)
+	assert_eq(parts[0][1], cap - 2)
 	assert_false(Bestiary.needs_check([[World.GOBLIN, 9], [World.ORC, 1]]), "today's kinds are never checked again")
 	w.phase = World.PH_FIGHT
 	w._next_group = [Bestiary.GROUP, [[Bestiary.BLOAT, 2]]]
@@ -263,3 +264,23 @@ func test_every_new_kind_warning_is_fair() -> void:
 	]
 	for r: Array in rows:
 		assert_true(float(r[1]) >= Hazards.min_warn(float(r[0])), "warning %.2f s for r %.0f" % [r[1], r[0]])
+
+
+func test_formations_shrink_for_a_small_party_and_with_new_kinds() -> void:
+	var train: Array = [[World.GOBLIN, 8], [Bestiary.BLOAT, 1]]
+	assert_eq(Bestiary.form_parts(train, 1), [[World.GOBLIN, 4], [Bestiary.BLOAT, 1]], "half a train for one wizard")
+	assert_eq(Bestiary.form_parts(train, 4), train, "the whole train for four")
+	assert_eq(Bestiary.form_parts([[Bestiary.GUARD, 3]], 2), [[Bestiary.GUARD, 2]])
+	# One roll in FORMATION_ROLL is a formation at new_kinds 1, one in twice that at 0.5.
+	var forms: Array = [["T", 0.0, 1, [[Bestiary.BLOAT, 1]], Bestiary.AT_RIFT]]
+	var alive := PackedInt32Array()
+	alive.resize(Bestiary.count())
+	var got := {1.0: 0, 0.5: 0}
+	for nk: float in got:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 7
+		for i in 2000:
+			if int(Bestiary.roll_group(rng, 300.0, 0, alive, 1, false, forms, nk)[0]) >= 8:
+				got[nk] += 1
+	assert_near(float(got[1.0]) / 2000.0, 1.0 / Bestiary.FORMATION_ROLL, 0.03)
+	assert_near(float(got[0.5]) / 2000.0, 0.5 / Bestiary.FORMATION_ROLL, 0.03)

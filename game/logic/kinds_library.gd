@@ -8,15 +8,15 @@ extends RefCounted
 ## laying a FLAME line of half-width CINDER_HALF that burns CINDER_BURN s more.
 const CINDER_NEAR := 90.0
 const CINDER_FAR := 130.0
-const CINDER_HOLD_MIN := 1.5
-const CINDER_HOLD_MAX := 2.5
+const CINDER_HOLD_MIN := 2.5
+const CINDER_HOLD_MAX := 3.5
 const CINDER_KINDLE := 0.6
 const CINDER_AHEAD := 30.0
 const CINDER_LEN := 210.0
 const CINDER_SPEED := 190.0
 const CINDER_RUN := 1.1
 const CINDER_HALF := 5.0
-const CINDER_BURN := 3.0
+const CINDER_BURN := 2.0
 ## Cinderling states (Enemy.state).
 const CS_HOLD := 0
 const CS_KINDLE := 1
@@ -26,13 +26,13 @@ const CS_RUN := 2
 ## throws, it backs off at CENSOR_PANIC x its speed.
 const CENSOR_NEAR := 100.0
 const CENSOR_FAR := 150.0
-const CENSOR_EVERY := 4.0
+const CENSOR_EVERY := 5.0
 const CENSOR_MIN := 60.0
 const CENSOR_MAX := 200.0
 const CENSOR_WIND := 0.5
 const CENSOR_FIRE_R := 22.0
 const CENSOR_FIRE_WARN := 1.2
-const CENSOR_FIRE_HOT := 3.0
+const CENSOR_FIRE_HOT := 2.5
 const CENSOR_PANIC := 1.5
 ## Censor states (Enemy.state).
 const ZS_WALK := 0
