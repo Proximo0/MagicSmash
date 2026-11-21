@@ -3,6 +3,13 @@ extends RefCounted
 ## Arena: the game-over screen, result columns, moments and the pause screen.
 ## Static helpers: `a` is the Arena that owns the state.
 
+## With deeds to show the ending line gives way: the totals line moves up and the deeds sit under the pay line.
+const DEED_FOOT_Y := 206
+const DEED_FIRST_Y := 226
+const DEED_STEP := 9
+const DEED_PROMPT_Y := 256
+
+
 static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	var fade := clampf(a.game_over_t / 1.0, 0.0, 1.0)
 	var dark := Color("0b0716")
@@ -18,13 +25,18 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	_draw_result_columns(a, ci, dark, 58)
 	_draw_moments(a, ci, dark, 150)
 	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, a.crystals_earned, Save.profile.crystals]
-	PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
-	PixelFont.draw_centered(ci, foot, 240, 224, 1, Color("8bdcff"), dark)
+	var deeds: Array[String] = Achievements.result_lines(Save.profile.last_pay.get("deeds", []))
+	var y_foot := 224 if deeds.is_empty() else DEED_FOOT_Y # new deeds take the ending's place
+	if deeds.is_empty():
+		PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
+	PixelFont.draw_centered(ci, foot, 240, y_foot, 1, Color("8bdcff"), dark)
 	if not Save.profile.last_pay.is_empty(): # the run's step and what it paid
-		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, 234, 1, Color("ffb347"), dark)
+		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, y_foot + 10, 1, Color("ffb347"), dark)
+	for i: int in range(deeds.size()):
+		PixelFont.draw_centered(ci, deeds[i], 240, DEED_FIRST_Y + i * DEED_STEP, 1, Color("ffd94d"), dark)
 	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
 		var msg := "TAP TO CONTINUE" if G.touch_active else "PRESS FIRE TO CONTINUE" # a client leaves by itself too
-		PixelFont.draw_centered(ci, msg, 240, 244, 1, Color.WHITE, dark)
+		PixelFont.draw_centered(ci, msg, 240, 244 if deeds.is_empty() else DEED_PROMPT_Y, 1, Color.WHITE, dark)
 
 ## The tarot card each award is read as on the results screen (TarotArt emblem keys); no award draws The Star.
 const AWARD_ARCANA := {"MVP": "power", "SLAYER": "death", "HIGH ROLLER": "magnet", "LUCKY": "sun",
