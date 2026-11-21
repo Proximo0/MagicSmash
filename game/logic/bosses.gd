@@ -61,7 +61,7 @@ static func party_hp_from(tune: Tuning) -> Array:
 
 ## A boss's health in World `w` now (its schedule, party size and Tuning levers).
 static func health_in(w: World, type: int) -> float:
-	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), 1.0, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
+	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), w.seal_boss, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
 
 
 ## How many rows of `type` come at or before run second `t` (the Lich's visits so far).

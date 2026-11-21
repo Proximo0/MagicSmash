@@ -20,6 +20,8 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, a.crystals_earned, Save.profile.crystals]
 	PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
 	PixelFont.draw_centered(ci, foot, 240, 224, 1, Color("8bdcff"), dark)
+	if not Save.profile.last_pay.is_empty(): # the run's step and what it paid
+		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, 234, 1, Color("ffb347"), dark)
 	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
 		var msg := "PRESS FIRE TO CONTINUE" if a.is_host else "WAITING FOR HOST..."
 		if G.touch_active and a.is_host:

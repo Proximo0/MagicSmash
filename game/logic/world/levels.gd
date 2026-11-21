@@ -57,7 +57,7 @@ static func _offer(w: World, p: World.Player) -> void:
 
 static func _deal(w: World, p: World.Player) -> void:
 	p.offer += 1
-	var n := int(w.tune.level_choices)
+	var n := w.seal_hand if w.seal_hand > 0 else int(w.tune.level_choices) # SILENCE: a smaller hand
 	p.choices = Upgrades.roll(w.rng, p.upgrades, n, w.slot_cap(), p.banned)
 	Upgrades.minor_fill(w.rng, p.choices, n)
 	if p.choices.is_empty():

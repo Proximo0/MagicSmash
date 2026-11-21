@@ -5,13 +5,15 @@ extends RefCounted
 
 ## A kill may drop its monster's card (Cards.drop_chance): far likelier from an elite or a Lich.
 static func _roll_card(w: World, e: World.Enemy) -> void:
-	if w.rng.randf() < Cards.drop_chance(e.type, e.elite, w.tune.card_chance, w.tune.card_elite_mul, w.tune.card_boss_chance):
-		_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, e.type)
+	if e.final and w.seal_card >= 0: # a Seal's Archlich drops the Seal card
+		_drop(w, World.PK_CARD, e.pos, Vector2(0, -60), w.tune.chest_life, w.seal_card)
+	if w.rng.randf() < Cards.drop_chance(e.type, e.elite, w.tune.card_chance * w.seal_cards, w.tune.card_elite_mul, w.tune.card_boss_chance * w.seal_cards):
+		_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, Cards.for_enemy(e.type))
 
 
 static func _roll_drop(w: World, e: World.Enemy) -> void:
 	var lucky := w.rng.randf()
-	if lucky < w.tune.ultra_drop_chance:
+	if lucky < w.tune.ultra_drop_chance and w.seal_ultra:
 		_drop(w, World.PK_CHEST_ULTRA, e.pos, Vector2(0, 30), w.tune.chest_life, 5)
 		return
 	if lucky < w.tune.ultra_drop_chance + w.tune.rare_drop_chance:
@@ -28,7 +30,7 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 			_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, -pop)
 		return
 	var coin := w.tune.coin_drop_chance
-	var potion := coin + 0.05 + w.tune.potion_drop_chance
+	var potion := coin + 0.05 + w.tune.potion_drop_chance * w.seal_potions # APPRENTICE: more
 	var tome := potion + w.tune.tome_drop_chance
 	if r < coin:
 		_drop(w, World.PK_COIN, e.pos, pop)
@@ -208,7 +210,7 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 			p.gold += Loot.GOLD_GEM * greed
 			w.record.add(p.slot, "gold", Loot.GOLD_GEM * greed)
 		World.PK_POTION:
-			p.hp = mini(p.max_hp, p.hp + 2)
+			p.hp = mini(p.max_hp, p.hp + w.seal_potion_heal) # FAMINE: one
 		World.PK_TOME_FIRE, World.PK_TOME_FROST, World.PK_TOME_STORM, World.PK_TOME_STAR, World.PK_TOME_RUNE:
 			# A spell tome (none fall any more) grants or levels its spell weapon if the wizard's slots allow it;
 			# otherwise it is worth points instead.
@@ -231,7 +233,8 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 ## A chest opens where it is touched: a tier (luck from the chest's value) and an item, applied at once. The
 ## arena plays the reel from EV_CHEST.
 static func _open_chest(w: World, p: World.Player, k: World.Pickup) -> void:
-	var tier := Loot.roll_rarity(w.rng, float(k.value + w.meta_luck))
+	var tier := Loot.roll_rarity(w.rng, float(k.value + w.meta_luck + w.seal_luck))
+	if not w.seal_ultra: tier = mini(tier, Loot.LEGENDARY) # APPRENTICE: no ULTRA RARE
 	if k.kind == World.PK_CHEST_RARE:
 		tier = maxi(tier, Loot.RARE)
 	elif k.kind == World.PK_CHEST_ULTRA:
