@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-21T12:20Z commit=3d3461b took=1466s
-JOB boss PASS seed7=WON@16:52 seed21=WON@17:31 seed33=WON@18:05 seed101=WON@17:43 seed102=WON@16:49
-STATION PASS jobs=1 failed=0
+STATION machine=heatherspc time=2026-11-21T12:22Z commit=f9fe6f9 took=58s
+JOB frames FAIL frames=300 enemies_peak=262 particles=126 draw_calls=55 frame_ms p50=46.5 p95=81.3 script_ms=42.57 limit_p95=50
+STATION FAIL jobs=1 failed=1
