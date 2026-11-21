@@ -11,6 +11,8 @@ except `godot/`, the Godot native module, which is its own cargo workspace with 
 - `loadtest/`: real UDP clients, protocol B followers and lockstep players, and a lossy UDP relay.
 - `godot/`: the native module (a GDExtension `cdylib`, gdext `godot` 0.5.5, Godot API 4.7): the class
   `RealmLink`, a lockstep player inside Godot. Its own workspace and `Cargo.lock`.
+- `store/`: the store (accounts, heroes, items, stacks, entitlements and the ledger), its own cargo workspace with
+  `rusqlite` (bundled SQLite); `store/check.sh`; see `docs/realm/store.md`.
 - `client/`: HORDE & HEARTH's realm client, a separate Godot 4.7 project that plays through `RealmLink`.
 - The lockstep client logic is `server/src/client.rs` (socket-free: the load test and the module both drive
   it) and `server/src/predict.rs` (the hero's prediction and smoothing).

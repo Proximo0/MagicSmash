@@ -1,0 +1,25 @@
+[package]
+name = "realm-store"
+version = "0.1.0"
+edition = "2024"
+description = "Horde & Hearth store: accounts, heroes, items, stacks, entitlements and the ledger (SQLite, one writer)."
+
+[lib]
+name = "realm_store"
+path = "src/lib.rs"
+
+[[bin]]
+name = "realm-store"
+path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "=0.37.0", features = ["bundled", "backup", "hooks"] }
+
+[profile.release]
+debug = false
+codegen-units = 4
+
+[profile.test]
+opt-level = 2
+
+[workspace]
