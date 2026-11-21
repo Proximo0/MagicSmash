@@ -23,7 +23,7 @@ Inside each of these, the pictures live in seven folders:
 | `portraits/characters` | people of the tower | `shopkeeper`, `card_reader`, `bone_chandelier`, `ghost_writer`, `archlich`, `apprentice`; the tall version of each has `_tall` added |
 
 | `sprites` | one still picture per figure or hub piece, **facing right** | heroes `hero_<race>_<class>` (races `human elf dwarf orc`, classes `knight mage archer priest paladin`), then `hero_<class>` for any race without its own, and `apprentice` (an apprentice shows its own picture, else its race and class's); monsters `enemy_<key>` for `goblin skeleton slime mslime bat orc mage lich wraith tome gargoyle priest bloat coffin guard cinderling censor hound shard swords` and `enemy_archlich`; bosses `boss_chandelier`, `boss_ghostwriter`; hub `hub_lectern`, `hub_mirror`, `hub_plinth` |
-| `icons` | small marks, transparent | `spell_<key>`, `evo_<key>` for `arcane fire frost storm star rune bone candle cleave`; `passive_<key>` for `swift quick power regen magnet wisdom nova life justice lovers`; `class_<key>` (`mage knight archer priest paladin`); `race_<key>` (`human elf dwarf orc`); `deed_win`, `deed_slay`, `deed_time`, `deed_secret` |
+| `icons` | small marks, transparent | `spell_<key>`, `evo_<key>` for `arcane fire frost storm star rune bone candle cleave`; `passive_<key>` for `swift quick power regen magnet wisdom nova life justice lovers`; `class_<key>` (`mage knight archer priest paladin`); `race_<key>` (`human elf dwarf orc`); `deed_win`, `deed_slay`, `deed_time`, `deed_secret`; `weapon_longbow`, `weapon_holy_light`, `weapon_smite`; `skill_nova`, `skill_provoke`, `skill_volley`, `skill_sanctuary`, `skill_aegis`; `stat_might`, `stat_focus`, `stat_swift`, `stat_vigor`, `stat_ward`, `stat_fortune`; `class_apprentice`, `step_wizard`, `step_archmage`, `seal_1` to `seal_8`; `loot_might`, `loot_focus`, `loot_swift`, `loot_vigor`, `loot_ward`, `loot_greed`, `loot_elixir`, `loot_novas`, `loot_tome`, `loot_insight`; `hud_crystal` |
 | `scenes` | 480 x 270 backdrops | `builder`, `sheet`, `lobby`, `album`, `deeds` (also named for the shop and results screens: `shop`, `victory`, `defeat`) |
 
 Files are PNG, for example `art/cards/monsters/goblin.png`.
@@ -38,6 +38,14 @@ Files are PNG, for example `art/cards/monsters/goblin.png`.
 - **Icons** are reduced (never enlarged) to the size a place shows them: 8 px in a fight HUD spell slot, 6 px for a
   passive, 16 px on a level-up card, 14 px in the builder's lists, 12 px for a deed mark. Paint them 16 x 16.
   An evolved spell shows `evo_<key>`, else its spell's picture.
+  More places (px): `weapon_<skin>` (the archer's `longbow`, the priest's `holy_light`, the paladin's `smite`; the knight
+  and the mage keep their spell's icon) 8 px in the fight HUD's weapon slot, 12 px on the hero sheet, 10 px in the
+  builder; `skill_<key>` 6 px as the HUD's nova charge mark, 12 px on the sheet, 10 px in the builder; `stat_<name>` 8 px
+  left of a stat's label (hero sheet, builder's last page); the ladder step 12 px left of its name in the lobby
+  (`class_apprentice` for APPRENTICE, `step_wizard`, `step_archmage`, `seal_1` for SEAL I), and `class_apprentice` 8 px
+  at an apprentice seat's foot; `hud_crystal` 10 px on the Sanctum's
+  bottom line; `loot_<key>` is the chest item's mark (the item keys of `Loot`: `might focus swift vigor ward greed`
+  and the consumables `elixir novas tome insight`). `stat_fortune` is the gold stat (`Loot.ST_GREED`).
 - **Scenes** are dimmed (`Still.SCENE_DIM`) so the text over them reads; keep the middle quiet.
 - A missing file leaves today's drawing exactly as it is.
 
