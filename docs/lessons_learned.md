@@ -111,3 +111,4 @@ Story: kit `docs/lessons/ops_board.md`.
 - Android export refused ⇒ keep `import_etc2_astc=true` in `project.godot`.
 - APK has no side folder for credentials ⇒ credentials file in the preset's `include_filter`.
 - `sims-horde` passed on a fast CI runner, auto-merged, then failed on main (runners differ 1.5x) ⇒ a time-budget row needs 15%+ headroom on the slowest runner before merging; read the row's number in the PR's own log, not only pass/fail.
+- A branch cut from an unmerged branch, whose parent was then squash-merged: merging main back doubled a block (`profile.gd`, two `active_hero`) and conflicted on lines both sides had ⇒ cut worker branches from main; if one must stack, after the merge run `git diff origin/main --stat` and check each file shows only the new work, then lint.
