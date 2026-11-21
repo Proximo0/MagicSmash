@@ -1,2 +1,4 @@
-STATION machine=msi time=2026-11-21T12:25Z commit=f9fe6f9 took=0s
-STATION HELD laptop did not pass
+STATION machine=msi time=2026-11-21T12:32Z commit=c56d94e took=172s
+JOB boss PASS seed7=WON@16:18 seed21=WON@17:12 seed33=WON@16:46 seed101=WON@16:34 seed102=WON@17:05
+JOB frames PASS frames=300 enemies_peak=220 particles=1086 draw_calls=55 frame_ms p50=6.9 p95=9.2 script_ms=3.45 limit_p95=25
+STATION PASS jobs=2 failed=0
