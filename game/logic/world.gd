@@ -26,6 +26,9 @@ const SP_FROST := 2
 const SP_STORM := 3
 const SP_STAR := 4
 const SP_RUNE := 5
+const SP_BONE := 6 # wave 3: bone spear (and the archer's LONGBOW)
+const SP_CANDLE := 7 # vigil candle (and the priest's HOLY LIGHT)
+const SP_CLEAVE := 8 # the knight's class weapon
 
 # Pickups
 const PK_COIN := 0
@@ -109,7 +112,9 @@ const EV_SLOTS := 47 # the slot cap changed: a = spell slots, b = passive slots
 const EV_TALK := 48 # Morvane speaks: a = line
 const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a = its type, b = the phase it turns to
 const EV_SKILL := 50 # a hero's class skill (not the NOVA, which is EV_NOVA): at the hero, a = slot, b = Classes.SK_*
-const EV_HEAL := 51 # a hero is healed by a skill: at the hero, a = slot, b = hearts
+const EV_HEAL := 51 # a hero is healed by a skill or a light: at the hero, a = slot, b = hearts
+const EV_BURST := 52 # a JUSTICE burst: at the slain foe, a = radius, b = slot
+const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -319,6 +324,10 @@ var record: Results
 ## Statistics only: the damage source being resolved (a spell, Results.SRC_*), so record.source_damage can
 ## split damage by spell. Never read by gameplay and not in state_hash().
 var stat_src := -1
+## JUSTICE bursts waiting for the end of the step (WorldCasting._update_bursts): [pos, damage, slot]. Queued so a
+## burst never recurses inside a damage call; `bursting` is set while they go off (their kills never burst).
+var bursts: Array = []
+var bursting := false
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
 ## The fate deck (WorldShrines): the chance a party's fate comes from the cruel side (the difficulty ladder sets
 ## it), THE FOOL's next fate counting twice, the seconds novas stay sealed, potions stop dropping and every XP gem
@@ -479,6 +488,8 @@ func apply_hero(p: Player, hero: Dictionary) -> void:
 	p.luck = h.luck()
 	var start := Wizards.start_spell(p.wizard)
 	var sp := h.weapon()
+	p.skin = Classes.weapon_skin(h.cls, sp)
+	p.class_weapon = sp if p.skin != "" else -1
 	var start_row := Upgrades.weapon_entry(start)
 	if sp != start and p.upgrades.size() == 1 and int(p.upgrades.get(start_row, 0)) == 1:
 		p.upgrades.erase(start_row)
@@ -620,6 +631,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	WorldHazards._update_hazards(self, dt)
 	WorldCasting._update_shots(self, dt)
 	WorldCasting._update_runes(self, dt)
+	WorldCasting._update_bursts(self)
 	WorldEnemies._update_eshots(self, dt)
 	WorldDrops._update_pickups(self, dt)
 	WorldDrops._update_urns(self)
