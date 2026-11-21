@@ -290,7 +290,6 @@ var seal_potions := 1.0 # a plain kill's potion chance
 var seal_luck := 0 # chest luck
 var seal_cards := 1.0 # card drop odds
 var seal_ultra := true # ultra-rare chests and ULTRA RARE loot can drop
-var seal_hunger := false # HUNGER: plain kills drop no potion
 var seal_rift := 1.0 # AMBUSH: rift warning
 var seal_potion_heal := 2 # FAMINE: hearts a potion heals
 var seal_group := 1.0 # LEGION: group size
@@ -435,7 +434,6 @@ func apply_seal(level: int) -> void:
 	seal_luck = int(v.luck)
 	seal_cards = 1.0 + Seals.CARD_PER_LUCK * int(v.luck)
 	seal_ultra = bool(v.ultra)
-	seal_hunger = bool(v.hunger)
 	seal_rift = float(v.rift)
 	seal_potion_heal = int(v.potion_heal)
 	seal_group = float(v.group)

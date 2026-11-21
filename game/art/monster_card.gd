@@ -3,6 +3,7 @@ extends RefCounted
 ## Draws a monster card face (Cards): a tarot-style frame around the monster's sprite, its name and its bonus.
 ## Used by the arena's card reveal and the card album. Unfound cards draw as a dark silhouette.
 
+## Sprite per Bestiary kind, in kind order (Cards.enemy maps a card to its kind).
 const ENEMY_SPRITES := ["goblin_a", "skeleton_a", "slime_a", "mslime_a", "bat_a", "orc_a", "mage_a", "lich",
 	"wraith_a", "tome_a", "gargoyle_a", "priest_a"]
 const SOCKET_COLORS := [Color("8bdcff"), Color("ff8af0"), Color("ffd94d")]
@@ -40,8 +41,10 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 		for i: int in range(8):
 			var a := t * 0.4 + i * TAU / 8.0
 			ci.draw_line(c, c + Vector2.from_angle(a) * win.size.length() * 0.5, Color(SOCKET_COLORS[sock], 0.12), 2.0)
-	var tex: Texture2D = Sprites.get_tex(ENEMY_SPRITES[idx], not found) if idx < ENEMY_SPRITES.size() else null
-	if idx >= ENEMY_SPRITES.size(): # a Seal card: a plain stand-in face, its numeral, until its painting lands
+	var kind := Cards.enemy(idx) # the monster on the card; a Seal card has none
+	var sprite: String = ENEMY_SPRITES[kind] if kind >= 0 and kind < ENEMY_SPRITES.size() else ""
+	var tex: Texture2D = Sprites.get_tex(sprite, not found) if sprite != "" else null
+	if kind < 0: # a Seal card: a plain stand-in face, its numeral, until its painting lands
 		var num := Seals.numeral(Seals.of_card(idx))
 		var ns := clampi(int((win.size.x - 4.0) / PixelFont.text_width(num, 1)), 1, 3)
 		PixelFont.draw_centered(ci, num, win.get_center().x, win.get_center().y - 3.5 * ns, ns, Color(GOLD, 0.9 if found else 0.3), INK)
@@ -50,7 +53,7 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 		# at the largest whole scale that fits the window. A monster too big for twice its size is still drawn
 		# so when at least BUST of its width and height fits: what does not fit is cut from the feet up and
 		# evenly from both sides, which leaves a bust of the big monsters.
-		var src := _drawn_part(ENEMY_SPRITES[idx], tex)
+		var src := _drawn_part(sprite, tex)
 		var room := win.size - Vector2(2, 2)
 		var scale := maxf(1.0, floorf(minf(room.x / src.size.x, room.y / src.size.y)))
 		if scale < 2.0 and room.x >= src.size.x * 2.0 * BUST and room.y >= src.size.y * 2.0 * BUST:

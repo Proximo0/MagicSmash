@@ -8,7 +8,7 @@ static func _roll_card(w: World, e: World.Enemy) -> void:
 	if e.final and w.seal_card >= 0: # a Seal's Archlich drops the Seal card
 		_drop(w, World.PK_CARD, e.pos, Vector2(0, -60), w.tune.chest_life, w.seal_card)
 	if w.rng.randf() < Cards.drop_chance(e.type, e.elite, w.tune.card_chance * w.seal_cards, w.tune.card_elite_mul, w.tune.card_boss_chance * w.seal_cards):
-		_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, e.type)
+		_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, Cards.for_enemy(e.type))
 
 
 static func _roll_drop(w: World, e: World.Enemy) -> void:
@@ -35,7 +35,7 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 	elif r < coin + 0.05:
 		_drop(w, World.PK_GEM, e.pos, pop)
 	elif r < potion:
-		if w.no_potions > 0.0 or w.seal_hunger: return # THE HIEROPHANT, HUNGER
+		if w.no_potions > 0.0: return # THE HIEROPHANT
 		_drop(w, World.PK_POTION, e.pos, pop)
 	elif r < tome:
 		_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, pop)

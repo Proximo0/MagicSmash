@@ -63,7 +63,7 @@ func test_rules_are_cumulative() -> void:
 		for k: String in rule:
 			assert_eq(top[k], rule[k], "SEAL VIII keeps " + k)
 			assert_eq(Seals.values(i + 1)[k], Seals.BASE[k], "%s is not on below its Seal" % k)
-	assert_near(float(top.hp), 1.3 + 0.15 * 8)
+	assert_near(float(top.hp), float(Seals.ARCHMAGE.hp) + float(Seals.PER_SEAL.hp) * 8)
 	assert_eq(int(top.cap), 325)
 
 
@@ -80,7 +80,7 @@ func test_rewards() -> void:
 	assert_eq(Seals.card(1), -1)
 	for level: int in range(2, Seals.MAX + 1):
 		var c := Seals.card(level)
-		assert_true(c >= Cards.MONSTERS, Seals.title(level) + " has its own card")
+		assert_true(c >= 0 and Cards.enemy(c) == -1, Seals.title(level) + " has its own card, dropped by no monster")
 		assert_eq(Seals.of_card(c), level)
 	assert_eq(Seals.of_card(World.GOBLIN), Seals.MIN - 1)
 

@@ -21,15 +21,15 @@ const NUMERALS := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"]
 const BASE := {
 	"hp": 1.0, "horde": 1.0, "boss": 1.0, "speed": 1.0, "potions": 1.0, "hearts": 0,
 	"crystals": 1.0, "luck": 0, "ultra": true,
-	"hunger": false, "rift": 1.0, "potion_heal": 2, "group": 1.0, "cap": 0, "elite_hp": 1.0, "escort": 0,
+	"rift": 1.0, "potion_heal": 2, "group": 1.0, "cap": 0, "elite_hp": 1.0, "escort": 0,
 	"cruel": 0.0, "hand": 0, "lives": 0, "solo_lives": 0, "judgement": true, "ritual": 1.0,
 }
 
 ## APPRENTICE and ARCHMAGE: their own scalars (part 3b of docs/wave2_brief.md; the balance job tunes them).
-const APPRENTICE := {"hp": 0.75, "horde": 0.8, "boss": 0.7, "hearts": 1, "potions": 1.5, "ultra": false}
-const ARCHMAGE := {"hp": 1.3, "horde": 1.2, "boss": 1.4, "speed": 1.05}
+const APPRENTICE := {"hp": 0.75, "boss": 0.7, "hearts": 2, "potions": 2.0, "ultra": false}
+const ARCHMAGE := {"hp": 1.08, "boss": 1.15}
 ## What each Seal adds on top of the step below it.
-const PER_SEAL := {"hp": 0.15, "horde": 0.08, "boss": 0.2}
+const PER_SEAL := {"hp": 0.03, "horde": 0.03, "boss": 0.06}
 
 ## Crystal multiplier and luck per step, MIN to MAX.
 const CRYSTALS := [0.5, 1.0, 1.5, 2.0, 2.5, 3.25, 4.0, 5.0, 6.5, 8.0, 10.0]
@@ -40,12 +40,13 @@ const CARD_PER_LUCK := 0.1
 const PRIZE_BASE := 50
 
 ## The Seals' rules, I to VIII: [name, what the lobby says, the values it sets]. Rules are cumulative.
-## HUNGER: a plain kill drops no potion (elites and bosses drop as before). AMBUSH: rift warning x0.5. FAMINE: a
+## HUNGER: plain kills drop potions 0.6 times as often (no potions at all was a wall: solo bots fell from 3 wins
+## in 6 to none). Elites and bosses drop as before. AMBUSH: rift warning x0.5. FAMINE: a
 ## potion heals one heart, not two. LEGION: groups x1.25, enemy cap 325. CHAMPIONS: elites x1.5 health, each
 ## with an escort of plain enemies of its kind. MISFORTUNE: fate_cruel 0.6. SILENCE: level-ups deal 2 cards.
 ## DARKNESS: one life (two for a wizard with no ally), no JUDGEMENT card, rituals take twice as long.
 const RULES: Array = [
-	["HUNGER", "NO POTIONS FROM KILLS", {"hunger": true}],
+	["HUNGER", "FEWER POTIONS FROM KILLS", {"potions": 0.6}],
 	["AMBUSH", "RIFTS WARN HALF AS LONG", {"rift": 0.5}],
 	["FAMINE", "POTIONS HEAL 1 HEART", {"potion_heal": 1}],
 	["LEGION", "GROUPS 25% BIGGER", {"group": 1.25, "cap": 325}],
@@ -54,7 +55,7 @@ const RULES: Array = [
 	["SILENCE", "2-CARD LEVEL-UPS", {"hand": 2}],
 	["DARKNESS", "1 LIFE, NO JUDGEMENT", {"lives": 1, "solo_lives": 2, "judgement": false, "ritual": 2.0}],
 ]
-const DESCRIBE_LOW := ["GENTLER FOES, MORE POTIONS", "THE TOWER AS IT STANDS", "TOUGHER, MORE AND FASTER FOES"]
+const DESCRIBE_LOW := ["GENTLER FOES, MORE POTIONS", "THE TOWER AS IT STANDS", "TOUGHER FOES AND BOSSES"]
 
 
 ## The step's values: BASE with the step's scalars and every rule up to it.

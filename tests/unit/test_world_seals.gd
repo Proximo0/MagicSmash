@@ -37,7 +37,7 @@ func test_seal_zero_leaves_every_field_at_its_default() -> void:
 	var a := World.new([0, 1], 7)
 	var b := _world(0)
 	for f: String in ["seal_hp", "seal_horde", "seal_boss", "seal_speed", "seal_potions", "seal_luck", "seal_cards",
-			"seal_ultra", "seal_hunger", "seal_rift", "seal_potion_heal", "seal_group", "seal_cap", "seal_elite_hp",
+			"seal_ultra", "seal_rift", "seal_potion_heal", "seal_group", "seal_cap", "seal_elite_hp",
 			"seal_escort", "seal_hand", "seal_ritual", "seal_card", "fate_cruel"]:
 		assert_eq(b.get(f), a.get(f), f)
 	for s: int in [0, 1]:
@@ -51,22 +51,24 @@ func test_scalars_reach_enemies_bosses_and_hearts() -> void:
 	var arch := _world(1)
 	var g0 := WorldWaves.spawn_enemy(base, World.GOBLIN, 0)
 	var g1 := WorldWaves.spawn_enemy(arch, World.GOBLIN, 0)
-	assert_near(g1.hp / g0.hp, 1.3, 0.001, "ARCHMAGE enemy health")
-	assert_near(g1.spd / g0.spd, 1.05, 0.001, "ARCHMAGE enemy speed")
+	var v1 := Seals.values(1)
+	assert_near(g1.hp / g0.hp, float(v1.hp), 0.001, "ARCHMAGE enemy health")
+	assert_near(g1.spd / g0.spd, float(v1.speed), 0.001, "ARCHMAGE enemy speed")
 	var l0 := WorldWaves.spawn_enemy(base, World.LICH, 0)
 	var l1 := WorldWaves.spawn_enemy(arch, World.LICH, 0)
-	assert_near(l1.hp / l0.hp, 1.4, 0.001, "ARCHMAGE Lich health")
+	assert_near(l1.hp / l0.hp, float(v1.boss), 0.001, "ARCHMAGE Lich health")
 	WorldBosses._make_final(base, l0)
 	WorldBosses._make_final(arch, l1)
-	assert_near(l1.hp / l0.hp, 1.4, 0.001, "ARCHMAGE Archlich health")
+	assert_near(l1.hp / l0.hp, float(v1.boss), 0.001, "ARCHMAGE Archlich health")
 	var easy := _world(-1)
-	assert_eq(easy.players[0].max_hp, base.players[0].max_hp + 1, "APPRENTICE: a heart more")
+	assert_eq(easy.players[0].max_hp, base.players[0].max_hp + int(Seals.APPRENTICE.hearts), "APPRENTICE: hearts more")
 	assert_eq(easy.players[0].hp, easy.players[0].max_hp)
-	assert_near(WorldWaves.spawn_enemy(easy, World.GOBLIN, 0).hp / g0.hp, 0.75, 0.001)
-	assert_near(_world(9).seal_horde, 1.2 + 0.08 * 8)
+	assert_near(WorldWaves.spawn_enemy(easy, World.GOBLIN, 0).hp / g0.hp, float(Seals.APPRENTICE.hp), 0.001)
+	assert_near(_world(9).seal_horde, float(Seals.values(9).horde))
+	assert_near(_world(9).seal_horde, 1.0 + float(Seals.PER_SEAL.horde) * 8)
 
 
-## Plain kills: 3000 drops each. HUNGER (SEAL I) takes their potions; APPRENTICE drops more of them.
+## Plain kills: 3000 drops each. HUNGER (SEAL I) thins their potions; APPRENTICE drops more of them.
 func test_hunger_and_the_potion_scalar() -> void:
 	var counts := {}
 	for level: int in [-1, 1, 2]:
@@ -75,7 +77,7 @@ func test_hunger_and_the_potion_scalar() -> void:
 			WorldDrops._roll_drop(w, WorldWaves.spawn_enemy(w, World.GOBLIN, 0))
 		counts[level] = _count(w, World.PK_POTION)
 	assert_true(int(counts[1]) > 20, "ARCHMAGE kills drop potions")
-	assert_eq(int(counts[2]), 0, "HUNGER: no potion from a plain kill")
+	assert_true(int(counts[2]) > 0 and int(counts[2]) < int(counts[1]) * 0.8, "HUNGER: fewer potions from plain kills")
 	assert_true(int(counts[-1]) > int(counts[1]), "APPRENTICE: more potions")
 
 
@@ -110,8 +112,11 @@ func test_legion_groups_and_cap() -> void:
 	for i: int in range(40):
 		var ga := WorldWaves._roll_group(a)
 		var gb := WorldWaves._roll_group(b)
-		assert_eq(gb[0], ga[0])
-		assert_eq(int(gb[1]), int(round(int(ga[1]) * 1.25)), "LEGION: a quarter more")
+		assert_eq(gb[0], ga[0], "same layout")
+		assert_eq((gb[1] as Array).size(), (ga[1] as Array).size())
+		for k: int in range((ga[1] as Array).size()):
+			assert_eq(gb[1][k][0], ga[1][k][0])
+			assert_eq(int(gb[1][k][1]), int(round(int(ga[1][k][1]) * 1.25)), "LEGION: a quarter more")
 	assert_eq(a.seal_cap, 0)
 	assert_eq(b.seal_cap, 325)
 	# At its cap the horde holds its budget.
@@ -196,13 +201,13 @@ func test_luck_ultra_and_the_seal_card() -> void:
 	for i: int in range(50):
 		WorldDrops._roll_card(s4, lich)
 	for k: World.Pickup in s4.pickups:
-		assert_true(k.value < Cards.MONSTERS, "a plain Lich never drops a Seal card")
+		assert_true(Cards.enemy(k.value) >= 0, "a plain Lich never drops a Seal card")
 	var arch0 := WorldWaves.spawn_enemy(_world(1), World.LICH, 0)
 	arch0.final = true
 	var w1 := _world(1)
 	WorldDrops._roll_card(w1, arch0)
 	for k: World.Pickup in w1.pickups:
-		assert_true(k.value < Cards.MONSTERS, "ARCHMAGE has no Seal card")
+		assert_true(Cards.enemy(k.value) >= 0, "ARCHMAGE has no Seal card")
 
 
 ## Bots play a few seconds at SEAL VIII without errors, and the header carries the Seal.
