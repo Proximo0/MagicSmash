@@ -313,7 +313,9 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 
 
 static func _spawn_random_powerup(w: World) -> void:
-	var kinds := World.TOMES + [World.PK_BOOTS, World.PK_ORBIT, World.PK_TOME_FIRE, World.PK_TOME_STORM]
+	var kinds := [World.PK_BOOTS, World.PK_ORBIT]
+	if w.tune.floor_tomes >= 0.5: # spell tomes appear only while tune.floor_tomes is on
+		kinds = World.TOMES + [World.PK_BOOTS, World.PK_ORBIT, World.PK_TOME_FIRE, World.PK_TOME_STORM]
 	var k: int = kinds[w.rng.randi() % kinds.size()]
 	var pos := Vector2.ZERO
 	for tries in 12:

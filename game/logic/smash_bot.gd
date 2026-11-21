@@ -79,7 +79,7 @@ const CHEST := Vector2(0, -6)
 const BODY: float = 5.0
 
 ## Pickup worth by World.PK_* (index), before distance and risk.
-const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5, 0.8, 3.0, 2.0, 2.5, 3.5, 4.0]
+const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5, 0.8, 3.0, 2.0, 2.5, 3.5, 4.0, 4.0]
 
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.

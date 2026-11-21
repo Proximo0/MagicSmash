@@ -168,6 +168,7 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage)
 	w.record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_source(w.stat_src, minf(dmg, maxf(0.0, e.hp)))
+	w.record.add_slot_source(slot, w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	e.hp -= dmg
 	e.flash = 0.07
 	e.knock += knock * _heft(w, e)
@@ -205,6 +206,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 		for i in World.ELITE_GEMS:
 			WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / World.ELITE_GEMS) * 70.0)
 		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2(0, 30), w.tune.chest_life, int(w.tune.elite_chest_luck))
+		WorldLevels._drop_party_tome(w, e.pos, w.tune.party_tome_elite)
 		Brains.on_death(w, e, slot) # its death still acts (a shard's beam ends); the elite's own drops replace the roll
 		return
 	if Brains.on_death(w, e, slot):

@@ -60,3 +60,16 @@ func test_rune_circle_trades_focus_for_area() -> void:
 		var rune: float = Spells.damage(World.SP_RUNE, lv, false) * ticks / Spells.cooldown(World.SP_RUNE, lv, false)
 		var star: float = Spells.damage(World.SP_STAR, lv, false) * Spells.count(World.SP_STAR, lv, false) / Spells.cooldown(World.SP_STAR, lv, false)
 		assert_true(rune < star, "level %d: rune %.2f vs starfall %.2f" % [lv, rune, star])
+
+
+## Every spell names a cast kind World can cast, and only bolts carry bolt behaviours.
+func test_every_spell_has_a_cast_kind() -> void:
+	for sp: int in range(Spells.COUNT):
+		assert_true(WorldCasting.CASTS.has(Spells.cast_kind(sp)), Spells.spell_name(sp) + " has no caster")
+		if Spells.cast_kind(sp) != "bolt":
+			for key: String in ["jitter", "home", "blast", "slow"]:
+				assert_eq(Spells.bolt_value(sp, key, false, 0.0), 0.0, "%s %s" % [Spells.spell_name(sp), key])
+	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", false, 0.0), Spells.FROST_SLOW)
+	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", true, 0.0), float(Spells.EVOS[World.SP_FROST]["slow"]))
+	assert_true(Spells.bolt_value(World.SP_STAR, "home", false, 0.0) > 0.0)
+	assert_true(Spells.bolt_value(World.SP_FIRE, "blast", false, 0.0) > 0.0)

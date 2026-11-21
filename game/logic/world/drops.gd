@@ -22,9 +22,11 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 	var r := w.rng.randf()
 	var big := e.type == World.ORC or e.type == World.MAGE
 	var pop := Vector2.from_angle(w.rng.randf() * TAU) * 40.0
+	# Spell tomes fall only while tune.floor_tomes is on (otherwise the party tome replaces them).
+	var tomes := w.tune.floor_tomes >= 0.5
 	if big:
 		_drop(w, World.PK_GEM, e.pos, pop)
-		if w.rng.randf() < w.tune.big_tome_chance:
+		if tomes and w.rng.randf() < w.tune.big_tome_chance:
 			_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, -pop)
 		return
 	var coin := w.tune.coin_drop_chance
@@ -38,7 +40,8 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 		if w.no_potions > 0.0: return # THE HIEROPHANT
 		_drop(w, World.PK_POTION, e.pos, pop)
 	elif r < tome:
-		_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, pop)
+		if tomes:
+			_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, pop)
 	elif r < tome + 0.007:
 		_drop(w, World.PK_BOOTS, e.pos, pop)
 	elif r < tome + 0.015:
@@ -110,6 +113,7 @@ static func _break_urn(w: World, at: Vector2) -> void:
 		what = World.URN_COIN
 		for k in 2:
 			_drop(w, World.PK_COIN, at, Vector2.from_angle(w.rng.randf() * TAU) * 40.0)
+	WorldLevels._drop_party_tome(w, at, w.tune.party_tome_urn)
 	w.emit(World.EV_URN, at.x, at.y, what, 0)
 
 
@@ -222,6 +226,10 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 		w.record.note(w.wave_time, Results.M_CARD, p.slot, idx)
 		w.emit(World.EV_CARD, k.pos.x, k.pos.y, idx, p.slot + (8 if k.value >= World.URN_CARD else 0))
 		return
+	if k.kind == WorldLevels.PARTY_TOME:
+		WorldLevels._read_party_tome(w)
+		w.emit(World.EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
+		return
 	var pts := 0
 	var greed: float = 1.0 + p.armor[Loot.ST_GREED] + w.meta_gold
 	match k.kind:
@@ -236,9 +244,10 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 		World.PK_POTION:
 			p.hp = mini(p.max_hp, p.hp + w.seal_potion_heal) # FAMINE: one
 		World.PK_TOME_FIRE, World.PK_TOME_FROST, World.PK_TOME_STORM, World.PK_TOME_STAR, World.PK_TOME_RUNE:
-			# A tome grants or levels its spell weapon; one that is already maxed is worth points instead.
+			# A spell tome (none fall any more) grants or levels its spell weapon if the wizard's slots allow it;
+			# otherwise it is worth points instead.
 			var idx := Upgrades.weapon_entry(World.TOMES.find(k.kind) + 1)
-			if Upgrades.take(p.upgrades, idx):
+			if Upgrades.available(p.upgrades, idx, w.slot_cap(), p.banned) and Upgrades.take(p.upgrades, idx):
 				WorldCasting._refresh_spell(w, p)
 				w.emit(World.EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
 			else:
@@ -284,8 +293,8 @@ static func _open_chest(w: World, p: World.Player, k: World.Pickup) -> void:
 				for i in maxi(1, int(v)):
 					var owned: Array[int] = []
 					for sp in Spells.COUNT:
-						var lv := Upgrades.weapon_level(p.upgrades, sp)
-						if lv > 0 and lv < Spells.MAX_LEVEL:
+						if Upgrades.weapon_level(p.upgrades, sp) > 0 \
+								and Upgrades.available(p.upgrades, Upgrades.weapon_entry(sp), w.slot_cap(), p.banned):
 							owned.append(sp)
 					if owned.is_empty():
 						break

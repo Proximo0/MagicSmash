@@ -7,6 +7,11 @@ extends RefCounted
 ## Left edge of each seat's tab and tray. The outer seats hang under their panel; the inner two lean into the
 ## empty middle column of the HUD strip, so four 118 px trays never touch.
 const TRAY_X: Array[int] = [2, 120, 242, 360]
+## Seconds a card's button is held to banish it.
+const BANISH_HOLD := 1.0
+## A card button held down, per local slot: [card, time pressed, offer, the Arena's instance id]. Only while the wizard has banishes left
+## does a press wait for its release (a take) or for BANISH_HOLD (a banish); otherwise a press takes at once.
+static var _holds := {}
 
 
 static func _anyone_picking(a: Arena) -> bool:
@@ -148,18 +153,47 @@ static func _draw_tray(a: Arena, ci: CanvasItem, slot: int, dark: Color) -> void
 		var idx: int = choices[c]
 		var lv: int = p.choice_lv[c]
 		var lv_text := "NEW" if lv == 1 else "%d/%d" % [lv, Upgrades.max_level(idx)]
+		if Upgrades.kind(idx) == Upgrades.MINOR:
+			lv_text = "MINOR"
 		TarotArt.draw_card_row(ci, rr, Upgrades.key(idx), Upgrades.display_name(idx), Upgrades.description(idx),
 			lv_text, 11.0)
 		_draw_pick_button(a, ci, rr.position + Vector2(1, 4), dev, c)
 		if k < 0.75:
 			ci.draw_rect(rr, Color(1, 1, 1, (0.75 - k) * 3.0))
+		var held := _hold_left(a, slot, c)
+		if held > 0.0:
+			# A card held toward a banish: a red bar fills along its foot.
+			ci.draw_rect(Rect2(rr.position.x, rr.end.y - 2, rr.size.x * held, 2), Color("ff4d6a"))
+	_update_hold(a, slot)
 	var fy := r.end.y - 8.0
+	var fx := r.position.x + 3
 	if _draws(a, slot) > 1:
-		PixelFont.draw(ci, "+%d MORE" % (_draws(a, slot) - 1), Vector2(r.position.x + 3, fy), 1, Color("ffd94d"), dark)
+		# Draws waiting behind this hand: a small card back and +N.
+		TarotArt.draw_back_icon(ci, Rect2(Vector2(fx + 1, fy - 1), Vector2(5, 7)), col)
+		PixelFont.draw(ci, "+%d" % (_draws(a, slot) - 1), Vector2(fx + 8, fy), 1, Color("ffd94d"), dark)
+		fx += 22
+	_draw_build_tools(a, ci, Vector2(fx, fy), dev, p, dark)
 	var label := "E" if dev == G.DEV_KBM else "LB"
 	var hx := r.end.x - 2 - PixelFont.text_width("HIDE")
 	PixelFont.draw(ci, "HIDE", Vector2(hx, fy), 1, Color("8a7aa8"), dark)
 	_draw_keycap(a, ci, Vector2(hx - 4 - PixelFont.text_width(label) - 2, fy - 1), label, false)
+
+
+## The tray footer's redraws and banishes left: the redraw key (R, or DN for the pad's d-pad) and its count, then
+## a struck-out card and the banishes' count (hold a card's button to banish it). Spent ones dim.
+static func _draw_build_tools(a: Arena, ci: CanvasItem, at: Vector2, dev: int, p: Dictionary, dark: Color) -> void:
+	var redraws := int(p.get("redraws", 0))
+	var banishes := int(p.get("banishes", 0))
+	var key := "R" if dev == G.DEV_KBM or dev == -99 else "DN"
+	_draw_keycap(a, ci, at + Vector2(0, -1), key, false)
+	var x := at.x + PixelFont.text_width(key) + 4
+	PixelFont.draw(ci, str(redraws), Vector2(x, at.y), 1, Color("8bff9e") if redraws > 0 else Color("5a4f70"), dark)
+	x += PixelFont.text_width(str(redraws)) + 5
+	var icon := Rect2(Vector2(x, at.y - 1), Vector2(5, 7))
+	TarotArt.draw_back_icon(ci, icon, Color("ff4d6a") if banishes > 0 else Color("5a4f70"))
+	for d in 5:
+		ci.draw_rect(Rect2(icon.position + Vector2(d, 1 + d), Vector2(1, 1)), Color("ff4d6a") if banishes > 0 else Color("5a4f70"))
+	PixelFont.draw(ci, str(banishes), Vector2(x + 8, at.y), 1, Color("ff8a9a") if banishes > 0 else Color("5a4f70"), dark)
 
 
 ## A small light keycap with a label, 9 px tall (11 with its dark outline).
@@ -206,6 +240,14 @@ static func _draw_draw_marker(a: Arena, ci: CanvasItem, slot: int) -> void:
 ## closes a wizard's tray; 1 2 3 or X Y B (or a click on a row) takes a card while it is open. The mouse and touch
 ## work the keyboard wizard's tray. Returns true if the event was used.
 static func _tray_input(a: Arena, event: InputEvent) -> bool:
+	if (event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+			or (event is InputEventScreenTouch and not event.pressed):
+		# Letting go of a card row held toward a banish takes the card instead.
+		for r in Net.my_slots():
+			var h: Array = _hold_of(a, r.slot) if r.device == G.DEV_KBM else []
+			if not h.is_empty():
+				return _release_hold(a, r.slot, int(h[0]))
+		return false
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 			or (event is InputEventScreenTouch and event.pressed):
 		var ks := -1
@@ -225,7 +267,7 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 		var n: int = (a.vp[ks].choices as Array).size()
 		for c in n:
 			if _tray_row_rect(a, ks, c).has_point(pos):
-				_take_card(a, ks, c)
+				_press_card(a, ks, c)
 		if pos.y >= _tray_row_rect(a, ks, n - 1).end.y:
 			_set_tray(a, ks, false) # the footer with HIDE
 		return true
@@ -234,18 +276,38 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 		var dev: int = r.device
 		var toggle := false
 		var card := -1
-		if dev == G.DEV_KBM and event is InputEventKey and event.pressed and not event.echo:
+		var redraw := false
+		var released := -1
+		if dev == G.DEV_KBM and event is InputEventKey and not event.echo:
+			var k := -1
 			match event.physical_keycode:
-				KEY_E: toggle = true
-				KEY_1, KEY_KP_1: card = 0
-				KEY_2, KEY_KP_2: card = 1
-				KEY_3, KEY_KP_3: card = 2
-		elif dev != G.DEV_KBM and event is InputEventJoypadButton and event.pressed and event.device == dev:
+				KEY_E: toggle = event.pressed
+				KEY_R: redraw = event.pressed
+				KEY_1, KEY_KP_1: k = 0
+				KEY_2, KEY_KP_2: k = 1
+				KEY_3, KEY_KP_3: k = 2
+			if event.pressed:
+				card = k
+			else:
+				released = k
+		elif dev != G.DEV_KBM and event is InputEventJoypadButton and event.device == dev:
+			var k := -1
 			match event.button_index:
-				JOY_BUTTON_LEFT_SHOULDER: toggle = true
-				JOY_BUTTON_X: card = 0
-				JOY_BUTTON_Y: card = 1
-				JOY_BUTTON_B: card = 2
+				JOY_BUTTON_LEFT_SHOULDER: toggle = event.pressed
+				JOY_BUTTON_DPAD_DOWN: redraw = event.pressed
+				JOY_BUTTON_X: k = 0
+				JOY_BUTTON_Y: k = 1
+				JOY_BUTTON_B: k = 2
+			if event.pressed:
+				card = k
+			else:
+				released = k
+		if released >= 0 and _release_hold(a, slot, released):
+			return true
+		if redraw and _tray_shown(a, slot) and not _tray_covered(a):
+			if int(a.vp[slot].get("redraws", 0)) > 0:
+				_send_pick(a, slot, Upgrades.REDRAW_INPUT)
+			return true
 		elif dev != G.DEV_KBM and event is InputEventJoypadMotion and event.device == dev \
 				and event.axis == JOY_AXIS_TRIGGER_LEFT:
 			var was: bool = a._lt_held.get(dev, false)
@@ -256,9 +318,66 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 			return true
 		if card >= 0 and _tray_shown(a, slot):
 			if not _tray_covered(a): # under a card reveal or a fate bet the tray is folded away
-				_take_card(a, slot, card)
+				_press_card(a, slot, card)
 			return true
 	return false
+
+
+## A card's button went down: with banishes left the press waits (a release takes it, BANISH_HOLD seconds held
+## banishes it); without, or on a Minor Arcana card (never banished), it takes the card at once.
+static func _press_card(a: Arena, slot: int, c: int) -> void:
+	var choices: Array = a.vp[slot].choices
+	if c >= choices.size():
+		return
+	if int(a.vp[slot].get("banishes", 0)) <= 0 or Upgrades.kind(int(choices[c])) == Upgrades.MINOR:
+		_take_card(a, slot, c)
+		return
+	if _tray_turn(a, slot, c) < 1.0:
+		return
+	_holds[slot] = [c, a.time, int(a.vp[slot].offer), a.get_instance_id()]
+
+
+## `slot`'s hold, if it was started on this arena (holds live in a static, so one never outlives its arena).
+static func _hold_of(a: Arena, slot: int) -> Array:
+	if not _holds.has(slot):
+		return []
+	if int(_holds[slot][3]) != a.get_instance_id():
+		_holds.erase(slot)
+		return []
+	return _holds[slot]
+
+
+## Card `c`'s button came up: if it was held (and not yet banished), takes the card. True if it was held.
+static func _release_hold(a: Arena, slot: int, c: int) -> bool:
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty() or int(h[0]) != c:
+		return false
+	_holds.erase(slot)
+	if a.vp.has(slot) and int(h[2]) == int(a.vp[slot].offer) and _tray_shown(a, slot) and not _tray_covered(a):
+		_take_card(a, slot, c)
+	return true
+
+
+## How far `slot`'s held card `c` is toward a banish, 0..1 (0: not held).
+static func _hold_left(a: Arena, slot: int, c: int) -> float:
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty() or int(h[0]) != c:
+		return 0.0
+	return clampf((a.time - float(h[1])) / BANISH_HOLD, 0.0, 1.0)
+
+
+## Each frame the tray is up: a hold that reached BANISH_HOLD banishes its card; a hold on a hand that is gone ends.
+static func _update_hold(a: Arena, slot: int) -> void:
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty():
+		return
+	if int(h[2]) != int(a.vp[slot].offer) or _tray_covered(a):
+		_holds.erase(slot)
+		return
+	if a.time - float(h[1]) >= BANISH_HOLD:
+		_holds.erase(slot)
+		_send_pick(a, slot, Upgrades.BANISH_INPUT + int(h[0]))
+		Sfx.play("menu_move", -2.0, 0.7)
 
 
 ## Takes card `c` of `slot`'s hand, only if that row is there and face up. A hand that turned over on screen takes
@@ -267,14 +386,24 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 static func _take_card(a: Arena, slot: int, c: int) -> void:
 	if c >= (a.vp[slot].choices as Array).size() or _tray_turn(a, slot, c) < 1.0:
 		return
+	if _send_pick(a, slot, c):
+		Sfx.play("card_pick", -2.0)
+
+
+## Sends input field 6 = `value` for `slot`'s current hand (a card, Upgrades.REDRAW_INPUT or BANISH_INPUT + card),
+## once per hand and not within PICK_GAP of the last, nor before a hand that turned over has been read. True if
+## sent.
+static func _send_pick(a: Arena, slot: int, value: int) -> bool:
 	var seen: Array = a._tray_dealt.get(slot, [-1, -10.0, 7, false])
 	if bool(seen[3]) and a.time - float(seen[1]) < a.TRAY_FLIP + a.TRAY_READ:
-		return
+		return false
 	if a.time - float(a._pick_t.get(slot, -10.0)) < a.PICK_GAP:
-		return
+		return false
 	var sent: Array = a._pick_sent.get(slot, [-1, -1])
 	if int(sent[1]) == int(a.vp[slot].offer):
-		return
-	a._pick_sent[slot] = [c, int(a.vp[slot].offer)]
+		return false
+	a._pick_sent[slot] = [value, int(a.vp[slot].offer)]
 	a._pick_t[slot] = a.time
-	Sfx.play("card_pick", -2.0)
+	if value == Upgrades.REDRAW_INPUT:
+		Sfx.play("card_deal", -2.0)
+	return true
