@@ -16,6 +16,8 @@ var fx: Fx
 var glow: Node2D
 var album := CardAlbum.new()
 var album_open := false
+var roster := HeroRoster.new()
+var roster_open := false
 var track := 0
 var message := ""
 var message_t := 0.0
@@ -83,7 +85,9 @@ func _process(delta: float) -> void:
 		glow.queue_redraw()
 		return
 	dlg.update(delta)
-	if not album_open and _deck.is_empty() and not dlg.active:
+	if roster_open:
+		roster.update(delta)
+	if not album_open and not roster_open and _deck.is_empty() and not dlg.active:
 		var inp := PlayerInput.read(device, room.pos, get_viewport())
 		room.step(delta, Vector2(inp[0], inp[1]))
 	if not _deck.is_empty():
@@ -199,6 +203,10 @@ func _use(i: int) -> void:
 			_after_talk = "shop"
 		Sanctum.CARD_READER:
 			_talk(Talk.CARD_READER, _run_context(Talk.CARD_READER))
+		Sanctum.MIRROR:
+			roster.open(prof, device)
+			roster_open = true
+			Sfx.play("page_turn")
 		Sanctum.CAT:
 			_cat_pet = 1.5
 			Sfx.play("heal", -6.0, 0.7)
@@ -274,6 +282,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if album.handle(event):
 			album_open = false
 		return
+	if roster_open:
+		if roster.handle(event):
+			roster_open = false
+		return
 	if not _deck.is_empty():
 		if _deck.t > 0.8 and (PlayerInput.confirm_device(event) != -99 or PlayerInput.back_pressed(event)):
 			_deck = {}
@@ -309,6 +321,8 @@ func _draw() -> void:
 		_draw_deck()
 	if album_open:
 		album.draw(self, t)
+	if roster_open:
+		roster.draw(self, t)
 	dlg.draw(self, t)
 	if _leaving >= 0.0:
 		draw_rect(Rect2(0, 0, 480, 270), Color(0.6, 0.4, 1.0, clampf(_leaving / 0.8, 0.0, 1.0)))
@@ -377,6 +391,8 @@ func _draw_things() -> void:
 					draw_rect(Rect2(q, Vector2(1, 1)), Color("8bdcff", 0.5 - rr * 0.1))
 				if int(t * 2.0) % 3 == 0:
 					draw_rect(Rect2(w + Vector2(-5, -1), Vector2(2, 1)), Color("c8f0ff", 0.6))
+			Sanctum.MIRROR:
+				_draw_mirror(p)
 			Sanctum.CAT:
 				if not room.crack_open:
 					continue
@@ -408,6 +424,28 @@ func _draw_things() -> void:
 			var px := clampf(p.x, half + 4.0, 476.0 - half)
 			var py := maxf(p.y - (44.0 if i >= Sanctum.SHOPKEEPER else 34.0), 64.0) + sin(t * 4.0)
 			_prompt = [text, Vector2(px, py)]
+
+
+## The mirror: a tall dark oval glass in a gold frame on two feet, with a slow sheen across the glass. A stand-in
+## drawn with rects until its picture comes from a file.
+func _draw_mirror(p: Vector2) -> void:
+	var cy := p.y - 22.0
+	draw_rect(Rect2(p + Vector2(-8, -2), Vector2(16, 3)), Color("1a0f24"))
+	draw_rect(Rect2(p + Vector2(-8, -2), Vector2(16, 1)), Color("5a4e74"))
+	for k: int in range(2):
+		var half := 14.0 if k == 0 else 12.0
+		var wide := 9.0 if k == 0 else 7.0
+		var col := Occult.GOLD if k == 0 else Color("0a0614")
+		for row: int in range(int(-half), int(half) + 1):
+			var w := roundf(wide * sqrt(maxf(0.0, 1.0 - pow(float(row) / half, 2.0))))
+			if k == 1 and w > 1.0:
+				col = Color("1b1236").lerp(Color("4a3a8a"), clampf(0.5 + float(row) / half * 0.5, 0.0, 1.0) * 0.5)
+			draw_rect(Rect2(p.x - w, cy + row, w * 2.0, 1.0), col)
+	var sheen := fmod(t * 0.5, 2.0) - 0.5
+	if sheen > 0.0 and sheen < 1.0:
+		var sy := cy - 10.0 + sheen * 20.0
+		draw_rect(Rect2(p.x - 3, sy, 1, 2), Color(1, 1, 1, 0.5))
+	draw_rect(Rect2(p.x - 1, cy - 14 - 3, 2, 2), Occult.GOLD)
 
 
 ## A talker's spot: a small framed portrait on a plinth with the name below (a plain plate where there is no picture).
