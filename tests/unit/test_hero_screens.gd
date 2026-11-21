@@ -147,3 +147,16 @@ func test_the_sheet_spends_a_point() -> void:
 	assert_eq(p.heroes[0].points_left(), left - 1)
 	assert_eq(p.heroes[0].points[Loot.ST_VIGOR], 1)
 	assert_true(s.handle(_key(KEY_ESCAPE)))
+
+
+func test_the_sheet_shows_a_class_weapon_with_its_skin_numbers() -> void:
+	var plain := HeroSheet.weapon_line(World.SP_BONE)
+	var bow := HeroSheet.weapon_line(World.SP_BONE, Classes.ARCHER)
+	var want := "DMG %s  CD %sS  SHOTS %d" % [
+		HeroSheet.num_text(Spells.damage(World.SP_BONE, 1, false) * Classes.skin_value("longbow", "dmg_mul", 1.0)),
+		HeroSheet.num_text(Spells.cooldown(World.SP_BONE, 1, false) * Classes.skin_value("longbow", "cd_mul", 1.0)),
+		Spells.count(World.SP_BONE, 1, false)]
+	assert_eq(bow, want)
+	assert_true(bow != plain, "the archer's LONGBOW read like a plain BONE SPEAR")
+	assert_eq(HeroSheet.weapon_line(World.SP_BONE, Classes.KNIGHT), plain, "a spear in a knight's hands is the plain row")
+	assert_eq(HeroSheet.weapon_line(World.SP_ARCANE, Classes.MAGE), HeroSheet.weapon_line(World.SP_ARCANE))

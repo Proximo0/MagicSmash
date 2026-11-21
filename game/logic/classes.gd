@@ -36,30 +36,35 @@ const C_RITUAL := 10 # how fast this hero's rituals raise the fallen (x)
 const C_REDRAWS := 11 # extra redraws of the hand a run
 const C_AURA_R := 12 # px: heroes this near (her too) get C_AURA_WARD points of WARD; 0 = no aura
 const C_AURA_WARD := 13
+const C_HURT_SAFE := 14 # s a hit leaves this hero unhurt (a shrugged hit: WorldPlayers' own half second)
 
-## [key, name, role, hearts, weapon, skin, skill, threat, stats, walk, ritual, redraws, aura radius, aura ward].
+## [key, name, role, hearts, weapon, skin, skill, threat, stats, walk, ritual, redraws, aura radius, aura ward,
+## hurt safe].
 ## A class weapon is a skinned entry of a spell row (job C2): the hero holds that spell's own Upgrades entry, so it
 ## levels and evolves like the row, and C_SKIN names how it differs (SKINS). The class stat points are a first cut
 ## for the balance gates (job P).
 const ROWS: Array = [
-	["mage", "MAGE", ROLE_DAMAGE, 5, SCHOOL_WEAPON, "staff", 0, 1.0, [0, 2, 0, 0, 0, 0], 1.0, 1.0, 2, 0.0, 0],
-	["knight", "KNIGHT", ROLE_TANK, 7, World.SP_CLEAVE, "cleave", 1, 2.5, [1, 0, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0],
-	["archer", "ARCHER", ROLE_RANGED, 4, World.SP_BONE, "longbow", 2, 0.8, [1, 1, 1, 0, 0, 0], 1.08, 1.0, 0, 0.0, 0],
-	["priest", "PRIEST", ROLE_HEALER, 5, World.SP_CANDLE, "holy_light", 3, 0.7, [0, 1, 0, 0, 2, 0], 1.0, 2.0, 0, 0.0, 0],
-	["paladin", "PALADIN", ROLE_SUPPORT, 6, World.SP_STAR, "smite", 4, 1.6, [1, 0, 0, 0, 1, 0], 1.0, 1.0, 0, 50.0, 8],
+	["mage", "MAGE", ROLE_DAMAGE, 5, SCHOOL_WEAPON, "staff", 0, 1.0, [0, 2, 0, 0, 0, 0], 1.0, 1.0, 2, 0.0, 0, 1.1],
+	["knight", "KNIGHT", ROLE_TANK, 9, World.SP_CLEAVE, "cleave", 1, 2.5, [30, 10, 0, 0, 2, 0], 0.94, 1.0, 0, 0.0, 0, 2.0],
+	["archer", "ARCHER", ROLE_RANGED, 5, World.SP_BONE, "longbow", 2, 0.8, [1, 1, 1, 0, 0, 0], 1.08, 1.0, 0, 0.0, 0, 1.6],
+	["priest", "PRIEST", ROLE_HEALER, 6, World.SP_CANDLE, "holy_light", 3, 0.7, [25, 1, 0, 0, 2, 0], 1.0, 2.0, 0, 0.0, 0, 1.1],
+	["paladin", "PALADIN", ROLE_SUPPORT, 6, World.SP_STAR, "smite", 4, 1.6, [1, 0, 0, 0, 1, 0], 1.0, 1.0, 0, 50.0, 8, 1.1],
 ]
 
 ## Class weapon skins (C_SKIN), by key. name: the weapon's name on its card and the hero screens ("" or absent:
 ## the spell's own). range: px a bolt flies (in place of the row's speed x life). heal, heal_every: a light (a
-## "candle" row) heals the most hurt hero inside it `heal` hearts every `heal_every` s. The arena draws each skin
+## "candle" row) heals the most hurt hero inside it `heal` hearts every `heal_every` s. dmg_mul, cd_mul: the
+## class weapon's damage and cooldown multipliers, at every level (its evolution too), so a class starts a
+## run with a weapon that clears the first minutes about as fast as the mage's ARCANE BOLT (`spell_dps --clear`).
+## knock_mul: a sweep's knock-back (Spells.SWEEP_KNOCK) multiplier. The arena draws each skin
 ## its own way (ArenaDrawFx, ArenaDrawWorld, Fx.swing): arrows, hammers of light, a white light with a cross, an arc.
 ## The mage's "staff" is no skin: her school's spell as it is.
 const SKINS: Dictionary = {
 	"staff": {},
-	"cleave": {"name": "CLEAVE"},
-	"longbow": {"name": "LONGBOW", "range": 260.0},
-	"holy_light": {"name": "HOLY LIGHT", "heal": 1, "heal_every": 6.0},
-	"smite": {"name": "SMITE"},
+	"cleave": {"name": "CLEAVE", "dmg_mul": 0.7, "cd_mul": 0.85, "knock_mul": 2.5},
+	"longbow": {"name": "LONGBOW", "range": 260.0, "dmg_mul": 1.5, "cd_mul": 0.5},
+	"holy_light": {"name": "HOLY LIGHT", "heal": 1, "heal_every": 6.0, "dmg_mul": 1.3},
+	"smite": {"name": "SMITE", "dmg_mul": 1.6, "cd_mul": 0.55},
 }
 
 ## Skills, fired by the nova button; each spends one nova charge.
@@ -186,6 +191,11 @@ static func aura_radius(c: int) -> float:
 
 static func aura_ward(c: int) -> int:
 	return int(_cls_row(c)[C_AURA_WARD])
+
+
+## Seconds a hero of class `c` stays unhurt after a hit she takes (a wizard with no hero: the MAGE's).
+static func hurt_safe(c: int) -> float:
+	return float(_cls_row(c)[C_HURT_SAFE])
 
 
 static func skill_count() -> int:

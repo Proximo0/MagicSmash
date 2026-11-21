@@ -237,7 +237,7 @@ static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
 		return
 	p.hp -= dmg
 	p.flash = 0.15
-	p.invuln = 1.1
+	p.invuln = Classes.hurt_safe(p.cls)
 	w.emit(World.EV_HURT, p.pos.x, p.pos.y - 6, p.slot, 0)
 	if p.hp <= 0:
 		if w.players.size() >= 2:

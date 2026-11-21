@@ -62,7 +62,12 @@ it); the personas' reaction delay, noise and forgetting are untouched.
   - tank (KNIGHT, and the PALADIN as tank and support), beside a teammate: caution x0.5 (paladin x0.6), margin
     x0.7 (x0.8), no circling. Its goal (`_consider_role`, worth `GUARD_VALUE` against pickups) is the ally with the
     most sensed enemies within `GUARD_R` 90 px (the weakest on a tie), at `GUARD_GAP` 65 px from her toward that
-    crowd (at most at the crowd's centre): between them, pulling the crowd off her. Solo it plays the damage row.
+    crowd (at most at the crowd's centre): between them, pulling the crowd off her. Solo the paladin plays the
+    damage row.
+  - melee (a hero whose class weapon is a sweep: the KNIGHT's CLEAVE), solo too: its role row always, and when no
+    stronger goal pulls it (`_consider_melee`, worth `MELEE_VALUE` 1.5) it walks to `MELEE_SPOT` 0.6 of the sweep's
+    reach from the nearest enemy, on its own side. With a boss up it keeps the boss within `MELEE_BAND` 0.6 to 1.4
+    of its reach (in place of the persona's band) and aims its other spells at the boss even with adds at its feet.
   - healer (PRIEST), beside a teammate: caution x1.2, margin x1.25. Its goal is the most hurt ally, `HEAL_SPOT` x
     `HEAL_REACH` (24 of 40 px) from her on the far side from the enemies near her: her light (a zone near her)
     covers the ally and she stays out of the front. Solo it plays the damage row.

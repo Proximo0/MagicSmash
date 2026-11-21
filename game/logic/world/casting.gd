@@ -38,7 +38,7 @@ static func _auto_cast(w: World, p: World.Player, dt: float, aim: Vector2) -> vo
 				p.cds[sp] = 0.0
 				continue
 		var evo := Upgrades.evolved(p.upgrades, sp)
-		p.cds[sp] = Spells.cooldown(sp, lv, evo) * rate_mul + (left if running else 0.0)
+		p.cds[sp] = Spells.cooldown(sp, lv, evo) * rate_mul * _skin_mul(p, sp, "cd_mul") + (left if running else 0.0)
 		_cast(w, p, sp, lv, evo, cast_dir)
 
 
@@ -114,8 +114,16 @@ static func _cast(w: World, p: World.Player, sp: int, lv: int, evo: bool, dir: V
 	w.stat_src = sp
 	var tip := p.pos + Vector2(0, -7) + dir * STAFF_REACH
 	var caster: Callable = CASTS[Spells.cast_kind(sp)]
-	caster.call(w, p, sp, lv, evo, dir, tip, Spells.count(sp, lv, evo), Spells.damage(sp, lv, evo))
+	var dmg := Spells.damage(sp, lv, evo) * _skin_mul(p, sp, "dmg_mul")
+	caster.call(w, p, sp, lv, evo, dir, tip, Spells.count(sp, lv, evo), dmg)
 	w.emit(World.EV_CAST, tip.x, tip.y, sp, p.slot)
+
+
+## A multiplier of wizard `p`'s class skin (Classes.SKINS: dmg_mul, cd_mul, knock_mul) for spell `sp`: the skin's
+## when `sp` is her class weapon, 1 for every other spell and for a skin without it (a BONE SPEAR or a STARFALL
+## picked up from a card is the row as it is).
+static func _skin_mul(p: World.Player, sp: int, field: String) -> float:
+	return Classes.skin_value(p.skin, field, 1.0) if sp == p.class_weapon else 1.0
 
 
 ## "bolt": `n` projectiles fanned `spread` apart along `dir`, each nudged by the row's jitter.
@@ -165,6 +173,7 @@ static func _cast_sweep(w: World, p: World.Player, sp: int, _lv: int, _evo: bool
 	var reach := Spells.stat(sp, "r")
 	var half := Spells.stat(sp, "arc") * 0.5
 	var from := p.pos + Vector2(0, -4)
+	var knock := _skin_mul(p, sp, "knock_mul")
 	for e: World.Enemy in w._query(from, reach + World.CELL * 0.5):
 		if e.dead or e.entering or WorldEnemies._faded(w, e):
 			continue
@@ -172,7 +181,7 @@ static func _cast_sweep(w: World, p: World.Player, sp: int, _lv: int, _evo: bool
 		var d := to.length()
 		if d - e.r > reach or (d > e.r and absf(dir.angle_to(to)) > half):
 			continue
-		WorldEnemies._damage_enemy(w, e, dmg, p.slot, (to / maxf(d, 0.01)) * Spells.SWEEP_KNOCK)
+		WorldEnemies._damage_enemy(w, e, dmg, p.slot, (to / maxf(d, 0.01)) * Spells.SWEEP_KNOCK * knock)
 	w.emit(World.EV_SWEEP, from.x, from.y, dir.angle(), p.slot)
 
 

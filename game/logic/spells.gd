@@ -37,9 +37,9 @@ const STATS: Array = [
 		"spread": 0.0},
 	{"name": "BONE SPEAR", "cast": "bolt", "cd": [1.5, 1.4, 1.25, 1.1, 1.0], "dmg": [3.0, 3.5, 4.0, 4.5, 5.0],
 		"n": [2, 2, 2, 2, 2], "speed": 275.0, "r": 3.0, "life": 0.8, "spread": 0.3, "pierce": -1},
-	{"name": "VIGIL CANDLE", "cast": "candle", "cd": [2.0, 2.0, 2.0, 2.0, 2.0], "dmg": [0.8, 1.0, 1.2, 1.4, 1.6],
-		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 24.0, "life": 3.5, "spread": 0.0},
-	{"name": "CLEAVE", "cast": "sweep", "cd": [0.9, 0.9, 0.85, 0.85, 0.8], "dmg": [9.0, 9.5, 10.0, 11.0, 12.0],
+	{"name": "VIGIL CANDLE", "cast": "candle", "cd": [2.0, 2.0, 2.0, 2.0, 2.0], "dmg": [0.8, 0.85, 0.9, 0.95, 1.0],
+		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 32.0, "life": 3.5, "spread": 0.0},
+	{"name": "CLEAVE", "cast": "sweep", "cd": [0.9, 0.85, 0.8, 0.75, 0.7], "dmg": [9.0, 11.0, 13.5, 16.5, 20.0],
 		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 34.0, "life": 0.0, "spread": 0.0, "arc": 1.745},
 ]
 
@@ -67,7 +67,7 @@ const EVOS: Array = [
 	{"name": "OSSUARY LANCE", "desc": "SPLINTER HITS", "partner": -1, "passive": "justice",
 		"cd": 0.9, "dmg": 5.5, "n": 3, "splinter": 2},
 	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "partner": -1, "passive": "lovers",
-		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 28.0, "life": 3.5, "heal_every": 10.0},
+		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 32.0, "life": 3.5, "heal_every": 10.0},
 	{},
 ]
 
