@@ -203,8 +203,9 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 		"offered": {}, "taken": {}, "spell_level": {}, "evolutions": [], "xp_expired": 0, "xp_expired_value": 0,
 		"xp_dropped": 0, "gold": 0.0, "spent": 0.0, "bets": {}, "bosses": [], "damage": {}, "damage_total": 0.0,
 		"kills": [], "shrines": 0, "arch": -1.0, "arch_slain": false, "wiz_hits": [], "wiz_pressure": [],
-		"human_down": -1.0, "skills": {},
+		"human_down": -1.0, "skills": {}, "loot": {},
 	}
+	var cards_seen: Dictionary = {} # Pickup -> true, for the monster cards that dropped (by source, _card_source)
 	var offers: Dictionary = {}
 	for s: int in slots:
 		offers[s] = 0
@@ -257,7 +258,13 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 					break
 		var boss_before: World.Enemy = w.boss
 		var kills_before: int = w.total_kills()
+		var foes_before: Array[World.Enemy] = w.enemies.duplicate()
 		w.step(DT, inputs)
+		for k: World.Pickup in w.pickups:
+			if k.kind == World.PK_CARD and not cards_seen.has(k):
+				cards_seen[k] = true
+				var src: String = "card_" + _card_source(k, foes_before)
+				r.loot[src] = int(r.loot.get(src, 0)) + 1
 		kills_min[minute] += w.total_kills() - kills_before
 		tick += 1
 		for k: World.Pickup in fading:
@@ -299,6 +306,9 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 					r.skills[sk] = int(r.skills.get(sk, 0)) + 1
 				World.EV_HEAL:
 					r.skills["hearts healed"] = int(r.skills.get("hearts healed", 0)) + int(ev[4])
+				World.EV_CHEST: # b = item * 8 + tier
+					var tier: String = Loot.RARITY_NAMES[int(ev[4]) % 8].to_lower()
+					r.loot[tier] = int(r.loot.get(tier, 0)) + 1
 		for s: int in slots:
 			var p: World.Player = w.players[s]
 			if p.offer != offers[s]:
@@ -381,6 +391,24 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 		r.damage[_source_name(src)] = amount
 		r.damage_total += amount
 	return r
+
+
+## Where a monster card that just dropped came from: "urn", "seal" (a Seal's Archlich), else the kill that dropped
+## it this step (the nearest enemy of `foes` now dead): "boss" (a Lich or the Archlich), "elite" or "kill".
+func _card_source(k: World.Pickup, foes: Array[World.Enemy]) -> String:
+	if k.value >= World.URN_CARD:
+		return "urn"
+	var best: World.Enemy = null
+	for e: World.Enemy in foes:
+		if e.dead and (best == null or e.pos.distance_squared_to(k.pos) < best.pos.distance_squared_to(k.pos)):
+			best = e
+	if best == null:
+		return "kill"
+	if best.final and k.value == Seals.card(_seal) and k.value >= 0:
+		return "seal"
+	if best.type == World.LICH or best.final:
+		return "boss"
+	return "elite" if best.elite else "kill"
 
 
 ## What hurt a wizard at `at` (its feet): a hot hazard row she stands in ("hz_fire", ...), an enemy shot near it that
@@ -576,8 +604,18 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 		"gold": gold / runs.size(), "spent": spent / runs.size(), "bosses": visits,
 		"kills": _mean_series(runs, "kills"), "shrines": shrines / runs.size(), "arch": _stats(arch),
 		"arch_slain": arch_slain, "wiz_hits_per_min": wiz_hits, "wiz_pressure": wiz_press,
-		"skills": _sum_dicts(runs, "skills"),
+		"skills": _sum_dicts(runs, "skills"), "loot": _sum_dicts(runs, "loot"), "loot_runs": _loot_runs(runs),
 	}
+
+
+## How many runs had at least one of each loot count (a chest tier opened, a card source).
+func _loot_runs(runs: Array) -> Dictionary:
+	var out: Dictionary = {}
+	for r: Dictionary in runs:
+		for k: String in r.loot:
+			if int(r.loot[k]) > 0:
+				out[k] = int(out.get(k, 0)) + 1
+	return out
 
 
 # ============================================================== PRINT ===
@@ -615,6 +653,7 @@ func _print_group(g: Dictionary) -> void:
 	for i: int in range(int(g.wizards)):
 		wl.append("w%d press %.1f hits/min %.2f" % [i + 1, float(g.wiz_pressure[i]), float(g.wiz_hits_per_min[i])])
 	print("per wiz  " + "  ".join(wl))
+	print("loot     %s  (runs with: %s)" % [_counts(g.loot), _counts(g.loot_runs)]) # chest tiers opened, cards dropped by source
 	if not (g.skills as Dictionary).is_empty(): # class skills (EV_SKILL) and hearts they healed, summed over the runs
 		print("skills   " + _counts(g.skills))
 	for i: int in range((g.bosses as Array).size()):

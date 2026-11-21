@@ -192,7 +192,7 @@ func test_kill_hero_card_and_secret_totals() -> void:
 	var r := Results.new([0])
 	var cases := [["KILLS_1K", "kills_total", 1000], ["KILLS_10K", "kills_total", 10000], ["KILLS_100K", "kills_total", 100000],
 		["HERO_10", "hero_level", Achievements.HERO_LEVEL], ["ALL_CARDS", "cards", Cards.count()],
-		["ALL_SECRETS", "secrets", Secrets.count()]]
+		["ALL_SECRETS", "secrets", Secrets.count()], ["FIRST_CARD", "cards", 1]]
 	for c: Array in cases:
 		assert_false(Achievements.earned(r, false, 10.0, {c[1]: int(c[2]) - 1}).has(c[0]), "one short of " + c[0])
 		assert_true(Achievements.earned(r, false, 10.0, {c[1]: int(c[2])}).has(c[0]), c[0])
@@ -223,6 +223,22 @@ func test_result_lines_cap_at_three_with_a_more_line() -> void:
 	var many := Achievements.result_lines(["KILLS_1K", "WIN_MAGE", "LICH", "OMENS", "SOLO_WIN"])
 	assert_eq(many.size(), 3)
 	assert_eq(many[2], "+3 MORE DEEDS")
+	var card := Cards.for_enemy(World.BAT)
+	assert_eq(Achievements.result_lines([], [card]), ["CARD FOUND: " + Cards.card_name(card)])
+	var mixed := Achievements.result_lines(["KILLS_1K", "WIN_MAGE", "LICH"], [card])
+	assert_eq(mixed, ["CARD FOUND: " + Cards.card_name(card), "DEED: BODY COUNT +10", "+2 MORE DEEDS"], "a card shares the deeds' lines")
+	assert_eq(Achievements.result_lines(["KILLS_1K"], [card, card, card])[2], "+2 MORE")
+
+
+## The owner's numbers: ULTRA RARE (an ULTRA RARE run is about 1 in 100) pays 50, the first card 25, at the end of LIST.
+func test_ultra_and_first_card_pay() -> void:
+	assert_eq(Achievements.crystals_of("ULTRA"), 50)
+	assert_eq(Achievements.crystals_of("FIRST_CARD"), 25)
+	assert_eq(str(Achievements.LIST[-1][Achievements.C_API]), "FIRST_CARD")
+	var prof := Profile.new()
+	assert_false(Achievements.earned(Results.new([0]), false, 10.0, prof.deed_facts()).has("FIRST_CARD"))
+	prof.add_card(Cards.for_enemy(World.BAT))
+	assert_true(Achievements.earned(Results.new([0]), false, 10.0, prof.deed_facts()).has("FIRST_CARD"), "from the profile's cards")
 
 
 func test_secret_flags() -> void:

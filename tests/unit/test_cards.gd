@@ -26,11 +26,15 @@ func test_every_socket_has_a_card() -> void:
 		assert_true(per[s] >= 2, Cards.SOCKET_NAMES[s] + " has too few cards")
 
 
-func test_drop_chance_favours_elites_and_the_lich() -> void:
-	assert_near(Cards.drop_chance(World.GOBLIN, false, 0.001, 20.0, 0.3), 0.001)
-	assert_near(Cards.drop_chance(World.GOBLIN, true, 0.001, 20.0, 0.3), 0.02)
-	assert_near(Cards.drop_chance(World.LICH, false, 0.001, 20.0, 0.3), 0.3)
-	assert_eq(Cards.drop_chance(99, false, 0.001, 20.0, 0.3), 0.0)
+func test_card_run_chance_and_the_card_a_kill_drops() -> void:
+	assert_near(Cards.card_run_chance(0.01, 1.0), 0.01)
+	assert_near(Cards.card_run_chance(0.01, 1.5), 0.015, 0.0001, "the Seals' card odds raise it")
+	assert_near(Cards.card_run_chance(1.0, 1.5), 1.0)
+	assert_eq(Cards.run_card(World.GOBLIN, false, -1), Cards.for_enemy(World.GOBLIN))
+	assert_eq(Cards.run_card(World.LICH, false, Seals.card(5)), Cards.for_enemy(World.LICH), "a Lich visit: the Lich card")
+	assert_eq(Cards.run_card(World.LICH, true, Seals.card(5)), Seals.card(5), "a Seal's Archlich: its Seal card")
+	assert_eq(Cards.run_card(World.LICH, true, -1), Cards.for_enemy(World.LICH))
+	assert_eq(Cards.run_card(99, false, -1), -1)
 
 
 func test_socket_stats_only_count_cards_in_their_own_socket() -> void:
@@ -87,7 +91,7 @@ func test_cards_map_to_enemies_by_kind_not_index() -> void:
 		assert_true(Cards.enemy(c) < MonsterCard.ENEMY_SPRITES.size(), "a sprite for its face")
 	for t: int in range(12, Bestiary.count()):
 		assert_eq(Cards.for_enemy(t), -1, "kind %d has no card yet" % t)
-		assert_eq(Cards.drop_chance(t, true, 0.5, 2.0, 0.5), 0.0)
+		assert_eq(Cards.run_card(t, false, -1), -1)
 	assert_eq(Cards.for_enemy(-1), -1)
 	assert_eq(Cards.enemy(-1), -1)
 	assert_eq(Cards.enemy(99), -1)

@@ -1035,26 +1035,133 @@ func test_omens_have_lore_and_skip_lich_minutes() -> void:
 		assert_true(w._lich_visits(wave) == w._lich_visits(wave - 1), "an omen shares a minute with the Lich")
 
 
-func test_a_kill_can_drop_its_card_and_picking_it_up_announces_it() -> void:
-	var w := World.new([0], 3)
-	w.tune.card_chance = 1.0
+## A tuning where the run's ULTRA RARE chest and card come from the first kill (moment 0).
+func _loot_tune(ultra: float, card: float, urn: float = 0.0) -> Tuning:
+	var t := Tuning.new()
+	t.ultra_run_chance = ultra
+	t.card_run_chance = card
+	t.card_run_urn = urn
+	t.loot_moment_from = 0.0
+	t.loot_moment_to = 0.0
+	return t
+
+
+func _floor_count(w: World, kind: int) -> int:
+	var n := 0
+	for k: World.Pickup in w.pickups:
+		n += 1 if k.kind == kind else 0
+	return n
+
+
+func test_a_card_run_drops_exactly_one_card_and_picking_it_up_announces_it() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 1.0))
 	var p := _player(w)
-	var e: World.Enemy = w.spawn_enemy(World.BAT, 0, Vector2(150, 120))
-	w._kill_enemy(e, 0)
+	for i: int in range(40):
+		w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 1, "a card run drops exactly one card")
 	var card: World.Pickup = null
 	for k: World.Pickup in w.pickups:
 		if k.kind == World.PK_CARD:
 			card = k
-	assert_true(card != null, "no card dropped at chance 1")
-	assert_eq(card.value, World.BAT)
+	assert_eq(card.value, Cards.for_enemy(World.BAT), "the kill's own card")
 	w.take_events()
 	w._collect(p, card)
 	var seen := false
 	for ev: Array in w.take_events():
 		if ev[0] == World.EV_CARD:
-			seen = int(ev[3]) == World.BAT and int(ev[4]) == 0
+			seen = int(ev[3]) == Cards.for_enemy(World.BAT) and int(ev[4]) == 0
 	assert_true(seen, "no card event")
-	assert_eq(w.cards_found, [World.BAT] as Array[int])
+	assert_eq(w.cards_found, [Cards.for_enemy(World.BAT)] as Array[int])
+
+
+func test_a_card_run_waits_for_its_moment() -> void:
+	var t := _loot_tune(0.0, 1.0)
+	t.loot_moment_from = 0.5
+	t.loot_moment_to = 0.5
+	var w := World.new([0], 3, t)
+	w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "too early")
+	w.wave_time = Bosses.final_time(w.schedule) * 0.5
+	w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 1, "at its moment")
+
+
+func test_out_of_a_loot_run_nothing_drops_a_card_or_opens_ultra_rare() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 0.0))
+	w.tune.rare_drop_chance = 0.5
+	w.tune.urn_rare_chance = 0.5
+	var p := _player(w)
+	for i: int in range(600):
+		w.wave_time = i * 1.5
+		var e: World.Enemy = w.spawn_enemy([World.GOBLIN, World.BAT, World.ORC, World.MAGE][i % 4], 0, Vector2(150, 120))
+		e.elite = i % 7 == 0
+		w._kill_enemy(e, 0)
+		w._break_urn(Vector2(120, 120))
+	var arch := w.spawn_enemy(World.LICH, 0, Vector2(150, 120))
+	WorldBosses._make_final(w, arch)
+	WorldDrops._roll_card(w, arch)
+	WorldDrops._roll_card(w, w.spawn_enemy(World.LICH, 0, Vector2(150, 120)))
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "no kill, urn or boss drops a card out of a card run")
+	assert_eq(_floor_count(w, World.PK_CHEST_ULTRA), 0, "no prismatic chest out of an ULTRA RARE run")
+	w.take_events()
+	var chests := 0
+	for k: World.Pickup in w.pickups.duplicate():
+		if k.kind == World.PK_CHEST or k.kind == World.PK_CHEST_RARE:
+			k.value = 5
+			w._collect(p, k)
+			chests += 1
+	assert_true(chests > 100, "chests to open: %d" % chests)
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CHEST:
+			assert_true(int(ev[4]) % 8 < Loot.ULTRA, "a plain chest opened ULTRA RARE")
+
+
+func test_an_ultra_run_drops_one_prismatic_chest_that_opens_ultra_rare() -> void:
+	var w := World.new([0], 3, _loot_tune(1.0, 0.0))
+	var p := _player(w)
+	for i: int in range(40):
+		w._kill_enemy(w.spawn_enemy(World.GOBLIN, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CHEST_ULTRA), 1, "an ULTRA RARE run drops exactly one prismatic chest")
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CHEST_ULTRA:
+			w.take_events()
+			w._collect(p, k)
+	var tier := -1
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CHEST:
+			tier = int(ev[4]) % 8
+	assert_eq(tier, Loot.ULTRA)
+
+
+func test_the_run_loot_is_seeded_and_leaves_the_main_stream() -> void:
+	var a := World.new([0], 41, Tuning.new())
+	var b := World.new([0], 41, Tuning.new())
+	assert_eq(a.run_loot, b.run_loot)
+	assert_false(a.run_loot == World.new([0], 42, Tuning.new()).run_loot)
+	var r := RandomNumberGenerator.new()
+	r.seed = 41
+	assert_eq(a.rng.randf(), r.randf(), "drawing the run's loot takes nothing from the main stream")
+
+
+func test_a_card_run_can_keep_its_card_in_an_urn() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 1.0, 1.0))
+	for i: int in range(20):
+		w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "the card waits in an urn")
+	w._break_urn(Vector2(120, 120))
+	w._break_urn(Vector2(120, 120))
+	assert_eq(_floor_count(w, World.PK_CARD), 1, "the first urn holds it, the next does not")
+	var card: World.Pickup = null
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CARD:
+			card = k
+	w.take_events()
+	w._collect(_player(w), card)
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_CARD:
+			assert_true(int(ev[3]) < Cards.count(), "card index carries the urn mark")
+			assert_true(int(ev[4]) >= 8, "the event does not say it came from an urn")
+			assert_true(Cards.enemy(int(ev[3])) >= 0, "an urn never holds a Seal card")
 
 
 func test_rare_and_ultra_chests_open_at_their_floor() -> void:
@@ -1068,8 +1175,10 @@ func test_rare_and_ultra_chests_open_at_their_floor() -> void:
 			w._collect(p, k)
 			for ev: Array in w.take_events():
 				if ev[0] == World.EV_CHEST:
-					var floor_tier: int = Loot.RARE if kind == World.PK_CHEST_RARE else Loot.LEGENDARY
-					assert_true(int(ev[4]) % 8 >= floor_tier, "a chest opened below its floor")
+					if kind == World.PK_CHEST_RARE:
+						assert_true(int(ev[4]) % 8 >= Loot.RARE, "a rare chest opened below rare")
+					else:
+						assert_eq(int(ev[4]) % 8, Loot.ULTRA, "the prismatic chest opens ULTRA RARE")
 
 
 func test_any_kill_can_drop_a_rare_chest() -> void:
@@ -1119,23 +1228,6 @@ func test_walking_into_an_urn_breaks_it_and_announces_it() -> void:
 	for ev: Array in w.take_events():
 		seen = seen or ev[0] == World.EV_URN
 	assert_true(seen, "no urn event")
-
-
-func test_an_urn_card_is_marked_as_from_an_urn() -> void:
-	var w := World.new([0], 3)
-	w.tune.urn_card_chance = 1.0
-	w._break_urn(Vector2(120, 120))
-	var card: World.Pickup = null
-	for k: World.Pickup in w.pickups:
-		if k.kind == World.PK_CARD:
-			card = k
-	assert_true(card != null, "no card from the urn at chance 1")
-	w.take_events()
-	w._collect(_player(w), card)
-	for ev: Array in w.take_events():
-		if ev[0] == World.EV_CARD:
-			assert_true(int(ev[3]) < Cards.count(), "card index carries the urn mark")
-			assert_true(int(ev[4]) >= 8, "the event does not say it came from an urn")
 
 
 func test_wizards_stay_on_one_screen() -> void:

@@ -78,11 +78,9 @@ static func _deal_tray(a: Arena, slot: int, offer: int, turn: bool) -> void:
 		Sfx.play("card_deal", -2.0)
 
 
-## True while a monster card reveal or a fate bet fills the middle of the screen: the trays fold down to their
-## tabs and the take buttons do nothing (opening and closing still work).
+## True while a fate bet fills the middle of the screen: the trays fold down to their tabs and the take buttons do
+## nothing (opening and closing still work). A monster card's notice sits under the HUD and covers nothing.
 static func _tray_covered(a: Arena) -> bool:
-	if not a._cards.is_empty():
-		return true
 	for b: Dictionary in a._bets:
 		if b.kind == Gamble.TEAM:
 			return true

@@ -257,8 +257,8 @@ func _process(delta: float) -> void:
 				get_viewport().get_texture().get_image().save_png("%s/chest.png" % out_dir)
 				print("shot chest")
 				break
-	# State-keyed shots: a card or rare chest lying on the floor (--tune=card_chance:0.05), then the card reveal
-	# once its face has turned over.
+	# State-keyed shots: a card or rare chest lying on the floor, then the card's notice under the HUD a second in
+	# (a card run at once: --tune=card_run_chance:1,card_run_urn:0,loot_moment_from:0,loot_moment_to:0.01).
 	if not _card_drop_shot and cur and "vk" in cur:
 		for k: Array in cur.vk:
 			if int(k[0]) >= World.PK_CARD:

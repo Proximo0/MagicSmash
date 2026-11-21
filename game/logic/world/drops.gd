@@ -3,20 +3,50 @@ extends RefCounted
 ## Drops for World: what kills and urns drop, pickups, magnet XP, collecting and chests. Static helpers; the first argument is the World.
 
 
-## A kill may drop its monster's card (Cards.drop_chance): far likelier from an elite or a Lich.
+## The card run's card (WorldDrops.card_due): the first kill with a card (Cards.run_card) once its moment has
+## come drops it, a boss's kill too. Out of a card run, or once it has dropped, no kill drops a card.
 static func _roll_card(w: World, e: World.Enemy) -> void:
-	if e.final and w.seal_card >= 0: # a Seal's Archlich drops the Seal card
-		_drop(w, World.PK_CARD, e.pos, Vector2(0, -60), w.tune.chest_life, w.seal_card)
-	if w.rng.randf() < Cards.drop_chance(e.type, e.elite, w.tune.card_chance * w.seal_cards, w.tune.card_elite_mul, w.tune.card_boss_chance * w.seal_cards):
-		_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, Cards.for_enemy(e.type))
+	w.rng.randf() # every kill drew for a card when cards were a per-kill chance: kept so the main stream stays as it was
+	if not card_due(w) or float(w.run_loot.card_urn) < w.tune.card_run_urn:
+		return
+	var idx := Cards.run_card(e.type, e.final, w.seal_card)
+	if idx < 0:
+		return
+	w.card_dropped = true
+	_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, idx)
+
+
+## Seconds into the run of a seeded moment (Loot.moment over the run up to the Archlich's arrival).
+static func _loot_moment(w: World, u: float) -> float:
+	return Loot.moment(u, w.tune.loot_moment_from, w.tune.loot_moment_to, Bosses.final_time(w.schedule))
+
+
+## True while this is an ULTRA RARE run (Loot.ultra_run_chance with the run's chest luck; never under a Seal
+## without ULTRA RARE loot), its moment has come and its prismatic chest has not dropped yet.
+static func ultra_due(w: World) -> bool:
+	if w.ultra_dropped or not w.seal_ultra or w.run_loot.is_empty():
+		return false
+	var chance := Loot.ultra_run_chance(w.tune.ultra_run_chance, float(w.meta_luck + w.seal_luck), w.tune.ultra_run_luck,
+		w.tune.ultra_run_cap)
+	return float(w.run_loot.ultra) < chance and w.wave_time >= _loot_moment(w, float(w.run_loot.ultra_at))
+
+
+## True while this is a card run (Cards.card_run_chance with the Seal's card odds), its moment has come and its
+## one card has not dropped yet (from a kill, _roll_card, or an urn, _break_urn).
+static func card_due(w: World) -> bool:
+	if w.card_dropped or w.run_loot.is_empty():
+		return false
+	return float(w.run_loot.card) < Cards.card_run_chance(w.tune.card_run_chance, w.seal_cards) \
+		and w.wave_time >= _loot_moment(w, float(w.run_loot.card_at))
 
 
 static func _roll_drop(w: World, e: World.Enemy) -> void:
 	var lucky := w.rng.randf()
-	if lucky < w.tune.ultra_drop_chance and w.seal_ultra:
+	if ultra_due(w): # the ULTRA RARE run's one prismatic chest
+		w.ultra_dropped = true
 		_drop(w, World.PK_CHEST_ULTRA, e.pos, Vector2(0, 30), w.tune.chest_life, 5)
 		return
-	if lucky < w.tune.ultra_drop_chance + w.tune.rare_drop_chance:
+	if lucky < w.tune.rare_drop_chance:
 		_drop(w, World.PK_CHEST_RARE, e.pos, Vector2(0, 30), w.tune.chest_life, 2)
 		return
 	var r := w.rng.randf()
@@ -97,16 +127,17 @@ static func _break_urn(w: World, at: Vector2) -> void:
 	var r := w.rng.randf()
 	var pop := Vector2(0, 30)
 	var what := World.URN_DUST
-	if r < w.tune.urn_card_chance:
+	if card_due(w) and float(w.run_loot.card_urn) < w.tune.card_run_urn: # the card run's card, waiting in an urn
 		what = World.URN_CARD_DROP
-		_drop(w, World.PK_CARD, at, Vector2(0, -50), w.tune.chest_life, Sanctum.roll_card(w.rng) + World.URN_CARD)
-	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance:
+		w.card_dropped = true
+		_drop(w, World.PK_CARD, at, Vector2(0, -50), w.tune.chest_life, Sanctum.roll_card(w.loot_rng) + World.URN_CARD)
+	elif r < w.tune.urn_rare_chance:
 		what = World.URN_CHEST
 		_drop(w, World.PK_CHEST_RARE, at, pop, w.tune.chest_life, 2)
-	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance + 0.06 and w.no_potions <= 0.0: # THE HIEROPHANT: a gem instead
+	elif r < w.tune.urn_rare_chance + 0.06 and w.no_potions <= 0.0: # THE HIEROPHANT: a gem instead
 		what = World.URN_POTION
 		_drop(w, World.PK_POTION, at, pop)
-	elif r < w.tune.urn_card_chance + w.tune.urn_rare_chance + 0.24:
+	elif r < w.tune.urn_rare_chance + 0.24:
 		what = World.URN_GEM
 		_drop(w, World.PK_GEM, at, pop)
 	elif r < 0.75:
@@ -267,11 +298,10 @@ static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 ## arena plays the reel from EV_CHEST.
 static func _open_chest(w: World, p: World.Player, k: World.Pickup) -> void:
 	var tier := Loot.roll_rarity(w.rng, float(k.value + w.meta_luck + w.seal_luck) + p.luck) # the opener's FORTUNE
-	if not w.seal_ultra: tier = mini(tier, Loot.LEGENDARY) # APPRENTICE: no ULTRA RARE
 	if k.kind == World.PK_CHEST_RARE:
 		tier = maxi(tier, Loot.RARE)
-	elif k.kind == World.PK_CHEST_ULTRA:
-		tier = maxi(tier, Loot.LEGENDARY)
+	elif k.kind == World.PK_CHEST_ULTRA: # the ULTRA RARE run's chest, the only way to ULTRA RARE (APPRENTICE: none)
+		tier = Loot.ULTRA if w.seal_ultra else Loot.LEGENDARY
 	var idx := Loot.roll_item(w.rng)
 	w.record.add(p.slot, "chests", 1)
 	w.record.best(p.slot, "best_tier", tier)
