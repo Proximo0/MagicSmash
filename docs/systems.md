@@ -88,8 +88,9 @@ How each system works: read only the section for the system you touch (`grep -n 
   - Drops (`Tuning` Loot rows, read by `WorldDrops`): `tome_drop_chance` 0.005 (was 0.025), `big_tome_chance`
     0.15 (0.25), `coin_drop_chance` 0.1 (0.22), `potion_drop_chance` 0.05 (0.02).
   - XP: `xp_per_level` 90 (60), `xp_gem_life` 90 s (30), `xp_magnet_radius` 44 (24).
-  - Enemy shots: `enemy_shot_cd_mul` 5 (skeleton arrows and mage volleys), `arrow_speed` 75 (150),
-    `mage_orb_speed` 80 (95).
+  - Enemy shots: `enemy_shot_cd_mul` 2 (skeleton arrows and mage volleys), `arrow_speed` 120 (150),
+    `mage_orb_speed` 85 (95). The pass first tried 5, 75 and 80: the bots' win rate did not move, and arrows
+    slower than a wizard (102 px/s) are no threat to a person.
   - Bosses: `boss_hp_mul` 3.5, `boss_hp_per_cycle` 2.0 (0.25), `final_hp_mul` 3.6 (10, now on a Lich 5x by its
     third visit), `boss_rest_mul` 1.8 (seconds between the Lich's attacks).
   - Party: `spawn_party_scale` 0.4 (1.1), `enemy_hp_per_player` 0.12, `xp_party_scale` 0.8 (1.0),
