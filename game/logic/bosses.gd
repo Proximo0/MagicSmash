@@ -70,13 +70,13 @@ static func party_hp_from(tune: Tuning) -> Array:
 
 ## A boss's health in World `w` now (its schedule, party size and Tuning levers).
 static func health_in(w: World, type: int) -> float:
-	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), 1.0, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
+	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), w.seal_boss, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
 
 
 ## The final boss's health in World `w`: its kind's health with no cycle growth (FINAL_HP stands for it), times
 ## final_hp_mul and the final_hp_per_player share.
 static func final_health_in(w: World, type: int) -> float:
-	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), 1.0, 0.0, w.schedule, party_hp_from(w.tune), 0.0) \
+	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), w.seal_boss, 0.0, w.schedule, party_hp_from(w.tune), 0.0) \
 		* FINAL_HP * w.tune.final_hp_mul * (1.0 + w.tune.final_hp_per_player * (w.players.size() - 1))
 
 

@@ -85,10 +85,10 @@ static func _direct_horde(w: World, dt: float) -> void:
 	w.elite_t += dt
 	if w.elite_t >= w.tune.elite_interval:
 		w.elite_t -= w.tune.elite_interval
-		_spawn_elite(w)
-	if w.enemies.size() + w.spawn_queue.size() >= int(w.tune.enemy_cap):
+		_spawn_elite(w, true)
+	if w.enemies.size() + w.spawn_queue.size() >= w.enemy_cap(): # LEGION
 		return
-	var rate := (w.tune.horde_rate_base + w.tune.horde_rate_per_min * w.wave_time / 60.0) * w.pscale()
+	var rate := (w.tune.horde_rate_base + w.tune.horde_rate_per_min * w.wave_time / 60.0) * w.pscale() * w.seal_horde
 	if w.boss != null:
 		rate *= w.tune.horde_boss_mul
 	w.horde_budget += rate * dt
@@ -113,10 +113,10 @@ static func _direct_horde(w: World, dt: float) -> void:
 static func _queue_rift(w: World, type: int, n: int) -> void:
 	var best := _spot_near_party(w, w.tune.rift_min_dist, w.tune.rift_max_dist, 22.0)
 	var spread := 6.0 + 3.0 * sqrt(float(n))
-	w.emit(World.EV_RIFT, best.x, best.y, spread, w.tune.rift_warning)
+	w.emit(World.EV_RIFT, best.x, best.y, spread, w.tune.rift_warning * w.seal_rift) # AMBUSH
 	for i in n:
 		var off := Vector2.from_angle(w.rng.randf() * TAU) * w.rng.randf() * spread
-		w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning + i * 0.03, "type": type, "door": 0, "at": best + off})
+		w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning * w.seal_rift + i * 0.03, "type": type, "door": 0, "at": best + off})
 
 
 ## A door for a group: usually the one nearest the party (the arena is bigger than the screen, and a far door
@@ -157,7 +157,11 @@ static func _spot_near_party(w: World, min_dist: float, max_dist: float, margin:
 
 ## The next group or formation (Bestiary.roll_group): [layout, [[type, count], ...]].
 static func _roll_group(w: World) -> Array:
-	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), _fielded(w), w.players.size(), _boss_coming(w))
+	var rolled: Array = Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), _fielded(w), w.players.size(), _boss_coming(w))
+	if w.seal_group != 1.0: # LEGION: bigger groups
+		for part: Array in rolled[1]:
+			part[1] = int(round(int(part[1]) * w.seal_group))
+	return rolled
 
 
 ## Enemies per Bestiary type on the floor or queued to come (doors, rifts, risers), counted now.
@@ -200,8 +204,8 @@ static func _queue_rolled(w: World, g: Array) -> void:
 			for part: Array in parts:
 				for k in int(part[1]):
 					var at := _spot_near_party(w, Bestiary.RISE_MIN, Bestiary.RISE_MAX, Bestiary.RISE_MARGIN)
-					w.emit(World.EV_RIFT, at.x, at.y, Bestiary.RISE_SPREAD, w.tune.rift_warning)
-					w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning, "type": part[0], "door": 0, "at": at})
+					w.emit(World.EV_RIFT, at.x, at.y, Bestiary.RISE_SPREAD, w.tune.rift_warning * w.seal_rift) # AMBUSH
+					w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning * w.seal_rift, "type": part[0], "door": 0, "at": at})
 		Bestiary.WALL:
 			var door := _pick_door(w)
 			for part: Array in parts:
@@ -219,8 +223,9 @@ static func _queue_rolled(w: World, g: Array) -> void:
 						_queue_group(w, part[0], part[1], door, w.wave_time)
 
 
-## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome.
-static func _spawn_elite(w: World) -> void:
+## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome. `timed`: one of the horde's
+## own timed elites (_direct_horde), the only ones CHAMPIONS escorts (not a curse's or the Archlich's).
+static func _spawn_elite(w: World, timed: bool = false) -> void:
 	var type := World.SKELETON
 	var roll := w.rng.randf()
 	if w.wave >= 10:
@@ -233,10 +238,15 @@ static func _spawn_elite(w: World) -> void:
 		type = World.ORC
 	var e := spawn_enemy(w, type, _pick_door(w))
 	e.elite = true
-	e.hp *= w.tune.elite_hp_mul
+	e.hp *= w.tune.elite_hp_mul * w.seal_elite_hp # CHAMPIONS
 	e.maxhp = e.hp
 	e.r += 2.0
 	w.emit(World.EV_ELITE, e.pos.x, e.pos.y, e.type, 0)
+	# CHAMPIONS: an escort of its own kind through its door, trimmed to the room under the enemy cap.
+	var escort := mini(w.seal_escort, w.enemy_cap() - w.enemies.size() - w.spawn_queue.size()) if timed else 0
+	if escort > 0:
+		_queue_group(w, e.type, escort, World.DOOR_DIRS.find(e.enter_dir), w.wave_time + World.DOOR_STAGGER)
+		_sort_queue(w)
 
 
 static func _queue_group(w: World, type: int, n: int, door: int, t: float, stagger: float = World.DOOR_STAGGER) -> void:
@@ -258,10 +268,11 @@ static func _process_spawns(w: World) -> void:
 			Bosses._make_final(w, e)
 
 
-## The health multiplier of a horde enemy spawned this minute: the flat lever, a little per minute, compound growth
+## The health multiplier of a horde enemy spawned this minute: the flat lever, the difficulty step, a little per
+## minute, compound growth
 ## per minute and a share per extra wizard.
 static func _hp_scale(w: World) -> float:
-	return w.tune.enemy_hp_mul * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)) * pow(w.tune.enemy_hp_growth, w.wave - 1) \
+	return w.tune.enemy_hp_mul * w.seal_hp * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)) * pow(w.tune.enemy_hp_growth, w.wave - 1) \
 		* (1.0 + w.tune.enemy_hp_per_player * (w.players.size() - 1))
 
 
@@ -279,7 +290,7 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 	e.maxhp = e.hp
 	e.spd = st[Bestiary.K_SPD]
 	if not e.flags & Bestiary.F_FIXED_SPEED:
-		e.spd *= w.tune.enemy_speed_mul * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
+		e.spd *= w.tune.enemy_speed_mul * w.seal_speed * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
 	e.r = st[Bestiary.K_R]
 	e.contact = st[Bestiary.K_CONTACT]
 	e.t = w.rng.randf() * 10.0
