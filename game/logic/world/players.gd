@@ -168,10 +168,14 @@ static func _volley(w: World, p: World.Player) -> void:
 	var fan := Classes.skill_value(sk, "fan")
 	var back := -dir
 	var tip := p.pos + Vector2(0, -7)
+	# Her arrows fly the LONGBOW's range, as her own shots do (WorldCasting._cast_bolts).
+	var reach := Classes.skin_value(p.skin, "range") if sp == p.class_weapon else 0.0
 	w.stat_src = sp
 	for i: int in range(n):
 		var a := (i / maxf(1.0, n - 1.0) - 0.5) * fan
-		WorldCasting._shot(w, p.slot, sp, false, tip, back.rotated(a) * speed, dmg, 0)
+		var s := WorldCasting._shot(w, p.slot, sp, false, tip, back.rotated(a) * speed, dmg, 0)
+		if reach > 0.0:
+			s.life = reach / speed
 
 
 ## SANCTUARY (the priest): every standing hero heals its hearts (EV_HEAL), then the fallen within its radius rise.

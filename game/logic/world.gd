@@ -97,7 +97,7 @@ const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the w
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
-const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b = slot + 8 when evolved
+const EV_RUNE := 37 # a circle is laid: at its centre, a = radius, b = slot, + 8 when evolved, + 16 x Spells.CIRCLE_* kind
 const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
 const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
 const EV_LULL := 40 # a Lich fell and the lull begins: at the party's centre, a = its seconds

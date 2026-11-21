@@ -329,10 +329,11 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   them (`WorldCasting._cast_bolts`, `_light_heals`), the arena reads the snapshot's `P_CLASS` through
   `Classes.weapon_skin(cls, spell)` (`ArenaDrawFx._skin`), so no snapshot row changed. MAGE: the school's spell,
   unskinned. KNIGHT: CLEAVE, its own row (`SP_CLEAVE`, cast kind `sweep`: a `arc` 100 degree swing reaching `r`
-  34 px along the aim or toward the nearest foe, every foe in it hit once, knock-back `SWEEP_KNOCK`, `EV_SWEEP` draws
-  a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it, and it has no
+  34 px along the aim when a foe stands in that arc, else toward the nearest foe it can reach, and it waits while
+  it can reach none (`_sweep_dir` uses `_cast_sweep`'s reach test); every foe in it hit once, knock-back
+  `SWEEP_KNOCK`, `EV_SWEEP` draws a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it, and it has no
   evolution (an empty `Spells.EVOS` row, `Spells.has_evolution`). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
-  260 px. PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
+  260 px (her VOLLEY's arrows too). PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
   one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
   of light. Level 1 CLEAVE (9 a swing) slays 12 of 16 minute-1 orcs walking in about as fast as a level 1 ARCANE
   BOLT (`spell_dps --clear`).

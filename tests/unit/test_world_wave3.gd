@@ -260,6 +260,25 @@ func test_cleave_sweeps_the_arc_once_and_knocks_back() -> void:
 	assert_near(float(sweeps[0][3]), 0.0, 0.001)
 
 
+func test_cleave_waits_for_a_foe_it_can_reach_and_turns_to_it() -> void:
+	var w := _world()
+	var knight := _hero(w, 0, Classes.KNIGHT)
+	var from := knight.pos + Vector2(0, -4)
+	var reach := Spells.stat(World.SP_CLEAVE, "r")
+	var orc := _orc(w, from + Vector2(reach + 12.0 + 8.0, 0))
+	w._build_grid()
+	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO), Vector2.ZERO,
+		"it swung at a foe just out of reach")
+	orc.pos = from + Vector2(-20, 0)
+	w._build_grid()
+	var free := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO)
+	assert_near(free.x, -1.0, 0.001, "it did not turn to the foe")
+	var away := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT)
+	assert_near(away.x, -1.0, 0.001, "aiming away, it swung at the air and not at the foe behind")
+	var onto := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2(-1, 0.5))
+	assert_near(onto.angle(), Vector2(-1, 0.5).angle(), 0.001, "a foe in the aimed arc: it swings along the aim")
+
+
 func test_cleave_is_only_offered_to_who_holds_it() -> void:
 	assert_false(Upgrades.available({}, Upgrades.W_CLEAVE), "CLEAVE offered to a wizard without it")
 	var levels := {Upgrades.W_CLEAVE: 1}

@@ -42,15 +42,30 @@ static func _auto_cast(w: World, p: World.Player, dt: float, aim: Vector2) -> vo
 		_cast(w, p, sp, lv, evo, cast_dir)
 
 
-## Where a sweep of `sp` swings: along the aim stick when it is held, else at the nearest foe within its reach;
-## ZERO when no foe is that near (it does not swing at the air).
+## Where a sweep of `sp` swings: along the aim stick when it is held and a foe stands in that arc, else at the
+## nearest foe the swing can reach (the same reach test as _cast_sweep); ZERO when it can reach none (it does not
+## swing at the air).
 static func _sweep_dir(w: World, p: World.Player, sp: int, aim: Vector2) -> Vector2:
-	var tgt := _nearest_enemy(w, p.pos, Spells.stat(sp, "r") + World.CELL * 0.5)
-	if tgt == null:
-		return Vector2.ZERO
-	if aim.length() > 0.1:
-		return aim.normalized()
-	return (tgt.pos - p.pos).normalized()
+	var reach := Spells.stat(sp, "r")
+	var half := Spells.stat(sp, "arc") * 0.5
+	var from := p.pos + Vector2(0, -4)
+	var held := aim.length() > 0.1
+	var want := aim.normalized() if held else Vector2.ZERO
+	var best := Vector2.ZERO
+	var best_d := INF
+	for e: World.Enemy in w._query(from, reach + World.CELL * 0.5):
+		if e.dead or e.entering or WorldEnemies._faded(w, e):
+			continue
+		var to := e.pos - from
+		var d := to.length()
+		if d - e.r > reach:
+			continue
+		if held and (d <= e.r or absf(want.angle_to(to)) <= half):
+			return want
+		if d < best_d:
+			best_d = d
+			best = to / d if d > 0.01 else Vector2.RIGHT
+	return best
 
 
 ## Cast speed added to a wizard's own (0 without any): THE LOVERS (near a standing ally, or half alone) plus
@@ -234,7 +249,7 @@ static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: boo
 		rn.pull = Spells.evo_value(sp, "pull", 0.0) if evo else 0.0
 		rn.kind = kind
 		w.runes.append(rn)
-		w.emit(World.EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + (8 if evo else 0))
+		w.emit(World.EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + (8 if evo else 0) + 16 * kind)
 
 
 ## Lightning from `tip` to the nearest enemy roughly along `dir`, then `jumps - 1` jumps foe to foe. The cone

@@ -30,12 +30,16 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.burst(pos, 8, 70.0, 0.35, 1.0, Color.WHITE, Color("ffd94d"), true)
 				Sfx.play("explode", -9.0, 1.4, 0.08)
 			World.EV_RUNE:
-				var evo := int(ev[4]) >= 8
-				var rc := ArenaDrawFx._spell_color(a, World.SP_RUNE, 0)
-				a.fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, a.SEAL_WHITE if evo else rc, 1.0)
-				a.fx.burst(pos, 8, 40.0, 0.5, 1.0, a.RUNE_GOLD, rc, true, -30.0)
-				if evo:
-					Sfx.play("portal", -9.0, 1.4, 0.25)
+				# ev[4]: the caster's slot, +8 when evolved, +16 x the circle's kind (a candle lights quietly).
+				var evo := int(ev[4]) & 8 != 0
+				if int(ev[4]) >> 4 == Spells.CIRCLE_CANDLE:
+					a.fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, ArenaDrawFx._spell_color(a, World.SP_CANDLE, 0), 1.0)
+				else:
+					var rc := ArenaDrawFx._spell_color(a, World.SP_RUNE, 0)
+					a.fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, a.SEAL_WHITE if evo else rc, 1.0)
+					a.fx.burst(pos, 8, 40.0, 0.5, 1.0, a.RUNE_GOLD, rc, true, -30.0)
+					if evo:
+						Sfx.play("portal", -9.0, 1.4, 0.25)
 			World.EV_HIT:
 				a.fx.hit_spark(pos, Color(1, 1, 1) if int(ev[4]) < 0 else G.player_fx(int(ev[4])))
 				Sfx.play("hit", -8.0, a._fx_rng.randf_range(0.9, 1.2), 0.04)
