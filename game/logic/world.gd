@@ -517,6 +517,14 @@ func pscale() -> float:
 		n += (tune.down_spawn_weight if p.down else 1.0) * (tune.apprentice_scale if p.ai else 1.0)
 	return 1.0 + tune.spawn_party_scale * (n - 1.0)
 
+## The party's size for health scaling (enemies and bosses): a wizard counts 1, an apprentice tune.apprentice_scale;
+## never under 1. The number of wizards when every seat is human.
+func party_weight() -> float:
+	var n := 0.0
+	for p: Player in players.values():
+		n += tune.apprentice_scale if p.ai else 1.0
+	return maxf(n, 1.0)
+
 func emit(code: int, x: float = 0.0, y: float = 0.0, a: Variant = 0, b: Variant = 0) -> void:
 	events.append([code, x, y, a, b])
 

@@ -63,6 +63,25 @@ func test_damage_and_spawn_weight_rows() -> void:
 	assert_near((hp - b.hp) / (hp - a.hp), 0.7, 0.0001, "an apprentice hits for 0.7")
 
 
+func test_health_counts_an_apprentice_as_part_of_a_wizard() -> void:
+	var humans := World.new([0, 1, 2], 3)
+	assert_eq(humans.party_weight(), 3.0)
+	assert_eq(Bosses.party_share(humans), float(Bosses.party_hp_from(humans.tune)[2]), "the table row, exactly")
+	var w := World.new([0, 1, 2], 3, null, {}, {1: {"ai": true}, 2: {"ai": true}})
+	var k: float = w.tune.apprentice_scale
+	assert_near(w.party_weight(), 1.0 + 2.0 * k, 0.0001)
+	var table: Array = Bosses.party_hp_from(w.tune)
+	var share := Bosses.party_share(w)
+	assert_true(share > float(table[0]) and share < float(table[2]), "between solo and three wizards")
+	assert_near(share, 1.0 + w.tune.boss_hp_per_player * 2.0 * k, 0.0001, "a straight line on the default table")
+	var alone := World.new([0], 3, null, {}, {0: {"ai": true}})
+	assert_eq(alone.party_weight(), 1.0, "never under one wizard")
+	var solo := World.new([0], 3)
+	var e1 := solo.spawn_enemy(World.GOBLIN, 0, Vector2(300, 200))
+	var e2 := w.spawn_enemy(World.GOBLIN, 0, Vector2(300, 200))
+	assert_near(e2.hp / e1.hp, 1.0 + w.tune.enemy_hp_per_player * 2.0 * k, 0.01)
+
+
 func test_no_loot_for_apprentices() -> void:
 	var w := _pair(300.0)
 	var ap: World.Player = w.players[1]
