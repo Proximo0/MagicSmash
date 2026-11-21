@@ -1,0 +1,7 @@
+STATION machine=ubuntu time=2026-11-21T11:39Z commit=4e64430 took=144s
+JOB checks FAIL
+  sims       SIMS passed=10 failed=1 total=11
+  SIM horde_mixed_cost_4p FAIL us_per_step=8717 cpu (budget 8000, stopwatch 12351) enemies>=231 hazard rows>=48 with 12 kinds
+  CHECK_ALL FAIL (see rows above)
+JOB golden INFO GOLDEN same seeds=2 against 9238b6455a90b2fb9938c5fcab1949371143a4fd since 9238b64
+STATION FAIL jobs=2 failed=1
