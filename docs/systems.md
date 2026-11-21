@@ -245,6 +245,33 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Bots value the party tome like a rare chest (`SmashBot.PICKUP_VALUE[15]` 4.0).
 - Before and after bot tables: the job E hand-back (wave 2).
 
+## Wave 3 spells and passives (BONE SPEAR, VIGIL CANDLE, JUSTICE, THE LOVERS)
+- Rows: `World.SP_BONE` 6, `SP_CANDLE` 7, `SP_CLEAVE` 8 (`Spells.STATS`, `Spells.EVOS`); catalogue rows 24 to 30
+  (`Upgrades.W_BONE`, `W_CANDLE`, `JUSTICE`, `LOVERS`, `E_BONE`, `E_CANDLE`, `W_CLEAVE`). An evolution's partner may
+  be a passive: its `Spells.EVOS` row has `partner` -1 and `passive` (the key), the catalogue's `requires` is the truth.
+- BONE SPEAR: a "bolt" row with `pierce` `Spells.PIERCE_ALL` (a shot with pierce -1 never runs out), 220 px (speed x
+  life). OSSUARY LANCE (with JUSTICE): each hit throws `splinter` splinters square to the spear (`SPLINTER_DMG` of
+  its damage, `SPLINTER_LIFE` s, never the foe it came from, never splintering again).
+- VIGIL CANDLE: cast kind "candle", a circle of kind `Spells.CIRCLE_CANDLE` (the snapshot's reserved `R_KIND`) of
+  radius 24 on the densest cluster within `CANDLE_RANGE` 60 px (else `CANDLE_AIM_DIST` along the aim); it burns on
+  the rune circle's timer (`RUNE_TICK`). Every standing hero inside (the caster too) keeps `VIGIL_HASTE` cast speed
+  for `VIGIL_AFTER` s (`Player.vigil`). CONSECRATION (with THE LOVERS): the light heals 1 heart every `heal_every` 10 s
+  to the most hurt hero inside (`WorldCasting._light_heals`, a timer per caster that runs while her light burns).
+- Cast speed: THE LOVERS (8/16/24% within `LOVERS_RANGE` 60 px of a standing ally, an apprentice counts; alone
+  `LOVERS_ALONE` of it) and the candle add up (`WorldCasting._cast_speed`) and divide the cooldown multiplier, which
+  still never goes below `Spells.CAST_FLOOR`. Without them the divisor is exactly 1, so old runs are unchanged.
+- JUSTICE: a foe its holder slays (not a boss, not by a burst) bursts 6/12/18% of the time (`World.rng`, drawn only
+  for a holder) for `JUSTICE_SHARE` of its max health within `JUSTICE_RADIUS` px. Bursts queue in `World.bursts`
+  and go off after the runes (`WorldCasting._update_bursts`, `World.bursting` set), `EV_BURST`, source
+  `Results.SRC_JUSTICE`.
+- Shot kinds: `Spells.shot_kind` (blocks of `SHOT_BLOCK` 6: the first six keep spell and spell + 6 evolved; BONE
+  SPEAR is 12, evolved 18); clients decode with `shot_spell` / `shot_evolved`.
+- Gate (`godot --headless --path . -s tools/tool.gd -- spell_dps --gate`): see the PR; `sim_horde` has a four-wizard
+  row per new cast kind (`WAVE3_ROWS`: each wizard holds it evolved on top of the six at level 3).
+- Card art: stand-in emblems `w_bone`, `w_candle`, `w_cleave`, `justice`, `lovers` in `TarotArt.EMBLEMS` (an
+  evolution shows its spell's), `TarotArt.ARCANA` XI JUSTICE and VI THE LOVERS (paintings `cards/tarot/justice`,
+  `cards/tarot/the_lovers` when they exist).
+
 ## Talk (hub and run chats)
 - `game/logic/talk.gd` (`Talk`): the lines as data (`LINES`: speaker, condition, text) for the SHOPKEEPER, the CARD
   READER and MORVANE. `Talk.pick(speaker, context, rng)` returns `{id, name, portrait, text, rows}`; the context has
@@ -294,8 +321,21 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   `hurt_player`. Traits: ORC +10% damage at 2 hearts or fewer (`_damage_enemy`); ELF magnet x1.25 (`reach_mul`: read
   by the spirit's magnet; the standing magnet in `WorldDrops._magnets` does not read it yet); DWARF
   `knock_mul` 0.5 (nothing pushes a wizard yet); FORTUNE's `luck` is not read by chests yet (`WorldDrops`).
-- Weapons: MAGE the school's spell, PALADIN STARFALL. Stand-ins until job C2 swaps `Classes.C_WEAPON`: KNIGHT's
-  CLEAVE = FROST FAN, ARCHER's LONGBOW = ARCANE BOLT, PRIEST's HOLY LIGHT = RUNE CIRCLE.
+- Weapons (job C2): a class weapon is a skinned entry of a spell row. `Classes.C_WEAPON` names the row and the hero
+  holds that row's own Upgrades entry, so it levels and evolves like the row; `Classes.C_SKIN` names a
+  `Classes.SKINS` entry: its name (cards via `Classes.card_name`, screens via `Classes.weapon_name`) and overrides
+  (`range` px a bolt flies, `heal` hearts every `heal_every` s for a light). `apply_hero` sets `Player.class_weapon`
+  and `Player.skin` (-1 and "" without a hero, for a mage, and so for every spell picked up later); the logic reads
+  them (`WorldCasting._cast_bolts`, `_light_heals`), the arena reads the snapshot's `P_CLASS` through
+  `Classes.weapon_skin(cls, spell)` (`ArenaDrawFx._skin`), so no snapshot row changed. MAGE: the school's spell,
+  unskinned. KNIGHT: CLEAVE, its own row (`SP_CLEAVE`, cast kind `sweep`: a `arc` 100 degree swing reaching `r`
+  34 px along the aim or toward the nearest foe, every foe in it hit once, knock-back `SWEEP_KNOCK`, `EV_SWEEP` draws
+  a steel arc); its catalogue row requires itself, so only a hero who starts with it is offered it, and it has no
+  evolution (an empty `Spells.EVOS` row, `Spells.has_evolution`). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
+  260 px. PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
+  one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
+  of light. Level 1 CLEAVE (9 a swing) slays 12 of 16 minute-1 orcs walking in about as fast as a level 1 ARCANE
+  BOLT (`spell_dps --clear`).
 - Developer flag: `--hero=<race>,<class>[,<school>]` (keys, names or indices; school a Wizards index, name or title)
   gives every local seat that hero (`Arena._ready`, after `apply_meta`). Nothing happens without it.
 

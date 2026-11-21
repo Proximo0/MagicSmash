@@ -30,9 +30,27 @@ static func _auto_cast(w: World, p: World.Player, dt: float, aim: Vector2) -> vo
 		if left > 0.0 or dir == Vector2.ZERO:
 			p.cds[sp] = maxf(0.0, left)
 			continue
+		var cast_dir := dir
+		if Spells.cast_kind(sp) == "sweep":
+			# A sweep waits, ready, until a foe is within its reach, and swings at the nearest one (or along the aim).
+			cast_dir = _sweep_dir(w, p, sp, aim)
+			if cast_dir == Vector2.ZERO:
+				p.cds[sp] = 0.0
+				continue
 		var evo := Upgrades.evolved(p.upgrades, sp)
 		p.cds[sp] = Spells.cooldown(sp, lv, evo) * rate_mul + (left if running else 0.0)
-		_cast(w, p, sp, lv, evo, dir)
+		_cast(w, p, sp, lv, evo, cast_dir)
+
+
+## Where a sweep of `sp` swings: along the aim stick when it is held, else at the nearest foe within its reach;
+## ZERO when no foe is that near (it does not swing at the air).
+static func _sweep_dir(w: World, p: World.Player, sp: int, aim: Vector2) -> Vector2:
+	var tgt := _nearest_enemy(w, p.pos, Spells.stat(sp, "r") + World.CELL * 0.5)
+	if tgt == null:
+		return Vector2.ZERO
+	if aim.length() > 0.1:
+		return aim.normalized()
+	return (tgt.pos - p.pos).normalized()
 
 
 ## Cast speed added to a wizard's own (0 without any): THE LOVERS (near a standing ally, or half alone) plus

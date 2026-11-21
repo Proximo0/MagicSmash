@@ -145,7 +145,7 @@ func ring(pos: Vector2, r0: float, r1: float, life: float, color: Color, width :
 	rings.append([pos, r0, r1, life, life, color, width])
 
 ## A sweep's flash: an arc `half` radians either side of `ang`, `radius` px from `pos`, that thins as it fades.
-func swing(pos: Vector2, radius: float, ang: float, half: float, color: Color, life := 0.18) -> void:
+func swing(pos: Vector2, radius: float, ang: float, half: float, color: Color, life := 0.25) -> void:
 	swings.append([pos, radius, ang, half, life, life, color])
 
 ## Lightning through `points`: it keeps BOLT_SHAPES jagged shapes and jumps between them while it lives.

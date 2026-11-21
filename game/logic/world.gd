@@ -459,7 +459,8 @@ func apply_meta(b: Dictionary) -> void:
 ## Gives wizard `p` a saved hero (Hero.to_dict(); docs/classes_design.md). Call after apply_meta, before the first
 ## step. The class's hearts replace BASE_HEARTS; the hero's stats (race, class, points and its own sockets) add to
 ## the armour array within Loot.STAT_CAPS; then threat, the nova button's skill, the class weapon in place of the
-## starting spell (while it is still the only one, at level 1), the class passive and the race trait. A wizard
+## starting spell (while it is still the only one, at level 1) with its skin (Player.class_weapon, Player.skin:
+## Classes.SKINS), the class passive and the race trait. A wizard
 ## with no hero applied keeps every neutral default, so it plays exactly as before. The meta's sockets
 ## (apply_meta's "armor") are the profile's: a caller passes a hero's sockets in one place only.
 func apply_hero(p: Player, hero: Dictionary) -> void:
