@@ -382,4 +382,8 @@ func test_the_knights_cleave_knocks_further() -> void:
 	w._cast(knight, World.SP_CLEAVE, 1, false, Vector2.RIGHT)
 	w._cast(mage, World.SP_CLEAVE, 1, false, Vector2.RIGHT)
 	assert_true(b.knock.x > 0.0, "the plain cleave knocks back")
-	assert_near(a.knock.x / b.knock.x, Classes.skin_value("cleave", "knock_mul", 1.0), 0.001)
+	# his skin's knock-back, up to the most one blow may add (Bestiary.KNOCK_MAX, scaled like the blow by the orc's heft)
+	var heft: float = b.knock.x / Spells.SWEEP_KNOCK
+	var want: float = minf(b.knock.x * Classes.skin_value("cleave", "knock_mul", 1.0), Bestiary.KNOCK_MAX * heft)
+	assert_near(a.knock.x, want, 0.001)
+	assert_true(a.knock.x > b.knock.x * 2.0, "the knight's cleave knocks at least twice as far")

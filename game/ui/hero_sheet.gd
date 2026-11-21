@@ -130,10 +130,12 @@ static func num_text(v: float) -> String:
 	return "%d" % int(v) if is_equal_approx(v, roundf(v)) else "%.1f" % v
 
 
-## The weapon's main numbers as a line.
-static func weapon_line(spell: int) -> String:
-	return "DMG %s  CD %sS  SHOTS %d" % [num_text(Spells.damage(spell, 1, false)),
-		num_text(Spells.cooldown(spell, 1, false)), Spells.count(spell, 1, false)]
+## The weapon's main numbers as a line: the spell's level 1 row, with class `cls`'s skin numbers when it is that
+## class's weapon (Classes.SKINS dmg_mul, cd_mul; -1 or another spell: the row as it is).
+static func weapon_line(spell: int, cls: int = -1) -> String:
+	var sk := Classes.weapon_skin(cls, spell) if cls >= 0 else ""
+	return "DMG %s  CD %sS  SHOTS %d" % [num_text(Spells.damage(spell, 1, false) * Classes.skin_value(sk, "dmg_mul", 1.0)),
+		num_text(Spells.cooldown(spell, 1, false) * Classes.skin_value(sk, "cd_mul", 1.0)), Spells.count(spell, 1, false)]
 
 
 ## The skill's numbers as a line (empty for the nova, which has none).
@@ -287,7 +289,7 @@ func _draw_gear(ci: CanvasItem, h: Hero, t: float) -> void:
 	var wid := int(r.size.x) - 12
 	PixelFont.draw(ci, "WEAPON", Vector2(x, r.position.y + 6), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, fit_text(Classes.weapon_name(h.cls, h.school), wid - 44), Vector2(x + 44, r.position.y + 6), 1, Occult.BONE, Occult.INK)
-	PixelFont.draw(ci, weapon_line(w), Vector2(x, r.position.y + 17), 1, Occult.DIM, Occult.INK)
+	PixelFont.draw(ci, weapon_line(w, h.cls), Vector2(x, r.position.y + 17), 1, Occult.DIM, Occult.INK)
 	var s := Classes.skill(h.cls)
 	var sy := r.position.y + 32
 	PixelFont.draw(ci, "SKILL", Vector2(x, sy), 1, Occult.GOLD, Occult.INK)
