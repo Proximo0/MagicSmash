@@ -54,6 +54,16 @@ func test_untouchable_needs_a_difference() -> void:
 	assert_eq(even.awards(), [[0, "MVP"], [1, Results.TEAM_PLAYER]], "equal deaths give no untouchable")
 
 
+func test_a_raised_fall_counts_against_untouchable() -> void:
+	var r := Results.new([0, 1, 2])
+	r.add(0, "damage", 10.0)
+	r.add(0, "deaths", 1.0)
+	r.add(1, "downs", 2.0) # fell twice and was raised both times, never lost a life
+	assert_eq(r.awards(), [[0, "MVP"], [1, Results.TEAM_PLAYER], [2, "UNTOUCHABLE"]],
+		"the wizard who never fell is untouchable, not the one raised twice")
+	assert_near(r.stat(1, "falls"), 2.0)
+
+
 func test_round_trip_and_bad_data() -> void:
 	var r := Results.new([0, 3])
 	r.add(3, "gold", 42.0)

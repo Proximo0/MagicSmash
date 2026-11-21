@@ -232,6 +232,8 @@ static func _faded(w: World, e: World.Enemy) -> bool:
 
 
 static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock: Vector2) -> void:
+	if w.phase == World.PH_GAMEOVER:
+		return # the run is over: no kill may turn it into a victory or add to the score
 	if e.dead or _faded(w, e):
 		return
 	if e.type == World.GARGOYLE and e.state == 0:
@@ -302,6 +304,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 				WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
 					w.tune.chest_life, int(w.tune.boss_chest_luck))
 			w.emit(World.EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 1 if e.final else 0)
+			WorldPlayers.raise_fallen(w, slot)
 			if e.final:
 				w.won = true
 				w.victory_t = w.tune.victory_delay

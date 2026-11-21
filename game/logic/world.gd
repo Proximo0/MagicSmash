@@ -97,7 +97,7 @@ const EV_RUNE := 37 # a rune circle is inscribed: at its centre, a = radius, b =
 const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
 const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
 const EV_LULL := 40 # a Lich fell and the lull begins: at the party's centre, a = its seconds
-## Wave 2 events; nothing emits them yet.
+## Wave 2 events. The fallen (WorldPlayers) emit EV_DOWN, EV_REVIVE and EV_CALL; nothing emits the rest yet.
 const EV_DOWN := 41 # a wizard fell: at its position, a = slot
 const EV_REVIVE := 42 # a fallen wizard is back up: at its position, a = slot, b = the reviver's slot (-1: by itself)
 const EV_CALL := 43 # a wizard calls for help: at its position, a = slot
@@ -414,7 +414,7 @@ func humans() -> Array[Player]:
 			out.append(p)
 	return out
 
-## The fallen waiting for a revive: [slot, x, y, revive 0..1, down_left s] each. Empty until revives land.
+## The fallen waiting for a revive: [slot, x, y, revive 0..1, down_left s (-1: a ritual only)] each.
 func graves() -> Array:
 	var out: Array = []
 	for p: Player in players.values():
@@ -422,9 +422,10 @@ func graves() -> Array:
 			out.append([p.slot, p.pos.x, p.pos.y, p.revive, p.down_left])
 	return out
 
-## True if a wizard who is not standing can still come back into this run (today: a life left).
+## True if a wizard who is not standing can still come back into this run with nobody's help: a dead solo wizard
+## with a life left, or a fallen one with a life to spare (one on her last life needs a ritual or a slain Lich).
 func can_return(p: Player) -> bool:
-	return p.lives > 0
+	return p.lives > 1 if p.down else p.lives > 0
 
 func total_kills() -> int:
 	var n := 0
@@ -489,6 +490,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	runes = runes.filter(func(c: Rune) -> bool: return c.age < c.life)
 	eshots = eshots.filter(func(s): return not s.dead)
 	if phase != PH_GAMEOVER and not won:
+		WorldPlayers._last_stand(self)
 		var any := false
 		for p in players.values():
 			if p.alive or can_return(p):

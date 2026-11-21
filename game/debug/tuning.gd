@@ -79,6 +79,18 @@ const FIELDS: Array = [
 	["pick_shock_push", 220.0, 0.0, 600.0, 10.0, "XP", "Knockback of a card's shock, px/s, scaled like other knockback (the Nova's is 260)."],
 	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the card tray hold 3)."],
 	["maxed_level_score", 1000.0, 0.0, 10000.0, 50.0, "XP", "Score given instead of a pick when every upgrade is maxed."],
+	["spirit_speed", 45.0, 10.0, 120.0, 1.0, "Fallen", "A fallen wizard's spirit walks this fast, px/s (party of 2+)."],
+	["ritual_radius", 30.0, 10.0, 80.0, 1.0, "Fallen", "Radius of the ritual circle on a spirit, px: allies inside raise her."],
+	["ritual_hold_radius", 60.0, 10.0, 160.0, 2.0, "Fallen", "The ritual's progress holds while an ally stays this near, px; farther, it drains."],
+	["ritual_time", 2.0, 0.25, 8.0, 0.05, "Fallen", "Seconds one ally needs to raise a fallen wizard (two allies take half)."],
+	["ritual_step", 0.5, 0.0, 4.0, 0.05, "Fallen", "Seconds each later ritual on the same wizard takes longer."],
+	["ritual_drain", 8.0, 0.5, 30.0, 0.5, "Fallen", "Seconds a full ritual circle takes to drain with no ally near."],
+	["ritual_push", 80.0, 0.0, 200.0, 2.0, "Fallen", "Enemies this near a spirit are set down this far away when a ritual starts and ends, px."],
+	["ritual_safe", 2.0, 0.0, 6.0, 0.1, "Fallen", "Seconds the risen wizard and her raisers are safe from damage."],
+	["down_time", 10.0, 1.0, 60.0, 0.5, "Fallen", "Seconds a fallen wizard with more than one life stays down before getting up by herself, for a life."],
+	["last_stand", 1.5, 0.0, 10.0, 0.1, "Fallen", "With nobody standing, the longest-down wizard with a life to spare gets up within this many seconds."],
+	["call_gap", 2.0, 0.1, 10.0, 0.1, "Fallen", "Seconds between two calls for help (a nova pressed while down)."],
+	["return_safe", 2.5, 0.0, 6.0, 0.1, "Fallen", "Seconds safe after getting up by herself."],
 ]
 
 static var _shared: Tuning = null
@@ -152,6 +164,18 @@ var pick_shock_radius: float
 var pick_shock_push: float
 var level_choices: float
 var maxed_level_score: float
+var spirit_speed: float
+var ritual_radius: float
+var ritual_hold_radius: float
+var ritual_time: float
+var ritual_step: float
+var ritual_drain: float
+var ritual_push: float
+var ritual_safe: float
+var down_time: float
+var last_stand: float
+var call_gap: float
+var return_safe: float
 
 
 func _init() -> void:

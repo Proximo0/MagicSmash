@@ -31,8 +31,8 @@ const MOMENTS: Array = [
 const COMBO_MOMENTS := [100, 200, 400]
 const SHOWN_MOMENTS := 4
 
-## Stat keys kept per wizard. Every one starts at 0. downs and revives (times fallen, fallen raised) stay 0 until
-## revives land.
+## Stat keys kept per wizard. Every one starts at 0. deaths counts lives lost; downs counts falls in a party (a
+## solo wizard only dies) and revives the fallen this wizard helped raise in a ritual.
 const STATS := ["damage", "kills", "elites", "best_combo", "chests", "best_tier", "gold", "bets", "deaths", "level",
 	"downs", "revives"]
 
@@ -44,7 +44,7 @@ const AWARDS: Array = [
 	["HIGH ROLLER", "bets", false],
 	["LUCKY", "best_tier", false],
 	["GOLD DIGGER", "gold", false],
-	["UNTOUCHABLE", "deaths", true],
+	["UNTOUCHABLE", "falls", true],
 ]
 const TEAM_PLAYER := "TEAM PLAYER"
 
@@ -96,7 +96,11 @@ func set_stat(slot: int, key: String, value: float) -> void:
 		stats[slot][key] = value
 
 
+## A stat by key; "falls" is no stored key but lives lost plus falls in a party (deaths + downs), so a wizard who
+## falls and is always raised is not UNTOUCHABLE.
 func stat(slot: int, key: String) -> float:
+	if key == "falls":
+		return stat(slot, "deaths") + stat(slot, "downs")
 	return float(stats.get(slot, {}).get(key, 0.0))
 
 
@@ -172,7 +176,7 @@ func to_dict() -> Dictionary:
 	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate()}
 
 
-## Times `slot` fell this run, and fallen wizards it raised.
+## Times `slot` fell this run, and rituals it helped finish.
 func downs(slot: int) -> int:
 	return int(stat(slot, "downs"))
 

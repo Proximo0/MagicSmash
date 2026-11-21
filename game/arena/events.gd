@@ -88,6 +88,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._add_shake(7.0)
 				var left := int(ev[4])
 				a.fx.text(pos + Vector2(0, -16), "P%d DOWN!" % (int(ev[3]) + 1) if left > 0 else "P%d IS OUT!" % (int(ev[3]) + 1), col, 1.8, 1)
+			World.EV_CALL:
+				ArenaDrawFallen.on_call(a, ev)
 			World.EV_DOOR:
 				Sfx.play("door", -6.0, 1.0, 0.2)
 			World.EV_ESHOT:

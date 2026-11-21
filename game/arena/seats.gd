@@ -47,6 +47,13 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 	var en: Array[Vector2] = []
 	var es: Array[Vector2] = []
 	var pk: Array[Vector2] = []
+	if me.get("down", false):
+		# A fallen seat's spirit drifts to the nearest standing mate (SmashBot.spirit_input, as in the sims).
+		var standing: Array = []
+		for q: Dictionary in a.vp.values():
+			if q.slot != slot and q.get("alive", true) and not q.get("down", false):
+				standing.append(q.get("target", q.pos))
+		return bot.spirit_input(at, standing)
 	if not bot.wants_senses(a.time):
 		return bot.decide(slot, at, G.ARENA.get_center(), a.time, en, es, pk)
 	var tune := Tuning.shared()
@@ -81,10 +88,13 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 		pk.append(k[1])
 		kinds.append(k[0])
 	var mates: Array = []
+	var fallen: Array = []
 	var party := Vector2.ZERO
 	var lo := Vector2(-1e6, -1e6)
 	var hi := Vector2(1e6, 1e6)
 	for q: Dictionary in a.vp.values():
+		if q.get("down", false) and q.slot != slot:
+			fallen.append(q.get("target", q.pos))
 		if not q.get("alive", true):
 			continue
 		var qp: Vector2 = q.get("target", q.pos)
@@ -100,7 +110,7 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 		"enemy_vel": ev, "enemy_r": er, "shot_vel": sv, "shot_r": sr, "pickup_kinds": kinds, "mates": mates,
 		"party": party / (mates.size() + 1),
 		"arena": Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8)),
-		"leash": Rect2(lo, hi - lo), "boss": boss,
+		"leash": Rect2(lo, hi - lo), "boss": boss, "fallen": fallen,
 	}
 	var goal := SmashBot.shrine_goal(at, float(me.get("gold", 0)), a.vsh)
 	return bot.decide(slot, at, G.ARENA.get_center(), a.time, en, es, pk, goal, ctx)

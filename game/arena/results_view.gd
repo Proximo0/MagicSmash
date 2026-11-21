@@ -31,7 +31,8 @@ const AWARD_ARCANA := {"MVP": "power", "SLAYER": "death", "HIGH ROLLER": "magnet
 	"GOLD DIGGER": "quick", "UNTOUCHABLE": "life", "TEAM PLAYER": "regen"}
 
 
-## One column per wizard: name, award, then score, level, kills, damage and gold, revealed one by one.
+## One column per wizard: name, award, then score, level, kills, damage and gold, revealed one by one. A party's
+## columns add FELL/RAISED (times fallen / rituals helped finish), at 9 px a row so the card still holds them.
 static func _draw_result_columns(a: Arena, ci: CanvasItem, dark: Color, y0: int) -> void:
 	var slots: Array = []
 	for slot in 4:
@@ -46,6 +47,9 @@ static func _draw_result_columns(a: Arena, ci: CanvasItem, dark: Color, y0: int)
 	var colw := 112.0
 	var x0 := 240.0 - colw * slots.size() / 2.0
 	var rows := [["SCORE", "score"], ["LEVEL", "level"], ["KILLS", "kills"], ["DAMAGE", "damage"], ["GOLD", "gold"]]
+	var party := slots.size() > 1
+	if party:
+		rows.append(["FELL/RAISED", "fallen"])
 	for i in slots.size():
 		var slot: int = slots[i]
 		var cx := x0 + colw * (i + 0.5)
@@ -66,13 +70,15 @@ static func _draw_result_columns(a: Arena, ci: CanvasItem, dark: Color, y0: int)
 		PixelFont.draw_centered(ci, "P%d" % (slot + 1), cx + 14, y0 + 2, 2, col, dark)
 		if award != "":
 			PixelFont.draw_centered(ci, award, cx + 14, y0 + 18, 1, Color("ffd94d"), dark)
-		var y := y0 + 30
+		var y := y0 + (28 if party else 30)
 		for r: Array in rows:
 			var v: float = float(a.vp[slot].score) if r[1] == "score" else (a.results.stat(slot, r[1]) if a.results != null else 0.0)
 			PixelFont.draw(ci, r[0], Vector2(cx - 46, y), 1, Color("8a7aa8"), dark)
 			var txt := "%d" % int(v)
+			if r[1] == "fallen":
+				txt = "%d/%d" % [a.results.downs(slot), a.results.revives(slot)] if a.results != null else "0/0"
 			PixelFont.draw(ci, txt, Vector2(cx + 46 - PixelFont.text_width(txt, 1), y), 1, Color.WHITE, dark)
-			y += 10
+			y += 9 if party else 10
 
 
 ## The team's best moments, with the run time each happened at.

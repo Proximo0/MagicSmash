@@ -259,6 +259,7 @@ static func _draw_wizards(a: Arena) -> void:
 			list.append(p)
 	list.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return (x.pos as Vector2).y < (y.pos as Vector2).y)
 	ArenaDrawEnemies._draw_enemy_bars(a, ci)
+	ArenaDrawFallen.draw(a, ci)
 	for p: Dictionary in list:
 		_draw_player(a, ci, p)
 	if a.vp.size() > 1 or Net.is_online():
