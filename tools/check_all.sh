@@ -29,7 +29,7 @@ fi
 (( HAVE_LAB )) && TASKS+=("lab|timeout 600 $GODOT --headless --fixed-fps 60 --path . res://tests/lab/lab.tscn")
 # The horde's step budget is doubled here: this script's other Godot processes slow it through shared caches even in
 # CPU time. CI's sims-horde row runs alone and holds the real budget.
-TASKS+=("sims|SIM_BUDGET_SCALE=2 tools/run_sims.sh")
+TASKS+=("sims|SIM_BUDGET_SCALE=${SIM_BUDGET_SCALE:-2} tools/run_sims.sh")  # a slow station passes a larger scale
 TASKS+=("unit|tools/run_tests.sh")
 TASKS+=("lint|tools/lint.sh")
 

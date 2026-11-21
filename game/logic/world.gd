@@ -43,6 +43,7 @@ const PK_TOME_RUNE := 11 # after the chest, so the older pickup ids stay put
 const PK_CARD := 12 # a monster card (value: Cards index), kept in the collection between runs
 const PK_CHEST_RARE := 13 # a blue chest any kill can drop: opens rare or better
 const PK_CHEST_ULTRA := 14 # a prismatic chest, far rarer: opens legendary or better
+const PK_TOME_PARTY := 15 # the party tome: levels a random owned spell of every wizard (WorldLevels)
 ## Every spell tome, in World.SP_* order from the fireball (arcane has no tome).
 const TOMES := [PK_TOME_FIRE, PK_TOME_FROST, PK_TOME_STORM, PK_TOME_STAR, PK_TOME_RUNE]
 
@@ -417,6 +418,7 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		WorldCasting._refresh_spell(self, p)
 		players[s] = p
 	_plist.assign(players.values())
+	WorldLevels._update_slots(self)
 	record = Results.new(slots)
 	for p: Player in _plist:
 		if p.ai:

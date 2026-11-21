@@ -14,7 +14,7 @@ const VISITS: Array = [[420.0, 150.0], [720.0, 400.0]]
 ## A boss's health multiplier by party size (1 to 4 wizards), and its growth each time the same kind returns (the
 ## Lich's second visit has 1.25x). The values the default Tuning gives (boss_hp_per_player, boss_hp_per_cycle, still
 ## the balance levers): World passes party_hp_from(tune) and the cycle row, the same numbers bit for bit.
-const PARTY_HP: Array = [1.0, 1.3, 1.6, 1.9]
+const PARTY_HP: Array = [1.0, 1.5, 2.0, 2.5]
 const CYCLE_HP := 2.0
 ## The Archlich's own growth over its kind's health. Before the act bosses the Lich came at 5:00 and 10:00 too and
 ## the cycle row made the third visit 5x; each kind now comes once, so it is written here (today's health: 6 cost
@@ -421,6 +421,7 @@ static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 	for i in 14:
 		WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
 	if w.no_potions <= 0.0: WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40)) # THE HIEROPHANT
+	WorldLevels._drop_party_tome(w, e.pos)
 	for i in w.players.size():
 		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
 			w.tune.chest_life, int(w.tune.boss_chest_luck))

@@ -79,7 +79,7 @@ const CHEST := Vector2(0, -6)
 const BODY: float = 5.0
 
 ## Pickup worth by World.PK_* (index), before distance and risk.
-const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5, 0.8, 3.0, 2.0, 2.5, 3.5, 4.0]
+const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5, 0.8, 3.0, 2.0, 2.5, 3.5, 4.0, 4.0]
 
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.
@@ -106,7 +106,8 @@ const SHRINE_STAND: float = 12.0
 ## the same rule): XP, coins and gems (the gold goes to the nearest human), boots and the rune shield, and a potion
 ## only at the World's apprentice_potion_hp hearts or fewer while no standing human is hurt.
 const APPRENTICE_TICKS := 3
-const APPRENTICE_KINDS: Array[int] = [World.PK_XP, World.PK_COIN, World.PK_GEM, World.PK_BOOTS, World.PK_ORBIT, World.PK_POTION]
+const APPRENTICE_KINDS: Array[int] = [World.PK_XP, World.PK_COIN, World.PK_GEM, World.PK_BOOTS, World.PK_ORBIT, World.PK_POTION,
+	World.PK_TOME_PARTY] # the party tome is everyone's: an apprentice may fetch it
 ## An answered call (a fallen human pressed her nova) pulls this much harder than a rescue the bot chose itself.
 const CALL_VALUE: float = 4.5
 

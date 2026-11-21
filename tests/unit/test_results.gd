@@ -74,3 +74,27 @@ func test_round_trip_and_bad_data() -> void:
 	var bad := Results.from_dict({"stats": {1: "x"}, "moments": [[1.0, 99, 0, 0], "y"]})
 	assert_eq(bad.stat(1, "gold"), 0.0)
 	assert_eq(bad.moments.size(), 0)
+
+
+## Damage by spell per wizard: kept per slot and source, and it travels through to_dict / from_dict.
+func test_damage_by_spell_per_wizard() -> void:
+	var r := Results.new([0, 1])
+	r.add_slot_source(0, World.SP_FIRE, 10.0)
+	r.add_slot_source(0, World.SP_FIRE, 5.0)
+	r.add_slot_source(0, Results.SRC_NOVA, 3.0)
+	r.add_slot_source(1, World.SP_ARCANE, 7.0)
+	var back := Results.from_dict(r.to_dict())
+	assert_eq(float(back.slot_source_damage[0][World.SP_FIRE]), 15.0)
+	assert_eq(float(back.slot_source_damage[0][Results.SRC_NOVA]), 3.0)
+	assert_eq(float(back.slot_source_damage[1][World.SP_ARCANE]), 7.0)
+	assert_false((back.slot_source_damage[1] as Dictionary).has(World.SP_FIRE))
+
+
+## World records each wizard's damage under the spell that dealt it.
+func test_world_records_damage_by_spell_per_wizard() -> void:
+	var w := World.new([0, 1], 3)
+	var e: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(100, 100))
+	w.stat_src = World.SP_FROST
+	w._damage_enemy(e, 2.0, 1, Vector2.ZERO)
+	assert_true(float(w.record.slot_source_damage[1][World.SP_FROST]) > 0.0)
+	assert_false(w.record.slot_source_damage.has(0))
