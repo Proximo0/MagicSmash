@@ -2,10 +2,14 @@
 # tools/check_all.sh; here each one gets its own machine.
 name: checks
 
+# Four of Wands is stopped (21 Nov 2026): these checks run only when something they test changes, so Horde & Hearth
+# merges (realm/, docs/) do not spend runners on a game nobody is changing. realm.yml tests realm/.
 on:
   push:
     branches: [main]
+    paths-ignore: ['realm/**', 'docs/**', 'tools/station/**', 'tools/ops_board/**', '*.md', '.github/workflows/realm.yml']
   pull_request:
+    paths-ignore: ['realm/**', 'docs/**', 'tools/station/**', 'tools/ops_board/**', '*.md', '.github/workflows/realm.yml']
   workflow_dispatch:
 
 concurrency:

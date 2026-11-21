@@ -48,6 +48,23 @@ for the whole game.
 Three heavy jobs run at once on this box (4 cores). The lead commits, reviews, merges and runs the checks; workers
 never run git, never message Curtis, never install packages beyond the crates named above.
 
+## The stations (Curtis's four computers)
+
+His four computers test every merge with no Claude and no tokens (`tools/station/`, results on the branch
+`station-results`, read with `tools/station/read.sh`; never rerun in a session what a station already ran).
+Four of Wands is stopped (Curtis, 21 Nov: "stop four of wands and work entirely on this title"), so from 21 Nov the
+stations run this game only and skip merges that changed nothing they test.
+
+| Station | Now | Added by |
+|---|---|---|
+| Ubuntu HP ENVY | `realm`: core, server and store checks with the crash fuzz | W1: a long soak (bots through the wire server for hours), O1: backup and restore drill |
+| MSI (RTX 5050) | `realm` on Windows | C1: the field client's frame time with 10,000 on screen on a real card; the **test host** for the closed test |
+| Ryzen laptop (Radeon 610M) | idle | C1: the same frame test at the low end, the number that sets minimum spec |
+| Heatherspc (Celeron) | idle | C1: the frame test below minimum spec, recorded only |
+
+Each job that adds a station test adds its word to `station.sh` and its line to `roles.txt` in the same PR. Ubuntu
+and MSI need Rust installed once (README there).
+
 ## Proofs in order
 
 1. Crowd test: passed 21 Nov (`crowd_results.md`).
@@ -61,4 +78,4 @@ never run git, never message Curtis, never install packages beyond the crates na
 
 Steam Next Fest runs 22 Feb to 1 Mar 2027; registration closes 10 Jan; the build and store page go to Valve by
 18 Jan for the press preview and by 1 Feb at the latest. Next Fest takes a playable build only: ours is this game
-as it stands, behind a level cap that is one switch. Four of Wands stays buildable on `main` as the backup entry.
+as it stands, behind a level cap that is one switch. Four of Wands is stopped (21 Nov); its code stays on `main`, untouched.
