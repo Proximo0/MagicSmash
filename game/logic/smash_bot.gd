@@ -84,15 +84,15 @@ const PICKUP_VALUE: Array[float] = [0.5, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.5,
 ## Level-up pick policy: the first of these the offer contains. Damage and cast rate first, as a player would.
 ## Evolutions first, then spell weapons (area spells before the single bolt), then the stat upgrades.
 const PICK_PRIORITY: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.E_FROST,
-	Upgrades.E_STORM, Upgrades.E_STAR, Upgrades.E_RUNE,
-	Upgrades.W_FIRE, Upgrades.W_STORM, Upgrades.W_STAR, Upgrades.W_RUNE, Upgrades.W_FROST,
-	Upgrades.W_ARCANE,
+	Upgrades.E_STORM, Upgrades.E_STAR, Upgrades.E_RUNE, Upgrades.E_BONE, Upgrades.E_CANDLE,
+	Upgrades.W_FIRE, Upgrades.W_STORM, Upgrades.W_STAR, Upgrades.W_RUNE, Upgrades.W_BONE, Upgrades.W_FROST,
+	Upgrades.W_CANDLE, Upgrades.W_ARCANE,
 	Upgrades.POWER, Upgrades.QUICK, Upgrades.SWIFT, Upgrades.MAGNET,
 	Upgrades.WISDOM, Upgrades.REGEN, Upgrades.LIFE, Upgrades.NOVA]
 
 ## How much a seasoned player likes a passive, by catalogue key (unknown keys: 10).
 const PASSIVE_TASTE: Dictionary = {"power": 55.0, "quick": 52.0, "life": 30.0, "regen": 26.0, "swift": 24.0,
-	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0}
+	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0}
 
 ## A shrine the bot can pay for pulls it from this far.
 const SHRINE_RANGE: float = 220.0

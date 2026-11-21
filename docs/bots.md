@@ -154,9 +154,11 @@ are dealt (`WorldLevels`, `Upgrades.best_pick`), so it never holds a hand.
 
 **Classes.** `Net.add_apprentice()` seats the apprentice with the class that fills the party's first missing role
 in `Net.APPRENTICE_ROLES` order: tank (KNIGHT; a PALADIN seat counts as the tank), healer (PRIEST), ranged
-(ARCHER), damage (MAGE). A solo mage's apprentices are a KNIGHT, a PRIEST and an ARCHER. Its roster row carries
+(ARCHER), damage (MAGE). A solo mage's apprentices are a KNIGHT, a PRIEST and an ARCHER. The classes are dealt
+again on every roster change outside a run (`Net._fill_apprentice_roles`), humans counted first. Its roster row carries
 `cls`, `race` 0 and `cls_level` 1 (`hero` stays `{}`), which `Net.seat_builds()` already hands to `World.new`; on
-the run's first step (`WorldApprentices.take_class`, from `with_inputs` at `_tick` 0, so after `apply_meta`) the
+the run's first step (`WorldApprentices.take_class`, from the first `with_inputs`, so after `apply_meta`; once,
+`World.classes_taken`) the
 World applies a level 1 HUMAN hero of that class (a MAGE keeps her colour's spell). A seat with `cls_level` 0 (an
 old caller, the playtest's plain `apprentice`) stays a plain wizard. A human who takes an apprentice's seat drops
 its class. The apprentice plays its class (Class play above) with the cheaper apprentice thinking, and still deals

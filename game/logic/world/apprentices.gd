@@ -20,7 +20,8 @@ static func with_inputs(w: World, inputs: Dictionary) -> Dictionary:
 	var copied := false
 	var ctx: Dictionary = {}
 	var think := w._tick % SmashBot.APPRENTICE_TICKS == 0
-	if w._tick == 0: # the run's first step: apprentices seated with a class become heroes of it
+	if not w.classes_taken: # the run's first step: apprentices seated with a class become heroes of it, once
+		w.classes_taken = true
 		for p: World.Player in w._plist:
 			take_class(w, p)
 	for p: World.Player in w._plist:

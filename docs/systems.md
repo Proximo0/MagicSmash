@@ -405,6 +405,8 @@ Autotest: `xvfb-run -a godot --path . -- --autotest --heroes --out=<dir>` shoots
   before (pinned in `test_smash_bot`).
 - Apprentices: `Net.add_apprentice` (via `_add_to_roster`) gives the new seat `Net.apprentice_class()` (first missing
   of tank, healer, ranged, damage; `Net.APPRENTICE_ROLES`), `race` 0, `cls_level` 1; `World.new` copies them from
-  `seat_builds`, and `WorldApprentices.take_class` (first step, `_tick` 0) applies the level 1 HUMAN hero. A human
-  taking an apprentice's seat clears its class fields.
+  `seat_builds`, and `WorldApprentices.take_class` (the first `with_inputs`, once: `World.classes_taken`) applies
+  the level 1 HUMAN hero. A human taking an apprentice's seat clears its class fields. Every roster change outside
+  a run deals the apprentices' classes again, humans counted first (`Net._fill_apprentice_roles`, from
+  `_push_roster`), so a human who picks another hero or joins never leaves two tanks and no healer.
 - `tools/playtest.gd`: `--party=persona[:class[:race]],...` and `--hero=class[:race],...`; a `skills` line.

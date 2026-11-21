@@ -305,6 +305,18 @@ func test_an_apprentice_seated_with_a_class_becomes_that_hero() -> void:
 	assert_true(w.apprentice_bots.has(1))
 
 
+func test_an_apprentice_takes_its_class_once() -> void:
+	var w := World.new([0, 1], 3, null, {}, {1: {"ai": true, "cls": Classes.KNIGHT, "race": 0, "cls_level": 1}})
+	var knight: World.Player = w.players[1]
+	# A tool that asks for the apprentices' inputs itself and then steps: the class is applied by the first ask only.
+	WorldApprentices.with_inputs(w, {0: _idle()})
+	var hearts := knight.max_hp
+	var armor: Array = knight.armor.duplicate()
+	w.step(DT, WorldApprentices.with_inputs(w, {0: _idle()}))
+	assert_eq(knight.max_hp, hearts, "the knight's hearts were given twice")
+	assert_eq(knight.armor, armor, "the knight's stats were given twice")
+
+
 func test_a_classed_apprentice_answers_with_its_skill() -> void:
 	# A knight apprentice beside a human with goblins on her: it provokes (casual hands, so give it a few chances).
 	var w := World.new([0, 1], 4, null, {}, {1: {"ai": true, "cls": Classes.KNIGHT, "race": 0, "cls_level": 1}})

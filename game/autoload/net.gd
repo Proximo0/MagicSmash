@@ -389,12 +389,33 @@ func add_apprentice() -> int:
 func apprentice_class() -> int:
 	var have: Array[int] = []
 	for r: Dictionary in roster:
-		var role := Classes.role(int(r.get("cls", 0)))
-		have.append(Classes.ROLE_TANK if role == Classes.ROLE_SUPPORT else role)
+		have.append(_party_role(int(r.get("cls", 0))))
+	return _missing_role_class(have)
+
+## The role class `c` fills in a party: its own, a PALADIN's support counting as the tank.
+func _party_role(c: int) -> int:
+	var role := Classes.role(c)
+	return Classes.ROLE_TANK if role == Classes.ROLE_SUPPORT else role
+
+## The class for the first APPRENTICE_ROLES role that `have` lacks (a MAGE when it lacks none).
+func _missing_role_class(have: Array[int]) -> int:
 	for i: int in range(APPRENTICE_ROLES.size()):
 		if not have.has(int(APPRENTICE_ROLES[i][0])):
 			return int(APPRENTICE_ROLES[i][1])
 	return Classes.MAGE
+
+## Deals the apprentices their classes again, seat by seat, counting the humans' classes first: the roster changed
+## (a human picked another hero, joined, left, or a client's hero arrived), and the party must not end up with two
+## tanks and no healer. Outside a run only (_push_roster): a run's classes are the ones it started with.
+func _fill_apprentice_roles() -> void:
+	var have: Array[int] = []
+	for r: Dictionary in roster:
+		if not bool(r.get("ai", false)):
+			have.append(_party_role(int(r.get("cls", 0))))
+	for r: Dictionary in ai_slots():
+		var c := _missing_role_class(have)
+		r.merge({"race": 0, "cls": c, "look": 0, "cls_level": 1, "hero": {}}, true)
+		have.append(_party_role(c))
 
 ## Unseats an apprentice: `slot`, or the highest apprentice by default. False when there is none to remove.
 func remove_apprentice(slot := -1) -> bool:
@@ -548,6 +569,8 @@ func set_seal(level: int) -> void:
 
 func _push_roster() -> void:
 	if mode != Mode.CLIENT:
+		if not in_game:
+			_fill_apprentice_roles()
 		kept_apprentices.clear()
 		for r in ai_slots():
 			kept_apprentices.append(int(r.get("wizard", r.slot)))

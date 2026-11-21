@@ -230,6 +230,28 @@ func test_apprentices_fill_the_missing_roles_in_order() -> void:
 	_restore()
 
 
+func test_apprentices_are_dealt_again_when_a_human_changes_class() -> void:
+	_save() # a solo mage with a knight and a priest
+	Net.add_apprentice()
+	Net.add_apprentice()
+	assert_eq(int(Net.roster[1].cls), Classes.KNIGHT)
+	assert_eq(int(Net.roster[2].cls), Classes.PRIEST)
+	# She picks a knight of her own: the apprentices heal and shoot, nobody doubles the tank.
+	Net.roster[0].cls = Classes.KNIGHT
+	Net._push_roster()
+	assert_eq(int(Net.roster[1].cls), Classes.PRIEST)
+	assert_eq(int(Net.roster[2].cls), Classes.ARCHER)
+	assert_eq(int(Net.roster[1].cls_level), 1)
+	# A run that is on keeps the classes it started with.
+	Net.in_game = true
+	Net.roster[0].cls = Classes.PRIEST
+	Net._push_roster()
+	assert_eq(int(Net.roster[1].cls), Classes.PRIEST, "an apprentice changed class in a run")
+	Net.in_game = false
+	Net.roster[0].cls = Classes.MAGE
+	_restore()
+
+
 func test_a_joining_human_drops_the_apprentices_class() -> void:
 	_save()
 	Net.add_apprentice()
