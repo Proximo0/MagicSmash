@@ -106,7 +106,7 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 			if e.timer2 <= 0.0:
 				for p in w.players.values():
 					if p.alive:
-						var d = (p.pos - e.pos).normalized()
+						var d: Vector2 = (p.pos + Vector2(0, -6) - (e.pos + Vector2(0, -16))).normalized() # muzzle to the hit centre
 						for a in [-0.18, 0.0, 0.18]:
 							WorldEnemies._eshot(w, World.ES_ORB, e.pos + Vector2(0, -16), d.rotated(a) * 120.0, 4.0)
 				w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 16, World.ES_ORB, 1)
@@ -129,12 +129,13 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 				e.state = 0
 				e.timer = 1.8 * w.tune.boss_rest_mul
 		4: # summon minions from every door
-			var kinds := [World.SKELETON, World.GOBLIN, World.BAT] if rage else [World.GOBLIN, World.GOBLIN, World.SKELETON]
-			for d in 4:
-				WorldWaves.spawn_enemy(w, kinds[w.rng.randi() % kinds.size()], d)
-				WorldWaves.spawn_enemy(w, World.GOBLIN, d)
-			if e.final and rage:
-				WorldWaves._spawn_elite(w)
+			if w.phase != World.PH_GAMEOVER: # a lost run's results screen stays quiet
+				var kinds := [World.SKELETON, World.GOBLIN, World.BAT] if rage else [World.GOBLIN, World.GOBLIN, World.SKELETON]
+				for d in 4:
+					WorldWaves.spawn_enemy(w, kinds[w.rng.randi() % kinds.size()], d)
+					WorldWaves.spawn_enemy(w, World.GOBLIN, d)
+				if e.final and rage:
+					WorldWaves._spawn_elite(w)
 			w.emit(World.EV_TELE, e.pos.x, e.pos.y - 16, 2, 0)
 			e.state = 0
 			e.timer = 2.5 * w.tune.boss_rest_mul

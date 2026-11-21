@@ -3,6 +3,42 @@ extends RefCounted
 ## Arena: the game-over screen, result columns, moments and the pause screen.
 ## Static helpers: `a` is the Arena that owns the state.
 
+## With deeds to show the ending line gives way: the totals line moves up and the deeds sit under the pay line.
+const DEED_FOOT_Y := 206
+const DEED_FIRST_Y := 226
+const DEED_STEP := 9
+const DEED_PROMPT_Y := 256
+
+
+## The damage page: its card top, row step and bar height, and the hint line the first page shows when it leads there.
+const DMG_Y := 70
+const DMG_TITLE_Y := 56
+const DMG_ROW_Y := 18
+const DMG_ROW_STEP := 17
+const DMG_BAR_H := 3
+const DMG_BAR_W := 66.0
+const DMG_PAGE := 1
+
+
+## Whether any wizard has damage to show (the first page's press then leads to the damage page).
+static func has_damage_page(a: Arena) -> bool:
+	if a.results == null:
+		return false
+	for slot: int in a.vp:
+		if not a.results.damage_rows(int(slot)).is_empty():
+			return true
+	return false
+
+
+## The results press: from the first page to the damage page (true), or false when it is time to leave.
+static func next_page(a: Arena) -> bool:
+	if a.results_page == 0 and has_damage_page(a):
+		a.results_page = DMG_PAGE
+		Sfx.play("page_turn")
+		return true
+	return false
+
+
 static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	var fade := clampf(a.game_over_t / 1.0, 0.0, 1.0)
 	var dark := Color("0b0716")
@@ -15,16 +51,66 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	PixelFont.draw_gradient(ci, title, Vector2(240 - tw / 2.0, 10), 4, Color("ffd94d"), Color("8bff9e") if a.victory else Color("ff3b5c"), a.time * 3.0, 2.0)
 	var sub := ("WON AT " if a.victory else "SURVIVED ") + ArenaFateView._clock(a.run_t) + "    TEAM SCORE %07d" % a.final_score
 	PixelFont.draw_centered(ci, sub, 240, 44, 1, Color("8bff9e") if a.victory else Color("c9b8ff"), dark)
+	if a.results_page == DMG_PAGE:
+		_draw_damage_page(a, ci, dark)
+		return
 	_draw_result_columns(a, ci, dark, 58)
 	_draw_moments(a, ci, dark, 150)
-	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, a.crystals_earned, Save.profile.crystals]
-	PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
-	PixelFont.draw_centered(ci, foot, 240, 224, 1, Color("8bdcff"), dark)
+	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, Save.profile.run_gain(a.crystals_earned), Save.profile.crystals]
+	var deeds: Array[String] = Achievements.result_lines(Save.profile.last_pay.get("deeds", []))
+	var y_foot := 224 if deeds.is_empty() else DEED_FOOT_Y # new deeds take the ending's place
+	if deeds.is_empty():
+		PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
+	PixelFont.draw_centered(ci, foot, 240, y_foot, 1, Color("8bdcff"), dark)
 	if not Save.profile.last_pay.is_empty(): # the run's step and what it paid
-		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, 234, 1, Color("ffb347"), dark)
+		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, y_foot + 10, 1, Color("ffb347"), dark)
+	for i: int in range(deeds.size()):
+		PixelFont.draw_centered(ci, deeds[i], 240, DEED_FIRST_Y + i * DEED_STEP, 1, Color("ffd94d"), dark)
 	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
-		var msg := "TAP TO CONTINUE" if G.touch_active else "PRESS FIRE TO CONTINUE" # a client leaves by itself too
-		PixelFont.draw_centered(ci, msg, 240, 244, 1, Color.WHITE, dark)
+		var go := "TAP" if G.touch_active else "PRESS FIRE"
+		var msg := go + " FOR DAMAGE" if has_damage_page(a) else go + " TO CONTINUE" # a client leaves by itself too
+		PixelFont.draw_centered(ci, msg, 240, 244 if deeds.is_empty() else DEED_PROMPT_Y, 1, Color.WHITE, dark)
+
+## The second page: under each wizard's card her sources by damage, most first, each as NAME and share with a bar
+## in the wizard's colour. The press that leaves comes from here.
+static func _draw_damage_page(a: Arena, ci: CanvasItem, dark: Color) -> void:
+	PixelFont.draw_centered(ci, "DAMAGE", 240, DMG_TITLE_Y, 1, Color("ff4df2"), dark)
+	var slots: Array = []
+	for slot in 4:
+		if a.vp.has(slot):
+			slots.append(slot)
+	var colw := 112.0
+	var x0 := 240.0 - colw * slots.size() / 2.0
+	var most := 1 # the tallest column sets every card's height
+	for slot: int in slots:
+		most = maxi(most, a.results.damage_rows(slot).size() if a.results != null else 0)
+	for i in slots.size():
+		var slot: int = slots[i]
+		var cx := x0 + colw * (i + 0.5)
+		var show := clampf((a.game_over_t - 0.8 - i * 0.25) / 0.3, 0.0, 1.0)
+		var col := G.player_color(slot)
+		var card := Rect2(cx - colw / 2.0 + 4, DMG_Y - 4, colw - 8, DMG_ROW_Y + 12 + DMG_ROW_STEP * most)
+		ci.draw_rect(card, Color(col.r * 0.25, col.g * 0.2, col.b * 0.3, 0.75 * show))
+		ci.draw_rect(card, Color(Occult.GOLD, 0.7 * show), false, 1.0)
+		ci.draw_rect(card.grow(-2), Color(col.r, col.g, col.b, 0.45 * show), false, 1.0)
+		PixelFont.draw_centered(ci, "P%d" % (slot + 1), cx, DMG_Y + 2, 2, col, dark)
+		var rows: Array = a.results.damage_rows(slot) if a.results != null else []
+		if rows.is_empty():
+			PixelFont.draw_centered(ci, "NO DAMAGE", cx, DMG_Y + DMG_ROW_Y + 8, 1, Color("8a7aa8"), dark)
+			continue
+		var cls: int = int(a.vp[slot].cls)
+		var y := DMG_Y + DMG_ROW_Y + 8
+		for r: Array in rows:
+			var pct := "%d%%" % int(r[2])
+			PixelFont.draw(ci, Results.source_name(int(r[0]), cls), Vector2(cx - 46, y), 1, Color("e8dcc0"), dark)
+			PixelFont.draw(ci, pct, Vector2(cx + 46 - PixelFont.text_width(pct, 1), y + 8), 1, Color.WHITE, dark)
+			var bar := Rect2(cx - 46, y + 10, DMG_BAR_W, DMG_BAR_H)
+			ci.draw_rect(bar, Color(0, 0, 0, 0.5 * show))
+			ci.draw_rect(Rect2(bar.position, Vector2(DMG_BAR_W * float(r[2]) / 100.0, DMG_BAR_H)), Color(col, show))
+			y += DMG_ROW_STEP
+	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
+		PixelFont.draw_centered(ci, "TAP TO CONTINUE" if G.touch_active else "PRESS FIRE TO CONTINUE", 240, DEED_PROMPT_Y, 1, Color.WHITE, dark)
+
 
 ## The tarot card each award is read as on the results screen (TarotArt emblem keys); no award draws The Star.
 const AWARD_ARCANA := {"MVP": "power", "SLAYER": "death", "HIGH ROLLER": "magnet", "LUCKY": "sun",

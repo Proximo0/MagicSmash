@@ -68,6 +68,11 @@ var fates: Array[int] = []
 const SRC_NOVA := 100
 const SRC_ORBIT := 101
 const SRC_JUSTICE := 102 # JUSTICE's bursts
+## The non-spell sources' names on the damage page.
+const SOURCE_NAMES := {SRC_NOVA: "NOVA", SRC_ORBIT: "ORBIT", SRC_JUSTICE: "JUSTICE"}
+## The damage page's rows per wizard, and the smallest share (whole percent) worth a row.
+const DAMAGE_ROWS := 6
+const MIN_SHARE_PCT := 1
 
 
 func _init(slots: Array = []) -> void:
@@ -99,6 +104,40 @@ func add_slot_source(slot: int, src: int, amount: float) -> void:
 	var row: Dictionary = slot_source_damage.get(slot, {})
 	row[src] = float(row.get(src, 0.0)) + amount
 	slot_source_damage[slot] = row
+
+
+## The sources `slot` dealt damage with, most first: [source, damage, share] with the share in whole percent of her
+## damage (rounded down, so the shares add up to at most 100). Ties go to the lower source index; sources under
+## MIN_SHARE_PCT are left out; at most `limit` rows. A wizard who dealt no damage has none.
+func damage_rows(slot: int, limit: int = DAMAGE_ROWS) -> Array:
+	var row: Dictionary = slot_source_damage.get(slot, {})
+	var total := 0.0
+	var rows: Array = []
+	for src: Variant in row:
+		var dmg := float(row[src])
+		if dmg > 0.0:
+			total += dmg
+			rows.append([int(src), dmg, 0])
+	rows.sort_custom(func(a: Array, b: Array) -> bool:
+		return int(a[0]) < int(b[0]) if is_equal_approx(float(a[1]), float(b[1])) else float(a[1]) > float(b[1]))
+	var out: Array = []
+	for r: Array in rows:
+		var pct := int(floor(float(r[1]) / total * 100.0))
+		if pct >= MIN_SHARE_PCT and out.size() < limit:
+			out.append([int(r[0]), float(r[1]), pct])
+	return out
+
+
+## The name of damage source `src` for a wizard of class `cls`: her class weapon's own name (CLEAVE, LONGBOW),
+## another spell's name, or a non-spell source's.
+static func source_name(src: int, cls: int) -> String:
+	if SOURCE_NAMES.has(src):
+		return SOURCE_NAMES[src]
+	if src < 0 or src >= Spells.STATS.size():
+		return "OTHER"
+	if Classes.weapon_skin(cls, src) != "":
+		return Classes.weapon_name(cls)
+	return Spells.spell_name(src)
 
 
 ## Keeps the larger of the stat and `value`.

@@ -137,3 +137,24 @@ func test_the_ninth_wish_pays_only_the_first_time() -> void:
 	assert_true(p.has_secret("ninth"))
 	assert_eq(ninths, 1, "tosses 9, 18 and 27 must find the secret exactly once")
 	assert_eq(paid_30, 1, "the prize was paid more than once")
+
+
+func test_the_lectern_stands_clear_of_everything() -> void:
+	var at: Vector2 = Sanctum.THINGS[Sanctum.DEEDS][1]
+	assert_eq(Sanctum.THINGS[Sanctum.DEEDS][0], "deeds")
+	assert_eq(Sanctum.THINGS[Sanctum.DEEDS][2], "BOOK OF DEEDS")
+	assert_true(Sanctum.ROOM.has_point(at), "inside the room")
+	for i: int in range(Sanctum.THINGS.size()):
+		if i != Sanctum.DEEDS:
+			assert_true(at.distance_to(Sanctum.THINGS[i][1]) >= Sanctum.REACH * 2.0, "too near thing %d" % i)
+	for p: Vector2 in Sanctum.POTS:
+		assert_true(at.distance_to(p) >= Sanctum.REACH + Sanctum.POT_R, "too near a pot")
+	assert_false(Sanctum.ALCOVE.has_point(at))
+	assert_true(at.y < Sanctum.CRACK_X.x or at.x < Sanctum.CRACK_X.x or at.x > Sanctum.CRACK_X.y, "off the crack")
+
+
+func test_using_the_lectern_reports_it() -> void:
+	var s := Sanctum.new(1)
+	s.pos = Sanctum.THINGS[Sanctum.DEEDS][1] + Vector2(0, 8)
+	assert_eq(s.near_thing(), Sanctum.DEEDS)
+	assert_eq(s.use(), Sanctum.DEEDS)

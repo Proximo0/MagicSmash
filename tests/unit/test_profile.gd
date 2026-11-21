@@ -351,3 +351,112 @@ func test_finish_run_without_or_with_bad_hero_indices_pays_nothing() -> void:
 	p.finish_run({"seconds": 600.0, "won": true, "heroes": [5, -1]})
 	assert_eq(p.heroes[0].xp, 0)
 	assert_true(p.last_hero_levels.is_empty())
+
+
+# ---- The Book of Deeds ----
+
+func _record(won: bool = true) -> Results:
+	var r := Results.new([0])
+	r.note(900.0, Results.M_ARCHLICH, 0)
+	return r
+
+
+func test_a_new_and_an_old_profile_have_no_deeds() -> void:
+	assert_true(Profile.new().deeds.is_empty())
+	assert_true(Profile.from_dict({"runs": 3}).deeds.is_empty(), "an old save")
+	assert_eq(Profile.new().deeds_earned(), 0)
+
+
+func test_finish_run_books_deeds_and_pays_them_once() -> void:
+	var p := Profile.new()
+	var run := {"score": 1, "seconds": 1000.0, "won": true, "results": _record(), "party": {"classes": [Classes.MAGE], "races": [Races.HUMAN]}}
+	var before := p.crystals
+	var paid := p.finish_run(run)
+	var deeds_pay := int(p.last_pay.deeds_pay)
+	assert_true(deeds_pay > 0)
+	assert_eq(p.crystals, before + paid + deeds_pay, "deed crystals go to the balance, not the run's return")
+	for api: String in ["ARCHLICH", "SOLO_WIN", "WIN_MAGE", "WIN_HUMAN"]:
+		assert_true(p.has_deed(api), api)
+		assert_true((p.last_pay.deeds as Array).has(api), api)
+	var sum := 0
+	for api: Variant in p.last_pay.deeds:
+		sum += Achievements.crystals_of(str(api))
+	assert_eq(sum, deeds_pay)
+	# The same run again: nothing new, nothing paid.
+	before = p.crystals
+	paid = p.finish_run(run)
+	assert_eq(p.last_pay.deeds, [])
+	assert_eq(p.last_pay.deeds_pay, 0)
+	assert_eq(p.crystals, before + paid)
+
+
+func test_a_run_without_a_record_earns_no_deeds() -> void:
+	var p := Profile.new()
+	p.finish_run({"score": 1, "seconds": 1000.0, "won": true})
+	assert_true(p.deeds.is_empty())
+	assert_eq(p.last_pay.deeds, [])
+
+
+func test_totals_deeds_use_the_profile() -> void:
+	var p := Profile.new()
+	p.kills_total = 995
+	p.finish_run({"kills": 10, "seconds": 5.0, "results": Results.new([0])})
+	assert_true(p.has_deed("KILLS_1K"))
+	assert_false(p.has_deed("KILLS_10K"))
+	var f := p.deed_facts()
+	assert_eq(f.kills_total, 1005)
+	assert_eq(f.hero_level, 1)
+	assert_eq(f.cards, 0)
+	assert_eq(f.secrets, 0)
+
+
+func test_deeds_round_trip_and_unknown_names_stay() -> void:
+	var p := Profile.new()
+	p.deeds["SOLO_WIN"] = true
+	p.deeds["FROM_A_NEWER_BUILD"] = true
+	var q := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
+	assert_true(q.has_deed("SOLO_WIN"))
+	assert_true(q.has_deed("FROM_A_NEWER_BUILD"), "kept, not dropped")
+	assert_eq(q.deeds.keys(), ["SOLO_WIN", "FROM_A_NEWER_BUILD"])
+	assert_eq(q.deeds_earned(), 1, "the count is of the catalogue only")
+	assert_true(q.to_dict().deeds is Array)
+
+
+func test_removing_a_hero_moves_the_held_indices() -> void:
+	assert_eq(Profile.index_after_removal(3, 1), 2, "above the removed one shifts down")
+	assert_eq(Profile.index_after_removal(0, 1), 0, "below stays")
+	assert_eq(Profile.index_after_removal(1, 1), -1, "the removed one is gone")
+	assert_eq(Profile.index_after_removal(-1, 1), -1, "a guest stays a guest")
+
+
+func test_removing_hero_keeps_the_active_hero_right() -> void:
+	var p := Profile.new()
+	p.heroes.clear()
+	for nm: String in ["A", "B", "C", "D"]:
+		p.add_hero(Hero.make(Races.HUMAN, Classes.KNIGHT, 0, nm))
+	p.hero = 2
+	assert_true(p.remove_hero(0))
+	assert_eq(p.active_hero().name, "C", "a hero below the active one went")
+	assert_true(p.remove_hero(p.hero))
+	assert_eq(p.active_hero().name, "D", "the active one went: the next takes her place")
+	assert_true(p.remove_hero(p.hero))
+	assert_eq(p.active_hero().name, "B", "the last active one went: the one before")
+
+
+func test_first_visit_is_told_once_across_a_reload() -> void:
+	var p := Profile.new()
+	var key := Profile.first_key(Talk.SHOPKEEPER)
+	assert_true(p.first_time(key))
+	assert_false(p.first_time(key), "a second visit")
+	var q := Profile.from_dict(p.to_dict())
+	assert_false(q.first_time(key), "a second visit after a reload")
+	assert_true(q.first_time(Profile.first_key(Talk.MORVANE)), "another speaker is still new")
+	assert_true(Profile.from_dict({}).talked.is_empty(), "an old save has none")
+
+
+func test_run_gain_adds_the_deeds_pay() -> void:
+	var p := Profile.new()
+	p.last_pay = {"deeds_pay": 30}
+	assert_eq(p.run_gain(100), 130)
+	p.last_pay = {}
+	assert_eq(p.run_gain(100), 100, "no deeds booked")

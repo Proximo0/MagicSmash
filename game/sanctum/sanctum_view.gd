@@ -18,6 +18,8 @@ var album := CardAlbum.new()
 var album_open := false
 var roster := HeroRoster.new()
 var roster_open := false
+var deeds_book := DeedsBook.new()
+var deeds_open := false
 var track := 0
 var message := ""
 var message_t := 0.0
@@ -87,7 +89,9 @@ func _process(delta: float) -> void:
 	dlg.update(delta)
 	if roster_open:
 		roster.update(delta)
-	if not album_open and not roster_open and _deck.is_empty() and not dlg.active:
+	if deeds_open:
+		deeds_book.update(delta)
+	if not album_open and not roster_open and not deeds_open and _deck.is_empty() and not dlg.active:
 		var inp := PlayerInput.read(device, room.pos, get_viewport())
 		room.step(delta, Vector2(inp[0], inp[1]))
 	if not _deck.is_empty():
@@ -106,7 +110,7 @@ func _process(delta: float) -> void:
 		fx.spawn(Vector2(_rng.randf_range(Sanctum.CRACK_X.x, Sanctum.CRACK_X.y), Sanctum.ROOM.position.y - 2),
 			Vector2(_rng.randf_range(-10, 10), 20), 0.6, 1.0, Color("8a7a9a"), Color("3b2c55"))
 		shake = maxf(shake, room.crack_t * 1.5)
-	glow.visible = not album_open and not roster_open # the room's light never shines through a full-screen page
+	glow.visible = not album_open and not roster_open and not deeds_open # the room's light never shines through a full-screen page
 	queue_redraw()
 	glow.queue_redraw()
 
@@ -208,6 +212,10 @@ func _use(i: int) -> void:
 			roster.open(prof, device)
 			roster_open = true
 			Sfx.play("page_turn")
+		Sanctum.DEEDS:
+			deeds_book.open(prof)
+			deeds_open = true
+			Sfx.play("page_turn")
 		Sanctum.CAT:
 			_cat_pet = 1.5
 			Sfx.play("heal", -6.0, 0.7)
@@ -222,10 +230,9 @@ func talk_context(speaker: int, extra: Dictionary) -> Dictionary:
 	var ctx := extra.duplicate()
 	var seal := int(ctx.get("seal", Net.seal))
 	ctx.seal = seal
-	var seen_key := "%d/first" % speaker
-	if prof.runs == 0 and not G.talk_seen.has(seen_key):
+	if prof.runs == 0 and prof.first_time(Profile.first_key(speaker)):
 		ctx.first = true
-		G.talk_seen[seen_key] = true
+		Save.write() # the greeting is told once across launches (a scripted run writes nothing)
 	if bool(_new_card.get(speaker, false)):
 		ctx.new_card = true
 		_new_card[speaker] = false
@@ -287,6 +294,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if roster.handle(event):
 			roster_open = false
 		return
+	if deeds_open:
+		if deeds_book.handle(event):
+			deeds_open = false
+		return
 	if not _deck.is_empty():
 		if _deck.t > 0.8 and (PlayerInput.confirm_device(event) != -99 or PlayerInput.back_pressed(event)):
 			_deck = {}
@@ -324,6 +335,8 @@ func _draw() -> void:
 		album.draw(self, t)
 	if roster_open:
 		roster.draw(self, t)
+	if deeds_open:
+		deeds_book.draw(self, t)
 	dlg.draw(self, t)
 	if _leaving >= 0.0:
 		draw_rect(Rect2(0, 0, 480, 270), Color(0.6, 0.4, 1.0, clampf(_leaving / 0.8, 0.0, 1.0)))
@@ -394,6 +407,8 @@ func _draw_things() -> void:
 					draw_rect(Rect2(w + Vector2(-5, -1), Vector2(2, 1)), Color("c8f0ff", 0.6))
 			Sanctum.MIRROR:
 				_draw_mirror(p)
+			Sanctum.DEEDS:
+				_draw_lectern(p)
 			Sanctum.CAT:
 				if not room.crack_open:
 					continue
@@ -425,6 +440,24 @@ func _draw_things() -> void:
 			var px := clampf(p.x, half + 4.0, 476.0 - half)
 			var py := maxf(p.y - (44.0 if i >= Sanctum.SHOPKEEPER else 34.0), 64.0) + sin(t * 4.0)
 			_prompt = [text, Vector2(px, py)]
+
+
+## The lectern of the Book of Deeds: a dark wooden stand with a slanted top and a gold-edged book on it, a page
+## corner that lifts now and then. A stand-in drawn with rects until its picture comes from a file.
+func _draw_lectern(p: Vector2) -> void:
+	var wood := Color("2a1a38")
+	var edge := Color("5a4e74")
+	draw_rect(Rect2(p + Vector2(-7, -1), Vector2(14, 3)), Color("1a0f24")) # foot
+	draw_rect(Rect2(p + Vector2(-7, -1), Vector2(14, 1)), edge)
+	draw_rect(Rect2(p + Vector2(-2, -13), Vector2(4, 12)), wood) # stem
+	draw_rect(Rect2(p + Vector2(-2, -13), Vector2(1, 12)), edge)
+	draw_rect(Rect2(p + Vector2(-8, -18), Vector2(16, 5)), wood) # slanted top
+	draw_rect(Rect2(p + Vector2(-8, -18), Vector2(16, 1)), edge)
+	draw_rect(Rect2(p + Vector2(-6, -24), Vector2(12, 7)), Occult.GOLD) # the book
+	draw_rect(Rect2(p + Vector2(-5, -23), Vector2(10, 5)), Color("e8dcc0"))
+	draw_rect(Rect2(p + Vector2(0, -23), Vector2(1, 5)), Color("b8a8d8"))
+	if int(t * 1.5) % 5 == 0:
+		draw_rect(Rect2(p + Vector2(3, -25), Vector2(3, 2)), Color("e8dcc0"))
 
 
 ## The mirror: a tall dark oval glass in a gold frame on two feet, with a slow sheen across the glass. A stand-in

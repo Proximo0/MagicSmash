@@ -16,6 +16,10 @@ const VISITS: Array = [[420.0, 150.0], [720.0, 400.0]]
 ## the balance levers): World passes party_hp_from(tune) and the cycle row, the same numbers bit for bit.
 const PARTY_HP: Array = [1.0, 1.5, 2.0, 2.5]
 const CYCLE_HP := 2.0
+## Choosing who takes a card left on the floor at the win (_pay_floor_cards): squared px added to a fallen wizard's
+## and to an apprentice's distance, so a standing human always comes first, then a standing apprentice.
+const CARD_FALLEN_FAR := 1e9
+const CARD_APPRENTICE_FAR := 1e6
 ## The Archlich's own growth over its kind's health. Before the act bosses the Lich came at 5:00 and 10:00 too and
 ## the cycle row made the third visit 5x; each kind now comes once, so it is written here (today's health: 6 cost
 ## the solo veteran bots a win at 18:00; job L).
@@ -439,6 +443,7 @@ static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 	w.emit(World.EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 1 if e.final else 0)
 	WorldPlayers.raise_fallen(w, slot)
 	if e.final:
+		_pay_floor_cards(w, slot)
 		w.won = true
 		w.victory_t = w.tune.victory_delay
 		for q: World.Player in w.players.values():
@@ -452,3 +457,24 @@ static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 		var c := w.party_center()
 		w.emit(World.EV_LULL, c.x, c.y, w.lull_left, 0)
 	w.clear_hazards(true)
+
+
+## The Archlich's card (and any other on the floor) goes to the slayer, else the nearest wizard (a living human
+## first, then a living apprentice: an apprentice takes no cards while a human can), so the win cannot leave it behind.
+static func _pay_floor_cards(w: World, slot: int) -> void:
+	for k: World.Pickup in w.pickups:
+		if k.kind != World.PK_CARD or k.life <= 0.0:
+			continue
+		var who: World.Player = w.players.get(slot)
+		if who == null or not who.alive or who.ai:
+			var best := INF
+			for q: World.Player in w.players.values():
+				var d := q.pos.distance_squared_to(k.pos) + (0.0 if q.alive else CARD_FALLEN_FAR) \
+					+ (CARD_APPRENTICE_FAR if q.ai else 0.0)
+				if d < best:
+					best = d
+					who = q
+		if who == null:
+			return
+		k.life = -1.0
+		WorldDrops._collect(w, who, k)

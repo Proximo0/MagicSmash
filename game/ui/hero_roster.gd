@@ -79,11 +79,13 @@ func pick(i: int) -> void:
 
 ## Deletes the highlighted hero (never the last one), saves. True when one went.
 func delete_selected() -> bool:
-	if not _prof.remove_hero(sel):
+	var gone := sel
+	if not _prof.remove_hero(gone):
 		Sfx.play("hurt", -6.0)
 		return false
 	sel = clampi(sel, 0, _prof.heroes.size() - 1)
 	HeroSheet.save_now()
+	Net.hero_removed(gone)
 	Sfx.play("hurt", -2.0, 0.7)
 	return true
 

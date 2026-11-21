@@ -76,7 +76,7 @@ func goto_game() -> void:
 		main.show_game()
 
 ## Books a finished run in the profile (best score, crystals) through Save. Returns the crystals earned.
-## `run` is Profile.finish_run's dictionary: score, seconds, kills, liches, won (and seal).
+## `run` is Profile.finish_run's dictionary: score, seconds, kills, liches, won (and seal, act, results, and party: Achievements.earned's classes, races and seal).
 func finish_run(run: Dictionary) -> int:
 	last_score = int(run.get("score", 0))
 	last_run = {"result": "win" if bool(run.get("won", false)) else "loss", "act": int(run.get("act", -1)),

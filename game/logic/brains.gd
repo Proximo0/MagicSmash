@@ -68,7 +68,7 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 				2:
 					e.timer2 -= dt
 					desired = e.dir * 240.0
-					if e.timer2 <= 0.0 or not G.ARENA.grow(-9).has_point(e.pos + e.dir * 4.0):
+					if e.timer2 <= 0.0: # the room's clamp holds it in; a wall test here fizzled every charge at the bottom edge
 						e.state = 0
 						e.timer = w.rng.randf_range(2.0, 3.2)
 		World.MAGE:

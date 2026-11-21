@@ -419,3 +419,58 @@ Autotest: `xvfb-run -a godot --path . -- --autotest --heroes --out=<dir>` shoots
   a run deals the apprentices' classes again, humans counted first (`Net._fill_apprentice_roles`, from
   `_push_roster`), so a human who picks another hero or joins never leaves two tanks and no healer.
 - `tools/playtest.gd`: `--party=persona[:class[:race]],...` and `--hero=class[:race],...`; a `skills` line.
+
+## The last of the 19 Nov bug audit (21 Nov)
+
+All 35 verified findings are closed; 30 were fixed along the way by the wave 1 and 2 jobs. The last five:
+- The Lich aims its volley from the muzzle (16 px up) at a wizard's hit centre (6 px up), so one standing beside
+  it is hit (`BossLich.think`).
+- Knockback an enemy carries adds up only to `Bestiary.KNOCK_MAX` (280 px/s, times its heft): one nova still
+  pushes in full, a crowd of hits no longer throws an elite to the wall or pins the Lich (`_damage_enemy`).
+- An orc's charge ends on its timer only; the wall test that ended it also ended every charge in the bottom 7 px.
+- The Lich summons nothing once the run is lost.
+- A card still on the floor when the Archlich dies is taken for the party (`Bosses._pay_floor_cards`: the slayer,
+  else the nearest standing human, then a standing apprentice).
+
+The golden run of seed 21 changes from 60 s on (the knockback cap and the orc's charge), as meant.
+
+## The Book of Deeds (21 Nov)
+
+Achievements you can see and are paid for, without Steam. Files: `game/logic/achievements.gd`, `game/ui/deeds_book.gd`,
+the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results_view.gd`.
+- **Catalogue.** `Achievements.LIST` rows are `[api, name, description, crystals, secret?]`: the first 14 are
+  Steam's (order and names fixed), 38 more follow (win with each class and race, the tank/healer/ranged trinity, each
+  evolution but RUNE CIRCLE's, the two act bosses, ARCHMAGE and Seals I to VIII, revive, kill, hero level, card and
+  secret totals, apprentices only, a fast four-hero win). Rewards 5 to 50 crystals. A row past the 14 has its rule in
+  `Achievements.RULES` (`api -> [kind, argument]`, checked by `_rule_met`); numbers are named constants there.
+- **`Achievements.earned(record, won, seconds, party = {})`** returns every api name the run (and the profile's
+  totals) earns. `party` keys, all optional (a missing fact earns nothing): `classes`, `races` (one per hero a person
+  plays, apprentices left out, built by `Achievements.party_of` from the snapshot), `seal`, and the totals `Profile.deed_facts()`
+  adds: `revives_total`, `kills_total`, `hero_level` (highest class level), `cards`, `secrets`. Apprentices are
+  `record.ai`. A win at a Seal counts for every step below it. Only the Lich Lord and the Archlich were already
+  deeds (LICH, ARCHLICH needs a win); no new deed for the Archlich.
+- **Saved.** `Profile.deeds` (api name -> true, in the order earned) is saved as a list; an old save has none,
+  and a name this build does not know is kept (`deeds_earned()` counts the catalogue's only). `finish_run` books
+  the new ones after the totals and hero XP, adds their crystals to `crystals` once (the return value stays the
+  run's own pay) and sets `last_pay.deeds` (api names) and `last_pay.deeds_pay`. A run dictionary with no
+  `results` earns no deeds. `Platform.finish_run(record, won, seconds, party)` still sends every earned name.
+- **Results screen.** Under the pay line, `Achievements.result_lines`: "DEED: NAME +N", three lines at most in all, the
+  last "+K MORE DEEDS" when they do not fit; with deeds the ending line gives way (`ArenaResultsView.DEED_*`).
+- **The station.** `Sanctum.DEEDS` (a lectern at 338,112; a plain rect stand-in, `_draw_lectern`) opens `DeedsBook`
+  (`active`, `open(profile)`, `handle`, `update`, `draw`): 12 rows on view, up/down move, left/right a page, back closes,
+  earned rows gold with a tick, locked dim, locked secrets `???`, the selected description at the bottom.
+- Shots: `xvfb-run -a godot --path . -- --autotest --deeds --out=<dir>`; the results lines show on
+  `--autotest --players=2 --end=20:win`.
+
+## Results: damage by spell, first-visit lines, deleted heroes (21 Nov)
+- **Damage page.** `Results.damage_rows(slot, limit)` -> `[source, damage, share]`, most damage first, ties to the lower
+  source, shares in whole percent (rounded down, so at most 100 together), sources under `MIN_SHARE_PCT` dropped, at
+  most `DAMAGE_ROWS`. `Results.source_name(src, cls)`: the class weapon's own name, a spell's name, NOVA / ORBIT / JUSTICE.
+- The first page has no room (columns, moments, pay, deeds), so the fire press that used to leave goes to the DAMAGE page
+  first (`Arena.results_page`, `ArenaResultsView.next_page`; the first page's hint reads PRESS FIRE FOR DAMAGE when any
+  wizard has rows) and leaves from there. Shot: `--autotest --players=N --end=40:win` also writes `results_damage.png`.
+- **Footer crystals** are `Profile.run_gain(earned)`: the run's pay plus the deeds' (`last_pay.deeds_pay`).
+- **First visits** are saved: `Profile.talked` (`first_time(key)`, `first_key(speaker)`), written by the Sanctum when a
+  greeting is told (nothing in a scripted run); old saves load with none.
+- **Deleting a hero** shifts held indices: `Profile.index_after_removal` is the one rule; `Profile.remove_hero` applies it
+  to the active hero, `Net.hero_removed(i)` to every local seat (a seat that held her takes the first free hero).

@@ -27,6 +27,8 @@ var seats := false # --seats: two apprentices join the lobby
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
+var _damage_shot := false
+var _damage_shot_at := -1.0
 var quit_at := 60.0
 var _quit_override := -1.0
 var net := ""
@@ -168,6 +170,11 @@ func _ready() -> void:
 	if "--sanctum" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]
 		quit_at = 6.0
+	# --deeds: the Sanctum's lectern and the Book of Deeds, at the top of the list and scrolled down.
+	if "--deeds" in OS.get_cmdline_user_args():
+		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.1, "@deeds_near"], [3.4, "deeds_sanctum"], [3.5, "@deeds_book"],
+			[4.0, "deeds_book"], [4.1, "@deeds_scroll"], [4.6, "deeds_book_scrolled"]]
+		quit_at = 5.2
 	# --talk: the Sanctum's talkers (shopkeeper, card reader, Morvane after a loss), then --talk-lull: Morvane in a lull.
 	if "--talk" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.5, "@talk_shop"], [4.0, "talk_shopkeeper"], [4.1, "@talk_reader"],
@@ -298,6 +305,14 @@ func _process(delta: float) -> void:
 		_results_shot = true
 		get_viewport().get_texture().get_image().save_png("%s/results.png" % out_dir)
 		print("shot results")
+	if _results_shot and not _damage_shot and cur and "results_page" in cur and cur.game_over and cur.game_over_t > 3.6:
+		cur.results_page = ArenaResultsView.DMG_PAGE # the damage page, as the fire press leaves the first
+		_damage_shot = true
+		_damage_shot_at = t + 0.2
+	if _damage_shot and _damage_shot_at > 0.0 and t >= _damage_shot_at:
+		_damage_shot_at = -1.0
+		get_viewport().get_texture().get_image().save_png("%s/results_damage.png" % out_dir)
+		print("shot results_damage")
 	while not shots.is_empty() and t >= shots[0][0]:
 		var s = shots.pop_front()
 		var name: String = s[1]
@@ -322,7 +337,7 @@ func _process(delta: float) -> void:
 			tv.message_t = 0.0
 			tv.dlg.active = false
 			for sp: int in range(3):
-				G.talk_seen["%d/first" % sp] = true # the shots show the run-based lines, not the first visit's
+				Save.profile.first_time(Profile.first_key(sp)) # the shots show the run-based lines, not the first visit's
 			if name == "@talk_shop":
 				tv._talk(Talk.SHOPKEEPER, {"result": "loss", "act": 1, "seal": 0})
 			elif name == "@talk_reader":
@@ -330,6 +345,8 @@ func _process(delta: float) -> void:
 			else:
 				tv._talk(Talk.MORVANE, {"result": "loss", "seal": 0})
 			tv.dlg.finish()
+		elif name.begins_with("@deeds_"):
+			_deeds_step(name)
 		elif name.begins_with("@heroes_"):
 			_heroes_step(name)
 		elif name == "@talk_lull":
@@ -633,6 +650,24 @@ func _boss_tick(w: World, delta: float) -> void:
 				_boss_shots[name + "_hot"] = true
 				_fall_shot(name + "_hot")
 				break
+
+
+## One setup step of the --deeds shots: a profile with some deeds earned (never saved: scripted runs write nothing).
+func _deeds_step(name: String) -> void:
+	var view = G.main.current
+	var prof: Profile = Save.profile
+	match name:
+		"@deeds_near":
+			view.room.pos = Sanctum.THINGS[Sanctum.DEEDS][1] + Vector2(10, 12)
+		"@deeds_book":
+			for api: String in ["ARCHLICH", "SOLO_WIN", "TEN_MINUTES", "EVOLVE", "WIN_MAGE", "WIN_HUMAN", "EVO_FIRE", "WIN_SEAL_8",
+					"KILLS_1K"]:
+				prof.deeds[api] = true
+			view.deeds_book.open(prof)
+			view.deeds_book.sel = 4
+			view.deeds_open = true
+		"@deeds_scroll":
+			view.deeds_book._select(34)
 
 
 ## One setup step of the --heroes shots: a few heroes in the profile (never saved: scripted runs write nothing), the

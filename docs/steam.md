@@ -43,6 +43,52 @@ The API names must match exactly.
 | SEAL | THE KEY OF SOLOMON | Evolve Rune Circle into the Seal of Solomon. |
 | OMENS | OMEN-PROOF | Survive all three omens. |
 
+The first 14 rows are the Steam list. The Book of Deeds (the Sanctum's lectern) adds the rows below to the same
+catalogue (`Achievements.LIST`, 52 in all): `Platform.finish_run` sends every earned name, and Steam ignores a name
+the admin page does not have, so add these there only if they should be Steam achievements too. A secret deed shows
+as ??? in the Book until earned (and should be a hidden achievement on Steam). Crystals are paid once in the game.
+
+| API name | Name | Description | Crystals | Secret |
+| --- | --- | --- | --- | --- |
+| WIN_MAGE | THE MAGICIAN | Win a run with a Mage among the players. | 10 |  |
+| WIN_KNIGHT | THE CHARIOT | Win a run with a Knight among the players. | 10 |  |
+| WIN_ARCHER | THE HERMIT'S AIM | Win a run with an Archer among the players. | 10 |  |
+| WIN_PRIEST | THE HIEROPHANT | Win a run with a Priest among the players. | 10 |  |
+| WIN_PALADIN | STRENGTH | Win a run with a Paladin among the players. | 10 |  |
+| WIN_HUMAN | ALL TOO HUMAN | Win a run with a Human among the players. | 10 |  |
+| WIN_ELF | LONG IN THE TOOTH | Win a run with an Elf among the players. | 10 |  |
+| WIN_DWARF | DEEP AND STUBBORN | Win a run with a Dwarf among the players. | 10 |  |
+| WIN_ORC | POLITE FURY | Win a run with an Orc among the players. | 10 |  |
+| TRINITY | BALANCED READING | Win a run with a tank, a healer and a ranged hero among the players. | 20 |  |
+| EVO_ARCANE | STRAIGHT AND NARROW | Evolve Arcane Bolt into Astral Lance. | 15 |  |
+| EVO_FIRE | FIRE AND LIGHTNING | Evolve Fireball into Thunderfire. | 15 |  |
+| EVO_FROST | WHITEOUT | Evolve Frost Fan into Blizzard. | 15 |  |
+| EVO_STORM | THE PERFECT STORM | Evolve Chain Lightning into Tempest. | 15 |  |
+| EVO_STAR | THE STARS ALIGN | Evolve Starfall into Comet Rain. | 15 |  |
+| EVO_BONE | TO THE MARROW | Evolve Bone Spear into Ossuary Lance. | 15 |  |
+| EVO_CANDLE | LET THERE BE MORE LIGHT | Evolve Vigil Candle into Consecration. | 15 |  |
+| BOSS_CHANDELIER | BRING DOWN THE HOUSE | Slay the Bone Chandelier. | 15 |  |
+| BOSS_GHOSTWRITER | THE LAST WORD | Slay the Ghost Writer. | 15 |  |
+| WIN_ARCHMAGE | THE UPPER SHELF | Win a run at Archmage. | 20 |  |
+| WIN_SEAL_1 | FIRST SEAL BROKEN | Win a run at Seal I. | 25 |  |
+| WIN_SEAL_2 | SECOND SEAL BROKEN | Win a run at Seal II. | 30 |  |
+| WIN_SEAL_3 | THIRD SEAL BROKEN | Win a run at Seal III. | 30 |  |
+| WIN_SEAL_4 | FOURTH SEAL BROKEN | Win a run at Seal IV. | 35 |  |
+| WIN_SEAL_5 | FIFTH SEAL BROKEN | Win a run at Seal V. | 40 |  |
+| WIN_SEAL_6 | SIXTH SEAL BROKEN | Win a run at Seal VI. | 45 |  |
+| WIN_SEAL_7 | SEVENTH SEAL BROKEN | Win a run at Seal VII. | 50 |  |
+| WIN_SEAL_8 | THE LAST SEAL | Win a run at Seal VIII. | 50 | yes |
+| REVIVE_3 | SECOND WIND | Raise 3 fallen allies in one run. | 10 |  |
+| REVIVE_25 | UNIONISED DEAD | Raise 25 fallen allies over all your runs. | 20 |  |
+| KILLS_1K | BODY COUNT | Slay 1,000 foes over all your runs. | 10 |  |
+| KILLS_10K | MASS GRAVE | Slay 10,000 foes over all your runs. | 25 |  |
+| KILLS_100K | THE LONG HARVEST | Slay 100,000 foes over all your runs. | 50 |  |
+| HERO_10 | JOURNEYMAN | Raise a hero to class level 10. | 15 |  |
+| ALL_CARDS | THE FULL DECK | Collect every monster card. | 40 |  |
+| ALL_SECRETS | NOTHING LEFT UNSAID | Find every secret in the game. | 30 | yes |
+| APPRENTICES | THE MASTER'S HAND | Win a run with only apprentices beside you. | 20 | yes |
+| FAST_WIN | ON SCHEDULE | Win a run with four heroes before 16:30. | 30 |  |
+
 ## Steamworks checklist (Curtis)
 
 1. The app: pay the Steam Direct fee and create the app. Steam asks for the fee at least 30 days before
