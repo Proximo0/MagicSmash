@@ -143,17 +143,40 @@ static func _update_bets(a: Arena, dt: float) -> void:
 		b.t += dt
 		# The reel ticks slower as it runs down, like a wheel.
 		var rate := 16.0 * (1.0 - 0.7 * clampf(b.t / b.spin, 0.0, 1.0))
-		if b.t < b.spin and int(b.t * rate) != int(prev * rate):
+		if prev >= 0.0 and b.t < b.spin and int(b.t * rate) != int(prev * rate):
 			Sfx.play("menu_move", -8.0 if b.kind == Gamble.TEAM else -12.0, 0.9 + b.t / b.spin * 0.5)
 		if not b.shown and b.t >= b.spin:
 			b.shown = true
+			# The music comes back when the last team reel in flight turns face up (the boss's while he is up).
+			if b.kind == Gamble.TEAM and _last_team_reel(a._bets, b):
+				Sfx.music(_after_reel_music(a.boss_f, _act_music(a)))
 	a._bets = a._bets.filter(func(b: Dictionary) -> bool: return b.t < b.spin + a.REEL_SHOW)
+
+
+## The t a new team reel starts at: 0 when none is on show, else minus the time until the last one queued has
+## finished showing (`show` s after it turns), so team reels play one after another at the centre.
+static func _team_reel_start(bets: Array, show: float) -> float:
+	var wait := 0.0
+	for o: Dictionary in bets:
+		if o.kind == Gamble.TEAM:
+			wait = maxf(wait, float(o.spin) + show - float(o.t))
+	return -wait
+
+
+## True when no team reel but `b` is still spinning or waiting its turn.
+static func _last_team_reel(bets: Array, b: Dictionary) -> bool:
+	for o: Dictionary in bets:
+		if o != b and o.kind == Gamble.TEAM and float(o.t) < float(o.spin):
+			return false
+	return true
 
 
 ## Altar casts: a solo cast throws three rune stones over the altar and the middle one lands on the outcome's
 ## rune; the team bet turns a fate card in the middle of the screen, The Sun or Death.
 static func _draw_bets(a: Arena, ci: CanvasItem, dark: Color) -> void:
 	for b: Dictionary in a._bets:
+		if b.t < 0.0:
+			continue # a team reel waiting for the one on show
 		var spinning: bool = b.t < b.spin
 		var good: bool = Gamble.is_good(b.kind, b.outcome)
 		var col := Color("8bff9e") if good else Color("ff3b5c")
@@ -178,21 +201,52 @@ static func _draw_bets(a: Arena, ci: CanvasItem, dark: Color) -> void:
 			PixelFont.draw_centered(ci, text, at.x, at.y - 22, 1, col, dark)
 
 
-## The team bet: the bettor's fate card shuffles between The Sun and Death, then turns face up.
+## The team bet: the bettor's fate card shuffles face down, then turns face up with its name and what it does
+## (Gamble.TEAM_OUTCOMES). A fate with neither a painted card nor a code emblem shows the back face up with its
+## title on a plate, a plain stand-in.
 static func _draw_fate(a: Arena, ci: CanvasItem, b: Dictionary, spinning: bool, col: Color, text: String, dark: Color) -> void:
 	var r := Rect2(240 - 34, 40, 68, 90)
-	ci.draw_rect(Rect2(0, 34, 480, 132), Color(0.02, 0.0, 0.05, 0.55))
-	PixelFont.draw_centered(ci, "P%d DRAWS FOR ALL" % (int(b.slot) + 1), 240, r.position.y - 2 + 112, 1, G.player_color(b.slot), dark)
+	ci.draw_rect(Rect2(0, 34, 480, 142), Color(0.02, 0.0, 0.05, 0.55))
+	PixelFont.draw_centered(ci, "P%d DRAWS FOR ALL" % (int(b.slot) + 1), 240, r.end.y + 33, 1, G.player_color(b.slot), dark)
 	if spinning:
 		var k: float = b.t / b.spin
 		var turn := absf(cos(b.t * (6.0 + 10.0 * (1.0 - k))))
 		var w := r.size.x * turn
 		TarotArt.draw_back(ci, Rect2(240 - w / 2.0, r.position.y, w, r.size.y))
 		return
-	var key: String = a.FATE_CARDS[b.outcome]
+	var key: String = Gamble.fate_card(b.outcome)
 	var title: String = TarotArt.ARCANA[key][1]
-	TarotArt.draw_card(ci, r, key, title, "", "", true, col, a.time)
-	PixelFont.draw_centered(ci, text, 240, r.end.y + 16, 2, col, dark)
+	if TarotArt._painting(key).is_empty() and not TarotArt.EMBLEMS.has(key):
+		_fate_stand_in(ci, r, title)
+	else:
+		TarotArt.draw_card(ci, r, key, title, "", "", true, col, a.time)
+	PixelFont.draw_centered(ci, text, 240, r.end.y + 5, 2, col, dark)
+	PixelFont.draw_centered(ci, Gamble.fate_text(b.outcome, Tuning.shared()), 240, r.end.y + 22, 1, Color("d8cff0"), dark)
+
+
+## A fate card nobody has painted yet: the back turned face up in a card's frame, the title on a dark plate over
+## its lower part (as a painted card carries it).
+static func _fate_stand_in(ci: CanvasItem, r: Rect2, title: String) -> void:
+	ci.draw_rect(r.grow(1), TarotArt.INK)
+	ci.draw_rect(r, TarotArt.CARD)
+	var inner := r.grow(-4)
+	ci.draw_rect(inner, Color("120a22"))
+	TarotArt.draw_back(ci, inner)
+	ci.draw_rect(r.grow(-2), TarotArt.GOLD_DIM, false, 1.0)
+	var lines := TarotArt._lines(title, inner.size.x - 4.0)
+	var plate := Rect2(inner.position.x, inner.end.y - 4 - lines.size() * 10.0, inner.size.x, lines.size() * 10.0 + 4)
+	ci.draw_rect(plate, Color(TarotArt.INK, 0.86))
+	ci.draw_rect(Rect2(plate.position, Vector2(plate.size.x, 1)), TarotArt.GOLD_DIM)
+	var y := plate.position.y + 3
+	for line: String in lines:
+		PixelFont.draw_centered(ci, line, r.get_center().x, y, 1, Color.WHITE, TarotArt.INK)
+		y += 10.0
+
+
+## The music once a fate reel stops: the boss's while he is on the field, else the act's (bug N10: a bet during
+## a boss fight used to switch the boss music off).
+static func _after_reel_music(boss_f: float, act_music: String) -> String:
+	return "music_boss" if boss_f > 0.0 else act_music
 
 
 ## Chest reels over the wizard who opened them: tier names spin, then the item shows in its tier's colour.

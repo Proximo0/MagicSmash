@@ -28,6 +28,8 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 			return
 	ci.draw_rect(r.grow(1), INK)
 	ci.draw_rect(r, FACE)
+	if r.size.x < 16.0:
+		return # a card seen edge-on while it turns over: too narrow for a window, a frame or text
 	ci.draw_rect(r.grow(-1), Color(GOLD, 0.85 if found else 0.3), false, 1.0)
 	ci.draw_rect(r.grow(-3), Color(SOCKET_COLORS[sock], 0.5 if found else 0.15), false, 1.0)
 	var win := Rect2(r.position.x + 6, r.position.y + 12, r.size.x - 12, r.size.y * 0.5)

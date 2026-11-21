@@ -91,6 +91,12 @@ const FIELDS: Array = [
 	["last_stand", 1.5, 0.0, 10.0, 0.1, "Fallen", "With nobody standing, the longest-down wizard with a life to spare gets up within this many seconds."],
 	["call_gap", 2.0, 0.1, 10.0, 0.1, "Fallen", "Seconds between two calls for help (a nova pressed while down)."],
 	["return_safe", 2.5, 0.0, 6.0, 0.1, "Fallen", "Seconds safe after getting up by herself."],
+	["fate_world_hearts", 2.0, 0.0, 10.0, 1.0, "Fate", "Hearts THE WORLD heals each wizard (the fallen get them when they stand)."],
+	["fate_world_pull", 3.0, 0.5, 15.0, 0.5, "Fate", "Seconds every XP gem on the floor flies to the party after THE WORLD."],
+	["fate_hanged_secs", 60.0, 5.0, 300.0, 5.0, "Fate", "Seconds THE HANGED MAN seals every wizard's nova."],
+	["fate_hierophant_secs", 90.0, 5.0, 300.0, 5.0, "Fate", "Seconds THE HIEROPHANT stops potions dropping."],
+	["fate_wheel_draws", 2.0, 1.0, 4.0, 1.0, "Fate", "More fates WHEEL OF FORTUNE draws at once (never itself again in that chain)."],
+	["fate_chain_gap", 1.6, 1.6, 5.0, 0.1, "Fate", "Seconds between a fate landing and the next card of its chain being turned (at least the arena's reel show, Arena.REEL_SHOW)."],
 ]
 
 static var _shared: Tuning = null
@@ -176,6 +182,12 @@ var down_time: float
 var last_stand: float
 var call_gap: float
 var return_safe: float
+var fate_world_hearts: float
+var fate_world_pull: float
+var fate_hanged_secs: float
+var fate_hierophant_secs: float
+var fate_wheel_draws: float
+var fate_chain_gap: float
 
 
 func _init() -> void:

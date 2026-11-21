@@ -21,12 +21,27 @@ const SOLO_OUTCOMES: Array = [
 	["curse", "CURSED!", 18.0, false],
 ]
 
-## Team shrine outcomes: one wizard bets for the whole party.
-const TO_BLESSING := 0 # every wizard gains levels
-const TO_CURSE := 1 # every wizard loses a heart and an elite comes for each of them
+## Team shrine outcomes, the fate deck: one wizard bets for the whole party and a tarot card is turned.
+## [key, name, weight, good, tarot key (TarotArt.ARCANA), what it does (the reel's line; %d is its number)]. Ids travel in events
+## and Results.fates, so append new fates at the end. The weight is the old coin flip a solo run still makes
+## (roll()); a party draws from the deck instead (draw_fate()): a side, then a fate of that side.
+const TO_BLESSING := 0 # THE SUN: every wizard gains levels
+const TO_CURSE := 1 # DEATH: every wizard loses a heart and an elite comes for each of them
+const TO_WORLD := 2 # THE WORLD: every XP gem flies to the party, everyone heals
+const TO_EMPEROR := 3 # THE EMPEROR: a chest for each human wizard
+const TO_FOOL := 4 # THE FOOL: the next fate drawn counts twice
+const TO_HANGED := 5 # THE HANGED MAN: novas sealed for a while
+const TO_HIEROPHANT := 6 # THE HIEROPHANT: no potions drop for a while
+const TO_WHEEL := 7 # WHEEL OF FORTUNE: more fates are drawn at once (never the Wheel again in that chain)
 const TEAM_OUTCOMES: Array = [
-	["blessing", "PARTY BLESSED!", 50.0, true],
-	["curse", "PARTY CURSED!", 50.0, false],
+	["blessing", "PARTY BLESSED!", 50.0, true, "sun", "EVERY WIZARD GAINS %d LEVELS"],
+	["curse", "PARTY CURSED!", 50.0, false, "death", "A HEART LOST AND AN ELITE FOR EACH WIZARD"],
+	["world", "THE WORLD!", 0.0, true, "world", "EVERY GEM FLIES IN, ALL HEAL %d HEARTS"],
+	["emperor", "THE EMPEROR!", 0.0, true, "emperor", "A CHEST FOR EACH WIZARD"],
+	["fool", "THE FOOL!", 0.0, true, "fool", "THE NEXT FATE COUNTS TWICE"],
+	["hanged", "HANGED MAN!", 0.0, false, "hanged", "NOVAS SEALED FOR %d SECONDS"],
+	["hierophant", "HIEROPHANT!", 0.0, false, "hierophant", "NO POTIONS DROP FOR %d SECONDS"],
+	["wheel", "WHEEL TURNS!", 0.0, false, "wheel", "%d MORE FATES ARE DRAWN AT ONCE"],
 ]
 
 ## Levels each wizard gains from a team blessing.
@@ -45,6 +60,40 @@ static func is_good(kind: int, idx: int) -> bool:
 	return bool(outcomes(kind)[idx][3])
 
 
+## The tarot card a fate shows (a TarotArt.ARCANA key) and its line saying what it does.
+static func fate_card(idx: int) -> String:
+	return TEAM_OUTCOMES[idx][4]
+
+
+static func fate_text(idx: int, tune: Tuning) -> String:
+	var text: String = TEAM_OUTCOMES[idx][5]
+	if not text.contains("%d"):
+		return text
+	var n: float = BLESSING_LEVELS
+	match idx:
+		TO_WORLD:
+			n = tune.fate_world_hearts
+		TO_HANGED:
+			n = tune.fate_hanged_secs
+		TO_HIEROPHANT:
+			n = tune.fate_hierophant_secs
+		TO_WHEEL:
+			n = tune.fate_wheel_draws
+	return text % int(n)
+
+
+## One card from the fate deck: the cruel side with chance `cruel`, then each fate of that side alike.
+## `wheel` false leaves WHEEL OF FORTUNE out (a chain it started never draws it again).
+static func draw_fate(rng: RandomNumberGenerator, cruel: float, wheel: bool = true) -> int:
+	var cruel_side := rng.randf() < cruel
+	var pool: Array[int] = []
+	for i: int in range(TEAM_OUTCOMES.size()):
+		if bool(TEAM_OUTCOMES[i][3]) != cruel_side and (wheel or i != TO_WHEEL):
+			pool.append(i)
+	return pool[rng.randi() % pool.size()]
+
+
+## A weighted roll over the table (a solo shrine; a team shrine in a solo run: the old Sun-or-Death flip).
 static func roll(rng: RandomNumberGenerator, kind: int) -> int:
 	var table: Array = outcomes(kind)
 	var total: float = 0.0

@@ -87,7 +87,7 @@ const EV_RIFT := 27
 const EV_CHEST := 28
 const EV_WARD := 29
 const EV_SHRINE_UP := 30 # a shrine appeared: a = kind
-const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcome; the reel starts
+const EV_SHRINE := 31 # a wizard paid a shrine: a = slot (+ 8: a card a WHEEL OF FORTUNE dealt, no bet), b = kind * 16 + outcome; the reel starts
 const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
 const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
@@ -318,6 +318,15 @@ var record: Results
 ## split damage by spell. Never read by gameplay and not in state_hash().
 var stat_src := -1
 var _gambles: Array = [] # paid shrines waiting for their reel: {t, slot, kind, outcome, stake, pos}
+## The fate deck (WorldShrines): the chance a party's fate comes from the cruel side (the difficulty ladder sets
+## it), THE FOOL's next fate counting twice, the seconds novas stay sealed, potions stop dropping and every XP gem
+## flies to the party, and the hearts THE WORLD owes the fallen until they stand (slot -> hearts).
+var fate_cruel := 0.5
+var fate_twice := false
+var nova_sealed := 0.0
+var no_potions := 0.0
+var gem_rush := 0.0
+var fate_heal := {}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
 var next_id := 1
@@ -465,6 +474,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 				WorldDrops._refill_urns(self)
 		PH_FIGHT:
 			if won:
+				WorldShrines._tick_won(self, dt)
 				victory_t -= dt
 				if victory_t <= 0.0:
 					_end_run()
@@ -601,7 +611,10 @@ func _query(pos: Vector2, radius: float) -> Array:
 
 ## Summary of the whole simulation for determinism checks (same seed + same inputs = same hash).
 func state_hash() -> int:
-	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)])
+	var h := [snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)]
+	if not fate_heal.is_empty():
+		h.append(WorldShrines.held_heals(self))
+	return hash(h)
 
 # ============================================================ SNAPSHOT ===
 func _snapshot_urns() -> PackedFloat32Array:
@@ -691,11 +704,13 @@ func snapshot() -> Dictionary:
 	var shr := PackedFloat32Array()
 	for r: Array in WorldShrines.snapshot_shrines(self):
 		shr.append_array(r)
-	return {
+	var snap := {
 		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(), "o": PackedFloat32Array(),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
 			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y]),
 	}
+	WorldShrines.snapshot_fates(self, snap)
+	return snap
 
 # =========================================================== FORWARDERS ===
 ## One line each, for callers outside game/logic/world/ (tests, sims, tools, the arena, bots). The bodies live
