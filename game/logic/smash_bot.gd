@@ -615,6 +615,7 @@ func _think(me: Vector2, time: float) -> void:
 	# Hazard rows: which way to lean out of the one it stands in (zero when none threatens).
 	var hz: PackedFloat32Array = Hazards.near(_hz, me, travel + Hazards.BOT_MARGIN) if not _hz.is_empty() else _hz
 	var hz_push: Vector2 = Hazards.steer(hz, me, _speed, _react) if not hz.is_empty() else Vector2.ZERO
+	var hz_prep: PackedFloat32Array = Hazards.prepare(hz, me, travel, _react) if not hz.is_empty() else hz
 	for i: int in range(DIR_COUNT + 1):
 		var d: Vector2 = _dirs[i] if i < DIR_COUNT else Vector2.ZERO
 		var end: Vector2 = me + d * travel
@@ -674,7 +675,7 @@ func _think(me: Vector2, time: float) -> void:
 		if not hz.is_empty():
 			if hz_push != Vector2.ZERO:
 				score += W_HAZARD * minf(hz_push.length(), 2.0) * (d.dot(hz_push.normalized()) - 1.0)
-			score -= W_HAZARD * minf(Hazards.steer(hz, end, _speed, _react).length(), 2.0)
+			score -= W_HAZARD * minf(Hazards.threat(hz_prep, end), 2.0)
 		# Where it wants to be: the goal, else its roaming ground.
 		if _goal.is_finite():
 			# Progress to the closest point of the path, so a goal nearer than the lookahead walk still pulls.

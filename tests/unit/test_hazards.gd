@@ -232,3 +232,135 @@ func test_a_bot_steers_out_of_warned_rows() -> void:
 		for _i: int in range(150):
 			w.step(DT, {0: bot.decide_in_world(w, 0)})
 		assert_eq(p.hp, hp, "kind %d: the bot stood in a hot row" % kind)
+
+
+func test_a_burst_at_the_shot_cap_leaves_other_shots_alone() -> void:
+	var w := _quiet()
+	(w.players[0] as World.Player).invuln = 999.0
+	for i: int in range(Bestiary.ESHOT_CAP):
+		w.eshot(World.ES_ORB, Vector2(300, 100), Vector2.ZERO, 3.0)
+	assert_true(w.eshot(World.ES_ORB, Vector2(300, 100), Vector2.ZERO, 3.0) == null, "past the cap: null")
+	var lives: Array = w.eshots.map(func(s: World.EShot) -> float: return s.life)
+	var burst := w.add_hazard(Hazards.BURST, Vector2(200, 300), Vector2(200, 300), 22.0, 0.0, 0.2)
+	burst.aux = World.ES_SKULL * Hazards.SHOT_KIND + 10
+	WorldHazards._update_hazards(w, DT)
+	assert_true(burst.fired)
+	assert_eq(w.eshots.size(), Bestiary.ESHOT_CAP)
+	assert_eq(w.eshots.map(func(s: World.EShot) -> float: return s.life), lives, "a capped burst changed other shots")
+
+
+func test_a_row_with_no_warning_still_fires_once() -> void:
+	var w := _quiet()
+	(w.players[0] as World.Player).invuln = 999.0
+	var fall := w.add_hazard(Hazards.FALL, Vector2(650, 150), Vector2(650, 150), 18.0, 0.0, 0.2, -1, 0, true) # out of auto-aim
+	fall.aux = World.GOBLIN
+	fall.warn = 0.0 # a FALL is raised to min_warn; force none, as a brain might
+	for _i: int in range(30):
+		w.step(DT, {})
+	assert_eq(w.enemies.size(), 1, "the row never fired, or fired twice")
+	var rows: Array[Hazards.Hazard] = [_row(Hazards.MARK, Vector2.ZERO, Vector2.ONE, 3.0, 0.0, 0.5)]
+	assert_eq(Hazards.tick(rows, DT, {}).size(), 1)
+	assert_true(Hazards.tick(rows, DT, {}).is_empty(), "turned twice")
+
+
+func test_a_blast_spares_its_maker_and_a_boss_blast_spares_bosses() -> void:
+	var w := _quiet()
+	(w.players[0] as World.Player).invuln = 999.0
+	var at := Vector2(650, 100)
+	var maker: World.Enemy = w.spawn_enemy(World.ORC, 0, at)
+	var other: World.Enemy = w.spawn_enemy(World.ORC, 0, at + Vector2(6, 0))
+	maker.hp = 500.0
+	other.hp = 500.0
+	w.add_hazard(Hazards.BLAST, at, at, 30.0, 0.0, 0.2, -1, maker.id).warn = 0.0 # hot at once
+	w._build_grid()
+	WorldHazards._update_hazards(w, DT)
+	assert_eq(maker.hp, 500.0, "the blast hurt its maker")
+	assert_true(other.hp < 500.0)
+	var boss: World.Enemy = w._spawn_boss(World.LICH, false)
+	boss.pos = at + Vector2(0, 40)
+	var hp := boss.hp
+	w.add_hazard(Hazards.BLAST, boss.pos, boss.pos, 30.0, 0.0, 0.2, -1, boss.id).warn = 0.0
+	w._build_grid()
+	WorldHazards._update_hazards(w, DT)
+	assert_eq(boss.hp, hp, "a boss's blast hurt a boss")
+
+
+func test_a_phase_turn_clears_regular_rows_only() -> void:
+	var w := _quiet()
+	var boss: World.Enemy = w._spawn_boss(World.LICH, false)
+	w.add_hazard(Hazards.FIRE, Vector2(100, 100), Vector2(100, 100), 20.0, 2.0, 1.0)
+	var mine := w.add_hazard(Hazards.FIRE, Vector2(300, 100), Vector2(300, 100), 20.0, 2.0, 1.0, -1, boss.id)
+	w.phase_turn(boss, 1.0)
+	assert_eq(w.hazards.size(), 1)
+	assert_true(w.hazards[0] == mine)
+	w.add_hazard(Hazards.FIRE, Vector2(100, 100), Vector2(100, 100), 20.0, 2.0, 1.0)
+	w.clear_hazards(false)
+	assert_eq(w.hazards.size(), 1, "clear_hazards(false) keeps the boss's rows")
+	w.clear_hazards(true)
+	assert_true(w.hazards.is_empty())
+
+
+func test_move_hazard_moves_the_row() -> void:
+	var w := _quiet()
+	var h := w.add_hazard(Hazards.FLAME, Vector2(0, 0), Vector2(10, 0), 5.0, 1.0, 1.0)
+	w.move_hazard(h, Vector2(50, 50), Vector2(90, 50))
+	assert_eq(h.a, Vector2(50, 50))
+	assert_eq(h.b, Vector2(90, 50))
+	assert_true(Hazards.contains(h, Vector2(70, 52)))
+	assert_eq(Vector2(w.snapshot().hz[2], w.snapshot().hz[3]), Vector2(50, 50))
+
+
+func test_hot_rows_spare_spirits_and_the_invulnerable() -> void:
+	var t := Tuning.new()
+	t.enemy_cap = 0.0
+	var w := World.new([0, 1], 3, t)
+	w.phase = World.PH_FIGHT
+	var fallen: World.Player = w.players[0]
+	var safe: World.Player = w.players[1]
+	fallen.invuln = 0.0
+	WorldPlayers._fall(w, fallen)
+	assert_true(fallen.down)
+	safe.invuln = 99.0
+	var hp0 := fallen.hp
+	var lives0 := fallen.lives
+	var hp1 := safe.hp
+	for p: World.Player in [fallen, safe]:
+		w.add_hazard(Hazards.FIRE, p.pos, p.pos, 20.0, 0.0, 1.0, -1, 0, true)
+	for _i: int in range(90): # past the raised warning (min_warn) and well into the hot time
+		w._plist.assign(w.players.values())
+		WorldHazards._update_hazards(w, DT)
+	assert_eq([fallen.hp, fallen.lives], [hp0, lives0], "a spirit was hurt")
+	assert_eq(safe.hp, hp1, "an invulnerable wizard was hurt")
+
+
+func test_the_hash_and_the_row_carry_what_clients_and_replays_need() -> void:
+	var w := _quiet()
+	var h := w.add_hazard(Hazards.FIRE, Vector2(100, 100), Vector2(100, 100), 20.0, 2.0, 1.0)
+	var before := w.state_hash()
+	h.aux = 5
+	assert_true(w.state_hash() != before, "aux is not in the hash")
+	var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, Vector2(300, 300))
+	e.cloak = true
+	var status := int(w.snapshot().e[World.E_STATUS])
+	assert_true(status & World.STATUS_CLOAK != 0, "cloak is not sent")
+	var boss: World.Enemy = w._spawn_boss(World.LICH, false)
+	before = w.state_hash()
+	boss.turn = 1.0
+	var row: PackedFloat32Array = w.snapshot().e
+	assert_true(int(row[row.size() - World.ENEMY_FLOATS + World.E_STATUS]) & World.STATUS_TURN != 0, "the turn is not sent")
+	assert_true(w.state_hash() != before)
+
+
+func test_threat_reads_the_prepared_rows() -> void:
+	var rows: Array[Hazards.Hazard] = [_row(Hazards.FIRE, Vector2(100, 100), Vector2(100, 100), 20.0, 0.1),
+		_row(Hazards.FLAME, Vector2(0, 300), Vector2(200, 300), 5.0, 0.1),
+		_row(Hazards.MARK, Vector2(0, 100), Vector2(200, 100), 5.0, 0.1)]
+	var prep := Hazards.prepare(Hazards.pack(rows), Vector2(100, 200), 400.0, 0.2)
+	assert_eq(prep.size(), Hazards.PREP * 2, "a MARK is not avoided")
+	assert_near(Hazards.threat(prep, Vector2(105, 100)), 1.0)
+	assert_near(Hazards.threat(prep, Vector2(50, 302)), 1.0)
+	assert_eq(Hazards.threat(prep, Vector2(100, 200)), 0.0)
+	var safe: Array[Hazards.Hazard] = [_row(Hazards.SAFE, Vector2(100, 100), Vector2(100, 100), 40.0, 3.0)]
+	var sp := Hazards.prepare(Hazards.pack(safe), Vector2(100, 200), 10.0, 0.2)
+	assert_true(Hazards.threat(sp, Vector2(100, 200)) > 0.0, "outside a SAFE disc is the threat")
+	assert_eq(Hazards.threat(sp, Vector2(100, 100)), 0.0)

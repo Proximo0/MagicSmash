@@ -79,3 +79,69 @@ func test_attacks_pass_min_warn() -> void:
 	assert_true(BossLich.ATTACKS.is_empty(), "the Lich's attacks are shots, not rows")
 	for row: Array in BossLich.ATTACKS:
 		assert_true(float(row[1]) >= Hazards.min_warn(float(row[3])))
+
+
+## The act-boss schedule job L will switch to.
+const ACT_SCHEDULE: Array = [[300.0, Bestiary.CHANDELIER, false], [600.0, Bestiary.GHOSTWRITER, false], [900.0, Bestiary.LICH, true]]
+
+
+func test_the_header_starts_empty_for_each_boss() -> void:
+	var w := World.new([0], 3)
+	w.phase = World.PH_FIGHT
+	w.boss_t = 2.0
+	w.boss_arg = 9
+	w.boss_meter = 0.5
+	var e: World.Enemy = w._spawn_boss(World.LICH, false)
+	assert_eq([w.boss_t, w.boss_arg, w.boss_meter], [0.0, 0, 0.0], "an arrival clears the header")
+	w.boss_t = 1.0
+	w.boss_arg = 3
+	w.boss_meter = 0.2
+	w._kill_enemy(e, 0)
+	assert_eq([w.boss_t, w.boss_arg, w.boss_meter], [0.0, 0, 0.0], "a death clears the header")
+
+
+func test_a_non_lich_boss_end_to_end() -> void:
+	var w := World.new([0, 1, 2], 3)
+	w.schedule = ACT_SCHEDULE
+	w.phase = World.PH_FIGHT
+	w.wave = 6
+	w.wave_time = 300.0
+	var e: World.Enemy = w._spawn_boss(Bestiary.CHANDELIER, false)
+	assert_true(w.boss == e)
+	assert_near(e.maxhp, Bosses.health_in(w, Bestiary.CHANDELIER), 0.001)
+	assert_near(e.maxhp, 240.0 * Bosses.PARTY_HP[2], 0.001, "first visit, three wizards")
+	assert_near(e.spd, float(Bestiary.KINDS[Bestiary.CHANDELIER][Bestiary.K_SPD]), 0.001, "a fixed speed")
+	var p0: World.Player = w.players[0]
+	var d0 := e.pos.distance_to(p0.pos)
+	for _i: int in range(60):
+		WorldEnemies._update_enemy(w, e, 1.0 / 60.0)
+	assert_true(e.pos.distance_to(p0.pos) < d0 or not e.entering, "it should come in")
+	assert_eq(Bosses.phase(e.type, 0.51), 0)
+	assert_eq(Bosses.phase(e.type, 0.49), 1)
+	e.hp = e.maxhp * 0.4
+	assert_eq(int(w.snapshot().w[World.W_BOSS_PHASE]), 1)
+	assert_eq(int(w.snapshot().w[World.W_BOSS_TYPE]), Bestiary.CHANDELIER)
+	w.add_hazard(Hazards.FIRE, Vector2(100, 100), Vector2(100, 100), 20.0, 1.0, 1.0, -1, e.id)
+	w._kill_enemy(e, 0)
+	assert_true(w.boss == null)
+	assert_true(w.hazards.is_empty(), "its death clears the floor")
+	assert_true(w.lull_left > 0.0, "a lull follows a boss that is not the final")
+	assert_eq(int(w.snapshot().w[World.W_BOSS_TYPE]), -1)
+
+
+func test_the_final_minute_with_another_kind_of_boss_up() -> void:
+	var w := World.new([0], 3)
+	w.schedule = ACT_SCHEDULE
+	w.phase = World.PH_FIGHT
+	w.wave = 15
+	w.wave_time = 899.0
+	var ghost: World.Enemy = w._spawn_boss(Bestiary.GHOSTWRITER, false)
+	w.wave_time = 900.0
+	w._tick_minute()
+	assert_true(ghost.dead, "the other boss gives way")
+	assert_true(w.boss == null)
+	var queued := false
+	for s: Dictionary in w.spawn_queue:
+		queued = queued or (int(s.type) == World.LICH and s.get("final", false))
+	assert_true(queued, "the scheduled final boss comes")
+	assert_false(ghost.final)

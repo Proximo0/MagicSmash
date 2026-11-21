@@ -72,7 +72,7 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 		en.append(pos)
 		ev.append(tr[1])
 		er.append(Bestiary.KINDS[int(e.type)][Bestiary.K_R])
-		if int(e.type) == World.LICH:
+		if Bestiary.has_flag(int(e.type), Bestiary.F_BOSS):
 			boss = pos
 	for id: int in a._bot_track.keys():
 		if not seen.has(id):

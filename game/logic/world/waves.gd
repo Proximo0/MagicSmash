@@ -14,10 +14,13 @@ static func _tick_minute(w: World) -> void:
 	if w.wave >= final_minute(w) and not w._final_called:
 		w._final_called = true
 		w.emit(World.EV_WAVE, 0, 0, w.wave, 2)
-		if w.boss != null and not w.boss.dead:
+		var final_type := _final_type(w)
+		if w.boss != null and not w.boss.dead and w.boss.type == final_type:
 			Bosses._make_final(w, w.boss) # a Lich still standing ascends
 		else:
-			w.spawn_queue.append({"t": w.wave_time + 2.5, "type": _final_type(w), "door": 0, "final": true})
+			if w.boss != null and not w.boss.dead:
+				Bosses._leave(w, w.boss) # a boss of another kind gives way to the final one
+			w.spawn_queue.append({"t": w.wave_time + 2.5, "type": final_type, "door": 0, "final": true})
 			_sort_queue(w)
 		return
 	var due := Bosses.due((w.wave - 2) * 60.0, (w.wave - 1) * 60.0, w.schedule)
@@ -91,6 +94,10 @@ static func _direct_horde(w: World, dt: float) -> void:
 	w.horde_budget += rate * dt
 	if w._next_group.is_empty():
 		w._next_group = _roll_group(w)
+	var parts: Array = w._next_group[1]
+	if Bestiary.needs_check(parts) and not Bestiary.trim(parts, _fielded(w), w.players.size(), _boss_coming(w)):
+		w._next_group = [] # its cap filled or a boss came while the horde saved for it: roll again next tick
+		return
 	var cost := 0.0
 	for part: Array in w._next_group[1]:
 		cost += float(Bestiary.horde_row(part[0])[Bestiary.H_COST]) * int(part[1])
@@ -150,7 +157,29 @@ static func _spot_near_party(w: World, min_dist: float, max_dist: float, margin:
 
 ## The next group or formation (Bestiary.roll_group): [layout, [[type, count], ...]].
 static func _roll_group(w: World) -> Array:
-	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), w.alive, w.players.size(), w.boss != null)
+	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), _fielded(w), w.players.size(), _boss_coming(w))
+
+
+## Enemies per Bestiary type on the floor or queued to come (doors, rifts, risers), counted now.
+static func _fielded(w: World) -> PackedInt32Array:
+	var n := PackedInt32Array()
+	n.resize(Bestiary.count())
+	for e: World.Enemy in w.enemies:
+		if not e.dead:
+			n[e.type] += 1
+	for s: Dictionary in w.spawn_queue:
+		n[int(s.type)] += 1
+	return n
+
+
+## True while a boss is up or queued to come.
+static func _boss_coming(w: World) -> bool:
+	if w.boss != null and not w.boss.dead:
+		return true
+	for s: Dictionary in w.spawn_queue:
+		if Bestiary.has_flag(int(s.type), Bestiary.F_BOSS):
+			return true
+	return false
 
 
 ## Queues a rolled group by its layout. A plain group comes through a door or, one time in tune.rift_share, a rift;

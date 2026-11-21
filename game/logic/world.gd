@@ -209,6 +209,10 @@ const E_SLOW := 7
 const E_RANK := 8
 const E_STATUS := 9
 const ENEMY_FLOATS := 10
+## Bits World adds to E_STATUS (high, clear of the status bits to come; exact in a float32): cloaked (shots pass
+## through, Enemy.cloak) and a boss turning a phase (Enemy.turn > 0).
+const STATUS_CLOAK := 1 << 20
+const STATUS_TURN := 1 << 21
 
 ## Floats per spell object in snapshot()["o"]: kind, owner, x, y, a, b, t, evolved. None exist yet.
 const O_FLOATS := 8
@@ -608,6 +612,11 @@ func state_hash() -> int:
 	var h := [snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)]
 	if not fate_heal.is_empty():
 		h.append(WorldShrines.held_heals(self))
+	# Only when present, so a run without them hashes as it always did.
+	if not hazards.is_empty():
+		h.append(hazards.map(func(z: Hazards.Hazard) -> Array: return [z.owner, z.aux, z.slot, z.fired, z.follow, z.lock, z.boss]))
+	if boss != null and boss.turn > 0.0:
+		h.append(boss.turn)
 	return hash(h)
 
 # ============================================================ SNAPSHOT ===
@@ -679,7 +688,8 @@ func snapshot() -> Dictionary:
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow,
-			2.0 if e.final else (1.0 if e.elite else 0.0), e.status])
+			2.0 if e.final else (1.0 if e.elite else 0.0),
+			e.status | (STATUS_CLOAK if e.cloak else 0) | (STATUS_TURN if e.turn > 0.0 else 0)])
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
@@ -764,9 +774,9 @@ func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 func damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2, sure: bool = false) -> void:
 	WorldEnemies._damage_enemy(self, e, dmg, slot, knock, sure)
 
-## An enemy shot (dropped past Bestiary.ESHOT_CAP).
-func eshot(kind: int, pos: Vector2, vel: Vector2, r: float) -> void:
-	WorldEnemies._eshot(self, kind, pos, vel, r)
+## An enemy shot, or null when it is dropped past Bestiary.ESHOT_CAP.
+func eshot(kind: int, pos: Vector2, vel: Vector2, r: float) -> EShot:
+	return WorldEnemies._eshot(self, kind, pos, vel, r)
 
 func _spawn_boss(type: int, final: bool) -> Enemy:
 	return Bosses._spawn_boss(self, type, final)

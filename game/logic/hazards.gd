@@ -69,7 +69,7 @@ class Hazard:
 	var lock := 0.0
 	var aux := 0 # on_hot argument (enemy type, shot ring)
 	var boss := false # made by the boss: not capped as regular, not cleared by the nova
-	var fired := false # on_hot has run
+	var fired := false # it has turned hot (tick handed it over for its on_hot)
 
 
 ## The shortest fair warning for a row of radius or half-width `r`.
@@ -106,7 +106,8 @@ static func can_add(rows: Array[Hazard], party: Vector2, boss: bool, forced: boo
 
 
 ## Runs the rows' clocks: a warning row following a wizard (`wizards`: slot -> position) moves with them until it
-## locks; a row whose warning ends turns hot. Returns the rows that turned hot this tick.
+## locks; a row whose warning has ended (a row added with none too) turns hot, once: it is marked fired and
+## returned. Its hot clock runs from the next tick. Returns the rows that turned hot this tick.
 static func tick(rows: Array[Hazard], dt: float, wizards: Dictionary) -> Array[Hazard]:
 	var turned: Array[Hazard] = []
 	for h: Hazard in rows:
@@ -115,12 +116,12 @@ static func tick(rows: Array[Hazard], dt: float, wizards: Dictionary) -> Array[H
 				var to: Vector2 = wizards[h.follow]
 				h.b += to - h.a
 				h.a = to
-			h.warn -= dt
-			if h.warn <= 0.0:
-				h.warn = 0.0
-				turned.append(h)
-		else:
+			h.warn = maxf(0.0, h.warn - dt)
+		elif h.fired:
 			h.hot -= dt
+		if h.warn <= 0.0 and not h.fired:
+			h.fired = true
+			turned.append(h)
 	return turned
 
 
@@ -158,6 +159,47 @@ static func steer(hz: PackedFloat32Array, me: Vector2, speed: float, react: floa
 				out += (-dir if row[K_INVERTED] else dir) * urgency
 		i += FLOATS
 	return out
+
+
+## A bot's per-think digest of the rows that threaten near `me` (within `reach` px), for threat(): PREP floats per
+## row [shape, ax, ay, bx, by, (r + BOT_MARGIN)^2, inverted, urgency]. Urgency is 1 for a hot row or one turning hot
+## within `react` + 0.5 s, falling to 0.2 for a warning still 2 s off.
+const PREP := 8
+
+
+static func prepare(hz: PackedFloat32Array, me: Vector2, reach: float, react: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var i := 0
+	while i + FLOATS <= hz.size():
+		var row: Array = KINDS[int(hz[i + 1])]
+		if row[K_AVOID]:
+			var a := Vector2(hz[i + 2], hz[i + 3])
+			var b := Vector2(hz[i + 4], hz[i + 5])
+			var r: float = hz[i + 6] + BOT_MARGIN
+			var reach_r := r + reach
+			if row[K_INVERTED] or me.distance_squared_to(Geometry2D.get_closest_point_to_segment(me, a, b)) <= reach_r * reach_r:
+				var urgency := clampf(1.0 - (hz[i + 7] - react - 0.5) / 1.5, 0.2, 1.0)
+				out.append_array([row[K_SHAPE], a.x, a.y, b.x, b.y, r * r, 1.0 if row[K_INVERTED] else 0.0, urgency])
+		i += FLOATS
+	return out
+
+
+## How much a bot standing at `p` would be in the prepared rows' way: the sum of the urgencies of the rows it is
+## inside (outside, for an inverted row). 0: clear.
+static func threat(prep: PackedFloat32Array, p: Vector2) -> float:
+	var sum := 0.0
+	var i := 0
+	while i + PREP <= prep.size():
+		var a := Vector2(prep[i + 1], prep[i + 2])
+		var d2: float
+		if prep[i] == DISC:
+			d2 = p.distance_squared_to(a)
+		else:
+			d2 = p.distance_squared_to(Geometry2D.get_closest_point_to_segment(p, a, Vector2(prep[i + 3], prep[i + 4])))
+		if (d2 <= prep[i + 5]) != (prep[i + 6] > 0.5):
+			sum += prep[i + 7]
+		i += PREP
+	return sum
 
 
 ## The rows of `hz` that reach within `reach` px of `p` (a bot's walk this think), same layout.

@@ -73,27 +73,26 @@ static func _update_hazards(w: World, dt: float) -> void:
 			break
 
 
-## What a row does once, as it turns hot: a blast that hurts and shoves enemies (credited to its slot), a ring of
-## enemy shots, or an enemy landing.
+## What a row does once, as it turns hot (Hazards.tick hands each row over once): a blast that hurts and shoves
+## enemies (credited to its slot), a ring of enemy shots, or an enemy landing.
 static func _fire(w: World, h: Hazards.Hazard) -> void:
-	if h.fired:
-		return
-	h.fired = true
 	var row: Array = Hazards.KINDS[h.kind]
 	match int(row[Hazards.K_ON_HOT]):
 		Hazards.ON_BLAST:
 			var dmg: float = float(row[Hazards.K_FOE_DMG]) * (1.0 + w.tune.enemy_hp_per_min * (w.wave - 1))
 			for e: World.Enemy in w._query(h.a, h.r + World.CELL):
-				if not e.dead and Hazards.contains(h, e.pos):
+				if e.dead or e.id == h.owner or (h.boss and e.flags & Bestiary.F_BOSS):
+					continue # a blast spares its maker, and a boss's blast spares the bosses
+				if Hazards.contains(h, e.pos):
 					var push: Vector2 = (e.pos - h.a).normalized() * float(row[Hazards.K_FOE_SHOVE])
 					WorldEnemies._damage_enemy(w, e, dmg, h.slot, push, true)
 		Hazards.ON_SHOTS:
 			var n: int = h.aux % Hazards.SHOT_KIND
 			for i in n:
 				var dir := Vector2.from_angle(TAU * i / maxi(n, 1))
-				WorldEnemies._eshot(w, h.aux / Hazards.SHOT_KIND, h.a, dir * Hazards.SHOT_SPEED, Hazards.SHOT_R)
-				if not w.eshots.is_empty():
-					w.eshots[-1].life = Hazards.SHOT_LIFE
+				var s := WorldEnemies._eshot(w, h.aux / Hazards.SHOT_KIND, h.a, dir * Hazards.SHOT_SPEED, Hazards.SHOT_R)
+				if s != null:
+					s.life = Hazards.SHOT_LIFE
 		Hazards.ON_SPAWN:
 			WorldWaves.spawn_enemy(w, h.aux, 0, h.a)
 

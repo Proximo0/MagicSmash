@@ -160,10 +160,14 @@ static func cap_of(row: Array, wizards: int) -> int:
 
 ## The next thing the horde saves for: [layout, [[type, n], ...]]. A group's layout is its HORDE form (GROUP, RISE or
 ## WALL); a formation's is AT_RIFT, AT_DOOR or AT_OPPOSITE plus 8 (so the two never mix up). `t` is the run's
-## seconds, `act` 0..2, `alive` the count alive per type. Rows past their cap, and F_HAZARD kinds while a boss is
-## up, are left out. No formation unlocked: no extra roll, so the draw order is today's.
-static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> Array:
-	var forms: Array = FORMATIONS.filter(func(f: Array) -> bool: return t >= float(f[1]))
+## seconds, `act` 0..2, `alive` the count per type on the floor or queued to come, `boss_alive` true while a boss
+## is up or queued. Rows past their cap, and F_HAZARD kinds while a boss is up, are left out; so is a formation with
+## such a part or a part that would pass its cap. No formation unlocked: no extra roll, so the draw order is
+## today's. `formations` defaults to FORMATIONS (tests pass their own).
+static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: PackedInt32Array, wizards: int, boss_alive: bool,
+		formations: Array = FORMATIONS) -> Array:
+	var forms: Array = formations.filter(func(f: Array) -> bool:
+		return t >= float(f[1]) and fits(f[3], alive, wizards, boss_alive))
 	if not forms.is_empty() and rng.randi_range(1, FORMATION_ROLL) == 1:
 		var fsum := 0
 		for f: Array in forms:
@@ -192,6 +196,52 @@ static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: Pa
 				n = clampi(n, 1, maxi(1, cap - _alive_of(alive, row[H_TYPE])))
 			return [int(row[H_FORM]), [[int(row[H_TYPE]), n]]]
 	return [GROUP, [[GOBLIN, 1]]]
+
+
+## Whether every [type, n] part may come now: no F_HAZARD kind while a boss is up, and no capped kind past its cap
+## (counting `alive`, the floor plus the queue).
+static func fits(parts: Array, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> bool:
+	for part: Array in parts:
+		var type: int = part[0]
+		if boss_alive and has_flag(type, F_HAZARD):
+			return false
+		var cap := cap_of(horde_row(type), wizards) if _has_row(type) else 0
+		if cap > 0 and _alive_of(alive, type) + int(part[1]) > cap:
+			return false
+	return true
+
+
+## Whether a rolled group could have outgrown its caps or the boss rule since it was rolled (a capped or F_HAZARD
+## part): only then is it checked again before it is spent. Never true for today's kinds.
+static func needs_check(parts: Array) -> bool:
+	for part: Array in parts:
+		var type: int = part[0]
+		if has_flag(type, F_HAZARD) or (_has_row(type) and int(horde_row(type)[H_CAP]) > 0):
+			return true
+	return false
+
+
+## Trims a group's parts to the room left under their caps. False when a part has no room (or is an F_HAZARD kind
+## while a boss is up): roll again.
+static func trim(parts: Array, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> bool:
+	for part: Array in parts:
+		var type: int = part[0]
+		if boss_alive and has_flag(type, F_HAZARD):
+			return false
+		var cap := cap_of(horde_row(type), wizards) if _has_row(type) else 0
+		if cap > 0:
+			var room := cap - _alive_of(alive, type)
+			if room < 1:
+				return false
+			part[1] = mini(int(part[1]), room)
+	return true
+
+
+static func _has_row(type: int) -> bool:
+	for row: Array in HORDE:
+		if row[H_TYPE] == type:
+			return true
+	return false
 
 
 static func _rollable(row: Array, t: float, col: int, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> bool:

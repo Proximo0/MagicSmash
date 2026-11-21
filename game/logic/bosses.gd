@@ -112,9 +112,26 @@ static func _spawn_boss(w: World, type: int, final: bool) -> World.Enemy:
 ## What spawn_enemy does for an F_BOSS kind: it becomes World.boss and announces itself.
 static func _arrive(w: World, e: World.Enemy) -> void:
 	w.boss = e
+	_clear_header(w)
 	e.state = 0
 	e.timer = 2.0
 	w.emit(World.EV_BOSS, e.pos.x, e.pos.y, 0, 0)
+
+
+## The header a boss fills (boss_t, boss_arg, boss_meter) starts empty for each boss.
+static func _clear_header(w: World) -> void:
+	w.boss_t = 0.0
+	w.boss_arg = 0
+	w.boss_meter = 0.0
+
+
+## A boss leaves without dying (the final boss of another kind replaces it): no reward, no lull, the header clears.
+static func _leave(w: World, e: World.Enemy) -> void:
+	e.dead = true
+	w.emit(World.EV_DIE, e.pos.x, e.pos.y - e.r, e.type, -1)
+	if w.boss == e:
+		w.boss = null
+	_clear_header(w)
 
 
 ## Turns a Lich into the Archlich: final_hp_mul times the HP, full health, a bigger body and a meaner pattern.
@@ -141,6 +158,7 @@ static func phase_turn(w: World, e: World.Enemy, secs: float) -> void:
 ## A boss died (Brains.on_death): the field clears, it pays out, the fallen rise, the lull starts (or the run is
 ## won). Moved whole from the Lich branch of WorldEnemies._kill_enemy.
 static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
+	_clear_header(w)
 	w.boss = null
 	w.liches_slain += 1
 	w.record.note(w.wave_time, Results.M_ARCHLICH if e.final else Results.M_LICH, slot)

@@ -82,15 +82,17 @@ static func _separate(w: World, e: World.Enemy) -> void:
 	e.pos = pos
 
 
-static func _eshot(w: World, kind: int, pos: Vector2, vel: Vector2, r: float) -> void:
+## A new enemy shot, or null past Bestiary.ESHOT_CAP (the shot is dropped).
+static func _eshot(w: World, kind: int, pos: Vector2, vel: Vector2, r: float) -> World.EShot:
 	if w.eshots.size() >= Bestiary.ESHOT_CAP:
-		return
+		return null
 	var s := World.EShot.new()
 	s.kind = kind
 	s.pos = pos
 	s.vel = vel
 	s.r = r
 	w.eshots.append(s)
+	return s
 
 
 ## A wraith phased out, or any cloaked enemy: shots fly through it and nothing hurts it.

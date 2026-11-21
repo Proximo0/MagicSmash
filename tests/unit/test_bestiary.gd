@@ -108,3 +108,92 @@ func test_eshots_stop_at_the_cap() -> void:
 	for i: int in range(Bestiary.ESHOT_CAP + 20):
 		w.eshot(World.ES_ORB, Vector2(200, 200), Vector2(10, 0), 3.0)
 	assert_eq(w.eshots.size(), Bestiary.ESHOT_CAP)
+
+
+func test_brains_dispatch_through_the_kind_table() -> void:
+	var saved: Dictionary = Brains.kind_brains
+	Brains.kind_brains = {Bestiary.BLOAT: "res://tests/unit/brain_stub.gd"}
+	var w := World.new([0], 5)
+	w.phase = World.PH_FIGHT
+	var p: World.Player = w.players[0]
+	var e: World.Enemy = w.spawn_enemy(Bestiary.BLOAT, 0, p.pos + Vector2(80, 0))
+	var y0 := e.pos.y
+	for _i: int in range(10):
+		WorldEnemies._update_enemy(w, e, 1.0 / 60.0)
+	assert_eq(e.state, 7, "think did not run")
+	assert_true(e.pos.y < y0, "the stub walks up")
+	var hp := e.hp
+	w.damage_enemy(e, 1.0, 0, Vector2.ZERO)
+	assert_eq(e.hp, hp, "filter_damage blocked nothing")
+	w.damage_enemy(e, 1.0, 0, Vector2.ZERO, true)
+	assert_true(e.hp < hp, "a sure hit should land")
+	w._kill_enemy(e, 0)
+	assert_eq(w.boss_arg, 4242, "on_death did not run")
+	Brains.kind_brains = saved
+	assert_eq(Brains.kind_brains, Bestiary.BRAINS)
+
+
+func test_formations_keep_caps_and_the_boss_rule() -> void:
+	# A test formation: two bloats (F_HAZARD, cap 6) and three goblins, from 0 s, always rolled (weight 1).
+	var forms: Array = [["TEST", 0.0, 1, [[Bestiary.BLOAT, 2], [World.GOBLIN, 3]], Bestiary.AT_DOOR]]
+	var rng := RandomNumberGenerator.new()
+	var seen := false
+	for i: int in range(40):
+		rng.seed = i
+		var g: Array = Bestiary.roll_group(rng, 10.0, 0, _alive(), 1, false, forms)
+		seen = seen or g[0] == 8 + Bestiary.AT_DOOR
+	assert_true(seen, "the formation never rolled")
+	for i: int in range(40):
+		rng.seed = i
+		assert_true(Bestiary.roll_group(rng, 10.0, 0, _alive(), 1, true, forms)[0] < 8, "a hazard formation during a boss")
+		var full := _alive()
+		full[Bestiary.BLOAT] = 5
+		assert_true(Bestiary.roll_group(rng, 10.0, 0, full, 1, false, forms)[0] < 8, "a formation past its cap")
+
+
+func test_queued_spawns_count_and_a_saved_group_is_checked_again() -> void:
+	var w := World.new([0], 5)
+	w.spawn_queue.append({"t": 1.0, "type": Bestiary.BLOAT, "door": 0})
+	w.spawn_enemy(Bestiary.BLOAT, 0, Vector2(100, 100))
+	assert_eq(WorldWaves._fielded(w)[Bestiary.BLOAT], 2, "the queue counts")
+	assert_false(WorldWaves._boss_coming(w))
+	w.spawn_queue.append({"t": 2.0, "type": World.LICH, "door": 0})
+	assert_true(WorldWaves._boss_coming(w), "a queued boss counts")
+	# A saved bloat group is dropped once a boss is coming, and trimmed to the room under its cap.
+	assert_false(Bestiary.trim([[Bestiary.BLOAT, 2]], WorldWaves._fielded(w), 1, true))
+	var parts: Array = [[Bestiary.BLOAT, 6]]
+	assert_true(Bestiary.trim(parts, WorldWaves._fielded(w), 1, false))
+	assert_eq(parts[0][1], 6 - 2)
+	assert_false(Bestiary.needs_check([[World.GOBLIN, 9], [World.ORC, 1]]), "today's kinds are never checked again")
+	w.phase = World.PH_FIGHT
+	w._next_group = [Bestiary.GROUP, [[Bestiary.BLOAT, 2]]]
+	w.horde_budget = 1000.0
+	var queued := w.spawn_queue.size()
+	WorldWaves._direct_horde(w, 1.0 / 60.0)
+	assert_eq(w.spawn_queue.size(), queued, "a hazard group was spent while a boss was coming")
+	assert_true(w._next_group.is_empty(), "the saved group should be rolled again")
+
+
+func test_rise_wall_and_opposite_doors_queue_where_they_should() -> void:
+	var w := World.new([0, 1], 5)
+	w.phase = World.PH_FIGHT
+	var c := w.party_center()
+	WorldWaves._queue_rolled(w, [Bestiary.RISE, [[Bestiary.COFFIN, 2]]])
+	assert_eq(w.spawn_queue.size(), 2)
+	for s: Dictionary in w.spawn_queue:
+		assert_eq(int(s.type), Bestiary.COFFIN)
+		assert_true(s.has("at"), "a riser comes up from the floor")
+		assert_true((s.at as Vector2).distance_to(c) <= Bestiary.RISE_MAX + 1.0)
+		assert_near(float(s.t), w.tune.rift_warning, 0.001)
+	w.spawn_queue.clear()
+	WorldWaves._queue_rolled(w, [Bestiary.WALL, [[Bestiary.GUARD, 3]]])
+	assert_eq(w.spawn_queue.size(), 3)
+	for s: Dictionary in w.spawn_queue:
+		assert_eq(int(s.door), int(w.spawn_queue[0].door), "a wall comes through one door")
+		assert_eq(float(s.t), float(w.spawn_queue[0].t), "abreast")
+	w.spawn_queue.clear()
+	WorldWaves._queue_rolled(w, [8 + Bestiary.AT_OPPOSITE, [[Bestiary.CINDERLING, 1], [Bestiary.CINDERLING, 1], [Bestiary.CENSOR, 1]]])
+	assert_eq(w.spawn_queue.size(), 3)
+	var d0: int = w.spawn_queue[0].door
+	assert_eq(int(w.spawn_queue[1].door), d0 ^ 1, "the second part takes the opposite door")
+	assert_eq(int(w.spawn_queue[2].door), d0)

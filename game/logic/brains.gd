@@ -7,6 +7,8 @@ extends RefCounted
 
 ## Loaded kind scripts, by path.
 static var _kind_scripts: Dictionary = {}
+## Where a reserved kind's brain lives: type -> script path. Bestiary.BRAINS; a test may point it elsewhere.
+static var kind_brains: Dictionary = Bestiary.BRAINS
 
 
 ## The velocity `e` wants this tick. `tgt` is the nearest living wizard (null: none), `dirv` the unit vector to it
@@ -188,9 +190,9 @@ static func filter_damage(w: World, e: World.Enemy, dmg: float, knock: Vector2, 
 	return dmg
 
 
-## The script Bestiary.BRAINS names for `type`, or null.
+## The script kind_brains (Bestiary.BRAINS) names for `type`, or null.
 static func _kind_script(type: int) -> GDScript:
-	var path: String = Bestiary.BRAINS.get(type, "")
+	var path: String = kind_brains.get(type, "")
 	if path.is_empty():
 		return null
 	if not _kind_scripts.has(path):
