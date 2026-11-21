@@ -9,6 +9,7 @@
 #   --after=M  relay: run a commit only once station M has reported PASS for it; if M failed, report HELD and do nothing
 #   --watch    stay running: every STATION_POLL seconds (default 120) fetch origin/main and run the jobs on a new commit
 #   --no-push  print the report instead of pushing it
+# In watch mode a line for this machine in tools/station/roles.txt replaces the jobs and --after given here.
 # Run it from a clone kept for the station alone: it checks out origin/main detached and refuses a dirty tree.
 # Report: branch `station-results`, file <machine>.txt (never main, never CI). Read with tools/station/read.sh.
 # STATION_ON_FAIL: optional command run with the report on stdin when a job fails (for example to wake a helper).
@@ -27,6 +28,16 @@ for a in "$@"; do
   case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden) jobs+=("$a") ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
+# tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
+P95=""
+role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut -d: -f2-)
+if [ "$watch" = 1 ] && [ -n "$role" ]; then
+  after=""; jobs=()
+  for a in $role; do
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden) jobs+=("$a") ;;
+      *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
+  done
+fi
 [ ${#jobs[@]} -gt 0 ] || { echo "station: name at least one job (boss checks frames golden)" >&2; exit 2; }
 STATE="$(git rev-parse --git-dir)/station_last"  # the commit this station tested last
 
@@ -63,7 +74,7 @@ job_checks() {
   return 1
 }
 job_frames() {
-  local line script p95 limit="${STATION_FRAME_P95_MS:-25}"
+  local line script p95 limit="${P95:-${STATION_FRAME_P95_MS:-25}}"
   local out; out=$(timeout 900 "$GODOT" --path . -- --autotest=10 --perf --seed=7 2>&1)
   line=$(grep '^PERF frames=' <<<"$out" | tail -1); script=$(grep '^PERF total_script' <<<"$out" | tail -1 | awk '{print $3}')
   [ -n "$line" ] || { echo "JOB frames FAIL no PERF line (no display, or the run died)"; return 1; }
@@ -98,7 +109,7 @@ publish() {  # $1 = report text. Adds <machine>.txt to the results branch withou
 }
 
 # Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
-self_sum() { cksum <"tools/station/station.sh"; }
+self_sum() { cat tools/station/station.sh tools/station/roles.txt 2>/dev/null | cksum; }
 started=$(self_sum)
 run_once() {
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
