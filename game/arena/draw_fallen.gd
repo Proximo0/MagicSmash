@@ -109,12 +109,25 @@ static func _draw_spirit(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, false, 0, int(a.time * 2.0 + slot * 0.5), false, aim.x >= 0.0)
 	var feet: Vector2 = (p.pos as Vector2) + Vector2(0, -2.0 + roundf(sin(a.time * 2.5 + slot) * 1.5))
 	var col := G.player_color(slot)
+	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)))
+	if not still.is_empty():
+		_draw_spirit_still(a, ci, still, feet, -1 if flip else 1, col, slot)
+		return
 	# A 1 px rim in her seat's colour (the sprite's white flash frame, tinted, one pixel out each way), so she can be
 	# found in a crowd, then the body pale and half see-through over it.
 	var rim := Color(col.lerp(Color.WHITE, 0.15), 0.9)
 	for o: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
 		Sprites.draw_at(ci, key, feet + o, flip, true, rim)
 	Sprites.draw_at(ci, key, feet, flip, false, Color(col.lerp(Color.WHITE, 0.85) * 1.4, 0.72))
+
+
+## The spirit from her still picture: the same rim and pale body as the code sprite's.
+static func _draw_spirit_still(a: Arena, ci: CanvasItem, still: String, feet: Vector2, facing: int, col: Color, slot: int) -> void:
+	var t: float = a.time + slot * 0.5
+	var rim := Color(col.lerp(Color.WHITE, 0.15), 0.9)
+	for o: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+		Still.draw(ci, still, feet + o, facing, t, false, rim, true)
+	Still.draw(ci, still, feet, facing, t, false, Color(col.lerp(Color.WHITE, 0.85) * 1.4, 0.72))
 
 
 static func _pings(a: Arena) -> Array:

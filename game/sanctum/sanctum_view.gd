@@ -445,6 +445,8 @@ func _draw_things() -> void:
 ## The lectern of the Book of Deeds: a dark wooden stand with a slanted top and a gold-edged book on it, a page
 ## corner that lifts now and then. A stand-in drawn with rects until its picture comes from a file.
 func _draw_lectern(p: Vector2) -> void:
+	if Still.draw_static(self, Still.HUB_LECTERN, p + Still.HUB_GROUND):
+		return
 	var wood := Color("2a1a38")
 	var edge := Color("5a4e74")
 	draw_rect(Rect2(p + Vector2(-7, -1), Vector2(14, 3)), Color("1a0f24")) # foot
@@ -463,6 +465,8 @@ func _draw_lectern(p: Vector2) -> void:
 ## The mirror: a tall dark oval glass in a gold frame on two feet, with a slow sheen across the glass. A stand-in
 ## drawn with rects until its picture comes from a file.
 func _draw_mirror(p: Vector2) -> void:
+	if Still.draw_static(self, Still.HUB_MIRROR, p + Still.HUB_GROUND):
+		return
 	var cy := p.y - 22.0
 	draw_rect(Rect2(p + Vector2(-8, -2), Vector2(16, 3)), Color("1a0f24"))
 	draw_rect(Rect2(p + Vector2(-8, -2), Vector2(16, 1)), Color("5a4e74"))
@@ -487,8 +491,9 @@ func _draw_npc(i: int) -> void:
 	var p: Vector2 = Sanctum.THINGS[i][1]
 	var key := String(Sanctum.THINGS[i][0])
 	var frame := Rect2((p + Vector2(-13, -34)).floor(), Vector2(26, 30))
-	draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 6)), Color("1a0f24"))
-	draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 1)), Color("5a4e74"))
+	if not Still.draw_static(self, Still.HUB_PLINTH, p + Still.PLINTH_GROUND):
+		draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 6)), Color("1a0f24"))
+		draw_rect(Rect2(p + Vector2(-9, -3), Vector2(18, 1)), Color("5a4e74"))
 	draw_rect(frame.grow(1), Occult.GOLD)
 	draw_rect(frame, Color("0e0a14"))
 	if not Art.draw(self, DialogueBox.GROUP, key, frame):
@@ -533,7 +538,9 @@ func _draw_wizard() -> void:
 	var c := Color(0.05, 0.0, 0.1, 0.45)
 	draw_rect(Rect2(room.pos + Vector2(-4, -1), Vector2(8, 3)), c)
 	if _leaving < 0.0:
-		Sprites.draw_at(self, key, room.pos + Vector2(0, 1), flip)
+		var still := Still.hero_name(Save.profile.active_hero().cls, false)
+		if still.is_empty() or not Still.draw(self, still, room.pos + Vector2(0, 1), -1 if f.x < 0.0 else 1, t, room.moving):
+			Sprites.draw_at(self, key, room.pos + Vector2(0, 1), flip)
 
 
 ## A soft light: stacked discs, each fainter and wider, so the edge fades instead of showing a ring.

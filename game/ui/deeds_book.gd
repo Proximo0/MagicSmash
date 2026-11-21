@@ -11,6 +11,9 @@ const ROW_H := 14.0
 const VISIBLE := 12
 const LIST_X := 16.0
 const MARK_W := 7.0
+## A deed's icon (Still.DEED_MARKS), px, and its tint while the deed is locked.
+const MARK_ICON := 12.0
+const ICON_DIM := Color(0.45, 0.42, 0.55)
 const NAME_X := 32.0
 const REWARD_RIGHT := 448.0
 const SCROLL_X := 458.0
@@ -107,8 +110,10 @@ func handle(event: InputEvent) -> bool:
 func draw(ci: CanvasItem, t: float) -> void:
 	if not active:
 		return
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.92))
+	if not Still.draw_scene(ci, "deeds"):
+		ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.92))
 	Occult.frame(ci, FRAME, t)
+	Still.draw_scene(ci, "deeds", Still.SCENE_INNER)
 	PixelFont.draw_centered(ci, "BOOK OF DEEDS", 240, 12, 2, Occult.GOLD, Occult.INK)
 	var got := _prof.deeds_earned() if _prof != null else 0
 	var head := "DEEDS %d / %d" % [got, count()]
@@ -123,7 +128,7 @@ func draw(ci: CanvasItem, t: float) -> void:
 		if i == sel:
 			ci.draw_rect(Rect2(LIST_X - 4, y - 2, 448, ROW_H - 1), ROW_SEL)
 			ci.draw_rect(Rect2(LIST_X - 4, y - 2, 2, ROW_H - 1), Occult.GOLD)
-		_draw_mark(ci, Vector2(LIST_X, y), earned)
+		_draw_mark(ci, Vector2(LIST_X, y), earned, str(Achievements.LIST[i][Achievements.C_API]), bool(tx[4]))
 		var name_col := Occult.GOLD if earned else DIM_NAME
 		if i == sel and not earned:
 			name_col = Occult.DIM
@@ -142,7 +147,13 @@ func draw(ci: CanvasItem, t: float) -> void:
 
 
 ## The box before a deed: a green tick in a gold box once earned, an empty dim box before.
-func _draw_mark(ci: CanvasItem, p: Vector2, earned: bool) -> void:
+## The mark's icon file when the deed's kind has one (Still.DEED_MARKS), drawn bright once earned and dim before; a
+## secret still hidden keeps the empty box.
+func _draw_mark(ci: CanvasItem, p: Vector2, earned: bool, api: String = "", hidden: bool = false) -> void:
+	var icon := "" if hidden else Still.deed_icon(api)
+	if not icon.is_empty() and Still.draw_icon(ci, icon, Rect2(p + Vector2(-2, -2), Vector2(MARK_ICON, MARK_ICON)),
+			Color.WHITE if earned else ICON_DIM):
+		return
 	var box := Color(Occult.GOLD, 0.9) if earned else DIM_REWARD
 	ci.draw_rect(Rect2(p, Vector2(MARK_W, MARK_W)), box)
 	ci.draw_rect(Rect2(p + Vector2(1, 1), Vector2(MARK_W - 2, MARK_W - 2)), Occult.INK)

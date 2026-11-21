@@ -45,8 +45,10 @@ func _cell(i: int) -> Rect2:
 
 func draw(ci: CanvasItem, t: float) -> void:
 	var prof: Profile = Save.profile
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.92))
+	if not Still.draw_scene(ci, "album"):
+		ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.92))
 	Occult.frame(ci, Rect2(4, 4, 472, 262), t)
+	Still.draw_scene(ci, "album", Still.SCENE_INNER)
 	PixelFont.draw_centered(ci, "THE CARD ALBUM", 240, 12, 2, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, "%d / %d" % [prof.cards_owned(), Cards.count()], Vector2(420, 16), 1, Occult.BONE, Occult.INK)
 	# Sockets.
