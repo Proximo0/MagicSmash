@@ -347,7 +347,7 @@ static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, p.moving, int(p.walk_t), int(a.time * 2.0 + slot * 0.5), casting,
 		aim.x >= 0.0)
 	var feet: Vector2 = p.pos + Vector2(0, 1)
-	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)))
+	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)), int(p.get("race", -1)))
 	if not still.is_empty():
 		_draw_player_still(a, ci, p, still, feet, -1 if flip else 1)
 		return
