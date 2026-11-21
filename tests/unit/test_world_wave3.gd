@@ -157,6 +157,7 @@ func test_vigil_candle_hastens_who_stood_in_it_for_two_seconds() -> void:
 	var c: World.Rune = w.runes[0]
 	assert_true(c.pos.distance_to(p.pos + Vector2.RIGHT * Spells.CANDLE_AIM_DIST) < 0.5, "no foe near: the light goes ahead")
 	friend.pos = c.pos
+	p.pos = c.pos - Vector2(c.r + 20.0, 0.0) # the light is wider than CANDLE_AIM_DIST: she steps out of it
 	_burn(w, 0.1)
 	assert_near(friend.vigil, Spells.VIGIL_AFTER, 0.001)
 	assert_near(WorldCasting._cast_speed(w, friend), Spells.VIGIL_HASTE)
@@ -346,3 +347,39 @@ func test_new_entries_pair_with_their_passives() -> void:
 	assert_eq(Upgrades.partner_row(World.SP_CANDLE), Upgrades.LOVERS)
 	assert_near(Upgrades.justice_chance({Upgrades.JUSTICE: 2}), 0.12)
 	assert_near(Upgrades.lovers_bonus({Upgrades.LOVERS: 1}, false), 0.04)
+
+
+## A class skin's dmg_mul and cd_mul (Classes.SKINS) apply to her class weapon only: a paladin's SMITE hits harder
+## than a mage's STARFALL, and a STARFALL or BONE SPEAR she did not start with is the row as it is.
+func test_skin_numbers_scale_only_the_class_weapon() -> void:
+	var w := _world(2)
+	var paladin := _hero(w, 0, Classes.PALADIN)
+	var mage := _hero(w, 1, Classes.MAGE)
+	assert_eq(paladin.class_weapon, World.SP_STAR)
+	var mul := Classes.skin_value("smite", "dmg_mul", 1.0)
+	assert_true(mul > 1.0, "SMITE has a damage multiplier")
+	assert_near(WorldCasting._skin_mul(paladin, World.SP_STAR, "dmg_mul"), mul)
+	assert_near(WorldCasting._skin_mul(paladin, World.SP_STAR, "cd_mul"), Classes.skin_value("smite", "cd_mul", 1.0))
+	assert_near(WorldCasting._skin_mul(paladin, World.SP_BONE, "dmg_mul"), 1.0, 0.0001, "a picked-up spell is plain")
+	assert_near(WorldCasting._skin_mul(mage, World.SP_STAR, "dmg_mul"), 1.0, 0.0001, "the mage wears no skin")
+	w._cast(paladin, World.SP_STAR, 1, false, Vector2.RIGHT)
+	w._cast(mage, World.SP_STAR, 1, false, Vector2.RIGHT)
+	w._cast(paladin, World.SP_BONE, 1, false, Vector2.RIGHT)
+	for s: World.Shot in w.shots:
+		var want := Spells.damage(s.spell, 1, false) * (mul if s.owner == 0 and s.spell == World.SP_STAR else 1.0)
+		assert_near(s.dmg, want, 0.0001, "shot of spell %d by slot %d" % [s.spell, s.owner])
+
+
+## The knight's CLEAVE knocks knock_mul times as hard as a plain CLEAVE (a mage who drew the card).
+func test_the_knights_cleave_knocks_further() -> void:
+	var w := _world(2)
+	var knight := _hero(w, 0, Classes.KNIGHT)
+	var mage := _hero(w, 1, Classes.MAGE)
+	mage.upgrades[Upgrades.weapon_entry(World.SP_CLEAVE)] = 1
+	var a := _orc(w, knight.pos + Vector2(20, -4))
+	var b := _orc(w, mage.pos + Vector2(20, -4))
+	w._build_grid()
+	w._cast(knight, World.SP_CLEAVE, 1, false, Vector2.RIGHT)
+	w._cast(mage, World.SP_CLEAVE, 1, false, Vector2.RIGHT)
+	assert_true(b.knock.x > 0.0, "the plain cleave knocks back")
+	assert_near(a.knock.x / b.knock.x, Classes.skin_value("cleave", "knock_mul", 1.0), 0.001)

@@ -238,7 +238,7 @@ func test_a_fallen_bot_drifts_to_the_nearest_standing_mate() -> void:
 ## clock, the apprentice's input included): the pin was taken
 ## before the class play landed, so a seat with no class plays exactly as before. Refresh it only for a change
 ## that is meant to move classless bots (the world itself: spells, enemies).
-const CLASSLESS_PIN := 348383321
+const CLASSLESS_PIN := 242283988
 
 
 func test_a_seat_with_no_class_plays_as_before() -> void:
@@ -347,3 +347,29 @@ func test_a_tank_guards_the_ally_under_attack_and_a_healer_keeps_close() -> void
 	var pb := SmashBot.new(3, SmashBot.VETERAN)
 	var po: PackedFloat32Array = pb.decide_in_world(h, 0)
 	assert_true(po[0] > 0.5, "the healer closes on the hurt ally (%.2f, %.2f)" % [po[0], po[1]])
+
+
+## A hero whose class weapon is a sweep (the knight) closes on the nearest enemy solo, where a mage keeps away
+## from the same goblin.
+func test_a_solo_knight_closes_to_its_sweep_while_a_mage_keeps_off() -> void:
+	var knight := _heroes({0: Classes.KNIGHT}, {0: Vector2(-60, 0)}, [Vector2(30, 0)])
+	var out: PackedFloat32Array = SmashBot.new(3, SmashBot.VETERAN).decide_in_world(knight, 0)
+	assert_true(out[0] > 0.5, "the knight walks to the goblin (%.2f, %.2f)" % [out[0], out[1]])
+	var mage := _heroes({0: Classes.MAGE}, {0: Vector2(-60, 0)}, [Vector2(30, 0)])
+	var mo: PackedFloat32Array = SmashBot.new(3, SmashBot.VETERAN).decide_in_world(mage, 0)
+	assert_true(mo[0] < 0.5, "the mage does not walk into it (%.2f, %.2f)" % [mo[0], mo[1]])
+
+
+## Beside the boss a melee knight keeps within its sweep's reach (SmashBot.MELEE_BAND), where a casual mage at the
+## same spot backs off to her band.
+func test_a_knight_keeps_the_boss_within_its_sweep() -> void:
+	var out: Array = []
+	for cls: int in [Classes.KNIGHT, Classes.MAGE]:
+		var w := _heroes({0: cls}, {0: Vector2(-45, 0)}, [])
+		var lich: World.Enemy = w.spawn_enemy(Bestiary.LICH, 0, G.ARENA.get_center())
+		lich.entering = false
+		w.boss = lich
+		w._build_grid()
+		out.append(SmashBot.new(3, SmashBot.CASUAL).decide_in_world(w, 0))
+	assert_true((out[0] as PackedFloat32Array)[0] >= 0.0, "the knight backed off the boss")
+	assert_true((out[1] as PackedFloat32Array)[0] < 0.0, "the mage stood inside her band")

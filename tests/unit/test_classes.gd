@@ -27,7 +27,7 @@ func test_rows_have_every_column_and_unique_keys() -> void:
 	var keys := {}
 	for c: int in range(Classes.count()):
 		var row: Array = Classes.ROWS[c]
-		assert_eq(row.size(), Classes.C_AURA_WARD + 1, Classes.key(c))
+		assert_eq(row.size(), Classes.C_HURT_SAFE + 1, Classes.key(c))
 		assert_eq((row[Classes.C_STATS] as Array).size(), Loot.STAT_COUNT)
 		assert_false(keys.has(Classes.key(c)), "duplicate key")
 		keys[Classes.key(c)] = true
@@ -42,9 +42,9 @@ func test_rows_have_every_column_and_unique_keys() -> void:
 func test_launch_classes_match_the_design_table() -> void:
 	var want := {
 		"mage": [5, 1.0, Classes.SK_NOVA, Classes.ROLE_DAMAGE],
-		"knight": [7, 2.5, Classes.SK_PROVOKE, Classes.ROLE_TANK],
-		"archer": [4, 0.8, Classes.SK_VOLLEY, Classes.ROLE_RANGED],
-		"priest": [5, 0.7, Classes.SK_SANCTUARY, Classes.ROLE_HEALER],
+		"knight": [9, 2.5, Classes.SK_PROVOKE, Classes.ROLE_TANK],
+		"archer": [5, 0.8, Classes.SK_VOLLEY, Classes.ROLE_RANGED],
+		"priest": [6, 0.7, Classes.SK_SANCTUARY, Classes.ROLE_HEALER],
 		"paladin": [6, 1.6, Classes.SK_AEGIS, Classes.ROLE_SUPPORT],
 	}
 	for k: String in want:
@@ -153,7 +153,7 @@ func test_apply_hero_adds_to_the_meta_within_caps() -> void:
 	w.apply_hero(p, h.to_dict())
 	assert_near(float(p.armor[Loot.ST_MIGHT]), float(Loot.STAT_CAPS[Loot.ST_MIGHT]), 0.0001, "capped")
 	# Orc VIGOR 2 + 8 points = 10 points = 2.5 hearts on top of the meta's 1.0: 3.5, so 2 more whole hearts.
-	assert_eq(p.max_hp, 1 + 7 + 3)
+	assert_eq(p.max_hp, 1 + Classes.hearts(Classes.KNIGHT) + 3)
 
 
 func test_the_mage_keeps_her_school_and_gets_two_redraws() -> void:
@@ -389,3 +389,17 @@ func test_a_taunt_dies_with_a_seat_that_left() -> void:
 	WorldEnemies._sep_fill(w)
 	WorldEnemies._update_enemy(w, e, STEP)
 	assert_true(e.vel.x > 0.0, "it walks at the mage, not at where the knight was")
+
+
+## A hit leaves a hero unhurt for her class's hurt-safe seconds (the knight longest); a wizard with no hero keeps
+## the mage's.
+func test_a_hit_leaves_each_class_unhurt_for_its_own_time() -> void:
+	var w := _world([-1, Classes.MAGE, Classes.KNIGHT])
+	assert_true(Classes.hurt_safe(Classes.KNIGHT) > Classes.hurt_safe(Classes.MAGE), "the knight stays unhurt longer")
+	for i: int in range(3):
+		var p: World.Player = w.players[i]
+		p.armor[Loot.ST_WARD] = 0.0
+		var hp := p.hp
+		w.hurt_player(p, 1)
+		assert_eq(p.hp, hp - 1)
+		assert_near(p.invuln, Classes.hurt_safe(Classes.KNIGHT if i == 2 else Classes.MAGE))

@@ -92,7 +92,7 @@ How each system works: read only the section for the system you touch (`grep -n 
     with the kill count (2.5% of kills dropped a spell tome, so every spell was maxed by 3:00) and evolutions worth
     3 to 10 times level 5. Now: `horde_start_budget` 0, `horde_rate_base` 2, `horde_rate_per_min` 7,
     `enemy_speed_mul` 0.85 with `enemy_speed_per_min` 0.05 (slow at 0:00, faster than before after 3:00),
-    enemy HP `enemy_hp_mul` 1 x (1 + `enemy_hp_per_min` 0.1 x (minute - 1)) x `enemy_hp_growth` 1.14 ^ (minute - 1).
+    enemy HP `enemy_hp_mul` 0.70 x (1 + `enemy_hp_per_min` 0 x (minute - 1)) x `enemy_hp_growth` 1.20 ^ (minute - 1).
   - Drops (`Tuning` Loot rows, read by `WorldDrops`): `tome_drop_chance` 0.005 (was 0.025), `big_tome_chance`
     0.15 (0.25), `coin_drop_chance` 0.1 (0.22), `potion_drop_chance` 0.05 (0.02).
   - XP: `xp_per_level` 90 (60), `xp_gem_life` 90 s (30), `xp_magnet_radius` 44 (24).
@@ -231,7 +231,8 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Spells: level 1 to 4 damage up about 20/15/8/3% in `Spells.STATS` (level 5 and evolutions unchanged), because a
   spell now sits at level 1 to 3 for the first minutes.
 - Horde: `horde_rate_base` 2 -> 1.5, `horde_rate_per_min` 7 -> 5, `enemy_hp_per_min` 0.1 -> 0 and `enemy_hp_mul`
-  1 -> 0.85 (compound `enemy_hp_growth` 1.14 kept). The bots' danger is a hump at minutes 3 to 4 (arrows, orbs,
+  1 -> 0.85 (compound `enemy_hp_growth` 1.14 kept). Job P: `enemy_hp_mul` 0.85 -> 0.70 and `enemy_hp_growth`
+  1.14 -> 1.20 (a milder start, the same climb by minute 12; casual solo 5/6, veteran 4/6, four casuals 3/3). The bots' danger is a hump at minutes 3 to 4 (arrows, orbs,
   orcs before the first evolution); runs that pass the first Lich mostly win.
 - Bosses: `boss_hp_mul` 3.5 -> 3.0 and `final_hp_mul` 3.6 -> 3.2, set with the act bosses and the eight enemies
   merged (solo casual bots: Bone Chandelier 1:16, Ghost Writer 1:36, Archlich 1:58; at the first try of 4.5 and 2.5
@@ -254,7 +255,8 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   life). OSSUARY LANCE (with JUSTICE): each hit throws `splinter` splinters square to the spear (`SPLINTER_DMG` of
   its damage, `SPLINTER_LIFE` s, never the foe it came from, never splintering again).
 - VIGIL CANDLE: cast kind "candle", a circle of kind `Spells.CIRCLE_CANDLE` (the snapshot's reserved `R_KIND`) of
-  radius 24 on the densest cluster within `CANDLE_RANGE` 60 px (else `CANDLE_AIM_DIST` along the aim); it burns on
+  radius 32 (24 before job P; level 1 to 5 damage 0.8 to 1.0 a tick, was 0.8 to 1.6, so level 5 in a dense crowd
+  stays under 60 dps; CONSECRATION's radius 28 -> 32) on the densest cluster within `CANDLE_RANGE` 60 px (else `CANDLE_AIM_DIST` along the aim); it burns on
   the rune circle's timer (`RUNE_TICK`). Every standing hero inside (the caster too) keeps `VIGIL_HASTE` cast speed
   for `VIGIL_AFTER` s (`Player.vigil`). CONSECRATION (with THE LOVERS): the light heals 1 heart every `heal_every` 10 s
   to the most hurt hero inside (`WorldCasting._light_heals`, a timer per caster that runs while her light burns).
@@ -325,7 +327,9 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Weapons (job C2): a class weapon is a skinned entry of a spell row. `Classes.C_WEAPON` names the row and the hero
   holds that row's own Upgrades entry, so it levels and evolves like the row; `Classes.C_SKIN` names a
   `Classes.SKINS` entry: its name (cards via `Classes.card_name`, screens via `Classes.weapon_name`) and overrides
-  (`range` px a bolt flies, `heal` hearts every `heal_every` s for a light). `apply_hero` sets `Player.class_weapon`
+  (`range` px a bolt flies, `heal` hearts every `heal_every` s for a light, `dmg_mul` and `cd_mul` on the class
+  weapon's damage and cooldown at every level, `knock_mul` on a sweep's knock-back; `WorldCasting._skin_mul` reads
+  them for the class weapon only, so a BONE SPEAR or STARFALL from a card is the row as it is). `apply_hero` sets `Player.class_weapon`
   and `Player.skin` (-1 and "" without a hero, for a mage, and so for every spell picked up later); the logic reads
   them (`WorldCasting._cast_bolts`, `_light_heals`), the arena reads the snapshot's `P_CLASS` through
   `Classes.weapon_skin(cls, spell)` (`ArenaDrawFx._skin`), so no snapshot row changed. MAGE: the school's spell,
@@ -336,8 +340,13 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   evolution (an empty `Spells.EVOS` row, `Spells.has_evolution`). ARCHER: LONGBOW, the BONE SPEAR row as arrows,
   260 px (her VOLLEY's arrows too). PRIEST: HOLY LIGHT, the VIGIL CANDLE row, white with a cross; it heals the most hurt standing hero inside
   one of her lights (her too) 1 heart every 6 s of burning (`EV_HEAL`). PALADIN: SMITE, the STARFALL row as hammers
-  of light. Level 1 CLEAVE (9 a swing) slays 12 of 16 minute-1 orcs walking in about as fast as a level 1 ARCANE
-  BOLT (`spell_dps --clear`).
+  of light. Job P's numbers (solo casual bots at WIZARD, 12 seeds, each class within 2 wins of the mage):
+  CLEAVE x0.7 damage, x0.85 cooldown, x2.5 knock-back; LONGBOW x1.5, x0.5; HOLY LIGHT x1.3; SMITE x1.6, x0.55;
+  hearts knight 9 (was 7), archer 5 (4), priest 6 (5); `Classes.C_HURT_SAFE`, the seconds a hit leaves a hero
+  unhurt (`hurt_player`, was 1.1 for all): knight 2.0, archer 1.6, others 1.1; class stat points knight MIGHT 30
+  FOCUS 10, priest MIGHT 25. CLEAVE's row (only a knight is offered it) grows to 20 damage every 0.7 s at level 5
+  (was 12 every 0.8 s): it has no evolution. `spell_dps --clear` prints each class's weapon with its skin and its
+  class stats (a HUMAN of class level 1): every one within 15% of the mage's ARCANE BOLT.
 - Developer flag: `--hero=<race>,<class>[,<school>]` (keys, names or indices; school a Wizards index, name or title)
   gives every local seat that hero (`Arena._ready`, after `apply_meta`). Nothing happens without it.
 

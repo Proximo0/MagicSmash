@@ -114,7 +114,8 @@ const CALL_VALUE: float = 4.5
 ## Class play (docs/bots.md "Class play"): a wizard with a hero plays its role and uses the skill on its nova button
 ## for what it does. A wizard with no hero, and a MAGE, play as before (NOVA, ROLE_PLAY's damage row is neutral).
 ## By Classes.ROLE_*: caution and margin multiply the persona's, kite the circling bonus. A tank and a healer play
-## their role only beside a teammate; solo they keep the damage row (but a solo archer still keeps range).
+## their role only beside a teammate; solo they keep the damage row (but a solo archer still keeps range, and a
+## melee hero, MELEE_SPOT, plays its row solo too).
 const ROLE_PLAY: Array = [
 	{"caution": 1.0, "margin": 1.0, "kite": 1.0, "party_only": false}, # DAMAGE: as before
 	{"caution": 0.5, "margin": 0.7, "kite": 0.0, "party_only": true}, # TANK: wades in, never kites away
@@ -136,6 +137,14 @@ const GUARD_VALUE: float = 2.2
 const HEAL_REACH: float = 40.0
 const HEAL_SPOT: float = 0.6
 const HEAL_VALUE: float = 2.0
+## A hero whose class weapon is a sweep (the KNIGHT's CLEAVE) fights in melee, solo too: it plays its role row
+## beside a teammate or not, and when no stronger goal pulls it walks to MELEE_SPOT of the sweep's reach from the
+## nearest enemy, on its own side (pull MELEE_VALUE), so the swing reaches the group instead of the air.
+const MELEE_SPOT: float = 0.6
+const MELEE_VALUE: float = 1.5
+## A melee hero keeps the boss between MELEE_BAND x its reach (in place of the persona's band), so the sweep reaches
+## it; the persona's band still says whether it minds the boss's range at all.
+const MELEE_BAND := Vector2(0.6, 1.4)
 ## PROVOKE: at least PROVOKE_CROWD enemies within its radius that are within ALLY_NEAR px of an ally, or the boss
 ## within BOSS_ON_ALLY px of an ally while within the radius.
 const PROVOKE_CROWD := 3
@@ -241,6 +250,7 @@ var _class_play: bool = false # a hero other than a MAGE
 var _skill: int = Classes.SK_NOVA
 var _role: int = Classes.ROLE_DAMAGE
 var _role_row: Dictionary = ROLE_PLAY[Classes.ROLE_DAMAGE]
+var _melee_r: float = 0.0 # the reach of a class weapon that is a sweep (0: none; it does not fight in melee)
 var _unhurt: bool = false
 var _mate_hp := PackedInt32Array() # parallel to _mates
 var _mate_max := PackedInt32Array()
@@ -608,6 +618,8 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_role = Classes.role(p.cls)
 	_class_play = _skill != Classes.SK_NOVA # every class but the MAGE (and a wizard with no hero) has its own skill
 	_role_row = ROLE_PLAY[_role] if _role >= 0 and _role < ROLE_PLAY.size() else ROLE_PLAY[Classes.ROLE_DAMAGE]
+	_melee_r = Spells.stat(p.class_weapon, "r") if _class_play and p.class_weapon >= 0 \
+		and Spells.cast_kind(p.class_weapon) == "sweep" else 0.0
 	_unhurt = p.invuln > 0.0
 	_mate_hp.clear()
 	_mate_max.clear()
@@ -670,6 +682,8 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_consider_rescue(me, ctx.fallen)
 	if _class_play and not _mates.is_empty():
 		_consider_role(me)
+	if _melee_r > 0.0:
+		_consider_melee(me)
 	if apprentice:
 		_answer_calls(me, ctx)
 
@@ -780,12 +794,13 @@ func _think(me: Vector2, time: float) -> void:
 	var margin: float = _margin
 	var kite_w: float = W_KITE
 	if _class_play:
-		if not bool(_role_row.party_only) or not _mates.is_empty():
+		if not bool(_role_row.party_only) or not _mates.is_empty() or _melee_r > 0.0:
 			caution *= float(_role_row.caution)
 			margin *= float(_role_row.margin)
 			kite_w *= float(_role_row.kite)
 		if _unhurt:
 			caution *= UNHURT_CAUTION
+	var band: Vector2 = _band if _melee_r <= 0.0 or _band.y <= 0.0 else MELEE_BAND * _melee_r
 	# The closest approach is looked for from one reaction step on: an overlap right now is the same for every heading.
 	var now: float = minf(REACT_STEP, look)
 	# Hazard rows: which way to lean out of the one it stands in (zero when none threatens).
@@ -869,12 +884,12 @@ func _think(me: Vector2, time: float) -> void:
 			var md: float = end.distance_to(m)
 			if md < MATE_ROOM:
 				score -= W_MATE * (1.0 - md / MATE_ROOM)
-		if _boss.is_finite() and _band.y > 0.0:
+		if _boss.is_finite() and band.y > 0.0:
 			var bd: float = end.distance_to(_boss)
-			if bd < _band.x:
-				score -= W_BOSS * (_band.x - bd) / _band.x
-			elif bd > _band.y:
-				score -= W_BOSS * minf(1.0, (bd - _band.y) / _band.y)
+			if bd < band.x:
+				score -= W_BOSS * (band.x - bd) / band.x
+			elif bd > band.y:
+				score -= W_BOSS * minf(1.0, (bd - band.y) / band.y)
 		# People commit to a line: keep the heading they have.
 		if i == DIR_COUNT:
 			score += W_STAND if cur == Vector2.ZERO else 0.0
@@ -909,7 +924,9 @@ func _think(me: Vector2, time: float) -> void:
 		want = _volley_dir # the roll goes along her movement: away from the crowd
 		_dir = want
 	var aim := Vector2.ZERO
-	if _boss.is_finite() and persona != NOVICE and (_nd > 60.0 or _near == _boss) and _boss.distance_to(me) < AIM_RANGE:
+	# A melee hero aims its spells at the boss even with the boss's adds at its feet (its sweep finds those itself).
+	var at_boss: bool = _nd > 60.0 or _near == _boss or _melee_r > 0.0
+	if _boss.is_finite() and persona != NOVICE and at_boss and _boss.distance_to(me) < AIM_RANGE:
 		aim = _boss - me
 	elif _nd < AIM_RANGE:
 		aim = _near - me
@@ -1005,6 +1022,16 @@ func _consider_role(me: Vector2) -> void:
 		_goal = at
 		_goal_stand = false
 		_goal_best = worth
+
+
+## A melee hero's goal (see MELEE_SPOT): just inside its sweep's reach of the nearest enemy, on its own side.
+func _consider_melee(me: Vector2) -> void:
+	if _nd == INF or MELEE_VALUE <= _goal_best:
+		return
+	var back: Vector2 = me - _near
+	_goal = _near + (back.normalized() if back.length_squared() > 0.01 else Vector2.DOWN) * _melee_r * MELEE_SPOT
+	_goal_stand = false
+	_goal_best = MELEE_VALUE
 
 
 ## The skill on the nova button, used for what it does (see the PROVOKE..AEGIS constants). Every class also uses it

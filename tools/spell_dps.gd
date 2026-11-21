@@ -9,13 +9,16 @@ extends RefCounted
 ## --clear: how long one wizard holding the spell at level 1 takes to slay CLEAR_KILLS of CLEAR_FOES plain orcs
 ## of minute 1 walking in (the class weapon check: a level 1 knight's CLEAVE against a level 1 mage's ARCANE BOLT).
 ## Not all of them: a foe that reaches a standing wizard's feet is under her bolts' first step, and a probe
-## that waited for it would time the stall, not the spell.
+## that waited for it would time the stall, not the spell. After the spells, one line per class (a HUMAN hero of
+## class level 1, World.apply_hero): its class weapon with its skin and the class's stats, the gate of job P (each
+## within CLEAR_GATE of the MAGE's time).
 
 const GATE_SPARSE: int = 6
 const GATE_DENSE: int = 40
 const CLEAR_FOES: int = 16
 const CLEAR_KILLS: int = 12
 const CLEAR_LIMIT: float = 60.0
+const CLEAR_GATE: float = 0.15
 const DT: float = 1.0 / 60.0
 
 
@@ -53,6 +56,18 @@ func run(args: PackedStringArray) -> int:
 			print("%-16s dps=%.1f" % [label, _dps(sp, Spells.MAX_LEVEL, false, foes_n, seconds)])
 			if Spells.has_evolution(sp):
 				print("%-16s dps=%.1f" % [str(Spells.EVOS[sp]["name"]), _dps(sp, Spells.MAX_LEVEL, true, foes_n, seconds)])
+	if clear and only < 0:
+		var mage := 0.0
+		for c: int in range(Classes.count()):
+			var t := 0.0
+			for s: int in range(3):
+				t += _clear(-1, s, c)
+			t /= 3.0
+			if c == Classes.MAGE:
+				mage = t
+			var off := t / maxf(mage, 0.01) - 1.0
+			print("%-16s clear=%.1fs %s %+.0f%% of the mage's" % [Classes.class_name_of(c) + " " + Classes.weapon_name(c),
+				t, "ok" if absf(off) <= CLEAR_GATE else "OFF", off * 100.0])
 	return 0
 
 
@@ -111,9 +126,12 @@ func _probe_orc(w: World, at: Vector2, rng: RandomNumberGenerator, dist: float) 
 
 
 ## Seconds until CLEAR_KILLS of CLEAR_FOES orcs (plain, minute 1) placed 40 to 120 px around the wizard are dead.
-func _clear(sp: int, s: int) -> float:
-	var w := _world(sp, 1, false, s)
+## With a class `cls` (sp ignored) the wizard is a HUMAN hero of that class holding its class weapon.
+func _clear(sp: int, s: int, cls: int = -1) -> float:
+	var w := _world(sp if cls < 0 else Wizards.start_spell(0), 1, false, s)
 	var p: World.Player = w.players[0]
+	if cls >= 0:
+		w.apply_hero(p, Hero.make(Races.HUMAN, cls, p.wizard).to_dict())
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5 + s
 	for i: int in range(CLEAR_FOES):
