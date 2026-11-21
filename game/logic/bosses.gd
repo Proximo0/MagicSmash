@@ -237,14 +237,15 @@ static func farthest_from(w: World, at: Vector2) -> World.Player:
 
 ## Where LAST CANDLE's SAFE disc goes: on a fallen wizard's grave when every living wizard is within CANDLE_REACH of
 ## it, else CANDLE_OFF px from the party's middle away from the boss at `from`, pulled in until no living wizard is
-## over CANDLE_REACH from it.
+## over CANDLE_REACH from it, else the middle of the party's spread. Vector2.INF when no spot is within reach of every
+## living wizard (or none lives): that candle is skipped, since a SAFE disc someone cannot reach is a sure hit.
 static func candle_spot(w: World, from: Vector2) -> Vector2:
 	var live: Array[Vector2] = []
 	for p: World.Player in w.players.values():
 		if p.alive:
 			live.append(p.pos)
 	if live.is_empty():
-		return inside(G.ARENA.get_center())
+		return Vector2.INF
 	for p: World.Player in w.players.values():
 		if p.down and _reach_all(live, p.pos):
 			return p.pos
@@ -260,7 +261,8 @@ static func candle_spot(w: World, from: Vector2) -> Vector2:
 	for v: Vector2 in live:
 		lo = lo.min(v)
 		hi = hi.max(v)
-	return (lo + hi) * 0.5
+	var mid := inside((lo + hi) * 0.5)
+	return mid if _reach_all(live, mid) else Vector2.INF
 
 
 static func _reach_all(live: Array[Vector2], at: Vector2) -> bool:
@@ -404,7 +406,12 @@ static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 	_clear_header(w)
 	w.boss = null
 	w.liches_slain += 1
-	w.record.note(w.wave_time, Results.M_ARCHLICH if e.final else Results.M_LICH, slot)
+	if e.final:
+		w.record.note(w.wave_time, Results.M_ARCHLICH, slot)
+	elif e.type == World.LICH:
+		w.record.note(w.wave_time, Results.M_LICH, slot) # the LICH achievement reads this
+	else:
+		w.record.note(w.wave_time, Results.M_ACT_BOSS, slot, e.type)
 	for o in w.enemies:
 		if not o.dead and o != e:
 			o.dead = true

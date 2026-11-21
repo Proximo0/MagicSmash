@@ -8,7 +8,8 @@ extends RefCounted
 ## who is named (encode/word_of/named), boss_meter GOODBYE's check. Static helpers; the first argument is the World.
 ## Enemy.state is the step, Enemy.count the word index (ORDER entry x 4 + the word within it), Enemy.timer the
 ## letter clock, Enemy.timer2 the time to the word's end (or the trail and ring clock), Enemy.dir where she glides,
-## Enemy.enter_dir.x her health as GOODBYE began (then the rings fired), Enemy.enter_dir.y turns made + POTION_GIVEN.
+## Enemy.enter_dir.x her health as GOODBYE began (then the rings fired), Enemy.enter_dir.y turns made + POTION_GIVEN
+## + NAME_STEP x the wizards named so far.
 
 enum { GLIDE, SPELL, RUN, BYE, STAGGER, RINGS }
 enum { WORD_NONE, WORD_FIRE, WORD_NAME, WORD_SHELF, WORD_ERRATA, WORD_GOODBYE }
@@ -22,6 +23,7 @@ const ORDER_1: Array = [[WORD_FIRE], [WORD_NAME], [WORD_SHELF], [WORD_ERRATA], [
 const ORDER_2: Array = [[WORD_NAME, WORD_FIRE], [WORD_SHELF, WORD_NAME], [WORD_GOODBYE], [WORD_ERRATA]]
 const WORD_SLOTS := 4 # Enemy.count steps per ORDER entry
 const POTION_GIVEN := 2.0
+const NAME_STEP := 4.0
 
 ## Its attacks as [state, warn s, hazard kind, r]; the warn is the shortest spelling (4 letters at LETTER_FAST) plus
 ## WORD_PAD, or the row's own. GOODBYE is shots (kind -1) after 7 letters at BYE_LETTER.
@@ -250,10 +252,13 @@ static func spell(w: World, e: World.Enemy, word: int) -> void:
 	e.timer2 = n * lt
 	match word:
 		WORD_FIRE:
-			_fire_lane(w, e, warn)
+			if not _fire_lane(w, e, warn):
+				_after(w, e) # the floor is full: no unwarned charge
+				return
 			e.timer2 = warn
 		WORD_NAME:
 			cast_names(w, e, slots, warn)
+			e.enter_dir.y += NAME_STEP * slots.size() # the next NAME calls the next wizards
 		WORD_SHELF:
 			for i: int in range(0, SHELF_LANES, 2):
 				var x := G.ARENA.position.x + SHELF_HW + i * Bosses.SHELF_STEP
@@ -277,8 +282,8 @@ static func spell(w: World, e: World.Enemy, word: int) -> void:
 			w.boss_meter = 0.0
 
 
-## Who NAME calls: the living wizards in slot order, taking turns by the word index; two in a party of
-## TWO_NAMES_AT or more in phase 2. `turn` picks whose turn it is (default: her word index).
+## Who NAME calls: the living wizards in slot order, taking turns (each NAME calls the next ones); two in a party of
+## TWO_NAMES_AT or more in phase 2. `turn` picks whose turn it is (default: how many she has named so far).
 static func name_targets(w: World, e: World.Enemy, turn: int = -1) -> Array[int]:
 	var live: Array[int] = []
 	for p: World.Player in w.players.values():
@@ -289,7 +294,7 @@ static func name_targets(w: World, e: World.Enemy, turn: int = -1) -> Array[int]
 	if live.is_empty():
 		return out
 	var two := int(e.enter_dir.y) & 1 and w.players.size() >= TWO_NAMES_AT and live.size() >= 2
-	var at := (int(e.count) if turn < 0 else turn) % live.size()
+	var at := (int(e.enter_dir.y / NAME_STEP) if turn < 0 else turn) % live.size()
 	out.append(live[at])
 	if two:
 		out.append(live[(at + 1) % live.size()])
@@ -310,13 +315,16 @@ static func cast_names(w: World, e: World.Enemy, slots: Array[int], warn: float)
 
 
 ## F-I-R-E: a lane wall to wall through her and the wizard farthest from her; she runs it once it is spelled.
-static func _fire_lane(w: World, e: World.Enemy, warn: float) -> void:
+## False when the floor is full and the lane could not be laid.
+static func _fire_lane(w: World, e: World.Enemy, warn: float) -> bool:
 	var far := Bosses.farthest_from(w, e.pos)
 	var dir := (far.pos - e.pos).normalized() if far != null and far.pos.distance_to(e.pos) > 1.0 else Vector2.RIGHT
 	var back := Bosses.to_wall(e.pos, -dir, e.r)
 	var ahead := Bosses.to_wall(e.pos, dir, e.r)
-	w.add_hazard(Hazards.LANE, back, ahead, FIRE_HW, warn, e.pos.distance_to(ahead) / FIRE_SPEED + WORD_PAD, -1, e.id)
+	if w.add_hazard(Hazards.LANE, back, ahead, FIRE_HW, warn, e.pos.distance_to(ahead) / FIRE_SPEED + WORD_PAD, -1, e.id) == null:
+		return false
 	e.dir = ahead
+	return true
 
 
 ## Deal BYE_SHARE of her health during GOODBYE and she stops at G-O-O-D and staggers; the first time, a potion.
@@ -326,7 +334,8 @@ static func _stagger(w: World, e: World.Enemy) -> void:
 	e.timer = STAGGER_S
 	if int(e.enter_dir.y) & int(POTION_GIVEN) == 0:
 		e.enter_dir.y += POTION_GIVEN
-		WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40))
+		if w.no_potions <= 0.0: # THE HIEROPHANT
+			WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40))
 
 
 ## Where she glides between words: KEEP_MIN..KEEP_MAX px from the party's middle, on her side.

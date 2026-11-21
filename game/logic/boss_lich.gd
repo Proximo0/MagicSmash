@@ -38,7 +38,7 @@ const HOT_BLAST := 0.15
 static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: Vector2, dist: float) -> Vector2:
 	var ph := Bosses.phase(e.type, e.hp / e.maxhp, e.final)
 	if e.final and ph > int(e.enter_dir.y):
-		_arch_turn(w, e, ph)
+		_arch_turn(w, e, int(e.enter_dir.y) + 1) # one phase a turn: a hit past both lines still ascends first
 		return Vector2.ZERO
 	var rage := ph >= 1
 	if e.final and ph >= 2:
@@ -46,7 +46,8 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 		if w.boss_meter <= 0.0:
 			w.boss_meter = CANDLE_EVERY
 			var at := Bosses.candle_spot(w, e.pos)
-			w.add_hazard(Hazards.SAFE, at, at, CANDLE_R, CANDLE_WARN, CANDLE_HOT, -1, e.id)
+			if at != Vector2.INF: # skipped when no spot is within reach of every wizard
+				w.add_hazard(Hazards.SAFE, at, at, CANDLE_R, CANDLE_WARN, CANDLE_HOT, -1, e.id)
 	var desired := Vector2.ZERO
 	# Drift between waypoints in the upper half of the arena.
 	if e.dir == Vector2.ZERO or e.pos.distance_to(e.dir) < 8.0:
@@ -77,12 +78,12 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 			if e.timer <= 0.0:
 				e.state = 0
 				e.timer = 1.4 * w.tune.boss_rest_mul
-		NAME:
+		NAME: # e.timer counts the spelling down from n letters + WORD_PAD
 			desired *= 0.3
-			e.timer2 += dt
 			var n := BossGhostwriter.word_text(w.boss_arg, BossGhostwriter.names_in(w)).length()
-			w.boss_t = minf(float(n), floorf(e.timer2 / BossGhostwriter.LETTER) + 1.0)
-			if e.timer2 >= n * BossGhostwriter.LETTER + BossGhostwriter.WORD_PAD:
+			var spelt := n * BossGhostwriter.LETTER + BossGhostwriter.WORD_PAD - e.timer
+			w.boss_t = minf(float(n), floorf(spelt / BossGhostwriter.LETTER) + 1.0)
+			if e.timer <= 0.0:
 				w.boss_arg = 0
 				w.boss_t = 0.0
 				e.state = 0
@@ -156,6 +157,7 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 
 ## The Archlich turns to phase `ph`: THE ASCENSION clears the field and heals, THE NINTH PAGE starts its candles.
 static func _arch_turn(w: World, e: World.Enemy, ph: int) -> void:
+	Bosses.drop_warnings(w, e)
 	e.enter_dir.y = float(ph)
 	e.state = 0
 	e.timer = 1.0
@@ -202,4 +204,4 @@ static func _arch_name(w: World, e: World.Enemy) -> void:
 	var n := BossGhostwriter.word_text(w.boss_arg, BossGhostwriter.names_in(w)).length()
 	BossGhostwriter.cast_names(w, e, slots, n * BossGhostwriter.LETTER + BossGhostwriter.WORD_PAD)
 	e.state = NAME
-	e.timer2 = 0.0
+	e.timer = n * BossGhostwriter.LETTER + BossGhostwriter.WORD_PAD

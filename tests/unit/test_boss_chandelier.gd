@@ -227,3 +227,41 @@ func test_its_death_clears_the_floor_and_starts_the_lull() -> void:
 	assert_true(w.hazards.is_empty())
 	assert_true(w.lull_left > 0.0)
 	assert_true(w.boss == null)
+
+
+func test_a_candle_out_of_reach_is_skipped() -> void:
+	var made: Array = _chand_world(2)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	var c := G.ARENA.get_center()
+	w.players[0].pos = c + Vector2(-200, 0)
+	w.players[1].pos = c + Vector2(200, 0)
+	assert_eq(Bosses.candle_spot(w, c + Vector2(0, -100)), Vector2.INF, "no spot reaches both")
+	e.enter_dir.y = 1.0
+	e.state = BossChandelier.WHEEL_GAP
+	e.count = 3.0 # LAST CANDLE is next
+	e.timer = 0.0
+	var seen := {}
+	_chand_run(w, e, 2 * DT, seen)
+	for h: Hazards.Hazard in (seen.get("rows", {}) as Dictionary).values():
+		assert_true(h.kind != Hazards.SAFE, "a candle nobody could share")
+	assert_eq(e.state, BossChandelier.WHEEL_GAP)
+
+
+func test_no_roll_or_drip_without_its_lane() -> void:
+	var made: Array = _chand_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	while w.add_hazard(Hazards.MARK, Vector2(30, 50), Vector2(40, 50), 2.0, 9.0, 9.0, -1, 0, true) != null:
+		pass
+	e.state = BossChandelier.GAP
+	e.count = 0.0 # DRIP is next
+	e.timer = 0.0
+	_chand_run(w, e, 2 * DT)
+	assert_eq(e.state, BossChandelier.GAP, "dripped with no lane")
+	e.enter_dir.y = 1.0
+	e.state = BossChandelier.WHEEL_GAP
+	e.count = 0.0 # ROLL is next
+	e.timer = 0.0
+	_chand_run(w, e, 2 * DT)
+	assert_eq(e.state, BossChandelier.WHEEL_GAP, "rolled with no lane")

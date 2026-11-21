@@ -195,7 +195,9 @@ static func _next(w: World, e: World.Enemy) -> void:
 			var c := w.party_center()
 			var dir := (c - e.pos).normalized() if c.distance_to(e.pos) > 20.0 else Vector2.DOWN
 			var end := Bosses.inside(c + dir * DRIP_PAST)
-			w.add_hazard(Hazards.LANE, e.pos, end, DRIP_HW, DRIP_WARN_S, DRIP_WARN_S + e.pos.distance_to(end) / DRIP_SPEED, -1, e.id)
+			if w.add_hazard(Hazards.LANE, e.pos, end, DRIP_HW, DRIP_WARN_S, DRIP_WARN_S + e.pos.distance_to(end) / DRIP_SPEED, -1, e.id) == null:
+				_rest(e) # the floor is full: no unwarned glide
+				return
 			e.state = DRIP_WARN
 			e.timer = DRIP_WARN_S
 		DROP_TRACK, HOP_TRACK:
@@ -220,9 +222,13 @@ static func _next(w: World, e: World.Enemy) -> void:
 			var far := Bosses.farthest_from(w, e.pos)
 			var dir := (far.pos - e.pos).normalized() if far != null and far.pos.distance_to(e.pos) > 1.0 else Vector2.RIGHT
 			e.enter_dir.x = 0.0 # legs rolled
-			_roll_lane(w, e, dir)
+			if not _roll_lane(w, e, dir):
+				_rest(e) # the floor is full: no unwarned roll
 		CANDLE:
 			var at := Bosses.candle_spot(w, e.pos)
+			if at == Vector2.INF:
+				_rest(e) # the party is spread too wide for one disc: no candle
+				return
 			w.add_hazard(Hazards.SAFE, at, at, CANDLE_R, CANDLE_WARN, CANDLE_HOT, -1, e.id)
 			e.state = CANDLE
 			e.timer = CANDLE_WARN + CANDLE_HOT
@@ -276,12 +282,15 @@ static func _rain(w: World, e: World.Enemy) -> void:
 
 
 ## A ROLL leg's lane from where it stands to the wall along `dir`; it squashes ROLL_WARN_S s first.
-static func _roll_lane(w: World, e: World.Enemy, dir: Vector2) -> void:
+## False (nothing changes) when the floor is full and the lane could not be laid: no leg rolls unwarned.
+static func _roll_lane(w: World, e: World.Enemy, dir: Vector2) -> bool:
 	var end := Bosses.to_wall(e.pos, dir, e.r)
-	w.add_hazard(Hazards.LANE, e.pos, end, ROLL_HW, ROLL_WARN_S, ROLL_WARN_S + e.pos.distance_to(end) / ROLL_SPEED, -1, e.id)
+	if w.add_hazard(Hazards.LANE, e.pos, end, ROLL_HW, ROLL_WARN_S, ROLL_WARN_S + e.pos.distance_to(end) / ROLL_SPEED, -1, e.id) == null:
+		return false
 	e.dir = dir
 	e.state = ROLL_WARN
 	e.timer = ROLL_WARN_S
+	return true
 
 
 ## A leg ends at a wall: it bounces into the next leg, or after ROLL_LEGS lies dizzy.
@@ -299,7 +308,9 @@ static func _leg_done(w: World, e: World.Enemy) -> void:
 		dir.y = -dir.y
 	if dir == e.dir:
 		dir = -dir
-	_roll_lane(w, e, dir)
+	if not _roll_lane(w, e, dir):
+		e.state = DIZZY # the floor is full: the legs left are skipped
+		e.timer = DIZZY_S
 
 
 ## THE CHAIN SNAPS at PHASE_AT: the attack under way stops, a heavy BLAST falls under it, it turns into the wheel.

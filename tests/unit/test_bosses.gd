@@ -223,3 +223,67 @@ func test_every_attack_table_passes_min_warn() -> void:
 		for row: Array in table:
 			if int(row[2]) >= 0:
 				assert_true(float(row[1]) >= Hazards.min_warn(float(row[3])), "row %s" % [row])
+
+
+## A fight with the Archlich in at 15:00 and `n` invulnerable wizards; its first think has run.
+func _arch_world(n: int) -> Array:
+	var w := World.new(range(n), 3)
+	w.phase = World.PH_FIGHT
+	w.wave = 16
+	w.wave_time = 900.0
+	for p: World.Player in w.players.values():
+		p.invuln = 999.0
+	var e: World.Enemy = w._spawn_boss(World.LICH, true)
+	e.entering = false
+	e.pos = G.ARENA.get_center() + Vector2(0, -80)
+	_arch_run(w, e, 0.1)
+	return [w, e]
+
+
+func test_the_archlich_spells_a_name_then_attacks_again() -> void:
+	var made: Array = _arch_world(2)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	e.hp = e.maxhp * 0.7
+	_arch_run(w, e, BossLich.ASCEND_TURN + 0.2)
+	e.hp = e.maxhp * 0.3
+	_arch_run(w, e, BossLich.PAGE_TURN + 0.2)
+	e.state = 0
+	BossLich._arch_name(w, e)
+	assert_eq(e.state, BossLich.NAME)
+	_arch_run(w, e, 1.0)
+	assert_true(int(w.boss_t) > 1, "the letters advance")
+	_arch_run(w, e, 3.0)
+	assert_true(e.state != BossLich.NAME, "stuck spelling")
+	assert_eq(w.boss_arg, 0, "the word clears")
+	var attacked := false
+	for _i: int in 600:
+		_arch_run(w, e, 1.0 / 60.0)
+		attacked = attacked or (e.state != 0 and e.state != BossLich.NAME)
+	assert_true(attacked, "no attack after the name")
+
+
+func test_a_hit_past_both_lines_ascends_first() -> void:
+	var made: Array = _arch_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	var gob := w.spawn_enemy(World.GOBLIN, 0, Vector2(200, 200))
+	w.players[0].hp = 1
+	e.hp = e.maxhp * 0.3
+	_arch_run(w, e, 1.0 / 60.0)
+	assert_eq(int(e.enter_dir.y), 1, "THE ASCENSION first")
+	assert_true(gob.dead, "the field clears")
+	assert_eq(w.players[0].hp, 1 + BossLich.ASCEND_HEAL, "the wizards heal")
+	_arch_run(w, e, BossLich.ASCEND_TURN + 0.1)
+	assert_eq(int(e.enter_dir.y), 2, "then THE NINTH PAGE")
+
+
+func test_the_archlich_turn_cancels_its_warnings() -> void:
+	var made: Array = _arch_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	var h := w.add_hazard(Hazards.BLAST, Vector2(300, 200), Vector2(300, 200), 30.0, 5.0, 0.15, -1, e.id)
+	assert_true(h != null and h.boss)
+	e.hp = e.maxhp * 0.7
+	_arch_run(w, e, 1.0 / 60.0)
+	assert_true(Bosses.row(w, h.id) == null, "a warning outlived the turn")

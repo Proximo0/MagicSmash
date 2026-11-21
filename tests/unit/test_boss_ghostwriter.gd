@@ -197,3 +197,64 @@ func test_health_from_the_tables_at_minute_ten() -> void:
 		var e: World.Enemy = w._spawn_boss(Bestiary.GHOSTWRITER, false)
 		assert_near(e.maxhp, float(Bestiary.KINDS[Bestiary.GHOSTWRITER][Bestiary.K_HP]) * w.tune.boss_hp_mul * Bosses.PARTY_HP[n - 1], 0.01,
 			"no cycle growth: she comes once")
+
+
+## Every living wizard is named in turn: over a round of NAMEs each is called, none twice before the rest.
+func test_name_takes_turns_with_2_3_and_4_wizards() -> void:
+	for n: int in [2, 3, 4]:
+		for phase2: bool in [false, true]:
+			var made: Array = _ghost_world(n)
+			var w: World = made[0]
+			var e: World.Enemy = made[1]
+			if phase2:
+				e.enter_dir.y += 1.0 # turned
+			var per_cast := 2 if phase2 and n >= BossGhostwriter.TWO_NAMES_AT else 1
+			var called: Array[int] = []
+			for _k: int in n * 2:
+				BossGhostwriter.spell(w, e, BossGhostwriter.WORD_NAME)
+				called.append_array(BossGhostwriter.named(w.boss_arg))
+				w.hazards.clear()
+			assert_eq(called.size(), n * 2 * per_cast)
+			for s: int in n:
+				assert_eq(called.count(s), 2 * per_cast, "%d wizards, phase %d: slot %d named %d times in %s" % [n, 2 if phase2 else 1, s, called.count(s), called])
+
+
+func test_the_stagger_potion_heeds_the_hierophant() -> void:
+	var made: Array = _ghost_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	w.no_potions = 30.0
+	BossGhostwriter.spell(w, e, BossGhostwriter.WORD_GOODBYE)
+	_ghost_run(w, e, 0.5)
+	e.hp -= e.maxhp * BossGhostwriter.BYE_SHARE
+	_ghost_run(w, e, 2 * DT)
+	assert_eq(e.state, BossGhostwriter.STAGGER)
+	for k: World.Pickup in w.pickups:
+		assert_true(k.kind != World.PK_POTION, "a potion under THE HIEROPHANT")
+
+
+func test_fire_never_runs_without_its_lane() -> void:
+	var made: Array = _ghost_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	while w.add_hazard(Hazards.MARK, Vector2(30, 50), Vector2(40, 50), 2.0, 9.0, 9.0, -1, 0, true) != null:
+		pass
+	BossGhostwriter.spell(w, e, BossGhostwriter.WORD_FIRE)
+	assert_true(Bosses.last_row(w, e, Hazards.LANE) == null)
+	_ghost_run(w, e, 3.0)
+	assert_true(e.state != BossGhostwriter.RUN, "charged with no lane")
+
+
+func test_her_death_is_her_own_moment_not_the_lich() -> void:
+	var made: Array = _ghost_world(1)
+	var w: World = made[0]
+	var e: World.Enemy = made[1]
+	w._kill_enemy(e, 0)
+	var kinds: Array = []
+	for m: Array in w.record.moments:
+		kinds.append(int(m[1]))
+	assert_false(Results.M_LICH in kinds, "an act boss is not the Lich")
+	assert_true(Results.M_ACT_BOSS in kinds)
+	for m: Array in w.record.moments:
+		if int(m[1]) == Results.M_ACT_BOSS:
+			assert_eq(Results.moment_text(m), "P1 SLEW THE GHOST WRITER")

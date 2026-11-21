@@ -15,6 +15,7 @@ const M_JACKPOT := 5
 const M_COMBO := 6 # value = combo count
 const M_EVOLVE := 7 # value = Upgrades index of the evolution
 const M_CARD := 8 # value = Cards index
+const M_ACT_BOSS := 9 # value = the act boss's Bestiary type
 const MOMENTS: Array = [
 	["lich", "%s SLEW THE LICH LORD", 60],
 	["archlich", "%s SLEW THE ARCHLICH", 100],
@@ -25,7 +26,10 @@ const MOMENTS: Array = [
 	["combo", "%s CHAINED A %v COMBO", 40],
 	["evolve", "%s EVOLVED %v", 30],
 	["card", "%s DREW %v", 90],
+	["act_boss", "%s SLEW %v", 60],
 ]
+## The act bosses' names on their moment (M_ACT_BOSS), by Bestiary type.
+const ACT_BOSS_NAMES := {Bestiary.CHANDELIER: "THE BONE CHANDELIER", Bestiary.GHOSTWRITER: "THE GHOST WRITER"}
 
 ## Combos worth a moment, and how many moments the screen shows.
 const COMBO_MOMENTS := [100, 200, 400]
@@ -167,6 +171,8 @@ static func moment_text(m: Array) -> String:
 			detail = Upgrades.display_name(int(m[3]))
 		M_CARD:
 			detail = Cards.card_name(clampi(int(m[3]), 0, Cards.count() - 1))
+		M_ACT_BOSS:
+			detail = str(ACT_BOSS_NAMES.get(int(m[3]), "A BOSS"))
 	var who := "P%d" % (int(m[2]) + 1)
 	return String(MOMENTS[kind][1]).replace("%s", who).replace("%v", detail)
 
