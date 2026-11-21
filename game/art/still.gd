@@ -38,6 +38,17 @@ const DEED_MARKS := {
 	"boss": "slay", "kills_all": "slay", "fast": "time", "secrets": "secret",
 }
 
+## Class weapons that have a picture of their own (`icons/weapon_<skin>`); a class whose weapon is a plain spell (the
+## knight's cleave, the mage's school spell) keeps its `spell_` icon.
+const WEAPON_SKINS: Array[String] = ["longbow", "holy_light", "smite"]
+## The six hero stats' icons, in Loot.ST_* order (MIGHT FOCUS SWIFT VIGOR WARD, then FORTUNE: the gold stat, GREED).
+const STAT_ICONS: Array[String] = ["stat_might", "stat_focus", "stat_swift", "stat_vigor", "stat_ward", "stat_fortune"]
+## The apprentice's own class mark, and the difficulty steps' marks below the Seals.
+const APPRENTICE_ICON := "class_apprentice"
+const STEP_ICONS := {-1: APPRENTICE_ICON, 0: "step_wizard", 1: "step_archmage"}
+## The sanctum's crystal mark.
+const HUD_ICONS: Array[String] = ["hud_crystal"]
+
 ## The hub's three pieces and the ground each stands on, as an offset from its spot.
 const HUB_LECTERN := "hub_lectern"
 const HUB_MIRROR := "hub_mirror"
@@ -82,7 +93,56 @@ static func icon_names() -> Array[String]:
 		out.append("race_" + Races.key(r))
 	for m: String in ["win", "slay", "time", "secret"]:
 		out.append("deed_" + m)
+	for w: String in WEAPON_SKINS:
+		out.append("weapon_" + w)
+	for k: int in Classes.skill_count():
+		out.append(skill_icon(k))
+	out.append_array(STAT_ICONS)
+	for lv: int in range(Seals.MIN, Seals.MAX + 1):
+		out.append(step_icon(lv))
+	for i: int in Loot.count():
+		out.append(loot_icon(i))
+	out.append_array(HUD_ICONS)
 	return out
+
+
+## The icon name of a class skill (`Classes.SKILLS` index): `skill_<key>` (nova provoke volley sanctuary aegis).
+static func skill_icon(s: int) -> String:
+	return "skill_" + Classes.skill_key(s)
+
+
+## The icon name of a hero stat (a Loot.ST_* index); "" for an index that is not one.
+static func stat_icon(st: int) -> String:
+	return STAT_ICONS[st] if st >= 0 and st < STAT_ICONS.size() else ""
+
+
+## The icon name of a difficulty step (Seals.MIN to MAX): class_apprentice, step_wizard, step_archmage, seal_1 to seal_8.
+static func step_icon(level: int) -> String:
+	if level < Seals.MIN or level > Seals.MAX:
+		return ""
+	return String(STEP_ICONS[level]) if level <= 1 else "seal_%d" % (level - 1)
+
+
+## The icon name of a chest item (a Loot.ITEMS index): `loot_<key>`; "" for an index that is not one.
+static func loot_icon(idx: int) -> String:
+	return "loot_" + String(Loot.ITEMS[idx][0]) if idx >= 0 and idx < Loot.count() else ""
+
+
+## The class weapon's own icon name for spell row `spell` in the hands of class `cls` (`weapon_longbow`...); "" when
+## that class's weapon is a plain spell.
+static func weapon_icon(cls: int, spell: int) -> String:
+	var sk := Classes.weapon_skin(cls, spell)
+	return "weapon_" + sk if WEAPON_SKINS.has(sk) else ""
+
+
+## A hero's weapon picture reduced to `size`: its own (`weapon_<skin>`), else its spell's (`spell_<key>`), else null.
+static func weapon_tex(cls: int, spell: int, size: int) -> Texture2D:
+	var tex := icon(weapon_icon(cls, spell), size)
+	if tex != null:
+		return tex
+	var name := icon_of(Upgrades.key(Upgrades.weapon_entry(spell)))
+	return icon(name, size)
+
 
 
 ## The icon name of an upgrade key (`w_fire` -> `spell_fire`, `e_fire` -> `evo_fire`, `swift` -> `passive_swift`);

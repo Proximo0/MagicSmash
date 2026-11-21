@@ -103,8 +103,12 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 			_heart(a, ci, Vector2(x + floorf(h * hstep), 10), h < p.hp)
 	for l in mini(p.lives, 5):
 		_hat(a, ci, Vector2(x + 38 + l * 6, 10), col)
+	var skill := Still.icon(Still.skill_icon(Classes.skill(int(p.get("cls", 0)))), SKILL_ICON)
 	for b in mini(p.bombs, 4):
-		_star(a, ci, Vector2(x + 72 + b * 7, 10))
+		if skill != null:
+			ci.draw_texture(skill, Vector2(x + 72 + b * 7, 10)) # the class skill's own mark in place of the star
+		else:
+			_star(a, ci, Vector2(x + 72 + b * 7, 10))
 	if not p.alive and not p.get("down", false) and p.lives > 0:
 		PixelFont.draw(ci, "...", Vector2(x + 40, 17), 1, col)
 
@@ -112,15 +116,19 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 ## The slot icons (`icons/spell_<key>`, `evo_<key>`, `passive_<key>`), reduced to these sizes, px: a spell's, a passive's.
 const SLOT_ICON := 8
 const PASSIVE_ICON := 6
+## The nova charge's mark is the class skill's icon (`icons/skill_<key>`) at this size, px.
+const SKILL_ICON := 6
 
 
 ## An icon in a build slot; false (draw the pips) when the slot's icon file does not exist. An evolved spell shows its
 ## `evo_` picture, else its spell's.
-static func _slot_icon(ci: CanvasItem, upgrade_key: String, evolved: bool, at: Vector2, size: int) -> bool:
+static func _slot_icon(ci: CanvasItem, upgrade_key: String, evolved: bool, at: Vector2, size: int, weapon: String = "") -> bool:
 	var base := Still.icon_of(upgrade_key)
 	var tex: Texture2D = null
 	if evolved:
 		tex = Still.icon("evo_" + base.trim_prefix("spell_"), size)
+	if tex == null:
+		tex = Still.icon(weapon, size) # a class weapon's own picture (`weapon_<skin>`), else its spell's
 	if tex == null:
 		tex = Still.icon(base, size)
 	if tex == null:
@@ -149,7 +157,7 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 			ci.draw_rect(Rect2(px + 1, 4, step - 3, 2), Color("0b0716"))
 			continue
 		var evolved := wlv > Spells.MAX_LEVEL
-		if _slot_icon(ci, Upgrades.key(int(spells[k][0])), evolved, Vector2(px, 1), SLOT_ICON):
+		if _slot_icon(ci, Upgrades.key(int(spells[k][0])), evolved, Vector2(px, 1), SLOT_ICON, Still.weapon_icon(int(p.get("cls", 0)), sp)):
 			# The picture over a one pixel level bar (white at the rim once evolved).
 			ci.draw_rect(Rect2(px, 9, step - 1, 1), Color.WHITE if evolved else Color("3a2f55"))
 			ci.draw_rect(Rect2(px, 9, (step - 1) * mini(wlv, Spells.MAX_LEVEL) / Spells.MAX_LEVEL, 1), a.SPELL_COLORS[sp])

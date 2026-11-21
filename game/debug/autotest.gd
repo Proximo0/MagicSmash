@@ -25,6 +25,9 @@ const PERF_FRAMES := 300
 const PERF_ENEMIES := 180
 var seats := false # --seats: two apprentices join the lobby
 var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right in the lobby
+var class_pick := -1 # --class=archer: every human seat's roster row takes that class (class icon shots)
+var novas_given := 0 # --novas=N: every wizard starts the run with N nova charges (skill mark shots)
+var sheet_hero := 0 # --sheet=N: the --heroes shots end on the sheet of the Nth hero (0 mage, 1 knight, 2 archer, 3 priest)
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
 var _damage_shot := false
@@ -158,6 +161,12 @@ func _ready() -> void:
 			PlayerInput.bot_passive = true
 		if a.begins_with("--net="):
 			net = a.split("=")[1]
+		if a.begins_with("--class="):
+			class_pick = Classes.index_of(a.split("=")[1])
+		if a.begins_with("--novas="):
+			novas_given = int(a.split("=")[1])
+		if a.begins_with("--sheet="):
+			sheet_hero = int(a.split("=")[1])
 		if a.begins_with("--out="):
 			out_dir = a.split("=")[1]
 		if a.begins_with("--art="): # a folder searched first for pictures, laid out like assets/art (art shots)
@@ -389,6 +398,10 @@ func _process(delta: float) -> void:
 				title.state = 2
 			for _i in wizard_steps:
 				Net.cycle_wizard(G.DEV_KBM, 1)
+			if class_pick >= 0:
+				for e: Dictionary in Net.roster:
+					e["cls"] = class_pick
+					e["hero"] = Hero.make(Races.HUMAN, class_pick, 0, "TESTER").to_dict()
 			if seats:
 				Net.add_apprentice()
 				Net.add_apprentice()
@@ -400,6 +413,9 @@ func _process(delta: float) -> void:
 			await get_tree().process_frame
 			var arena = G.main.current
 			arena.autotest_pick_hold = pick_hold
+			if arena.world and novas_given > 0:
+				for q: World.Player in arena.world.players.values():
+					q.bombs = novas_given
 			if arena.world and start_wave > 1:
 				# Jump the run clock to just before the start_wave:00 mark (5 brings the Lich); the horde announces
 				# the new minute itself.
@@ -714,6 +730,6 @@ func _heroes_step(name: String) -> void:
 			b.submit_name()
 		"@heroes_sheet":
 			b.active = false
-			prof.heroes[0].sockets[Cards.socket(4)] = Cards.key(4)
-			ro.sheet.open(prof, 0)
+			prof.heroes[sheet_hero].sockets[Cards.socket(4)] = Cards.key(4)
+			ro.sheet.open(prof, sheet_hero)
 			ro.sheet.sel = 2

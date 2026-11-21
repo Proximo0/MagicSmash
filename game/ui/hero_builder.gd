@@ -22,6 +22,9 @@ const ROW_H := 32.0
 ## The class and race icon at the right of a list row, px.
 const ROW_ICON := 14.0
 const ROW_TOP := 24.0
+## The weapon's and the skill's icons (class step), px: at the right end of their lines; a stat's, on the confirm page.
+const LINE_ICON := 10
+const STAT_ICON := 8
 const BACK_RECT := Rect2(12, 244, 52, 16)
 const CREATE_RECT := Rect2(330, 210, 130, 20)
 
@@ -401,6 +404,12 @@ func _draw_list(ci: CanvasItem, t: float) -> void:
 		PixelFont.draw(ci, sub, Vector2(row.position.x + 16, row.position.y + 16), 1, Occult.DIM, Occult.INK)
 
 
+## An icon at the right end of the line `_line` draws next (a picture shown only where it exists).
+func _line_icon(ci: CanvasItem, tex: Texture2D) -> void:
+	if tex != null:
+		ci.draw_texture(tex, Vector2(DETAIL_PANEL.end.x - 8 - LINE_ICON, _y - 1).floor())
+
+
 func _line(ci: CanvasItem, label: String, text: String, col: Color) -> void:
 	var x := DETAIL_PANEL.position.x + 8
 	var wid := int(DETAIL_PANEL.size.x) - 16
@@ -440,7 +449,10 @@ func _draw_detail(ci: CanvasItem, t: float) -> void:
 			_line(ci, "ROLE", String(Classes.ROLE_NAMES[Classes.role(sel)]), Occult.BONE)
 			var wp := "THE SPELL OF YOUR SCHOOL" if Classes.weapon(sel) == Classes.SCHOOL_WEAPON else \
 				Classes.weapon_name(sel)
+			if Classes.weapon(sel) != Classes.SCHOOL_WEAPON: # a mage's weapon is her school's spell: no icon yet
+				_line_icon(ci, Still.weapon_tex(sel, Classes.weapon(sel), LINE_ICON))
 			_line(ci, "WEAPON", wp, Occult.BONE)
+			_line_icon(ci, Still.icon(Still.skill_icon(Classes.skill(sel)), LINE_ICON))
 			_line(ci, "SKILL", Classes.skill_name(Classes.skill(sel)), Occult.BONE)
 			_y += 4
 			_line(ci, "", String(PLAY_CLASS[Classes.key(sel)]), Occult.DIM)
@@ -468,14 +480,25 @@ func _draw_confirm(ci: CanvasItem, t: float) -> void:
 	for st: int in range(Loot.STAT_COUNT):
 		var sx := x + (st % 3) * 100
 		var sy := 88.0 + (st / 3) * 12
-		PixelFont.draw(ci, String(HeroSheet.STAT_LABELS[st]), Vector2(sx, sy), 1, Occult.DIM, Occult.INK)
-		PixelFont.draw(ci, str(pts[st]), Vector2(sx + 52, sy), 1, Occult.BONE if int(pts[st]) > 0 else Color(1, 1, 1, 0.3), Occult.INK)
+		var sti := Still.icon(Still.stat_icon(st), STAT_ICON)
+		var off := 0.0
+		if sti != null:
+			ci.draw_texture(sti, Vector2(sx, sy - 1).floor())
+			off = STAT_ICON + 2.0
+		PixelFont.draw(ci, String(HeroSheet.STAT_LABELS[st]), Vector2(sx + off, sy), 1, Occult.DIM, Occult.INK)
+		PixelFont.draw(ci, str(pts[st]), Vector2(sx + 52 + off, sy), 1, Occult.BONE if int(pts[st]) > 0 else Color(1, 1, 1, 0.3), Occult.INK)
 	PixelFont.draw(ci, "HEARTS", Vector2(x, 118), 1, Occult.GOLD, Occult.INK)
 	HeroSheet.draw_hearts(ci, Vector2(x + 48, 117), Classes.hearts(cls))
 	PixelFont.draw(ci, "WEAPON", Vector2(x, 130), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, Classes.weapon_name(cls, school), Vector2(x + 48, 130), 1, Occult.BONE, Occult.INK)
+	var wtex := Still.weapon_tex(cls, Classes.weapon(cls, school), LINE_ICON)
+	if wtex != null:
+		ci.draw_texture(wtex, Vector2(x + 48 + PixelFont.text_width(Classes.weapon_name(cls, school)) + 4, 129).floor())
 	PixelFont.draw(ci, "SKILL", Vector2(x, 142), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, Classes.skill_name(Classes.skill(cls)), Vector2(x + 48, 142), 1, Occult.BONE, Occult.INK)
+	var ktex := Still.icon(Still.skill_icon(Classes.skill(cls)), LINE_ICON)
+	if ktex != null:
+		ci.draw_texture(ktex, Vector2(x + 48 + PixelFont.text_width(Classes.skill_name(Classes.skill(cls))) + 4, 141).floor())
 	PixelFont.draw(ci, "TRAIT", Vector2(x, 154), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(ci, Races.trait_name(Races.trait_of(race)), Vector2(x + 48, 154), 1, Color("5dff7a"), Occult.INK)
 	var y := 172.0
