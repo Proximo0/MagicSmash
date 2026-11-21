@@ -125,7 +125,7 @@ How each system works: read only the section for the system you touch (`grep -n 
     (`card_run_chance` 0.01 x `seal_cards`) drops exactly one card, from the first kill with a card after its moment,
     a boss's too (`Cards.run_card`; a Seal's Archlich drops its Seal card), or for `card_run_urn` 0.15 of card runs
     from the first urn broken after it (any monster's card: the urn_card secret). Moments fall between
-    `loot_moment_from` 0.1 and `loot_moment_to` 0.7 of the run up to the Archlich. Out of a card run no kill, urn or
+    `loot_moment_from` 0.1 and `loot_moment_to` 0.4 of the run up to the Archlich. Out of a card run no kill, urn or
     boss drops a card; a first win at a Seal still pays its card (`Profile.finish_run`). The Sanctum: a pot holds a
     card at `Sanctum.POT_CARD` 0.001, a sealed deck costs `Sanctum.DECK_COST` 1500 crystals.
   - A card found in a fight shows as a small notice under the HUD for `Arena.CARD_SHOW` s ("CARD FOUND: NAME" and
