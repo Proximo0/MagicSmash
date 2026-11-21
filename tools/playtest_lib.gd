@@ -23,6 +23,16 @@ var _party_heroes: Array = []
 ## --hero: the classes every persona x wizards group is played with, each [Classes index, Races index] or [] (none).
 var _heroes: Array = [[]]
 const APPRENTICE := -1
+## --profile: a saved profile (a career checkpoint, tools/career.gd) every run starts from: World.apply_meta of its
+## bonuses for every seat, and each human seat (in seat order) plays one of its heroes (the last one again when
+## there are more seats than heroes). Null: no meta, level 1 heroes as before.
+var _profile: Profile = null
+## Set by the career tool for each run (or by --profile): the meta bonuses applied to every seat ({}: none) and
+## slot -> a saved hero's Hero.to_dict() for human seats (in place of a level 1 Hero.make of the seat's class).
+var _bonuses: Dictionary = {}
+var _seat_heroes: Dictionary = {}
+## The World of the last _play, for the career tool's booking (Profile.finish_run).
+var _last_world: World = null
 
 
 ## Runs the whole playtest; returns the process exit code.
@@ -95,6 +105,11 @@ func _parse_args() -> bool:
 			_seal = int(v)
 		elif arg.begins_with("--json="):
 			_json = v
+		elif arg.begins_with("--profile="):
+			_profile = load_profile(v)
+			if _profile == null:
+				push_error("cannot read profile " + v)
+				return false
 		elif arg.begins_with("--hero="):
 			_heroes.clear()
 			for x: String in v.split(","):
@@ -175,10 +190,35 @@ func _make_tune() -> Tuning:
 	return tune
 
 
+## A Profile from a JSON file (Profile.to_dict, as the career tool's checkpoints write it), or null.
+static func load_profile(path: String) -> Profile:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return null
+	var d: Variant = JSON.parse_string(f.get_as_text())
+	return Profile.from_dict(d) if d is Dictionary else null
+
+
+## --profile: its bonuses and, for each human seat of a run with `party` seats, one of its heroes.
+func _profile_setup(wizards: int, party: Array[int]) -> void:
+	if _profile == null:
+		return
+	_bonuses = _profile.bonuses()
+	_seat_heroes = {}
+	var n: int = 0
+	for s: int in range(wizards):
+		if s < party.size() and party[s] == APPRENTICE:
+			continue
+		_seat_heroes[s] = (_profile.heroes[mini(n, _profile.heroes.size() - 1)] as Hero).to_dict()
+		n += 1
+
+
 # ================================================================= RUN ===
 ## One run. `classes` holds each seat's hero [Classes index, Races index] or [] (no class: as before). A human seat
 ## with a class gets a level 1 Hero.make of it after World.new (where Arena would apply_meta first; the playtest
-## applies no meta); an apprentice seat with one is seated with that class and the World makes it the hero.
+## applies no meta); an apprentice seat with one is seated with that class and the World makes it the hero. With
+## _bonuses (the career tool, --profile) every seat gets World.apply_meta of them first, and a human seat in
+## _seat_heroes plays that saved hero instead.
 func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], classes: Array = []) -> Dictionary:
 	var slots: Array = range(wizards)
 	var seats: Dictionary = {}
@@ -187,9 +227,15 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 		if s < party.size() and party[s] == APPRENTICE:
 			seats[s] = {"ai": true} if hero.is_empty() else {"ai": true, "cls": hero[0], "race": hero[1], "cls_level": 1}
 	var w := World.new(slots, seed_value, _make_tune(), {}, seats)
+	_last_world = w
+	_profile_setup(wizards, party)
+	if not _bonuses.is_empty():
+		w.apply_meta(_bonuses)
 	for s: int in slots:
 		var hero: Array = classes[s] if s < classes.size() else []
-		if not seats.has(s) and not hero.is_empty():
+		if not seats.has(s) and _seat_heroes.has(s):
+			w.apply_hero(w.players[s], _seat_heroes[s])
+		elif not seats.has(s) and not hero.is_empty():
 			var p: World.Player = w.players[s]
 			w.apply_hero(p, Hero.make(int(hero[1]), int(hero[0]), p.wizard).to_dict())
 	w.apply_seal(_seal)
