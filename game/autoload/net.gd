@@ -22,7 +22,8 @@ var mode := Mode.OFFLINE
 ## cls_level:int}. An ai row is an apprentice (device G.DEV_AI, add_apprentice) the host plays. An away row is a
 ## human seat whose device has been silent for Tuning.seat_silence s: the host plays it as an apprentice until the
 ## device speaks again (check_silence). A human seat of a played run also has hero (the cleaned Hero.to_dict) and
-## race, cls, look, cls_level (the hero's level) copied from it; an apprentice's hero is {} and those stay 0.
+## race, cls, look, cls_level (the hero's level) copied from it. An apprentice's hero is {}; it carries cls (the
+## role it fills, apprentice_class), race 0 and cls_level 1, and the World makes it that hero (WorldApprentices).
 var roster: Array = []
 ## This machine's seats' heroes: device -> index into Save.profile.heroes, or -1 for a guest (Hero.new(), earns
 ## nothing). Empty in a scripted run, so those seats get no hero (unless force_heroes, for tests).
@@ -34,6 +35,9 @@ var kept_apprentices: Array[int] = []
 ## (send_events), never inside the unreliable snapshot.
 const RELIABLE_EVENTS: Array[int] = [World.EV_VICTORY, World.EV_RESULTS, World.EV_GAMEOVER, World.EV_CARD, World.EV_CHEST,
 	World.EV_PICK]
+## The roles an apprentice fills, first missing first, and the class that fills each: [Classes.ROLE_*, Classes.*].
+const APPRENTICE_ROLES: Array = [[Classes.ROLE_TANK, Classes.KNIGHT], [Classes.ROLE_HEALER, Classes.PRIEST],
+	[Classes.ROLE_RANGED, Classes.ARCHER], [Classes.ROLE_DAMAGE, Classes.MAGE]]
 ## slot -> Time.get_ticks_msec() when its device last spoke (host: remote packets and hellos, connected pads).
 var _heard := {}
 var _hello_timer := 0.0
@@ -212,6 +216,7 @@ func _add_to_roster(peer: int, device: int) -> int:
 			r.device = device
 			r.ai = false
 			r.away = false
+			r.merge({"race": 0, "cls": 0, "look": 0, "cls_level": 0, "hero": {}}, true) # the apprentice's class leaves with it
 			_heard[int(r.slot)] = Time.get_ticks_msec()
 			_seat_local_hero(r)
 			return int(r.slot)
@@ -223,7 +228,8 @@ func _add_to_roster(peer: int, device: int) -> int:
 	for s in G.MAX_PLAYERS:
 		if not used.has(s):
 			roster.append({"slot": s, "peer": peer, "device": device, "wizard": Wizards.first_free(s, _wizards_taken(-1)),
-				"ai": ai, "away": false, "race": 0, "cls": 0, "look": 0, "cls_level": 0, "hero": {}})
+				"ai": ai, "away": false, "race": 0, "cls": apprentice_class() if ai else 0, "look": 0, "cls_level": 1 if ai else 0,
+				"hero": {}})
 			roster.sort_custom(func(a, b): return a.slot < b.slot)
 			_heard[s] = Time.get_ticks_msec()
 			_seat_local_hero(_row_of(s))
@@ -376,6 +382,19 @@ func add_apprentice() -> int:
 	if s >= 0:
 		_push_roster()
 	return s
+
+## The class a new apprentice takes: the one that fills the party's first missing role, in APPRENTICE_ROLES order
+## (a solo mage's first apprentice is a KNIGHT, the second a PRIEST, the third an ARCHER); a PALADIN counts as a
+## tank. Every role filled: a MAGE. It plays as a HUMAN of class level 1 (WorldApprentices.take_class).
+func apprentice_class() -> int:
+	var have: Array[int] = []
+	for r: Dictionary in roster:
+		var role := Classes.role(int(r.get("cls", 0)))
+		have.append(Classes.ROLE_TANK if role == Classes.ROLE_SUPPORT else role)
+	for i: int in range(APPRENTICE_ROLES.size()):
+		if not have.has(int(APPRENTICE_ROLES[i][0])):
+			return int(APPRENTICE_ROLES[i][1])
+	return Classes.MAGE
 
 ## Unseats an apprentice: `slot`, or the highest apprentice by default. False when there is none to remove.
 func remove_apprentice(slot := -1) -> bool:

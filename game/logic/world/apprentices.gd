@@ -10,6 +10,8 @@ extends RefCounted
 ## shrine bets or fate cards; the coins and gems it touches go to the nearest human; it takes a potion only at
 ## apprentice_potion_hp hearts or fewer and only while no standing human is hurt. Fallen, it gets up by itself
 ## after apprentice_up_time seconds without losing a life, except under DARKNESS. It answers a human's call.
+## Seated with a class (Net.add_apprentice: the party's first missing role), it becomes a level 1 hero of it on the
+## run's first step (take_class) and its brain plays that class; the rules above stack on top.
 
 
 ## `inputs` with an input for every apprentice that has none (the caller's dictionary when nothing is added).
@@ -18,6 +20,9 @@ static func with_inputs(w: World, inputs: Dictionary) -> Dictionary:
 	var copied := false
 	var ctx: Dictionary = {}
 	var think := w._tick % SmashBot.APPRENTICE_TICKS == 0
+	if w._tick == 0: # the run's first step: apprentices seated with a class become heroes of it
+		for p: World.Player in w._plist:
+			take_class(w, p)
 	for p: World.Player in w._plist:
 		if not p.ai or inputs.has(p.slot):
 			continue
@@ -33,6 +38,17 @@ static func with_inputs(w: World, inputs: Dictionary) -> Dictionary:
 			ctx = SmashBot.shared_senses(w)
 		out[p.slot] = bot.apprentice_input(w, p, ctx if decide else {})
 	return out
+
+
+## An apprentice seated with a class (its seat's cls_level 1 or more: Net.add_apprentice) becomes a hero of that
+## class and race at that level on the run's first step (with_inputs; after apply_meta, as Arena applies a human's
+## hero). A seat with no class level, and an away human seat, keep what they have.
+static func take_class(w: World, p: World.Player) -> void:
+	if not p.ai or p.away or p.cls_level <= 0:
+		return
+	var h := Hero.make(p.race, p.cls, p.wizard) # a mage keeps the spell of her colour
+	h.level = p.cls_level
+	w.apply_hero(p, h.to_dict())
 
 
 ## True if wizard `p` may pick up a pickup of `kind` (always, for a human).

@@ -111,6 +111,52 @@ const APPRENTICE_KINDS: Array[int] = [World.PK_XP, World.PK_COIN, World.PK_GEM, 
 ## An answered call (a fallen human pressed her nova) pulls this much harder than a rescue the bot chose itself.
 const CALL_VALUE: float = 4.5
 
+## Class play (docs/bots.md "Class play"): a wizard with a hero plays its role and uses the skill on its nova button
+## for what it does. A wizard with no hero, and a MAGE, play as before (NOVA, ROLE_PLAY's damage row is neutral).
+## By Classes.ROLE_*: caution and margin multiply the persona's, kite the circling bonus. A tank and a healer play
+## their role only beside a teammate; solo they keep the damage row (but a solo archer still keeps range).
+const ROLE_PLAY: Array = [
+	{"caution": 1.0, "margin": 1.0, "kite": 1.0, "party_only": false}, # DAMAGE: as before
+	{"caution": 0.5, "margin": 0.7, "kite": 0.0, "party_only": true}, # TANK: wades in, never kites away
+	{"caution": 1.15, "margin": 1.5, "kite": 1.0, "party_only": false}, # RANGED: keeps range
+	{"caution": 1.2, "margin": 1.25, "kite": 1.0, "party_only": true}, # HEALER: stays out of the front
+	{"caution": 0.6, "margin": 0.8, "kite": 0.0, "party_only": true}, # TANK AND SUPPORT (paladin): a tank
+]
+## While a skill keeps it unhurt (Player.invuln) a classed bot minds enemy bodies this much.
+const UNHURT_CAUTION: float = 0.3
+## A tank guards the ally with the most enemies within GUARD_R (the weakest wins a tie: GUARD_WEAK per missing share
+## of her hearts), standing GUARD_GAP px from her toward that crowd; the pull is GUARD_VALUE (a pickup's scale).
+const GUARD_R: float = 90.0
+const GUARD_GAP: float = 65.0
+const GUARD_WEAK: float = 2.0
+const GUARD_VALUE: float = 2.2
+## A healer keeps the most hurt ally within HEAL_REACH px (her light is a zone near her), on the far side of her from
+## the enemies, HEAL_SPOT of the reach away; the pull is HEAL_VALUE.
+const HEAL_REACH: float = 40.0
+const HEAL_SPOT: float = 0.6
+const HEAL_VALUE: float = 2.0
+## PROVOKE: at least PROVOKE_CROWD enemies within its radius that are within ALLY_NEAR px of an ally, or the boss
+## within BOSS_ON_ALLY px of an ally while within the radius.
+const PROVOKE_CROWD := 3
+const ALLY_NEAR: float = 40.0
+const BOSS_ON_ALLY: float = 40.0
+## VOLLEY: at least VOLLEY_CROWD enemies within VOLLEY_R px and cornered, or cornered at the persona's nova hearts.
+const VOLLEY_CROWD := 4
+const VOLLEY_R: float = 40.0
+## SANCTUARY: hearts it would heal (each standing hero's missing ones, up to its heal) plus RISE_WORTH per fallen ally
+## in its radius, at least the heal solo and the heal + SANCTUARY_PARTY_EXTRA beside a teammate; or any hero at
+## LAST_HEART hearts with a heart to gain.
+const RISE_WORTH: float = 4.0
+const SANCTUARY_PARTY_EXTRA: float = 1.0
+const LAST_HEART := 1
+## AEGIS: at least AEGIS_HEROES heroes within its radius about to be hit (an enemy body within HIT_SOON px of
+## touching, or the boss within BOSS_ON_ALLY), or one at LAST_HEART hearts.
+const AEGIS_HEROES := 2
+const HIT_SOON: float = 10.0
+## After a skill the bot leaves the button alone for the skill's taunt or safe seconds, at least SKILL_GAP, plus its
+## reaction delay (it sees the effect only then).
+const SKILL_GAP: float = 0.6
+
 static var _dirs: PackedVector2Array = PackedVector2Array()
 
 var rng := RandomNumberGenerator.new()
@@ -186,6 +232,19 @@ var apprentice: bool = false
 var _human_hurt: bool = false
 var _potion_hp: int = 2
 var _answering: Dictionary = {} # slot -> true: fallen humans whose call this apprentice is answering
+
+# Class play, read from the World on each think (decide_in_world, apprentice_input).
+var _class_play: bool = false # a hero other than a MAGE
+var _skill: int = Classes.SK_NOVA
+var _role: int = Classes.ROLE_DAMAGE
+var _role_row: Dictionary = ROLE_PLAY[Classes.ROLE_DAMAGE]
+var _unhurt: bool = false
+var _mate_hp := PackedInt32Array() # parallel to _mates
+var _mate_max := PackedInt32Array()
+var _fallen_at: Array = [] # fallen allies' positions (shared_senses)
+var _skill_until: float = -1.0 # the button is left alone until then
+var _skill_miss: bool = false # the persona forgot the skill on this chance (one roll per chance, like a panic)
+var _volley_dir := Vector2.ZERO # the roll's heading, set when a VOLLEY is chosen
 
 ## Read-only diagnostics of the last think (tests, tools).
 var last_danger: float = 0.0
@@ -541,7 +600,15 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_max_hp = p.max_hp
 	_bombs = p.bombs
 	_speed = w.tune.player_speed * Upgrades.move_mul(p.upgrades) * (1.0 + float(p.armor[Loot.ST_SWIFT])) \
-		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0)
+		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0) * p.walk_mul
+	_skill = p.skill
+	_role = Classes.role(p.cls)
+	_class_play = _skill != Classes.SK_NOVA # every class but the MAGE (and a wizard with no hero) has its own skill
+	_role_row = ROLE_PLAY[_role] if _role >= 0 and _role < ROLE_PLAY.size() else ROLE_PLAY[Classes.ROLE_DAMAGE]
+	_unhurt = p.invuln > 0.0
+	_mate_hp.clear()
+	_mate_max.clear()
+	_fallen_at = ctx.fallen
 	_arena = Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8))
 	_hz = ctx.hz
 	_human_hurt = bool(ctx.human_hurt)
@@ -557,6 +624,8 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 		if q == p:
 			continue
 		_mates.append(q.pos)
+		_mate_hp.append(q.hp)
+		_mate_max.append(q.max_hp)
 		lo = Vector2(maxf(lo.x, q.pos.x - w.tune.leash_x), maxf(lo.y, q.pos.y - w.tune.leash_y))
 		hi = Vector2(minf(hi.x, q.pos.x + w.tune.leash_x), minf(hi.y, q.pos.y + w.tune.leash_y))
 	_leash = Rect2(lo, hi - lo)
@@ -596,6 +665,8 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 		if shrine.is_finite():
 			_consider_shrine(me, shrine)
 	_consider_rescue(me, ctx.fallen)
+	if _class_play and not _mates.is_empty():
+		_consider_role(me)
 	if apprentice:
 		_answer_calls(me, ctx)
 
@@ -701,6 +772,17 @@ func _think(me: Vector2, time: float) -> void:
 	var goal_d: float = _goal.distance_to(me) if _goal.is_finite() else 0.0
 	var goal_w: float = W_GOAL * clampf(_goal_best, 0.4, 2.0)
 	var anchor_d: float = me.distance_to(_anchor)
+	# Class play: the role's caution, body margin and circling (neutral for a wizard with no hero).
+	var caution: float = _caution
+	var margin: float = _margin
+	var kite_w: float = W_KITE
+	if _class_play:
+		if not bool(_role_row.party_only) or not _mates.is_empty():
+			caution *= float(_role_row.caution)
+			margin *= float(_role_row.margin)
+			kite_w *= float(_role_row.kite)
+		if _unhurt:
+			caution *= UNHURT_CAUTION
 	# The closest approach is looked for from one reaction step on: an overlap right now is the same for every heading.
 	var now: float = minf(REACT_STEP, look)
 	# Hazard rows: which way to lean out of the one it stands in (zero when none threatens).
@@ -735,8 +817,8 @@ func _think(me: Vector2, time: float) -> void:
 			var rv2: float = rv.length_squared()
 			var t: float = clampf(-rel0.dot(rv) / rv2, now, look) if rv2 > 0.0001 else now
 			var gap: float = (rel0 + rv * t).length() - _tr[k] - BODY
-			if gap < _margin:
-				var x: float = 1.0 - gap / _margin
+			if gap < margin:
+				var x: float = 1.0 - gap / margin
 				var hit: float = x * x * (2.0 - t / look)
 				danger += hit
 				worst = maxf(worst, hit)
@@ -745,7 +827,7 @@ func _think(me: Vector2, time: float) -> void:
 				crowd += 1.0 - ce / OPEN_RADIUS
 		# The worst contact counts in full, the rest of the crowd only in part: one body met head-on hurts more
 		# than many brushed past.
-		danger = (worst + CROWD_SHARE * (danger - worst)) * W_DANGER * _caution
+		danger = (worst + CROWD_SHARE * (danger - worst)) * W_DANGER * caution
 		# Enemy shots: they fly straight, so the closest approach is exact.
 		var shot: float = 0.0
 		var shot_worst: float = 0.0
@@ -779,7 +861,7 @@ func _think(me: Vector2, time: float) -> void:
 		if anchor_d > _anchor_r and not _goal.is_finite():
 			score += W_ANCHOR * (anchor_d - end.distance_to(_anchor)) / maxf(travel, 1.0)
 		if _tn > 0:
-			score += W_KITE * d.dot(tangent)
+			score += kite_w * d.dot(tangent)
 		for m: Vector2 in _mates:
 			var md: float = end.distance_to(m)
 			if md < MATE_ROOM:
@@ -819,7 +901,10 @@ func _think(me: Vector2, time: float) -> void:
 	# When the bot is boxed in it circles the other way next time.
 	if best_danger > CORNERED * 0.5 and rng.randf() < 0.1:
 		_spin = -_spin
-	var nova: bool = _decide_nova(best_danger)
+	var nova: bool = _decide_skill(me, best_danger, time) if _class_play else _decide_nova(best_danger)
+	if nova and _skill == Classes.SK_VOLLEY:
+		want = _volley_dir # the roll goes along her movement: away from the crowd
+		_dir = want
 	var aim := Vector2.ZERO
 	if _boss.is_finite() and persona != NOVICE and (_nd > 60.0 or _near == _boss) and _boss.distance_to(me) < AIM_RANGE:
 		aim = _boss - me
@@ -868,6 +953,179 @@ func _with_my_pick(inp: PackedFloat32Array, p: World.Player) -> PackedFloat32Arr
 	out.append(pick_card(p.choices, p.upgrades))
 	out.append(p.offer)
 	return out
+
+
+# ========================================================== CLASS PLAY ===
+## A tank guards the ally with the most enemies near her (the weakest on a tie), between her and that crowd; a
+## healer keeps the most hurt ally inside her light, on the far side from the enemies. Called with teammates only.
+func _consider_role(me: Vector2) -> void:
+	var at := Vector2.INF
+	var worth: float = 0.0
+	if _role == Classes.ROLE_TANK or _role == Classes.ROLE_SUPPORT:
+		var bs: float = 0.0
+		for m: int in range(_mates.size()):
+			var n: int = 0
+			var c := Vector2.ZERO
+			for k: int in range(_tn):
+				if _tp[k].distance_squared_to(_mates[m]) < GUARD_R * GUARD_R:
+					n += 1
+					c += _tp[k]
+			if n == 0:
+				continue
+			var s: float = float(n) + GUARD_WEAK * (1.0 - float(_mate_hp[m]) / float(maxi(1, _mate_max[m])))
+			if s > bs:
+				bs = s
+				at = _mates[m] + (c / float(n) - _mates[m]).normalized() * GUARD_GAP
+		worth = GUARD_VALUE
+	elif _role == Classes.ROLE_HEALER:
+		var hurt: int = -1
+		var hs: float = 0.0
+		for m: int in range(_mates.size()):
+			var missing: float = 1.0 - float(_mate_hp[m]) / float(maxi(1, _mate_max[m]))
+			if missing > hs:
+				hs = missing
+				hurt = m
+		if hurt < 0:
+			return
+		var ally: Vector2 = _mates[hurt]
+		var n: int = 0
+		var c := Vector2.ZERO
+		for k: int in range(_tn):
+			if _tp[k].distance_squared_to(ally) < GUARD_R * GUARD_R:
+				n += 1
+				c += _tp[k]
+		var side: Vector2 = (ally - c / float(n)).normalized() if n > 0 else (me - ally).normalized()
+		at = ally + side * HEAL_REACH * HEAL_SPOT
+		worth = HEAL_VALUE
+	if at.is_finite() and worth > _goal_best:
+		_goal = at
+		_goal_stand = false
+		_goal_best = worth
+
+
+## The skill on the nova button, used for what it does (see the PROVOKE..AEGIS constants). Every class also uses it
+## to save itself when cornered, like the nova. One forget roll per chance (the persona's nova_forget).
+func _decide_skill(me: Vector2, danger: float, time: float) -> bool:
+	if _bombs <= 0 or time < _skill_until:
+		return false
+	var cornered: bool = danger > CORNERED
+	var save: bool = cornered and (_hp <= _nova_hp or (_nova_save and _hp <= _max_hp - 1 and danger > CORNERED * 1.6))
+	var want: bool = save
+	match _skill:
+		Classes.SK_PROVOKE:
+			want = save or _provoke_worth(me)
+		Classes.SK_VOLLEY:
+			want = save or (cornered and _crowd(me, VOLLEY_R) >= VOLLEY_CROWD)
+		Classes.SK_SANCTUARY:
+			want = _sanctuary_worth(me)
+		Classes.SK_AEGIS:
+			want = save or _aegis_worth(me)
+	if not want:
+		_skill_miss = false
+		return false
+	if _skill_miss:
+		return false
+	if rng.randf() < _nova_forget:
+		_skill_miss = true
+		return false
+	var busy: float = Classes.skill_value(_skill, "taunt", Classes.skill_value(_skill, "safe"))
+	_skill_until = time + _react + maxf(SKILL_GAP, busy)
+	if _skill == Classes.SK_VOLLEY:
+		_volley_dir = _roll_dir(me)
+	return true
+
+
+## Sensed enemies within `r` px.
+func _crowd(me: Vector2, r: float) -> int:
+	var n: int = 0
+	for k: int in range(_tn):
+		if _tp[k].distance_squared_to(me) < r * r:
+			n += 1
+	return n
+
+
+## PROVOKE pays when several enemies in its radius are on allies, or the boss is on an ally within it.
+func _provoke_worth(me: Vector2) -> bool:
+	if _mates.is_empty():
+		return false
+	var r: float = Classes.skill_value(Classes.SK_PROVOKE, "radius")
+	var n: int = 0
+	for k: int in range(_tn):
+		if _tp[k] == _boss or _tp[k].distance_to(me) > r:
+			continue
+		for m: Vector2 in _mates:
+			if _tp[k].distance_to(m) < ALLY_NEAR:
+				n += 1
+				break
+	if n >= PROVOKE_CROWD:
+		return true
+	if _boss.is_finite() and _boss.distance_to(me) <= r:
+		for m: Vector2 in _mates:
+			if _boss.distance_to(m) < BOSS_ON_ALLY:
+				return true
+	return false
+
+
+## SANCTUARY pays when the hearts it heals (and the fallen it raises) are worth a charge, or a hero is on her last.
+func _sanctuary_worth(me: Vector2) -> bool:
+	var heal: float = Classes.skill_value(Classes.SK_SANCTUARY, "heal")
+	var r: float = Classes.skill_value(Classes.SK_SANCTUARY, "radius")
+	var gain: float = minf(heal, float(_max_hp - _hp))
+	var last: bool = _hp <= LAST_HEART and _hp < _max_hp
+	for m: int in range(_mates.size()):
+		gain += minf(heal, float(_mate_max[m] - _mate_hp[m]))
+		last = last or (_mate_hp[m] <= LAST_HEART and _mate_hp[m] < _mate_max[m])
+	for at: Vector2 in _fallen_at:
+		if at.distance_to(me) <= r:
+			gain += RISE_WORTH
+	var need: float = heal + (SANCTUARY_PARTY_EXTRA if not _mates.is_empty() else 0.0)
+	return gain >= need or last
+
+
+## AEGIS pays when heroes in its radius (her too) are about to be hit, or one on her last heart is.
+func _aegis_worth(me: Vector2) -> bool:
+	var r: float = Classes.skill_value(Classes.SK_AEGIS, "radius")
+	var n: int = 0
+	if _hit_soon(me):
+		if _hp <= LAST_HEART:
+			return true
+		n += 1
+	for m: int in range(_mates.size()):
+		if _mates[m].distance_to(me) <= r and _hit_soon(_mates[m]):
+			if _mate_hp[m] <= LAST_HEART:
+				return true
+			n += 1
+	return n >= AEGIS_HEROES
+
+
+## True when a sensed enemy body is within HIT_SOON px of touching a hero at `at`, or the boss is on her.
+func _hit_soon(at: Vector2) -> bool:
+	if _boss.is_finite() and _boss.distance_to(at) < BOSS_ON_ALLY:
+		return true
+	for k: int in range(_tn):
+		if _tp[k].distance_to(at) - _tr[k] - BODY < HIT_SOON:
+			return true
+	return false
+
+
+## A VOLLEY's roll: straight away from the sensed crowd, else the inside heading closest to that.
+func _roll_dir(me: Vector2) -> Vector2:
+	var c := Vector2.ZERO
+	for k: int in range(_tn):
+		c += _tp[k]
+	var away: Vector2 = (me - c / float(_tn)).normalized() if _tn > 0 else _dir
+	if away == Vector2.ZERO:
+		away = _facing
+	var roll: float = Classes.skill_value(Classes.SK_VOLLEY, "roll")
+	if _arena.has_point(me + away * roll):
+		return away
+	var best := away
+	var bs: float = -INF
+	for d: Vector2 in _dirs:
+		if _arena.has_point(me + d * roll) and d.dot(away) > bs:
+			bs = d.dot(away)
+			best = d
+	return best
 
 
 # =============================================================== PICKS ===

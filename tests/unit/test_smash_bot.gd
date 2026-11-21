@@ -232,3 +232,118 @@ func test_a_fallen_bot_drifts_to_the_nearest_standing_mate() -> void:
 	var bot := SmashBot.new(1)
 	var inp := bot.spirit_input(me, [Vector2(160, 100)])
 	assert_eq([inp[0], inp[1], inp[4], inp[5]], [1.0, 0.0, 0.0, float(bot.nova_count)], "walks, never casts or calls")
+
+
+## A checksum of what classless bots press (three casual wizards and a classless apprentice, seed 5, 10 s of run
+## clock, the apprentice's input included): the pin was taken
+## before the class play landed, so a seat with no class plays exactly as before. Refresh it only for a change
+## that is meant to move classless bots (the world itself: spells, enemies).
+const CLASSLESS_PIN := 348383321
+
+
+func test_a_seat_with_no_class_plays_as_before() -> void:
+	var w := World.new([0, 1, 2, 3], 5, null, {}, {3: {"ai": true}})
+	var bots: Array[SmashBot] = []
+	for s: int in range(3):
+		bots.append(SmashBot.new(50 + s, SmashBot.CASUAL))
+	var sum: int = 0
+	for i: int in range(600):
+		var inputs: Dictionary = {}
+		for s: int in range(3):
+			inputs[s] = bots[s].decide_in_world(w, s)
+		inputs = WorldApprentices.with_inputs(w, inputs)
+		for s: int in range(4):
+			var inp: PackedFloat32Array = inputs[s]
+			for k: int in range(6):
+				sum = (sum * 31 + int(roundf(inp[k] * 1000.0)) + i) % 1000000007
+		w.step(DT, inputs)
+	assert_eq(sum, CLASSLESS_PIN)
+
+
+## A World of heroes for the class-play tests: `classes` slot -> Classes index (-1: no hero), placed at `at` (slot ->
+## offset from the arena centre), unhurt timers cleared, goblins (immortal, standing) at `goblins` (offsets).
+func _heroes(classes: Dictionary, at: Dictionary, goblins: Array) -> World:
+	var w := World.new(classes.keys(), 9)
+	w.phase_t = 100.0 # the intro holds: no horde of its own
+	var c := G.ARENA.get_center()
+	for s: int in classes:
+		var p: World.Player = w.players[s]
+		if int(classes[s]) >= 0:
+			w.apply_hero(p, Hero.make(Races.HUMAN, int(classes[s]), p.wizard).to_dict())
+		p.pos = c + (at[s] as Vector2)
+		p.invuln = 0.0
+	for g: Vector2 in goblins:
+		var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, c + g)
+		e.hp = 1e6
+	w._build_grid()
+	return w
+
+
+## True when a veteran (it never forgets) in slot `slot` presses its skill on its first decision (which acts at once).
+func _presses(w: World, slot: int) -> bool:
+	var bot := SmashBot.new(3, SmashBot.VETERAN)
+	return int(bot.decide_in_world(w, slot)[5]) > 0
+
+
+func _ring(center: Vector2, r: float, n: int, from: float = 0.0, arc: float = TAU) -> Array:
+	var out: Array = []
+	for i: int in range(n):
+		out.append(center + Vector2.from_angle(from + arc * i / n) * r)
+	return out
+
+
+func test_provoke_when_enemies_are_on_an_ally() -> void:
+	var on_mate := _heroes({0: Classes.KNIGHT, 1: -1}, {0: Vector2(40, 0), 1: Vector2.ZERO}, _ring(Vector2.ZERO, 16.0, 4))
+	assert_true(_presses(on_mate, 0), "several enemies on an ally")
+	var calm := _heroes({0: Classes.KNIGHT, 1: -1}, {0: Vector2(40, 0), 1: Vector2.ZERO}, [Vector2(-150, 0)])
+	assert_false(_presses(calm, 0), "nothing near anyone")
+	var solo := _heroes({0: Classes.KNIGHT}, {0: Vector2.ZERO}, [Vector2(60, 0), Vector2(-60, 10)])
+	assert_false(_presses(solo, 0), "solo and in no danger: nothing to gain")
+
+
+func test_volley_rolls_away_from_a_crowd() -> void:
+	# Goblins close on the archer's right half: she rolls left, out of them.
+	var w := _heroes({0: Classes.ARCHER}, {0: Vector2.ZERO}, _ring(Vector2.ZERO, 15.0, 7, -PI * 0.5, PI))
+	var bot := SmashBot.new(3, SmashBot.VETERAN)
+	var out: PackedFloat32Array = bot.decide_in_world(w, 0)
+	assert_eq(int(out[5]), 1, "a crowd on her: VOLLEY")
+	assert_true(out[0] < -0.5, "rolling away from the crowd (%.2f, %.2f)" % [out[0], out[1]])
+	var open := _heroes({0: Classes.ARCHER}, {0: Vector2.ZERO}, [Vector2(80, 0)])
+	assert_false(_presses(open, 0), "one goblin far off: keep the charge")
+
+
+func test_sanctuary_when_the_party_is_hurt_or_an_ally_is_down() -> void:
+	var hurt := _heroes({0: Classes.PRIEST, 1: -1}, {0: Vector2(30, 0), 1: Vector2.ZERO}, [])
+	hurt.players[1].hp = 2
+	hurt.players[0].hp -= 1
+	assert_true(_presses(hurt, 0), "four hearts to heal")
+	var full := _heroes({0: Classes.PRIEST, 1: -1}, {0: Vector2(30, 0), 1: Vector2.ZERO}, [])
+	full.players[1].hp -= 1
+	assert_false(_presses(full, 0), "one heart missing: not worth a charge")
+	var fallen := _heroes({0: Classes.PRIEST, 1: -1, 2: -1}, {0: Vector2(30, 0), 1: Vector2.ZERO, 2: Vector2(0, 40)}, [])
+	fallen.hurt_player(fallen.players[1], 99)
+	assert_true(fallen.players[1].down)
+	assert_true(_presses(fallen, 0), "a fallen ally in her radius rises")
+
+
+func test_aegis_when_allies_beside_her_are_about_to_be_hit() -> void:
+	var goblins: Array = [Vector2(-14, 0), Vector2(0, -14), Vector2(36, -14), Vector2(36, 14)]
+	var hit := _heroes({0: Classes.PALADIN, 1: -1}, {0: Vector2(36, 0), 1: Vector2.ZERO}, goblins)
+	assert_true(_presses(hit, 0), "two heroes in her radius about to be hit")
+	var far := _heroes({0: Classes.PALADIN, 1: -1}, {0: Vector2(36, 0), 1: Vector2.ZERO}, [Vector2(-120, 0)])
+	assert_false(_presses(far, 0), "nobody about to be hit")
+
+
+func test_a_tank_guards_the_ally_under_attack_and_a_healer_keeps_close() -> void:
+	# The knight starts beside a mage away from the goblins on a second mage: it walks toward that crowd.
+	var w := _heroes({0: Classes.KNIGHT, 1: -1, 2: -1}, {0: Vector2(-60, 0), 1: Vector2(-80, 0), 2: Vector2(40, 0)},
+		_ring(Vector2(40, 0), 30.0, 3, -0.6, 1.2))
+	var bot := SmashBot.new(3, SmashBot.VETERAN)
+	var out: PackedFloat32Array = bot.decide_in_world(w, 0)
+	assert_true(out[0] > 0.5, "the tank heads for the ally under attack (%.2f, %.2f)" % [out[0], out[1]])
+	# The priest, far from a hurt ally, walks to her.
+	var h := _heroes({0: Classes.PRIEST, 1: -1}, {0: Vector2(-90, 0), 1: Vector2(20, 0)}, [Vector2(120, 0)])
+	h.players[1].hp = 2
+	var pb := SmashBot.new(3, SmashBot.VETERAN)
+	var po: PackedFloat32Array = pb.decide_in_world(h, 0)
+	assert_true(po[0] > 0.5, "the healer closes on the hurt ally (%.2f, %.2f)" % [po[0], po[1]])
