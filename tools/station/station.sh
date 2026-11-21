@@ -54,7 +54,8 @@ job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error,
 }
 job_checks() {
   # The 10 s per-test limit is CI's to enforce; a slow station gets room (STATION_SLOW_TEST_MS, default 30000).
-  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" tools/check_all.sh 2>&1)
+  # Same for the horde sim's CPU budget, which is set for CI's processor (STATION_SIM_BUDGET_SCALE, default 4).
+  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-4}" tools/check_all.sh 2>&1)
   [[ "$(tail -1 <<<"$out")" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
   echo "JOB checks FAIL"
   grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -6 | cut -c1-160 | sed 's/^ */  /'
