@@ -2,7 +2,7 @@ class_name PlayerInput
 ## Reads one device into a compact input packet:
 ## [move_x, move_y, aim_x, aim_y, fire(0/1), bomb_count]
 ## Keyboard: WASD move, arrow keys fire in 8 directions (Smash TV style),
-## or mouse to aim + left click to fire. Space / right click = Nova.
+## or mouse to aim + left click to fire. Space / right click = Nova (Shift is left alone: Steam's overlay key).
 ## Gamepad: left stick move, right stick aim + fire, RB, RT or A = Nova. LB and LT are not read here: they open
 ## the level-up card tray (Arena).
 
@@ -32,7 +32,7 @@ static func read(device: int, player_screen_pos: Vector2, viewport: Viewport) ->
 		elif Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and not G.touch_active:
 			aim = viewport.get_mouse_position() - player_screen_pos
 			fire = true
-		bomb = Input.is_physical_key_pressed(KEY_SPACE) or Input.is_physical_key_pressed(KEY_SHIFT) \
+		bomb = Input.is_physical_key_pressed(KEY_SPACE) \
 			or (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and not G.touch_active)
 		if touch and G.touch_active:
 			if touch.move_vec.length() > 0.15:
@@ -63,11 +63,32 @@ static func read(device: int, player_screen_pos: Vector2, viewport: Viewport) ->
 	if move.length() > 1.0:
 		move = move.normalized()
 	# Bombs are sent as a press counter so a dropped packet never loses one.
-	var held: bool = _bomb_held.get(device, false)
-	if bomb and not held:
-		bomb_counts[device] = int(bomb_counts.get(device, 0)) + 1
-	_bomb_held[device] = bomb
+	_count_bomb(device, bomb)
 	return PackedFloat32Array([move.x, move.y, aim.x, aim.y, 1.0 if fire else 0.0, float(bomb_counts.get(device, 0))])
+
+## While true no press counts: the arena sets it while a menu is up, so the button that confirms in a menu is no
+## Nova. A button still held when it ends stays held until released.
+static var bomb_muted := false
+
+static func _count_bomb(device: int, bomb: bool) -> void:
+	var held: bool = _bomb_held.get(device, false)
+	if bomb and not held and not bomb_muted:
+		bomb_counts[device] = int(bomb_counts.get(device, 0)) + 1
+	_bomb_held[device] = bomb or bomb_muted
+
+## Treats `device`'s button as already held (the pause menu closed on it), so it casts nothing until released.
+static func swallow_bomb(device: int) -> void:
+	_bomb_held[device] = true
+
+## True for the press that leaves the results screen: confirm, a tap or click, or a fresh arrow key (a held one
+## repeats as an echo and must not).
+static func results_dismiss(event: InputEvent) -> bool:
+	if confirm_device(event) != -99:
+		return true
+	if event is InputEventScreenTouch or event is InputEventMouseButton:
+		return event.pressed
+	return event is InputEventKey and event.pressed and not event.echo \
+		and event.physical_keycode in [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
 
 ## Menu helpers ------------------------------------------------------------
 ## Returns a device id that just pressed "confirm", or -99.

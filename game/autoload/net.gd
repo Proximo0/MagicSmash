@@ -61,6 +61,14 @@ static func clean_name(n: String) -> String:
 func is_host() -> bool:
 	return mode != Mode.CLIENT
 
+## True when the roster holds a seat on another machine. The roster, not the connected peers: an uninvited
+## connection must not un-pause the world.
+func has_remote_players() -> bool:
+	for r in roster:
+		if r.peer != my_peer:
+			return true
+	return false
+
 func is_online() -> bool:
 	return mode != Mode.OFFLINE
 

@@ -44,6 +44,9 @@ func _input(event: InputEvent) -> void:
 	# Switch the on-screen sticks on as soon as a finger touches the screen.
 	if event is InputEventScreenTouch and not touch_active:
 		touch_active = true
+	# A keyboard player presses WASD at once: the last input used wins, so one touch does not end mouse aiming.
+	elif event is InputEventKey and event.pressed and not is_mobile:
+		touch_active = false
 
 func goto_title() -> void:
 	if main:
