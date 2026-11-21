@@ -81,8 +81,8 @@ static func _fire(w: World, h: Hazards.Hazard) -> void:
 		Hazards.ON_BLAST:
 			var dmg: float = float(row[Hazards.K_FOE_DMG]) * WorldWaves._hp_scale(w)
 			for e: World.Enemy in w._query(h.a, h.r + World.CELL):
-				if e.dead or e.id == h.owner or (h.boss and e.flags & Bestiary.F_BOSS):
-					continue # a blast spares its maker, and a boss's blast spares the bosses
+				if e.dead or e.id == h.owner or e.flags & Bestiary.F_BOSS:
+					continue # a blast spares its maker and every boss (a bloat's pop never fells a boss uncredited)
 				if Hazards.contains(h, e.pos):
 					var push: Vector2 = (e.pos - h.a).normalized() * float(row[Hazards.K_FOE_SHOVE])
 					WorldEnemies._damage_enemy(w, e, dmg, h.slot, push, true)
@@ -90,11 +90,14 @@ static func _fire(w: World, h: Hazards.Hazard) -> void:
 			var n: int = h.aux % Hazards.SHOT_KIND
 			for i in n:
 				var dir := Vector2.from_angle(TAU * i / maxi(n, 1))
-				var s := WorldEnemies._eshot(w, h.aux / Hazards.SHOT_KIND, h.a, dir * Hazards.SHOT_SPEED, Hazards.SHOT_R)
+				var s := WorldEnemies._eshot(w, h.aux / Hazards.SHOT_KIND, h.a - Vector2(0, Hazards.SHOT_RISE), dir * Hazards.SHOT_SPEED,
+					Hazards.SHOT_R)
 				if s != null:
 					s.life = Hazards.SHOT_LIFE
 		Hazards.ON_SPAWN:
-			WorldWaves.spawn_enemy(w, h.aux, 0, h.a)
+			var landed := WorldWaves.spawn_enemy(w, h.aux, 0, h.a)
+			if h.aux == Bestiary.SHARD:
+				landed.state = KindsSanctum.SS_IDLE # landed, never a seed again (its FALL row may be cleared)
 
 
 ## The nova clears the regular rows within Hazards.NOVA_CLEAR of `at`.

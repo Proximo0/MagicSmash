@@ -270,12 +270,17 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	return r
 
 
-## What hurt a wizard at `at` (its feet): an enemy shot near it that died this step, else an enemy body touching it,
-## else `other` (a body killed in the same step).
+## What hurt a wizard at `at` (its feet): a hot hazard row she stands in ("hz_fire", ...), an enemy shot near it that
+## died this step, else an enemy body touching it, else `other` (a body killed in the same step).
 func _hit_cause(w: World, at: Vector2, near_shots: Array) -> String:
+	const ROWS := ["mark", "blast", "fire", "flame", "fall", "beam", "burst", "lane", "safe"]
+	for h: Hazards.Hazard in w.hazards:
+		var row: Array = Hazards.KINDS[h.kind]
+		if h.warn <= 0.0 and int(row[Hazards.K_HEARTS]) > 0 and Hazards.contains(h, at) != bool(row[Hazards.K_INVERTED]):
+			return "hz_" + str(ROWS[h.kind])
 	for e_s: Variant in near_shots:
 		if e_s.dead and (e_s.pos as Vector2).distance_to(at + Vector2(0, -6)) < float(e_s.r) + 12.0:
-			const KINDS := ["arrow", "orb", "skull"]
+			const KINDS := ["arrow", "orb", "skull", "sword"]
 			var kind: int = int(e_s.kind)
 			return "shot:" + (KINDS[kind] if kind < KINDS.size() else str(kind)) + ("_boss" if w.boss != null else "")
 	var best: String = "other"
