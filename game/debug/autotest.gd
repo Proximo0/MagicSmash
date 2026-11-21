@@ -59,6 +59,33 @@ var _fall_t := 0.0
 var hazard_at := -1.0
 var _hazard_shots := {}
 const HAZARD_WARN := 2.0
+## --kinds=bloat,coffin[@SECONDS[@RING]]: from that run time (default KINDS_AT) two of each named Bestiary kind stand in a
+## ring KINDS_RING px round the party, KINDS_HP x as tough, again every KINDS_EVERY s. Shots key on what they do:
+## kinds_ring.png once they stand, kinds_<key>_<state>.png the first time a kind is in each state 1..3 (not the guard,
+## whose state is its facing), kinds_row<kind>_warn.png / _hot.png the first time each hazard kind warns (past 40%)
+## or burns; kinds_mid.png 5 s and kinds_late.png KINDS_LATE s in.
+var kinds_shown: Array[int] = []
+var kinds_at := -1.0
+var kinds_ring := 95.0 # --kinds=...@SECONDS@RING: the ring's radius, px (a wide one puts arrowed kinds off screen)
+var _kinds_shots := {}
+var _kinds_next := -1.0
+var _kinds_seen := {} # shot key -> frames its condition has held
+const KINDS_HOLD := 10 # frames a condition holds before its shot (the arena draws a snapshot behind the World)
+const KINDS_AT := 4.0
+const KINDS_RING := 95.0
+const KINDS_HP := 3.0
+const KINDS_EVERY := 12.0
+const KINDS_LATE := 20.0
+## --boss=chandelier|ghostwriter|lich[,PHASE]: the run starts just before that boss's minute (the Lich: the
+## Archlich at the final minute); with PHASE (0, 1, 2) its health is held inside that phase. Each attack step it
+## starts is shot BOSS_SHOT_AFTER s in (<boss>_<step>_warn.png) and once one of its rows is hot (<boss>_<step>_hot.png).
+const BOSS_KEYS := {"chandelier": Bestiary.CHANDELIER, "ghostwriter": Bestiary.GHOSTWRITER, "lich": Bestiary.LICH}
+const BOSS_SHOT_AFTER := 0.45
+var boss_key := ""
+var boss_phase := -1
+var _boss_step := ""
+var _boss_step_t := 0.0
+var _boss_shots := {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -86,8 +113,25 @@ func _ready() -> void:
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--fall="):
 			fall_at = float(a.substr(7))
+		if a.begins_with("--boss="):
+			var spec := a.substr(7).split(",")
+			boss_key = spec[0]
+			boss_phase = int(spec[1]) if spec.size() > 1 else -1
+			var sched := Bosses.schedule_from(Tuning.shared())
+			for row: Array in sched:
+				if int(row[1]) == int(BOSS_KEYS.get(boss_key, -1)) and (boss_key != "lich" or row[2]):
+					start_wave = int(float(row[0]) / 60.0)
+					break
 		if a.begins_with("--hazard="):
 			hazard_at = float(a.substr(9))
+		if a.begins_with("--kinds="):
+			var spec := a.substr(8).split("@")
+			kinds_at = float(spec[1]) if spec.size() > 1 else KINDS_AT
+			kinds_ring = float(spec[2]) if spec.size() > 2 else KINDS_RING
+			for k: String in spec[0].split(","):
+				for i: int in range(Bestiary.count()):
+					if Bestiary.KINDS[i][Bestiary.K_KEY] == k:
+						kinds_shown.append(i)
 		if a.begins_with("--fate="):
 			for f: String in a.substr(7).split(","):
 				fates_forced.append(clampi(int(f), 0, Gamble.TEAM_OUTCOMES.size() - 1))
@@ -221,6 +265,10 @@ func _process(delta: float) -> void:
 		_fall_tick(cur)
 	if hazard_at > 0.0 and cur and "world" in cur and cur.world:
 		_hazard_tick(cur.world)
+	if kinds_at > 0.0 and cur and "world" in cur and cur.world:
+		_kinds_tick(cur.world)
+	if not boss_key.is_empty() and cur and "world" in cur and cur.world:
+		_boss_tick(cur.world, delta)
 	if perf and _perf_frames.size() >= PERF_FRAMES:
 		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
@@ -471,3 +519,72 @@ func _hazard_tick(w: World) -> void:
 	if since >= HAZARD_WARN + 0.25 and not _hazard_shots.has("hot"):
 		_hazard_shots["hot"] = true
 		_fall_shot("hazard_hot")
+
+
+## --kinds: rings the named kinds round the party and takes their shots (see kinds_shown).
+func _kinds_tick(w: World) -> void:
+	if w.phase != World.PH_FIGHT or w.is_picking():
+		return
+	if w.wave_time >= kinds_at and (_kinds_next < 0.0 or w.wave_time >= _kinds_next):
+		_kinds_next = w.wave_time + KINDS_EVERY
+		var c := w.party_center()
+		var n := kinds_shown.size() * 2
+		for i: int in range(n):
+			var e := w.spawn_enemy(kinds_shown[i % kinds_shown.size()], 0, c + Vector2.from_angle(TAU * i / n + 0.3) * kinds_ring)
+			e.hp *= KINDS_HP
+			e.maxhp = e.hp
+		if not _kinds_shots.has("start"):
+			_kinds_shots["start"] = w.wave_time
+	if not _kinds_shots.has("start"):
+		return
+	var since: float = w.wave_time - float(_kinds_shots["start"])
+	var keyed: Array = [["kinds_ring", since >= 0.5], ["kinds_mid", since >= 5.0], ["kinds_late", since >= KINDS_LATE]]
+	for e: World.Enemy in w.enemies:
+		var st: int = e.state % KindsLibrary.HOUND_SLOT_STEP if e.type == Bestiary.HOUND else e.state
+		if e.type in kinds_shown and e.type != Bestiary.GUARD and st > 0 and st < 4 and since >= 0.3:
+			keyed.append(["kinds_%s_%d" % [Bestiary.KINDS[e.type][Bestiary.K_KEY], st], true])
+	for h: Hazards.Hazard in w.hazards:
+		keyed.append(["kinds_row%d_%s" % [h.kind, "warn" if h.warn > 0.0 else "hot"], h.warn < h.warn0 * 0.6 if h.warn > 0.0 else h.hot > 0.0])
+	var seen := {}
+	for shot: Array in keyed:
+		if shot[1] and not _kinds_shots.has(shot[0]) and not seen.has(shot[0]):
+			seen[shot[0]] = true
+			_kinds_seen[shot[0]] = int(_kinds_seen.get(shot[0], 0)) + 1
+			if _kinds_seen[shot[0]] >= KINDS_HOLD:
+				_kinds_shots[shot[0]] = true
+				_fall_shot(shot[0])
+
+
+## --boss: holds the boss's health inside the asked phase and shoots each attack step's warning and hot rows.
+func _boss_tick(w: World, delta: float) -> void:
+	var e: World.Enemy = w.boss
+	if e == null or e.dead or e.entering or w.phase != World.PH_FIGHT:
+		return
+	if boss_phase >= 0:
+		var lines: Array = [1.0, 0.75, 0.35, 0.0] if e.final else [1.0, Bosses.PHASE_AT, 0.0]
+		var hi: float = lines[mini(boss_phase, lines.size() - 2)]
+		var lo: float = lines[mini(boss_phase, lines.size() - 2) + 1]
+		var f := e.hp / e.maxhp
+		if f > hi - 0.01 or f < lo + 0.02:
+			e.hp = e.maxhp * (lo + 0.6 * (hi - lo))
+	var step := "%d" % e.state
+	if e.type == Bestiary.GHOSTWRITER and BossGhostwriter.word_of(w.boss_arg) != BossGhostwriter.WORD_NONE:
+		step = BossGhostwriter.WORDS[BossGhostwriter.word_of(w.boss_arg)].to_lower() + ("_%d" % e.state)
+	if step != _boss_step:
+		_boss_step = step
+		_boss_step_t = 0.0
+	_boss_step_t += delta
+	var name := "%s_%s" % [boss_key, step]
+	if _boss_step_t >= BOSS_SHOT_AFTER and not _boss_shots.has(name + "_warn"):
+		var warning := false
+		for h: Hazards.Hazard in w.hazards:
+			warning = warning or (h.owner == e.id and h.warn > 0.0)
+		if warning:
+			_boss_shots[name + "_warn"] = true
+			_fall_shot(name + "_warn")
+	if not _boss_shots.has(name + "_hot"):
+		for h: Hazards.Hazard in w.hazards:
+			if h.owner == e.id and h.fired and h.hot > 0.0 and h.kind != Hazards.LANE:
+				_boss_shots[name + "_hot"] = true
+				_fall_shot(name + "_hot")
+				break

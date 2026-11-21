@@ -195,7 +195,7 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 					r.offered[Upgrades.key(idx)] = int(r.offered.get(Upgrades.key(idx), 0)) + 1
 		# Lich visits and the Archlich.
 		if w.boss != null and boss_before == null:
-			boss_row = {"at": w.wave_time, "final": w.boss.final, "fight": -1.0, "downs": 0}
+			boss_row = {"at": w.wave_time, "final": w.boss.final, "fight": -1.0, "downs": 0, "kind": str(Bestiary.KINDS[w.boss.type][0])}
 		if not boss_row.is_empty():
 			if w.boss != null and w.boss.final:
 				boss_row.final = true
@@ -270,12 +270,17 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	return r
 
 
-## What hurt a wizard at `at` (its feet): an enemy shot near it that died this step, else an enemy body touching it,
-## else `other` (a body killed in the same step).
+## What hurt a wizard at `at` (its feet): a hot hazard row she stands in ("hz_fire", ...), an enemy shot near it that
+## died this step, else an enemy body touching it, else `other` (a body killed in the same step).
 func _hit_cause(w: World, at: Vector2, near_shots: Array) -> String:
+	const ROWS := ["mark", "blast", "fire", "flame", "fall", "beam", "burst", "lane", "safe"]
+	for h: Hazards.Hazard in w.hazards:
+		var row: Array = Hazards.KINDS[h.kind]
+		if h.warn <= 0.0 and int(row[Hazards.K_HEARTS]) > 0 and Hazards.contains(h, at) != bool(row[Hazards.K_INVERTED]):
+			return "hz_" + str(ROWS[h.kind])
 	for e_s: Variant in near_shots:
 		if e_s.dead and (e_s.pos as Vector2).distance_to(at + Vector2(0, -6)) < float(e_s.r) + 12.0:
-			const KINDS := ["arrow", "orb", "skull"]
+			const KINDS := ["arrow", "orb", "skull", "sword"]
 			var kind: int = int(e_s.kind)
 			return "shot:" + (KINDS[kind] if kind < KINDS.size() else str(kind)) + ("_boss" if w.boss != null else "")
 	var best: String = "other"
@@ -427,6 +432,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 		var bd: Array = []
 		var slain: int = 0
 		var final: bool = false
+		var kind: String = "lich"
 		for r: Dictionary in runs:
 			if i < (r.bosses as Array).size():
 				var b: Dictionary = r.bosses[i]
@@ -435,8 +441,9 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 				bd.append(b.downs)
 				slain += 1 if b.get("slain", false) else 0
 				final = final or b.final
+				kind = str(b.get("kind", kind))
 		if not at.is_empty():
-			visits.append({"n": at.size(), "final": final, "at": _stats(at), "fight": _stats(fight),
+			visits.append({"n": at.size(), "final": final, "kind": kind, "at": _stats(at), "fight": _stats(fight),
 				"downs": _stats(bd), "slain": slain})
 	return {
 		"persona": SmashBot.persona_name(persona), "wizards": wizards, "runs": runs, "wins": wins,
@@ -490,7 +497,7 @@ func _print_group(g: Dictionary) -> void:
 	print("per wiz  " + "  ".join(wl))
 	for i: int in range((g.bosses as Array).size()):
 		var b: Dictionary = g.bosses[i]
-		print("boss %d %s: came %s  fight %s  downs %s  slain %d/%d" % [i + 1, "ARCH" if b.final else "lich",
+		print("boss %d %s: came %s  fight %s  downs %s  slain %d/%d" % [i + 1, "ARCH" if b.final else str(b.get("kind", "lich")),
 			_span(b.at), _span(b.fight), _span_n(b.downs), b.slain, b.n])
 
 

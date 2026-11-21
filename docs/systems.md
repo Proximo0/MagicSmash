@@ -60,8 +60,15 @@ How each system works: read only the section for the system you touch (`grep -n 
   and spends it on groups rolled from `World.HORDE` (type, cost, unlock time, weight, group size). It holds at
   `Tuning.enemy_cap` (260) and slows to `horde_boss_mul` while the Lich is up.
 - An elite every `elite_interval` s (a skeleton, then orcs and mages) has `elite_hp_mul` x HP, a gold aura and
-  pays 5x score and XP plus gems and a tome. The Lich arrives at 5:00, 10:00, ... (`boss_every_min`); killing
-  it still clears the arena and resets the horde's budget.
+  pays 5x score and XP plus gems and a tome. A boss arrives every `boss_every_min` minutes: THE BONE CHANDELIER
+  at 5:00, THE GHOST WRITER at 10:00 (`Bosses.SCHEDULE`; any later visit is the Lich); killing one still clears
+  the arena, starts the lull and resets the horde's budget. Each turns a phase at half health: the Chandelier's
+  chain snaps (ALOFT to THE WHEEL), the Ghost Writer spells faster and adds GOODBYE (`docs/bestiary_design.md` 2, 6).
+- Eight more kinds join from 1:30 (`docs/bestiary_design.md` 1, 6 "Job K as built"): the BLOAT, RESTLESS COFFIN
+  and TOMB GUARD (act I), CINDERLING, THE CENSOR and ASH HOUND (act II), COMET SHARD and TEN OF SWORDS (act III).
+  Their brains live in `game/logic/kinds_*.gd` (named by `Bestiary.BRAINS`), most of their danger is hazard rows,
+  and three formations (POWDER TRAIN, SHIELD WALL, FIRE DRILL) come one roll in five once unlocked.
+  `Tuning.new_kinds` scales their weights; 0 plays the old horde exactly.
 - XP gems past `Tuning.xp_gem_cap` merge into the nearest gem, so the floor stays readable and cheap.
 - Cost: `tests/sim/sim_horde.gd` fills the arena to the cap with 4 wizards and asserts `World.step` stays under
   4 ms. It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for
@@ -146,9 +153,11 @@ How each system works: read only the section for the system you touch (`grep -n 
 ## Run structure: Archlich, results, wizard select (rework step 6)
 
 - 6a, the final boss (`Tuning` Run group):
-  - At `run_minutes` (15:00) the Archlich comes instead of the third Lich: a Lich with `final_hp_mul` (3.6) x the
-    HP, a bigger body, rage from two thirds of its HP, and an elite with every rage summon. A Lich still standing
-    at 15:00 ascends into it. No Lich comes after it; the horde keeps coming at the boss rate.
+  - At `run_minutes` (15:00) the Archlich comes: a Lich with `Bosses.FINAL_HP` (5) x `final_hp_mul` (3.6) x the
+    HP and a bigger body. Three phases: LICH LORD (the calm set) to 75%; THE ASCENSION (3 s, the field clears,
+    wizards heal 2) and ASCENDANT (the enraged set, an elite with every summon, COMETFALL every third attack) to
+    35%; THE NINTH PAGE (2.5 s turn) adds a NAME every fourth attack and LAST CANDLE every 30 s. A boss of another
+    kind still standing at 15:00 leaves; a Lich ascends. No boss comes after it; the horde keeps the boss rate.
   - Slaying it wins the run (`World.won`, `EV_VICTORY`): the clock and the horde stop, everyone is safe, and
     after `victory_delay` s the results screen says VICTORY. A win pays `Profile.CRYSTAL_WIN` (25) crystals
     and counts in `Profile.wins`. The Archlich pays 4x the Lich's score.

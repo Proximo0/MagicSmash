@@ -169,6 +169,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	a.phase = int(w[World.W_PHASE])
 	a.phase_t = w[World.W_PHASE_T]
 	a.boss_f = w[World.W_BOSS]
+	a.vw = w
 	a.run_t = w[World.W_TIME]
 	a.boss_final = w[World.W_FINAL] > 0.5
 	var was_lull := a.lull_left

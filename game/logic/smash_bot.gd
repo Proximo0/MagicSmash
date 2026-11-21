@@ -675,7 +675,7 @@ func _think(me: Vector2, time: float) -> void:
 		if not hz.is_empty():
 			if hz_push != Vector2.ZERO:
 				score += W_HAZARD * minf(hz_push.length(), 2.0) * (d.dot(hz_push.normalized()) - 1.0)
-			score -= W_HAZARD * minf(Hazards.threat(hz_prep, end), 2.0)
+			score -= W_HAZARD * minf(Hazards.threat_path(hz_prep, me, end), 2.0)
 		# Where it wants to be: the goal, else its roaming ground.
 		if _goal.is_finite():
 			# Progress to the closest point of the path, so a goal nearer than the lookahead walk still pulls.
@@ -716,7 +716,14 @@ func _think(me: Vector2, time: float) -> void:
 		var a: float = cur.angle_to(want)
 		var lim: float = _turn * _interval
 		if absf(a) > lim:
+			var full := want
 			want = cur.rotated(signf(a) * lim)
+			# A turn that swings the heading through a hazard row goes the other way round, or stops.
+			if not hz_prep.is_empty():
+				var wanted: float = Hazards.threat_path(hz_prep, me, me + full * travel)
+				if Hazards.threat_path(hz_prep, me, me + want * travel) > wanted:
+					var other: Vector2 = cur.rotated(-signf(a) * lim)
+					want = other if Hazards.threat_path(hz_prep, me, me + other * travel) <= wanted else Vector2.ZERO
 	_dir = want
 	# When the bot is boxed in it circles the other way next time.
 	if best_danger > CORNERED * 0.5 and rng.randf() < 0.1:

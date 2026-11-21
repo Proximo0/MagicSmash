@@ -558,7 +558,7 @@ func test_lich_comes_on_its_minute() -> void:
 			if ev[0] == World.EV_WAVE and int(ev[4]) == 1:
 				announced = true
 	assert_true(announced, "minute 5 was not announced as a boss minute")
-	assert_true(w.boss != null and w.boss.type == World.LICH, "no Lich after minute 5 began")
+	assert_true(w.boss != null and w.boss.type == Bestiary.CHANDELIER, "no Chandelier (the 5:00 boss) after minute 5 began")
 
 
 func test_enemy_cap_holds_the_horde() -> void:
