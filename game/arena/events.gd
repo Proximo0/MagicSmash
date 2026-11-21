@@ -199,6 +199,12 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				else:
 					a.fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
 					Sfx.play("rune_good" if good else "rune_bad", -2.0)
+			World.EV_SKILL: # a class skill: its name over the hero, the nova's sound (art comes with the class art)
+				a.fx.text(pos + Vector2(0, -10), Classes.skill_name(int(ev[4])) + "!", G.player_fx(int(ev[3])), 1.0, 1)
+				Sfx.play("nova", -4.0, 1.2, 0.1)
+			World.EV_HEAL:
+				a.fx.text(pos + Vector2(0, -10), "+%d" % int(ev[4]), Color("8bff9e"), 0.8, 1)
+				Sfx.play("powerup", -8.0, 1.3, 0.1)
 			World.EV_WARD:
 				a.fx.text(pos + Vector2(0, -10), "BLOCKED", Color("8bdcff"), 0.8, 1)
 				a.fx.ring(pos, 4.0, 16.0, 0.3, Color("8bdcff"), 2.0)

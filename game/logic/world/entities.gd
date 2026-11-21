@@ -49,12 +49,23 @@ class Player:
 	var ai := false # an apprentice (a computer wizard), not a human seat
 	var trait_a := 0 # wave 3 traits; 0 = none
 	var trait_b := 0
-	## Reserved for races and classes (snapshot row P_RACE..P_CLASS_LEVEL); 0 until their job lands.
+	## Race and class (snapshot row P_RACE..P_CLASS_LEVEL): the seat's, or the hero's from World.apply_hero.
 	var race := 0
 	var cls := 0
 	var look := 0 # packed: skin, hair, style
 	var cls_level := 0
-	var threat := 1.0 # how much the horde minds this wizard; not in the snapshot row, nothing reads it yet
+	var threat := 1.0 # how much the horde minds this wizard (Classes threat): enemies pick by distance / threat
+	var threat_k := 1.0 # 1 / threat^2: what the targeting scales a squared distance by (exactly 1 at threat 1)
+	## Set by World.apply_hero (docs/classes_design.md); neutral for a wizard with no hero.
+	var skill := 0 # Classes.SK_*: what the nova button does
+	var walk_mul := 1.0 # class passive: walk speed
+	var ritual_mul := 1.0 # class passive: how much this wizard counts inside a ritual circle
+	var aura_r := 0.0 # class passive: px within which heroes (her too) get aura_ward more WARD; 0 = none
+	var aura_ward := 0.0
+	var fury := 0.0 # race trait: damage share added at Races.FURY_HEARTS hearts or fewer
+	var reach_mul := 1.0 # race trait: XP magnet reach
+	var knock_mul := 1.0 # race trait: share of a push taken (nothing pushes a wizard yet)
+	var luck := 0.0 # FORTUNE's chest luck (read by nothing yet: chests are opened in WorldDrops)
 
 class Enemy:
 	var id := 0
@@ -86,6 +97,8 @@ class Enemy:
 	var cloak := false # shots fly through it and nothing hurts it (a brain sets it; see WorldEnemies._faded)
 	var turn := 0.0 # s left of a boss's phase turn (Bosses.phase_turn): it holds still and takes no damage
 	var gi := -1 # its row in World's separation copy this tick (World._sep_pos); -1 when it is not in it
+	var taunt: Player = null # a PROVOKE: the wizard it wants while taunt_t runs, whoever is nearer
+	var taunt_t := 0.0
 
 class Shot:
 	var pos := Vector2.ZERO

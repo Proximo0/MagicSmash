@@ -5,7 +5,10 @@ extends RefCounted
 ## start of a run. In co-op the host's profile powers the whole party, so friends who join through Remote Play
 ## get the same head start.
 
-const VERSION := 1
+## 2: heroes (Hero) hold the card sockets; a version 1 save becomes one HUMAN MAGE holding its sockets.
+const VERSION := 2
+## Saved heroes at most.
+const MAX_HEROES := 8
 
 ## [key, name, description, crystal cost per level]. The number of costs is the max level. Effects per level
 ## are in EFFECTS. Append new unlocks at the end; keys are what the save file stores.
@@ -42,7 +45,13 @@ var wins := 0
 var best_time := 0.0
 var unlocks := {} # META key -> level bought
 var cards := {} # Cards key -> how many found
-var sockets: Array[String] = ["", "", ""] # Cards key socketed in the hat, robe and staff ("" for empty)
+## The saved heroes (Hero), at least one and at most MAX_HEROES, and the one the next run plays (an index).
+var heroes: Array = [Hero.new()]
+var hero := 0
+## The active hero's sockets: Cards key in the hat, robe and staff ("" for empty). The socket calls below work on it.
+var sockets: Array[String]:
+	get:
+		return active_hero().sockets
 var secrets := {} # secret key -> true, once found (the Sanctum alcove, title easter eggs, Ouija words)
 var wishes := 0 # crystals tossed into the Sanctum's wishing well, ever
 var pots_run := -1 # the run count when the Sanctum's pots were last smashed; they refill after the next run
@@ -58,6 +67,30 @@ var revives_total := 0
 ## multiplier), bounty (crystals the multiplier added or took), prize (a first win's crystals), card (the Seal card
 ## a first win paid, -1 none).
 var last_pay := {}
+
+
+## The hero the next run plays.
+func active_hero() -> Hero:
+	return heroes[clampi(hero, 0, heroes.size() - 1)]
+
+
+## Adds a hero and makes it the active one. False when MAX_HEROES are saved already.
+func add_hero(h: Hero) -> bool:
+	if heroes.size() >= MAX_HEROES:
+		return false
+	heroes.append(h)
+	hero = heroes.size() - 1
+	return true
+
+
+## Deletes hero `i`. The last hero cannot go (a profile always has one); the active index follows.
+func remove_hero(i: int) -> bool:
+	if i < 0 or i >= heroes.size() or heroes.size() <= 1:
+		return false
+	heroes.remove_at(i)
+	if hero > i or hero >= heroes.size():
+		hero = maxi(0, hero - 1)
+	return true
 
 
 static func meta_index(key: String) -> int:
@@ -253,7 +286,7 @@ func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
 		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes,
 		"seal_unlocked": seal_unlocked, "seal_best": seal_best, "seal_prizes": seal_prizes.keys(), "kills_total": kills_total,
-		"revives_total": revives_total}
+		"revives_total": revives_total, "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
 
 
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
@@ -294,10 +327,20 @@ static func from_dict(d: Dictionary) -> Profile:
 				p.seal_prizes[str(int(str(k)))] = true
 	p.kills_total = maxi(0, int(d.get("kills_total", 0)))
 	p.revives_total = maxi(0, int(d.get("revives_total", 0)))
-	var so: Variant = d.get("sockets", [])
-	if so is Array:
-		for s: int in range(mini((so as Array).size(), Cards.SOCKETS)):
-			var idx: int = Cards.index_of(str(so[s]))
-			if idx >= 0 and Cards.socket(idx) == s and p.card_count(idx) > 0:
-				p.sockets[s] = str(so[s])
+	# Heroes. A version 1 save has none: it becomes one HUMAN MAGE holding its sockets (it never saved a school,
+	# so she casts slot 0's ARCANE BOLT). Top-level "sockets" is a copy of the active hero's, kept for old builds.
+	var hs: Variant = d.get("heroes", [])
+	p.heroes = []
+	if hs is Array:
+		for hd: Variant in hs:
+			if hd is Dictionary and p.heroes.size() < MAX_HEROES:
+				p.heroes.append(Hero.from_dict(hd))
+	if p.heroes.is_empty():
+		p.heroes = [Hero.from_dict({"sockets": d.get("sockets", [])})]
+	p.hero = clampi(int(d.get("hero", 0)), 0, p.heroes.size() - 1)
+	for h: Hero in p.heroes:
+		for s: int in range(Cards.SOCKETS):
+			var idx: int = Cards.index_of(h.sockets[s])
+			if idx >= 0 and p.card_count(idx) <= 0:
+				h.sockets[s] = ""
 	return p

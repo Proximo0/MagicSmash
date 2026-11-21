@@ -3,6 +3,8 @@ extends RefCounted
 ## Enemies for World: targeting, movement and attacks, separation, enemy shots, damage and death. Static helpers; the first argument is the World.
 
 
+## The standing wizard the horde wants at `pos`: the least distance / threat (Player.threat_k is 1 / threat^2, so a
+## squared distance times it; with every threat 1 this is the nearest wizard, exactly).
 static func _nearest_player(w: World, pos: Vector2) -> World.Player:
 	if w._plist.size() != w.players.size():
 		w._plist.assign(w.players.values())
@@ -11,7 +13,7 @@ static func _nearest_player(w: World, pos: Vector2) -> World.Player:
 	for p: World.Player in w._plist:
 		if not p.alive:
 			continue
-		var d := p.pos.distance_squared_to(pos)
+		var d := p.pos.distance_squared_to(pos) * p.threat_k
 		if d < bd:
 			bd = d
 			best = p
@@ -44,10 +46,17 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	var bd := INF
 	for p: World.Player in w._plist:
 		if p.alive:
-			var d: float = p.pos.distance_squared_to(from)
+			var d: float = p.pos.distance_squared_to(from) * p.threat_k
 			if d < bd:
 				bd = d
 				tgt = p
+	# A PROVOKE holds it on its taunter, who may not be the nearest: then any wizard may be in reach of a touch.
+	var taunted := false
+	if e.taunt_t > 0.0:
+		e.taunt_t -= dt
+		if e.taunt.alive and e.taunt_t > 0.0:
+			tgt = e.taunt
+			taunted = true
 	var tpos: Vector2 = tgt.pos if tgt else G.ARENA.get_center() + Vector2(cos(e.t * 0.5), sin(e.t * 0.7)) * 80.0
 	var to := tpos - from
 	var dist := to.length()
@@ -79,7 +88,10 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
 	# moves a few pixels a step. A kind that can teleport (F_BLINK: a mage, the Lich) always checks.
 	# A kind with no contact damage (a bloat, a coffin) touches nobody, so it gives no free hurt-invulnerability either.
-	if e.contact > 0 and (dist < er + World.CONTACT_REACH or flags & Bestiary.F_BLINK):
+	# Threat can pick a wizard further than the nearest: at most World.threat_spread times as far as one in touch, so
+	# the reach grows to that (it is CONTACT_REACH, as ever, while every threat is the same).
+	if e.contact > 0 and (dist < er + World.CONTACT_REACH or dist < (er + 5.0) * w.threat_spread
+			or flags & Bestiary.F_BLINK or taunted):
 		for p: World.Player in w._plist:
 			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 				var dmg := e.contact
@@ -165,7 +177,8 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 		return
 	var src: World.Player = w.players.get(slot)
 	if src:
-		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage)
+		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage
+			+ (src.fury if src.hp <= Races.FURY_HEARTS else 0.0)) # ORC: + 0.0 for everyone else, exact
 	w.record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_source(w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_slot_source(slot, w.stat_src, minf(dmg, maxf(0.0, e.hp)))

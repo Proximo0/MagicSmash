@@ -221,6 +221,16 @@ func _ready() -> void:
 			slots.append(0)
 		world = World.new(slots, int(Flags.get_arg("seed", "0")), null, Net.wizard_picks(), Net.seat_builds())
 		world.apply_meta(Save.run_bonuses())
+		# Developer flag until the builder screens land: --hero=<race>,<class>[,<school>] gives every local seat
+		# that hero (Hero.from_flag). Nothing happens without it, scripted run or not.
+		if Flags.args.has("hero"):
+			var flag_hero := Hero.from_flag(Flags.get_arg("hero"))
+			if flag_hero == null:
+				push_warning("--hero=%s: unknown race or class" % Flags.get_arg("hero"))
+			else:
+				for r in Net.my_slots():
+					if world.players.has(r.slot):
+						world.apply_hero(world.players[r.slot], flag_hero.to_dict())
 		world.apply_seal(Net.seal)
 		Crash.tag("seed", str(world.rng.seed))
 		Crash.tag("wizards", str(slots.size()))
