@@ -70,7 +70,7 @@ const EVOS: Array = [
 	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "partner": -1, "passive": "lovers",
 		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 32.0, "life": 3.5, "heal_every": 10.0},
 	{"name": "WHIRLWIND", "desc": "A FULL CIRCLE", "partner": -1, "passive": "power",
-		"cd": 0.55, "dmg": 48.0, "n": 1, "r": 60.0, "arc": TAU, "most": 3},
+		"cd": 0.55, "dmg": 36.0, "n": 1, "r": 60.0, "arc": TAU, "most": 3},
 ]
 
 ## Slow applied by a frost shard that has not evolved (its row's "slow"), and by Comet Rain's burst, seconds.
