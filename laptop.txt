@@ -1,3 +1,3 @@
-STATION machine=laptop time=2026-11-21T14:26Z commit=cf2b7c0 took=28s
-JOB frames PASS frames=300 enemies_peak=213 particles=164 draw_calls=60 frame_ms p50=16.6 p95=18.5 script_ms=9.09 limit_p95=25
+STATION machine=laptop time=2026-11-21T14:45Z commit=421adae took=26s
+JOB frames PASS frames=300 enemies_peak=232 particles=83 draw_calls=51 frame_ms p50=16.6 p95=19.4 script_ms=9.23 limit_p95=25
 STATION PASS jobs=1 failed=0
