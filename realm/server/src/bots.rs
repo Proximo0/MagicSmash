@@ -8,7 +8,7 @@
 //! - any other bot walks toward the thinnest direction that still has monsters (the nearest thin spot in
 //!   the horde), or wanders when none is near; near a wall it turns back in.
 
-use realm_core::{rng_next, Field, CELLS_W, CELL_SHIFT, FIELD, INPUT_SKILL, NEIGHBOURS, SUB};
+use realm_core::{rng_next, Field, CELLS_W, CELL_SHIFT, FIELD, IN_POTION1, IN_SKILL1, IN_SKILL2, IN_ULT, NEIGHBOURS, SUB};
 
 pub const DECIDE_EVERY: u32 = 8;
 pub const LOOK_PX: i32 = 128;
@@ -20,7 +20,7 @@ pub const WALL_PX: i32 = 300;
 pub struct Bot {
     pub id: u16,
     pub rally: bool,
-    pub input: u8,
+    pub input: u16,
     rng: u64,
 }
 
@@ -49,7 +49,8 @@ pub fn dir_toward(dx: i32, dy: i32) -> u8 {
 /// Where a new bot joins: rally bots within 300 px of the centre, others anywhere 200 px from a wall.
 pub fn join_spot(rng: &mut u64, rally: bool) -> (u8, u8, i32, i32) {
     let r = rng_next(rng);
-    let class = (r % 5) as u8;
+    // KNIGHT to PALADIN, half of them on the class's second job (from class level 40).
+    let class = 1 + (r % 5) as u8 | (((r >> 5) & 1) as u8) << 3;
     let race = ((r >> 8) % 4) as u8;
     let (x, y) = if rally {
         let span = (2 * RALLY_PX) as u64;
@@ -98,7 +99,7 @@ impl Bot {
         let pick = |want: &dyn Fn(u32) -> bool| -> Option<usize> {
             (0..8).map(|k| (start + k) % 8).filter(|&k| want(around[k])).min_by_key(|&k| around[k])
         };
-        let wander = |cur: u8| if (r >> 8) % 4 == 0 { ((r >> 12) % 9) as u8 } else { cur & 0x0F };
+        let wander = |cur: u16| if (r >> 8) % 4 == 0 { ((r >> 12) % 9) as u8 } else { (cur & 0x0F) as u8 };
         let (cx, cy) = (FIELD / 2 - p.x, FIELD / 2 - p.y);
         let near_wall = p.x < WALL_PX * SUB || p.y < WALL_PX * SUB || p.x > FIELD - WALL_PX * SUB || p.y > FIELD - WALL_PX * SUB;
         let mut dir;
@@ -116,7 +117,17 @@ impl Bot {
         if near_wall && local <= CROWDED {
             dir = dir_toward(cx, cy);
         }
-        self.input = dir | if skill { INPUT_SKILL } else { 0 };
+        // Byte 1 (a card pick, potion slot 1 when hurt) is pressed for one decision and released the next.
+        let mut b1 = 0u16;
+        if self.input >> 8 == 0 {
+            if !p.offers.is_empty() {
+                b1 |= 1 + ((r >> 24) % 3) as u16;
+            }
+            if p.health * 100 < p.max_health * 40 {
+                b1 |= IN_POTION1 >> 8;
+            }
+        }
+        self.input = dir as u16 | if skill { IN_SKILL1 | IN_SKILL2 | IN_ULT } else { 0 } | b1 << 8;
     }
 }
 
