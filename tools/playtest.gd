@@ -3,7 +3,9 @@ extends SceneTree
 ## hard, too easy, dull or unfair. One compact table per persona and party size, then one line starting PLAYTEST.
 ## Usage: godot --headless --path . -s tools/playtest.gd -- [--runs=6] [--wizards=1,2,4]
 ##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=16] [--tune=field:value,...] [--seal=N]
-##   [--json=/tmp/out.json] [--party=casual,apprentice,...] [--hero=knight,archer:elf,...]
+##   [--json=/tmp/out.json] [--party=casual,apprentice,...] [--hero=knight,archer:elf,...] [--profile=FILE]
+## --profile plays every run from a saved profile (a tools/career.gd checkpoint): its unlocks for every seat, its
+## heroes (levels, stat points) for the human seats in seat order.
 ## --party plays one party of the named seats instead of the persona x wizards groups: a persona name seats a
 ## human bot, "apprentice" seats an apprentice (World plays it, WorldApprentices); e.g. --party=casual,apprentice.
 ## A seat is persona[:class[:race]] (apprentice too), e.g. --party=casual:knight,casual:priest,apprentice:archer;

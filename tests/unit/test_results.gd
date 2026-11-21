@@ -144,3 +144,22 @@ func test_source_names() -> void:
 	assert_eq(Results.source_name(Classes.weapon(cls), cls), Classes.weapon_name(cls), "the class weapon by its class name")
 	assert_eq(Results.source_name(World.SP_FIRE, cls), Spells.spell_name(World.SP_FIRE))
 	assert_eq(Results.source_name(999, cls), "OTHER")
+
+
+## The results screen's climb line: under the deeds of a lost run with no win yet, within the deed lines' budget.
+func test_the_climb_hint_fits_the_deed_lines() -> void:
+	assert_eq(ArenaResultsView.foot_lines([], false), [] as Array[String])
+	assert_eq(ArenaResultsView.foot_lines([], true), [ArenaResultsView.CLIMB_HINT] as Array[String])
+	var many: Array = []
+	for row: Array in Achievements.LIST.slice(0, Achievements.RESULT_LINES + 2):
+		many.append(str(row[Achievements.C_API]))
+	var lines := ArenaResultsView.foot_lines(many, true)
+	assert_eq(lines.size(), Achievements.RESULT_LINES)
+	assert_eq(lines[-1], ArenaResultsView.CLIMB_HINT)
+	assert_eq(lines[-2], "+%d MORE DEEDS" % (many.size() - Achievements.RESULT_LINES + 2))
+	assert_true(PixelFont.text_width(ArenaResultsView.CLIMB_HINT, 1) <= 470, "the climb line is wider than the screen")
+	var with_card := ArenaResultsView.foot_lines(many, true, [0])
+	assert_eq(with_card.size(), Achievements.RESULT_LINES)
+	assert_eq(with_card[0], "CARD FOUND: %s" % Cards.card_name(0))
+	assert_eq(with_card[1], "+%d MORE DEEDS" % many.size())
+	assert_eq(ArenaResultsView.foot_lines([], true, [0]), ["CARD FOUND: %s" % Cards.card_name(0), ArenaResultsView.CLIMB_HINT] as Array[String])

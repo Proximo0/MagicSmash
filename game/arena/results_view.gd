@@ -9,6 +9,9 @@ const DEED_FOOT_Y := 206
 const DEED_FIRST_Y := 226
 const DEED_STEP := 9
 const DEED_PROMPT_Y := 256
+## Under the pay lines of a lost run while the profile has no win yet: the climb is long and progress carries over.
+## It takes one of the deed lines' places (Achievements.RESULT_LINES in all).
+const CLIMB_HINT := "THE TOWER REMEMBERS. SPEND CRYSTALS IN THE SANCTUM."
 
 
 ## The damage page: its card top, row step and bar height, and the hint line the first page shows when it leads there.
@@ -58,7 +61,7 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	_draw_result_columns(a, ci, dark, 58)
 	_draw_moments(a, ci, dark, 150)
 	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, Save.profile.run_gain(a.crystals_earned), Save.profile.crystals]
-	var deeds: Array[String] = Achievements.result_lines(Save.profile.last_pay.get("deeds", []), _cards_found(a))
+	var deeds: Array[String] = foot_lines(Save.profile.last_pay.get("deeds", []), not a.victory and Save.profile.wins == 0, _cards_found(a))
 	var y_foot := 224 if deeds.is_empty() else DEED_FOOT_Y # new deeds take the ending's place
 	if deeds.is_empty():
 		PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
@@ -66,11 +69,29 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	if not Save.profile.last_pay.is_empty(): # the run's step and what it paid
 		PixelFont.draw_centered(ci, Seals.pay_line(Save.profile.last_pay), 240, y_foot + 10, 1, Color("ffb347"), dark)
 	for i: int in range(deeds.size()):
-		PixelFont.draw_centered(ci, deeds[i], 240, DEED_FIRST_Y + i * DEED_STEP, 1, Color("ffd94d"), dark)
+		PixelFont.draw_centered(ci, deeds[i], 240, DEED_FIRST_Y + i * DEED_STEP, 1,
+			Color("c9b8ff") if deeds[i] == CLIMB_HINT else Color("ffd94d"), dark)
 	if a.game_over_t > 2.0 and int(a.time * 2.5) % 2 == 0:
 		var go := "TAP" if G.touch_active else "PRESS FIRE"
 		var msg := go + " FOR DAMAGE" if has_damage_page(a) else go + " TO CONTINUE" # a client leaves by itself too
 		PixelFont.draw_centered(ci, msg, 240, 244 if deeds.is_empty() else DEED_PROMPT_Y, 1, Color.WHITE, dark)
+
+## The lines under the pay line: the cards found and the new deeds (Achievements.result_lines) and, with `hint` (a
+## lost run on a profile with no win yet), CLIMB_HINT last, within the same Achievements.RESULT_LINES lines (fewer
+## cards and deeds shown, the rest counted in "+K MORE DEEDS", or "+K MORE" when a card is among them).
+static func foot_lines(deed_names: Array, hint: bool, cards: Array = []) -> Array[String]:
+	var lines: Array[String] = Achievements.result_lines(deed_names, cards)
+	if not hint:
+		return lines
+	if lines.size() >= Achievements.RESULT_LINES:
+		var keep := Achievements.RESULT_LINES - 2
+		var shown_cards: Array = cards.slice(0, keep)
+		lines = Achievements.result_lines(deed_names.slice(0, keep - shown_cards.size()), shown_cards)
+		var left: int = cards.size() + deed_names.size() - keep
+		lines.append("+%d MORE DEEDS" % left if cards.size() <= keep else "+%d MORE" % left)
+	lines.append(CLIMB_HINT)
+	return lines
+
 
 ## The Cards indices found in the run, in order (the record's card moments): the results' "CARD FOUND" lines.
 static func _cards_found(a: Arena) -> Array:

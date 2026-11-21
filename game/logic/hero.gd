@@ -6,8 +6,9 @@ extends RefCounted
 ## of a run. The save stores the race and class KEYS (Races, Classes), so the tables can grow.
 
 const MAX_LEVEL := 20
-## XP from level L to L + 1 is XP_PER_LEVEL x L; each level past the first pays one stat point.
+## XP from level L to L + 1 is XP_PER_LEVEL x L; each level past the first pays POINTS_PER_LEVEL stat points.
 const XP_PER_LEVEL := 100
+const POINTS_PER_LEVEL := 1
 ## At most this many points in one stat.
 const MAX_POINTS := 10
 ## Class XP a run pays: per whole minute survived, per boss slain, for a won run (before the multiplier).
@@ -107,9 +108,14 @@ func points_spent() -> int:
 	return n
 
 
-## Stat points earned and not spent yet (one per level past the first).
+## Stat points earned in all: POINTS_PER_LEVEL per level past the first.
+static func points_for(lv: int) -> int:
+	return POINTS_PER_LEVEL * (lv - 1)
+
+
+## Stat points earned and not spent yet.
 func points_left() -> int:
-	return maxi(0, level - 1 - points_spent())
+	return maxi(0, points_for(level) - points_spent())
 
 
 ## Spends a point on stat `st` (Loot.ST_*). False when none is left or the stat holds MAX_POINTS.
@@ -180,7 +186,7 @@ static func from_dict(d: Dictionary) -> Hero:
 		for st: int in range(mini((pt as Array).size(), Loot.STAT_COUNT)):
 			h.points[st] = clampi(int(pt[st]), 0, MAX_POINTS)
 	var st_back := Loot.STAT_COUNT - 1
-	while h.points_spent() > h.level - 1 and st_back >= 0:
+	while h.points_spent() > points_for(h.level) and st_back >= 0:
 		if h.points[st_back] > 0:
 			h.points[st_back] -= 1
 		else:

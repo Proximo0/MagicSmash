@@ -40,16 +40,18 @@ func test_stats_add_race_class_points_and_cards_within_caps() -> void:
 
 func test_xp_levels_and_points() -> void:
 	var h := Hero.new()
-	assert_eq(h.add_xp(99), 0)
-	assert_eq(h.add_xp(1), 1, "100 XP: level 2")
+	var l1 := Hero.xp_to_next(1)
+	assert_eq(l1, Hero.XP_PER_LEVEL)
+	assert_eq(h.add_xp(l1 - 1), 0)
+	assert_eq(h.add_xp(1), 1, "XP_PER_LEVEL x 1: level 2")
 	assert_eq(h.level, 2)
 	assert_eq(h.xp, 0)
-	assert_eq(h.add_xp(200 + 300 + 50), 2, "200 to level 3, 300 to level 4")
+	assert_eq(h.add_xp(Hero.xp_to_next(2) + Hero.xp_to_next(3) + 5), 2, "then XP_PER_LEVEL x 2 and x 3")
 	assert_eq(h.level, 4)
-	assert_eq(h.xp, 50)
-	assert_eq(h.points_left(), 3, "a point a level")
+	assert_eq(h.xp, 5)
+	assert_eq(h.points_left(), 3 * Hero.POINTS_PER_LEVEL, "POINTS_PER_LEVEL a level")
 	assert_true(h.spend_point(Loot.ST_WARD))
-	assert_eq(h.points_left(), 2)
+	assert_eq(h.points_left(), 3 * Hero.POINTS_PER_LEVEL - 1)
 	assert_false(h.spend_point(-1))
 	assert_false(h.spend_point(Loot.STAT_COUNT))
 	var total := 0
@@ -60,27 +62,30 @@ func test_xp_levels_and_points() -> void:
 	assert_eq(top.level, Hero.MAX_LEVEL)
 	assert_eq(top.xp, 0, "nothing past the top")
 	assert_eq(top.add_xp(100), 0)
-	assert_eq(top.points_left(), Hero.MAX_LEVEL - 1)
+	assert_eq(top.points_left(), (Hero.MAX_LEVEL - 1) * Hero.POINTS_PER_LEVEL)
 	assert_eq(h.add_xp(-50), 0, "no negative XP")
 
 
 func test_class_xp_a_run_pays() -> void:
+	var m := Hero.XP_PER_MINUTE
+	var b := Hero.XP_PER_BOSS
 	assert_eq(Hero.class_xp(0.0, 0, false), 0)
-	assert_eq(Hero.class_xp(359.0, 0, false), 50, "whole minutes: 5")
-	assert_eq(Hero.class_xp(900.0, 3, true), 150 + 150 + 150)
-	assert_eq(Hero.class_xp(600.0, 1, false, 1.5), roundi((100 + 50) * 1.5))
+	assert_eq(Hero.class_xp(359.0, 0, false), 5 * m, "whole minutes: 5")
+	assert_eq(Hero.class_xp(900.0, 3, true), 15 * m + 3 * b + Hero.XP_WIN)
+	assert_eq(Hero.class_xp(600.0, 1, false, 1.5), roundi((10 * m + b) * 1.5))
 	assert_eq(Hero.class_xp(600.0, 1, false, -1.0), 0)
 	var human := Hero.make(Races.HUMAN, Classes.KNIGHT)
 	var elf := Hero.make(Races.ELF, Classes.KNIGHT)
-	assert_eq(elf.run_xp(900.0, 3, true), 450)
-	assert_eq(human.run_xp(900.0, 3, true), roundi(450 * 1.05), "a human earns 5% more")
-	assert_eq(human.run_xp(600.0, 0, false, 2.0), roundi(100 * 2.0 * 1.05))
+	var full := 15 * m + 3 * b + Hero.XP_WIN
+	assert_eq(elf.run_xp(900.0, 3, true), full)
+	assert_eq(human.run_xp(900.0, 3, true), roundi(full * 1.05), "a human earns 5% more")
+	assert_eq(human.run_xp(600.0, 0, false, 2.0), roundi(10 * m * 2.0 * 1.05))
 
 
 func test_saved_form_round_trips_through_json() -> void:
 	var h := Hero.make(Races.DWARF, Classes.PALADIN, 2, "brunhild")
 	h.look = Hero.pack_look(3, 5, 2)
-	h.add_xp(100 + 200 + 40)
+	h.add_xp(Hero.xp_to_next(1) + Hero.xp_to_next(2) + 40)
 	h.spend_point(Loot.ST_VIGOR)
 	h.spend_point(Loot.ST_WARD)
 	h.sockets[Cards.HAT] = "bat"
@@ -101,16 +106,16 @@ func test_saved_form_round_trips_through_json() -> void:
 
 
 func test_bad_saved_data_is_clamped() -> void:
-	var h := Hero.from_dict({"name": "   ", "race": "undead", "cls": "witch", "school": 9, "look": 9999, "level": 3,
+	var h := Hero.from_dict({"name": "   ", "race": "undead", "cls": "witch", "school": 9, "look": 9999, "level": 2,
 		"xp": 99999, "points": [10, 50, -4, 1], "sockets": ["orc", "bat", "orc"]})
 	assert_eq(h.name, Hero.DEFAULT_NAME)
 	assert_eq(h.race, Races.HUMAN, "an unknown race is a human")
 	assert_eq(h.cls, Classes.MAGE, "an unknown class is a mage")
 	assert_eq(h.school, Wizards.count() - 1)
 	assert_eq(h.look, Hero.SKINS * Hero.HAIRS * Hero.STYLES - 1)
-	assert_eq(h.xp, Hero.xp_to_next(3) - 1)
-	assert_eq(h.points_spent(), 2, "no more points than the level paid")
-	assert_eq(h.points, [2, 0, 0, 0, 0, 0] as Array[int])
+	assert_eq(h.xp, Hero.xp_to_next(2) - 1)
+	assert_eq(h.points_spent(), Hero.POINTS_PER_LEVEL, "no more points than the level paid")
+	assert_eq(h.points, [Hero.POINTS_PER_LEVEL, 0, 0, 0, 0, 0] as Array[int])
 	assert_eq(h.sockets, ["", "", "orc"] as Array[String], "a card in the wrong socket is dropped")
 	assert_eq(Hero.from_dict({}).to_dict(), Hero.new().to_dict())
 	assert_eq(Hero.clean_name("a very long hero name"), "A VERY LONG ")
