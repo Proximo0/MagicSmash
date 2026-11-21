@@ -158,11 +158,14 @@ fn in_the_dark_births_come_250_to_450_px_away() {
         .find(|&c| t.map[c] & DARK != 0 && t.map[c] & WALL == 0 && ring_of(((c % CELLS_W) as i32) << CELL_SHIFT, ((c / CELLS_W) as i32) << CELL_SHIFT) == RING_MIDDLE)
         .expect("a dark cell");
     let (x, y) = ((((c % CELLS_W) as i32) << CELL_SHIFT) + half, (((c / CELLS_W) as i32) << CELL_SHIFT) + half);
-    let h = add(&mut f, &bare(KNIGHT, 10), x, y);
-    guard(&mut f, h);
+    // Seven heroes on one spot, so the whole base of 400 is born around them.
+    for _ in 0..7 {
+        let h = add(&mut f, &bare(KNIGHT, 10), x, y);
+        guard(&mut f, h);
+    }
     f.step::<u16>(&[]);
     let spawns: Vec<u32> = f.last_spawns().to_vec();
-    assert!(spawns.len() > 100);
+    assert!(spawns.len() > 100, "{}", spawns.len());
     let m = f.monsters();
     let mut seed_points = 0;
     for &i in &spawns {
