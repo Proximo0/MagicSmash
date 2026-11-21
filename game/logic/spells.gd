@@ -2,21 +2,24 @@ class_name Spells
 extends RefCounted
 ## Spell weapons: per-level stats and the evolutions. Pure data plus lookups; World casts with these numbers.
 ## A wizard's weapon level lives in their upgrades Dictionary (Upgrades.weapon_entry(spell)); an evolution is
-## its own upgrade entry (Upgrades.evo_entry(spell)) that needs the weapon at MAX_LEVEL plus a partner spell.
+## its own upgrade entry (Upgrades.evo_entry(spell)) that needs the weapon at MAX_LEVEL plus a partner (a spell
+## for the first six, a passive for BONE SPEAR and VIGIL CANDLE). CLEAVE, the knight's class weapon, has no
+## evolution (its EVOS row is empty: has_evolution).
 
-const COUNT := 6
+const COUNT := 9
 const MAX_LEVEL := 5
 
 ## Per spell (World.SP_* order). Arrays are per level 1..MAX_LEVEL.
 ## cast: how the spell is cast (WorldCasting.CASTS has one function per kind): "bolt" flies projectiles,
-## "chain" strikes lightning foe to foe, "rune" inscribes circles on the floor. A new kind is one function there
-## plus its rows here. cd: seconds between casts. dmg: damage per hit (per tick for a rune circle). n: bolts,
+## "chain" strikes lightning foe to foe, "rune" inscribes circles on the floor, "candle" sets a light (a circle of
+## kind CIRCLE_CANDLE) on the densest cluster near the caster, "sweep" swings an arc `arc` radians wide reaching
+## `r` px. A new kind is one function there plus its rows here. cd: seconds between casts. dmg: damage per hit (per tick for a rune circle). n: bolts,
 ## fireballs, shards, chain jumps, stars or rune circles. speed px/s, r: hit radius px, life: seconds, spread:
 ## radians between projectiles. A rune circle's r and life are per level too (read them with level_value).
 ## What a "bolt" does in flight is data too (absent: it does not): jitter: radians of random aim per bolt.
 ## home: px within which it turns toward the nearest foe, turn: how fast (per second). blast: radius px of the
 ## burst when it hits or runs out, blast_reach: px over which the burst's bonus fades, blast_bonus: extra damage
-## at the centre. slow: seconds a hit enemy stays slowed.
+## at the centre. slow: seconds a hit enemy stays slowed. pierce: enemies it passes through (PIERCE_ALL: every one).
 const STATS: Array = [
 	{"name": "ARCANE BOLT", "cast": "bolt", "cd": [0.16, 0.15, 0.14, 0.13, 0.12], "dmg": [2.6, 2.75, 2.8, 2.9, 3.0],
 		"n": [1, 1, 2, 2, 3], "speed": 310.0, "r": 3.0, "life": 1.0, "spread": 0.12, "jitter": 0.04},
@@ -32,6 +35,12 @@ const STATS: Array = [
 	{"name": "RUNE CIRCLE", "cast": "rune", "cd": [2.6, 2.4, 2.2, 2.0, 1.8], "dmg": [0.66, 0.8, 0.92, 1.08, 1.25],
 		"n": [1, 1, 2, 2, 3], "speed": 0.0, "r": [14.0, 16.0, 18.0, 20.0, 22.0], "life": [2.0, 2.0, 2.25, 2.5, 2.5],
 		"spread": 0.0},
+	{"name": "BONE SPEAR", "cast": "bolt", "cd": [1.5, 1.4, 1.25, 1.1, 1.0], "dmg": [3.0, 3.5, 4.0, 4.5, 5.0],
+		"n": [2, 2, 2, 2, 2], "speed": 275.0, "r": 3.0, "life": 0.8, "spread": 0.3, "pierce": -1},
+	{"name": "VIGIL CANDLE", "cast": "candle", "cd": [2.0, 2.0, 2.0, 2.0, 2.0], "dmg": [0.8, 1.0, 1.2, 1.4, 1.6],
+		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 24.0, "life": 3.5, "spread": 0.0},
+	{"name": "CLEAVE", "cast": "sweep", "cd": [0.9, 0.9, 0.85, 0.85, 0.8], "dmg": [9.0, 9.5, 10.0, 11.0, 12.0],
+		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 34.0, "life": 0.0, "spread": 0.0, "arc": 1.745},
 ]
 
 ## Evolutions, per base spell. partner: the other spell the wizard must own. The stats replace the level-5
@@ -39,6 +48,9 @@ const STATS: Array = [
 ## chain: lightning jumps from each fireball blast. chains: separate lightning chains per cast.
 ## slow: seconds an enemy stays slowed. burst: radius of a frost burst where a star hits.
 ## r, life: a rune circle's radius and seconds. pull: px/s a circle draws enemies toward its centre.
+## splinter: splinters a hit throws sideways (Ossuary Lance). heal_every: s between the hearts the light gives the
+## most hurt hero inside (Consecration). A spell whose partner is a passive has partner -1 and names the passive's
+## Upgrades key in `passive`. An empty row: the spell has no evolution.
 const EVOS: Array = [
 	{"name": "ASTRAL LANCE", "desc": "PIERCING BOLTS", "partner": 4,
 		"cd": 0.11, "dmg": 3.0, "n": 3, "pierce": 2},
@@ -52,6 +64,11 @@ const EVOS: Array = [
 		"cd": 0.6, "dmg": 3.0, "n": 5, "burst": 30.0},
 	{"name": "SEAL OF SOLOMON", "desc": "SIGILS PULL IN", "partner": 4,
 		"cd": 1.4, "dmg": 1.0, "n": 3, "r": 32.0, "life": 3.5, "pull": 42.0},
+	{"name": "OSSUARY LANCE", "desc": "SPLINTER HITS", "partner": -1, "passive": "justice",
+		"cd": 0.9, "dmg": 5.5, "n": 3, "splinter": 2},
+	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "partner": -1, "passive": "lovers",
+		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 28.0, "life": 3.5, "heal_every": 10.0},
+	{},
 ]
 
 ## Slow applied by a frost shard that has not evolved (its row's "slow"), and by Comet Rain's burst, seconds.
@@ -78,6 +95,31 @@ const RUNE_RANGE := 150.0
 const RUNE_AIM_DIST := 48.0
 const RUNE_SPACING := 1.5
 const SEAL_REACH := 1.6
+## A homing shot looks for its target within HOME_RING px first, then HOME_RING_GROW times as far a try up to its
+## `home` reach; a ring's last HOME_RING_SLACK px do not count (WorldCasting._homing_target).
+const HOME_RING := 48.0
+const HOME_RING_GROW := 2.0
+const HOME_RING_SLACK := 16.0
+## A bolt row's pierce that never runs out (BONE SPEAR).
+const PIERCE_ALL := -1
+## Ossuary Lance: a splinter's share of its spear's damage and its seconds of flight (it flies at the spear's speed).
+const SPLINTER_DMG := 0.5
+const SPLINTER_LIFE := 0.3
+## Circle kinds (World.Rune.kind, the snapshot's R_KIND): the rune circle and the vigil candle's light.
+const CIRCLE_RUNE := 0
+const CIRCLE_CANDLE := 1
+## Vigil candle: how far from the caster (px) a light may be set, how far along the aim one goes when no enemy is
+## that near, the cast speed a hero who stood in a light keeps (added to her other cast-speed bonuses) and for how
+## many seconds after leaving it.
+const CANDLE_RANGE := 60.0
+const CANDLE_AIM_DIST := 30.0
+const VIGIL_HASTE := 0.2
+const VIGIL_AFTER := 2.0
+## Cleave: knock-back of the sweep, px/s.
+const SWEEP_KNOCK := 120.0
+## Shot kinds (World.Shot.kind, what clients draw) come in blocks of SHOT_BLOCK spells: a block's plain kinds, then
+## the same spells evolved. The first six spells' kinds are what they always were (spell, spell + 6 evolved).
+const SHOT_BLOCK := 6
 
 
 static func spell_name(spell: int) -> String:
@@ -142,5 +184,29 @@ static func evo_value(spell: int, key: String, none: float) -> float:
 	return float(EVOS[spell].get(key, none))
 
 
+## The partner spell of the evolution, or -1 when the partner is a passive (`passive_partner`) or there is none.
 static func partner(spell: int) -> int:
-	return int(EVOS[spell]["partner"])
+	return int(EVOS[spell].get("partner", -1))
+
+
+## The Upgrades key of the passive the evolution pairs with, or "" when it pairs with a spell.
+static func passive_partner(spell: int) -> String:
+	return str(EVOS[spell].get("passive", ""))
+
+
+static func has_evolution(spell: int) -> bool:
+	return EVOS[spell].has("name")
+
+
+## What a shot of `spell` is drawn as (see SHOT_BLOCK).
+static func shot_kind(spell: int, evolved: bool) -> int:
+	return (spell / SHOT_BLOCK) * SHOT_BLOCK * 2 + spell % SHOT_BLOCK + (SHOT_BLOCK if evolved else 0)
+
+
+## The spell of a shot kind, and whether it is evolved (shot_kind backwards).
+static func shot_spell(kind: int) -> int:
+	return (kind / (SHOT_BLOCK * 2)) * SHOT_BLOCK + kind % SHOT_BLOCK
+
+
+static func shot_evolved(kind: int) -> bool:
+	return kind % (SHOT_BLOCK * 2) >= SHOT_BLOCK

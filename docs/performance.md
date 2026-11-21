@@ -141,6 +141,32 @@ What changed (all of it exact: the pinned solo run is unchanged):
   a gem.
 - `World.party_center` uses the cached wizard list.
 
-How to find the next one: time the phases of `World.step` separately (copy its body into a scratch `-s` script
-with `Time.get_ticks_usec()` between the calls), then the pieces of the slowest phase. Take the lowest of several
-runs; the box is noisy.
+How to find the next one: time the phases of `World.step` separately, then the pieces of the slowest phase. Take
+the lowest of several runs; the box is noisy. Since pass 3 that is a tool:
+`godot --headless --path . -s tools/tool.gd -- step_profile [--sets=4/1,2,3,4]` (one line per loadout, every phase
+in us, and the state hash, which an exact change leaves alone).
+
+### Pass 3, 21 Nov 2026: homing stars, and a steadier horde row
+
+The wave 3 spell rows of `sim_horde` went over the budget on a slow CI runner (bone spear 4133, vigil candle 4200,
+with the old rows at 3533 and 3967). `step_profile` showed the cost was not in the new spells: a STARFALL star
+looked for its target with one `World._query` of its whole 160 px reach every step, about 200 enemies a star at
+the cap, 230 us a star a step. `WorldCasting._homing_target` now looks within 48 px first and widens only when
+nobody is near (the same answer: the state hashes of five loadouts are unchanged, and a unit test compares it
+with the wide search). Cloud box, us per step without the bots, every wizard holding the loadout evolved:
+
+| loadout | before | after |
+| --- | --- | --- |
+| STARFALL alone | 2480 to 2640 | 2180 to 2370 |
+| FIREBALL, FROST FAN, STARFALL | 3790 to 3820 | 2540 to 3100 |
+| the four above with CHAIN LIGHTNING | 4700 to 5130 | 3540 to 3860 |
+| VIGIL CANDLE, FIREBALL, FROST FAN, STARFALL | 5020 to 5400 | 2930 to 3530 |
+
+The peak rows of `sim_horde` hold six unevolved spells a wizard, which no run can (four spell slots) and which
+costs less than four evolved ones: the table above is the truer late game. Known and left: four wizards all
+holding the SEAL OF SOLOMON cost 4600 to 5100 (28 circles each pulling about 35 enemies a step, and the packed
+crowd costs more to separate); a shot in flight costs about 35 us a step (its `_query` and the checks on what it
+returns).
+
+`sim_horde` now times its peak in three windows and takes the cheapest (`PEAK_WINDOWS`): the same code measured
+2483 to 3217 us on one idle machine with one 600-tick average, and 2500 both times with the windows.

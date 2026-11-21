@@ -64,13 +64,29 @@ func test_launch_classes_match_the_design_table() -> void:
 	assert_near(Classes.aura_radius(Classes.KNIGHT), 0.0)
 
 
-func test_weapons_mage_school_and_stand_ins() -> void:
+func test_class_weapons_and_skins() -> void:
 	for sch: int in range(Wizards.count()):
 		assert_eq(Classes.weapon(Classes.MAGE, sch), Wizards.start_spell(sch))
+		assert_eq(Classes.weapon_skin(Classes.MAGE, Wizards.start_spell(sch)), "", "a mage's school spell wears no skin")
 	assert_eq(Classes.weapon(Classes.PALADIN), World.SP_STAR, "SMITE is the STARFALL row")
-	assert_eq(Classes.weapon(Classes.KNIGHT), World.SP_FROST, "CLEAVE stands in as the FROST FAN until C2")
-	assert_eq(Classes.weapon(Classes.ARCHER), World.SP_ARCANE, "LONGBOW stands in as the ARCANE BOLT until C2")
-	assert_eq(Classes.weapon(Classes.PRIEST), World.SP_RUNE, "HOLY LIGHT stands in as the RUNE CIRCLE until C2")
+	assert_eq(Classes.weapon(Classes.KNIGHT), World.SP_CLEAVE)
+	assert_eq(Classes.weapon(Classes.ARCHER), World.SP_BONE, "LONGBOW is the BONE SPEAR row")
+	assert_eq(Classes.weapon(Classes.PRIEST), World.SP_CANDLE, "HOLY LIGHT is the VIGIL CANDLE row")
+	assert_eq(Classes.weapon_skin(Classes.ARCHER, World.SP_BONE), "longbow")
+	assert_eq(Classes.weapon_skin(Classes.ARCHER, World.SP_STAR), "", "a spell picked up later is drawn as itself")
+	assert_eq(Classes.weapon_name(Classes.KNIGHT), "CLEAVE")
+	assert_eq(Classes.weapon_name(Classes.ARCHER), "LONGBOW")
+	assert_eq(Classes.weapon_name(Classes.PRIEST), "HOLY LIGHT")
+	assert_eq(Classes.weapon_name(Classes.PALADIN), "SMITE")
+	assert_eq(Classes.weapon_name(Classes.MAGE, 1), Spells.spell_name(Wizards.start_spell(1)))
+	assert_eq(Classes.card_name(Classes.ARCHER, Upgrades.W_BONE), "LONGBOW")
+	assert_eq(Classes.card_name(Classes.MAGE, Upgrades.W_BONE), "BONE SPEAR")
+	assert_eq(Classes.card_name(Classes.ARCHER, Upgrades.E_BONE), "OSSUARY LANCE", "the evolution keeps its own name")
+	assert_near(Classes.skin_value("longbow", "range"), 260.0)
+	assert_near(Classes.skin_value("holy_light", "heal_every"), 6.0)
+	assert_near(Classes.skin_value("", "range", -1.0), -1.0, 0.0001, "no skin: the default")
+	for c: int in range(Classes.count()):
+		assert_true(Classes.SKINS.has(Classes.skin(c)), Classes.key(c) + " names an unknown skin")
 
 
 func test_skills_table() -> void:

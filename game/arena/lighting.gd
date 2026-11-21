@@ -187,10 +187,9 @@ func _draw_lights() -> void:
 	if k < 1.0:
 		_scene_lights(ArenaBg.scene(a._prev_act), 1.0 - k)
 	_scene_lights(ArenaBg.scene(a.act), k)
-	# Rune circles light the floor they cover.
+	# Rune circles and candles light the floor they cover.
 	for c: Array in a.vr:
-		var col: Color = a.SEAL_RING if c[5] else a.SPELL_COLORS[World.SP_RUNE]
-		_light(c[0], float(c[1]) * 1.3, col, 0.55 * ArenaDrawWorld._rune_alpha(a, c))
+		_light(c[0], float(c[1]) * 1.3, ArenaDrawWorld._circle_color(a, c), 0.55 * ArenaDrawWorld._rune_alpha(a, c))
 	# Loot glints on the floor: chests and cards strongly, motes and coins a little.
 	var n := 0
 	for kk: Array in a.vk:

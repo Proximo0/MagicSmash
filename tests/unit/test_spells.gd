@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_one_stat_row_and_evolution_per_spell() -> void:
-	assert_eq(Spells.COUNT, World.SP_RUNE + 1)
+	assert_eq(Spells.COUNT, World.SP_CLEAVE + 1)
 	assert_eq(Spells.STATS.size(), Spells.COUNT)
 	assert_eq(Spells.EVOS.size(), Spells.COUNT)
 
@@ -20,6 +20,8 @@ func test_levels_get_stronger() -> void:
 
 func test_evolution_beats_max_level() -> void:
 	for sp: int in range(Spells.COUNT):
+		if not Spells.has_evolution(sp):
+			continue
 		var top: float = Spells.damage(sp, Spells.MAX_LEVEL, false) * Spells.count(sp, Spells.MAX_LEVEL, false) / Spells.cooldown(sp, Spells.MAX_LEVEL, false)
 		var evo: float = Spells.damage(sp, 0, true) * Spells.count(sp, 0, true) / Spells.cooldown(sp, 0, true)
 		assert_true(evo > top, "%s evolution %.1f dps-ish is not above level 5's %.1f" % [Spells.spell_name(sp), evo, top])
@@ -29,14 +31,27 @@ func test_catalog_matches_spells() -> void:
 	for sp: int in range(Spells.COUNT):
 		var w: int = Upgrades.weapon_entry(sp)
 		var e: int = Upgrades.evo_entry(sp)
-		assert_true(Upgrades.is_weapon(w) and Upgrades.is_evolution(e))
+		assert_true(Upgrades.is_weapon(w))
 		assert_eq(Upgrades.display_name(w), Spells.spell_name(sp))
 		assert_eq(Upgrades.max_level(w), Spells.MAX_LEVEL)
+		if not Spells.has_evolution(sp):
+			assert_eq(e, -1, Spells.spell_name(sp) + " has an evolution row but no EVOS row")
+			continue
+		assert_true(Upgrades.is_evolution(e))
 		assert_eq(Upgrades.display_name(e), str(Spells.EVOS[sp]["name"]))
 		assert_eq(Upgrades.description(e), str(Spells.EVOS[sp]["desc"]))
 		assert_true(Spells.partner(sp) != sp, Spells.spell_name(sp) + " partners itself")
-		assert_eq(Upgrades.CATALOG[e][5], [[w, Spells.MAX_LEVEL], [Upgrades.weapon_entry(Spells.partner(sp)), 1]],
+		var partner: int = Upgrades.weapon_entry(Spells.partner(sp)) if Spells.partner(sp) >= 0 else _row_of(Spells.passive_partner(sp))
+		assert_true(partner >= 0, Spells.spell_name(sp) + " has no partner")
+		assert_eq(Upgrades.CATALOG[e][5], [[w, Spells.MAX_LEVEL], [partner, 1]],
 			Spells.spell_name(sp) + " evolution requirements do not match its partner")
+
+
+static func _row_of(key: String) -> int:
+	for i: int in range(Upgrades.count()):
+		if Upgrades.key(i) == key:
+			return i
+	return -1
 
 
 func test_rune_circle_grows_with_level_and_evolution() -> void:

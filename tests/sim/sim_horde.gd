@@ -6,6 +6,10 @@ extends "res://tests/sim/sim_base.gd"
 const SEED: int = 21
 ## Ticks measured at the peak, after a short settle.
 const PEAK_TICKS: int = 600
+## The peak is timed in this many equal windows and the cheapest one is the row's cost: the same code ran 2483 to
+## 3217 us on one idle machine (a shared runner's neighbours, its clock speed), and that noise only ever adds. A
+## real cost is in every window. The CPU clock ticks every 10 ms, 1.7% of a 200-tick window.
+const PEAK_WINDOWS: int = 3
 const SETTLE_TICKS: int = 60
 ## World.step's budget, microseconds of CPU time: a quarter of a 16.7 ms frame leaves room for drawing and the network.
 ## CPU time, not a stopwatch: a stopwatch also counts the time other processes hold the cores, so check_all failed
@@ -61,7 +65,13 @@ func _fill_hazards(w: World, rng: RandomNumberGenerator) -> void:
 			rng.randf_range(0.5, 2.0), rng.randf_range(1.0, 3.0), 0, 0, true)
 
 
-func _peak(mixed: bool = false) -> Dictionary:
+## The wave 3 cast kinds, one four-wizard row each (docs/wave3_plan.md): every wizard holds the spell evolved (at
+## its top level when it has no evolution) on top of the first six at level 3, so its cost is measured at the cap.
+const WAVE3_ROWS: Array = [["horde_bone_spear_4p", World.SP_BONE], ["horde_vigil_candle_4p", World.SP_CANDLE],
+	["horde_cleave_4p", World.SP_CLEAVE]]
+
+
+func _peak(mixed: bool = false, extra: int = -1) -> Dictionary:
 	var slots: Array = [0, 1, 2, 3]
 	# Enemies that cannot die keep the arena full, so the cost measured is the cost at the cap.
 	var t := Tuning.new()
@@ -78,28 +88,39 @@ func _peak(mixed: bool = false) -> Dictionary:
 		w.spawn_enemy(MIXED_KINDS[i % MIXED_KINDS.size()] if mixed else [World.GOBLIN, World.BAT, World.SLIME, World.SKELETON][i % 4], 0, at)
 	for p: World.Player in w.players.values():
 		p.invuln = 99999.0
-		for sp: int in range(Spells.COUNT):
+		for sp: int in range(World.SP_RUNE + 1): # the first six spells: the row as it was before wave 3
 			p.upgrades[Upgrades.weapon_entry(sp)] = 3
+		if extra >= 0:
+			p.upgrades[Upgrades.weapon_entry(extra)] = Spells.MAX_LEVEL
+			if Spells.has_evolution(extra):
+				p.upgrades[Upgrades.evo_entry(extra)] = 1
 	var bots := _bots(slots)
 	for _i: int in range(SETTLE_TICKS):
 		if mixed:
 			_fill_hazards(w, rng)
 		w.step(DT, _inputs(w, bots))
-	var c0: int = _cpu_usec()
-	var t0: int = Time.get_ticks_usec()
 	var low: int = 1 << 30
 	var rows_low: int = Hazards.CAP
-	for _i: int in range(PEAK_TICKS):
-		if mixed:
-			_fill_hazards(w, rng)
-			rows_low = mini(rows_low, w.hazards.size())
-		w.step(DT, _inputs(w, bots))
-		w.take_events()
-		low = mini(low, w.enemies.size())
-	var wall: float = float(Time.get_ticks_usec() - t0) / PEAK_TICKS
-	var c1: int = _cpu_usec()
-	var by_cpu: bool = c0 >= 0 and c1 >= 0
-	return {"us": float(c1 - c0) / PEAK_TICKS if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low, "rows": rows_low}
+	var us: float = INF
+	var wall: float = INF
+	var by_cpu := true
+	var per: int = PEAK_TICKS / PEAK_WINDOWS
+	for _win: int in range(PEAK_WINDOWS):
+		var c0: int = _cpu_usec()
+		var t0: int = Time.get_ticks_usec()
+		for _i: int in range(per):
+			if mixed:
+				_fill_hazards(w, rng)
+				rows_low = mini(rows_low, w.hazards.size())
+			w.step(DT, _inputs(w, bots))
+			w.take_events()
+			low = mini(low, w.enemies.size())
+		var win_wall: float = float(Time.get_ticks_usec() - t0) / per
+		var c1: int = _cpu_usec()
+		by_cpu = by_cpu and c0 >= 0 and c1 >= 0
+		wall = minf(wall, win_wall)
+		us = minf(us, float(c1 - c0) / per if by_cpu else win_wall)
+	return {"us": us if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low, "rows": rows_low}
 
 
 ## CPU time this process has used so far, microseconds, or -1 where the OS does not say (anything but Linux; the
@@ -150,6 +171,11 @@ func run() -> Array:
 	rows.append(row("horde_mixed_cost_4p", mixed.us <= _budget_us() and mixed.low >= cap / 2,
 		"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d hazard rows>=%d with %d kinds" % [
 			mixed.us, "cpu" if mixed.by_cpu else "stopwatch", _budget_us(), mixed.wall, mixed.low, mixed.rows, MIXED_KINDS.size()]))
+	for r: Array in WAVE3_ROWS:
+		var k := _peak(false, int(r[1]))
+		rows.append(row(str(r[0]), k.us <= _budget_us() and k.low >= cap / 2,
+			"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d of cap %d" % [
+				k.us, "cpu" if k.by_cpu else "stopwatch", _budget_us(), k.wall, k.low, cap]))
 	for n: int in [2]:
 		var slots: Array = range(n)
 		var s := _survive(slots)

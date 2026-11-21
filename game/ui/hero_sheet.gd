@@ -286,7 +286,7 @@ func _draw_gear(ci: CanvasItem, h: Hero, t: float) -> void:
 	var x := r.position.x + 6
 	var wid := int(r.size.x) - 12
 	PixelFont.draw(ci, "WEAPON", Vector2(x, r.position.y + 6), 1, Occult.GOLD, Occult.INK)
-	PixelFont.draw(ci, fit_text(Spells.spell_name(w), wid - 44), Vector2(x + 44, r.position.y + 6), 1, Occult.BONE, Occult.INK)
+	PixelFont.draw(ci, fit_text(Classes.weapon_name(h.cls, h.school), wid - 44), Vector2(x + 44, r.position.y + 6), 1, Occult.BONE, Occult.INK)
 	PixelFont.draw(ci, weapon_line(w), Vector2(x, r.position.y + 17), 1, Occult.DIM, Occult.INK)
 	var s := Classes.skill(h.cls)
 	var sy := r.position.y + 32

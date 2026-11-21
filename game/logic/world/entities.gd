@@ -67,6 +67,12 @@ class Player:
 	var reach_mul := 1.0 # race trait: XP magnet reach
 	var knock_mul := 1.0 # race trait: share of a push taken (nothing pushes a wizard yet)
 	var luck := 0.0 # FORTUNE's chest luck (WorldDrops._open_chest)
+	## The class weapon (World.apply_hero): the World.SP_* spell the hero's class skin dresses (Classes.SKINS: its
+	## name, look and overrides such as range and the heal), -1 and "" for a wizard with no hero or a mage.
+	var class_weapon := -1
+	var skin := ""
+	var vigil := 0.0 # s left of a vigil candle's cast speed (she stood in a light)
+	var light_heal_t := 0.0 # s her lights have burned towards their next heal (HOLY LIGHT, CONSECRATION)
 
 class Enemy:
 	var id := 0
@@ -104,7 +110,7 @@ class Enemy:
 class Shot:
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
-	var kind := 0 # spell, plus Spells.COUNT when evolved (what clients draw)
+	var kind := 0 # Spells.shot_kind(spell, evo): what clients draw
 	var spell := 0
 	var evo := false
 	var pierce := 0 # enemies it may still pass through
@@ -114,6 +120,7 @@ class Shot:
 	var life := 1.0
 	var r := 3.0
 	var dead := false
+	var splinter := false # an Ossuary Lance splinter: it never splinters again
 
 ## A rune circle inscribed on the floor: it hurts every enemy standing in it each Spells.RUNE_TICK, and the
 ## Seal of Solomon also pulls enemies toward its centre.
@@ -127,7 +134,7 @@ class Rune:
 	var owner := 0
 	var evo := false
 	var pull := 0.0
-	var kind := 0 # what kind of circle; 0 = the rune circle spell
+	var kind := 0 # Spells.CIRCLE_*: the rune circle spell or a vigil candle's light
 
 class EShot:
 	var pos := Vector2.ZERO

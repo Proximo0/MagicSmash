@@ -4,9 +4,18 @@ extends RefCounted
 ## Static helpers: `a` is the Arena that owns the state.
 
 static func _spell_color(a: Arena, sp: int, slot: int) -> Color:
+	var sk := _skin(a, slot, sp)
+	if sk != "" and a.SKIN_COLORS.has(sk):
+		return a.SKIN_COLORS[sk]
 	if sp == World.SP_ARCANE:
 		return G.player_fx(slot)
 	return a.SPELL_COLORS[sp]
+
+
+## The class skin (Classes.SKINS key) spell `sp` wears for the wizard in `slot`, "" when it is drawn as itself.
+static func _skin(a: Arena, slot: int, sp: int) -> String:
+	var p: Dictionary = a.vp.get(slot, {})
+	return "" if p.is_empty() else Classes.weapon_skin(int(p.get("cls", 0)), sp)
 
 
 static func _pickup_color(a: Arena, k: int) -> Color:
@@ -59,7 +68,10 @@ static func _emit_trails(a: Arena, dt: float) -> void:
 				stars.append(s)
 				if a._fx_rng.randf() < 0.5:
 					a.fx.spawn(p + Vector2(a._fx_rng.randf_range(-2, 2), a._fx_rng.randf_range(-2, 2)), Vector2(a._fx_rng.randf_range(-8, 8), 10),
-						0.45, 1.0, Color.WHITE, a.SPELL_COLORS[World.SP_STAR], true, 2.0, 30.0)
+						0.45, 1.0, Color.WHITE, _spell_color(a, World.SP_STAR, s[3]), true, 2.0, 30.0)
+			World.SP_BONE:
+				if a._fx_rng.randf() < 0.15:
+					a.fx.spawn(p, -s[2] * 0.05, 0.2, 1.0, Color.WHITE, _spell_color(a, World.SP_BONE, s[3]), true, 1.0)
 	# A star that was here a frame ago and is nowhere near now has landed: a burst, and a mark on the floor.
 	var reach := maxf(24.0, 420.0 * dt)
 	for old: Array in a._stars_seen:
@@ -69,14 +81,14 @@ static func _emit_trails(a: Arena, dt: float) -> void:
 				alive = true
 				break
 		if not alive:
-			a.fx.star_land((old[0] as Vector2) + (old[1] as Vector2) * dt, a.SPELL_COLORS[World.SP_STAR], old[2])
+			a.fx.star_land((old[0] as Vector2) + (old[1] as Vector2) * dt, old[3], old[2])
 	a._stars_seen.clear()
 	for s: Array in stars:
-		a._stars_seen.append([s[1], s[2], s[4]])
+		a._stars_seen.append([s[1], s[2], s[4], _spell_color(a, World.SP_STAR, s[3])])
 	for c: Array in a.vr:
 		if a._fx_rng.randf() < (0.3 if c[5] else 0.18):
 			var at: Vector2 = c[0] + Vector2.from_angle(a._fx_rng.randf() * TAU) * float(c[1])
-			a.fx.spawn(at, Vector2(0, a._fx_rng.randf_range(-22, -8)), 0.5, 1.0, a.RUNE_GOLD, a.SPELL_COLORS[World.SP_RUNE], true, 1.0)
+			a.fx.spawn(at, Vector2(0, a._fx_rng.randf_range(-22, -8)), 0.5, 1.0, a.RUNE_GOLD, ArenaDrawWorld._circle_color(a, c), true, 1.0)
 	for e in a.ve.values():
 		if e.type == World.LICH and a._fx_rng.randf() < 0.4:
 			a.fx.spawn(e.pos + Vector2(a._fx_rng.randf_range(-14, 14), a._fx_rng.randf_range(-24, 0)), Vector2(0, a._fx_rng.randf_range(-30, -10)),
@@ -169,11 +181,24 @@ static func _draw_shots(a: Arena) -> void:
 				Sprites.glow(ci, p, 5.0 if evo else 3.0, frost_glow)
 				Sprites.draw_mid_r(ci, big_shards[d] if evo else shards[d], p)
 			World.SP_STAR:
-				# A falling star: a twinkling star with a comet's tail (the mark and the burst when it lands are Fx's).
-				var d := Sprites.dir16(v)
-				Sprites.glow(ci, p, 10.0 if evo else 7.0, Color(star_col, 0.4))
-				Sprites.draw_mid_r(ci, lances[d] if evo else bolts[d], p, Color(star_col, 0.7))
-				Sprites.draw_mid_r(ci, big_stars[tick & 3] if evo else stars[tick & 3], p)
+				if _skin(a, s[3], World.SP_STAR) == "smite":
+					_draw_hammer(a, ci, p, v, evo)
+				else:
+					# A falling star: a twinkling star with a comet's tail (the mark and the burst when it lands are Fx's).
+					var d := Sprites.dir16(v)
+					Sprites.glow(ci, p, 10.0 if evo else 7.0, Color(star_col, 0.4))
+					Sprites.draw_mid_r(ci, lances[d] if evo else bolts[d], p, Color(star_col, 0.7))
+					Sprites.draw_mid_r(ci, big_stars[tick & 3] if evo else stars[tick & 3], p)
+			World.SP_BONE:
+				if _skin(a, s[3], World.SP_BONE) == "longbow":
+					_draw_arrow(a, ci, p, v, evo)
+				else:
+					# A bone spear: a pale shaft with a white point, longer and thicker evolved.
+					var dn := v.normalized()
+					var col: Color = a.SPELL_COLORS[World.SP_BONE]
+					Sprites.glow(ci, p, 5.0 if evo else 4.0, Color(col, 0.35))
+					Sprites.line(ci, p - dn * (10.0 if evo else 7.0), p, col, 1 if evo else 0)
+					Sprites.line(ci, p, p + dn * 2.0, Color.WHITE)
 	# Staff heads and the rune shield's orbs
 	var orb := Sprites.region("fx_orb")
 	var orb_glow := Color(Sprites.ORBIT_COLOR, 0.4)
@@ -207,6 +232,28 @@ static func _draw_shots(a: Arena) -> void:
 			Sprites.glow(ci, e.pos + Vector2(0, -14), 28.0, Color(0.2, 0.88, 0.77, 0.1 + 0.03 * sin(a.time * 3.0)))
 		elif e.type == World.MAGE and e.state == 1:
 			Sprites.glow(ci, e.pos + Vector2(0, -8), 7.0, danger)
+
+
+## The archer's LONGBOW: an arrow, a wooden shaft with a pale head and two fletchings (a gold head evolved).
+static func _draw_arrow(a: Arena, ci: CanvasItem, p: Vector2, v: Vector2, evo: bool) -> void:
+	var dn := v.normalized()
+	var side := dn.orthogonal() * 2.0
+	var tail := p - dn * 8.0
+	Sprites.line(ci, tail, p, a.SKIN_COLORS["longbow"])
+	Sprites.line(ci, p, p + dn * 2.0, a.RUNE_GOLD if evo else Color.WHITE, 1)
+	Sprites.line(ci, tail, tail - dn * 2.0 + side, Color("fff6e0"))
+	Sprites.line(ci, tail, tail - dn * 2.0 - side, Color("fff6e0"))
+
+
+## The paladin's SMITE: a hammer of light, a handle trailing behind a crosswise head, in a gold-white glow.
+static func _draw_hammer(a: Arena, ci: CanvasItem, p: Vector2, v: Vector2, evo: bool) -> void:
+	var dn := v.normalized()
+	var side := dn.orthogonal() * (4.0 if evo else 3.0)
+	var col: Color = a.SKIN_COLORS["smite"]
+	Sprites.glow(ci, p, 10.0 if evo else 7.0, Color(col, 0.45))
+	Sprites.line(ci, p - dn * 7.0, p, a.RUNE_GOLD)
+	Sprites.line(ci, p + side, p - side, col, 1)
+	Sprites.line(ci, p + side + dn * 1.0, p - side + dn * 1.0, Color.WHITE)
 
 
 ## Enemy shots, over everything: a dark rim round a blood-red body with an orange core, so none can be taken for
