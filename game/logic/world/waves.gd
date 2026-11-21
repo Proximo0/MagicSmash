@@ -3,8 +3,8 @@ extends RefCounted
 ## The horde for World: the run's minutes, omens, rifts, groups through the doors, elites and powerups. Static helpers; the first argument is the World.
 
 
-## A new minute: announce it. At every boss_every_min minute mark (5:00, 10:00, ...) the Lich comes, unless it is
-## still here.
+## A new minute: announce it. When a boss of w.schedule (Bosses) falls on this minute mark it comes, unless the
+## boss is still here; the final row's minute brings the final boss, or makes the standing one final.
 static func _tick_minute(w: World) -> void:
 	var minute := int(w.wave_time / 60.0) + 1
 	if minute <= w.wave:
@@ -15,18 +15,19 @@ static func _tick_minute(w: World) -> void:
 		w._final_called = true
 		w.emit(World.EV_WAVE, 0, 0, w.wave, 2)
 		if w.boss != null and not w.boss.dead:
-			WorldBosses._make_final(w, w.boss) # a Lich still standing ascends
+			Bosses._make_final(w, w.boss) # a Lich still standing ascends
 		else:
-			w.spawn_queue.append({"t": w.wave_time + 2.5, "type": World.LICH, "door": 0, "final": true})
+			w.spawn_queue.append({"t": w.wave_time + 2.5, "type": _final_type(w), "door": 0, "final": true})
 			_sort_queue(w)
 		return
-	var boss_minute := w.wave < final_minute(w) and WorldBosses._lich_visits(w, w.wave) > WorldBosses._lich_visits(w, w.wave - 1)
+	var due := Bosses.due((w.wave - 2) * 60.0, (w.wave - 1) * 60.0, w.schedule)
+	var boss_minute := w.wave < final_minute(w) and due >= 0
 	w.emit(World.EV_WAVE, 0, 0, w.wave, 1 if boss_minute else 0)
 	for i in World.OMENS.size():
 		if int(World.OMENS[i][0]) == w.wave:
 			_queue_omen(w, i)
 	if boss_minute and w.boss == null:
-		w.spawn_queue.append({"t": w.wave_time + 2.5, "type": World.LICH, "door": 0})
+		w.spawn_queue.append({"t": w.wave_time + 2.5, "type": int(w.schedule[due][1]), "door": 0})
 		_sort_queue(w)
 
 
@@ -58,9 +59,18 @@ static func _queue_omen(w: World, i: int) -> void:
 	_sort_queue(w)
 
 
-## The minute the Archlich comes: the one that starts at run_minutes:00. No Lich visits after it.
+## The minute the Archlich comes: the one that starts at the schedule's final row (run_minutes:00 today). No
+## boss visits after it.
 static func final_minute(w: World) -> int:
-	return int(w.tune.run_minutes) + 1
+	return int(Bosses.final_time(w.schedule) / 60.0) + 1
+
+
+## The kind of the schedule's final boss.
+static func _final_type(w: World) -> int:
+	for row: Array in w.schedule:
+		if row[2]:
+			return int(row[1])
+	return World.LICH
 
 
 ## The horde earns spawn budget every second (more each minute, scaled by party size, less while the Lich is
@@ -81,13 +91,12 @@ static func _direct_horde(w: World, dt: float) -> void:
 	w.horde_budget += rate * dt
 	if w._next_group.is_empty():
 		w._next_group = _roll_group(w)
-	var cost: float = _horde_row(w, w._next_group[0])[1] * w._next_group[1]
+	var cost := 0.0
+	for part: Array in w._next_group[1]:
+		cost += float(Bestiary.horde_row(part[0])[Bestiary.H_COST]) * int(part[1])
 	if w.horde_budget >= cost:
 		w.horde_budget -= cost
-		if w.rng.randf() < w.tune.rift_share:
-			_queue_rift(w, w._next_group[0], w._next_group[1])
-		else:
-			_queue_group(w, w._next_group[0], w._next_group[1], _pick_door(w), w.wave_time)
+		_queue_rolled(w, w._next_group)
 		_sort_queue(w)
 		w._next_group = []
 
@@ -139,27 +148,46 @@ static func _spot_near_party(w: World, min_dist: float, max_dist: float, margin:
 	return best
 
 
-## A weighted pick among the unlocked HORDE rows, with its group size: [type, count].
+## The next group or formation (Bestiary.roll_group): [layout, [[type, count], ...]].
 static func _roll_group(w: World) -> Array:
-	var total := 0
-	for row: Array in World.HORDE:
-		if w.wave_time >= row[2]:
-			total += int(row[3])
-	var r := w.rng.randi_range(1, total)
-	for row: Array in World.HORDE:
-		if w.wave_time < row[2]:
-			continue
-		r -= int(row[3])
-		if r <= 0:
-			return [row[0], w.rng.randi_range(row[4], row[5] + row[6] * (w.wave - 1))]
-	return [World.GOBLIN, 1]
+	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), w.alive, w.players.size(), w.boss != null)
 
 
-static func _horde_row(w: World, type: int) -> Array:
-	for row: Array in World.HORDE:
-		if row[0] == type:
-			return row
-	return World.HORDE[0]
+## Queues a rolled group by its layout. A plain group comes through a door or, one time in tune.rift_share, a rift;
+## RISE comes up from the floor near the party; WALL comes abreast through one door; a formation (layout 8+) by
+## its Bestiary.AT_* layout.
+static func _queue_rolled(w: World, g: Array) -> void:
+	var layout: int = g[0]
+	var parts: Array = g[1]
+	match layout:
+		Bestiary.GROUP:
+			var type: int = parts[0][0]
+			var n: int = parts[0][1]
+			if w.rng.randf() < w.tune.rift_share:
+				_queue_rift(w, type, n)
+			else:
+				_queue_group(w, type, n, _pick_door(w), w.wave_time)
+		Bestiary.RISE:
+			for part: Array in parts:
+				for k in int(part[1]):
+					var at := _spot_near_party(w, Bestiary.RISE_MIN, Bestiary.RISE_MAX, Bestiary.RISE_MARGIN)
+					w.emit(World.EV_RIFT, at.x, at.y, Bestiary.RISE_SPREAD, w.tune.rift_warning)
+					w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning, "type": part[0], "door": 0, "at": at})
+		Bestiary.WALL:
+			var door := _pick_door(w)
+			for part: Array in parts:
+				_queue_group(w, part[0], part[1], door, w.wave_time, 0.0)
+		_:
+			var door := _pick_door(w)
+			for i in parts.size():
+				var part: Array = parts[i]
+				match layout - 8:
+					Bestiary.AT_RIFT:
+						_queue_rift(w, part[0], part[1])
+					Bestiary.AT_OPPOSITE:
+						_queue_group(w, part[0], part[1], door if i % 2 == 0 else door ^ 1, w.wave_time)
+					_:
+						_queue_group(w, part[0], part[1], door, w.wave_time)
 
 
 ## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome.
@@ -182,9 +210,9 @@ static func _spawn_elite(w: World) -> void:
 	w.emit(World.EV_ELITE, e.pos.x, e.pos.y, e.type, 0)
 
 
-static func _queue_group(w: World, type: int, n: int, door: int, t: float) -> void:
+static func _queue_group(w: World, type: int, n: int, door: int, t: float, stagger: float = World.DOOR_STAGGER) -> void:
 	for i in n:
-		w.spawn_queue.append({"t": t + i * World.DOOR_STAGGER, "type": type, "door": door})
+		w.spawn_queue.append({"t": t + i * stagger, "type": type, "door": door})
 
 
 static func _sort_queue(w: World) -> void:
@@ -198,7 +226,7 @@ static func _process_spawns(w: World) -> void:
 		var s: Dictionary = w.spawn_queue.pop_front()
 		var e := spawn_enemy(w, s.type, s.door, s.get("at"))
 		if s.get("final", false):
-			WorldBosses._make_final(w, e)
+			Bosses._make_final(w, e)
 
 
 static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> World.Enemy:
@@ -206,15 +234,19 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 	e.id = w.next_id
 	w.next_id += 1
 	e.type = type
-	var st: Array = World.STATS[type]
+	var st: Array = Bestiary.KINDS[type]
+	e.flags = st[Bestiary.K_FLAGS]
 	var hp_scale := 1.0 + w.tune.enemy_hp_per_min * (w.wave - 1)
-	if type == World.LICH:
-		hp_scale = WorldBosses._lich_hp_scale(w)
-	e.hp = st[0] * hp_scale
+	if e.flags & Bestiary.F_BOSS:
+		e.hp = Bosses.health_in(w, type)
+	else:
+		e.hp = st[Bestiary.K_HP] * hp_scale
 	e.maxhp = e.hp
-	e.spd = st[1] * (1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap))
-	e.r = st[2]
-	e.contact = st[4]
+	e.spd = st[Bestiary.K_SPD]
+	if not e.flags & Bestiary.F_FIXED_SPEED:
+		e.spd *= 1.0 + w.tune.enemy_speed_per_min * minf(w.wave, w.tune.enemy_speed_min_cap)
+	e.r = st[Bestiary.K_R]
+	e.contact = st[Bestiary.K_CONTACT]
 	e.t = w.rng.randf() * 10.0
 	e.timer = w.rng.randf_range(1.0, 2.5)
 	if at != null:
@@ -227,11 +259,8 @@ static func spawn_enemy(w: World, type: int, door: int, at: Variant = null) -> W
 		if w.door_open[door] <= 0.0:
 			w.emit(World.EV_DOOR, World.DOORS[door].x, World.DOORS[door].y, door, 0)
 		w.door_open[door] = 1.2
-	if type == World.LICH:
-		w.boss = e
-		e.state = 0
-		e.timer = 2.0
-		w.emit(World.EV_BOSS, e.pos.x, e.pos.y, 0, 0)
+	if e.flags & Bestiary.F_BOSS:
+		Bosses._arrive(w, e)
 	w.enemies.append(e)
 	return e
 

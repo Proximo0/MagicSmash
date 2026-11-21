@@ -41,7 +41,27 @@ func _inputs(w: World, bots: Dictionary) -> Dictionary:
 	return inputs
 
 
-func _peak() -> Dictionary:
+## The mixed probe: the reserved bestiary kinds (stand-ins, default brains) join today's four in the crowd, and the
+## floor is kept full of hazard rows (Hazards.CAP) of every hurting shape, so the budget holds with them on the field.
+const MIXED_KINDS: Array = [World.GOBLIN, World.BAT, World.SLIME, World.SKELETON, Bestiary.BLOAT, Bestiary.COFFIN,
+	Bestiary.GUARD, Bestiary.CINDERLING, Bestiary.CENSOR, Bestiary.HOUND, Bestiary.SHARD, Bestiary.SWORDS]
+const MIXED_ROWS: Array = [Hazards.FIRE, Hazards.FLAME, Hazards.BLAST, Hazards.BEAM, Hazards.LANE]
+
+
+## Tops the floor up to Hazards.CAP rows near the wizards (forced, so the regular caps do not thin it).
+func _fill_hazards(w: World, rng: RandomNumberGenerator) -> void:
+	var slots: Array = w.players.keys()
+	while w.hazards.size() < Hazards.CAP:
+		var p: World.Player = w.players[slots[rng.randi() % slots.size()]]
+		var kind: int = MIXED_ROWS[rng.randi() % MIXED_ROWS.size()]
+		var a: Vector2 = p.pos + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, 120.0)
+		var b: Vector2 = a + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(60.0, 200.0)
+		var line: bool = Hazards.KINDS[kind][Hazards.K_SHAPE] == Hazards.LINE
+		w.add_hazard(kind, a, b if line else a, rng.randf_range(5.0, 12.0) if line else rng.randf_range(13.0, 44.0),
+			rng.randf_range(0.5, 2.0), rng.randf_range(1.0, 3.0), 0, 0, true)
+
+
+func _peak(mixed: bool = false) -> Dictionary:
 	var slots: Array = [0, 1, 2, 3]
 	# Enemies that cannot die keep the arena full, so the cost measured is the cost at the cap.
 	var t := Tuning.new()
@@ -55,25 +75,31 @@ func _peak() -> Dictionary:
 	for i: int in range(int(w.tune.enemy_cap)):
 		var at := Vector2(rng.randf_range(G.ARENA.position.x + 20, G.ARENA.end.x - 20),
 			rng.randf_range(G.ARENA.position.y + 20, G.ARENA.end.y - 20))
-		w.spawn_enemy([World.GOBLIN, World.BAT, World.SLIME, World.SKELETON][i % 4], 0, at)
+		w.spawn_enemy(MIXED_KINDS[i % MIXED_KINDS.size()] if mixed else [World.GOBLIN, World.BAT, World.SLIME, World.SKELETON][i % 4], 0, at)
 	for p: World.Player in w.players.values():
 		p.invuln = 99999.0
 		for sp: int in range(Spells.COUNT):
 			p.upgrades[Upgrades.weapon_entry(sp)] = 3
 	var bots := _bots(slots)
 	for _i: int in range(SETTLE_TICKS):
+		if mixed:
+			_fill_hazards(w, rng)
 		w.step(DT, _inputs(w, bots))
 	var c0: int = _cpu_usec()
 	var t0: int = Time.get_ticks_usec()
 	var low: int = 1 << 30
+	var rows_low: int = Hazards.CAP
 	for _i: int in range(PEAK_TICKS):
+		if mixed:
+			_fill_hazards(w, rng)
+			rows_low = mini(rows_low, w.hazards.size())
 		w.step(DT, _inputs(w, bots))
 		w.take_events()
 		low = mini(low, w.enemies.size())
 	var wall: float = float(Time.get_ticks_usec() - t0) / PEAK_TICKS
 	var c1: int = _cpu_usec()
 	var by_cpu: bool = c0 >= 0 and c1 >= 0
-	return {"us": float(c1 - c0) / PEAK_TICKS if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low}
+	return {"us": float(c1 - c0) / PEAK_TICKS if by_cpu else wall, "wall": wall, "by_cpu": by_cpu, "low": low, "rows": rows_low}
 
 
 ## CPU time this process has used so far, microseconds, or -1 where the OS does not say (anything but Linux; the
@@ -120,6 +146,10 @@ func run() -> Array:
 			"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d of cap %d" % [
 				peak.us, "cpu" if peak.by_cpu else "stopwatch", _budget_us(), peak.wall, peak.low, cap]),
 	]
+	var mixed := _peak(true)
+	rows.append(row("horde_mixed_cost_4p", mixed.us <= _budget_us() and mixed.low >= cap / 2,
+		"us_per_step=%.0f %s (budget %.0f, stopwatch %.0f) enemies>=%d hazard rows>=%d with %d kinds" % [
+			mixed.us, "cpu" if mixed.by_cpu else "stopwatch", _budget_us(), mixed.wall, mixed.low, mixed.rows, MIXED_KINDS.size()]))
 	for n: int in [2]:
 		var slots: Array = range(n)
 		var s := _survive(slots)

@@ -52,6 +52,7 @@ const W_KITE: float = 0.35
 const W_MATE: float = 1.6
 const W_BOSS: float = 1.0
 const W_KEEP: float = 0.45
+const W_HAZARD: float = 6.0 # hazard rows (Hazards.steer): leaning out of a warned or hot row, never walking into one
 const W_STAND: float = 0.15 # standing still gets nothing from the keep bonus unless it was already standing
 ## Shapes of the scoring terms, px.
 const SHOT_MARGIN: float = 9.0
@@ -145,6 +146,7 @@ var _mates := PackedVector2Array()
 var _near := Vector2.INF # nearest enemy
 var _nd: float = INF
 var _boss := Vector2.INF
+var _hz := PackedFloat32Array() # hazard rows, Hazards.pack layout (empty: none)
 var _goal := Vector2.INF
 var _goal_stand: bool = false # a shrine: stand on it
 var _arena := Rect2(25, 44, 750, 392) # G.ARENA shrunk to where a wizard's feet may go
@@ -243,6 +245,7 @@ func decide(slot: int, me: Vector2, center: Vector2, time: float, enemies: Array
 		_arena = ctx.get("arena", Rect2(center - Vector2(375, 196), Vector2(750, 392)))
 		_leash = ctx.get("leash", Rect2(-1e6, -1e6, 2e6, 2e6))
 		_boss = ctx.get("boss", Vector2.INF)
+		_hz = ctx.get("hz", PackedFloat32Array())
 		var ev: Array = ctx.get("enemy_vel", [])
 		var er: Array = ctx.get("enemy_r", [])
 		_begin_senses()
@@ -469,6 +472,7 @@ func _sense_world(w: World, p: World.Player) -> void:
 	_speed = w.tune.player_speed * Upgrades.move_mul(p.upgrades) * (1.0 + float(p.armor[Loot.ST_SWIFT])) \
 		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0)
 	_arena = Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8))
+	_hz = Hazards.pack(w.hazards) if not w.hazards.is_empty() else PackedFloat32Array()
 	var lo := Vector2(-1e6, -1e6)
 	var hi := Vector2(1e6, 1e6)
 	_mates.clear()
@@ -608,6 +612,9 @@ func _think(me: Vector2, time: float) -> void:
 	var anchor_d: float = me.distance_to(_anchor)
 	# The closest approach is looked for from one reaction step on: an overlap right now is the same for every heading.
 	var now: float = minf(REACT_STEP, look)
+	# Hazard rows: which way to lean out of the one it stands in (zero when none threatens).
+	var hz: PackedFloat32Array = Hazards.near(_hz, me, travel + Hazards.BOT_MARGIN) if not _hz.is_empty() else _hz
+	var hz_push: Vector2 = Hazards.steer(hz, me, _speed, _react) if not hz.is_empty() else Vector2.ZERO
 	for i: int in range(DIR_COUNT + 1):
 		var d: Vector2 = _dirs[i] if i < DIR_COUNT else Vector2.ZERO
 		var end: Vector2 = me + d * travel
@@ -664,6 +671,10 @@ func _think(me: Vector2, time: float) -> void:
 				shot_worst = maxf(shot_worst, sh)
 		danger += (shot_worst + CROWD_SHARE * (shot - shot_worst)) * W_SHOT
 		score -= danger + crowd * W_OPEN
+		if not hz.is_empty():
+			if hz_push != Vector2.ZERO:
+				score += W_HAZARD * minf(hz_push.length(), 2.0) * (d.dot(hz_push.normalized()) - 1.0)
+			score -= W_HAZARD * minf(Hazards.steer(hz, end, _speed, _react).length(), 2.0)
 		# Where it wants to be: the goal, else its roaming ground.
 		if _goal.is_finite():
 			# Progress to the closest point of the path, so a goal nearer than the lookahead walk still pulls.

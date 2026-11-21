@@ -78,7 +78,7 @@ func test_kills_drop_xp_gems_worth_the_enemy_value() -> void:
 	_kill_one(w)
 	var gems: Array = w.pickups.filter(func(k: World.Pickup) -> bool: return k.kind == World.PK_XP)
 	assert_eq(gems.size(), 1)
-	assert_eq((gems[0] as World.Pickup).value, World.XP_VALUES[World.ORC])
+	assert_eq((gems[0] as World.Pickup).value, Bestiary.KINDS[World.ORC][Bestiary.K_XP])
 
 
 func test_collecting_xp_levels_up_and_offers_choices() -> void:
@@ -594,7 +594,7 @@ func test_elites_are_tough_and_pay_out() -> void:
 	var score: int = _player(w).score
 	var drops: int = w.pickups.size()
 	w._kill_enemy(elite, 0)
-	assert_eq(_player(w).score - score, int(World.STATS[elite.type][3]) * World.ELITE_REWARD)
+	assert_eq(_player(w).score - score, int(Bestiary.KINDS[elite.type][Bestiary.K_SCORE]) * World.ELITE_REWARD)
 	var chests: int = 0
 	for k: World.Pickup in w.pickups.slice(drops):
 		if k.kind == World.PK_CHEST:
@@ -819,7 +819,7 @@ func test_archlich_comes_when_the_run_time_is_up() -> void:
 				announced = true
 	assert_true(announced, "the final minute was not announced")
 	assert_true(w.boss != null and w.boss.final, "no Archlich after the run time")
-	var lich_hp: float = World.STATS[World.LICH][0] * w._lich_hp_scale()
+	var lich_hp: float = Bestiary.KINDS[World.LICH][Bestiary.K_HP] * w._lich_hp_scale()
 	assert_true(w.boss.maxhp > 2.0 * lich_hp, "Archlich hp %.0f vs Lich %.0f" % [w.boss.maxhp, lich_hp])
 
 
@@ -948,9 +948,10 @@ func test_game_over_sends_the_record_first() -> void:
 
 
 func test_enemy_tables_cover_every_type() -> void:
-	assert_eq(World.XP_VALUES.size(), World.STATS.size(), "an XP value per enemy type")
-	for row: Array in World.HORDE:
-		assert_true(int(row[0]) < World.STATS.size(), "horde row for an unknown type")
+	for row: Array in Bestiary.KINDS:
+		assert_eq(row.size(), Bestiary.K_FLAGS + 1, "a full KINDS row per enemy type")
+	for row: Array in Bestiary.HORDE:
+		assert_true(int(row[0]) < Bestiary.count(), "horde row for an unknown type")
 
 
 func test_a_faded_wraith_cannot_be_hurt() -> void:

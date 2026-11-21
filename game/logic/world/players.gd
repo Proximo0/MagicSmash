@@ -114,10 +114,11 @@ static func _nova(w: World, p: World.Player) -> void:
 		var d := e.pos.distance_to(p.pos)
 		if d < radius:
 			var dmg := 40.0 if e.type == World.LICH else 14.0
-			WorldEnemies._damage_enemy(w, e, dmg, p.slot, (e.pos - p.pos).normalized() * 260.0)
+			WorldEnemies._damage_enemy(w, e, dmg, p.slot, (e.pos - p.pos).normalized() * 260.0, true)
 	for s in w.eshots:
 		if s.pos.distance_to(p.pos) < radius + 30:
 			s.dead = true
+	WorldHazards.nova_clear(w, p.pos)
 
 
 static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
