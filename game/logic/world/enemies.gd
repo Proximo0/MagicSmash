@@ -34,148 +34,13 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	var to := tpos - e.pos
 	var dist := to.length()
 	var dirv := to / maxf(dist, 0.001)
-	var desired := Vector2.ZERO
-	match e.type:
-		World.GOBLIN, World.MSLIME:
-			desired = (dirv + dirv.orthogonal() * sin(e.t * 3.0 + e.id) * 0.35).normalized() * e.spd
-		World.BAT:
-			desired = (dirv + dirv.orthogonal() * sin(e.t * 5.0 + e.id) * 1.1).normalized() * e.spd
-		World.SLIME:
-			var cyc := fmod(e.t, 1.0)
-			e.state = 1 if cyc < 0.5 else 0
-			desired = dirv * e.spd * 2.2 if cyc < 0.5 else Vector2.ZERO
-		World.SKELETON:
-			if dist > 125:
-				desired = dirv * e.spd
-			elif dist < 80:
-				desired = -dirv * e.spd
-			else:
-				desired = dirv.orthogonal() * e.spd * (1.0 if e.id % 2 == 0 else -1.0)
-			e.timer -= dt
-			if e.timer <= 0.0 and tgt and dist < 240:
-				e.timer = w.rng.randf_range(1.8, 2.8)
-				var lead := tgt.pos + tgt.vel * (dist / 150.0) * 0.5
-				_eshot(w, World.ES_ARROW, e.pos + Vector2(0, -7), (lead - e.pos).normalized() * 150.0, 2.5)
-				w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 7, World.ES_ARROW, 0)
-		World.ORC:
-			match e.state:
-				0:
-					desired = dirv * e.spd
-					e.timer -= dt
-					if e.timer <= 0.0 and tgt and dist < 160:
-						e.state = 1
-						e.timer2 = 0.6
-						e.dir = dirv
-						w.emit(World.EV_CHARGE, e.pos.x, e.pos.y - 8, e.id, 0)
-				1:
-					e.timer2 -= dt
-					desired = Vector2.ZERO
-					if e.timer2 <= 0.0:
-						e.state = 2
-						e.timer2 = 0.6
-				2:
-					e.timer2 -= dt
-					desired = e.dir * 240.0
-					if e.timer2 <= 0.0 or not G.ARENA.grow(-9).has_point(e.pos + e.dir * 4.0):
-						e.state = 0
-						e.timer = w.rng.randf_range(2.0, 3.2)
-		World.MAGE:
-			desired = dirv.orthogonal() * e.spd * sin(e.t)
-			e.timer -= dt
-			if e.state == 0 and e.timer <= 0.0 and tgt:
-				var old := e.pos
-				var ang := w.rng.randf() * TAU
-				var np := tgt.pos + Vector2(cos(ang), sin(ang)) * w.rng.randf_range(80, 130)
-				np.x = clampf(np.x, G.ARENA.position.x + 14, G.ARENA.end.x - 14)
-				np.y = clampf(np.y, G.ARENA.position.y + 14, G.ARENA.end.y - 6)
-				e.pos = np
-				w.emit(World.EV_TELE, old.x, old.y - 6, 0, 0)
-				w.emit(World.EV_TELE, np.x, np.y - 6, 1, 0)
-				e.state = 1
-				e.timer2 = 0.55
-			elif e.state == 1:
-				e.timer2 -= dt
-				if e.timer2 <= 0.0:
-					e.state = 0
-					e.timer = w.rng.randf_range(2.6, 3.6)
-					if tgt:
-						var d := (tgt.pos - e.pos).normalized()
-						for a in [-0.28, 0.0, 0.28]:
-							_eshot(w, World.ES_ORB, e.pos + Vector2(0, -8), d.rotated(a) * 95.0, 4.0)
-						w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 8, World.ES_ORB, 0)
-		World.LICH:
-			desired = WorldBosses._update_lich(w, e, dt, tgt, dirv, dist)
-		World.WRAITH:
-			# Straight through the crowd, fading out (state 1) for a moment in every cycle.
-			var cyc := fmod(e.t, World.WRAITH_SOLID + World.WRAITH_FADED)
-			e.state = 1 if cyc >= World.WRAITH_SOLID else 0
-			desired = (dirv + dirv.orthogonal() * sin(e.t * 2.0 + e.id) * 0.25).normalized() * e.spd
-		World.TOME:
-			match e.state:
-				0:
-					# Circle the wizard at a reading distance, then rear up and dash through.
-					var side := 1.0 if e.id % 2 == 0 else -1.0
-					var ring := dirv * (dist - 70.0) * 0.04 + dirv.orthogonal() * side
-					desired = ring.normalized() * e.spd
-					e.timer -= dt
-					if e.timer <= 0.0 and tgt and dist < 140:
-						e.state = 1
-						e.timer2 = 0.4
-						e.dir = dirv
-				1:
-					e.timer2 -= dt
-					desired = -e.dir * 20.0
-					if e.timer2 <= 0.0:
-						e.state = 2
-						e.timer2 = 0.55
-				2:
-					e.timer2 -= dt
-					desired = e.dir * 210.0
-					if e.timer2 <= 0.0:
-						e.state = 0
-						e.timer = w.rng.randf_range(2.4, 3.6)
-		World.GARGOYLE:
-			# Perched as stone (state 0), then a swoop at the wizard (state 1).
-			e.timer -= dt
-			if e.state == 0:
-				desired = Vector2.ZERO
-				if e.timer <= 0.0 and tgt:
-					e.state = 1
-					e.timer = World.GARGOYLE_SWOOP
-					e.dir = dirv
-					w.emit(World.EV_CHARGE, e.pos.x, e.pos.y - 10, e.id, 0)
-			else:
-				e.dir = e.dir.lerp(dirv, minf(1.0, dt * 2.5)).normalized()
-				desired = e.dir * 150.0
-				if e.timer <= 0.0:
-					e.state = 0
-					e.timer = World.GARGOYLE_PERCH
-		World.PRIEST:
-			if dist > 150:
-				desired = dirv * e.spd
-			elif dist < 105:
-				desired = -dirv * e.spd
-			else:
-				desired = dirv.orthogonal() * e.spd * (1.0 if e.id % 2 == 0 else -1.0)
-			e.timer2 += dt
-			e.state = 1 if fmod(e.timer2, World.PRIEST_RAISE) > World.PRIEST_RAISE - 0.6 else 0
-			if e.timer2 >= World.PRIEST_RAISE:
-				e.timer2 -= World.PRIEST_RAISE
-				var room := int(w.tune.enemy_cap) - w.enemies.size() - w.spawn_queue.size()
-				var n := mini(World.PRIEST_RAISED, room)
-				for k in n:
-					var at := e.pos + Vector2.from_angle(w.rng.randf() * TAU) * 14.0
-					at.x = clampf(at.x, G.ARENA.position.x + 8, G.ARENA.end.x - 8)
-					at.y = clampf(at.y, G.ARENA.position.y + 8, G.ARENA.end.y - 4)
-					WorldWaves.spawn_enemy(w, World.SKELETON, 0, at)
-				if n > 0:
-					w.emit(World.EV_RAISE, e.pos.x, e.pos.y, n, 0)
+	var desired := Brains.think(w, e, dt, tgt, dirv, dist)
 	e.vel = e.vel.lerp(desired * sm, minf(1.0, dt * 10.0))
 	e.pos += (e.vel + e.knock) * dt
 	e.knock = e.knock.move_toward(Vector2.ZERO, dt * 600.0)
 	# Separation so hordes spread into a crowd instead of a single blob.
 	# Half the crowd separates each tick (alternating by id), at double strength: the same spread for half the cost.
-	if e.type != World.BAT and e.type != World.WRAITH and (e.id + w._tick) % 2 == 0:
+	if e.flags & (Bestiary.F_NO_SEP | Bestiary.F_ANCHORED) == 0 and (e.id + w._tick) % 2 == 0:
 		_separate(w, e)
 	var at: Vector2 = e.pos
 	var room: Rect2 = G.ARENA
@@ -183,8 +48,8 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	at.y = clampf(at.y, room.position.y + e.r, room.end.y - 2)
 	e.pos = at
 	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
-	# moves a few pixels a step. A mage and the Lich can teleport, so they always check.
-	if dist < e.r + World.CONTACT_REACH or e.type == World.MAGE or e.type == World.LICH:
+	# moves a few pixels a step. A kind that can teleport (F_BLINK: a mage, the Lich) always checks.
+	if dist < e.r + World.CONTACT_REACH or e.flags & Bestiary.F_BLINK:
 		for p: World.Player in w._plist:
 			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 				var dmg := e.contact
@@ -206,38 +71,44 @@ static func _separate(w: World, e: World.Enemy) -> void:
 		for cy: int in range(y0, y0 + 2):
 			var cell: Array = w._grid.get(Vector2i(cx, cy), World._NO_CELL)
 			for o: World.Enemy in cell:
-				if o == e or o.dead or o.type == World.BAT or o.entering:
+				if o == e or o.dead or o.flags & Bestiary.F_NO_BLOCK or o.entering:
 					continue
 				var dv: Vector2 = pos - o.pos
 				var min_d: float = er + o.r
 				var d2: float = dv.length_squared()
 				if d2 < min_d * min_d and d2 > 0.0001:
 					var dd: float = sqrt(d2)
-					pos += dv / dd * (min_d - dd) * (0.5 if o.type != World.LICH else 1.0)
+					pos += dv / dd * (min_d - dd) * (0.5 if o.flags & Bestiary.F_BOSS == 0 else 1.0)
 	e.pos = pos
 
 
-static func _eshot(w: World, kind: int, pos: Vector2, vel: Vector2, r: float) -> void:
+## A new enemy shot, or null past Bestiary.ESHOT_CAP (the shot is dropped).
+static func _eshot(w: World, kind: int, pos: Vector2, vel: Vector2, r: float) -> World.EShot:
+	if w.eshots.size() >= Bestiary.ESHOT_CAP:
+		return null
 	var s := World.EShot.new()
 	s.kind = kind
 	s.pos = pos
 	s.vel = vel
 	s.r = r
 	w.eshots.append(s)
+	return s
 
 
-## A wraith phased out: shots fly through it and nothing hurts it.
+## A wraith phased out, or any cloaked enemy: shots fly through it and nothing hurts it.
 static func _faded(w: World, e: World.Enemy) -> bool:
-	return e.type == World.WRAITH and e.state == 1
+	return e.cloak or (e.type == World.WRAITH and e.state == 1)
 
 
-static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock: Vector2) -> void:
+## `sure`: a hit that ignores facing and shields (the nova, hazards); see Brains.filter_damage.
+static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock: Vector2, sure: bool = false) -> void:
 	if w.phase == World.PH_GAMEOVER:
 		return # the run is over: no kill may turn it into a victory or add to the score
 	if e.dead or _faded(w, e):
 		return
-	if e.type == World.GARGOYLE and e.state == 0:
-		dmg *= World.STONE_DAMAGE
+	dmg = Brains.filter_damage(w, e, dmg, knock, sure)
+	if dmg < 0.0:
+		return
 	var src: World.Player = w.players.get(slot)
 	if src:
 		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage)
@@ -251,15 +122,15 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 		_kill_enemy(w, e, slot)
 
 
-## How far knockback and pulls move an enemy: the Lich barely, orcs and gargoyles less than the rest.
+## How far knockback and pulls move an enemy (Bestiary.K_HEFT): the Lich barely, orcs and gargoyles less than the rest.
 static func _heft(w: World, e: World.Enemy) -> float:
-	return 0.15 if e.type == World.LICH else (0.4 if e.type == World.ORC or e.type == World.GARGOYLE else 1.0)
+	return Bestiary.KINDS[e.type][Bestiary.K_HEFT]
 
 
 static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 	e.dead = true
 	var p: World.Player = w.players.get(slot)
-	var base: int = World.STATS[e.type][3] * (World.ELITE_REWARD if e.elite else 1) * (World.FINAL_REWARD if e.final else 1)
+	var base: int = Bestiary.KINDS[e.type][Bestiary.K_SCORE] * (World.ELITE_REWARD if e.elite else 1) * (World.FINAL_REWARD if e.final else 1)
 	if p:
 		p.combo += 1
 		p.combo_t = 2.5
@@ -274,51 +145,15 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 		if e.elite:
 			w.record.add(slot, "elites", 1)
 	w.emit(World.EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
-	WorldDrops._drop_xp(w, e.pos, Vector2.from_angle(w.rng.randf() * TAU) * 25.0, World.XP_VALUES[e.type] * (World.ELITE_REWARD if e.elite else 1))
+	WorldDrops._drop_xp(w, e.pos, Vector2.from_angle(w.rng.randf() * TAU) * 25.0, Bestiary.KINDS[e.type][Bestiary.K_XP] * (World.ELITE_REWARD if e.elite else 1))
 	WorldDrops._roll_card(w, e)
 	if e.elite:
 		for i in World.ELITE_GEMS:
 			WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / World.ELITE_GEMS) * 70.0)
 		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2(0, 30), w.tune.chest_life, int(w.tune.elite_chest_luck))
 		return
-	match e.type:
-		World.SLIME:
-			for i in 2:
-				var m := WorldWaves.spawn_enemy(w, World.MSLIME, 0, e.pos + Vector2(-5 + i * 10, 0))
-				m.knock = Vector2(-90 + i * 180, w.rng.randf_range(-40, 40))
-			w.emit(World.EV_SPLIT, e.pos.x, e.pos.y - 4, 0, 0)
-		World.LICH:
-			w.boss = null
-			w.liches_slain += 1
-			w.record.note(w.wave_time, Results.M_ARCHLICH if e.final else Results.M_LICH, slot)
-			for o in w.enemies:
-				if not o.dead and o != e:
-					o.dead = true
-					w.emit(World.EV_DIE, o.pos.x, o.pos.y - o.r, o.type, -1)
-			for s in w.eshots:
-				s.dead = true
-			for i in 14:
-				WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
-			if w.no_potions <= 0.0: WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40)) # THE HIEROPHANT
-			for i in w.players.size():
-				WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
-					w.tune.chest_life, int(w.tune.boss_chest_luck))
-			w.emit(World.EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 1 if e.final else 0)
-			WorldPlayers.raise_fallen(w, slot)
-			if e.final:
-				w.won = true
-				w.victory_t = w.tune.victory_delay
-				for q: World.Player in w.players.values():
-					q.invuln = maxf(q.invuln, w.tune.victory_delay + 1.0)
-				w.emit(World.EV_VICTORY, e.pos.x, e.pos.y, slot, 0)
-			w.spawn_queue.clear()
-			w.horde_budget = 0.0
-			w._next_group = []
-			if not e.final and w.tune.lull_seconds > 0.0:
-				w.lull_left = w.tune.lull_seconds
-				var c := w.party_center()
-				w.emit(World.EV_LULL, c.x, c.y, w.lull_left, 0)
-			return
+	if Brains.on_death(w, e, slot):
+		return
 	WorldDrops._roll_drop(w, e)
 
 

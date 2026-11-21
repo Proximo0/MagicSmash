@@ -113,11 +113,12 @@ static func _nova(w: World, p: World.Player) -> void:
 			continue
 		var d := e.pos.distance_to(p.pos)
 		if d < radius:
-			var dmg := 40.0 if e.type == World.LICH else 14.0
-			WorldEnemies._damage_enemy(w, e, dmg, p.slot, (e.pos - p.pos).normalized() * 260.0)
+			var dmg := 40.0 if e.flags & Bestiary.F_BOSS else 14.0
+			WorldEnemies._damage_enemy(w, e, dmg, p.slot, (e.pos - p.pos).normalized() * 260.0, true)
 	for s in w.eshots:
 		if s.pos.distance_to(p.pos) < radius + 30:
 			s.dead = true
+	WorldHazards.nova_clear(w, p.pos)
 
 
 static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
@@ -236,10 +237,10 @@ static func _spirit_xp(w: World, p: World.Player) -> void:
 		w.pickups = w.pickups.filter(func(k: World.Pickup) -> bool: return k.life > 0.0)
 
 
-## Every enemy (not a Lich) within tune.ritual_push of `at` is set down that far away from it.
+## Every enemy (not a boss) within tune.ritual_push of `at` is set down that far away from it.
 static func _ritual_push(w: World, at: Vector2) -> void:
 	for e: World.Enemy in w._query(at, w.tune.ritual_push):
-		if e.type == World.LICH or e.entering:
+		if e.flags & Bestiary.F_BOSS or e.entering:
 			continue
 		var d := e.pos - at
 		var l := d.length()

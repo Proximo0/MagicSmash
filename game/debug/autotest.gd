@@ -53,6 +53,12 @@ var _fate_shots := {}
 var _fate_hud_at := -1.0
 var _fall_step := 0
 var _fall_t := 0.0
+## --hazard=SECONDS: at that run time a fire disc, a flame line and a SAFE disc are laid near the party (Hazards,
+## warning HAZARD_WARN s) and one of each reserved bestiary kind stands in a ring around it; hazard_warn.png is
+## taken halfway through the warning, hazard_hot.png just after the rows turn hot.
+var hazard_at := -1.0
+var _hazard_shots := {}
+const HAZARD_WARN := 2.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -80,6 +86,8 @@ func _ready() -> void:
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--fall="):
 			fall_at = float(a.substr(7))
+		if a.begins_with("--hazard="):
+			hazard_at = float(a.substr(9))
 		if a.begins_with("--fate="):
 			for f: String in a.substr(7).split(","):
 				fates_forced.append(clampi(int(f), 0, Gamble.TEAM_OUTCOMES.size() - 1))
@@ -211,6 +219,8 @@ func _process(delta: float) -> void:
 		cur.world._end_run()
 	if fall_at > 0.0 and cur and "world" in cur and cur.world:
 		_fall_tick(cur)
+	if hazard_at > 0.0 and cur and "world" in cur and cur.world:
+		_hazard_tick(cur.world)
 	if perf and _perf_frames.size() >= PERF_FRAMES:
 		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
@@ -434,3 +444,30 @@ func _fate_tick(cur: Node) -> void:
 		_fate_hud_at = -1.0
 		get_viewport().get_texture().get_image().save_png("%s/fate_hud.png" % out_dir)
 		print("shot fate_hud")
+
+
+## --hazard: lays the rows and the stand-ins once, then takes the two shots (see hazard_at).
+func _hazard_tick(w: World) -> void:
+	if w.phase != World.PH_FIGHT:
+		return
+	if not _hazard_shots.has("laid") and w.wave_time >= hazard_at:
+		_hazard_shots["laid"] = w.wave_time
+		var c := w.party_center()
+		w.add_hazard(Hazards.FIRE, c + Vector2(-45, 10), c + Vector2(-45, 10), 22.0, HAZARD_WARN, 3.0, -1, 0, true)
+		w.add_hazard(Hazards.FLAME, c + Vector2(20, -50), c + Vector2(90, 30), 6.0, HAZARD_WARN, 3.0, -1, 0, true)
+		w.add_hazard(Hazards.SAFE, c + Vector2(60, 50), c + Vector2(60, 50), 28.0, HAZARD_WARN, 0.6, -1, 0, true)
+		for t: int in range(Bestiary.BLOAT, Bestiary.count()):
+			var at := c + Vector2.from_angle(TAU * (t - Bestiary.BLOAT) / (Bestiary.count() - Bestiary.BLOAT)) * 95.0
+			if not Bestiary.has_flag(t, Bestiary.F_BOSS):
+				var e := w.spawn_enemy(t, 0, at)
+				e.hp = 9999.0
+				e.maxhp = 9999.0
+	if not _hazard_shots.has("laid"):
+		return
+	var since: float = w.wave_time - float(_hazard_shots["laid"])
+	if since >= HAZARD_WARN * 0.5 and not _hazard_shots.has("warn"):
+		_hazard_shots["warn"] = true
+		_fall_shot("hazard_warn")
+	if since >= HAZARD_WARN + 0.25 and not _hazard_shots.has("hot"):
+		_hazard_shots["hot"] = true
+		_fall_shot("hazard_hot")

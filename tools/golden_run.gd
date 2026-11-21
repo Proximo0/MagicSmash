@@ -7,6 +7,8 @@ extends RefCounted
 ## change to the snapshot row or the record's dictionary alone still reads as the same game. The default stays the full state_hash().
 ## Run through tools/golden.sh (GOLDEN_FIELDS=1 for --fields), or alone:
 ##   godot --headless --path . -s tools/tool.gd -- golden_run [--seed=7] [--seconds=90] [--fields]
+## A hash trace (tools/hash_trace.sh) adds --trace: a "TRACE seed= t= hash= fields=" line every --every s (default
+## MARK_SECONDS) with both hashes, for --players bots (default 4), so a move can be shown to leave the game identical.
 
 const DT: float = 1.0 / 60.0
 const MARK_SECONDS: float = 15.0
@@ -16,6 +18,9 @@ func run(args: PackedStringArray) -> int:
 	var seed_value: int = 7
 	var seconds: float = 90.0
 	var fields: bool = false
+	var trace: bool = false
+	var every: float = MARK_SECONDS
+	var players: int = 4
 	for a: String in args:
 		if a.begins_with("--seed="):
 			seed_value = int(a.get_slice("=", 1))
@@ -23,13 +28,19 @@ func run(args: PackedStringArray) -> int:
 			seconds = float(a.get_slice("=", 1))
 		elif a == "--fields":
 			fields = true
-	var slots: Array = [0, 1, 2, 3]
+		elif a == "--trace":
+			trace = true
+		elif a.begins_with("--every="):
+			every = maxf(DT, float(a.get_slice("=", 1)))
+		elif a.begins_with("--players="):
+			players = clampi(int(a.get_slice("=", 1)), 1, 4)
+	var slots: Array = range(players)
 	var w := World.new(slots, seed_value)
 	var bots: Dictionary = {}
 	for s: int in slots:
 		bots[s] = SmashBot.new(seed_value + s)
 	var marks: PackedStringArray = []
-	var next_mark: float = MARK_SECONDS
+	var next_mark: float = every
 	var steps: int = 0
 	# The step limit ends a run whose clock has stopped (a pick nobody takes), so the tool cannot hang.
 	while w.phase != World.PH_GAMEOVER and w.wave_time < seconds and steps < int(seconds / DT) * 3:
@@ -44,8 +55,10 @@ func run(args: PackedStringArray) -> int:
 		w.take_events()
 		steps += 1
 		if w.wave_time >= next_mark:
+			if trace:
+				print("TRACE seed=%d t=%d hash=%d fields=%d" % [seed_value, roundi(next_mark), w.state_hash(), _fields_hash(w)])
 			marks.append(str(_fields_hash(w) if fields else w.state_hash()))
-			next_mark += MARK_SECONDS
+			next_mark += every
 	var final: int = hash([_fields_hash(w) if fields else w.state_hash(), w.total_score(),
 		_fields_record(w.record) if fields else w.record.to_dict(), w.record.awards(), w.record.top_moments(),
 		Achievements.earned(w.record, w.won, w.wave_time)])
