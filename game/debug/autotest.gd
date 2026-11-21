@@ -59,6 +59,16 @@ var _fall_t := 0.0
 var hazard_at := -1.0
 var _hazard_shots := {}
 const HAZARD_WARN := 2.0
+## --boss=chandelier|ghostwriter|lich[,PHASE]: the run starts just before that boss's minute (the Lich: the
+## Archlich at the final minute); with PHASE (0, 1, 2) its health is held inside that phase. Each attack step it
+## starts is shot BOSS_SHOT_AFTER s in (<boss>_<step>_warn.png) and once one of its rows is hot (<boss>_<step>_hot.png).
+const BOSS_KEYS := {"chandelier": Bestiary.CHANDELIER, "ghostwriter": Bestiary.GHOSTWRITER, "lich": Bestiary.LICH}
+const BOSS_SHOT_AFTER := 0.45
+var boss_key := ""
+var boss_phase := -1
+var _boss_step := ""
+var _boss_step_t := 0.0
+var _boss_shots := {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -86,6 +96,15 @@ func _ready() -> void:
 			wizard_steps = int(a.substr(9))
 		if a.begins_with("--fall="):
 			fall_at = float(a.substr(7))
+		if a.begins_with("--boss="):
+			var spec := a.substr(7).split(",")
+			boss_key = spec[0]
+			boss_phase = int(spec[1]) if spec.size() > 1 else -1
+			var sched := Bosses.schedule_from(Tuning.shared())
+			for row: Array in sched:
+				if int(row[1]) == int(BOSS_KEYS.get(boss_key, -1)) and (boss_key != "lich" or row[2]):
+					start_wave = int(float(row[0]) / 60.0)
+					break
 		if a.begins_with("--hazard="):
 			hazard_at = float(a.substr(9))
 		if a.begins_with("--fate="):
@@ -221,6 +240,8 @@ func _process(delta: float) -> void:
 		_fall_tick(cur)
 	if hazard_at > 0.0 and cur and "world" in cur and cur.world:
 		_hazard_tick(cur.world)
+	if not boss_key.is_empty() and cur and "world" in cur and cur.world:
+		_boss_tick(cur.world, delta)
 	if perf and _perf_frames.size() >= PERF_FRAMES:
 		return
 	if not _results_shot and cur and "results" in cur and cur.game_over and cur.game_over_t > 3.4:
@@ -471,3 +492,38 @@ func _hazard_tick(w: World) -> void:
 	if since >= HAZARD_WARN + 0.25 and not _hazard_shots.has("hot"):
 		_hazard_shots["hot"] = true
 		_fall_shot("hazard_hot")
+
+
+## --boss: holds the boss's health inside the asked phase and shoots each attack step's warning and hot rows.
+func _boss_tick(w: World, delta: float) -> void:
+	var e: World.Enemy = w.boss
+	if e == null or e.dead or e.entering or w.phase != World.PH_FIGHT:
+		return
+	if boss_phase >= 0:
+		var lines: Array = [1.0, 0.75, 0.35, 0.0] if e.final else [1.0, Bosses.PHASE_AT, 0.0]
+		var hi: float = lines[mini(boss_phase, lines.size() - 2)]
+		var lo: float = lines[mini(boss_phase, lines.size() - 2) + 1]
+		var f := e.hp / e.maxhp
+		if f > hi - 0.01 or f < lo + 0.02:
+			e.hp = e.maxhp * (lo + 0.6 * (hi - lo))
+	var step := "%d" % e.state
+	if e.type == Bestiary.GHOSTWRITER and BossGhostwriter.word_of(w.boss_arg) != BossGhostwriter.WORD_NONE:
+		step = BossGhostwriter.WORDS[BossGhostwriter.word_of(w.boss_arg)].to_lower() + ("_%d" % e.state)
+	if step != _boss_step:
+		_boss_step = step
+		_boss_step_t = 0.0
+	_boss_step_t += delta
+	var name := "%s_%s" % [boss_key, step]
+	if _boss_step_t >= BOSS_SHOT_AFTER and not _boss_shots.has(name + "_warn"):
+		var warning := false
+		for h: Hazards.Hazard in w.hazards:
+			warning = warning or (h.owner == e.id and h.warn > 0.0)
+		if warning:
+			_boss_shots[name + "_warn"] = true
+			_fall_shot(name + "_warn")
+	if not _boss_shots.has(name + "_hot"):
+		for h: Hazards.Hazard in w.hazards:
+			if h.owner == e.id and h.fired and h.hot > 0.0 and h.kind != Hazards.LANE:
+				_boss_shots[name + "_hot"] = true
+				_fall_shot(name + "_hot")
+				break

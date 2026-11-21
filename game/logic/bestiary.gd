@@ -71,8 +71,10 @@ const KINDS: Array = [
 	["hound",       4.0,   70.0, 5.0,  100,  1, 2,  1.0,  0],
 	["shard",       22.0,  0.0,  8.0,  300,  1, 6,  0.0,  F_ANCHORED | F_HAZARD | F_FIXED_SPEED],
 	["swords",      16.0,  36.0, 6.0,  300,  1, 6,  1.0,  F_HAZARD],
-	["chandelier",  240.0, 34.0, 16.0, 5000, 0, 25, 0.15, F_BOSS | F_ARROW | F_FIXED_SPEED],
-	["ghostwriter", 260.0, 150.0, 14.0, 5000, 0, 25, 0.15, F_BOSS | F_BLINK | F_ARROW | F_FIXED_SPEED],
+	# The act bosses come once each: hp is their health at their minute (5:00, 10:00) before boss_hp_mul and the
+	# party row, set for fights of 50-70 s and 70-90 s casual solo (job L, on balance pass 2).
+	["chandelier",  900.0, 34.0, 16.0, 5000, 0, 25, 0.15, F_BOSS | F_ARROW | F_FIXED_SPEED],
+	["ghostwriter", 3800.0, 150.0, 14.0, 5000, 0, 25, 0.15, F_BOSS | F_BLINK | F_ARROW | F_FIXED_SPEED],
 ]
 
 ## How a group comes in: through a door (or a rift), rising from the floor near the party, or abreast at a door.
@@ -127,8 +129,12 @@ const RISE_MAX := 130.0
 const RISE_MARGIN := 22.0
 const RISE_SPREAD := 8.0
 ## Brains for the reserved kinds: type -> script path. The script has static think(w, e, dt, tgt, dirv, dist),
-## on_death(w, e, slot) and filter_damage(w, e, dmg, knock, sure) (see Brains). Job K fills it.
-const BRAINS: Dictionary = {}
+## on_death(w, e, slot) and filter_damage(w, e, dmg, knock, sure) (see Brains). Job K fills it. A boss's think and
+## death go through Bosses; only its filter_damage is read from here.
+const BRAINS: Dictionary = {
+	CHANDELIER: "res://game/logic/boss_chandelier.gd",
+	GHOSTWRITER: "res://game/logic/boss_ghostwriter.gd",
+}
 ## Most enemy shots alive at once (World.eshot drops a shot past it).
 const ESHOT_CAP := 300
 
