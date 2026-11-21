@@ -296,8 +296,8 @@ var seal_boss := 1.0 # Lich and Archlich health
 var seal_speed := 1.0 # enemy speed
 var seal_potions := 1.0 # a plain kill's potion chance
 var seal_luck := 0 # chest luck
-var seal_cards := 1.0 # card drop odds
-var seal_ultra := true # ultra-rare chests and ULTRA RARE loot can drop
+var seal_cards := 1.0 # card run odds (Cards.card_run_chance)
+var seal_ultra := true # an ULTRA RARE run (its prismatic chest) can happen
 var seal_rift := 1.0 # AMBUSH: rift warning
 var seal_potion_heal := 2 # FAMINE: hearts a potion heals
 var seal_group := 1.0 # LEGION: group size
@@ -306,7 +306,7 @@ var seal_elite_hp := 1.0 # CHAMPIONS: elite health
 var seal_escort := 0 # CHAMPIONS: plain enemies with each elite
 var seal_hand := 0 # SILENCE: cards a level-up deals (0: tune.level_choices)
 var seal_ritual := 1.0 # DARKNESS: ritual time
-var seal_card := -1 # the Cards index the Archlich drops (a Seal's card), -1 none
+var seal_card := -1 # the Seal's card, which the Archlich drops when it is a card run's kill (Cards.run_card), -1 none
 ## Slots each wizard has: (spells, passives). Upgrades.UNCAPPED until the slots job lands.
 var slots := Upgrades.UNCAPPED
 ## The party's shared level and XP pool; every Player.level follows party_level.
@@ -340,6 +340,13 @@ var gem_rush := 0.0
 var fate_heal := {}
 var events: Array = []
 var rng := RandomNumberGenerator.new()
+## The run's own loot stream (Loot.run_stream, seeded by the run's seed; rng never feeds it) and its draws taken
+## once in _init (Loot.run_rolls): whether this is an ULTRA RARE run or a card run, and when each drop comes
+## (WorldDrops.ultra_due, card_due).
+var loot_rng: RandomNumberGenerator
+var run_loot: Dictionary = {}
+var ultra_dropped := false # the ULTRA RARE run's prismatic chest has dropped
+var card_dropped := false # the card run's card has dropped
 var next_id := 1
 ## Minute of the run, from 1. Enemy scaling and the Lich's visits follow it.
 var wave := 1
@@ -415,6 +422,8 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		rng.randomize()
 	else:
 		rng.seed = seed_value
+	loot_rng = Loot.run_stream(rng.seed)
+	run_loot = Loot.run_rolls(loot_rng)
 	var c := G.ARENA.get_center()
 	var offs := [Vector2(-24, -14), Vector2(24, -14), Vector2(-24, 14), Vector2(24, 14)]
 	for s in slots:

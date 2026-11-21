@@ -52,33 +52,57 @@ static func _update_reveals(a: Arena, dt: float) -> void:
 			a._cards.pop_front()
 
 
-## The monster card a wizard just found: it flips in at the middle of the screen with its name and bonus.
+## The monster card a wizard just found, as a small notice that keeps the fight in view: a strip at the top edge,
+## under the HUD and the level-up tabs, with a small card (CARD_NOTE_PIC: the monster's sprite in a frame of its
+## socket's colour; a painted card shrunk this far reads as a dark blot) and "CARD FOUND: NAME" over who found it.
+## It fades in, holds for Arena.CARD_SHOW s and fades out. The full card waits for the results screen and the album.
+const CARD_NOTE_PIC := Vector2(16, 24)
+const CARD_NOTE_PAD := 3.0
+
+
 static func _draw_card_reveal(a: Arena, ci: CanvasItem, dark: Color) -> void:
-	if a._cards.is_empty():
+	if a._cards.is_empty() or a.game_over: # the results screen names the card itself
 		return
 	var c: Dictionary = a._cards[0]
 	var t: float = c.t
-	var fade := clampf(minf(t * 4.0, (a.CARD_SHOW - t) * 3.0), 0.0, 1.0)
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.06, 0.55 * fade))
-	# The back shows, narrows to an edge, then the face widens out: a card turning over.
-	var flip := clampf(t / 0.6, 0.0, 1.0)
-	var w := 76.0 * absf(1.0 - flip * 2.0)
-	var h := 112.0
-	var center := Vector2(240, 128 - (1.0 - fade) * 10.0)
-	var r := Rect2((center - Vector2(w / 2.0, h / 2.0)).floor(), Vector2(maxf(floorf(w), 1.0), h))
-	if flip < 0.5:
-		TarotArt.draw_back(ci, r)
-	else:
-		for i: int in range(12):
-			var ang := a.time * 0.6 + i * TAU / 12.0
-			ci.draw_line(center, center + Vector2.from_angle(ang) * 90.0, Color(1.0, 0.3, 0.95, 0.10 * fade), 3.0)
-		MonsterCard.draw(ci, r, c.idx, true, a.time, 1.0)
-	var col := Color("ff4df2").lerp(Color.WHITE, 0.5 + 0.5 * sin(a.time * 10.0))
-	PixelFont.draw_centered(ci, "ULTRA RARE CARD", 240, r.position.y - 22, 2, Color(col, fade), dark)
-	var who := "P%d DREW %s" % [int(c.slot) + 1, Cards.card_name(c.idx)]
-	PixelFont.draw_centered(ci, who, 240, r.end.y + 6, 1, Color(Color("ffd94d"), fade), dark)
-	var sub := "NEW TO YOUR COLLECTION" if c.first else "SOCKET IT IN THE SANCTUM"
-	PixelFont.draw_centered(ci, sub, 240, r.end.y + 16, 1, Color(Color("c9b8ff"), fade), dark)
+	var fade := clampf(minf(t * 5.0, (a.CARD_SHOW - t) * 4.0), 0.0, 1.0)
+	var idx: int = c.idx
+	var title := "CARD FOUND: " + Cards.card_name(idx)
+	var sub := "P%d  %s" % [int(c.slot) + 1, "NEW TO YOUR COLLECTION" if c.first else "ANOTHER FOR THE ALBUM"]
+	var text_w := maxf(PixelFont.text_width(title), PixelFont.text_width(sub))
+	var pic_w := CARD_NOTE_PIC.x + CARD_NOTE_PAD + 1.0
+	var size := Vector2(pic_w + text_w + CARD_NOTE_PAD * 2.0, CARD_NOTE_PIC.y + CARD_NOTE_PAD * 2.0)
+	var box := Rect2(Vector2(floorf(240.0 - size.x / 2.0), G.HUD_H + a.TAB_H + 3.0), size)
+	var edge := Color("ff4df2").lerp(Color.WHITE, 0.35 + 0.35 * sin(a.time * 8.0))
+	ci.draw_rect(box, Color(0.04, 0.0, 0.1, 0.85 * fade))
+	ci.draw_rect(box, Color(edge, fade), false, 1.0)
+	_draw_card_mini(ci, Rect2(box.position + Vector2(CARD_NOTE_PAD, CARD_NOTE_PAD), CARD_NOTE_PIC), idx, fade)
+	var x := box.position.x + CARD_NOTE_PAD + pic_w
+	var ty := box.position.y + CARD_NOTE_PAD + 3.0
+	PixelFont.draw(ci, title, Vector2(x, ty), 1, Color(Color("ffd94d"), fade), dark)
+	PixelFont.draw(ci, sub, Vector2(x, ty + 10.0), 1, Color(Color("c9b8ff"), fade), dark)
+
+
+## A card small enough for the notice: the monster's sprite at its own size (cut to fit), or a Seal card's numeral,
+## on the card's face inside a frame of its socket's colour.
+static func _draw_card_mini(ci: CanvasItem, r: Rect2, idx: int, fade: float) -> void:
+	ci.draw_rect(r.grow(1), Color(MonsterCard.INK, fade))
+	ci.draw_rect(r, Color(MonsterCard.FACE, fade))
+	ci.draw_rect(r, Color(MonsterCard.SOCKET_COLORS[Cards.socket(idx)], 0.9 * fade), false, 1.0)
+	var kind := Cards.enemy(idx)
+	if kind < 0 or kind >= MonsterCard.ENEMY_SPRITES.size():
+		var num := Seals.numeral(Seals.of_card(idx))
+		PixelFont.draw_centered(ci, num, r.get_center().x, r.get_center().y - 3.0, 1, Color(MonsterCard.GOLD, fade), MonsterCard.INK)
+		return
+	var key: String = MonsterCard.ENEMY_SPRITES[kind]
+	var tex := Sprites.get_tex(key)
+	if tex == null:
+		return
+	var src := MonsterCard._drawn_part(key, tex)
+	var room := r.size - Vector2(4, 4)
+	var seen := Vector2(minf(src.size.x, room.x), minf(src.size.y, room.y))
+	src = Rect2(src.position.x + floorf((src.size.x - seen.x) / 2.0), src.position.y, seen.x, seen.y)
+	ci.draw_texture_rect_region(tex, Rect2((r.get_center() - seen / 2.0).floor(), seen), src, Color(1, 1, 1, fade))
 
 
 ## Altars: a rune altar (solo) with three rune stones circling it, or the fate altar (team) with a tarot card

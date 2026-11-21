@@ -1,8 +1,9 @@
 class_name Cards
 extends RefCounted
 ## Monster cards: one ultra-rare card per kind of monster, kept in the player's collection between runs (Profile)
-## and socketed into the wizard's hat, robe or staff for a small lasting bonus. Earned only by play: a card drops
-## from a kill (far likelier from an elite or a Lich) and is collected like any pickup. Pure data plus lookups.
+## and socketed into the wizard's hat, robe or staff for a small lasting bonus. Earned only by play: about 1 run in
+## 100 is a card run (card_run_chance) and drops exactly one card, from a kill at a seeded moment (WorldDrops);
+## the Sanctum's pots and sealed decks and a first win at a Seal hand out the rest. Pure data plus lookups.
 
 ## Equipment sockets. A card fits only the socket its row names.
 const HAT := 0
@@ -27,7 +28,7 @@ const CARDS: Array = [
 	["tome", "THE GRIMOIRE", HAT, Loot.ST_FOCUS, 0.08, "-8% COOLDOWN", "IT READS YOU BACK.", Bestiary.TOME],
 	["gargoyle", "THE GARGOYLE", ROBE, Loot.ST_VIGOR, 2.0, "+2 HEARTS", "STONE BY DAY. HUNGRY BY NIGHT.", Bestiary.GARGOYLE],
 	["priest", "THE BONE PRIEST", HAT, Loot.ST_MIGHT, 0.08, "+8% DAMAGE", "HIS SERMONS RAISE THE DEAD.", Bestiary.PRIEST],
-	# The Seal cards (Seals.card): one per Seal, dropped only by that Seal's Archlich and paid on its first win.
+	# The Seal cards (Seals.card): one per Seal, paid on its first win (and dropped by its Archlich in a card run).
 	["seal_1", "THE HUNGER", ROBE, Loot.ST_VIGOR, 2.0, "+2 HEARTS", "IT ATE ITS FILL AND WAS STILL EMPTY.", -1],
 	["seal_2", "THE AMBUSH", HAT, Loot.ST_SWIFT, 0.12, "+12% SPEED", "THE DOOR WAS NEVER WHERE YOU LOOKED.", -1],
 	["seal_3", "THE FAMINE", ROBE, Loot.ST_GREED, 0.40, "+40% GOLD", "THE TOWER'S GRANARIES ARE DUST.", -1],
@@ -48,7 +49,7 @@ static func key(idx: int) -> String:
 	return CARDS[idx][0]
 
 
-## The Bestiary kind whose kills drop card `idx`, or -1 (a Seal card, dropped only by its Archlich).
+## The Bestiary kind whose kills drop card `idx`, or -1 (a Seal card: its first win, or its Archlich in a card run).
 static func enemy(idx: int) -> int:
 	return int(CARDS[idx][C_ENEMY]) if idx >= 0 and idx < CARDS.size() else -1
 
@@ -87,15 +88,17 @@ static func index_of(k: String) -> int:
 	return -1
 
 
-## The chance that a kill of this enemy kind drops its card (for_enemy; 0 for a kind with none): `base` for a
-## plain kill, times `elite_mul` for an elite; a Lich (the boss) always rolls at `boss_chance`. Numbers from Tuning.
-static func drop_chance(enemy_type: int, elite: bool, base: float, elite_mul: float, boss_chance: float) -> float:
-	var idx := for_enemy(enemy_type)
-	if idx < 0:
-		return 0.0
-	if CARDS[idx][0] == "lich":
-		return boss_chance
-	return base * (elite_mul if elite else 1.0)
+## The chance a run is a card run: `base` (Tuning.card_run_chance) times the Seal's card odds (World.seal_cards).
+static func card_run_chance(base: float, seal_cards: float) -> float:
+	return clampf(base * seal_cards, 0.0, 1.0)
+
+
+## The card a card run's kill drops: a Seal's Archlich (`final`) drops `seal_card` when there is one (-1: none),
+## any other kill its kind's card (for_enemy); -1 when the kill has no card (the next kill with one drops it).
+static func run_card(enemy_type: int, final: bool, seal_card: int) -> int:
+	if final and seal_card >= 0:
+		return seal_card
+	return for_enemy(enemy_type)
 
 
 ## Armor stats (Loot.empty_stats layout) that the socketed cards add. `sockets` holds one card index per

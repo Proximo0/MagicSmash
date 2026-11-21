@@ -158,3 +158,11 @@ func test_using_the_lectern_reports_it() -> void:
 	s.pos = Sanctum.THINGS[Sanctum.DEEDS][1] + Vector2(0, 8)
 	assert_eq(s.near_thing(), Sanctum.DEEDS)
 	assert_eq(s.use(), Sanctum.DEEDS)
+
+
+## The hub's card numbers (job U): a pot holds a card about 1 time in 1000, a sealed deck is a long saving goal.
+func test_hub_card_numbers() -> void:
+	assert_near(Sanctum.POT_CARD, 0.001)
+	assert_eq(Sanctum.DECK_COST, 1500)
+	var text := "ENTER: " + String(Sanctum.THINGS[Sanctum.RELIQUARY][2]) % Sanctum.DECK_COST
+	assert_true(PixelFont.text_width(text) < 472, "the reliquary prompt fits the screen")

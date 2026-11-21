@@ -3,7 +3,8 @@ extends RefCounted
 ## Arena: the game-over screen, result columns, moments and the pause screen.
 ## Static helpers: `a` is the Arena that owns the state.
 
-## With deeds to show the ending line gives way: the totals line moves up and the deeds sit under the pay line.
+## With deeds or a found card to show the ending line gives way: the totals line moves up and those lines sit under
+## the pay line (Achievements.result_lines).
 const DEED_FOOT_Y := 206
 const DEED_FIRST_Y := 226
 const DEED_STEP := 9
@@ -57,7 +58,7 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 	_draw_result_columns(a, ci, dark, 58)
 	_draw_moments(a, ci, dark, 150)
 	var foot := "BEST %07d    +%d CRYSTALS  (%d TO SPEND)" % [G.high_score, Save.profile.run_gain(a.crystals_earned), Save.profile.crystals]
-	var deeds: Array[String] = Achievements.result_lines(Save.profile.last_pay.get("deeds", []))
+	var deeds: Array[String] = Achievements.result_lines(Save.profile.last_pay.get("deeds", []), _cards_found(a))
 	var y_foot := 224 if deeds.is_empty() else DEED_FOOT_Y # new deeds take the ending's place
 	if deeds.is_empty():
 		PixelFont.draw_centered(ci, Lore.ending(a.victory, a.final_score), 240, 208, 1, Color("e8dcc0"), dark)
@@ -70,6 +71,16 @@ static func _draw_game_over(a: Arena, ci: CanvasItem) -> void:
 		var go := "TAP" if G.touch_active else "PRESS FIRE"
 		var msg := go + " FOR DAMAGE" if has_damage_page(a) else go + " TO CONTINUE" # a client leaves by itself too
 		PixelFont.draw_centered(ci, msg, 240, 244 if deeds.is_empty() else DEED_PROMPT_Y, 1, Color.WHITE, dark)
+
+## The Cards indices found in the run, in order (the record's card moments): the results' "CARD FOUND" lines.
+static func _cards_found(a: Arena) -> Array:
+	var out: Array = []
+	if a.results != null:
+		for m: Array in a.results.moments:
+			if int(m[1]) == Results.M_CARD:
+				out.append(int(m[3]))
+	return out
+
 
 ## The second page: under each wizard's card her sources by damage, most first, each as NAME and share with a bar
 ## in the wizard's colour. The press that leaves comes from here.

@@ -61,6 +61,8 @@ func run() -> Array:
 			"longest_hold_ticks=%d (max %d)" % [four.hold_ticks, MAX_HOLD_TICKS]),
 		row("world_never_waits_4p", four.stalls == 0 and a.stalls == 0,
 			"ticks_without_time 2p=%d 4p=%d" % [a.stalls, four.stalls]),
-		row("shrines_used_4p", four.bets >= 1, "bets=%d (bots pay shrines they can afford)" % four.bets),
+		# Over both parties: whether one 4-minute run of one seed reaches a shrine is chance (seed 7's 4p run stopped
+		# betting when job U moved ULTRA RARE and cards to the run; over seeds 7-11 the 4p runs bet 0 to 4 times).
+		row("shrines_used_4p", a.bets + four.bets >= 1, "bets 2p=%d 4p=%d (bots pay shrines they can afford)" % [a.bets, four.bets]),
 		row("step_cost_4p", null, "peak_enemies=%d us_per_step=%.0f" % [four.peak, four.us]),
 	]

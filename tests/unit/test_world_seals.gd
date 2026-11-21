@@ -276,30 +276,59 @@ func test_luck_ultra_and_the_seal_card() -> void:
 		WorldDrops._open_chest(easy, easy.players[0], k)
 		var tier := int(easy.events[-1][4]) % 8
 		assert_true(tier <= Loot.LEGENDARY, "APPRENTICE: no ULTRA RARE")
-	assert_true(_world(0).seal_ultra, "WIZARD keeps today's ultra-rare drops")
+	assert_true(_world(0).seal_ultra, "WIZARD keeps ULTRA RARE runs")
+	easy.tune.ultra_run_chance = 1.0
+	easy.tune.loot_moment_from = 0.0
+	easy.tune.loot_moment_to = 0.0
+	assert_false(WorldDrops.ultra_due(easy), "APPRENTICE: never an ULTRA RARE run")
 	var s4 := _world(5)
 	assert_eq(s4.seal_luck, 5)
 	assert_near(s4.seal_cards, 1.5)
+	# SEAL IV's card run: its Archlich, when it is the kill, drops the Seal card; a plain Lich its own card.
+	s4.tune.card_run_chance = 1.0
+	s4.tune.card_run_urn = 0.0
+	s4.tune.loot_moment_from = 0.0
+	s4.tune.loot_moment_to = 0.0
 	var arch := WorldWaves.spawn_enemy(s4, World.LICH, 0)
 	WorldBosses._make_final(s4, arch)
 	WorldDrops._roll_card(s4, arch)
-	var found := -1
-	for k: World.Pickup in s4.pickups:
-		if k.kind == World.PK_CARD and k.value == Seals.card(5):
-			found = k.value
-	assert_eq(found, Seals.card(5), "SEAL IV's Archlich drops its card")
-	var lich := WorldWaves.spawn_enemy(s4, World.LICH, 0)
-	s4.pickups.clear()
-	for i: int in range(50):
-		WorldDrops._roll_card(s4, lich)
-	for k: World.Pickup in s4.pickups:
-		assert_true(Cards.enemy(k.value) >= 0, "a plain Lich never drops a Seal card")
-	var arch0 := WorldWaves.spawn_enemy(_world(1), World.LICH, 0)
-	arch0.final = true
+	assert_eq(_cards_on_floor(s4), [Seals.card(5)], "SEAL IV's Archlich drops its card in a card run")
+	WorldDrops._roll_card(s4, arch)
+	assert_eq(_cards_on_floor(s4).size(), 1, "a card run drops one card")
+	var s4b := _world(5)
+	s4b.tune.card_run_chance = 1.0
+	s4b.tune.card_run_urn = 0.0
+	s4b.tune.loot_moment_from = 0.0
+	s4b.tune.loot_moment_to = 0.0
+	WorldDrops._roll_card(s4b, WorldWaves.spawn_enemy(s4b, World.LICH, 0))
+	assert_eq(_cards_on_floor(s4b), [Cards.for_enemy(World.LICH)], "a plain Lich never drops a Seal card")
 	var w1 := _world(1)
+	var arch0 := WorldWaves.spawn_enemy(w1, World.LICH, 0)
+	WorldBosses._make_final(w1, arch0)
 	WorldDrops._roll_card(w1, arch0)
-	for k: World.Pickup in w1.pickups:
-		assert_true(Cards.enemy(k.value) >= 0, "ARCHMAGE has no Seal card")
+	assert_eq(_cards_on_floor(w1), [], "out of a card run the Archlich drops no card")
+
+
+## The Seals' card odds raise the card run's chance (Cards.card_run_chance x seal_cards).
+func test_seal_card_odds_raise_the_card_run() -> void:
+	var w := _world(5)
+	w.run_loot.card = 0.012
+	w.tune.loot_moment_from = 0.0
+	w.tune.loot_moment_to = 0.0
+	assert_true(WorldDrops.card_due(w), "SEAL IV: 1.5% card runs take a draw of 1.2%")
+	var w0 := _world(0)
+	w0.run_loot.card = 0.012
+	w0.tune.loot_moment_from = 0.0
+	w0.tune.loot_moment_to = 0.0
+	assert_false(WorldDrops.card_due(w0), "WIZARD: 1% does not")
+
+
+func _cards_on_floor(w: World) -> Array:
+	var out: Array = []
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CARD:
+			out.append(k.value)
+	return out
 
 
 ## Bots play a few seconds at SEAL VIII without errors, and the header carries the Seal.

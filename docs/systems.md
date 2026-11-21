@@ -114,8 +114,23 @@ How each system works: read only the section for the system you touch (`grep -n 
 
 - 5a, chests and run gold:
   - Rarity tiers, chest items, armor stats and gold values are data in `game/logic/loot.gd` (`Loot`).
-  - Tiers run from common to ultra rare at 60 / 26 / 10 / 3.4 / 0.6 weight. A chest's luck (elites 1, the
-    Lich 3) moves common odds up the tiers.
+  - A chest rolls common to legendary at 60 / 26 / 10 / 0.3 weight (`Loot.RARITY_WEIGHTS`; was 60 / 26 / 10 / 3.4
+    / 0.6 with ULTRA): about 1 solo run in 6 opens a legendary. A chest's luck (elites 1, the Lich 3) moves common
+    odds up the tiers.
+  - ULTRA RARE and monster cards are a property of the run, not of each kill (job U): `Loot.run_rolls` draws once
+    in `World._init` from the run's own stream (`Loot.run_stream`, the run's seed xor `Loot.RUN_SALT`; `w.rng` never
+    feeds it). An ULTRA RARE run (`ultra_run_chance` 0.01, + `ultra_run_luck` per point of meta and Seal luck, at
+    most `ultra_run_cap` 0.03; none under APPRENTICE) drops one prismatic chest (`PK_CHEST_ULTRA`, opens ULTRA RARE)
+    from the first plain kill after its moment (`WorldDrops.ultra_due`); no other chest opens ULTRA RARE. A card run
+    (`card_run_chance` 0.01 x `seal_cards`) drops exactly one card, from the first kill with a card after its moment,
+    a boss's too (`Cards.run_card`; a Seal's Archlich drops its Seal card), or for `card_run_urn` 0.15 of card runs
+    from the first urn broken after it (any monster's card: the urn_card secret). Moments fall between
+    `loot_moment_from` 0.1 and `loot_moment_to` 0.7 of the run up to the Archlich. Out of a card run no kill, urn or
+    boss drops a card; a first win at a Seal still pays its card (`Profile.finish_run`). The Sanctum: a pot holds a
+    card at `Sanctum.POT_CARD` 0.001, a sealed deck costs `Sanctum.DECK_COST` 1500 crystals.
+  - A card found in a fight shows as a small notice under the HUD for `Arena.CARD_SHOW` s ("CARD FOUND: NAME" and
+    the card's painting at 16x24 when it has one; no shake), then as a "CARD FOUND" line with the results' deeds.
+    `--autotest --tune=card_run_chance:1,loot_moment_from:0,loot_moment_to:0.01` saves `card.png` with the notice.
   - Elites drop a chest. The Lich drops one per wizard.
   - Opening a chest is instant in the simulation. The arena plays a 1 s reel over the wizard, then shows the
     item in its tier colour, with sound and bursts that grow by tier.
