@@ -78,6 +78,28 @@ How each system works: read only the section for the system you touch (`grep -n 
     final pressure from human playtests; `sim_horde` reports the bot numbers on every check.
   - Each player levels and picks on their own, so 4 players pause the world about 4 times as often as 1. Shared
     party XP (one pick screen for everyone at once) would cut that to the solo rate; it is Curtis's call.
+- Balance pass 2 (wave 2 job P, 21 Nov; `tools/playtest.gd`, part 3 of `docs/wave2_brief.md`). Every number is a
+  `Tuning` default unless named otherwise:
+  - The early wall was the start budget (10) and rate (10/s); the late cakewalk was drops and power that scale
+    with the kill count (2.5% of kills dropped a spell tome, so every spell was maxed by 3:00) and evolutions worth
+    3 to 10 times level 5. Now: `horde_start_budget` 0, `horde_rate_base` 2, `horde_rate_per_min` 8,
+    `enemy_speed_mul` 0.85 with `enemy_speed_per_min` 0.05 (slow at 0:00, faster than before after 3:00),
+    enemy HP `enemy_hp_mul` 1 x (1 + `enemy_hp_per_min` 0.1 x (minute - 1)) x `enemy_hp_growth` 1.12 ^ (minute - 1).
+  - Drops (`Tuning` Loot rows, read by `WorldDrops`): `tome_drop_chance` 0.005 (was 0.025), `big_tome_chance`
+    0.15 (0.25), `coin_drop_chance` 0.1 (0.22), `potion_drop_chance` 0.05 (0.02).
+  - XP: `xp_per_level` 90 (60), `xp_gem_life` 90 s (30), `xp_magnet_radius` 44 (24).
+  - Enemy shots: `enemy_shot_cd_mul` 5 (skeleton arrows and mage volleys), `arrow_speed` 75 (150),
+    `mage_orb_speed` 80 (95).
+  - Bosses: `boss_hp_mul` 3.5, `boss_hp_per_cycle` 2.0 (0.25), `final_hp_mul` 3.6 (10, now on a Lich 5x by its
+    third visit), `boss_rest_mul` 1.8 (seconds between the Lich's attacks).
+  - Party: `spawn_party_scale` 0.4 (1.1), `enemy_hp_per_player` 0.12, `xp_party_scale` 0.8 (1.0),
+    `boss_hp_per_player` 0.3 (0.6), `final_hp_per_player` -0.15.
+  - Shrines: `shrine_interval` 25 s (60), `shrine_life` 50 s (30), `shrine_min_dist` 30 (50),
+    `shrine_cost_base` 60 (15), `shrine_cost_per_min` 25 (6).
+  - `Spells`: arcane bolt damage 2.2-3.0 (1.0-1.6), fireball 1.8-3.0 and 1/1/2/2/2 balls (2.0-3.8, 1/1/2/2/3),
+    frost fan 2.0-3.5 (1.6-2.6), chain lightning 2.6-5.0 (2.6-4.0), starfall 2.8-4.2 (2.6-4.0); Astral Lance
+    cd 0.11 (0.09) dmg 3.0 (2.2), Thunderfire cd 0.9 (0.75) dmg 3.0 (4.4), Blizzard dmg 3.2 (2.8), Comet Rain
+    dmg 3.0 (2.6) 5 stars (6) and `BURST_DMG` 0.3 (0.5), Seal of Solomon dmg 1.0 (1.2).
 
 ## Loot, gamble shrines, meta unlocks and saves (rework step 5)
 
@@ -123,7 +145,7 @@ How each system works: read only the section for the system you touch (`grep -n 
 ## Run structure: Archlich, results, wizard select (rework step 6)
 
 - 6a, the final boss (`Tuning` Run group):
-  - At `run_minutes` (15:00) the Archlich comes instead of the third Lich: a Lich with `final_hp_mul` (10) x the
+  - At `run_minutes` (15:00) the Archlich comes instead of the third Lich: a Lich with `final_hp_mul` (3.6) x the
     HP, a bigger body, rage from two thirds of its HP, and an elite with every rage summon. A Lich still standing
     at 15:00 ascends into it. No Lich comes after it; the horde keeps coming at the boss rate.
   - Slaying it wins the run (`World.won`, `EV_VICTORY`): the clock and the horde stop, everyone is safe, and

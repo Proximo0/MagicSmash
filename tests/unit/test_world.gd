@@ -99,7 +99,7 @@ func test_world_keeps_running_while_wizards_hold_cards() -> void:
 		var w := World.new(slots, 3)
 		for s: int in slots:
 			_player(w, s).invuln = 99999.0
-		for _i: int in range(60 * 5):
+		for _i: int in range(60 * 10):
 			w.step(DT, {})
 		w.gain_xp(_player(w), w.xp_needed())
 		w.step(DT, {})

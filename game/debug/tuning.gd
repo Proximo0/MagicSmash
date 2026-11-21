@@ -18,7 +18,7 @@ const FIELDS: Array = [
 	["horde_start_budget", 0.0, 0.0, 100.0, 1.0, "Spawning", "Spawn budget the horde starts with, so the first enemies come at once."],
 	["horde_rate_base", 2.0, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
 	["horde_rate_per_min", 8.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
-	["spawn_party_scale", 1.0, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
+	["spawn_party_scale", 0.4, 0.0, 1.5, 0.05, "Spawning", "Extra budget per extra wizard: budget x (1 + this x (players - 1))."],
 	["horde_boss_mul", 0.35, 0.0, 1.0, 0.05, "Spawning", "Spawn budget multiplier while the Lich is alive."],
 	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
 	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
@@ -68,7 +68,7 @@ const FIELDS: Array = [
 	["enemy_hp_per_min", 0.1, 0.0, 0.5, 0.01, "Scaling", "Enemy HP growth per minute: HP x (1 + this x (minute - 1))."],
 	["enemy_speed_per_min", 0.05, 0.0, 0.1, 0.005, "Scaling", "Enemy speed growth per minute, up to enemy_speed_min_cap."],
 	["enemy_speed_min_cap", 12.0, 1.0, 60.0, 1.0, "Scaling", "Minute after which enemies stop getting faster."],
-	["boss_hp_per_player", 0.5, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
+	["boss_hp_per_player", 0.3, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth per extra wizard."],
 	["boss_hp_per_cycle", 2.0, 0.0, 2.0, 0.05, "Scaling", "Lich HP growth each time it returns."],
 	["boss_hp_mul", 3.5, 0.1, 20.0, 0.1, "Scaling", "Multiplier on the Lich's (and so the Archlich's) HP."],
 	["enemy_hp_per_player", 0.12, 0.0, 2.0, 0.05, "Scaling", "Horde and elite HP growth per extra wizard: HP x (1 + this x (players - 1))."],
@@ -76,7 +76,9 @@ const FIELDS: Array = [
 	["arrow_speed", 75.0, 40.0, 300.0, 5.0, "Scaling", "Speed of a skeleton's arrow, px/s."],
 	["enemy_speed_mul", 0.85, 0.3, 3.0, 0.05, "Scaling", "Multiplier on every enemy's walk speed (the Lich's too)."],
 	["mage_orb_speed", 80.0, 30.0, 300.0, 5.0, "Scaling", "Speed of a dark mage's orbs, px/s."],
+	["final_hp_per_player", -0.15, -0.3, 1.0, 0.01, "Scaling", "The Archlich's HP changes by this fraction per extra wizard, on top of boss_hp_per_player."],
 	["enemy_hp_growth", 1.12, 1.0, 1.5, 0.01, "Scaling", "Compound enemy HP growth per minute on top of enemy_hp_per_min: HP x this ^ (minute - 1)."],
+	["enemy_hp_mul", 1.0, 0.1, 10.0, 0.05, "Scaling", "Multiplier on every horde enemy's and elite's HP (not the Lich's: boss_hp_mul)."],
 	["xp_first_level", 20.0, 1.0, 200.0, 1.0, "XP", "XP needed to go from level 1 to level 2."],
 	["xp_per_level", 90.0, 0.0, 200.0, 1.0, "XP", "Extra XP needed per level beyond the first (linear part)."],
 	["xp_growth", 1.04, 1.0, 1.5, 0.01, "XP", "Per-level multiplier on the XP needed (exponential part)."],
@@ -84,7 +86,7 @@ const FIELDS: Array = [
 	["xp_gem_cap", 120.0, 10.0, 1000.0, 10.0, "XP", "Most XP gems on the floor; past it a new gem's XP joins the nearest gem instead."],
 	["xp_magnet_radius", 44.0, 8.0, 120.0, 1.0, "XP", "XP gems within this distance fly to a wizard, px (Magnet multiplies it)."],
 	["xp_magnet_speed", 170.0, 40.0, 500.0, 5.0, "XP", "Speed of an XP gem flying to a wizard, px/s."],
-	["xp_party_scale", 1.8, 0.0, 2.0, 0.05, "XP", "XP a level costs grows by this fraction per extra wizard (the spawn budget grows with the party too)."],
+	["xp_party_scale", 0.8, 0.0, 2.0, 0.05, "XP", "XP a level costs grows by this fraction per extra wizard (the spawn budget grows with the party too)."],
 	["pick_shock_radius", 44.0, 0.0, 120.0, 2.0, "XP", "Taking a card pushes every enemy this close to the wizard away, px (no damage). 0 = off."],
 	["pick_shock_push", 220.0, 0.0, 600.0, 10.0, "XP", "Knockback of a card's shock, px/s, scaled like other knockback (the Nova's is 260)."],
 	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the card tray hold 3)."],
@@ -160,6 +162,8 @@ var arrow_speed: float
 var enemy_speed_mul: float
 var enemy_hp_growth: float
 var mage_orb_speed: float
+var final_hp_per_player: float
+var enemy_hp_mul: float
 var xp_first_level: float
 var xp_per_level: float
 var xp_growth: float

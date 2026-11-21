@@ -6,7 +6,8 @@ extends RefCounted
 ## Turns a Lich into the Archlich: final_hp_mul times the HP, full health, a bigger body and a meaner pattern.
 static func _make_final(w: World, e: World.Enemy) -> void:
 	e.final = true
-	e.maxhp = World.STATS[World.LICH][0] * _lich_hp_scale(w) * w.tune.final_hp_mul
+	e.maxhp = World.STATS[World.LICH][0] * _lich_hp_scale(w) * w.tune.final_hp_mul \
+		* (1.0 + w.tune.final_hp_per_player * (w.players.size() - 1))
 	e.hp = e.maxhp
 	e.r += 3.0
 	e.state = 0
