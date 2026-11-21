@@ -154,6 +154,28 @@ func test_a_fallen_apprentice_gets_up_by_itself() -> void:
 	assert_true(dp.down, "never under DARKNESS")
 
 
+func test_an_away_human_keeps_her_lives_and_her_cards() -> void:
+	var w := World.new([0, 1], 3, null, {}, {1: {"ai": true, "away": true}})
+	var c := G.ARENA.get_center()
+	w.players[0].pos = c
+	var gone: World.Player = w.players[1]
+	gone.pos = c + Vector2(400, 0)
+	assert_true(gone.ai, "the World plays her seat")
+	assert_true(gone.away)
+	gone.invuln = 0.0
+	w.hurt_player(gone, 99)
+	assert_true(gone.down)
+	for i: int in range(int((w.tune.apprentice_up_time + 1.0) / DT)):
+		WorldPlayers._update_spirit(w, gone, DT, _idle(), false)
+		assert_false(WorldApprentices.gets_up(w, gone))
+	gone.pending = 1
+	WorldLevels._update_levelups(w, {})
+	assert_false(gone.choices.is_empty(), "the hand is dealt")
+	WorldLevels._update_levelups(w, {})
+	assert_false(gone.choices.is_empty(), "and waits for her")
+	assert_false(World.new([0], 3, null, {}, {0: {"away": true}}).players[0].away, "away means nothing on a played seat's own")
+
+
 func test_the_world_plays_an_apprentice_with_no_input() -> void:
 	var w := _pair(60.0)
 	w.phase_t = 100.0 # the intro holds: no horde

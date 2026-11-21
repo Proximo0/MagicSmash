@@ -408,6 +408,7 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 		p.wizard = clampi(int(wizards.get(s, s % Wizards.count())), 0, Wizards.count() - 1)
 		var seat: Dictionary = seats.get(s, {})
 		p.ai = bool(seat.get("ai", false))
+		p.away = p.ai and bool(seat.get("away", false))
 		p.race = int(seat.get("race", 0))
 		p.cls = int(seat.get("cls", 0))
 		p.look = int(seat.get("look", 0))

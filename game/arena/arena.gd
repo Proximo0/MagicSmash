@@ -404,7 +404,12 @@ func _on_roster_changed() -> void:
 	for r in Net.roster:
 		live[r.slot] = true
 		if world.players.has(r.slot):
-			(world.players[r.slot] as World.Player).ai = Net.played_by_ai(r) # an away seat is played as an apprentice
+			var p: World.Player = world.players[r.slot]
+			var played := Net.played_by_ai(r) # an away seat is played as an apprentice
+			if played != p.ai:
+				p.last_bomb = -1 # the hand and the bot count their Nova presses apart: start again from the next input
+			p.ai = played
+			p.away = played and bool(r.get("away", false))
 	for s in world.players.keys():
 		if not live.has(s):
 			world.remove_player(s) # her score and kills stay in the run

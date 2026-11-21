@@ -7,7 +7,7 @@ class_name PlayerInput
 ## the level-up card tray (Arena).
 ## Keyboard seat 2 (G.DEV_KB2, the right hand on the same keyboard): arrows move, right Ctrl fires the way it
 ## faces (and confirms in menus), Enter = Nova. While it is seated the arrows are its own, so seat 1 moves
-## with WASD and aims with the mouse. Its level-up tray: P opens it, 8, 9 and 0 take a card, O redraws (ArenaTray).
+## with WASD and aims with the mouse. Its level-up tray: I opens it (P pauses), 8, 9 and 0 take a card, O redraws (ArenaTray).
 ## The arena appends fields 6 and 7, [card, offer id] (ArenaSeats._with_pick): card 0..2 takes that card,
 ## Upgrades.REDRAW_INPUT (-2; R or the d-pad's down with the tray open) redraws the hand, Upgrades.BANISH_INPUT + c
 ## (10 + c; the card's button held ArenaTray.BANISH_HOLD s) banishes card c, -1 does nothing.

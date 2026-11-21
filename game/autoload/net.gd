@@ -15,7 +15,7 @@ enum Mode { OFFLINE, HOST, CLIENT }
 
 const GAME_PORT := 24680
 const DISCOVERY_PORT := 24681
-const MAGIC := "MAGICSMASH2" # 2: longer snapshot rows and roster rows; older builds do not see these games
+const MAGIC := "MAGICSMASH3" # 3: joins carry the seat; 2: longer snapshot and roster rows. Older builds do not see these games
 
 var mode := Mode.OFFLINE
 ## Array of {slot:int, peer:int, device:int, wizard:int, ai:bool, away:bool, race:int, cls:int, look:int,
@@ -33,6 +33,8 @@ const RELIABLE_EVENTS: Array[int] = [World.EV_VICTORY, World.EV_RESULTS, World.E
 var _heard := {}
 var _hello_timer := 0.0
 var _close_gen := 0
+## True while the host waits a moment before closing (send_back_to_title): the title leaves that close alone.
+var closing := false
 ## The difficulty the host chose for the next run (World.SEAL_EASY..World.SEAL_MAX, 0 normal); travels with the roster.
 var seal := 0
 ## slot -> PackedFloat32Array input from remote clients (host only)
@@ -141,6 +143,7 @@ func stop_discovery() -> void:
 
 func shutdown() -> void:
 	in_game = false
+	closing = false
 	_close_gen += 1
 	if _broadcast:
 		_broadcast.close()
@@ -319,12 +322,12 @@ func wizard_picks() -> Dictionary:
 		out[r.slot] = int(r.get("wizard", r.slot))
 	return out
 
-## slot -> the roster extras World copies onto each Player untouched: ai (an apprentice, or an away seat), race,
+## slot -> the roster extras World copies onto each Player untouched: ai (an apprentice, or an away seat), away, race,
 ## cls, look, cls_level.
 func seat_builds() -> Dictionary:
 	var out := {}
 	for r in roster:
-		out[r.slot] = {"ai": played_by_ai(r), "race": int(r.get("race", 0)), "cls": int(r.get("cls", 0)),
+		out[r.slot] = {"ai": played_by_ai(r), "away": bool(r.get("away", false)), "race": int(r.get("race", 0)), "cls": int(r.get("cls", 0)),
 			"look": int(r.get("look", 0)), "cls_level": int(r.get("cls_level", 0))}
 	return out
 
@@ -570,6 +573,7 @@ func send_back_to_title() -> void:
 		return
 	_to_title.rpc()
 	in_game = false
+	closing = true
 	if _broadcast:
 		_broadcast.close()
 		_broadcast = null

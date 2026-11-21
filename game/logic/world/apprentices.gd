@@ -69,6 +69,6 @@ static func payee(w: World, p: World.Player, kind: int) -> World.Player:
 
 
 ## True when a fallen apprentice gets up by itself now (after apprentice_up_time; never under DARKNESS, whose
-## rituals take longer: World.seal_ritual > 1).
+## rituals take longer: World.seal_ritual > 1). An away human seat never does: her lives are her own.
 static func gets_up(w: World, p: World.Player) -> bool:
-	return p.ai and p.down and w.seal_ritual <= 1.0 and p.down_t >= w.tune.apprentice_up_time
+	return p.ai and not p.away and p.down and w.seal_ritual <= 1.0 and p.down_t >= w.tune.apprentice_up_time

@@ -278,10 +278,14 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   and (unless at `apprentice_potion_hp` hearts or fewer with no standing human hurt) potions off it; `payee` sends
   its coins and gems to the nearest human; shrines take no bet from it (`WorldShrines._update_shrines`), so it never
   draws a fate; `gets_up` raises it free after `apprentice_up_time` down, never under DARKNESS
-  (`seal_ritual > 1`). The run ends when no human can return (apprentices play on alone only with no human seat).
+  (`seal_ritual > 1`). The run ends when no human can return (apprentices play on alone only with no human seat);
+  a human down on her last life with nobody standing ends it even when an apprentice would get up soon (kept on
+  purpose: an apprentice is a helper, not a second life). A human seat gone silent (`Player.away`) is played like
+  an apprentice but never gets up free and keeps her queued draws; when a seat changes hands `Arena` resets
+  `last_bomb` so the bot's and the hand's Nova counts never mix.
   `World.remove_player(slot)` (a LAN leaver) keeps her score and kills in `total_score` and `total_kills`.
 - Input: keyboard seat 2 (`G.DEV_KB2`): arrows move, right Ctrl fires the way it faces and confirms, Enter is its
-  nova; while it is seated the arrows are its own (`PlayerInput.key_device`). Right Ctrl is told from the left by
+  nova, I opens its tray (O redraws, 8, 9, 0 pick); while it is seated the arrows are its own (`PlayerInput.key_device`). Right Ctrl is told from the left by
   key events (`PlayerInput.note_key`, fed by `G._input`).
 - Lobby (`game/ui/title.gd`): Y or + adds an apprentice, X or - removes one, player 1's START (or Enter) begins the
   run, A never starts it (an unseated device's A or fire joins), SELECT or I calls `Platform.invite_friends()`

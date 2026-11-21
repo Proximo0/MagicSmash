@@ -85,7 +85,7 @@ func _ready() -> void:
 		G.title_message = ""
 		state = S.MAIN
 		t = 4.0
-	if Net.mode != Net.Mode.OFFLINE:
+	if Net.mode != Net.Mode.OFFLINE and not Net.closing: # a host on its way out closes by itself in a moment
 		Net.shutdown()
 	G.local_devices.clear()
 	if G.title_shop:
@@ -904,8 +904,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				Platform.invite_friends()
 				return
 			# Player 1's START begins the run; a joined device's A (or any other confirm) never does.
-			if button == 2 and G.local_devices.has(_event_device(event)):
-				if host and _event_device(event) == _p1_device():
+			var presser := _event_device(event)
+			if button == 2 and event is InputEventKey and _p1_device() == G.DEV_KB2:
+				presser = G.DEV_KB2 # Enter is seat 2's key as well
+			if button == 2 and G.local_devices.has(presser):
+				if host and presser == _p1_device():
 					_begin()
 				return
 			var side: Array = PlayerInput.menu_side(event)

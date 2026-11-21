@@ -202,7 +202,7 @@ const KB2_CARDS: Array[String] = ["8", "9", "0"]
 
 ## The key that opens and hides a seat's tray, as its keycap reads.
 static func _tray_key(dev: int) -> String:
-	return "E" if dev == G.DEV_KBM else ("P" if dev == G.DEV_KB2 else "LB")
+	return "E" if dev == G.DEV_KBM else ("I" if dev == G.DEV_KB2 else "LB")
 
 
 ## A small light keycap with a label, 9 px tall (11 with its dark outline).
@@ -305,7 +305,7 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 		elif dev == G.DEV_KB2 and event is InputEventKey and not event.echo:
 			var k := -1
 			match event.physical_keycode:
-				KEY_P: toggle = event.pressed
+				KEY_I: toggle = event.pressed # not P: that pauses
 				KEY_O: redraw = event.pressed
 				KEY_8, KEY_KP_8: k = 0
 				KEY_9, KEY_KP_9: k = 1
