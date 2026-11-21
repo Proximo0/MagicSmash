@@ -122,6 +122,11 @@ static func _draw_enemy(a: Arena, ci: CanvasItem, e: Dictionary) -> void:
 		World.PRIEST:
 			if st == 1:
 				key = "priest_raise"
+		_:
+			if Bestiary.is_new_kind(t):
+				var look: Array = EnemyView.state_look(a, e, feet, mod)
+				feet = look[0]
+				mod = look[1]
 	if turn:
 		e.flip = near_dx < 0.0
 	var elite: bool = e.elite
@@ -129,6 +134,8 @@ static func _draw_enemy(a: Arena, ci: CanvasItem, e: Dictionary) -> void:
 		key = "elite_" + key
 	var flash: bool = e.flash > 0.0 and (t != World.LICH or int(a.time * 40.0) % 3 == 0)
 	Sprites.draw_at(ci, key, feet, e.flip, flash, mod)
+	if Bestiary.is_new_kind(t):
+		EnemyView.draw_state(a, ci, e, feet)
 	if elite:
 		# The mark of an elite: a small crown that bobs over its head, above the health bar.
 		Sprites.draw_at(ci, "elite_mark", e.pos + Vector2(0, -5.0 - SpritesEnemies.TOP[t] + roundf(sin(a.time * 4.0 + e.t))))

@@ -231,8 +231,14 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	return r
 
 
-## What hurt a wizard at `at` (its feet): an enemy body touching it, else a shot (a shot that hits is gone).
+## What hurt a wizard at `at` (its feet): a hot hazard row she stands in ("hz_fire", ...), an enemy body touching
+## her, else a shot (a shot that hits is gone).
 func _hit_cause(w: World, at: Vector2) -> String:
+	const ROWS := ["mark", "blast", "fire", "flame", "fall", "beam", "burst", "lane", "safe"]
+	for h: Hazards.Hazard in w.hazards:
+		var row: Array = Hazards.KINDS[h.kind]
+		if h.warn <= 0.0 and int(row[Hazards.K_HEARTS]) > 0 and Hazards.contains(h, at) != bool(row[Hazards.K_INVERTED]):
+			return "hz_" + str(ROWS[h.kind])
 	var best: String = "shot"
 	var bd: float = 8.0
 	for e: World.Enemy in w.enemies:

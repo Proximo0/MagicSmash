@@ -157,7 +157,8 @@ static func _spot_near_party(w: World, min_dist: float, max_dist: float, margin:
 
 ## The next group or formation (Bestiary.roll_group): [layout, [[type, count], ...]].
 static func _roll_group(w: World) -> Array:
-	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), _fielded(w), w.players.size(), _boss_coming(w))
+	return Bestiary.roll_group(w.rng, w.wave_time, Lore.act_of(w.wave - 1), _fielded(w), w.players.size(), _boss_coming(w),
+		Bestiary.FORMATIONS, w.tune.new_kinds)
 
 
 ## Enemies per Bestiary type on the floor or queued to come (doors, rifts, risers), counted now.

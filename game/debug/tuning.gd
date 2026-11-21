@@ -97,6 +97,7 @@ const FIELDS: Array = [
 	["fate_hierophant_secs", 90.0, 5.0, 300.0, 5.0, "Fate", "Seconds THE HIEROPHANT stops potions dropping."],
 	["fate_wheel_draws", 2.0, 1.0, 4.0, 1.0, "Fate", "More fates WHEEL OF FORTUNE draws at once (never itself again in that chain)."],
 	["fate_chain_gap", 1.6, 1.6, 5.0, 0.1, "Fate", "Seconds between a fate landing and the next card of its chain being turned (at least the arena's reel show, Arena.REEL_SHOW)."],
+	["new_kinds", 1.0, 0.0, 3.0, 0.1, "Spawning", "Multiplier on the act weights of the eight bestiary kinds (bloat to ten of swords) and their formations; 0: they never roll and the horde is exactly the old one."],
 ]
 
 static var _shared: Tuning = null
@@ -188,6 +189,7 @@ var fate_hanged_secs: float
 var fate_hierophant_secs: float
 var fate_wheel_draws: float
 var fate_chain_gap: float
+var new_kinds: float
 
 
 func _init() -> void:

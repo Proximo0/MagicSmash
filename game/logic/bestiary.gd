@@ -3,7 +3,8 @@ extends RefCounted
 ## Every kind of enemy as data: the type ids, their stats and flags (KINDS), the horde director's table (HORDE),
 ## set-piece formations (FORMATIONS) and the seeded roll of the next group. A leaf: it knows nothing of World.
 ## Ids are snapshot ids: append, never reorder. Kinds past PRIEST are reserved for the bestiary jobs
-## (docs/bestiary_design.md): they have stats and stand-in sprites but no brain and zero horde weight until then.
+## (docs/bestiary_design.md). Job K's eight kinds (BLOAT..SWORDS) think in kinds_crypt.gd, kinds_library.gd and
+## kinds_sanctum.gd (BRAINS); Tuning.new_kinds scales their act weights (0: the horde rolls exactly as before them).
 
 const GOBLIN := 0
 const SKELETON := 1
@@ -81,7 +82,7 @@ const RISE := 1
 const WALL := 2
 ## The horde director's table: [type, budget cost, unlocks after this many seconds of fighting, weight in act I,
 ## act II, act III, group min, group max, extra group max per minute, cap alive (0: none; +1 with 3 or 4 wizards),
-## form]. Today's kinds weigh the same in every act; the reserved kinds weigh 0 until job K sets their act weights.
+## form]. Today's kinds weigh the same in every act; job K's kinds weigh by act (Tuning.new_kinds scales them).
 const H_TYPE := 0
 const H_COST := 1
 const H_UNLOCK := 2
@@ -102,14 +103,14 @@ const HORDE: Array = [
 	[TOME,       2.0, 300.0, 2, 2, 2, 3, 6,  0, 0, GROUP],
 	[PRIEST,     8.0, 420.0, 1, 1, 1, 1, 1,  0, 0, GROUP],
 	[GARGOYLE,   7.0, 600.0, 1, 1, 1, 1, 2,  0, 0, GROUP],
-	[BLOAT,      2.0, 90.0,  0, 0, 0, 1, 2,  0, 6, GROUP],
-	[COFFIN,     4.0, 120.0, 0, 0, 0, 1, 1,  0, 3, RISE],
-	[GUARD,      3.0, 210.0, 0, 0, 0, 2, 3,  0, 6, WALL],
-	[CINDERLING, 3.0, 330.0, 0, 0, 0, 1, 2,  0, 3, GROUP],
-	[CENSOR,     4.0, 360.0, 0, 0, 0, 1, 2,  0, 3, GROUP],
-	[HOUND,      2.0, 450.0, 0, 0, 0, 3, 3,  0, 6, GROUP],
-	[SHARD,      6.0, 660.0, 0, 0, 0, 1, 1,  0, 2, RISE],
-	[SWORDS,     5.0, 750.0, 0, 0, 0, 1, 3,  0, 4, GROUP],
+	[BLOAT,      2.0, 90.0,  1, 1, 1, 1, 2,  0, 6, GROUP],
+	[COFFIN,     4.0, 120.0, 1, 1, 0, 1, 1,  0, 3, RISE],
+	[GUARD,      3.0, 210.0, 1, 1, 0, 2, 3,  0, 6, WALL],
+	[CINDERLING, 3.0, 330.0, 0, 2, 1, 1, 2,  0, 3, GROUP],
+	[CENSOR,     4.0, 360.0, 0, 2, 0, 1, 2,  0, 3, GROUP],
+	[HOUND,      2.0, 450.0, 0, 1, 1, 3, 3,  0, 6, GROUP],
+	[SHARD,      6.0, 660.0, 0, 0, 1, 1, 1,  0, 2, RISE],
+	[SWORDS,     5.0, 750.0, 0, 0, 2, 1, 3,  0, 4, GROUP],
 ]
 
 ## Where a formation comes in: one rift near the party, one door, or two opposite doors.
@@ -117,9 +118,15 @@ const AT_RIFT := 0
 const AT_DOOR := 1
 const AT_OPPOSITE := 2
 ## Set pieces: [name, unlocks after s, weight, [[type, n], ...], layout]. When any is unlocked, one roll in
-## FORMATION_ROLL is a formation. Empty until job K adds POWDER TRAIN, SHIELD WALL and FIRE DRILL.
-const FORMATIONS: Array = []
+## FORMATION_ROLL is a formation.
+const FORMATIONS: Array = [
+	["POWDER TRAIN", 90.0, 1, [[GOBLIN, 8], [BLOAT, 1]], AT_RIFT],
+	["SHIELD WALL", 210.0, 1, [[GUARD, 3], [SKELETON, 3]], AT_DOOR],
+	["FIRE DRILL", 390.0, 1, [[CINDERLING, 1], [CINDERLING, 1], [CENSOR, 1]], AT_OPPOSITE],
+]
 const FORMATION_ROLL := 5
+## Weight steps when Tuning.new_kinds is not a whole number (see _row_weight).
+const WEIGHT_STEPS := 10
 ## RISE: how far from the party's centre (and at least RISE_MIN from every wizard) a riser comes up, the arena
 ## inset it keeps, and the rift mark's size.
 const RISE_MIN := 70.0
@@ -127,8 +134,19 @@ const RISE_MAX := 130.0
 const RISE_MARGIN := 22.0
 const RISE_SPREAD := 8.0
 ## Brains for the reserved kinds: type -> script path. The script has static think(w, e, dt, tgt, dirv, dist),
-## on_death(w, e, slot) and filter_damage(w, e, dmg, knock, sure) (see Brains). Job K fills it.
-const BRAINS: Dictionary = {}
+## on_death(w, e, slot) and filter_damage(w, e, dmg, knock, sure) (see Brains).
+const BRAINS: Dictionary = {
+	BLOAT: "res://game/logic/kinds_crypt.gd",
+	COFFIN: "res://game/logic/kinds_crypt.gd",
+	GUARD: "res://game/logic/kinds_crypt.gd",
+	CINDERLING: "res://game/logic/kinds_library.gd",
+	CENSOR: "res://game/logic/kinds_library.gd",
+	HOUND: "res://game/logic/kinds_library.gd",
+	SHARD: "res://game/logic/kinds_sanctum.gd",
+	SWORDS: "res://game/logic/kinds_sanctum.gd",
+}
+## The TEN OF SWORDS' blades: an enemy shot kind after World.ES_SKULL (World.eshot takes any int).
+const ES_SWORD := 3
 ## Most enemy shots alive at once (World.eshot drops a shot past it).
 const ESHOT_CAP := 300
 
@@ -162,33 +180,37 @@ static func cap_of(row: Array, wizards: int) -> int:
 ## WALL); a formation's is AT_RIFT, AT_DOOR or AT_OPPOSITE plus 8 (so the two never mix up). `t` is the run's
 ## seconds, `act` 0..2, `alive` the count per type on the floor or queued to come, `boss_alive` true while a boss
 ## is up or queued. Rows past their cap, and F_HAZARD kinds while a boss is up, are left out; so is a formation with
-## such a part or a part that would pass its cap. No formation unlocked: no extra roll, so the draw order is
-## today's. `formations` defaults to FORMATIONS (tests pass their own).
+## such a part or parts that together would pass a cap. No formation unlocked: no extra roll, so the draw order is
+## today's. `formations` defaults to FORMATIONS (tests pass their own). `new_kinds` (Tuning.new_kinds) scales the
+## weights of job K's kinds and of the formations that hold one: at 0 they never roll and the draws are exactly
+## those of the horde before them.
 static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: PackedInt32Array, wizards: int, boss_alive: bool,
-		formations: Array = FORMATIONS) -> Array:
+		formations: Array = FORMATIONS, new_kinds: float = 1.0) -> Array:
+	var steps := 1 if is_equal_approx(new_kinds, roundf(new_kinds)) else WEIGHT_STEPS
 	var forms: Array = formations.filter(func(f: Array) -> bool:
-		return t >= float(f[1]) and fits(f[3], alive, wizards, boss_alive))
+		return t >= float(f[1]) and _form_weight(f, new_kinds, steps) > 0 and fits(f[3], alive, wizards, boss_alive))
 	if not forms.is_empty() and rng.randi_range(1, FORMATION_ROLL) == 1:
 		var fsum := 0
 		for f: Array in forms:
-			fsum += int(f[2])
+			fsum += _form_weight(f, new_kinds, steps)
 		var fr := rng.randi_range(1, maxi(1, fsum))
 		for f: Array in forms:
-			fr -= int(f[2])
+			fr -= _form_weight(f, new_kinds, steps)
 			if fr <= 0:
 				return [8 + int(f[4]), (f[3] as Array).duplicate(true)]
 	var col := H_W1 + clampi(act, 0, 2)
 	var total := 0
 	for row: Array in HORDE:
 		if _rollable(row, t, col, alive, wizards, boss_alive):
-			total += int(row[col])
+			total += _row_weight(row, col, new_kinds, steps)
 	if total <= 0:
 		return [GROUP, [[GOBLIN, 1]]]
 	var r := rng.randi_range(1, total)
 	for row: Array in HORDE:
-		if not _rollable(row, t, col, alive, wizards, boss_alive):
+		var wt := _row_weight(row, col, new_kinds, steps)
+		if wt <= 0 or not _rollable(row, t, col, alive, wizards, boss_alive):
 			continue
-		r -= int(row[col])
+		r -= wt
 		if r <= 0:
 			var n := rng.randi_range(row[H_GMIN], row[H_GMAX] + row[H_EXTRA] * int(t / 60.0))
 			var cap := cap_of(row, wizards)
@@ -198,15 +220,38 @@ static func roll_group(rng: RandomNumberGenerator, t: float, act: int, alive: Pa
 	return [GROUP, [[GOBLIN, 1]]]
 
 
+## Job K's kinds (BLOAT..SWORDS): the ones Tuning.new_kinds scales.
+static func is_new_kind(type: int) -> bool:
+	return type >= BLOAT and type <= SWORDS
+
+
+## A HORDE row's weight in column `col`, x `steps` (WEIGHT_STEPS when new_kinds is fractional, so 0.5 can halve a
+## weight of 1), a new kind's scaled by new_kinds.
+static func _row_weight(row: Array, col: int, new_kinds: float, steps: int) -> int:
+	var wt := int(row[col]) * steps
+	return roundi(wt * maxf(new_kinds, 0.0)) if is_new_kind(row[H_TYPE]) else wt
+
+
+static func _form_weight(f: Array, new_kinds: float, steps: int) -> int:
+	var wt := int(f[2]) * steps
+	for part: Array in f[3]:
+		if is_new_kind(part[0]):
+			return roundi(wt * maxf(new_kinds, 0.0))
+	return wt
+
+
 ## Whether every [type, n] part may come now: no F_HAZARD kind while a boss is up, and no capped kind past its cap
-## (counting `alive`, the floor plus the queue).
+## (counting `alive`, the floor plus the queue, and the other parts of the same type).
 static func fits(parts: Array, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> bool:
+	var want := {}
 	for part: Array in parts:
 		var type: int = part[0]
 		if boss_alive and has_flag(type, F_HAZARD):
 			return false
+		want[type] = int(want.get(type, 0)) + int(part[1])
+	for type: int in want:
 		var cap := cap_of(horde_row(type), wizards) if _has_row(type) else 0
-		if cap > 0 and _alive_of(alive, type) + int(part[1]) > cap:
+		if cap > 0 and _alive_of(alive, type) + int(want[type]) > cap:
 			return false
 	return true
 
@@ -221,19 +266,21 @@ static func needs_check(parts: Array) -> bool:
 	return false
 
 
-## Trims a group's parts to the room left under their caps. False when a part has no room (or is an F_HAZARD kind
-## while a boss is up): roll again.
+## Trims a group's parts to the room left under their caps (parts of one type share it). False when a part has no
+## room (or is an F_HAZARD kind while a boss is up): roll again.
 static func trim(parts: Array, alive: PackedInt32Array, wizards: int, boss_alive: bool) -> bool:
+	var used := {}
 	for part: Array in parts:
 		var type: int = part[0]
 		if boss_alive and has_flag(type, F_HAZARD):
 			return false
 		var cap := cap_of(horde_row(type), wizards) if _has_row(type) else 0
 		if cap > 0:
-			var room := cap - _alive_of(alive, type)
+			var room := cap - _alive_of(alive, type) - int(used.get(type, 0))
 			if room < 1:
 				return false
 			part[1] = mini(int(part[1]), room)
+			used[type] = int(used.get(type, 0)) + int(part[1])
 	return true
 
 

@@ -49,7 +49,8 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	e.pos = at
 	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
 	# moves a few pixels a step. A kind that can teleport (F_BLINK: a mage, the Lich) always checks.
-	if dist < e.r + World.CONTACT_REACH or e.flags & Bestiary.F_BLINK:
+	# A kind with no contact damage (a bloat, a coffin) touches nobody, so it gives no free hurt-invulnerability either.
+	if e.contact > 0 and (dist < e.r + World.CONTACT_REACH or e.flags & Bestiary.F_BLINK):
 		for p: World.Player in w._plist:
 			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 				var dmg := e.contact
