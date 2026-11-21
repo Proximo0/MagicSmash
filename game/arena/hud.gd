@@ -111,7 +111,7 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 
 ## A seat's build in its panel (content from `x`): one pip per spell slot in the order taken, filled by level (an
 ## evolved one glows white at the rim), and under it a thinner pip per passive slot; a free slot is a dim outline,
-## so the player sees how many are left (the cap rises after the first Lich).
+## so the player sees how many are left (the cap rises after the first boss).
 static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary, _dark: Color) -> void:
 	var spells: Array = p.get("spells", [])
 	var passives: Array = p.get("passives", [])

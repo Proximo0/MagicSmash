@@ -50,7 +50,7 @@ const C_KIND := 6
 const C_SPELL := 7
 ## A slot cap that never binds: (spell slots, passive slots).
 const UNCAPPED := Vector2i(99, 99)
-## The slots every wizard has (spells, passives) until the first Lich falls, and after.
+## The slots every wizard has (spells, passives) until the first boss falls, and after.
 const SLOTS_EARLY := Vector2i(3, 3)
 const SLOTS_LATE := Vector2i(4, 4)
 ## A row that completes a pair (see pairs_with) weighs this many times its weight in a roll.

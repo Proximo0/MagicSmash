@@ -34,7 +34,7 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 			_offer(w, p)
 
 
-## The slots every wizard has: Upgrades.SLOTS_EARLY until the first Lich falls, then SLOTS_LATE. The first call of
+## The slots every wizard has: Upgrades.SLOTS_EARLY until the first boss falls (the Bone Chandelier at 5:00), then SLOTS_LATE. The first call of
 ## a run (before its first tick) also hands every wizard the run's redraws and banishes.
 static func _update_slots(w: World) -> void:
 	var cap := Upgrades.SLOTS_LATE if w.liches_slain > 0 else Upgrades.SLOTS_EARLY
@@ -110,7 +110,8 @@ static func _pick(w: World, p: World.Player, idx: int) -> void:
 		Upgrades.LIFE:
 			p.lives += 1
 		Upgrades.M_CUPS:
-			p.hp = mini(p.max_hp, p.hp + 1)
+			if p.alive: # a fallen wizard rises with hearts of her own; the card would be lost on her
+				p.hp = mini(p.max_hp, p.hp + 1)
 		Upgrades.M_PENTACLES:
 			var gold: float = Upgrades.value(p.upgrades, idx, 0.0) * (1.0 + p.armor[Loot.ST_GREED] + w.meta_gold)
 			p.gold += gold
