@@ -218,3 +218,19 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
 - **Names:** mythic loot (Gauntlets of Tyr, Hermes' Sandals, Eye of Odin...) and unlocks; achievement texts
   match. Version 0.9.0.
 - **Sound:** 14 occult SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
+
+## Talk (hub and run chats)
+- `game/logic/talk.gd` (`Talk`): the lines as data (`LINES`: speaker, condition, text) for the SHOPKEEPER, the CARD
+  READER and MORVANE. `Talk.pick(speaker, context, rng)` returns `{id, name, portrait, text, rows}`; the context has
+  `first`, `new_card`, `result` (loss or win), `act`, `seal`, `apprentice`, `lull`, `last`. `first` and `new_card`
+  speak alone, a lull gets an act line, otherwise result, act, Seal and apprentice lines pool with `idle`. The line
+  shown last (`last`) is skipped whenever another fits. Text is at most 2 rows of `Talk.TEXT_COLS` characters
+  (`test_talk` measures them); portraits are the owner's `portraits/characters` keys (`_tall` in the box).
+- `game/ui/dialogue_box.gd` (`DialogueBox`): portrait panel on the left, text box along the bottom, typed text,
+  confirm completes then closes. A missing picture is a dark silhouette with the name.
+- Sanctum: `Sanctum.SHOPKEEPER` (118,176) and `Sanctum.CARD_READER` (362,176) are things like the rest (walk up,
+  confirm). The shopkeeper's box then opens the title's UNLOCKS (`G.title_shop`; back returns to the Sanctum). After
+  a run (`G.last_run`, set by `G.finish_run`) Morvane speaks once on arrival. "First" and the apprentice line are
+  remembered per session (`G.talk_seen`), a first visit is `Profile.runs == 0`.
+- Run: `ArenaTalk.start` (called at EV_LULL; the World emits no EV_TALK) shows Morvane's line for the act in a small
+  box at the top for 6 s. It takes no input. Shots: `--autotest --talk`, `--autotest --talk-lull`.

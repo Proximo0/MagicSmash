@@ -88,7 +88,13 @@ func _ready() -> void:
 	if Net.mode != Net.Mode.OFFLINE:
 		Net.shutdown()
 	G.local_devices.clear()
-	if G.title_lobby_device != -99:
+	if G.title_shop:
+		# From the Sanctum's shopkeeper: straight to the unlocks; back returns to the Sanctum.
+		unlock_sel = 0
+		state = S.UNLOCKS
+		t = 4.0
+		dim = 1.0
+	elif G.title_lobby_device != -99:
 		# Through the Sanctum's portal: the lobby, with that wizard already in.
 		G.local_devices = [G.title_lobby_device]
 		G.title_lobby_device = -99
@@ -920,8 +926,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_select")
 		S.UNLOCKS:
 			if back:
-				state = S.MAIN
 				Sfx.play("menu_select")
+				if G.title_shop:
+					G.title_shop = false
+					G.goto_sanctum()
+					return
+				state = S.MAIN
 				return
 			if dir != 0:
 				unlock_sel = wrapi(unlock_sel + dir, 0, Profile.META.size())

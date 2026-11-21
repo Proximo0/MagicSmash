@@ -283,7 +283,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.final_score = int(ev[3])
 				a.run_t = float(ev[1])
 				a.crystals_earned = G.finish_run({"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]),
-					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "results": a.results})
+					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "act": a.act, "results": a.results})
 				if a.is_host:
 					Platform.finish_run(a.results, a.victory, float(ev[1]))
 				if not a.victory:
@@ -305,6 +305,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._lull_full = maxf(1.0, float(ev[3]))
 				ArenaFateView._banner(a, "RESPITE", "THE HORDE REGROUPS  -  DRAW YOUR CARDS", Color("8bff9e"), 3.0, true)
 				Sfx.play("wave_clear", -2.0, 0.8)
+				ArenaTalk.start(a)
 				for r in Net.my_slots():
 					if a.vp.has(r.slot) and int(a.vp[r.slot].get("draws", 0)) > 0 and not ArenaTray._tray_shown(a, r.slot):
 						a._tray_open[r.slot] = true

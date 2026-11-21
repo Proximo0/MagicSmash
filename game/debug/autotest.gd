@@ -167,6 +167,14 @@ func _ready() -> void:
 	if "--sanctum" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]
 		quit_at = 6.0
+	# --talk: the Sanctum's talkers (shopkeeper, card reader, Morvane after a loss), then --talk-lull: Morvane in a lull.
+	if "--talk" in OS.get_cmdline_user_args():
+		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [3.5, "@talk_shop"], [4.0, "talk_shopkeeper"], [4.1, "@talk_reader"],
+			[4.6, "talk_card_reader"], [4.7, "@talk_morvane"], [5.2, "talk_morvane_loss"]]
+		quit_at = 5.6
+	if "--talk-lull" in OS.get_cmdline_user_args():
+		shots = [[4.5, "@lobby"], [5.5, "@play"], [8.0, "@talk_lull"], [9.5, "talk_lull"]]
+		quit_at = 10.0
 	# --eclipse: click the moon and the castle window on the title, shoot the blood moon and the ghost.
 	if "--eclipse" in OS.get_cmdline_user_args():
 		shots = [[3.0, "@eclipse"], [5.2, "title_eclipse"]]
@@ -294,6 +302,23 @@ func _process(delta: float) -> void:
 			view.room.in_alcove = true
 			view.room._break_pot(0)
 			view.room._break_pot(1)
+		elif name == "@talk_shop" or name == "@talk_reader" or name == "@talk_morvane":
+			var tv = G.main.current
+			tv.message_t = 0.0
+			tv.dlg.active = false
+			for sp: int in range(3):
+				G.talk_seen["%d/first" % sp] = true # the shots show the run-based lines, not the first visit's
+			if name == "@talk_shop":
+				tv._talk(Talk.SHOPKEEPER, {"result": "loss", "act": 1, "seal": 0})
+			elif name == "@talk_reader":
+				tv._talk(Talk.CARD_READER, {"act": 1, "seal": 0})
+			else:
+				tv._talk(Talk.MORVANE, {"result": "loss", "seal": 0})
+			tv.dlg.finish()
+		elif name == "@talk_lull":
+			var ta = G.main.current
+			ta.act = 1
+			ArenaTalk.start(ta)
 		elif name == "@album":
 			for i: int in [0, 1, 4, 5, 7, 8, 10]:
 				Save.profile.add_card(i)
