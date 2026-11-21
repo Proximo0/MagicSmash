@@ -14,7 +14,7 @@ a new role is a commit. Start every station as `station.sh --watch <any job>`; t
 | Ubuntu HP ENVY | `checks golden` | full check_all, did the game change |
 | MSI (fast, RTX 5050) | `boss frames` | five bot runs to the Archlich, frame time on real graphics |
 | DESKTOP-BENMA68 laptop (Radeon 610M) | `frames` | low-end frame time |
-| Heatherspc (Celeron, UHD 600) | `frames --p95=50` | floor frame time |
+| Heatherspc (Celeron N4100, UHD 600) | `frames --p95=0` | below minimum spec (p95 81 ms): recorded, never fails |
 
 ## Set up a station
 1. Git with a shell (Linux: any; Windows: full Git for Windows, whose Git Bash runs these scripts) and Godot 4.7.2;

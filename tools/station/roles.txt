@@ -1,6 +1,6 @@
-# What each watching station runs on every merge: <STATION_NAME>: jobs [--after=<station>] [--p95=<frame limit ms>]
+# What each watching station runs on every merge: <STATION_NAME>: jobs [--after=<station>] [--p95=<frame limit ms, 0 = record only>]
 # A station restarts itself when this file changes. No --after means it does not wait for another station.
 ubuntu: checks golden
 msi: boss frames
 laptop: frames
-heatherspc: frames --p95=50
+heatherspc: frames --p95=0
