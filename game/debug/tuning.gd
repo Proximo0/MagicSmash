@@ -96,7 +96,7 @@ const FIELDS: Array = [
 	["fate_hanged_secs", 60.0, 5.0, 300.0, 5.0, "Fate", "Seconds THE HANGED MAN seals every wizard's nova."],
 	["fate_hierophant_secs", 90.0, 5.0, 300.0, 5.0, "Fate", "Seconds THE HIEROPHANT stops potions dropping."],
 	["fate_wheel_draws", 2.0, 1.0, 4.0, 1.0, "Fate", "More fates WHEEL OF FORTUNE draws at once (never itself again in that chain)."],
-	["fate_chain_gap", 1.6, 0.0, 5.0, 0.1, "Fate", "Seconds between a fate landing and the next card of its chain being turned."],
+	["fate_chain_gap", 1.6, 1.6, 5.0, 0.1, "Fate", "Seconds between a fate landing and the next card of its chain being turned (at least the arena's reel show, Arena.REEL_SHOW)."],
 ]
 
 static var _shared: Tuning = null

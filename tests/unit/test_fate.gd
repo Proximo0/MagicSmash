@@ -282,3 +282,135 @@ func test_n10_the_boss_music_survives_a_fate_reel() -> void:
 	assert_eq(ArenaFateView._after_reel_music(0.6, "music_battle"), "music_boss")
 	assert_eq(ArenaFateView._after_reel_music(-1.0, "music_library"), "music_library")
 	assert_eq(ArenaFateView._after_reel_music(0.0, "music_battle"), "music_battle")
+
+
+func test_the_hierophant_also_holds_the_lichs_potion() -> void:
+	for ban: float in [90.0, 0.0]:
+		var w := _world([0, 1])
+		w.no_potions = ban
+		var e: World.Enemy = w.spawn_enemy(World.LICH, 0, AT)
+		w._kill_enemy(e, 0)
+		assert_eq(_potions(w), 0 if ban > 0.0 else 1, "the Lich's potion with no_potions %s" % ban)
+
+
+## Steps the World for `secs` and returns [code, wave_time, a] for each EV_SHRINE and EV_FATE.
+func _run(w: World, secs: float, out: Array) -> void:
+	for _i: int in range(int(secs * 60.0)):
+		w.step(DT, {})
+		for ev: Array in w.take_events():
+			if ev[0] == World.EV_SHRINE or ev[0] == World.EV_FATE:
+				out.append([int(ev[0]), w.wave_time, int(ev[3])])
+
+
+func _fates_of(log: Array) -> Array[int]:
+	var out: Array[int] = []
+	for r: Array in log:
+		if r[0] == World.EV_FATE:
+			out.append(int(r[2]))
+	return out
+
+
+func test_a_wheel_chain_runs_on_the_clock() -> void:
+	var w := _world()
+	w.fate_cruel = 1.0
+	WorldShrines._queue_gamble(w, {"t": 0.5, "slot": 1, "kind": Gamble.TEAM, "outcome": Gamble.TO_WHEEL, "stake": 0, "pos": AT})
+	var log: Array = []
+	_run(w, 0.5 + 2.0 * (w.tune.fate_chain_gap + w.tune.team_reel) + 1.0, log)
+	assert_eq(log.size(), 5, "wheel, then deal and land twice: %s" % [log])
+	assert_eq(log[0][0], World.EV_FATE)
+	assert_eq(log[0][2], Gamble.TO_WHEEL)
+	var tol := 2.0 * DT
+	for k: int in [1, 3]:
+		assert_eq(log[k][0], World.EV_SHRINE)
+		assert_eq(log[k][2], 1 + 8, "a dealt card carries slot + 8")
+		assert_near(log[k][1] - log[k - 1][1], w.tune.fate_chain_gap, tol, "the deal waits the chain gap")
+		assert_eq(log[k + 1][0], World.EV_FATE)
+		assert_near(log[k + 1][1] - log[k][1], w.tune.team_reel, tol, "then spins a whole reel")
+		assert_true(log[k + 1][2] != Gamble.TO_WHEEL)
+	assert_eq(w.record.fates, _fates_of(log))
+	assert_true(w._gambles.is_empty())
+
+
+func test_a_second_shrine_lands_inside_a_chain() -> void:
+	var w := _world()
+	w.fate_cruel = 1.0
+	WorldShrines._queue_gamble(w, {"t": 0.5, "slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_WHEEL, "stake": 0, "pos": AT})
+	var log: Array = []
+	_run(w, 1.0, log) # the wheel lands at 0.5 and draws two cruel fates; the first deal comes at 0.5 + gap
+	w.fate_cruel = 0.0
+	WorldShrines._place_shrine(w, Gamble.TEAM)
+	var sh: World.Shrine = w.shrines[w.shrines.size() - 1]
+	var p: World.Player = w.players[2]
+	p.gold = sh.cost
+	WorldShrines._bet(w, sh, p)
+	for ev: Array in w.take_events():
+		if ev[0] == World.EV_SHRINE:
+			log.append([int(ev[0]), w.wave_time, int(ev[3])])
+	_run(w, 12.0, log)
+	var fates := _fates_of(log)
+	assert_eq(fates.size(), 4, "%s" % [log])
+	assert_eq(fates[0], Gamble.TO_WHEEL)
+	assert_true(Gamble.is_good(Gamble.TEAM, fates[1]), "the second shrine's kind fate lands before the chain's next card")
+	assert_false(Gamble.is_good(Gamble.TEAM, fates[2]) or Gamble.is_good(Gamble.TEAM, fates[3]), "then the chain goes on")
+	assert_eq(w.record.fates, fates)
+	var bets: int = 0
+	for r: Array in log:
+		if r[0] == World.EV_SHRINE and r[2] < 8:
+			bets += 1
+	assert_eq(bets, 1, "only the paid shrine is a bet")
+
+
+func test_a_chain_mid_deal_at_the_win_still_lands() -> void:
+	var w := _world()
+	w.fate_cruel = 1.0
+	WorldShrines._queue_gamble(w, {"t": 0.1, "slot": 0, "kind": Gamble.TEAM, "outcome": Gamble.TO_WHEEL, "stake": 0, "pos": AT})
+	var log: Array = []
+	_run(w, 0.5, log)
+	assert_eq(w.record.fates.size(), 1)
+	w.won = true
+	w.victory_t = w.tune.victory_delay
+	_run(w, w.tune.victory_delay + 1.0, log)
+	assert_eq(w.phase, World.PH_GAMEOVER)
+	assert_eq(w.record.fates.size(), 3, "the whole chain reached Results: %s" % [w.record.fates])
+	assert_true(w._gambles.is_empty())
+
+
+func test_fates_run_out_after_the_win() -> void:
+	var w := _world()
+	w.nova_sealed = 1.0
+	w.won = true
+	w.victory_t = 5.0
+	assert_true(w.snapshot().has("f"))
+	_run(w, 1.2, [])
+	assert_eq(w.nova_sealed, 0.0)
+	assert_false(w.snapshot().has("f"), "the tags leave once the seal runs out")
+
+
+func test_held_heals_join_the_state_hash_only_when_held() -> void:
+	var a := _world([0, 1])
+	var b := _world([0, 1])
+	assert_eq(a.state_hash(), b.state_hash())
+	b.fate_heal = {}
+	assert_eq(a.state_hash(), b.state_hash(), "an empty hold hashes as before")
+	b.fate_heal = {1: 2}
+	assert_true(a.state_hash() != b.state_hash())
+	a.fate_heal = {1: 2}
+	assert_eq(a.state_hash(), b.state_hash())
+
+
+func test_arena_team_reels_queue_one_after_another() -> void:
+	var show := 1.6
+	var bets: Array = []
+	assert_eq(ArenaFateView._team_reel_start(bets, show), 0.0)
+	var first := {"kind": Gamble.TEAM, "t": 1.0, "spin": 3.0}
+	bets.append(first)
+	var t2 := ArenaFateView._team_reel_start(bets, show)
+	assert_near(t2, -(3.0 + show - 1.0), 0.001, "waits until the first has finished showing")
+	var second := {"kind": Gamble.TEAM, "t": t2, "spin": 3.0}
+	bets.append(second)
+	assert_near(ArenaFateView._team_reel_start(bets, show), t2 - (3.0 + show), 0.001, "a third waits for the second")
+	bets.append({"kind": Gamble.SOLO, "t": 0.0, "spin": 1.2})
+	assert_false(ArenaFateView._last_team_reel(bets, first), "the music waits for the second reel")
+	first.t = 4.0
+	second.t = 3.0
+	assert_true(ArenaFateView._last_team_reel(bets, second), "a solo cast does not hold the music")

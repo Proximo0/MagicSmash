@@ -87,7 +87,7 @@ const EV_RIFT := 27
 const EV_CHEST := 28
 const EV_WARD := 29
 const EV_SHRINE_UP := 30 # a shrine appeared: a = kind
-const EV_SHRINE := 31 # a wizard paid a shrine: a = slot, b = kind * 16 + outcome; the reel starts
+const EV_SHRINE := 31 # a wizard paid a shrine: a = slot (+ 8: a card a WHEEL OF FORTUNE dealt, no bet), b = kind * 16 + outcome; the reel starts
 const EV_GAMBLE := 32 # the reel ended and the outcome applies: a = slot, b = kind * 16 + outcome
 const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the wizard who slew it
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
@@ -474,6 +474,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 				WorldDrops._refill_urns(self)
 		PH_FIGHT:
 			if won:
+				WorldShrines._tick_won(self, dt)
 				victory_t -= dt
 				if victory_t <= 0.0:
 					_end_run()
@@ -610,7 +611,10 @@ func _query(pos: Vector2, radius: float) -> Array:
 
 ## Summary of the whole simulation for determinism checks (same seed + same inputs = same hash).
 func state_hash() -> int:
-	return hash([snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)])
+	var h := [snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)]
+	if not fate_heal.is_empty():
+		h.append(WorldShrines.held_heals(self))
+	return hash(h)
 
 # ============================================================ SNAPSHOT ===
 func _snapshot_urns() -> PackedFloat32Array:

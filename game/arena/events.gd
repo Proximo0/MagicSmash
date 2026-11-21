@@ -174,7 +174,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				var code := int(ev[4])
 				var bk := code / 16
 				var spin: float = Tuning.shared().team_reel if bk == Gamble.TEAM else Tuning.shared().shrine_reel
-				a._bets.append({"slot": int(ev[3]), "pos": pos, "kind": bk, "outcome": code % 16, "t": 0.0, "spin": spin, "shown": false})
+				# A team reel waits for the one on show to finish (t below 0 while it waits); a = slot, + 8 for a dealt card.
+				var t0 := ArenaFateView._team_reel_start(a._bets, a.REEL_SHOW) if bk == Gamble.TEAM else 0.0
+				a._bets.append({"slot": int(ev[3]) % 8, "pos": pos, "kind": bk, "outcome": code % 16, "t": t0, "spin": spin, "shown": false})
 				Sfx.play("coin", -2.0, 0.8)
 				if bk == Gamble.TEAM:
 					Sfx.play("card_deal")
@@ -194,7 +196,6 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					a._add_shake(6.0 if good else 10.0)
 					Sfx.play("gong")
 					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
-					Sfx.music(ArenaFateView._after_reel_music(a.boss_f, ArenaFateView._act_music(a)))
 				else:
 					a.fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
 					Sfx.play("rune_good" if good else "rune_bad", -2.0)

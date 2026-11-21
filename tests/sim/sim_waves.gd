@@ -31,7 +31,7 @@ func _play(slots: Array, ticks: int) -> Dictionary:
 		if w.time <= before:
 			stalls += 1
 		for ev: Array in w.take_events():
-			if ev[0] == World.EV_SHRINE:
+			if ev[0] == World.EV_SHRINE and int(ev[3]) < 8: # a card a WHEEL OF FORTUNE dealt (slot + 8) is no bet
 				bets += 1
 		peak = maxi(peak, w.enemies.size())
 		streak = streak + 1 if w.is_picking() else 0

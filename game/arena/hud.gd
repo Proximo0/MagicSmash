@@ -146,7 +146,7 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 ## The 44 px column in the middle of the HUD strip (CENTRE). Empty for now.
 static func centre(a: Arena, ci: CanvasItem, dark: Color) -> void:
 	# The fates in force: plain tags stacked over the level-and-clock pill at the foot of the screen.
-	if a.game_over or a.fates.size() < 2:
+	if a.game_over or a.victory or a.fates.size() < 2:
 		return
 	var tags: Array[String] = []
 	if a.fates[0] > 0.0:

@@ -264,7 +264,7 @@ func _bet_name(code: int) -> String:
 	var kind: int = code / 16
 	var outcome: int = code % 16
 	if kind == Gamble.TEAM:
-		return "team_bless" if outcome == Gamble.TO_BLESSING else "team_curse"
+		return "team_" + String(Gamble.TEAM_OUTCOMES[outcome][0]) # team_blessing, team_curse, team_world...
 	match outcome:
 		Gamble.SO_JACKPOT:
 			return "jackpot"

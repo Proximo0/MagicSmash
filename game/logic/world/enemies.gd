@@ -299,7 +299,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 				s.dead = true
 			for i in 14:
 				WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
-			WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40))
+			if w.no_potions <= 0.0: WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40)) # THE HIEROPHANT
 			for i in w.players.size():
 				WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
 					w.tune.chest_life, int(w.tune.boss_chest_luck))

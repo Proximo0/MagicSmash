@@ -143,17 +143,40 @@ static func _update_bets(a: Arena, dt: float) -> void:
 		b.t += dt
 		# The reel ticks slower as it runs down, like a wheel.
 		var rate := 16.0 * (1.0 - 0.7 * clampf(b.t / b.spin, 0.0, 1.0))
-		if b.t < b.spin and int(b.t * rate) != int(prev * rate):
+		if prev >= 0.0 and b.t < b.spin and int(b.t * rate) != int(prev * rate):
 			Sfx.play("menu_move", -8.0 if b.kind == Gamble.TEAM else -12.0, 0.9 + b.t / b.spin * 0.5)
 		if not b.shown and b.t >= b.spin:
 			b.shown = true
+			# The music comes back when the last team reel in flight turns face up (the boss's while he is up).
+			if b.kind == Gamble.TEAM and _last_team_reel(a._bets, b):
+				Sfx.music(_after_reel_music(a.boss_f, _act_music(a)))
 	a._bets = a._bets.filter(func(b: Dictionary) -> bool: return b.t < b.spin + a.REEL_SHOW)
+
+
+## The t a new team reel starts at: 0 when none is on show, else minus the time until the last one queued has
+## finished showing (`show` s after it turns), so team reels play one after another at the centre.
+static func _team_reel_start(bets: Array, show: float) -> float:
+	var wait := 0.0
+	for o: Dictionary in bets:
+		if o.kind == Gamble.TEAM:
+			wait = maxf(wait, float(o.spin) + show - float(o.t))
+	return -wait
+
+
+## True when no team reel but `b` is still spinning or waiting its turn.
+static func _last_team_reel(bets: Array, b: Dictionary) -> bool:
+	for o: Dictionary in bets:
+		if o != b and o.kind == Gamble.TEAM and float(o.t) < float(o.spin):
+			return false
+	return true
 
 
 ## Altar casts: a solo cast throws three rune stones over the altar and the middle one lands on the outcome's
 ## rune; the team bet turns a fate card in the middle of the screen, The Sun or Death.
 static func _draw_bets(a: Arena, ci: CanvasItem, dark: Color) -> void:
 	for b: Dictionary in a._bets:
+		if b.t < 0.0:
+			continue # a team reel waiting for the one on show
 		var spinning: bool = b.t < b.spin
 		var good: bool = Gamble.is_good(b.kind, b.outcome)
 		var col := Color("8bff9e") if good else Color("ff3b5c")

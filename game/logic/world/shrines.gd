@@ -86,6 +86,29 @@ static func _tick_fates(w: World, dt: float) -> void:
 			w.fate_heal.erase(slot)
 
 
+## After the Archlich falls the clock stops, but the fates still run out and a paid reel or a chain still lands
+## (on the fight's own dt, its times moved back as if the clock ran). Just before the run ends whatever is
+## still queued lands at once, so Results hold every fate drawn.
+static func _tick_won(w: World, dt: float) -> void:
+	_tick_fates(w, dt)
+	for g: Dictionary in w._gambles:
+		g.t = float(g.t) - dt
+	var guard: int = 0
+	while not w._gambles.is_empty() and guard < 64 and (w._gambles[0].t <= w.wave_time or w.victory_t <= dt):
+		guard += 1
+		_resolve_gamble(w, w._gambles.pop_front())
+
+
+## THE WORLD's hearts held for the fallen, in slot order (for the state hash).
+static func held_heals(w: World) -> Array:
+	var out: Array = []
+	var slots: Array = w.fate_heal.keys()
+	slots.sort()
+	for s: Variant in slots:
+		out.append([int(s), int(w.fate_heal[s])])
+	return out
+
+
 ## The fates in the snapshot, only while one is in force (so a run without them hashes as before): "f" = [novas
 ## sealed s, no potions s, gem rush s, 1 if THE FOOL's double is waiting].
 static func snapshot_fates(w: World, snap: Dictionary) -> void:
@@ -165,7 +188,7 @@ static func _resolve_gamble(w: World, g: Dictionary) -> void:
 		g.deal = false
 		g.t = w.wave_time + w.tune.team_reel
 		_queue_gamble(w, g)
-		w.emit(World.EV_SHRINE, pos.x, pos.y, g.slot, Gamble.TEAM * 16 + int(g.outcome))
+		w.emit(World.EV_SHRINE, pos.x, pos.y, int(g.slot) + 8, Gamble.TEAM * 16 + int(g.outcome))
 		return
 	if g.kind == Gamble.TEAM:
 		_land_fate(w, g)
