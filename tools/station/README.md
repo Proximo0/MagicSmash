@@ -19,6 +19,7 @@ A failed stage stops the line: later stages report `STATION HELD`.
    set `GODOT` if it is not on PATH.
 2. A clone used by the station only. Push access through a deploy key for this repository (Settings > Deploy keys,
    allow write), never a personal sign-in.
+   On Windows a portable Git works (PortableGit from git-for-windows, no admin); the Startup folder can start it.
 3. Start the command above at boot or logon (Linux: a systemd user service or `@reboot` in crontab; Windows: Task
    Scheduler, "at log on", running Git Bash). `STATION_NAME` overrides the host name.
 
