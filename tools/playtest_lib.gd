@@ -32,8 +32,8 @@ func run() -> int:
 			var g: Dictionary = _aggregate(persona, wz, runs)
 			_print_group(g)
 			groups.append(g)
-			summary.append("%s x%d win %d/%d end %s" % [SmashBot.persona_name(persona), wz, g.wins, _runs,
-				_clock(g.end.med)])
+			summary.append("%s x%d win %d/%d end %s arch %s" % [SmashBot.persona_name(persona), wz, g.wins, _runs,
+				_clock(g.end.med), _clock(float(g.arch.med))])
 	if _json != "":
 		var f := FileAccess.open(_json, FileAccess.WRITE)
 		if f == null:
@@ -98,6 +98,7 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 		"downs": 0, "hits": 0, "hits_by": {}, "level": [], "picks": [], "pressure": [], "dead_air": [],
 		"offered": {}, "taken": {}, "spell_level": {}, "evolutions": [], "xp_expired": 0, "xp_expired_value": 0,
 		"xp_dropped": 0, "gold": 0.0, "spent": 0.0, "bets": {}, "bosses": [], "damage": {}, "damage_total": 0.0,
+		"kills": [], "shrines": 0, "arch": -1.0, "arch_slain": false, "wiz_hits": [], "wiz_pressure": [],
 	}
 	var offers: Dictionary = {}
 	for s: int in slots:
@@ -106,6 +107,14 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	var press_sum: Array[float] = []
 	var press_n: Array[int] = []
 	var air: Array[float] = []
+	var kills_min: Array[int] = []
+	var wiz_hits: Array[int] = []
+	var wiz_press: Array[float] = []
+	var wiz_press_n: Array[int] = []
+	for s: int in slots:
+		wiz_hits.append(0)
+		wiz_press.append(0.0)
+		wiz_press_n.append(0)
 	var boss_row: Dictionary = {}
 	var xp_seen: Dictionary = {} # Pickup -> true, for the XP motes on the floor
 	var tick: int = 0
@@ -117,6 +126,7 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 			press_sum.append(0.0)
 			press_n.append(0)
 			air.append(0.0)
+			kills_min.append(0)
 			(r.level as Array).append(0.0)
 		var inputs: Dictionary = {}
 		var picking: Dictionary = {}
@@ -132,8 +142,17 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 					r.xp_dropped += 1
 				if k.life <= DT * 1.5:
 					fading.append(k)
+		# Enemy shots close enough to hit a wizard this step: a hit with one of them gone is a shot hit.
+		var near_shots: Array = []
+		for e_s: Variant in w.eshots:
+			for p: World.Player in w.players.values():
+				if p.alive and (e_s.pos as Vector2).distance_to(p.pos + Vector2(0, -6)) < float(e_s.r) + 12.0 + (e_s.vel as Vector2).length() * DT:
+					near_shots.append(e_s)
+					break
 		var boss_before: World.Enemy = w.boss
+		var kills_before: int = w.total_kills()
 		w.step(DT, inputs)
+		kills_min[minute] += w.total_kills() - kills_before
 		tick += 1
 		for k: World.Pickup in fading:
 			if k.life > -0.5 and k.life <= 0.0:
@@ -144,7 +163,10 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 			match int(ev[0]):
 				World.EV_HURT:
 					r.hits += 1
-					var by: String = _hit_cause(w, Vector2(ev[1], ev[2] + 6.0))
+					var hs: int = slots.find(int(ev[3]))
+					if hs >= 0:
+						wiz_hits[hs] += 1
+					var by: String = _hit_cause(w, Vector2(ev[1], ev[2] + 6.0), near_shots)
 					r.hits_by[by] = int(r.hits_by.get(by, 0)) + 1
 				World.EV_PDIE:
 					r.downs += 1
@@ -161,6 +183,7 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 				World.EV_GAMBLE:
 					var key: String = _bet_name(int(ev[4]))
 					r.bets[key] = int(r.bets.get(key, 0)) + 1
+					r.shrines += 1
 				World.EV_VICTORY:
 					r.won = true
 		for s: int in slots:
@@ -179,6 +202,9 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 			if w.boss == null or w.phase == World.PH_GAMEOVER:
 				boss_row.fight = w.wave_time - float(boss_row.at)
 				boss_row.slain = w.boss == null
+				if boss_row.final:
+					r.arch = boss_row.fight
+					r.arch_slain = boss_row.slain
 				(r.bosses as Array).append(boss_row)
 				boss_row = {}
 		if tick % SAMPLE == 0 and w.phase == World.PH_FIGHT and not w.won and not w.is_picking():
@@ -189,11 +215,16 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 				if not p.alive:
 					continue
 				alive += 1
+				var own: int = 0
 				for e: World.Enemy in w.enemies:
 					var d: float = e.pos.distance_to(p.pos)
 					near = minf(near, d)
 					if d < PRESSURE_R:
-						crowd += 1
+						own += 1
+				crowd += own
+				var ps: int = slots.find(p.slot)
+				wiz_press[ps] += own
+				wiz_press_n[ps] += 1
 			if alive > 0:
 				press_sum[minute] += float(crowd) / alive
 				press_n[minute] += 1
@@ -206,6 +237,8 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	if not boss_row.is_empty():
 		boss_row.fight = w.wave_time - float(boss_row.at)
 		boss_row.slain = false
+		if boss_row.final:
+			r.arch = boss_row.fight
 		(r.bosses as Array).append(boss_row)
 	r.end = w.wave_time
 	r.won = r.won or w.won
@@ -215,6 +248,11 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	for m: int in range(press_sum.size()):
 		(r.pressure as Array).append(press_sum[m] / maxi(1, press_n[m]))
 	r.dead_air = air
+	r.kills = kills_min
+	var run_min: float = maxf(w.wave_time / 60.0, 0.01)
+	for i: int in range(slots.size()):
+		(r.wiz_hits as Array).append(float(wiz_hits[i]) / run_min)
+		(r.wiz_pressure as Array).append(wiz_press[i] / maxi(1, wiz_press_n[i]))
 	for p: World.Player in w.players.values():
 		for sp: int in range(Spells.COUNT):
 			var key: String = Upgrades.key(Upgrades.weapon_entry(sp))
@@ -232,9 +270,15 @@ func _play(persona: int, wizards: int, seed_value: int) -> Dictionary:
 	return r
 
 
-## What hurt a wizard at `at` (its feet): an enemy body touching it, else a shot (a shot that hits is gone).
-func _hit_cause(w: World, at: Vector2) -> String:
-	var best: String = "shot"
+## What hurt a wizard at `at` (its feet): an enemy shot near it that died this step, else an enemy body touching it,
+## else `other` (a body killed in the same step).
+func _hit_cause(w: World, at: Vector2, near_shots: Array) -> String:
+	for e_s: Variant in near_shots:
+		if e_s.dead and (e_s.pos as Vector2).distance_to(at + Vector2(0, -6)) < float(e_s.r) + 12.0:
+			const KINDS := ["arrow", "orb", "skull"]
+			var kind: int = int(e_s.kind)
+			return "shot:" + (KINDS[kind] if kind < KINDS.size() else str(kind)) + ("_boss" if w.boss != null else "")
+	var best: String = "other"
 	var bd: float = 8.0
 	for e: World.Enemy in w.enemies:
 		var d: float = e.pos.distance_to(at) - e.r
@@ -335,7 +379,22 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 	var gold: float = 0.0
 	var spent: float = 0.0
 	var lv: Dictionary = {}
+	var shrines: float = 0.0
+	var arch: Array = []
+	var arch_slain: int = 0
+	var wiz_hits: Array = []
+	var wiz_press: Array = []
+	for i: int in range(wizards):
+		wiz_hits.append(0.0)
+		wiz_press.append(0.0)
 	for r: Dictionary in runs:
+		shrines += float(r.shrines)
+		if float(r.arch) >= 0.0:
+			arch.append(r.arch)
+			arch_slain += 1 if r.arch_slain else 0
+		for i: int in range(wizards):
+			wiz_hits[i] += float(r.wiz_hits[i]) / runs.size()
+			wiz_press[i] += float(r.wiz_pressure[i]) / runs.size()
 		minutes += float(r.end) / 60.0
 		ends.append(r.end)
 		if r.won:
@@ -389,6 +448,8 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 		"hits_by": _sum_dicts(runs, "hits_by"), "bets": _sum_dicts(runs, "bets"), "spell_level": lv,
 		"evo_runs": evo_runs, "first_evo": _stats(evo_t), "xp_expired": xp_exp, "xp_dropped": xp_drop,
 		"gold": gold / runs.size(), "spent": spent / runs.size(), "bosses": visits,
+		"kills": _mean_series(runs, "kills"), "shrines": shrines / runs.size(), "arch": _stats(arch),
+		"arch_slain": arch_slain, "wiz_hits_per_min": wiz_hits, "wiz_pressure": wiz_press,
 	}
 
 
@@ -401,13 +462,14 @@ func _print_group(g: Dictionary) -> void:
 	print("per min: downs %.2f  hits %.2f  picks %.2f  damage %.0f" % [g.downs_per_min, g.hits_per_min,
 		g.picks_per_min, g.damage_per_min])
 	var head := "minute "
-	var rows := {"level": "level  ", "picks": "picks  ", "pressure": "press  ", "dead_air": "air s  "}
+	var rows := {"level": "level  ", "picks": "picks  ", "pressure": "press  ", "dead_air": "air s  ", "kills": "kills  "}
 	var cols: int = (g.level as Array).size()
 	for m: int in range(cols):
-		head += "%5d" % (m + 1)
+		head += "%6d" % (m + 1)
 		for key: String in rows:
 			var xs: Array = g[key]
-			rows[key] += ("%5.1f" % float(xs[m])) if m < xs.size() else "    -"
+			var fmt: String = "%6.0f" if key == "kills" else "%6.1f"
+			rows[key] += (fmt % float(xs[m])) if m < xs.size() else "     -"
 	print(head)
 	for key: String in rows:
 		print(rows[key])
@@ -421,6 +483,11 @@ func _print_group(g: Dictionary) -> void:
 	print("evolved  %d/%d runs, first %s" % [g.evo_runs, n, _span(g.first_evo)])
 	print("xp lost  %d of %d motes  gold %.0f earned %.0f spent  bets %s" % [g.xp_expired, g.xp_dropped, g.gold,
 		g.spent, _counts(g.bets)])
+	print("shrines %.1f per run  archlich fight %s  slain %d" % [g.shrines, _span(g.arch), g.arch_slain])
+	var wl: PackedStringArray = []
+	for i: int in range(int(g.wizards)):
+		wl.append("w%d press %.1f hits/min %.2f" % [i + 1, float(g.wiz_pressure[i]), float(g.wiz_hits_per_min[i])])
+	print("per wiz  " + "  ".join(wl))
 	for i: int in range((g.bosses as Array).size()):
 		var b: Dictionary = g.bosses[i]
 		print("boss %d %s: came %s  fight %s  downs %s  slain %d/%d" % [i + 1, "ARCH" if b.final else "lich",

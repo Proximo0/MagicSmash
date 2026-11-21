@@ -78,7 +78,7 @@ func test_kills_drop_xp_gems_worth_the_enemy_value() -> void:
 	_kill_one(w)
 	var gems: Array = w.pickups.filter(func(k: World.Pickup) -> bool: return k.kind == World.PK_XP)
 	assert_eq(gems.size(), 1)
-	assert_eq((gems[0] as World.Pickup).value, World.XP_VALUES[World.ORC])
+	assert_eq((gems[0] as World.Pickup).value, Bestiary.KINDS[World.ORC][Bestiary.K_XP])
 
 
 func test_collecting_xp_levels_up_and_offers_choices() -> void:
@@ -99,7 +99,7 @@ func test_world_keeps_running_while_wizards_hold_cards() -> void:
 		var w := World.new(slots, 3)
 		for s: int in slots:
 			_player(w, s).invuln = 99999.0
-		for _i: int in range(60 * 5):
+		for _i: int in range(60 * 10):
 			w.step(DT, {})
 		w.gain_xp(_player(w), w.xp_needed())
 		w.step(DT, {})
@@ -170,8 +170,9 @@ func test_a_pick_with_a_draw_queued_deals_the_next_offer_in_the_same_tick() -> v
 
 func test_each_player_picks_for_themselves() -> void:
 	var w := World.new([0, 1], 3)
-	w.gain_xp(_player(w, 0), w.tune.xp_to_next(1))
-	w.gain_xp(_player(w, 1), w.tune.xp_to_next(1))
+	var need := w.xp_needed()
+	w.gain_xp(_player(w, 0), need / 2)
+	w.gain_xp(_player(w, 1), need - need / 2)
 	w.step(DT, {})
 	var p0 := _player(w, 0)
 	var p1 := _player(w, 1)
@@ -594,7 +595,7 @@ func test_elites_are_tough_and_pay_out() -> void:
 	var score: int = _player(w).score
 	var drops: int = w.pickups.size()
 	w._kill_enemy(elite, 0)
-	assert_eq(_player(w).score - score, int(World.STATS[elite.type][3]) * World.ELITE_REWARD)
+	assert_eq(_player(w).score - score, int(Bestiary.KINDS[elite.type][Bestiary.K_SCORE]) * World.ELITE_REWARD)
 	var chests: int = 0
 	for k: World.Pickup in w.pickups.slice(drops):
 		if k.kind == World.PK_CHEST:
@@ -819,7 +820,7 @@ func test_archlich_comes_when_the_run_time_is_up() -> void:
 				announced = true
 	assert_true(announced, "the final minute was not announced")
 	assert_true(w.boss != null and w.boss.final, "no Archlich after the run time")
-	var lich_hp: float = World.STATS[World.LICH][0] * w._lich_hp_scale()
+	var lich_hp: float = Bestiary.KINDS[World.LICH][Bestiary.K_HP] * w._lich_hp_scale()
 	assert_true(w.boss.maxhp > 2.0 * lich_hp, "Archlich hp %.0f vs Lich %.0f" % [w.boss.maxhp, lich_hp])
 
 
@@ -948,9 +949,10 @@ func test_game_over_sends_the_record_first() -> void:
 
 
 func test_enemy_tables_cover_every_type() -> void:
-	assert_eq(World.XP_VALUES.size(), World.STATS.size(), "an XP value per enemy type")
-	for row: Array in World.HORDE:
-		assert_true(int(row[0]) < World.STATS.size(), "horde row for an unknown type")
+	for row: Array in Bestiary.KINDS:
+		assert_eq(row.size(), Bestiary.K_FLAGS + 1, "a full KINDS row per enemy type")
+	for row: Array in Bestiary.HORDE:
+		assert_true(int(row[0]) < Bestiary.count(), "horde row for an unknown type")
 
 
 func test_a_faded_wraith_cannot_be_hurt() -> void:

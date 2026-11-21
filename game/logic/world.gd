@@ -4,20 +4,20 @@ extends RefCounted
 ## It knows nothing about drawing: it emits events (for effects and sound)
 ## and produces compact snapshots that both the host and clients render.
 
-# Enemy types
-const GOBLIN := 0
-const SKELETON := 1
-const SLIME := 2
-const MSLIME := 3
-const BAT := 4
-const ORC := 5
-const MAGE := 6
-const LICH := 7
+# Enemy types: the ids live in Bestiary (with the reserved kinds); these are today's.
+const GOBLIN := Bestiary.GOBLIN
+const SKELETON := Bestiary.SKELETON
+const SLIME := Bestiary.SLIME
+const MSLIME := Bestiary.MSLIME
+const BAT := Bestiary.BAT
+const ORC := Bestiary.ORC
+const MAGE := Bestiary.MAGE
+const LICH := Bestiary.LICH
 ## The later acts' horde (appended so snapshot type ids stay put).
-const WRAITH := 8 # drifts through the crowd and phases out: spells pass through it while it is faded
-const TOME := 9 # a cursed grimoire that circles a wizard and dashes through
-const GARGOYLE := 10 # sits as stone (hard to hurt), then swoops
-const PRIEST := 11 # the bone priest: keeps its distance and raises skeletons
+const WRAITH := Bestiary.WRAITH # drifts through the crowd and phases out: spells pass through it while it is faded
+const TOME := Bestiary.TOME # a cursed grimoire that circles a wizard and dashes through
+const GARGOYLE := Bestiary.GARGOYLE # sits as stone (hard to hurt), then swoops
+const PRIEST := Bestiary.PRIEST # the bone priest: keeps its distance and raises skeletons
 
 # Spells
 const SP_ARCANE := 0
@@ -106,6 +106,7 @@ const EV_BANISH := 45 # a wizard banished a card: a = slot, b = Upgrades index
 const EV_FATE := 46 # a fate is drawn: a = fate, b = slot
 const EV_SLOTS := 47 # the slot cap changed: a = spell slots, b = passive slots
 const EV_TALK := 48 # Morvane speaks: a = line
+const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a = its type, b = the phase it turns to
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -116,21 +117,7 @@ const URN_CARD_DROP := 5
 const URN_CARD := 100
 const URN_R := 5.0
 
-#                  hp    spd  r   score contact
-const STATS := [
-	[2.0,  58.0, 5.0, 50,  1],   # goblin
-	[3.0,  40.0, 5.0, 100, 1],   # skeleton
-	[5.0,  34.0, 6.0, 80,  1],   # slime
-	[1.5,  52.0, 4.0, 20,  1],   # mini slime
-	[1.0,  88.0, 5.0, 60,  1],   # bat
-	[18.0, 30.0, 8.0, 300, 2],   # orc
-	[6.0,  22.0, 5.0, 250, 1],   # dark mage
-	[380.0, 26.0, 14.0, 5000, 2],# lich
-	[4.0,  44.0, 5.0, 120, 1],   # wraith
-	[3.0,  64.0, 5.0, 90,  1],   # cursed tome
-	[12.0, 30.0, 7.0, 260, 1],   # gargoyle
-	[9.0,  24.0, 5.0, 300, 1],   # bone priest
-]
+## Enemy stats, XP values and the horde table live in Bestiary (KINDS, HORDE).
 
 ## The player row in snapshot()["p"], final for waves 2 and 3: read it only through these P_* indices.
 ## Choices: 3 x (offered Upgrades index or -1, the level it would reach). Spells: P_SLOTS x (SPELL row or -1,
@@ -185,7 +172,8 @@ const P_FLOATS := P_GOLD + 15
 const BASE_HEARTS := 5
 
 ## The header, snapshot()["w"]: minute, phase, phase s, boss health fraction (-1: none), the four doors' open s,
-## run s, 1 if the boss is the Archlich, lull s left, seal level, slot cap (spells, passives).
+## run s, 1 if the boss is the Archlich, lull s left, seal level, slot cap (spells, passives), then the boss's
+## Bestiary type (-1: none), its Bosses.phase, boss_t, boss_arg and boss_meter.
 const W_WAVE := 0
 const W_PHASE := 1
 const W_PHASE_T := 2
@@ -197,7 +185,12 @@ const W_LULL := 10
 const W_SEAL := 11
 const W_CAP_SPELLS := 12
 const W_CAP_PASSIVES := 13
-const W_FLOATS := 14
+const W_BOSS_TYPE := 14
+const W_BOSS_PHASE := 15
+const W_BOSS_T := 16
+const W_BOSS_ARG := 17
+const W_BOSS_METER := 18
+const W_FLOATS := 19
 
 ## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved, kind.
 const RUNE_FLOATS := 8
@@ -216,24 +209,14 @@ const E_SLOW := 7
 const E_RANK := 8
 const E_STATUS := 9
 const ENEMY_FLOATS := 10
+## Bits World adds to E_STATUS (high, clear of the status bits to come; exact in a float32): cloaked (shots pass
+## through, Enemy.cloak) and a boss turning a phase (Enemy.turn > 0).
+const STATUS_CLOAK := 1 << 20
+const STATUS_TURN := 1 << 21
 
 ## Floats per spell object in snapshot()["o"]: kind, owner, x, y, a, b, t, evolved. None exist yet.
 const O_FLOATS := 8
 
-## The horde: [type, budget cost, unlocks after this many seconds of fighting, weight, group min, group max,
-## extra group max per minute].
-const HORDE := [
-	[GOBLIN,   1.0, 0.0,   2, 6, 10, 1],
-	[BAT,      1.0, 0.0,   1, 4, 8,  0],
-	[SLIME,    3.0, 30.0,  1, 2, 4,  0],
-	[SKELETON, 3.0, 60.0,  1, 2, 5,  0],
-	[ORC,      9.0, 150.0, 1, 1, 1,  0],
-	[MAGE,     6.0, 210.0, 1, 1, 2,  0],
-	[WRAITH,   2.0, 240.0, 1, 2, 4,  0],
-	[TOME,     2.0, 300.0, 2, 3, 6,  0],
-	[PRIEST,   8.0, 420.0, 1, 1, 1,  0],
-	[GARGOYLE, 7.0, 600.0, 1, 1, 2,  0],
-]
 ## How long a wraith stays solid and faded, s; how long a gargoyle sits as stone and swoops, s; and the share of
 ## damage stone takes.
 const WRAITH_SOLID := 1.6
@@ -263,8 +246,6 @@ const FINAL_REWARD := 4
 const FINAL_RAGE := 0.66
 const ELITE_GEMS := 6
 
-## XP a gem dropped by each enemy type is worth (same order as STATS).
-const XP_VALUES := [1, 2, 2, 1, 1, 5, 4, 25, 2, 2, 4, 5]
 
 ## The four doors, mid-wall on each side of G.ARENA (top, bottom, left, right).
 const DOORS := [Vector2(400, 30), Vector2(400, 446), Vector2(12, 238), Vector2(788, 238)]
@@ -358,7 +339,19 @@ var wave_time := 0.0
 var spawn_queue: Array = []
 var horde_budget := 0.0
 var elite_t := 0.0
-var _next_group: Array = [] # [type, count] the horde is saving its budget for
+var _next_group: Array = [] # [layout, [[type, count], ...]] the horde is saving its budget for (Bestiary.roll_group)
+## Enemies alive per Bestiary type, rebuilt with the grid each step (horde caps read it).
+var alive := PackedInt32Array()
+## The bosses' timetable (Bosses): [run s, type, final] rows, from the Tuning until the act-boss switch.
+var schedule: Array = []
+## What the boss shows the players beyond its health (header W_BOSS_T, W_BOSS_ARG, W_BOSS_METER): the seconds into
+## its current attack or word, an attack argument (a named slot, the dealt cards) and a meter (a ward, a 6% goal).
+var boss_t := 0.0
+var boss_arg := 0
+var boss_meter := 0.0
+## Hazard rows on the floor (Hazards): warned areas that turn hot.
+var hazards: Array[Hazards.Hazard] = []
+var next_hazard_id := 1
 var _tick := 0
 var door_open := [0.0, 0.0, 0.0, 0.0]
 var boss: Enemy = null
@@ -382,6 +375,8 @@ var tune: Tuning
 ## Player untouched; nothing reads them yet.
 func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Dictionary = {}, seats: Dictionary = {}) -> void:
 	tune = tuning if tuning != null else Tuning.shared()
+	schedule = Bosses.schedule_from(tune)
+	alive.resize(Bestiary.count())
 	horde_budget = tune.horde_start_budget
 	shrine_t = tune.shrine_first
 	team_shrine_t = tune.team_shrine_first
@@ -538,6 +533,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	for e in enemies:
 		if not e.dead:
 			WorldEnemies._update_enemy(self, e, dt)
+	WorldHazards._update_hazards(self, dt)
 	WorldCasting._update_shots(self, dt)
 	WorldCasting._update_runes(self, dt)
 	WorldEnemies._update_eshots(self, dt)
@@ -633,9 +629,11 @@ func party_center() -> Vector2:
 # ================================================================ GRID ===
 func _build_grid() -> void:
 	_grid.clear()
+	alive.fill(0)
 	for e in enemies:
 		if e.dead:
 			continue
+		alive[e.type] += 1
 		var k := Vector2i(floori(e.pos.x / CELL), floori(e.pos.y / CELL))
 		if _grid.has(k):
 			_grid[k].append(e)
@@ -662,6 +660,11 @@ func state_hash() -> int:
 	var h := [snapshot(), wave, phase, total_score(), rng.state, horde_budget, party_level, party_xp, lull_left, players.values().map(func(p: Player) -> int: return p.pending)]
 	if not fate_heal.is_empty():
 		h.append(WorldShrines.held_heals(self))
+	# Only when present, so a run without them hashes as it always did.
+	if not hazards.is_empty():
+		h.append(hazards.map(func(z: Hazards.Hazard) -> Array: return [z.owner, z.aux, z.slot, z.fired, z.follow, z.lock, z.boss]))
+	if boss != null and boss.turn > 0.0:
+		h.append(boss.turn)
 	return hash(h)
 
 # ============================================================ SNAPSHOT ===
@@ -733,7 +736,8 @@ func snapshot() -> Dictionary:
 	var en := PackedFloat32Array()
 	for e in enemies:
 		en.append_array([e.id, e.type, e.pos.x, e.pos.y, e.flash, e.state, e.hp / e.maxhp, e.slow,
-			2.0 if e.final else (1.0 if e.elite else 0.0), e.status])
+			2.0 if e.final else (1.0 if e.elite else 0.0),
+			e.status | (STATUS_CLOAK if e.cloak else 0) | (STATUS_TURN if e.turn > 0.0 else 0)])
 	var sh := PackedFloat32Array()
 	for s in shots:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
@@ -747,15 +751,21 @@ func snapshot() -> Dictionary:
 	for k in pickups:
 		pk.append_array([k.kind, k.pos.x, k.pos.y, k.life])
 	var bf := -1.0
+	var btype := -1
+	var bphase := 0
 	if boss and not boss.dead:
 		bf = boss.hp / boss.maxhp
+		btype = boss.type
+		bphase = Bosses.phase(boss.type, bf, boss.final)
 	var shr := PackedFloat32Array()
 	for r: Array in WorldShrines.snapshot_shrines(self):
 		shr.append_array(r)
 	var snap := {
 		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(), "o": PackedFloat32Array(),
+		"hz": Hazards.pack(hazards),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
-			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y]),
+			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y,
+			btype, bphase, boss_t, boss_arg, boss_meter]),
 	}
 	WorldShrines.snapshot_fates(self, snap)
 	return snap
@@ -807,6 +817,38 @@ func hurt_player(p: Player, dmg: int) -> void:
 
 func _damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2) -> void:
 	WorldEnemies._damage_enemy(self, e, dmg, slot, knock)
+
+## Hurts an enemy as `slot` (-1: nobody's); `sure` ignores facing and shields (Brains.filter_damage).
+func damage_enemy(e: Enemy, dmg: float, slot: int, knock: Vector2, sure: bool = false) -> void:
+	WorldEnemies._damage_enemy(self, e, dmg, slot, knock, sure)
+
+## An enemy shot, or null when it is dropped past Bestiary.ESHOT_CAP.
+func eshot(kind: int, pos: Vector2, vel: Vector2, r: float) -> EShot:
+	return WorldEnemies._eshot(self, kind, pos, vel, r)
+
+func _spawn_boss(type: int, final: bool) -> Enemy:
+	return Bosses._spawn_boss(self, type, final)
+
+func _boss_died(e: Enemy, slot: int) -> void:
+	Bosses._boss_died(self, e, slot)
+
+func phase_turn(e: Enemy, secs: float) -> void:
+	Bosses.phase_turn(self, e, secs)
+
+## A hazard row (WorldHazards.add_hazard), or null when the floor is full.
+func add_hazard(kind: int, a: Vector2, b: Vector2, r: float, warn: float, hot: float, slot: int = -1, owner: int = 0,
+		forced: bool = false) -> Hazards.Hazard:
+	return WorldHazards.add_hazard(self, kind, a, b, r, warn, hot, slot, owner, forced)
+
+func move_hazard(h: Hazards.Hazard, a: Vector2, b: Vector2) -> void:
+	WorldHazards.move_hazard(self, h, a, b)
+
+func _update_hazards(dt: float) -> void:
+	WorldHazards._update_hazards(self, dt)
+
+## Removes the hazard rows: every one with `all`, else the regular ones (not a boss's).
+func clear_hazards(all: bool) -> void:
+	hazards = hazards.filter(func(h: Hazards.Hazard) -> bool: return h.boss and not all)
 
 func _kill_enemy(e: Enemy, slot: int) -> void:
 	WorldEnemies._kill_enemy(self, e, slot)

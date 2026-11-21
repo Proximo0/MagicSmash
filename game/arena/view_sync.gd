@@ -126,6 +126,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 		var sk := int(sh[i])
 		a.vs.append([sk % Spells.COUNT, Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]), sk >= Spells.COUNT])
 		i += 6
+	a.vhz = snap.get("hz", PackedFloat32Array())
 	a.vr.clear()
 	var rn: PackedFloat32Array = snap.get("r", PackedFloat32Array())
 	i = 0

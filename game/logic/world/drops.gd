@@ -24,21 +24,24 @@ static func _roll_drop(w: World, e: World.Enemy) -> void:
 	var pop := Vector2.from_angle(w.rng.randf() * TAU) * 40.0
 	if big:
 		_drop(w, World.PK_GEM, e.pos, pop)
-		if w.rng.randf() < 0.25:
+		if w.rng.randf() < w.tune.big_tome_chance:
 			_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, -pop)
 		return
-	if r < 0.22:
+	var coin := w.tune.coin_drop_chance
+	var potion := coin + 0.05 + w.tune.potion_drop_chance * w.seal_potions # APPRENTICE: more
+	var tome := potion + w.tune.tome_drop_chance
+	if r < coin:
 		_drop(w, World.PK_COIN, e.pos, pop)
-	elif r < 0.27:
+	elif r < coin + 0.05:
 		_drop(w, World.PK_GEM, e.pos, pop)
-	elif r < 0.29 + 0.02 * (w.seal_potions - 1.0): # APPRENTICE: more
+	elif r < potion:
 		if w.no_potions > 0.0 or w.seal_hunger: return # THE HIEROPHANT, HUNGER
 		_drop(w, World.PK_POTION, e.pos, pop)
-	elif r < 0.315:
+	elif r < tome:
 		_drop(w, World.TOMES[w.rng.randi() % World.TOMES.size()], e.pos, pop)
-	elif r < 0.322:
+	elif r < tome + 0.007:
 		_drop(w, World.PK_BOOTS, e.pos, pop)
-	elif r < 0.33:
+	elif r < tome + 0.015:
 		_drop(w, World.PK_ORBIT, e.pos, pop)
 
 

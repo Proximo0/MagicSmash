@@ -49,6 +49,7 @@ static func _draw_decals(a: Arena) -> void:
 
 static func _draw_env(a: Arena) -> void:
 	var ci := a.env_layer
+	ArenaDrawHazards.draw(a, ci)
 	# Rune circles: a dark scorched disc under the glow, so the ring reads on any floor.
 	for c: Array in a.vr:
 		var k := _rune_alpha(a, c)

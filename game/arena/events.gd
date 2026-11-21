@@ -262,7 +262,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.screen_flash = Color(1, 1, 1, 0.8)
 				a._do_hitstop(0.25)
 				if int(ev[4]) == 1:
-					ArenaFateView._banner(a, "ARCHLICH DESTROYED!", "+%d x COMBO" % (World.STATS[World.LICH][3] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
+					ArenaFateView._banner(a, "ARCHLICH DESTROYED!", "+%d x COMBO" % (Bestiary.KINDS[World.LICH][Bestiary.K_SCORE] * World.FINAL_REWARD), Color("ff4df2"), 3.0)
 				else:
 					ArenaFateView._banner(a, "LICH LORD DESTROYED!", "+5000 x COMBO", Color("4dfff0"), 3.0)
 					Sfx.music(ArenaFateView._act_music(a))
