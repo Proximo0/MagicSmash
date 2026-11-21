@@ -42,7 +42,8 @@ for the whole game.
 | P1 | Steam: login tickets, the shop for bank tabs, hero slots and looks, achievements | `realm/gateway/steam`, client `Platform` | Sonnet | W1, Curtis's Steamworks app | a purchase grants once and only once; no client can grant itself |
 | O1 | running it: host package for Windows and Linux, logs, metrics, alarms, backups on a clock, restore drill, kill switches, release and rollback, flood protection | `realm/ops`, CI | Sonnet | W1 | a release, a rollback and a restore rehearsed on Curtis's PC |
 | B1 | bots that play like people and the balance tables: careers 1 to 60, every class and job, alone and in crowds | `realm/loadtest`, `docs/realm/balance.md` | Opus | R2, L1 | the curve targets of rules section 2; no class left behind |
-| A1 | the picture and sound list for this game, in sheets of six, dark and occult | the art list doc | lead | rules | every stand-in has a name, a size and a prompt |
+| R3 | players against players (rules section 14): the Blood Mark, guild altar wars, duels, marked realms | `realm/core`, `realm/gateway/social` | Opus, 1 reviewer | W2, T1, B1 | marked bots fight in a crowd of 1,000 inside the budget; no unmarked hero can be struck or robbed |
+| A1 | the picture and sound list for this game, in sheets of six, dark and occult | the art list doc | lead | rules | every stand-in has a name, a size and a prompt; 64 new hero figures (race x novice, class, job) |
 
 Three heavy jobs run at once on this box (4 cores). The lead commits, reviews, merges and runs the checks; workers
 never run git, never message Curtis, never install packages beyond the crates named above.

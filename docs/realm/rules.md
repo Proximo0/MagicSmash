@@ -384,3 +384,25 @@ turn events into sound, text and effects.
 - Bots: each class alone at the edge of The Fool's Road at class level 1 survives 10 minutes in 8 of 10 seeds; a
   party of knight, priest, archer, mage at a field's bottom level, in gear of that level, holds its middle ring in
   8 of 10, for all six fields; every job within 15% of its class's other job in a crowd of 100.
+
+## 14. Players against players (built after the rest works)
+
+Curtis, 21 Nov: "yes to pvp, but it is a second thought ... special servers, events, or ... a pvp mode that you
+switch on for extra risks and rewards but cant switch off if youve attacked someone".
+
+- **THE BLOOD MARK.** A hero of class level 20 or more takes the mark by holding interact at a waystone for 5
+  seconds; it is part of her outing state (`marked`) and shows on her to everyone. Marked heroes' attacks and
+  skills also strike other marked heroes, for 40% of their damage to monsters; group effects, heals and raises
+  between marked and unmarked heroes work as usual, except that an unmarked hero cannot heal, shield or raise a
+  marked hero who struck a hero in the last 60 seconds.
+- **Reward:** +25% coin and +15 luck while marked. **Risk:** a marked hero downed by a hero's blow and not raised
+  is FALLEN as usual, and what she loses from her haul goes to the hero who downed her.
+- **No way back at once:** after striking a hero she cannot put the mark down (interact at a waystone) until ten
+  minutes have passed without striking one. Leaving the field does not clear the wait.
+- **Safe ground:** within 300 px of a waystone or the gate, and in town, no hero can be struck by a hero.
+- The level ceiling of section 6 applies, so a field's fights are near its level.
+- **Events:** during a tide two guilds that declared for a field fight for its altars (held time counts per
+  guild; their members are marked against each other only, for the tide); duels in the town's training yard.
+- **Marked realms:** a realm flag marks everyone past level 20 for good. Same rules.
+- State from the first day: `marked` and the last-struck tick are in the outing state and the hash, so adding the
+  fights later changes no saved format.
