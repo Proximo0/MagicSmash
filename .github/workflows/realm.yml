@@ -1,5 +1,5 @@
 # realm: the lockstep server, its tools and the Godot native module (realm/README.md).
-# Linux runs realm/check.sh; Linux and Windows build the native module, Windows builds the server and the
+# Linux runs realm/check.sh; Linux and Windows run the store's check (realm/store/check.sh) and build the native module, Windows builds the server and the
 # load test for hosting on a Windows PC; both run the same bench and the hashes must match (lockstep needs
 # every machine to compute the same field).
 name: realm
@@ -41,6 +41,8 @@ jobs:
           cargo build --release 2>&1 | tee build.log
           if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
           cargo test --release
+      - name: realm/store/check.sh
+        run: realm/store/check.sh
       - name: Bench hash
         working-directory: realm
         run: ./target/release/realm-server $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-linux.txt && cat ../hash-linux.txt
@@ -76,13 +78,15 @@ jobs:
           cargo build --release 2>&1 | tee build.log
           if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
           cargo test --release
+      - name: realm/store/check.sh
+        run: bash realm/store/check.sh
       - name: Bench hash
         working-directory: realm
         run: ./target/release/realm-server.exe $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-windows.txt && cat ../hash-windows.txt
       - name: Gather the server package
         run: |
           mkdir -p realm-server-windows
-          cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/run_server.bat realm-server-windows/
+          cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/store/target/release/realm-store.exe realm/run_server.bat realm-server-windows/
       - uses: actions/upload-artifact@v4
         with:
           name: realm-server-windows
