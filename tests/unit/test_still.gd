@@ -184,3 +184,82 @@ func test_deed_marks_map_the_rule_kinds() -> void:
 
 func test_scene_dim_leaves_text_readable() -> void:
 	assert_true(Still.SCENE_DIM.r < 0.6 and Still.SCENE_DIM.g < 0.6 and Still.SCENE_DIM.b < 0.6)
+
+
+func test_class_weapons_name_their_own_icon_and_the_rest_keep_the_spell() -> void:
+	assert_eq(Still.weapon_icon(Classes.ARCHER, Classes.weapon(Classes.ARCHER)), "weapon_longbow")
+	assert_eq(Still.weapon_icon(Classes.PRIEST, Classes.weapon(Classes.PRIEST)), "weapon_holy_light")
+	assert_eq(Still.weapon_icon(Classes.PALADIN, Classes.weapon(Classes.PALADIN)), "weapon_smite")
+	assert_eq(Still.weapon_icon(Classes.KNIGHT, Classes.weapon(Classes.KNIGHT)), "") # cleave: its spell icon
+	assert_eq(Still.weapon_icon(Classes.MAGE, World.SP_FIRE), "")
+	assert_eq(Still.weapon_icon(Classes.ARCHER, World.SP_FIRE), "") # not her weapon's row
+	for w: String in Still.WEAPON_SKINS:
+		assert_true(Classes.SKINS.has(w), w)
+		assert_true(Still.icon_names().has("weapon_" + w), w)
+	# Without the weapon file the spell's picture is used, and without both there is none.
+	_drop(["icons/spell_bone.png"])
+	var sp := Classes.weapon(Classes.ARCHER)
+	assert_true(Still.weapon_tex(Classes.ARCHER, sp, 8) != null)
+	_clear()
+	_drop([])
+	assert_eq(Still.weapon_tex(Classes.ARCHER, sp, 8), null)
+	_clear()
+	_drop(["icons/weapon_longbow.png", "icons/spell_bone.png"])
+	assert_eq(Still.weapon_tex(Classes.ARCHER, sp, 8), Still.icon("weapon_longbow", 8))
+	_clear()
+
+
+func test_skill_stat_step_and_loot_names() -> void:
+	var names := Still.icon_names()
+	assert_eq(Still.skill_icon(Classes.SK_NOVA), "skill_nova")
+	assert_eq(Still.skill_icon(Classes.SK_PROVOKE), "skill_provoke")
+	assert_eq(Still.skill_icon(Classes.SK_VOLLEY), "skill_volley")
+	assert_eq(Still.skill_icon(Classes.SK_SANCTUARY), "skill_sanctuary")
+	assert_eq(Still.skill_icon(Classes.SK_AEGIS), "skill_aegis")
+	for s: int in Classes.skill_count():
+		assert_true(names.has(Still.skill_icon(s)))
+	assert_eq(Still.stat_icon(Loot.ST_MIGHT), "stat_might")
+	assert_eq(Still.stat_icon(Loot.ST_FOCUS), "stat_focus")
+	assert_eq(Still.stat_icon(Loot.ST_SWIFT), "stat_swift")
+	assert_eq(Still.stat_icon(Loot.ST_VIGOR), "stat_vigor")
+	assert_eq(Still.stat_icon(Loot.ST_WARD), "stat_ward")
+	assert_eq(Still.stat_icon(Loot.ST_GREED), "stat_fortune")
+	assert_eq(Still.stat_icon(6), "")
+	assert_eq(Still.stat_icon(-1), "")
+	assert_eq(Loot.STAT_COUNT, Still.STAT_ICONS.size())
+	assert_eq(Still.step_icon(Seals.MIN), "class_apprentice")
+	assert_eq(Still.step_icon(0), "step_wizard")
+	assert_eq(Still.step_icon(1), "step_archmage")
+	assert_eq(Still.step_icon(2), "seal_1")
+	assert_eq(Still.step_icon(Seals.MAX), "seal_8")
+	assert_eq(Still.step_icon(Seals.MAX + 1), "")
+	assert_eq(Still.step_icon(Seals.MIN - 1), "")
+	for lv: int in range(Seals.MIN, Seals.MAX + 1):
+		assert_true(names.has(Still.step_icon(lv)), str(lv))
+	var want := ["loot_might", "loot_focus", "loot_swift", "loot_vigor", "loot_ward", "loot_greed", "loot_elixir",
+		"loot_novas", "loot_tome", "loot_insight"]
+	assert_eq(Loot.count(), want.size())
+	for i: int in want.size():
+		assert_eq(Still.loot_icon(i), want[i])
+		assert_true(names.has(want[i]))
+	assert_eq(Still.loot_icon(-1), "")
+	assert_eq(Still.loot_icon(Loot.count()), "")
+	for n: String in Still.HUD_ICONS:
+		assert_true(names.has(n))
+	assert_true(names.has("class_apprentice"))
+	var seen := {}
+	for n: String in names:
+		assert_false(seen.has(n), "duplicate " + n)
+		seen[n] = true
+
+
+func test_new_icons_show_only_where_a_file_exists() -> void:
+	_drop([])
+	for n: String in ["skill_nova", "stat_might", "seal_3", "step_wizard", "loot_tome", "hud_crystal"]:
+		assert_eq(Still.icon(n, 8), null, n)
+	_drop(["icons/skill_nova.png", "icons/seal_3.png"])
+	assert_true(Still.icon("skill_nova", 6) != null)
+	assert_true(Still.icon(Still.step_icon(4), 12) != null)
+	assert_eq(Still.icon(Still.HUD_ICONS[0], 10), null)
+	assert_eq(Still.icon(Still.stat_icon(0), 8), null)
+	_clear()

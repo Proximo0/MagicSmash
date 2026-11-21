@@ -7,6 +7,8 @@ extends Node2D
 const TRACKS := [["music_sanctum", "THE SANCTUM"], ["music_title", "THE TOWER AT DUSK"],
 	["music_library", "THE FORBIDDEN LIBRARY"], ["music_battle", "HOLD THE TOWER"], ["music_boss", "THE ARCHLICH"],
 	["music_gameover", "REQUIEM"]]
+## The bottom line's crystal mark (`icons/hud_crystal`): its box, px, left of the crystal count.
+const CRYSTAL_ICON := Rect2(5, 259, 10, 10)
 const CAULDRON := Vector2(240, 248) # its feet, where SanctumArt bakes it
 
 var room: Sanctum
@@ -566,7 +568,8 @@ func _draw_glow() -> void:
 
 func _draw_hud() -> void:
 	var prof: Profile = Save.profile
-	Sprites.draw_at(self, "gem", Vector2(14, 268))
+	if not Still.draw_icon(self, Still.HUD_ICONS[0], CRYSTAL_ICON):
+		Sprites.draw_at(self, "gem", Vector2(14, 268))
 	PixelFont.draw(self, ("%d CRYSTAL" if prof.crystals == 1 else "%d CRYSTALS") % prof.crystals, Vector2(22, 261), 1, Color("8bdcff"), Occult.INK)
 	PixelFont.draw(self, "CARDS %d/%d" % [prof.cards_owned(), Cards.count()], Vector2(110, 261), 1, Occult.GOLD, Occult.INK)
 	PixelFont.draw(self, "SECRETS %d/%d" % [Secrets.found(prof), Secrets.count()], Vector2(190, 261), 1, Color("ff8af0"), Occult.INK)
