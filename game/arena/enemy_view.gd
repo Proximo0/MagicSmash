@@ -29,6 +29,19 @@ const EDGE_INSET := 10.0 # how far inside the screen an edge arrow sits, px
 const EYE_RISE := 37.0 # how far over a hunted wizard's feet the eye floats (over the pip), px
 
 
+## Draws an enemy from its one still picture (`sprites/enemy_<key>.png`, `boss_<key>.png`) in place of its code
+## frame: `feet` and `mod` already carry the pose (hop, shake, tint, flash colour). False when there is no picture.
+static func draw_still(ci: CanvasItem, e: Dictionary, feet: Vector2, flash: bool, mod: Color, time: float) -> bool:
+	var t: int = e.type
+	var nm := Still.enemy_name(t, bool(e.get("final", false)))
+	if nm.is_empty():
+		return false
+	if bool(e.get("elite", false)):
+		mod = mod * Still.ELITE_TINT
+	var moving: bool = float(Bestiary.KINDS[t][2]) > 0.0
+	return Still.draw(ci, nm, feet, -1 if bool(e.get("flip", false)) else 1, time + float(e.get("t", 0.0)), moving, mod, flash)
+
+
 ## [feet, modulate] for a job K kind in its current state.
 static func state_look(a: Arena, e: Dictionary, feet: Vector2, mod: Color) -> Array:
 	var st: int = e.state

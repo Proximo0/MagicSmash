@@ -347,6 +347,10 @@ static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	var key := SpritesWizards.frame_key(G.wizard_of(slot), dirkey, p.moving, int(p.walk_t), int(a.time * 2.0 + slot * 0.5), casting,
 		aim.x >= 0.0)
 	var feet: Vector2 = p.pos + Vector2(0, 1)
+	var still := Still.hero_name(int(p.get("cls", 0)), bool(p.get("ai", false)))
+	if not still.is_empty():
+		_draw_player_still(a, ci, p, still, feet, -1 if flip else 1)
+		return
 	# Haste afterimages
 	if p.haste > 0.0:
 		for gi in range(2, p.ghosts.size(), 2):
@@ -364,6 +368,19 @@ static func _draw_player(a: Arena, ci: CanvasItem, p: Dictionary) -> void:
 	Sprites.draw_at(ci, key, feet, flip, p.flash > 0.0)
 	if dirkey != "up":
 		_draw_staff(a, ci, grip, tip, slot)
+
+
+## A wizard drawn from her one still picture: the seat's ring under her feet (the pip over her stays), the soft
+## backing, haste afterimages, the picture moved by `Still.motion`. The picture holds its own weapon, so no staff.
+static func _draw_player_still(a: Arena, ci: CanvasItem, p: Dictionary, still: String, feet: Vector2, facing: int) -> void:
+	var slot: int = p.slot
+	var t: float = a.time + slot * 0.5
+	if p.haste > 0.0:
+		for gi in range(2, p.ghosts.size(), 2):
+			Still.draw(ci, still, p.ghosts[gi] + Vector2(0, 1), facing, t, true, Color(0.56, 0.89, 1.0, 0.35 - gi * 0.035))
+	Sprites.glow(ci, p.pos + Vector2(0, -10), 15.0, WIZ_BACKING)
+	Sprites.draw_mid(ci, "wiz_ring", feet + Vector2(0, -1), Color(G.player_color(slot).lerp(Color.WHITE, 0.3), Still.RING_ALPHA))
+	Still.draw(ci, still, feet, facing, t, bool(p.moving), Color.WHITE, p.flash > 0.0)
 
 
 ## A wizard's staff: a wooden shaft through the grip with a short butt behind it and a gold band under the head,

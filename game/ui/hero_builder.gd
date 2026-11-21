@@ -19,6 +19,8 @@ const LIST_PANEL := Rect2(130, 30, 116, 206)
 const DETAIL_PANEL := Rect2(254, 30, 214, 206)
 const BOARD := Rect2(130, 30, 338, 206)
 const ROW_H := 32.0
+## The class and race icon at the right of a list row, px.
+const ROW_ICON := 14.0
 const ROW_TOP := 24.0
 const BACK_RECT := Rect2(12, 244, 52, 16)
 const CREATE_RECT := Rect2(330, 210, 130, 20)
@@ -313,8 +315,10 @@ static func combined_points(r: int, c: int) -> Array:
 func draw(ci: CanvasItem, t: float) -> void:
 	if not active:
 		return
-	ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
+	if not Still.draw_scene(ci, "builder"):
+		ci.draw_rect(Rect2(0, 0, 480, 270), Color(0.02, 0.0, 0.05, 0.94))
 	Occult.frame(ci, Rect2(4, 4, 472, 262), t)
+	Still.draw_scene(ci, "builder", Still.SCENE_INNER)
 	PixelFont.draw_centered(ci, String(TITLES[step]), 240, 10, 2, Occult.GOLD, Occult.INK)
 	var order: Array[int] = [S_RACE, S_CLASS, S_NAME, S_CONFIRM]
 	if cls == Classes.MAGE:
@@ -377,16 +381,21 @@ func _draw_list(ci: CanvasItem, t: float) -> void:
 			Occult.cursor(ci, Vector2(row.position.x + 7, row.get_center().y), t)
 		var name_text := ""
 		var sub := ""
+		var icon := ""
 		match step:
 			S_RACE:
+				icon = "race_" + Races.key(k)
 				name_text = Races.race_name(k)
 				sub = String(TAG_RACE[Races.key(k)])
 			S_CLASS:
+				icon = "class_" + Classes.key(k)
 				name_text = Classes.class_name_of(k)
 				sub = String(Classes.ROLE_NAMES[Classes.role(k)])
 			S_SCHOOL:
 				name_text = Wizards.title(k)
 				sub = Spells.spell_name(Wizards.start_spell(k))
+		if not icon.is_empty():
+			Still.draw_icon(ci, icon, Rect2(row.end.x - ROW_ICON - 2, row.position.y + 1, ROW_ICON, ROW_ICON))
 		PixelFont.draw(ci, name_text, Vector2(row.position.x + 16, row.position.y + 6), 1,
 			Occult.GOLD if k == sel else Occult.BONE, Occult.INK)
 		PixelFont.draw(ci, sub, Vector2(row.position.x + 16, row.position.y + 16), 1, Occult.DIM, Occult.INK)
