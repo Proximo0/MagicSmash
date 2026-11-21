@@ -35,9 +35,9 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 				desired = dirv.orthogonal() * e.spd * (1.0 if e.id % 2 == 0 else -1.0)
 			e.timer -= dt
 			if e.timer <= 0.0 and tgt and dist < 240:
-				e.timer = w.rng.randf_range(1.8, 2.8)
-				var lead := tgt.pos + tgt.vel * (dist / 150.0) * 0.5
-				WorldEnemies._eshot(w, World.ES_ARROW, e.pos + Vector2(0, -7), (lead - e.pos).normalized() * 150.0, 2.5)
+				e.timer = w.rng.randf_range(1.8, 2.8) * w.tune.enemy_shot_cd_mul
+				var lead := tgt.pos + tgt.vel * (dist / w.tune.arrow_speed) * 0.5
+				WorldEnemies._eshot(w, World.ES_ARROW, e.pos + Vector2(0, -7), (lead - e.pos).normalized() * w.tune.arrow_speed, 2.5)
 				w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 7, World.ES_ARROW, 0)
 		World.ORC:
 			match e.state:
@@ -79,11 +79,11 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 				e.timer2 -= dt
 				if e.timer2 <= 0.0:
 					e.state = 0
-					e.timer = w.rng.randf_range(2.6, 3.6)
+					e.timer = w.rng.randf_range(2.6, 3.6) * w.tune.enemy_shot_cd_mul
 					if tgt:
 						var d := (tgt.pos - e.pos).normalized()
 						for a in [-0.28, 0.0, 0.28]:
-							WorldEnemies._eshot(w, World.ES_ORB, e.pos + Vector2(0, -8), d.rotated(a) * 95.0, 4.0)
+							WorldEnemies._eshot(w, World.ES_ORB, e.pos + Vector2(0, -8), d.rotated(a) * w.tune.mage_orb_speed, 4.0)
 						w.emit(World.EV_ESHOT, e.pos.x, e.pos.y - 8, World.ES_ORB, 0)
 		World.WRAITH:
 			# Straight through the crowd, fading out (state 1) for a moment in every cycle.

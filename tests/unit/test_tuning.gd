@@ -112,7 +112,7 @@ func test_faster_horde_rate_spawns_more_enemies() -> void:
 
 func test_shared_xp_rows_have_their_defaults_and_ranges() -> void:
 	var t := Tuning.new()
-	assert_near(t.xp_party_scale, 1.0)
+	assert_near(t.xp_party_scale, 0.8)
 	t.set_value("xp_party_scale", 5.0)
 	assert_near(t.xp_party_scale, 2.0, 0.0001, "xp_party_scale is not clamped to 2")
 

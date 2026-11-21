@@ -13,8 +13,8 @@ const VISITS: Array = [[420.0, 150.0], [720.0, 400.0]]
 ## A boss's health multiplier by party size (1 to 4 wizards), and its growth each time the same kind returns (the
 ## Lich's second visit has 1.25x). The values the default Tuning gives (boss_hp_per_player, boss_hp_per_cycle, still
 ## the balance levers): World passes party_hp_from(tune) and the cycle row, the same numbers bit for bit.
-const PARTY_HP: Array = [1.0, 1.6, 2.2, 2.8]
-const CYCLE_HP := 0.25
+const PARTY_HP: Array = [1.0, 1.3, 1.6, 1.9]
+const CYCLE_HP := 2.0
 ## Today's rage line: the Lich's enraged set starts under half health, the Archlich's under FINAL_RAGE.
 const LICH_RAGE := 0.5
 ## A boss with no phase table of its own turns at half health.
@@ -61,7 +61,7 @@ static func party_hp_from(tune: Tuning) -> Array:
 
 ## A boss's health in World `w` now (its schedule, party size and Tuning levers).
 static func health_in(w: World, type: int) -> float:
-	return health(type, w.wave, w.players.size(), 1.0, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
+	return w.tune.boss_hp_mul * health(type, w.wave, w.players.size(), 1.0, 0.0, w.schedule, party_hp_from(w.tune), w.tune.boss_hp_per_cycle)
 
 
 ## How many rows of `type` come at or before run second `t` (the Lich's visits so far).
@@ -137,7 +137,7 @@ static func _leave(w: World, e: World.Enemy) -> void:
 ## Turns a Lich into the Archlich: final_hp_mul times the HP, full health, a bigger body and a meaner pattern.
 static func _make_final(w: World, e: World.Enemy) -> void:
 	e.final = true
-	e.maxhp = health_in(w, e.type) * w.tune.final_hp_mul
+	e.maxhp = health_in(w, e.type) * w.tune.final_hp_mul * (1.0 + w.tune.final_hp_per_player * (w.players.size() - 1))
 	e.hp = e.maxhp
 	e.r += 3.0
 	e.state = 0
