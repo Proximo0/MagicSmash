@@ -20,10 +20,12 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					World.SP_BONE: Sfx.play("arrow", -5.0, a._fx_rng.randf_range(0.9, 1.05), 0.08)
 					World.SP_CANDLE: Sfx.play("candle", -6.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
 					World.SP_CLEAVE: Sfx.play("hit", -3.0, 0.7, 0.08)
-			World.EV_SWEEP: # a CLEAVE: a steel arc flash toward the swing
-				var slot := int(ev[4])
-				var half := Spells.stat(World.SP_CLEAVE, "arc") * 0.5
-				a.fx.swing(pos, Spells.stat(World.SP_CLEAVE, "r"), float(ev[3]), half, ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
+			World.EV_SWEEP: # a CLEAVE: a steel arc flash toward the swing; WHIRLWIND (+8): the same flash all the way round
+				var slot := int(ev[4]) & 7
+				var sw_evo := int(ev[4]) & 8 != 0
+				var half := Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, sw_evo) * 0.5
+				a.fx.swing(pos, Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, sw_evo), float(ev[3]), half,
+					ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
 			World.EV_BURST: # a JUSTICE burst: a pale ring the size of its reach and bone shards
 				var br := float(ev[3])
 				a.fx.ring(pos, br * 0.3, br, 0.25, Color("fff6e0"), 2.0)

@@ -45,7 +45,9 @@ too hard, too easy, dull or unfair.
    `pick_card(choices, levels)` is the persona policy and `decide_in_world` uses it: a novice takes what is new and
    shiny (an evolution, else something it does not own, at random); a casual takes damage first (evolution, power,
    its spells, cast rate); a veteran chooses an evolution whose requirements it can still meet (most progress
-   first, read from the `requires` column of `Upgrades.CATALOG`), takes what it needs, then takes it.
+   first, read from the `requires` column of `Upgrades.CATALOG`; a row it can never be offered, CLEAVE for anyone but
+   a knight, puts that evolution out of reach), takes what it needs, then takes it. `PICK_PRIORITY` lists every
+   evolution, WHIRLWIND (`E_CLEAVE`) last.
 
 Determinism: each bot has its own `RandomNumberGenerator` seeded by its constructor and uses the simulation's clock
 (`World.time`), never the wall clock. The same seed and persona give the same inputs.

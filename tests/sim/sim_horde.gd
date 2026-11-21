@@ -65,8 +65,8 @@ func _fill_hazards(w: World, rng: RandomNumberGenerator) -> void:
 			rng.randf_range(0.5, 2.0), rng.randf_range(1.0, 3.0), 0, 0, true)
 
 
-## The wave 3 cast kinds, one four-wizard row each (docs/wave3_plan.md): every wizard holds the spell evolved (at
-## its top level when it has no evolution) on top of the first six at level 3, so its cost is measured at the cap.
+## The wave 3 cast kinds, one four-wizard row each (docs/wave3_plan.md): every wizard holds the spell evolved (the
+## cleave row: WHIRLWIND, its full circle) on top of the first six at level 3, so its cost is measured at the cap.
 const WAVE3_ROWS: Array = [["horde_bone_spear_4p", World.SP_BONE], ["horde_vigil_candle_4p", World.SP_CANDLE],
 	["horde_cleave_4p", World.SP_CLEAVE]]
 

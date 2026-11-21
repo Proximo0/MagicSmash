@@ -61,6 +61,7 @@ const LIST: Array = [
 	["ALL_SECRETS", "NOTHING LEFT UNSAID", "Find every secret in the game.", 30, true],
 	["APPRENTICES", "THE MASTER'S HAND", "Win a run with only apprentices beside you.", 20, true],
 	["FAST_WIN", "ON SCHEDULE", "Win a run with four heroes before 16:30.", 30],
+	["EVO_CLEAVE", "WIDDERSHINS", "Evolve Cleave into Whirlwind.", 15],
 ]
 
 const C_API := 0
@@ -107,6 +108,7 @@ const RULES := {
 	"EVO_STAR": ["evo", World.SP_STAR],
 	"EVO_BONE": ["evo", World.SP_BONE],
 	"EVO_CANDLE": ["evo", World.SP_CANDLE],
+	"EVO_CLEAVE": ["evo", World.SP_CLEAVE],
 	"BOSS_CHANDELIER": ["boss", Bestiary.CHANDELIER],
 	"BOSS_GHOSTWRITER": ["boss", Bestiary.GHOSTWRITER],
 	"WIN_ARCHMAGE": ["seal", 1],

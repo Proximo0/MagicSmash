@@ -114,7 +114,7 @@ const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a 
 const EV_SKILL := 50 # a hero's class skill (not the NOVA, which is EV_NOVA): at the hero, a = slot, b = Classes.SK_*
 const EV_HEAL := 51 # a hero is healed by a skill or a light: at the hero, a = slot, b = hearts
 const EV_BURST := 52 # a JUSTICE burst: at the slain foe, a = radius, b = slot
-const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot
+const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot, + 8 when evolved (WHIRLWIND)
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
