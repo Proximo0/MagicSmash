@@ -222,15 +222,23 @@ static func partner_row(spell: int) -> int:
 	return -1
 
 
-## True if taking `idx` (not owned yet) completes a pair: it is the partner of an owned spell that has not
-## evolved, or it is a spell whose partner is owned.
-static func pairs_with(levels: Dictionary, idx: int) -> bool:
+## True if `spell` can still evolve for a wizard: not evolved yet, its evolution not banished, and its own row
+## either maxed or not banished.
+static func _can_evolve(levels: Dictionary, spell: int, banned: Dictionary) -> bool:
+	if evolved(levels, spell) or banned.has(evo_entry(spell)):
+		return false
+	return weapon_level(levels, spell) >= max_level(weapon_entry(spell)) or not banned.has(weapon_entry(spell))
+
+
+## True if taking `idx` (not owned yet) completes a pair: it is the partner of an owned spell that can still
+## evolve, or it is a spell whose partner is owned (and whose evolution is not banished). Banishes in `banned`.
+static func pairs_with(levels: Dictionary, idx: int, banned: Dictionary = {}) -> bool:
 	if idx < 0 or idx >= CATALOG.size() or level_of(levels, idx) > 0:
 		return false
-	if kind(idx) == SPELL and level_of(levels, partner_row(spell_of(idx))) > 0:
+	if kind(idx) == SPELL and level_of(levels, partner_row(spell_of(idx))) > 0 and _can_evolve(levels, spell_of(idx), banned):
 		return true
 	for sp: int in Spells.COUNT:
-		if partner_row(sp) == idx and weapon_level(levels, sp) > 0 and not evolved(levels, sp):
+		if partner_row(sp) == idx and weapon_level(levels, sp) > 0 and _can_evolve(levels, sp, banned):
 			return true
 	return false
 
@@ -239,7 +247,7 @@ static func pairs_with(levels: Dictionary, idx: int) -> bool:
 ## pair: then the last free slot of that kind is kept for one.
 static func _pair_wanted(levels: Dictionary, of_kind: int, banned: Dictionary) -> bool:
 	for i: int in range(CATALOG.size()):
-		if kind(i) == of_kind and not banned.has(i) and _requirements_met(levels, i) and pairs_with(levels, i):
+		if kind(i) == of_kind and not banned.has(i) and _requirements_met(levels, i) and pairs_with(levels, i, banned):
 			return true
 	return false
 
@@ -268,7 +276,7 @@ static func available(levels: Dictionary, idx: int, cap: Vector2i = UNCAPPED, ba
 		var room := cap.x if kind(idx) == SPELL else cap.y
 		if have >= room:
 			return false
-		if have == room - 1 and not pairs_with(levels, idx) and _pair_wanted(levels, kind(idx), banned):
+		if have == room - 1 and not pairs_with(levels, idx, banned) and _pair_wanted(levels, kind(idx), banned):
 			return false
 	return true
 
@@ -308,11 +316,11 @@ static func best_pick(levels: Dictionary, choices: Array[int]) -> int:
 	return best
 
 
-## The weight `idx` has in a roll for a wizard with `levels`: its row's weight, PARTNER_WEIGHT times when it
-## completes a pair.
-static func roll_weight(levels: Dictionary, idx: int) -> float:
+## The weight `idx` has in a roll for a wizard with `levels` and banishes `banned`: its row's weight,
+## PARTNER_WEIGHT times when it completes a pair.
+static func roll_weight(levels: Dictionary, idx: int, banned: Dictionary = {}) -> float:
 	var w := float(CATALOG[idx][C_WEIGHT])
-	return w * PARTNER_WEIGHT if pairs_with(levels, idx) else w
+	return w * PARTNER_WEIGHT if pairs_with(levels, idx, banned) else w
 
 
 static func level_of(levels: Dictionary, idx: int) -> int:
@@ -363,7 +371,7 @@ static func roll(rng: RandomNumberGenerator, levels: Dictionary, n: int, cap: Ve
 	for i: int in range(CATALOG.size()):
 		if available(levels, i, cap, banned):
 			pool.append(i)
-			weights.append(roll_weight(levels, i))
+			weights.append(roll_weight(levels, i, banned))
 	var out: Array[int] = []
 	while out.size() < n and not pool.is_empty():
 		var total: float = 0.0

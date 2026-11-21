@@ -120,8 +120,10 @@ func test_redraw_swaps_the_hand_and_counts_down() -> void:
 	assert_eq(p.redraws, 0)
 	assert_true(hands.size() > 1, "the redraws dealt the same hand every time")
 	var now := p.offer
+	var last := p.choices.duplicate()
 	w.step(DT, _pick_input(p, Upgrades.REDRAW_INPUT))
-	assert_eq(p.offer, now, "a redraw with none left did something")
+	assert_eq(p.offer, now + 1, "a refused redraw is re-issued under a new offer")
+	assert_eq(p.choices, last, "a redraw with none left changed the hand")
 	assert_eq(p.pending, 0, "a redraw used up a level")
 
 
@@ -358,8 +360,8 @@ func test_targeting_skips_a_faded_wraith() -> void:
 
 
 ## One wizard alone for as long as a test wants: the intro never ends, so no horde, powerup or shrine comes.
-func _quiet(upgrades: Dictionary) -> World:
-	var w := World.new([0], 3)
+func _quiet(upgrades: Dictionary, tuning: Tuning = null) -> World:
+	var w := World.new([0], 3, tuning)
 	w.phase_t = 1e9
 	_player(w).upgrades = upgrades
 	return w
@@ -392,8 +394,120 @@ func test_cooldowns_keep_their_fractions() -> void:
 
 
 func test_cast_rate_bonuses_stop_at_the_floor() -> void:
-	var w := _quiet({Upgrades.W_FIRE: 1})
+	# The floor binds the wizard's own bonuses; the global spell_cd_mul applies on top of it.
+	var t := Tuning.new()
+	t.spell_cd_mul = 1.5
+	var w := _quiet({Upgrades.W_FIRE: 1}, t)
 	_player(w).armor[Loot.ST_FOCUS] = 0.95
-	var cd := Spells.cooldown(World.SP_FIRE, 1, false) * Spells.CAST_FLOOR
+	var cd := Spells.cooldown(World.SP_FIRE, 1, false) * Spells.CAST_FLOOR * t.spell_cd_mul
 	var n := _cast_ticks(w, 600, true).size()
+	assert_true(n >= int(10.0 / cd), "%d casts: slower than the floor times spell_cd_mul" % n)
 	assert_true(n <= int(10.0 / cd) + 1, "%d casts: below the cast floor" % n)
+
+
+# ------------------------------------------------------------------ review fixes ---
+
+## A hand of three known cards under offer `offer`.
+func _hand(w: World, cards: Array[int]) -> World.Player:
+	var p := _player(w)
+	p.choices = cards
+	return p
+
+
+func _send(w: World, p: World.Player, card: int, offer: int = -99) -> void:
+	w.step(DT, {p.slot: PackedFloat32Array([0, 0, 0, 0, 0, 0, card, p.offer if offer == -99 else offer])})
+
+
+## A refused banish or redraw re-issues the same hand under a new offer id (never a free redraw), so a client is
+## never stuck on an offer it already answered.
+func test_a_refused_banish_or_redraw_reissues_the_same_hand() -> void:
+	var w := _dealt()
+	var hand: Array[int] = [Upgrades.M_CUPS, Upgrades.POWER, Upgrades.QUICK]
+	var p := _hand(w, hand.duplicate())
+	var offer := p.offer
+	_send(w, p, Upgrades.BANISH_INPUT + 0) # a Minor Arcana card cannot be banished
+	assert_eq(p.offer, offer + 1, "a refused banish left the wizard on the same offer")
+	assert_eq(p.choices, hand, "a refused banish changed the hand")
+	assert_eq(p.banishes, Upgrades.BANISHES)
+	assert_eq(p.redraws, Upgrades.REDRAWS)
+	p.banishes = 0
+	_send(w, p, Upgrades.BANISH_INPUT + 1) # none left
+	assert_eq(p.offer, offer + 2)
+	assert_eq(p.choices, hand)
+	assert_false(p.banned.has(Upgrades.POWER))
+	p.redraws = 0
+	_send(w, p, Upgrades.REDRAW_INPUT) # none left
+	assert_eq(p.offer, offer + 3)
+	assert_eq(p.choices, hand)
+	# The card can still be taken under the new offer.
+	_send(w, p, 1)
+	assert_eq(Upgrades.level_of(p.upgrades, Upgrades.POWER), 1)
+
+
+func test_malformed_card_fields() -> void:
+	var w := _dealt()
+	var hand: Array[int] = [Upgrades.POWER, Upgrades.QUICK, Upgrades.SWIFT]
+	var p := _hand(w, hand.duplicate())
+	var offer := p.offer
+	_send(w, p, -1)
+	assert_eq(p.offer, offer, "-1 (no card) did something")
+	_send(w, p, 15) # a banish of card 5: outside the hand
+	assert_eq(p.offer, offer + 1, "a banish outside the hand was not re-issued")
+	assert_eq(p.choices, hand)
+	assert_eq(p.banishes, Upgrades.BANISHES)
+	_send(w, p, -3)
+	assert_eq(p.offer, offer + 2, "field 6 = -3 was not re-issued")
+	assert_eq(p.choices, hand)
+	_send(w, p, 3)
+	assert_eq(p.offer, offer + 3, "card 3 of a hand of 3 was not re-issued")
+	# An old offer id does nothing at all, whatever it asks.
+	for card: int in [Upgrades.REDRAW_INPUT, Upgrades.BANISH_INPUT + 0, 0, 15]:
+		_send(w, p, card, p.offer - 1)
+	assert_eq(p.offer, offer + 3, "a stale offer id was acted on")
+	assert_eq(p.choices, hand)
+	assert_eq(p.redraws, Upgrades.REDRAWS)
+	assert_eq(p.banishes, Upgrades.BANISHES)
+	assert_true(p.banned.is_empty())
+
+
+## A card that stopped being learnable while it waited in hand (a tome filled the slot, or raised the spell to
+## its max) deals a fresh hand instead of breaking the cap or losing the level.
+func test_a_card_that_went_stale_deals_a_fresh_hand() -> void:
+	var w := World.new([0], 3, null, {0: 0})
+	w.step(DT, {})
+	var p := _player(w)
+	# Arcane (start) and Frost owned; Star pairs with Arcane, Rune pairs with nothing.
+	p.upgrades[Upgrades.W_FROST] = 1
+	var hand: Array[int] = [Upgrades.W_STAR, Upgrades.POWER, Upgrades.QUICK]
+	p.choices = hand.duplicate()
+	var offer := p.offer
+	p.upgrades[Upgrades.W_STORM] = 1 # a tome filled the third slot while the hand waited
+	_send(w, p, 0)
+	assert_eq(Upgrades.slots_used(p.upgrades).x, 3, "a stale card broke the spell cap")
+	assert_eq(p.offer, offer + 1, "no fresh hand")
+	assert_eq(p.choices.size(), 3, "the level was lost")
+	# FIREBALL 4 to 5 in hand, then a tome raises it to 5 first.
+	p.upgrades[Upgrades.W_FROST] = 4
+	p.choices = [Upgrades.W_FROST, Upgrades.POWER, Upgrades.QUICK] as Array[int]
+	offer = p.offer
+	p.upgrades[Upgrades.W_FROST] = Spells.MAX_LEVEL
+	_send(w, p, 0)
+	assert_eq(p.offer, offer + 1, "a maxed card was not replaced")
+	assert_eq(p.choices.size(), 3, "the level was lost to a maxed card")
+	assert_eq(Upgrades.level_of(p.upgrades, Upgrades.W_FROST), Spells.MAX_LEVEL)
+
+
+## A pair whose owned side is banished (its spell row or its evolution) no longer keeps the last slot or weighs
+## more.
+func test_a_banished_pair_does_not_count() -> void:
+	var lv := {Upgrades.W_ARCANE: 1, Upgrades.W_FIRE: 1}
+	assert_true(Upgrades.pairs_with(lv, Upgrades.W_STAR))
+	for ban: int in [Upgrades.E_ARCANE, Upgrades.W_ARCANE]:
+		var banned := {ban: true}
+		assert_false(Upgrades.pairs_with(lv, Upgrades.W_STAR, banned), "star pairs with a banished arcane")
+		assert_eq(Upgrades.roll_weight(lv, Upgrades.W_STAR, banned), float(Upgrades.CATALOG[Upgrades.W_STAR][Upgrades.C_WEIGHT]))
+	# Storm still pairs with Fire, so the last slot stays kept against Rune; with both pairs' evolutions banished
+	# it is free.
+	assert_false(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY))
+	var all := {Upgrades.E_ARCANE: true, Upgrades.E_FIRE: true, Upgrades.E_STORM: true, Upgrades.E_FROST: true}
+	assert_true(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY, all), "a banished pair kept the last slot")

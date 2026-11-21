@@ -9,7 +9,7 @@ extends RefCounted
 const TRAY_X: Array[int] = [2, 120, 242, 360]
 ## Seconds a card's button is held to banish it.
 const BANISH_HOLD := 1.0
-## A card button held down, per local slot: [card, time pressed, offer]. Only while the wizard has banishes left
+## A card button held down, per local slot: [card, time pressed, offer, the Arena's instance id]. Only while the wizard has banishes left
 ## does a press wait for its release (a take) or for BANISH_HOLD (a banish); otherwise a press takes at once.
 static var _holds := {}
 
@@ -244,8 +244,9 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 			or (event is InputEventScreenTouch and not event.pressed):
 		# Letting go of a card row held toward a banish takes the card instead.
 		for r in Net.my_slots():
-			if r.device == G.DEV_KBM and _holds.has(r.slot):
-				return _release_hold(a, r.slot, int(_holds[r.slot][0]))
+			var h: Array = _hold_of(a, r.slot) if r.device == G.DEV_KBM else []
+			if not h.is_empty():
+				return _release_hold(a, r.slot, int(h[0]))
 		return false
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 			or (event is InputEventScreenTouch and event.pressed):
@@ -323,21 +324,34 @@ static func _tray_input(a: Arena, event: InputEvent) -> bool:
 
 
 ## A card's button went down: with banishes left the press waits (a release takes it, BANISH_HOLD seconds held
-## banishes it); without, it takes the card at once.
+## banishes it); without, or on a Minor Arcana card (never banished), it takes the card at once.
 static func _press_card(a: Arena, slot: int, c: int) -> void:
-	if int(a.vp[slot].get("banishes", 0)) <= 0:
+	var choices: Array = a.vp[slot].choices
+	if c >= choices.size():
+		return
+	if int(a.vp[slot].get("banishes", 0)) <= 0 or Upgrades.kind(int(choices[c])) == Upgrades.MINOR:
 		_take_card(a, slot, c)
 		return
-	if c >= (a.vp[slot].choices as Array).size() or _tray_turn(a, slot, c) < 1.0:
+	if _tray_turn(a, slot, c) < 1.0:
 		return
-	_holds[slot] = [c, a.time, int(a.vp[slot].offer)]
+	_holds[slot] = [c, a.time, int(a.vp[slot].offer), a.get_instance_id()]
+
+
+## `slot`'s hold, if it was started on this arena (holds live in a static, so one never outlives its arena).
+static func _hold_of(a: Arena, slot: int) -> Array:
+	if not _holds.has(slot):
+		return []
+	if int(_holds[slot][3]) != a.get_instance_id():
+		_holds.erase(slot)
+		return []
+	return _holds[slot]
 
 
 ## Card `c`'s button came up: if it was held (and not yet banished), takes the card. True if it was held.
 static func _release_hold(a: Arena, slot: int, c: int) -> bool:
-	if not _holds.has(slot) or int(_holds[slot][0]) != c:
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty() or int(h[0]) != c:
 		return false
-	var h: Array = _holds[slot]
 	_holds.erase(slot)
 	if a.vp.has(slot) and int(h[2]) == int(a.vp[slot].offer) and _tray_shown(a, slot) and not _tray_covered(a):
 		_take_card(a, slot, c)
@@ -346,16 +360,17 @@ static func _release_hold(a: Arena, slot: int, c: int) -> bool:
 
 ## How far `slot`'s held card `c` is toward a banish, 0..1 (0: not held).
 static func _hold_left(a: Arena, slot: int, c: int) -> float:
-	if not _holds.has(slot) or int(_holds[slot][0]) != c:
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty() or int(h[0]) != c:
 		return 0.0
-	return clampf((a.time - float(_holds[slot][1])) / BANISH_HOLD, 0.0, 1.0)
+	return clampf((a.time - float(h[1])) / BANISH_HOLD, 0.0, 1.0)
 
 
 ## Each frame the tray is up: a hold that reached BANISH_HOLD banishes its card; a hold on a hand that is gone ends.
 static func _update_hold(a: Arena, slot: int) -> void:
-	if not _holds.has(slot):
+	var h: Array = _hold_of(a, slot)
+	if h.is_empty():
 		return
-	var h: Array = _holds[slot]
 	if int(h[2]) != int(a.vp[slot].offer) or _tray_covered(a):
 		_holds.erase(slot)
 		return

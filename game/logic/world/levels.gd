@@ -21,7 +21,7 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 			var inp: PackedFloat32Array = inputs.get(p.slot, PackedFloat32Array())
 			if p.ai:
 				_pick(w, p, p.choices[Upgrades.best_pick(p.upgrades, p.choices)])
-			elif inp.size() >= 8 and int(inp[7]) == p.offer:
+			elif inp.size() >= 8 and int(inp[7]) == p.offer and int(inp[6]) != -1:
 				var c := int(inp[6])
 				if c >= 0 and c < p.choices.size():
 					_pick(w, p, p.choices[c])
@@ -29,6 +29,8 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 					_redraw(w, p)
 				elif c >= Upgrades.BANISH_INPUT and c - Upgrades.BANISH_INPUT < p.choices.size():
 					_banish(w, p, c - Upgrades.BANISH_INPUT)
+				else:
+					_reissue(w, p)
 		while p.choices.is_empty() and p.pending > 0:
 			_offer(w, p)
 
@@ -64,9 +66,17 @@ static func _deal(w: World, p: World.Player) -> void:
 		w.emit(World.EV_SCORE, p.pos.x, p.pos.y - 14, pts, p.slot)
 
 
+## The same hand again under a new offer id: the answer to an input the host refuses (a banish of a Minor
+## Arcana card or with none left, a redraw with none left, a card outside the hand). A client sends one answer per
+## offer, so without a new id it would wait on that offer for good; the cards stay, so it is no free redraw.
+static func _reissue(_w: World, p: World.Player) -> void:
+	p.offer += 1
+
+
 ## Swaps the hand for a new one (a new offer id), using up one of the wizard's redraws.
 static func _redraw(w: World, p: World.Player) -> void:
 	if p.redraws <= 0:
+		_reissue(w, p)
 		return
 	p.redraws -= 1
 	_deal(w, p)
@@ -78,6 +88,7 @@ static func _redraw(w: World, p: World.Player) -> void:
 static func _banish(w: World, p: World.Player, c: int) -> void:
 	var idx: int = p.choices[c]
 	if p.banishes <= 0 or Upgrades.kind(idx) == Upgrades.MINOR:
+		_reissue(w, p)
 		return
 	p.banishes -= 1
 	p.banned[idx] = true
@@ -85,7 +96,12 @@ static func _banish(w: World, p: World.Player, c: int) -> void:
 	w.emit(World.EV_BANISH, p.pos.x, p.pos.y - 14, p.slot, idx)
 
 
+## Takes card `idx`. A card that is no longer learnable (a tome filled its slot or maxed its spell while it waited
+## in hand) deals a fresh hand instead, keeping the level.
 static func _pick(w: World, p: World.Player, idx: int) -> void:
+	if Upgrades.kind(idx) != Upgrades.MINOR and not Upgrades.available(p.upgrades, idx, w.slot_cap(), p.banned):
+		_deal(w, p)
+		return
 	p.choices = []
 	if not Upgrades.take(p.upgrades, idx):
 		return
