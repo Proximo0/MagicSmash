@@ -1,4 +1,4 @@
-STATION machine=msi time=2026-11-21T21:31Z commit=635a02e took=180s
+STATION machine=msi time=2026-11-21T21:52Z commit=1aab014 took=189s
 JOB boss PASS seed7=WON@16:27 seed21=WON@17:27 seed33=WON@17:10 seed101=WON@16:15 seed102=WON@16:16
-JOB frames PASS frames=300 enemies_peak=212 particles=320 draw_calls=88 frame_ms p50=6.9 p95=9.1 script_ms=3.71 limit_p95=25
+JOB frames PASS frames=300 enemies_peak=218 particles=289 draw_calls=76 frame_ms p50=6.9 p95=9.4 script_ms=4.18 limit_p95=25
 STATION PASS jobs=2 failed=0
