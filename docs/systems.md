@@ -64,6 +64,11 @@ How each system works: read only the section for the system you touch (`grep -n 
   at 5:00, THE GHOST WRITER at 10:00 (`Bosses.SCHEDULE`; any later visit is the Lich); killing one still clears
   the arena, starts the lull and resets the horde's budget. Each turns a phase at half health: the Chandelier's
   chain snaps (ALOFT to THE WHEEL), the Ghost Writer spells faster and adds GOODBYE (`docs/bestiary_design.md` 2, 6).
+- Eight more kinds join from 1:30 (`docs/bestiary_design.md` 1, 6 "Job K as built"): the BLOAT, RESTLESS COFFIN
+  and TOMB GUARD (act I), CINDERLING, THE CENSOR and ASH HOUND (act II), COMET SHARD and TEN OF SWORDS (act III).
+  Their brains live in `game/logic/kinds_*.gd` (named by `Bestiary.BRAINS`), most of their danger is hazard rows,
+  and three formations (POWDER TRAIN, SHIELD WALL, FIRE DRILL) come one roll in five once unlocked.
+  `Tuning.new_kinds` scales their weights; 0 plays the old horde exactly.
 - XP gems past `Tuning.xp_gem_cap` merge into the nearest gem, so the floor stays readable and cheap.
 - Cost: `tests/sim/sim_horde.gd` fills the arena to the cap with 4 wizards and asserts `World.step` stays under
   4 ms. It measured about 2.2 ms on the cloud box (crowd separation now reads the grid directly and runs for

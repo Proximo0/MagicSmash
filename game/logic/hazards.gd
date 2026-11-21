@@ -23,6 +23,9 @@ const SHOT_KIND := 100
 const SHOT_SPEED := 95.0
 const SHOT_LIFE := 2.2
 const SHOT_R := 3.0
+## Enemy shots hit a wizard this far above the feet (WorldEnemies._update_eshots), so a ring leaves from that far
+## above the row's centre: the danger, measured at the feet, is then rays from the disc drawn round them.
+const SHOT_RISE := 6.0
 ## The body a bot keeps out of a row, px.
 const BOT_MARGIN := 5.0
 

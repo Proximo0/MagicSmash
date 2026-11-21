@@ -119,13 +119,9 @@ static func widest_gap(w: World, at: Vector2) -> float:
 	return best
 
 
-## A seed: lands where it rose if that spot keeps the rules, else on the best of SHARD_TRIES spots; lays the FALL and
+## A seed (one the horde raised; a FALL row's shard is born landed, WorldHazards._fire): lands where it rose if that spot keeps the rules, else on the best of SHARD_TRIES spots; lays the FALL and
 ## goes. Nothing lands past the cap (counting falls still in the air). With the floor full of rows it lands at once.
 static func _shard_seed(w: World, e: World.Enemy) -> void:
-	for h: Hazards.Hazard in w.hazards:
-		if h.kind == Hazards.FALL and h.aux == Bestiary.SHARD and h.fired and h.a.distance_squared_to(e.pos) < 1.0:
-			e.state = SS_IDLE # it just landed
-			return
 	var others: Array[Vector2] = []
 	for o: World.Enemy in w.enemies:
 		if o != e and not o.dead and o.type == Bestiary.SHARD:

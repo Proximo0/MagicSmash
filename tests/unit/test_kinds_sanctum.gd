@@ -145,3 +145,52 @@ func test_swords_fire_none_past_the_shot_cap() -> void:
 	assert_eq(w.eshots.size(), Bestiary.ESHOT_CAP)
 	var swords := w.eshots.filter(func(s: World.EShot) -> bool: return s.kind == Bestiary.ES_SWORD).size()
 	assert_eq(swords, 4, "only the room left under the cap")
+
+
+func test_a_landed_shard_never_seeds_again_when_its_fall_is_cleared() -> void:
+	var w := _sanc_world()
+	var c := w.party_center()
+	w.spawn_enemy(Bestiary.SHARD, 0, c + Vector2(100, 0))
+	_sanc_tick(w, DT)
+	var fall := _row(w, Hazards.FALL)
+	_sanc_tick(w, fall.warn)
+	assert_eq(_shards(w).size(), 1, "it landed")
+	WorldHazards.nova_clear(w, fall.a) # the FALL row goes before the shard's first think
+	_sanc_tick(w, 0.5)
+	assert_eq(_shards(w).size(), 1, "the landed shard stays")
+	assert_true(_row(w, Hazards.FALL) == null, "no second fall")
+	assert_eq((_shards(w)[0] as World.Enemy).state, KindsSanctum.SS_IDLE)
+
+
+func test_the_swords_ring_matches_its_disc() -> void:
+	# Measured at the feet, the blades fly along rays from the disc's centre: a wizard on the ray straight right is
+	# hit; one 12.5 px below it (off every ray, yet inside the old ring's reach) is not.
+	var w := World.new([0, 1], 5)
+	w.phase = World.PH_FIGHT
+	var at := G.ARENA.get_center()
+	var on: World.Player = w.players[0]
+	var off: World.Player = w.players[1]
+	on.pos = at + Vector2(60, 0)
+	off.pos = at + Vector2(60, 12.5)
+	on.invuln = 0.0
+	off.invuln = 0.0
+	var hp_on := on.hp
+	var hp_off := off.hp
+	var h := w.add_hazard(Hazards.BURST, at, at, KindsSanctum.SWORDS_BURST_R, KindsSanctum.SWORDS_KNEEL, 0.1)
+	h.aux = Bestiary.ES_SWORD * Hazards.SHOT_KIND + KindsSanctum.SWORDS_RING
+	_sanc_tick(w, KindsSanctum.SWORDS_KNEEL + 1.0)
+	assert_eq(on.hp, hp_on - 1, "on the ray: hit")
+	assert_eq(off.hp, hp_off, "between rays: spared")
+
+
+func test_an_elite_shard_still_ends_its_beam() -> void:
+	var w := _sanc_world()
+	var e := _landed(w)
+	e.elite = true
+	_sanc_tick(w, KindsSanctum.SHARD_BEAM_AT + KindsSanctum.SHARD_BEAM_WARN + 0.5)
+	var beam := _row(w, Hazards.BEAM)
+	assert_true(beam != null and beam.warn <= 0.0, "a hot beam")
+	w.damage_enemy(e, 99999.0, 0, Vector2.ZERO)
+	assert_true(e.dead)
+	_sanc_tick(w, DT)
+	assert_true(_row(w, Hazards.BEAM) == null, "the elite's beam ends with it")

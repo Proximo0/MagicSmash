@@ -136,16 +136,16 @@ func test_hound_stray_scan() -> void:
 	a.pos = Vector2(200, 200)
 	b.pos = Vector2(230, 200)
 	c.pos = Vector2(200, 300)
-	assert_eq(KindsLibrary.stray_of(w), -1, "100 px from an ally is no stray")
+	assert_eq(KindsLibrary.stray_of(w, Vector2.ZERO), -1, "100 px from an ally is no stray")
 	c.pos = Vector2(400, 200)
-	assert_eq(KindsLibrary.stray_of(w), 2)
+	assert_eq(KindsLibrary.stray_of(w, Vector2.ZERO), 2)
 	# c stands by a grave: a reviver is never picked.
 	d.alive = false
 	d.down = true
 	d.pos = Vector2(420, 200)
-	assert_eq(KindsLibrary.stray_of(w), -1, "a wizard within 40 px of a grave is never picked")
+	assert_eq(KindsLibrary.stray_of(w, Vector2.ZERO), -1, "a wizard within 40 px of a grave is never picked")
 	d.pos = Vector2(470, 260)
-	assert_eq(KindsLibrary.stray_of(w), 2, "the grave out of reach: she is the stray again")
+	assert_eq(KindsLibrary.stray_of(w, Vector2.ZERO), 2, "the grave out of reach: she is the stray again")
 
 
 func test_hounds_howl_then_hunt_the_stray_until_she_rejoins() -> void:
@@ -187,3 +187,61 @@ func test_hound_turns_at_most_its_rate() -> void:
 	e.dir = Vector2.RIGHT # running away from her
 	_lib_tick(w, 0.5)
 	assert_near(absf(e.dir.angle()), KindsLibrary.HOUND_TURN * 0.5, 0.05)
+
+
+func test_two_strays_tie_and_each_hound_takes_the_nearer() -> void:
+	var w := _lib_world([0, 1])
+	var a: World.Player = w.players[0]
+	var b: World.Player = w.players[1]
+	a.pos = Vector2(100, 200)
+	b.pos = Vector2(400, 200)
+	assert_eq(KindsLibrary.stray_of(w, Vector2(380, 150)), 1, "a hound by b hunts b")
+	assert_eq(KindsLibrary.stray_of(w, Vector2(120, 150)), 0, "a hound by a hunts a")
+	a.pos = Vector2(400, 200)
+	b.pos = Vector2(100, 200)
+	assert_eq(KindsLibrary.stray_of(w, Vector2(380, 150)), 0, "the other order")
+	assert_eq(KindsLibrary.stray_of(w, Vector2(120, 150)), 1)
+
+
+func test_two_of_four_alive_tie_the_same_way() -> void:
+	var w := _lib_world([0, 1, 2, 3])
+	for s: int in [2, 3]:
+		var q: World.Player = w.players[s]
+		q.alive = false
+		q.down = true
+		q.pos = Vector2(250, 380)
+	(w.players[0] as World.Player).pos = Vector2(100, 200)
+	(w.players[1] as World.Player).pos = Vector2(400, 200)
+	assert_eq(KindsLibrary.stray_of(w, Vector2(390, 120)), 1)
+	assert_eq(KindsLibrary.stray_of(w, Vector2(90, 120)), 0)
+
+
+func test_hounds_hunt_the_last_wizard_standing() -> void:
+	var w := _lib_world([0, 1, 2, 3])
+	var last: World.Player = w.players[0]
+	for s: int in [1, 2, 3]:
+		var q: World.Player = w.players[s]
+		q.alive = false
+		q.down = true
+		q.pos = last.pos + Vector2(20, 0) # she stands by their graves
+	assert_eq(KindsLibrary.stray_of(w, Vector2.ZERO), 0)
+	var e := w.spawn_enemy(Bestiary.HOUND, 0, last.pos + Vector2(160, 0))
+	_lib_tick(w, KindsLibrary.HOUND_PROWL + KindsLibrary.HOUND_SCAN + KindsLibrary.HOUND_HOWL + 0.1)
+	assert_eq(e.state % KindsLibrary.HOUND_SLOT_STEP, KindsLibrary.HS_HUNT, "not circling forever")
+	_lib_tick(w, KindsLibrary.HOUND_HUNT_SOLO)
+	assert_eq(e.state, KindsLibrary.HS_CIRCLE, "solo rules: a 3 s hunt")
+
+
+func test_a_pushed_kindling_cinderling_still_burns_its_mark() -> void:
+	var w := _lib_world()
+	var e := _kindling(w)
+	var m: Hazards.Hazard = _rows(w, Hazards.MARK)[0]
+	var a := m.a
+	var b := m.b
+	e.knock = Vector2(0, 300) # a spell shoves it off its line
+	_lib_tick(w, KindsLibrary.CINDER_KINDLE + 0.5)
+	var f: Hazards.Hazard = _rows(w, Hazards.FLAME)[0]
+	assert_eq(f.a, a, "the fire starts where the mark does")
+	var off := Geometry2D.get_closest_point_to_segment(f.b, a, b).distance_to(f.b)
+	assert_near(off, 0.0, 0.01, "the fire grows along the mark")
+	assert_true(f.a.distance_to(f.b) > 40.0)

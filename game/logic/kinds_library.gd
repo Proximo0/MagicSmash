@@ -46,6 +46,7 @@ const HOUND_RING := 150.0
 const HOUND_LEAD := 0.5
 const HOUND_SCAN := 0.5
 const HOUND_STRAY := 140.0
+const HOUND_TIE := 0.5 # px: strays this close to equally far count as tied
 const HOUND_GRAVE := 40.0
 const HOUND_REACH := 260.0
 const HOUND_HOWL := 0.7
@@ -97,7 +98,8 @@ static func row_by_id(w: World, id: int) -> Hazards.Hazard:
 
 
 ## Enemy.timer: the hold left; Enemy.timer2: the kindle or the run left; Enemy.dir: the run's heading; Enemy.count:
-## the FLAME row's id (-1: none).
+## the FLAME row's id (-1: none); Enemy.enter_dir (free once it has entered): the MARK's start, where the run and its
+## FLAME begin, so a push while it kindles never moves the fire off the marked line.
 static func _cinder_think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: Vector2, dist: float) -> Vector2:
 	match e.state:
 		CS_KINDLE:
@@ -105,8 +107,10 @@ static func _cinder_think(w: World, e: World.Enemy, dt: float, tgt: World.Player
 			if e.timer2 <= 0.0:
 				e.state = CS_RUN
 				e.timer2 = CINDER_RUN
+				e.pos = e.enter_dir
+				e.knock = Vector2.ZERO
 				var warn := Hazards.min_warn(CINDER_HALF)
-				var h := w.add_hazard(Hazards.FLAME, e.pos, e.pos, CINDER_HALF, warn, CINDER_RUN - warn + CINDER_BURN)
+				var h := w.add_hazard(Hazards.FLAME, e.enter_dir, e.enter_dir, CINDER_HALF, warn, CINDER_RUN - warn + CINDER_BURN)
 				e.count = h.id if h != null else -1
 			return Vector2.ZERO
 		CS_RUN:
@@ -136,6 +140,7 @@ static func _cinder_think(w: World, e: World.Enemy, dt: float, tgt: World.Player
 		return v
 	e.state = CS_KINDLE
 	e.timer2 = CINDER_KINDLE
+	e.enter_dir = e.pos
 	return v
 
 
@@ -164,33 +169,45 @@ static func _censor_think(w: World, e: World.Enemy, dt: float, tgt: World.Player
 	return _band_walk(e, dirv, dist, CENSOR_NEAR, CENSOR_FAR)
 
 
-## The stray the hounds hunt: the living wizard farthest from their nearest living ally, if that is over HOUND_STRAY
-## px, never one within HOUND_GRAVE px of a fallen wizard (a reviver). -1: none. Solo (one wizard in the run): that
-## wizard while alive.
-static func stray_of(w: World) -> int:
+## The stray a hound at `from` hunts: the living wizard farthest from their nearest living ally, if that is over
+## HOUND_STRAY px, never one within HOUND_GRAVE px of a fallen wizard (a reviver). Wizards tied for farthest (two
+## alive are each other's nearest ally) go to the one nearest the hound. -1: none. One wizard standing (solo, or the
+## last of a party): that wizard.
+static func stray_of(w: World, from: Vector2) -> int:
 	var living: Array[World.Player] = []
 	for p: World.Player in w.players.values():
 		if p.alive:
 			living.append(p)
-	if w.players.size() == 1:
-		return living[0].slot if living.size() == 1 else -1
+	if living.size() == 1:
+		return living[0].slot
 	var graves: Array = w.graves()
-	var best := -1
+	var far := PackedFloat32Array()
 	var best_d := HOUND_STRAY
 	for p: World.Player in living:
 		var near := INF
 		for o: World.Player in living:
 			if o != p:
 				near = minf(near, p.pos.distance_to(o.pos))
-		if near == INF or near <= best_d:
-			continue
-		var reviving := false
 		for g: Array in graves:
-			reviving = reviving or p.pos.distance_to(Vector2(g[1], g[2])) <= HOUND_GRAVE
-		if not reviving:
-			best = p.slot
-			best_d = near
+			if p.pos.distance_to(Vector2(g[1], g[2])) <= HOUND_GRAVE:
+				near = -1.0 # a reviver
+		far.append(near)
+		best_d = maxf(best_d, near)
+	var best := -1
+	var best_from := INF
+	for i: int in range(living.size()):
+		if far[i] > HOUND_STRAY and far[i] >= best_d - HOUND_TIE and living[i].pos.distance_to(from) < best_from:
+			best = living[i].slot
+			best_from = living[i].pos.distance_to(from)
 	return best
+
+
+## Whether only one wizard is standing (a solo run, or the last of a party): hounds hunt them on solo rules.
+static func _hound_alone(w: World) -> bool:
+	var n := 0
+	for p: World.Player in w.players.values():
+		n += 1 if p.alive else 0
+	return n == 1
 
 
 ## Whether `p` is back within HOUND_SAFE px of a living ally.
@@ -216,7 +233,7 @@ static func _hound_think(w: World, e: World.Enemy, dt: float) -> Vector2:
 					e.dir = (prey.pos - e.pos).normalized()
 			return Vector2.ZERO
 		HS_HUNT:
-			var solo := w.players.size() == 1
+			var solo := _hound_alone(w)
 			if e.timer2 >= (HOUND_HUNT_SOLO if solo else HOUND_HUNT) or (not solo and _hound_safe(w, prey)):
 				_hound_set(e, HS_CIRCLE, -1)
 			else:
@@ -237,7 +254,7 @@ static func _hound_think(w: World, e: World.Enemy, dt: float) -> Vector2:
 	if e.timer <= 0.0:
 		e.timer = HOUND_SCAN
 		if e.timer2 >= HOUND_PROWL:
-			var slot := stray_of(w)
+			var slot := stray_of(w, e.pos)
 			var p: World.Player = w.players.get(slot)
 			if p != null and p.pos.distance_to(e.pos) <= HOUND_REACH:
 				_hound_set(e, HS_HOWL, slot)

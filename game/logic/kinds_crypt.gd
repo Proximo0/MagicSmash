@@ -80,8 +80,9 @@ static func _bloat_blast(w: World, e: World.Enemy, slot: int) -> void:
 static func _coffin_think(w: World, e: World.Enemy, dt: float) -> Vector2:
 	e.timer2 += dt
 	if e.timer2 >= COFFIN_SHUT + COFFIN_RATTLE - 0.0001:
-		# The brood never lifts the crowd past the horde's cap (tune.enemy_cap), which bounds the cost of a step.
-		var n := mini(COFFIN_BROOD + (1 if w.wave_time >= COFFIN_LATE else 0), maxi(0, int(w.tune.enemy_cap) - w.enemies.size()))
+		# The brood never lifts the crowd and the queue past the horde's cap (World.enemy_cap: LEGION raises it).
+		var room := w.enemy_cap() - w.enemies.size() - w.spawn_queue.size()
+		var n := mini(COFFIN_BROOD + (1 if w.wave_time >= COFFIN_LATE else 0), maxi(0, room))
 		for i: int in range(n):
 			w.spawn_enemy(World.SKELETON, 0, e.pos + Vector2.from_angle(TAU * i / n) * COFFIN_RING)
 		if n > 0:
