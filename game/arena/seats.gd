@@ -47,6 +47,13 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 	var en: Array[Vector2] = []
 	var es: Array[Vector2] = []
 	var pk: Array[Vector2] = []
+	if me.get("down", false):
+		# A fallen seat's spirit drifts to the nearest standing mate (SmashBot.spirit_input, as in the sims).
+		var standing: Array = []
+		for q: Dictionary in a.vp.values():
+			if q.slot != slot and q.get("alive", true) and not q.get("down", false):
+				standing.append(q.get("target", q.pos))
+		return bot.spirit_input(at, standing)
 	if not bot.wants_senses(a.time):
 		return bot.decide(slot, at, G.ARENA.get_center(), a.time, en, es, pk)
 	var tune := Tuning.shared()
@@ -86,7 +93,7 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 	var lo := Vector2(-1e6, -1e6)
 	var hi := Vector2(1e6, 1e6)
 	for q: Dictionary in a.vp.values():
-		if q.get("down", false):
+		if q.get("down", false) and q.slot != slot:
 			fallen.append(q.get("target", q.pos))
 		if not q.get("alive", true):
 			continue

@@ -222,3 +222,13 @@ func test_stays_inside_the_arena_and_the_leash() -> void:
 		assert_true(leash.grow(4.0).has_point(p), "broke the leash at %s" % p)
 		if not ARENA.grow(2.0).has_point(p) or not leash.grow(4.0).has_point(p):
 			break
+
+
+func test_a_fallen_bot_drifts_to_the_nearest_standing_mate() -> void:
+	var me := Vector2(100, 100)
+	assert_eq(SmashBot.spirit_drift(me, [Vector2(300, 100), Vector2(100, 40)]), Vector2.UP, "the nearer mate")
+	assert_eq(SmashBot.spirit_drift(me, []), Vector2.ZERO, "nobody standing: she stays")
+	assert_eq(SmashBot.spirit_drift(me, [me + Vector2(SmashBot.SPIRIT_CLOSE - 1.0, 0)]), Vector2.ZERO, "close enough")
+	var bot := SmashBot.new(1)
+	var inp := bot.spirit_input(me, [Vector2(160, 100)])
+	assert_eq([inp[0], inp[1], inp[4], inp[5]], [1.0, 0.0, 0.0, float(bot.nova_count)], "walks, never casts or calls")

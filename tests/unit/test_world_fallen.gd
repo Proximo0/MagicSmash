@@ -260,6 +260,24 @@ func test_nobody_standing_the_longest_down_returns() -> void:
 	assert_true(w.phase != World.PH_GAMEOVER)
 
 
+func test_nobody_standing_only_a_wizard_with_a_life_to_spare_returns() -> void:
+	var w := _party()
+	var a: World.Player = w.players[0]
+	var b: World.Player = w.players[1]
+	a.lives = 1
+	b.lives = 2
+	_fell(w, 0)
+	_run(w, 3.0)
+	_fell(w, 1)
+	_run(w, w.tune.last_stand - 0.1)
+	assert_true(a.down and b.down)
+	_run(w, 0.2)
+	assert_true(b.alive, "the one on 2 lives gets up though she fell later")
+	assert_true(a.down, "the longest down is on her last life: she waits")
+	assert_eq(b.lives, 1)
+	assert_true(w.phase != World.PH_GAMEOVER, "not wiped")
+
+
 func test_nobody_standing_and_nobody_can_return_wipes() -> void:
 	var w := _party()
 	for p: World.Player in w.players.values():

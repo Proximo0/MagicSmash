@@ -34,6 +34,14 @@ func test_a_four_wizard_win_with_a_death_is_not_flawless() -> void:
 	assert_false(got.has("SOLO_WIN"))
 
 
+func test_a_win_with_one_raised_fall_is_not_flawless() -> void:
+	var r := Results.new([0, 1])
+	r.add(1, "downs", 1.0) # fell once and was raised: no life lost
+	var got: Array = Achievements.earned(r, true, 1000.0)
+	assert_true(got.has("ARCHLICH"))
+	assert_false(got.has("FLAWLESS"))
+
+
 func test_moments_earn_their_achievements() -> void:
 	var r := Results.new([0, 1])
 	r.note(100.0, Results.M_BLESSING, 1)

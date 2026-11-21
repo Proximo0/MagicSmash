@@ -44,7 +44,7 @@ const AWARDS: Array = [
 	["HIGH ROLLER", "bets", false],
 	["LUCKY", "best_tier", false],
 	["GOLD DIGGER", "gold", false],
-	["UNTOUCHABLE", "deaths", true],
+	["UNTOUCHABLE", "falls", true],
 ]
 const TEAM_PLAYER := "TEAM PLAYER"
 
@@ -96,7 +96,11 @@ func set_stat(slot: int, key: String, value: float) -> void:
 		stats[slot][key] = value
 
 
+## A stat by key; "falls" is no stored key but lives lost plus falls in a party (deaths + downs), so a wizard who
+## falls and is always raised is not UNTOUCHABLE.
 func stat(slot: int, key: String) -> float:
+	if key == "falls":
+		return stat(slot, "deaths") + stat(slot, "downs")
 	return float(stats.get(slot, {}).get(key, 0.0))
 
 

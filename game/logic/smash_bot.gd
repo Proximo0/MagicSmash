@@ -535,14 +535,31 @@ const SPIRIT_CLOSE: float = 10.0
 
 
 func _spirit_input(w: World, p: World.Player) -> PackedFloat32Array:
-	var best := Vector2.INF
+	if not p.down:
+		return PackedFloat32Array([0, 0, 0, 0, 0, nova_count])
+	var mates: Array = []
 	for q: World.Player in w.players.values():
-		if q.alive and (not best.is_finite() or q.pos.distance_to(p.pos) < best.distance_to(p.pos)):
-			best = q.pos
-	var move := Vector2.ZERO
-	if p.down and best.is_finite() and best.distance_to(p.pos) > SPIRIT_CLOSE:
-		move = (best - p.pos).normalized()
+		if q.alive and q != p:
+			mates.append(q.pos)
+	return spirit_input(p.pos, mates)
+
+
+## A fallen bot's input (the sim and the arena share it): drift toward the nearest of `mates` (standing allies'
+## positions), no aim, the nova count held so nothing calls.
+func spirit_input(me: Vector2, mates: Array) -> PackedFloat32Array:
+	var move := spirit_drift(me, mates)
 	return PackedFloat32Array([move.x, move.y, 0, 0, 0, nova_count])
+
+
+## The unit direction toward the nearest of `mates`, or zero when there is none or she is within SPIRIT_CLOSE.
+static func spirit_drift(me: Vector2, mates: Array) -> Vector2:
+	var best := Vector2.INF
+	for m: Vector2 in mates:
+		if not best.is_finite() or m.distance_to(me) < best.distance_to(me):
+			best = m
+	if not best.is_finite() or best.distance_to(me) <= SPIRIT_CLOSE:
+		return Vector2.ZERO
+	return (best - me).normalized()
 
 
 func _consider_rescue(me: Vector2, fallen: Array) -> void:
