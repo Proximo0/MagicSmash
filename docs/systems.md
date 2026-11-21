@@ -232,7 +232,13 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Horde: `horde_rate_base` 2 -> 1.5, `horde_rate_per_min` 7 -> 5, `enemy_hp_per_min` 0.1 -> 0 and `enemy_hp_mul`
   1 -> 0.85 (compound `enemy_hp_growth` 1.14 kept). The bots' danger is a hump at minutes 3 to 4 (arrows, orbs,
   orcs before the first evolution); runs that pass the first Lich mostly win.
-- Bosses: `boss_hp_mul` 3.5 -> 4.5 (the Lich fell in 20 to 35 s), `final_hp_mul` 3.6 -> 2.5.
+- Bosses: `boss_hp_mul` 3.5 -> 3.0 and `final_hp_mul` 3.6 -> 3.2, set with the act bosses and the eight enemies
+  merged (solo casual bots: Bone Chandelier 1:16, Ghost Writer 1:36, Archlich 1:58; at the first try of 4.5 and 2.5
+  they took 2:12, 2:57 and 2:10). A playtest's 18:00 cap is not a game rule: an Archlich fight past 2:57 counts as
+  a loss in the bot tables only.
+- Still open for the final balance job: solo bots that fall do so at 4:25 to 4:45, just before the first boss
+  (2 of 6 veterans, 1 of 6 casuals). `horde_rate_per_min` 4.5 removes it but drops the pressure at minutes 3 to 5
+  to about 2, under the target of 3 to 6.
 - Party: `spawn_party_scale` 0.4 -> 1.0, `enemy_hp_per_player` 0.12 -> 0.3, `boss_hp_per_player` 0.3 -> 0.5
   (`Bosses.PARTY_HP` follows), `xp_party_scale` 0.8 -> 1.0 (party level within 1 of solo): four wizards' AoE overlaps, so without these
   a party saw almost no pressure and won every run.
