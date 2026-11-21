@@ -1,4 +1,4 @@
-STATION machine=ubuntu time=2026-11-21T13:07Z commit=eedd593 took=158s
+STATION machine=ubuntu time=2026-11-21T14:10Z commit=a91405d took=152s
 JOB checks PASS
-JOB golden INFO GOLDEN same seeds=2 against f37d0f65ad082f0ee83637417c0603ec18692594 since f37d0f6
+JOB golden INFO GOLDEN changed seeds=2 of 2 against eedd5933da67d1b5e9722a39c3da819290655ea3 since eedd593
 STATION PASS jobs=2 failed=0
