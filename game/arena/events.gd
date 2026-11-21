@@ -113,10 +113,12 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					ArenaFateView._act_card(a, Lore.act_of(w - 1))
 				if int(ev[4]) == 2:
 					ArenaFateView._banner(a, Lore.ARCHLICH_TITLE, Lore.ARCHLICH_NAME + " DESCENDS", Color("ff4df2"), 3.2, true)
+					ArenaFateView._arrival(a, "portraits/characters", "archlich", Lore.ARCHLICH_TITLE, Color("ff4df2"))
 					Sfx.play("boss_roar", 0.0, 0.7)
 					Sfx.play("bell_toll", -2.0)
 				elif int(ev[4]) == 1:
 					ArenaFateView._banner(a, "THE LICH LORD", Lore.LICH_NAME + " RISES", Color("ff4d6a"), 2.6, true)
+					ArenaFateView._arrival(a, "cards/monsters", "lich", "THE LICH LORD", Color("ff4d6a"))
 					Sfx.play("portal")
 				elif w > 1:
 					ArenaFateView._banner(a, "MINUTE %d" % w, Lore.minute_line(w - 1), Color("ffd94d"), 1.8)

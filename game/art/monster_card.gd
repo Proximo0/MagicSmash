@@ -20,6 +20,12 @@ static var _drawn := {}
 static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shine: float = 0.0,
 		with_bonus: bool = true) -> void:
 	var sock: int = Cards.socket(idx)
+	# The owner's painted card (frame, name and type painted in) when its file exists; found cards only.
+	if found:
+		ci.draw_rect(r.grow(1), INK)
+		if Art.draw(ci, "cards/monsters", Cards.key(idx), r):
+			_shine(ci, r, t, shine)
+			return
 	ci.draw_rect(r.grow(1), INK)
 	ci.draw_rect(r, FACE)
 	ci.draw_rect(r.grow(-1), Color(GOLD, 0.85 if found else 0.3), false, 1.0)
@@ -60,6 +66,11 @@ static func draw(ci: CanvasItem, r: Rect2, idx: int, found: bool, t: float, shin
 			_fit_centered(ci, Cards.bonus_text(idx), cx, name_y + 10, r.size.x - 6, Color("5dff7a"))
 	else:
 		PixelFont.draw_centered(ci, "?????", cx, name_y, 1, Color(GOLD, 0.35), INK)
+	_shine(ci, r, t, shine)
+
+
+## The light that sweeps across a card.
+static func _shine(ci: CanvasItem, r: Rect2, t: float, shine: float) -> void:
 	if shine > 0.0:
 		var sx := r.position.x + fposmod(t * 140.0, r.size.x + 40.0) - 20.0
 		for k: int in range(6):
