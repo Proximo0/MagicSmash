@@ -4,7 +4,7 @@
 #   jobs: boss    bots play STATION_SEEDS (default "7 21 33 101 102") to the Archlich, side by side
 #         checks  tools/check_all.sh; on FAIL the failing rows follow the JOB line
 #         frames  the real game at wave 10 with a full horde on this machine's screen and graphics card; FAIL when the
-#                 95th-percentile frame is over STATION_FRAME_P95_MS (default 25). Needs a desktop session.
+#                 95th-percentile frame is over STATION_FRAME_P95_MS (default 25; 0 = record only). Needs a desktop session.
 #         golden  tools/golden.sh against the commit this station tested last (INFO: did the game change?)
 #   --after=M  relay: run a commit only once station M has reported PASS for it; if M failed, report HELD and do nothing
 #   --watch    stay running: every STATION_POLL seconds (default 120) fetch origin/main and run the jobs on a new commit
@@ -79,7 +79,9 @@ job_frames() {
   line=$(grep '^PERF frames=' <<<"$out" | tail -1); script=$(grep '^PERF total_script' <<<"$out" | tail -1 | awk '{print $3}')
   [ -n "$line" ] || { echo "JOB frames FAIL no PERF line (no display, or the run died)"; return 1; }
   p95=$(sed -E 's/.* p95=([0-9.]+).*/\1/' <<<"$line")
-  if awk -v a="$p95" -v b="$limit" 'BEGIN { exit !(a <= b) }'; then
+  if [ "$limit" = 0 ]; then  # a machine below the game's minimum: record its numbers, never fail on them
+    echo "JOB frames INFO ${line#PERF } script_ms=$script"
+  elif awk -v a="$p95" -v b="$limit" 'BEGIN { exit !(a <= b) }'; then
     echo "JOB frames PASS ${line#PERF } script_ms=$script limit_p95=$limit"
   else
     echo "JOB frames FAIL ${line#PERF } script_ms=$script limit_p95=$limit"; return 1
