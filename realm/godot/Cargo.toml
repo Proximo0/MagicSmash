@@ -1,0 +1,22 @@
+[package]
+name = "realm-godot"
+edition = "2024"
+version = "0.1.0"
+description = "The realm follower as a Godot GDExtension: the RealmLink class."
+
+# Its own workspace: the godot crate comes from crates.io, while core, server and loadtest stay std only and
+# build with no network.
+[workspace]
+
+[lib]
+name = "realm_godot"
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = { version = "=0.5.5", features = ["api-4-7"] }
+realm-core = { path = "../core" }
+realm-server = { path = "../server" }
+
+[profile.release]
+debug = false
+codegen-units = 4

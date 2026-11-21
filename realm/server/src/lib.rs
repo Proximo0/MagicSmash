@@ -2,7 +2,9 @@
 //! and stats. `main.rs` is the UDP server and the `--bench`; `realm-loadtest` uses the decoders.
 
 pub mod bots;
+pub mod client;
 pub mod lockstep;
+pub mod predict;
 pub mod snap;
 pub mod stats;
 pub mod view;
@@ -24,11 +26,16 @@ pub const MSG_SNAPSHOT_V1: u8 = 0x83;
 pub const MSG_TICKS: u8 = 0x90;
 /// Protocol B: the full state a joining follower starts from, in parts.
 pub const MSG_STATE: u8 = 0x91;
+/// Protocol B to a lockstep player: the seqs of its inputs in force at recent ticks, then a `0x90` datagram.
+pub const MSG_PLAYER_TICKS: u8 = 0x92;
 
-/// HELLO `proto` values: 1 is protocol A v0 (the contract); 2 and 3 are this job's extensions.
+/// HELLO `proto` values: 1 is protocol A v0 (the contract); 2, 3 and 4 are extensions.
 pub const PROTO_A0: u32 = 1;
 pub const PROTO_A1: u32 = 2;
+/// A protocol B follower with no player.
 pub const PROTO_B: u32 = 3;
+/// A protocol B lockstep player: it joins the field, its inputs enter the tick stream, and it follows.
+pub const PROTO_BP: u32 = 4;
 
 pub fn put_u16(w: &mut Vec<u8>, v: u16) {
     w.extend_from_slice(&v.to_le_bytes());
@@ -112,6 +119,17 @@ pub fn input(ack: u32, mv: u8, zoom: u8) -> Vec<u8> {
     put_u32(&mut w, ack);
     w.push(mv);
     w.push(zoom);
+    w
+}
+
+/// A lockstep player's INPUT: `0x02, u32 ticks applied, u8 move, u8 zoom, u32 seq, u8 n, n x u8 move`:
+/// `moves[0]` is this input's move and the rest repeat the moves of seqs `seq - 1`, `seq - 2`, ...
+pub fn input_seq(ack: u32, seq: u32, moves: &[u8]) -> Vec<u8> {
+    let mut w = input(ack, moves.first().copied().unwrap_or(0), 1);
+    put_u32(&mut w, seq);
+    let earlier = moves.get(1..).unwrap_or_default();
+    w.push(earlier.len() as u8);
+    w.extend_from_slice(earlier);
     w
 }
 

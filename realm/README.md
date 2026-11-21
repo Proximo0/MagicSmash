@@ -1,13 +1,19 @@
 # realm: the crowd test's server side
 
-The contract is `docs/realm/crowd_test.md`. Rust, std only (no crates, so cargo never needs the network).
+The contract is `docs/realm/crowd_test.md`. Rust, std only (no crates, so cargo never needs the network),
+except `godot/`, the Godot native module, which is its own cargo workspace with one crates.io dependency.
 
 - `core/`: the simulation. Whole numbers only (positions `i32` in 1/256 px, time in ticks); struct-of-arrays
   monsters; a counting-sort grid; a flow field refreshed in slices; bulk fighting; spawning out of every view.
   `Field::new(seed, Config { monsters, threads })`, `join`, `leave`, `step(&inputs)`, `hash()`,
   `to_bytes()` / `from_bytes()`. The result is the same for any thread count.
 - `server/`: the 20 Hz UDP server (protocol A v0 and v1, protocol B), bots, and `--bench`.
-- `loadtest/`: real UDP clients and the protocol B follower.
+- `loadtest/`: real UDP clients, protocol B followers and lockstep players, and a lossy UDP relay.
+- `godot/`: the native module (a GDExtension `cdylib`, gdext `godot` 0.5.5, Godot API 4.7): the class
+  `RealmLink`, a lockstep player inside Godot. Its own workspace and `Cargo.lock`.
+- `client/`: HORDE & HEARTH's realm client, a separate Godot 4.7 project that plays through `RealmLink`.
+- The lockstep client logic is `server/src/client.rs` (socket-free: the load test and the module both drive
+  it) and `server/src/predict.rs` (the hero's prediction and smoothing).
 
 ## Build and check
 
@@ -15,7 +21,14 @@ The contract is `docs/realm/crowd_test.md`. Rust, std only (no crates, so cargo 
 cd realm
 cargo build --release -j3
 ./check.sh          # cargo test --release, then a 10 s bench with a follower; one summary line
+./check_client.sh   # the native module, then the Godot client test against a server, direct and through
+                    # a lossy relay (needs godot 4.7 on PATH or GODOT=...); one summary line
 ```
+
+The native module: `cd godot && cargo build --release`, then copy `godot/target/release/librealm_godot.so`
+(Windows: `realm_godot.dll`) into `client/bin/`, where `client/realm.gdextension` points. `check_client.sh`
+does both. Godot finds the module through `client/.godot/extension_list.cfg`, which the editor or
+`godot --headless --path client --import` writes on the first import.
 
 ## Run
 
@@ -26,6 +39,17 @@ cargo build --release -j3
 # Real clients: 200 protocol A v0 players, and 50 v1 players plus a protocol B follower.
 ./target/release/realm-loadtest --clients=200 --proto=a0 --secs=15
 ./target/release/realm-loadtest --clients=50 --proto=a1 --follow --secs=15
+
+# Lockstep players (they join, their inputs enter the stream, they follow the whole field and predict
+# their hero) and a follower, through a relay that drops 5% and delays 80 +- 20 ms each way.
+./target/release/realm-loadtest --relay=7778 --to=127.0.0.1:7777 --loss=0.05 --delay-ms=80 --jitter-ms=20 &
+./target/release/realm-loadtest --server=127.0.0.1:7778 --players=4 --follow --secs=20
+
+# The game window: play with arrows or WASD, space for the skill, 1/2/3 for zoom 1/2/4.
+godot --path client -- --server=127.0.0.1:7777
+# Scripted: a screenshot and numbers per zoom, then stats.json; --zoom=8 shows a whole rally's horde.
+godot --path client -- --server=127.0.0.1:7777 --bot --shots=/tmp/shots --secs=5
+godot --path client -- --server=127.0.0.1:7777 --shots=/tmp/horde --secs=5 --zooms=8
 
 # No sockets: simulate and encode A v0, A v1 and B for every bot as if each were connected.
 ./target/release/realm-server --bench --bots=1000 --monsters=20000 --rally=0.3 --threads=1 --ticks=300 --follow
@@ -50,8 +74,17 @@ cargo build --release -j3
 
 ### Load test flags
 
-`--server=127.0.0.1:7777`, `--clients=N`, `--proto=a0|a1`, `--follow`, `--secs=10`, `--threads=1` (the
-follower's), `--zoom=1`. It exits 1 if a snapshot fails to decode or check, or a hash differs.
+`--server=127.0.0.1:7777`, `--clients=N`, `--proto=a0|a1`, `--follow`, `--players=N` (lockstep players,
+HELLO proto 4), `--secs=10`, `--threads=1` (each follower's), `--zoom=1`. It exits 1 if a snapshot fails to
+decode or check, or a protocol B client saw a hash differ, no hash at all, or a datagram that did not parse.
+Each B client prints one line: bytes a second in (whole seconds after the join download) and out, CPU a
+tick, `stall_ms max` (the longest wait between two applied ticks) and, for a player, `mispredicts` (confirmed
+ticks where the hero was not where it had been predicted, out of those checked).
+
+Relay mode: `--relay=PORT --to=HOST:PORT [--loss=0.05] [--delay-ms=80] [--jitter-ms=20] [--seed=1]
+[--secs=N]`. Each client gets its own upstream socket; every datagram either way is dropped with chance
+`loss` or delivered after `delay-ms` plus or minus up to `jitter-ms` (one way). It runs until stopped (or
+`--secs`) and prints what it forwarded and dropped every 10 s.
 
 ## Reading the table
 
@@ -86,5 +119,34 @@ All numbers are in `core/src/tables.rs` and the constants at the top of `core/sr
 - Spawning: 16 tries per monster, at most 1 024 failures a tick; the view kept clear is 480 x 270 (zoom 1).
 - Joins: a joining player gives its position (bots spread over the field, rally bots near the centre,
   network players within 200 px of it). The respawn point is the centre.
-- HELLO `proto`: 1 is A v0 (the contract), 2 is A v1, 3 is a B follower (no player). Packing of v1 and B:
-  see the top of `server/src/snap.rs` and `server/src/lockstep.rs`.
+- HELLO `proto`: 1 is A v0 (the contract), 2 is A v1, 3 is a B follower (no player), 4 is a B lockstep
+  player. Packing of v1 and B: see the top of `server/src/snap.rs` and `server/src/lockstep.rs`.
+- Lockstep players: each INPUT carries a seq and repeats the 3 moves before it; the server queues them (at
+  most 3 waiting) and uses one a tick, so jitter does not make it skip or double an input. Every B send to a
+  player starts with the seqs in force at the unacknowledged ticks (`0x92`), which is what the prediction
+  replays from. The shown hero closes a prediction error at 1 px a tick beyond its own step and jumps only
+  for an error over 64 px (a respawn).
+- Loss: nothing extra. Every B datagram already repeats every tick the client has not acknowledged, so a
+  lost one costs one tick (50 ms) of waiting: the next datagram brings it.
+- The module draws through two bulk buffers (`monster_buffer`, `player_buffer`: a MultiMesh's floats with
+  the offset back to the previous call per figure) so the shader glides every figure between ticks with no
+  GDScript per figure; `monsters_in` and `players_in` are the plain sorted reads. No cap on either.
+
+## Hosting on a Windows PC
+
+The CI (`.github/workflows/realm.yml`) builds `realm-server.exe` and `realm-loadtest.exe` for Windows and
+uploads them with `run_server.bat` as the artifact `realm-server-windows`. Unzip it anywhere and double-click
+`run_server.bat`: a server on UDP port 7777 with 200 bots and 8 000 monsters, a report line every 10 seconds,
+and the window stays open when it stops. Extra flags pass through (`run_server.bat --bots=500 --threads=4`).
+
+- **Firewall**: the first start asks Windows Defender Firewall about `realm-server.exe`; allow it on private
+  networks. Without the prompt, add an inbound rule for **UDP port 7777** (Windows Security, Firewall,
+  Advanced settings, Inbound Rules, New Rule, Port, UDP, 7777).
+- **Players on the same network** (the same router) connect to this PC's local address, shown by
+  `ipconfig` as the IPv4 address (for example `192.168.1.20`): `--server=192.168.1.20:7777`.
+- **Friends outside the house** connect to the router's public address (any "what is my IP" page), and the
+  router must forward **UDP port 7777** to this PC's local address (the router's settings page, "port
+  forwarding" or "virtual server"). Give the PC a fixed local address (a DHCP reservation in the router) so
+  the forward keeps pointing at it. A connection through a carrier-grade NAT (some mobile and fibre
+  providers) cannot be forwarded; then a rented server is the way.
+- Only UDP 7777 is used; nothing else needs opening. Change it with `--port=P` (and forward that instead).
