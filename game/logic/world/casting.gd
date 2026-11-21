@@ -235,10 +235,12 @@ static func _shot_hit(w: World, s: World.Shot, e: World.Enemy) -> void:
 		s.dead = true
 		_explode(w, s)
 		return
-	WorldEnemies._damage_enemy(w, e, s.dmg, s.owner, s.vel.normalized() * 70.0)
 	if s.spell == World.SP_FROST:
-		e.slow = Spells.evo_value(World.SP_FROST, "slow", Spells.FROST_SLOW) if s.evo else Spells.FROST_SLOW
-		w.emit(World.EV_FROST, s.pos.x, s.pos.y, 0, 0)
+		var slow := Spells.evo_value(World.SP_FROST, "slow", Spells.FROST_SLOW) if s.evo else Spells.FROST_SLOW
+		if _frost_hit(w, e, slow, s.dmg, s.owner, s.vel.normalized() * 70.0):
+			w.emit(World.EV_FROST, s.pos.x, s.pos.y, 0, 0)
+	else:
+		WorldEnemies._damage_enemy(w, e, s.dmg, s.owner, s.vel.normalized() * 70.0)
 	if s.evo and s.spell == World.SP_STAR:
 		_frost_burst(w, s, e)
 	if s.pierce > 0:
@@ -255,8 +257,20 @@ static func _frost_burst(w: World, s: World.Shot, center: World.Enemy) -> void:
 	for e in w._query(s.pos, radius + 8.0):
 		if e == center or e.dead or e.pos.distance_to(s.pos) > radius + e.r:
 			continue
-		e.slow = Spells.FROST_SLOW
-		WorldEnemies._damage_enemy(w, e, s.dmg * Spells.BURST_DMG, s.owner, (e.pos - s.pos).normalized() * 60.0)
+		_frost_hit(w, e, Spells.FROST_SLOW, s.dmg * Spells.BURST_DMG, s.owner, (e.pos - s.pos).normalized() * 60.0)
+
+
+## A frost hit: the slow is on before the damage (a kill by frost counts as frosted: a bloat makes no blast) and is
+## taken back when the hit did nothing (a guard's shield, a faded wraith). True when it landed.
+static func _frost_hit(w: World, e: World.Enemy, slow: float, dmg: float, slot: int, knock: Vector2) -> bool:
+	var was := e.slow
+	var hp := e.hp
+	e.slow = slow
+	WorldEnemies._damage_enemy(w, e, dmg, slot, knock)
+	if e.dead or e.hp < hp:
+		return true
+	e.slow = was
+	return false
 
 
 static func _explode(w: World, s: World.Shot) -> void:

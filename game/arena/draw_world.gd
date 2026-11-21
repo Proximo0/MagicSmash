@@ -265,6 +265,7 @@ static func _draw_wizards(a: Arena) -> void:
 		_draw_player(a, ci, p)
 	if a.vp.size() > 1 or Net.is_online():
 		_draw_pips(a, ci, list)
+	EnemyView.draw_marks(a, ci)
 	for g: Array in a._ghosts:
 		var k: float = g[1] / a.GHOST_LIFE
 		var gp: Vector2 = g[0] + Vector2(sin(k * 9.0) * 3.0, -40.0 * k)

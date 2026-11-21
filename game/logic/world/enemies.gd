@@ -19,37 +19,67 @@ static func _nearest_player(w: World, pos: Vector2) -> World.Player:
 
 
 static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
+	# This runs for every enemy on every tick (most of a step at the enemy cap), so it reads each field once into a
+	# local, leaves a timer that is not running alone, and finds the nearest wizard in place.
 	e.t += dt
-	e.flash = maxf(0.0, e.flash - dt)
-	e.slow = maxf(0.0, e.slow - dt)
-	e.orbit_cd = maxf(0.0, e.orbit_cd - dt)
-	var sm := 0.45 if e.slow > 0.0 else 1.0
+	if e.flash > 0.0:
+		e.flash = maxf(0.0, e.flash - dt)
+	var sm := 1.0
+	if e.slow > 0.0:
+		var slow: float = maxf(0.0, e.slow - dt)
+		e.slow = slow
+		if slow > 0.0:
+			sm = 0.45
+	if e.orbit_cd > 0.0:
+		e.orbit_cd = maxf(0.0, e.orbit_cd - dt)
 	if e.entering:
 		e.pos += e.enter_dir * maxf(e.spd, 40.0) * dt
 		if G.ARENA.grow(-10).has_point(e.pos):
 			e.entering = false
+		if w._sep_ok and e.gi >= 0:
+			w._sep_pos[e.gi] = e.pos
 		return
-	var tgt := _nearest_player(w, e.pos)
-	var tpos := tgt.pos if tgt else G.ARENA.get_center() + Vector2(cos(e.t * 0.5), sin(e.t * 0.7)) * 80.0
-	var to := tpos - e.pos
+	var from: Vector2 = e.pos
+	var tgt: World.Player = null # _nearest_player, in place
+	var bd := INF
+	for p: World.Player in w._plist:
+		if p.alive:
+			var d: float = p.pos.distance_squared_to(from)
+			if d < bd:
+				bd = d
+				tgt = p
+	var tpos: Vector2 = tgt.pos if tgt else G.ARENA.get_center() + Vector2(cos(e.t * 0.5), sin(e.t * 0.7)) * 80.0
+	var to := tpos - from
 	var dist := to.length()
 	var dirv := to / maxf(dist, 0.001)
 	var desired := Brains.think(w, e, dt, tgt, dirv, dist)
-	e.vel = e.vel.lerp(desired * sm, minf(1.0, dt * 10.0))
-	e.pos += (e.vel + e.knock) * dt
-	e.knock = e.knock.move_toward(Vector2.ZERO, dt * 600.0)
+	var vel: Vector2 = e.vel.lerp(desired * sm, minf(1.0, dt * 10.0))
+	e.vel = vel
+	var knock: Vector2 = e.knock
+	var at: Vector2 = e.pos # read again: a brain may have moved it (a blink)
+	if knock != Vector2.ZERO:
+		at += (vel + knock) * dt
+		e.knock = knock.move_toward(Vector2.ZERO, dt * 600.0)
+	else:
+		at += vel * dt
+	var flags: int = e.flags
 	# Separation so hordes spread into a crowd instead of a single blob.
 	# Half the crowd separates each tick (alternating by id), at double strength: the same spread for half the cost.
-	if e.flags & (Bestiary.F_NO_SEP | Bestiary.F_ANCHORED) == 0 and (e.id + w._tick) % 2 == 0:
+	if flags & (Bestiary.F_NO_SEP | Bestiary.F_ANCHORED) == 0 and (e.id + w._tick) % 2 == 0:
+		e.pos = at
 		_separate(w, e)
-	var at: Vector2 = e.pos
+		at = e.pos
+	var er: float = e.r
 	var room: Rect2 = G.ARENA
-	at.x = clampf(at.x, room.position.x + e.r, room.end.x - e.r)
-	at.y = clampf(at.y, room.position.y + e.r, room.end.y - 2)
+	at.x = clampf(at.x, room.position.x + er, room.end.x - er)
+	at.y = clampf(at.y, room.position.y + er, room.end.y - 2)
 	e.pos = at
+	if w._sep_ok and e.gi >= 0:
+		w._sep_pos[e.gi] = at
 	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
 	# moves a few pixels a step. A kind that can teleport (F_BLINK: a mage, the Lich) always checks.
-	if dist < e.r + World.CONTACT_REACH or e.flags & Bestiary.F_BLINK:
+	# A kind with no contact damage (a bloat, a coffin) touches nobody, so it gives no free hurt-invulnerability either.
+	if e.contact > 0 and (dist < er + World.CONTACT_REACH or flags & Bestiary.F_BLINK):
 		for p: World.Player in w._plist:
 			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 				var dmg := e.contact
@@ -58,9 +88,14 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 				WorldPlayers.hurt_player(w, p, dmg)
 
 
-## Pushes `e` out of the enemies it overlaps, reading the grid cells directly (this runs for half the horde
-## every tick, so it avoids _query's array).
+## Pushes `e` out of the enemies it overlaps. It reads World's separation copy (see World._sep_cells), not the
+## neighbours themselves: a neighbour object is only looked at once it is close enough to touch.
 static func _separate(w: World, e: World.Enemy) -> void:
+	if not w._sep_ok:
+		_sep_fill(w)
+	var sp: PackedVector2Array = w._sep_pos
+	var sr: PackedFloat64Array = w._sep_r
+	var cells: Dictionary = w._sep_cells
 	# The position lives in a local and is written back once: reading and writing a field of an object costs about
 	# twice a local, and this loop touched e.pos for every neighbour.
 	var pos: Vector2 = e.pos
@@ -69,17 +104,36 @@ static func _separate(w: World, e: World.Enemy) -> void:
 	var y0 := floori((pos.y - 16.0) / World.CELL)
 	for cx: int in range(x0, x0 + 2):
 		for cy: int in range(y0, y0 + 2):
-			var cell: Array = w._grid.get(Vector2i(cx, cy), World._NO_CELL)
-			for o: World.Enemy in cell:
+			var cell: PackedInt32Array = cells.get(Vector2i(cx, cy), World._NO_ROWS)
+			for j: int in cell:
+				var dv: Vector2 = pos - sp[j]
+				var min_d: float = er + sr[j]
+				var d2: float = dv.length_squared()
+				if d2 >= min_d * min_d or d2 <= 0.0001:
+					continue
+				var o: World.Enemy = w._sep_who[j]
 				if o == e or o.dead or o.flags & Bestiary.F_NO_BLOCK or o.entering:
 					continue
-				var dv: Vector2 = pos - o.pos
-				var min_d: float = er + o.r
-				var d2: float = dv.length_squared()
-				if d2 < min_d * min_d and d2 > 0.0001:
-					var dd: float = sqrt(d2)
-					pos += dv / dd * (min_d - dd) * (0.5 if o.flags & Bestiary.F_BOSS == 0 else 1.0)
+				var dd: float = sqrt(d2)
+				pos += dv / dd * (min_d - dd) * (0.5 if o.flags & Bestiary.F_BOSS == 0 else 1.0)
 	e.pos = pos
+
+
+## Fills the separation copy from the enemies as they stand now. World.step calls it before the enemies move;
+## after that each _update_enemy writes its own row, since nothing else moves an enemy until the horde is done.
+static func _sep_fill(w: World) -> void:
+	var who: Array[World.Enemy] = w._sep_who
+	var n := who.size()
+	var sp: PackedVector2Array = w._sep_pos
+	var sr: PackedFloat64Array = w._sep_r
+	sp.resize(n)
+	sr.resize(n)
+	for i: int in n:
+		var e: World.Enemy = who[i]
+		sp[i] = e.pos
+		sr[i] = e.r
+		e.gi = i
+	w._sep_ok = true
 
 
 ## A new enemy shot, or null past Bestiary.ESHOT_CAP (the shot is dropped).
@@ -151,6 +205,7 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 		for i in World.ELITE_GEMS:
 			WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / World.ELITE_GEMS) * 70.0)
 		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2(0, 30), w.tune.chest_life, int(w.tune.elite_chest_luck))
+		Brains.on_death(w, e, slot) # its death still acts (a shard's beam ends); the elite's own drops replace the roll
 		return
 	if Brains.on_death(w, e, slot):
 		return

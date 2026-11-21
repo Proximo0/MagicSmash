@@ -85,6 +85,7 @@ class Enemy:
 	var flags := 0 # Bestiary.F_* of its kind, copied at spawn
 	var cloak := false # shots fly through it and nothing hurts it (a brain sets it; see WorldEnemies._faded)
 	var turn := 0.0 # s left of a boss's phase turn (Bosses.phase_turn): it holds still and takes no damage
+	var gi := -1 # its row in World's separation copy this tick (World._sep_pos); -1 when it is not in it
 
 class Shot:
 	var pos := Vector2.ZERO
