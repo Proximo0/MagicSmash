@@ -53,6 +53,8 @@ var moments: Array = [] # [t, kind, slot, value]
 ## Damage dealt by source: a World.SP_* spell, or SRC_NOVA / SRC_ORBIT. Travels in to_dict() for the results
 ## screen's damage by spell.
 var source_damage := {}
+## The same per wizard, for the results screen's damage by spell: slot -> {source -> damage}.
+var slot_source_damage := {}
 ## slot -> true for an apprentice's column (none yet).
 var ai := {}
 
@@ -83,6 +85,13 @@ func add(slot: int, key: String, amount: float) -> void:
 
 func add_source(src: int, amount: float) -> void:
 	source_damage[src] = float(source_damage.get(src, 0.0)) + amount
+
+
+## Adds damage `slot` dealt with source `src` (a World.SP_* spell, SRC_NOVA or SRC_ORBIT).
+func add_slot_source(slot: int, src: int, amount: float) -> void:
+	var row: Dictionary = slot_source_damage.get(slot, {})
+	row[src] = float(row.get(src, 0.0)) + amount
+	slot_source_damage[slot] = row
 
 
 ## Keeps the larger of the stat and `value`.
@@ -169,7 +178,8 @@ func to_dict() -> Dictionary:
 	var st := {}
 	for s: int in stats:
 		st[s] = (stats[s] as Dictionary).duplicate()
-	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate()}
+	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate(),
+		"slot_source_damage": slot_source_damage.duplicate(true)}
 
 
 ## Times `slot` fell this run, and fallen wizards it raised.
@@ -201,6 +211,13 @@ static func from_dict(d: Dictionary) -> Results:
 	if sd is Dictionary:
 		for k: Variant in sd:
 			r.source_damage[int(k)] = float(sd[k])
+	var ssd: Variant = d.get("slot_source_damage", {})
+	if ssd is Dictionary:
+		for s: Variant in ssd:
+			var row: Variant = ssd[s]
+			if row is Dictionary:
+				for k: Variant in row:
+					r.add_slot_source(int(s), int(k), float(row[k]))
 	var ms: Variant = d.get("moments", [])
 	if ms is Array:
 		for m: Variant in ms:

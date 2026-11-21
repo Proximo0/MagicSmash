@@ -3,7 +3,8 @@ extends RefCounted
 ## Arena: the demo bots' input and the level-up pick that rides on a seat's input.
 ## Static helpers: `a` is the Arena that owns the state.
 
-## Adds the level-up pick fields [card, offer] (World reads input[6] and input[7]).
+## Adds the level-up pick fields [card, offer] (World reads input[6] and input[7]). The card field also carries
+## Upgrades.REDRAW_INPUT and Upgrades.BANISH_INPUT + card (WorldLevels._update_levelups).
 static func _with_pick(a: Arena, slot: int, inp: PackedFloat32Array) -> PackedFloat32Array:
 	if not a.vp.has(slot):
 		return SmashBot.with_pick(inp, [] as Array[int], 0)

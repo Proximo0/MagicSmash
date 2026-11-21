@@ -49,8 +49,9 @@ Proof: `GOLDEN same`; autotest captures (seed 3, 1 and 4 wizards) pixel-identica
 | Floor tomes | Spell tomes leave the floor for one party tome (in E), so picks shape builds. |
 | Evolutions | One partner, weighed x4, last passive slot kept for partners: lock-out 68% to about 33%. |
 | HEX | Wave 3, a curse bolt that damages and marks: a spell must kill alone. |
-| Seals | HASTE, FRAILTY, WRATH go; FAMINE, LEGION, CHAMPIONS are rewritten (list in H): each Seal must change how a run plays. |
-| Seal rewards | Crystals multiplied on boss and win bounties only, so losing fast pays nothing; best Seal per wizard shown. |
+| Difficulty | One ladder, picked in the lobby by player 1 (Curtis, 20 Nov: "easy to hard, then several levels over hard ... basically suicide with the potential for amazing rewards, like diablo torment levels"): APPRENTICE (easy), WIZARD (normal), ARCHMAGE (hard), then SEALS I to VIII. Code keeps one int `seal`: -1, 0, 1, then 2 to 9. Every step holds for 1, 2, 3 and 4 wizards. Table in part 3b, build in H. |
+| Seals | Each Seal adds one rule and more of everything. HASTE, FRAILTY, WRATH go; FAMINE, LEGION, CHAMPIONS are rewritten (list in H). |
+| Rewards | Crystals multiplied on boss and win bounties only, so losing fast pays nothing; luck for loot rarity and card drops rises each step; a first win at each step pays a fixed prize shown before the run; best step per wizard shown. |
 | Catalogue | Append-only, dense, kind column: nothing saved holds an id. |
 | Fate | 8 fates from effects the world has: it is the hook. |
 | Intermission | The 20 s lull after each Lich; Morvane speaks. No scene. |
@@ -72,6 +73,30 @@ Proof: `GOLDEN same`; autotest captures (seed 3, 1 and 4 wizards) pixel-identica
 | Arcane bolt | 1-12% of damage | 15%+ of holder's; spell_dps within 20% of median |
 | Party level | 4 wizards +16% | within 1 level of solo |
 
+## 3a. Party size (Curtis, 20 Nov: "we need difficulty based on how many people are playing as well")
+
+Every row of part 3 is measured at 1, 2, 3 and 4 wizards and must hold at each. Per wizard, the fight is the same: pressure per wizard, hits taken per wizard per minute and level within 10% of solo; Lich and Archlich times inside the same windows; win rates within 10 points of solo. Levers, all in Tuning: `spawn_party_scale` (horde), `boss_hp_per_player`, `xp_party_scale`, new `enemy_hp_per_player` and `elite_per_player` if the first three cannot do it. Apprentices count 0.7.
+
+## 3b. The difficulty ladder
+
+`Seals.values(level)` is cumulative and returns the scalars and the rule flags; `apply_seal` copies them into World fields. Win rates are bots solo and four wizards, 6 seeds; a step that does not sit between its neighbours is retuned or cut.
+
+| `seal` | Name | Scalars (start values, P tunes them) | Casual wins | Veteran wins | Crystals | Luck |
+|---|---|---|---|---|---|---|
+| -1 | APPRENTICE | enemy health x0.75, horde x0.8, bosses x0.7, +1 heart, potions x1.5 | 80%+ | all | x0.5 | 0 |
+| 0 | WIZARD | part 3 | 40-60% | 80%+ | x1 | 0 |
+| 1 | ARCHMAGE | health x1.3, horde x1.2, bosses x1.4, speed x1.05 | 10-25% | 50-65% | x1.5 | +1 |
+| 2 | SEAL I | each Seal: health +0.15, horde +0.08, bosses +0.2 on ARCHMAGE, and its rule | under 10% | 35-45% | x2 | +2 |
+| 3 | SEAL II | | | 25-35% | x2.5 | +3 |
+| 4 | SEAL III | | | 18-25% | x3.25 | +4 |
+| 5 | SEAL IV | | 0 | 12-18% | x4 | +5 |
+| 6 | SEAL V | | | 8-12% | x5 | +6 |
+| 7 | SEAL VI | | | 5-8% | x6.5 | +7 |
+| 8 | SEAL VII | | | 2-5% | x8 | +8 |
+| 9 | SEAL VIII | | | under 2% | x10 | +10 |
+
+Rewards. Crystals: the multiplier on boss and win bounties. Luck: each point adds to `Loot.roll_rarity`'s luck and 10% to card drop odds; ultra-rare drops only from ARCHMAGE up. First win at a step, per wizard: a crystal prize (50 x step squared from ARCHMAGE) and, for each Seal, that Seal's card: a socketable card only its Archlich drops (8 cards, appended to Cards), and a robe trim worn in the lobby and the fight (cut first). The lobby row shows the step's rule, multiplier and unclaimed prize before the run. Unlock: a win at a step opens the next for the whole party's profiles; APPRENTICE, WIZARD and ARCHMAGE are open from the start.
+
 ## 4. Jobs
 
 ### E: builds
@@ -89,10 +114,10 @@ Tests (test_world_fallen): solo GOLDEN same; each rule once.
 Owns: smash_bot.gd, playtest tools, docs/bots.md, net.gd, platform.gd, player_input.gd, arena/seats.gd, _draw_seats and lobby input in title.gd.
 Tests (test_world_apprentice): roster by slot; no loot or bets; `--party=casual,apprentice`.
 
-### H: Seals
-New seals.gd: COUNT, `values(level) -> Dictionary` (cumulative), title, describe; apply_seal sets World fields, never Tuning. I HUNGER enemy health +25%; II AMBUSH rifts warn half as long; III FAMINE no horde potions (urns, elites, bosses still drop); IV LEGION groups +25%, cap 325 if sim_horde holds; V CHAMPIONS elites +50% health with an escort; VI MISFORTUNE `fate_cruel` 0.6; VII SILENCE 2-card draws; VIII DARKNESS lives 1, no JUDGEMENT, rituals x2, a wizard with no ally keeps 2. Profile: seal_unlocked, seal_best per wizard, kills_total, revives_total; a win at the top Seal opens the next; crystals x(1 + 0.5 x seal) on boss and win bounties only. Lobby row, HUD numeral, results line. `playtest --seal=N` prints win rates; a Seal not placed between its neighbours is cut.
-Owns: seals.gd, profile.gd, save.gd, tests, ArenaHud.centre, _draw_seal_row, seal lines in world/waves.gd and drops.gd.
-Tests (test_world_seals): seal 0 GOLDEN same; each Seal moves one value; old profiles load.
+### H: the difficulty ladder and the Seals
+New seals.gd: MIN -1, MAX 9, `values(level) -> Dictionary` (cumulative: scalars of part 3b and rule flags), `title`, `describe`, `crystal_mul`, `luck`; apply_seal sets World fields, never Tuning; seal 0 changes nothing. Rules by Seal: I HUNGER a slain enemy drops no heart unless an elite; II AMBUSH rifts warn half as long; III FAMINE no horde potions (urns, elites, bosses still drop); IV LEGION groups +25%, cap 325 if sim_horde holds; V CHAMPIONS elites +50% health with an escort; VI MISFORTUNE `fate_cruel` 0.6; VII SILENCE 2-card draws; VIII DARKNESS lives 1, no JUDGEMENT, rituals x2, a wizard with no ally keeps 2. Profile: seal_unlocked, seal_best and seal_prizes per wizard, kills_total, revives_total; rewards as part 3b. Lobby row (name, rule, multiplier, prize), HUD numeral, results line. `playtest --seal=N` prints win rates.
+Owns: seals.gd, profile.gd, save.gd, cards.gd (8 appended), tests, ArenaHud.centre, _draw_seal_row, seal lines in world/waves.gd and drops.gd.
+Tests (test_world_seals): seal 0 GOLDEN same; each step moves its values; each rule once; prizes pay once; old profiles load.
 
 ### I: acts II and III
 Burning Library, then Starless Sanctum, to the Ossuary's standard; each a new place in a thumbnail. Owns arena_art_library.gd, arena_art_sanctum.gd, palettes, props.
@@ -134,10 +159,3 @@ N2, N5, N6, N8/L6, N9, S3. Owns arena input and pause, arena/events.gd. A test p
 | 3-4 Dec | P | Q2 | M |
 
 E and F share drops.gd; K and L share enemies.gd (L draws in a new draw_bosses.gd). G needs E and F; H needs F and N; J needs E and N; Q1 before H and M; Q2 after J; P last. Merge with git, never by copying; golden.sh and check_all after each. Store shots 2 Dec: fate reel, a ritual, the tray, four at the Lich, the hub.
-
-## 6. Added 20 Nov after Curtis's art verdict (the bar: holds up on a Steam store page beside shipped games)
-
-Lead's re-judgement of merged wave 1 art. Holds up: logo, title backdrop, Act I floor. Falls short, in order: the fight HUD (plain text and lines), wizards too small and lost in a busy fight, no lighting or mood in the room, flat lobby seat cards, plain menu text and tiny title wizards.
-
-### R: readability and polish (runs with the core, before E; one art worker, lead judges at 2x and 4x)
-R1 HUD art in the core's rects (framed panels, heart and level art, icons, a designed font treatment). R2 wizards: larger sprites or a stronger outline and floor ring so each is found within a second in a 4-player Lich frame (measure on captures). R3 room lighting: torch light pools, vignette, darker edges, spell light on the floor, within the frame budget. R4 lobby seat cards with large wizard art. R5 menu text styling and bigger title wizards. Job J keeps the fate reel, tray, results and GRIMOIRE.
