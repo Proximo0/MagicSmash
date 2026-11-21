@@ -317,7 +317,7 @@ func test_a_classed_apprentice_answers_with_its_skill() -> void:
 		var e: World.Enemy = w.spawn_enemy(World.GOBLIN, 0, c + Vector2.from_angle(i * 1.3) * 20.0)
 		e.hp = 1e6
 	var used := false
-	for i: int in range(120):
+	for i: int in range(300): # casual hands forget now and then (SmashBot.FORGET_HOLD): five seconds of chances
 		w.step(DT, {0: _idle()})
 		for ev: Array in w.take_events():
 			if int(ev[0]) == World.EV_SKILL and int(ev[3]) == 1:

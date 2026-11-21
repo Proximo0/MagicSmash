@@ -62,14 +62,14 @@ it); the personas' reaction delay, noise and forgetting are untouched.
   - tank (KNIGHT, and the PALADIN as tank and support), beside a teammate: caution x0.5 (paladin x0.6), margin
     x0.7 (x0.8), no circling. Its goal (`_consider_role`, worth `GUARD_VALUE` against pickups) is the ally with the
     most sensed enemies within `GUARD_R` 90 px (the weakest on a tie), at `GUARD_GAP` 65 px from her toward that
-    crowd: between them, pulling the crowd off her. Solo it plays the damage row.
+    crowd (at most at the crowd's centre): between them, pulling the crowd off her. Solo it plays the damage row.
   - healer (PRIEST), beside a teammate: caution x1.2, margin x1.25. Its goal is the most hurt ally, `HEAL_SPOT` x
     `HEAL_REACH` (24 of 40 px) from her on the far side from the enemies near her: her light (a zone near her)
     covers the ally and she stays out of the front. Solo it plays the damage row.
   - ranged (ARCHER), always: caution x1.15, margin x1.5 (keeps range).
   - while a skill keeps it unhurt (`Player.invuln`) a classed bot minds bodies x0.3 (`UNHURT_CAUTION`).
-- **The skill on the nova button** (`_decide_skill`; one forget roll per chance at the persona's `nova_forget`, and
-  the button is left alone for the skill's taunt or safe seconds, at least `SKILL_GAP`, plus the reaction delay).
+- **The skill on the nova button** (`_decide_skill`; a forget roll at the persona's `nova_forget` per chance, a
+  forgotten chance comes back to mind after `FORGET_HOLD` 1 s if it is still there, and the button is left alone for the skill's taunt or safe seconds, at least `SKILL_GAP`, plus the reaction delay).
   Every class also uses it to save itself when cornered, as the nova rule above (PROVOKE and AEGIS make her unhurt,
   VOLLEY rolls her out).
   - PROVOKE: `PROVOKE_CROWD` (3) enemies in its radius within `ALLY_NEAR` 40 px of an ally, or the boss within
@@ -125,13 +125,13 @@ only `decide_in_world` (19 Nov, on the shared 4-CPU box with other workers runni
 
 (The higher number of each pair was taken at a load average of 5.8 on 4 CPUs.)
 
-Class play (21 Nov, the same probe, three repeats each, load average about 2 on 4 CPUs; "classes" gives the four
+Class play (21 Nov, the same probe, three repeats each, load average 2 to 3 on 4 CPUs with a playtest beside it; "classes" gives the four
 wizards a knight, a priest, an archer and a paladin):
 
 | persona | before, no class | after, no class | after, classes |
 |---|---|---|---|
-| CASUAL, us per decide / per tick of 4 | 49 to 58 / 198 to 232 | 49 to 52 / 196 to 209 | 52 to 55 / 206 to 222 |
-| VETERAN, us per decide / per tick of 4 | 70 to 79 / 279 to 316 | 72 to 75 / 288 to 301 | 75 to 80 / 300 to 320 |
+| CASUAL, us per decide / per tick of 4 | 49 to 58 / 198 to 232 | 52 to 56 / 208 to 224 | 59 to 62 / 234 to 249 |
+| VETERAN, us per decide / per tick of 4 | 70 to 79 / 279 to 316 | 71 to 80 / 286 to 320 | 77 to 87 / 309 to 348 |
 
 Budget: 400 us per tick for four bots. A think reads only the enemies in the spatial-grid cells round the wizard,
 keeps the nearest few in fixed buffers, and allocates nothing while scoring. Between thinks a decide returns the

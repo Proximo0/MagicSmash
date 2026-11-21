@@ -125,7 +125,8 @@ const ROLE_PLAY: Array = [
 ## While a skill keeps it unhurt (Player.invuln) a classed bot minds enemy bodies this much.
 const UNHURT_CAUTION: float = 0.3
 ## A tank guards the ally with the most enemies within GUARD_R (the weakest wins a tie: GUARD_WEAK per missing share
-## of her hearts), standing GUARD_GAP px from her toward that crowd; the pull is GUARD_VALUE (a pickup's scale).
+## of her hearts), standing GUARD_GAP px from her toward that crowd (at most at the crowd's centre); the pull is
+## GUARD_VALUE (a pickup's scale).
 const GUARD_R: float = 90.0
 const GUARD_GAP: float = 65.0
 const GUARD_WEAK: float = 2.0
@@ -156,6 +157,8 @@ const HIT_SOON: float = 10.0
 ## After a skill the bot leaves the button alone for the skill's taunt or safe seconds, at least SKILL_GAP, plus its
 ## reaction delay (it sees the effect only then).
 const SKILL_GAP: float = 0.6
+## A forgotten skill comes back to mind this many seconds later if the chance is still there.
+const FORGET_HOLD: float = 1.0
 
 static var _dirs: PackedVector2Array = PackedVector2Array()
 
@@ -243,7 +246,7 @@ var _mate_hp := PackedInt32Array() # parallel to _mates
 var _mate_max := PackedInt32Array()
 var _fallen_at: Array = [] # fallen allies' positions (shared_senses)
 var _skill_until: float = -1.0 # the button is left alone until then
-var _skill_miss: bool = false # the persona forgot the skill on this chance (one roll per chance, like a panic)
+var _skill_retry: float = -1.0 # the persona forgot the skill on this chance: it may remember from then on
 var _volley_dir := Vector2.ZERO # the roll's heading, set when a VOLLEY is chosen
 
 ## Read-only diagnostics of the last think (tests, tools).
@@ -975,7 +978,8 @@ func _consider_role(me: Vector2) -> void:
 			var s: float = float(n) + GUARD_WEAK * (1.0 - float(_mate_hp[m]) / float(maxi(1, _mate_max[m])))
 			if s > bs:
 				bs = s
-				at = _mates[m] + (c / float(n) - _mates[m]).normalized() * GUARD_GAP
+				var to_crowd: Vector2 = c / float(n) - _mates[m]
+				at = _mates[m] + to_crowd.normalized() * minf(GUARD_GAP, to_crowd.length()) # never past the crowd
 		worth = GUARD_VALUE
 	elif _role == Classes.ROLE_HEALER:
 		var hurt: int = -1
@@ -1004,7 +1008,7 @@ func _consider_role(me: Vector2) -> void:
 
 
 ## The skill on the nova button, used for what it does (see the PROVOKE..AEGIS constants). Every class also uses it
-## to save itself when cornered, like the nova. One forget roll per chance (the persona's nova_forget).
+## to save itself when cornered, like the nova. The persona's nova_forget may make it forget a chance for FORGET_HOLD s.
 func _decide_skill(me: Vector2, danger: float, time: float) -> bool:
 	if _bombs <= 0 or time < _skill_until:
 		return false
@@ -1021,12 +1025,12 @@ func _decide_skill(me: Vector2, danger: float, time: float) -> bool:
 		Classes.SK_AEGIS:
 			want = save or _aegis_worth(me)
 	if not want:
-		_skill_miss = false
+		_skill_retry = -1.0
 		return false
-	if _skill_miss:
+	if time < _skill_retry:
 		return false
 	if rng.randf() < _nova_forget:
-		_skill_miss = true
+		_skill_retry = time + FORGET_HOLD
 		return false
 	var busy: float = Classes.skill_value(_skill, "taunt", Classes.skill_value(_skill, "safe"))
 	_skill_until = time + _react + maxf(SKILL_GAP, busy)
