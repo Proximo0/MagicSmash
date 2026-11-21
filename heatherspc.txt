@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-21T14:47Z commit=421adae took=39s
-JOB frames INFO frames=300 enemies_peak=210 particles=106 draw_calls=50 frame_ms p50=27.9 p95=54.3 script_ms=24.91
+STATION machine=heatherspc time=2026-11-21T15:06Z commit=3434817 took=56s
+JOB frames INFO frames=300 enemies_peak=215 particles=344 draw_calls=55 frame_ms p50=38.3 p95=58.5 script_ms=34.29
 STATION PASS jobs=1 failed=0
