@@ -85,8 +85,8 @@ static func _direct_horde(w: World, dt: float) -> void:
 	w.elite_t += dt
 	if w.elite_t >= w.tune.elite_interval:
 		w.elite_t -= w.tune.elite_interval
-		_spawn_elite(w)
-	if w.enemies.size() + w.spawn_queue.size() >= (w.seal_cap if w.seal_cap > 0 else int(w.tune.enemy_cap)): # LEGION
+		_spawn_elite(w, true)
+	if w.enemies.size() + w.spawn_queue.size() >= w.enemy_cap(): # LEGION
 		return
 	var rate := (w.tune.horde_rate_base + w.tune.horde_rate_per_min * w.wave_time / 60.0) * w.pscale() * w.seal_horde
 	if w.boss != null:
@@ -204,8 +204,8 @@ static func _queue_rolled(w: World, g: Array) -> void:
 			for part: Array in parts:
 				for k in int(part[1]):
 					var at := _spot_near_party(w, Bestiary.RISE_MIN, Bestiary.RISE_MAX, Bestiary.RISE_MARGIN)
-					w.emit(World.EV_RIFT, at.x, at.y, Bestiary.RISE_SPREAD, w.tune.rift_warning)
-					w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning, "type": part[0], "door": 0, "at": at})
+					w.emit(World.EV_RIFT, at.x, at.y, Bestiary.RISE_SPREAD, w.tune.rift_warning * w.seal_rift) # AMBUSH
+					w.spawn_queue.append({"t": w.wave_time + w.tune.rift_warning * w.seal_rift, "type": part[0], "door": 0, "at": at})
 		Bestiary.WALL:
 			var door := _pick_door(w)
 			for part: Array in parts:
@@ -223,8 +223,9 @@ static func _queue_rolled(w: World, g: Array) -> void:
 						_queue_group(w, part[0], part[1], door, w.wave_time)
 
 
-## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome.
-static func _spawn_elite(w: World) -> void:
+## An elite: a big, glowing, much tougher enemy that pays out in XP, gems and a tome. `timed`: one of the horde's
+## own timed elites (_direct_horde), the only ones CHAMPIONS escorts (not a curse's or the Archlich's).
+static func _spawn_elite(w: World, timed: bool = false) -> void:
 	var type := World.SKELETON
 	var roll := w.rng.randf()
 	if w.wave >= 10:
@@ -241,8 +242,10 @@ static func _spawn_elite(w: World) -> void:
 	e.maxhp = e.hp
 	e.r += 2.0
 	w.emit(World.EV_ELITE, e.pos.x, e.pos.y, e.type, 0)
-	if w.seal_escort > 0: # CHAMPIONS: an escort of its own kind through its door
-		_queue_group(w, e.type, w.seal_escort, World.DOOR_DIRS.find(e.enter_dir), w.wave_time + World.DOOR_STAGGER)
+	# CHAMPIONS: an escort of its own kind through its door, trimmed to the room under the enemy cap.
+	var escort := mini(w.seal_escort, w.enemy_cap() - w.enemies.size() - w.spawn_queue.size()) if timed else 0
+	if escort > 0:
+		_queue_group(w, e.type, escort, World.DOOR_DIRS.find(e.enter_dir), w.wave_time + World.DOOR_STAGGER)
 		_sort_queue(w)
 
 

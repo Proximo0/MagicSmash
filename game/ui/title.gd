@@ -93,6 +93,7 @@ func _ready() -> void:
 		G.local_devices = [G.title_lobby_device]
 		G.title_lobby_device = -99
 		Net.start_offline()
+		_clamp_lobby_seal()
 		state = S.LOBBY
 		t = 4.0
 		dim = 1.0
@@ -716,6 +717,21 @@ func _draw_seal_row(ci: CanvasItem) -> void:
 			PixelFont.draw(ci, ">", Vector2(r.end.x + 2, y), 1, Color.WHITE)
 
 
+## A stale Net.seal (kept from another host's lobby as a client) can be locked on this profile: entering the lobby
+## as host or offline and starting a run fall back to an open step (Profile.playable_seal). Not on a client.
+func _clamp_lobby_seal() -> void:
+	if Net.mode != Net.Mode.CLIENT:
+		Net.set_seal(Save.profile.playable_seal(Net.seal))
+
+
+## Where a lobby tap lands: -1 or 1 on the Seal row's left or right half (step the ladder), 2 below the row
+## (start), 0 anywhere else.
+static func lobby_tap_zone(at: Vector2) -> int:
+	if LOBBY_SEAL_ROW.has_point(at):
+		return -1 if at.x < LOBBY_SEAL_ROW.get_center().x else 1
+	return 2 if at.y >= LOBBY_SEAL_ROW.end.y else 0
+
+
 ## Player 1 steps the ladder: the row shows every step, an open one becomes the run's (Net.set_seal).
 func _step_seal(d: int) -> void:
 	seal_view = clampi(seal_view + d, Seals.MIN, Seals.MAX)
@@ -828,10 +844,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				state = S.MAIN
 				return
 			if tap:
-				if LOBBY_SEAL_ROW.has_point(tap_pos) and Net.mode != Net.Mode.CLIENT:
-					seal_focus = true
-					_step_seal(-1 if tap_pos.x < LOBBY_SEAL_ROW.get_center().x else 1)
-				elif tap_pos.y > 228 and Net.mode != Net.Mode.CLIENT:
+				# Touch steps the ladder on the row itself and never takes keyboard focus there.
+				var zone := lobby_tap_zone(tap_pos)
+				if absi(zone) == 1 and Net.mode != Net.Mode.CLIENT:
+					_step_seal(zone)
+				elif zone == 2 and Net.mode != Net.Mode.CLIENT:
 					_begin()
 				return
 			var side: Array = PlayerInput.menu_side(event)
@@ -959,6 +976,7 @@ func _activate(item: String, dev: int) -> void:
 		"HOST LAN GAME":
 			G.local_devices = [dev]
 			if Net.host_game():
+				_clamp_lobby_seal()
 				state = S.LOBBY
 				_flash_burst()
 			else:
@@ -988,6 +1006,7 @@ func _flash_burst() -> void:
 func _begin() -> void:
 	if Net.roster.is_empty():
 		return
+	_clamp_lobby_seal()
 	Sfx.play("wave_start")
 	Net.stop_discovery()
 	Net.begin_game()

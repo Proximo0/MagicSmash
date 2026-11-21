@@ -89,6 +89,17 @@ func test_ambush_halves_the_rift_warning() -> void:
 		WorldWaves._queue_rift(w, World.GOBLIN, 1)
 		var want := w.tune.rift_warning * (0.5 if level >= 3 else 1.0)
 		assert_near(float(w.spawn_queue[0].t) - w.wave_time, want, 0.0001, Seals.title(level))
+		# A RISE group's markers (one per riser) warn as long.
+		w.spawn_queue.clear()
+		w.events.clear()
+		WorldWaves._queue_rolled(w, [Bestiary.RISE, [[Bestiary.COFFIN, 2]]])
+		assert_eq(w.spawn_queue.size(), 2)
+		for q: Dictionary in w.spawn_queue:
+			assert_near(float(q.t) - w.wave_time, want, 0.0001, "RISE at " + Seals.title(level))
+		var rifts := w.events.filter(func(ev: Array) -> bool: return int(ev[0]) == World.EV_RIFT)
+		assert_eq(rifts.size(), 2)
+		for ev: Array in rifts:
+			assert_near(float(ev[4]), want, 0.0001, "the RISE marker shows as long")
 
 
 func test_famine_potions_heal_one_heart() -> void:
@@ -126,6 +137,38 @@ func test_legion_groups_and_cap() -> void:
 	var budget := b.horde_budget
 	WorldWaves._direct_horde(b, 0.5)
 	assert_eq(b.horde_budget, budget, "held at 325")
+	assert_eq(b.enemy_cap(), 325)
+	assert_eq(a.enemy_cap(), int(a.tune.enemy_cap))
+
+
+## LEGION's cap reaches the Bone Priest: past Tuning's cap but under LEGION's, a priest still raises.
+func test_legion_cap_lets_a_priest_raise() -> void:
+	var w := _world(5, [0], 11)
+	w.phase = World.PH_FIGHT
+	for i: int in range(280):
+		w.spawn_queue.append({"t": 9999.0, "type": World.GOBLIN, "door": 0})
+	assert_true(280 > int(w.tune.enemy_cap), "the test sits past Tuning's cap")
+	var priest := WorldWaves.spawn_enemy(w, World.PRIEST, 0, Vector2(200, 150))
+	priest.timer2 = World.PRIEST_RAISE - 0.001
+	w.events.clear()
+	var before := w.enemies.size()
+	Brains.think(w, priest, 0.01, w.players[0], Vector2.RIGHT, 80.0)
+	assert_eq(w.enemies.size() - before, World.PRIEST_RAISED, "LEGION: the priest still raises at 281 fielded")
+
+
+## The horde's budget grows faster up the ladder (seal_horde).
+func test_seal_horde_reaches_the_budget() -> void:
+	var got := {}
+	for level: int in [0, 9]:
+		var w := _world(level, [0], 11)
+		w.phase = World.PH_FIGHT
+		w.wave_time = 120.0
+		w.wave = 3
+		w.horde_budget = 0.0
+		WorldWaves._direct_horde(w, 0.001)
+		got[level] = w.horde_budget
+	assert_true(float(got[0]) > 0.0)
+	assert_near(float(got[9]) / float(got[0]), float(Seals.values(9).horde), 0.0001, "SEAL VIII: more budget per second")
 
 
 func test_champions_elites_are_tougher_and_escorted() -> void:
@@ -133,7 +176,7 @@ func test_champions_elites_are_tougher_and_escorted() -> void:
 		var w := _world(level, [0], 5)
 		w.wave = 3
 		w.spawn_queue.clear()
-		WorldWaves._spawn_elite(w)
+		WorldWaves._spawn_elite(w, true)
 		var e: World.Enemy = w.enemies[-1]
 		var plain := WorldWaves.spawn_enemy(w, e.type, 0)
 		var mul := w.tune.elite_hp_mul * (1.5 if level >= 6 else 1.0)
@@ -142,6 +185,54 @@ func test_champions_elites_are_tougher_and_escorted() -> void:
 		for s: Dictionary in w.spawn_queue:
 			assert_eq(int(s.type), e.type)
 			assert_true(int(s.door) >= 0)
+
+
+
+## CHAMPIONS escorts only the horde's timed elites, and never past the enemy cap.
+func test_champions_escorts_only_timed_elites_under_the_cap() -> void:
+	var curse := _world(6, [0, 1], 5)
+	curse.wave = 3
+	WorldShrines._apply_fate(curse, Gamble.TO_CURSE, 1, null, Vector2.ZERO)
+	assert_eq(curse.enemies.filter(func(e: World.Enemy) -> bool: return e.elite).size(), 2, "one elite per wizard")
+	assert_eq(curse.spawn_queue.size(), 0, "a curse's elites come alone")
+	var boss := _world(6, [0], 5)
+	boss.wave = 15
+	var lich := WorldWaves.spawn_enemy(boss, World.LICH, 0)
+	WorldBosses._make_final(boss, lich)
+	lich.hp = lich.maxhp * 0.1 # raging
+	lich.state = 4
+	lich.timer = 1.0
+	BossLich.think(boss, lich, 0.0, boss.players[0], Vector2.RIGHT, 80.0)
+	assert_eq(boss.enemies.filter(func(e: World.Enemy) -> bool: return e.elite).size(), 1, "the Archlich summons an elite")
+	assert_eq(boss.spawn_queue.size(), 0, "and it comes alone")
+	var full := _world(6, [0], 5)
+	full.wave = 3
+	for i: int in range(full.enemy_cap() - 2):
+		full.spawn_queue.append({"t": 9999.0, "type": World.GOBLIN, "door": 0})
+	WorldWaves._spawn_elite(full, true)
+	assert_eq(full.enemies.size() + full.spawn_queue.size(), full.enemy_cap(), "the escort is trimmed to the cap")
+	WorldWaves._spawn_elite(full, true)
+	assert_eq(full.spawn_queue.size(), full.enemy_cap() - 1, "none past the cap")
+
+
+## DARKNESS: a ritual takes twice as long at SEAL VIII.
+func test_darkness_rituals_take_twice_as_long() -> void:
+	for level: int in [8, 9]:
+		var w := _world(level, [0, 1], 3)
+		w.phase_t = 1e6
+		for q: World.Player in w.players.values():
+			q.invuln = 0.0
+		var p: World.Player = w.players[1]
+		w.hurt_player(p, 99)
+		assert_true(p.down, Seals.title(level))
+		w.players[0].pos = p.pos
+		var need := w.tune.ritual_time * (2.0 if level >= 9 else 1.0)
+		for _i: int in range(roundi((need - 0.1) * 60.0)):
+			w.step(1.0 / 60.0, {})
+		assert_true(p.down, "still down just before %.1f s at %s" % [need, Seals.title(level)])
+		for _i: int in range(12):
+			w.step(1.0 / 60.0, {})
+		assert_true(p.alive, "raised at %.1f s at %s" % [need, Seals.title(level)])
 
 
 func test_misfortune_silence_and_darkness() -> void:

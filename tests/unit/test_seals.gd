@@ -104,6 +104,18 @@ func test_the_lobby_rows_longest_text_fits_its_box() -> void:
 				assert_true(need <= int(box.size.x), "%s row is %d px wide" % [Seals.title(level), need])
 
 
+## Lobby taps (title.gd lobby_tap_zone): the whole Seal row steps the ladder, the start zone begins below it.
+func test_lobby_taps_on_the_seal_row_step_and_never_start() -> void:
+	var title: GDScript = load("res://game/ui/title.gd")
+	var box: Rect2 = title.LOBBY_SEAL_ROW
+	for y: float in [box.position.y, box.position.y + box.size.y * 0.5, box.end.y - 0.5]:
+		assert_eq(title.lobby_tap_zone(Vector2(box.position.x + 2, y)), -1, "left half at y %s" % y)
+		assert_eq(title.lobby_tap_zone(Vector2(box.end.x - 2, y)), 1, "right half at y %s" % y)
+	assert_eq(title.lobby_tap_zone(Vector2(240, box.end.y)), 2, "just below the row starts")
+	assert_eq(title.lobby_tap_zone(Vector2(240, 236)), 2, "the TAP HERE TO START line")
+	assert_eq(title.lobby_tap_zone(Vector2(240, box.position.y - 1)), 0, "the seats above do nothing")
+
+
 ## The results line (Seals.pay_line) fits the 480 px screen with a margin.
 func test_the_results_line_fits() -> void:
 	for level: int in range(Seals.MIN, Seals.MAX + 1):

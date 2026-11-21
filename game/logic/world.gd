@@ -420,6 +420,10 @@ func apply_meta(b: Dictionary) -> void:
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
 
+## The live enemy cap: LEGION's seal_cap when a Seal sets one, else Tuning's enemy_cap.
+func enemy_cap() -> int:
+	return seal_cap if seal_cap > 0 else int(tune.enemy_cap)
+
 ## Starts the run at a difficulty level (Net.seal, SEAL_EASY..SEAL_MAX): copies Seals.values into the seal_*
 ## fields (never into Tuning) and sets the wizards' hearts, lives and banned cards. Call once, after apply_meta.
 ## Level 0 changes nothing.

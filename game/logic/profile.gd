@@ -191,6 +191,14 @@ func seal_open(level: int) -> bool:
 	return level >= Seals.MIN and level <= seal_unlocked
 
 
+## The step a run may start at from `level` (a stale Net.seal from another host's lobby can be locked here):
+## the level when open, else the highest open step below it, or WIZARD for anything under the ladder.
+func playable_seal(level: int) -> int:
+	if level < Seals.MIN:
+		return 0
+	return mini(level, seal_unlocked)
+
+
 func prize_claimed(level: int) -> bool:
 	return seal_prizes.has(str(level))
 
@@ -233,9 +241,10 @@ func finish_run(run: Dictionary) -> int:
 			last_pay.prize = Seals.prize(seal)
 			earned += Seals.prize(seal)
 			var sc := Seals.card(seal)
-			if sc >= 0 and card_count(sc) == 0:
-				cards[Cards.key(sc)] = 1
-				last_pay.card = sc
+			if sc >= 0:
+				last_pay.card = sc # named even when the Archlich's drop already brought it this run
+				if card_count(sc) == 0:
+					cards[Cards.key(sc)] = 1
 	crystals += earned
 	return earned
 

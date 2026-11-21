@@ -166,6 +166,31 @@ func test_prizes_pay_once_per_profile_and_step() -> void:
 	assert_eq(Profile.new().prize_left(1), 50)
 
 
+## An Archlich's drop picked up during the run: the first win still names the card on the results line.
+func test_a_first_win_names_the_seal_card_already_owned() -> void:
+	var p := Profile.new()
+	p.cards[Cards.key(Seals.card(3))] = 1
+	p.finish_run({"won": true, "seal": 3})
+	assert_eq(p.last_pay.card, Seals.card(3))
+	assert_eq(p.card_count(Seals.card(3)), 1, "not paid twice")
+	assert_true(Seals.pay_line(p.last_pay).contains(" CARD"))
+	p.finish_run({"won": true, "seal": 3})
+	assert_eq(p.last_pay.card, -1, "a second win names none")
+
+
+## A stale Net.seal (another host's lobby) falls back to an open step; open steps and APPRENTICE stay.
+func test_playable_seal_falls_back_from_a_locked_step() -> void:
+	var p := Profile.new()
+	assert_eq(p.playable_seal(9), Seals.START_UNLOCKED, "stale locked value falls back to the highest open step")
+	assert_eq(p.playable_seal(1), 1, "open value kept")
+	assert_eq(p.playable_seal(0), 0)
+	assert_eq(p.playable_seal(Seals.MIN), Seals.MIN, "APPRENTICE kept")
+	assert_eq(p.playable_seal(-5), 0, "below the ladder: WIZARD")
+	p.seal_unlocked = 4
+	assert_eq(p.playable_seal(9), 4)
+	assert_eq(p.playable_seal(3), 3)
+
+
 func test_wins_unlock_the_ladder_in_order() -> void:
 	var p := Profile.new()
 	for level: int in range(Seals.MIN, Seals.MAX + 1):

@@ -141,7 +141,7 @@ static func think(w: World, e: World.Enemy, dt: float, tgt: World.Player, dirv: 
 			e.state = 1 if fmod(e.timer2, World.PRIEST_RAISE) > World.PRIEST_RAISE - 0.6 else 0
 			if e.timer2 >= World.PRIEST_RAISE:
 				e.timer2 -= World.PRIEST_RAISE
-				var room := int(w.tune.enemy_cap) - w.enemies.size() - w.spawn_queue.size()
+				var room := w.enemy_cap() - w.enemies.size() - w.spawn_queue.size()
 				var n := mini(World.PRIEST_RAISED, room)
 				for k in n:
 					var at := e.pos + Vector2.from_angle(w.rng.randf() * TAU) * 14.0
