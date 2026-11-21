@@ -175,6 +175,8 @@ static func _sanctuary(w: World, p: World.Player) -> void:
 			w.emit(World.EV_HEAL, q.pos.x, q.pos.y - 6, q.slot, got)
 	for q: World.Player in w.players.values():
 		if q.down and q.pos.distance_to(p.pos) <= r:
+			q.rituals += 1 # it counts as a ritual: the next one on this hero takes longer
+			w.record.add(p.slot, "revives", 1)
 			_rise(w, q, p.slot)
 
 

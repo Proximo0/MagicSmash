@@ -260,6 +260,7 @@ func test_sanctuary_heals_the_standing_and_raises_the_near_fallen() -> void:
 	assert_eq(priest.hp, 3, "a priest heals herself")
 	assert_eq(w.players[1].hp, w.players[1].max_hp, "never past full")
 	assert_true(fallen.alive, "risen")
+	assert_eq(fallen.rituals, 1, "a raise by SANCTUARY counts as a ritual")
 	var heals: Array = w.take_events().filter(func(ev: Array) -> bool: return int(ev[0]) == World.EV_HEAL)
 	assert_eq(heals.size(), 2)
 	assert_eq([int(heals[0][3]), int(heals[0][4])], [0, 2])
@@ -354,3 +355,21 @@ func test_the_elf_pulls_gems_from_farther() -> void:
 	assert_near(reach[who.find(w.players[0])], base * Upgrades.magnet_mul(w.players[0].upgrades), 0.001)
 	assert_near(reach[who.find(elf)], base * Upgrades.magnet_mul(elf.upgrades) * elf.reach_mul, 0.001)
 	assert_true(elf.reach_mul > 1.0)
+
+
+func test_a_taunt_dies_with_a_seat_that_left() -> void:
+	var w := _world([Classes.KNIGHT, Classes.MAGE])
+	var knight: World.Player = w.players[0]
+	var mage: World.Player = w.players[1]
+	knight.pos = Vector2(200, 200)
+	mage.pos = Vector2(420, 240)
+	var e := w.spawn_enemy(World.GOBLIN, 0, Vector2(400, 240))
+	e.taunt = knight
+	e.taunt_t = 3.0
+	w.players.erase(0) # as a LAN leaver
+	w._plist.assign(w.players.values())
+	e.entering = false
+	w._build_grid()
+	WorldEnemies._sep_fill(w)
+	WorldEnemies._update_enemy(w, e, STEP)
+	assert_true(e.vel.x > 0.0, "it walks at the mage, not at where the knight was")

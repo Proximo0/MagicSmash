@@ -54,7 +54,7 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	var taunted := false
 	if e.taunt_t > 0.0:
 		e.taunt_t -= dt
-		if e.taunt.alive and e.taunt_t > 0.0:
+		if e.taunt.alive and e.taunt_t > 0.0 and w.players.get(e.taunt.slot) == e.taunt: # not a seat that left
 			tgt = e.taunt
 			taunted = true
 	var tpos: Vector2 = tgt.pos if tgt else G.ARENA.get_center() + Vector2(cos(e.t * 0.5), sin(e.t * 0.7)) * 80.0
@@ -88,10 +88,9 @@ static func _update_enemy(w: World, e: World.Enemy, dt: float) -> void:
 	# Contact damage. Nobody can be touched unless the nearest wizard was close when this update began: an enemy
 	# moves a few pixels a step. A kind that can teleport (F_BLINK: a mage, the Lich) always checks.
 	# A kind with no contact damage (a bloat, a coffin) touches nobody, so it gives no free hurt-invulnerability either.
-	# Threat can pick a wizard further than the nearest: at most World.threat_spread times as far as one in touch, so
-	# the reach grows to that (it is CONTACT_REACH, as ever, while every threat is the same).
-	if e.contact > 0 and (dist < er + World.CONTACT_REACH or dist < (er + 5.0) * w.threat_spread
-			or flags & Bestiary.F_BLINK or taunted):
+	# Threat can pick a wizard further than the nearest: at most World.threat_spread times as far as one in reach, so
+	# the reach grows by that (it is CONTACT_REACH, as ever, while every threat is the same: the spread is 1).
+	if e.contact > 0 and (dist < (er + World.CONTACT_REACH) * w.threat_spread or flags & Bestiary.F_BLINK or taunted):
 		for p: World.Player in w._plist:
 			if p.alive and p.invuln <= 0.0 and p.pos.distance_to(e.pos) < e.r + 5.0:
 				var dmg := e.contact
