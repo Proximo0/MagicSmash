@@ -13,7 +13,7 @@ const VISITS: Array = [[420.0, 150.0], [720.0, 400.0]]
 ## A boss's health multiplier by party size (1 to 4 wizards), and its growth each time the same kind returns (the
 ## Lich's second visit has 1.25x). The values the default Tuning gives (boss_hp_per_player, boss_hp_per_cycle, still
 ## the balance levers): World passes party_hp_from(tune) and the cycle row, the same numbers bit for bit.
-const PARTY_HP: Array = [1.0, 1.3, 1.6, 1.9]
+const PARTY_HP: Array = [1.0, 1.5, 2.0, 2.5]
 const CYCLE_HP := 2.0
 ## Today's rage line: the Lich's enraged set starts under half health, the Archlich's under FINAL_RAGE.
 const LICH_RAGE := 0.5

@@ -5,9 +5,8 @@ extends RefCounted
 
 ## The pickup a party tome is.
 const PARTY_TOME := World.PK_TOME_PARTY
-## Chance an elite drops a party tome, and an urn holds one (each Lich always drops one).
-const PARTY_TOME_ELITE := 0.25
-const PARTY_TOME_URN := 0.02
+## The chance an elite drops one, and an urn holds one, is tune.party_tome_elite and tune.party_tome_urn (each
+## Lich always drops one).
 
 
 ## Applies level-up picks, redraws and banishes, and deals cards; the world never waits for them. A wizard with no

@@ -18,18 +18,18 @@ const MAX_LEVEL := 5
 ## burst when it hits or runs out, blast_reach: px over which the burst's bonus fades, blast_bonus: extra damage
 ## at the centre. slow: seconds a hit enemy stays slowed.
 const STATS: Array = [
-	{"name": "ARCANE BOLT", "cast": "bolt", "cd": [0.16, 0.15, 0.14, 0.13, 0.12], "dmg": [2.2, 2.4, 2.6, 2.8, 3.0],
+	{"name": "ARCANE BOLT", "cast": "bolt", "cd": [0.16, 0.15, 0.14, 0.13, 0.12], "dmg": [2.6, 2.75, 2.8, 2.9, 3.0],
 		"n": [1, 1, 2, 2, 3], "speed": 310.0, "r": 3.0, "life": 1.0, "spread": 0.12, "jitter": 0.04},
-	{"name": "FIREBALL", "cast": "bolt", "cd": [1.2, 1.1, 1.0, 0.9, 0.8], "dmg": [1.8, 2.1, 2.4, 2.7, 3.0],
+	{"name": "FIREBALL", "cast": "bolt", "cd": [1.2, 1.1, 1.0, 0.9, 0.8], "dmg": [2.2, 2.4, 2.6, 2.8, 3.0],
 		"n": [1, 1, 2, 2, 2], "speed": 200.0, "r": 4.5, "life": 1.6, "spread": 0.3,
 		"blast": 28.0, "blast_reach": 40.0, "blast_bonus": 1.5},
-	{"name": "FROST FAN", "cast": "bolt", "cd": [1.0, 0.95, 0.9, 0.85, 0.8], "dmg": [2.0, 2.3, 2.6, 3.0, 3.5],
+	{"name": "FROST FAN", "cast": "bolt", "cd": [1.0, 0.95, 0.9, 0.85, 0.8], "dmg": [2.4, 2.65, 2.8, 3.1, 3.5],
 		"n": [3, 4, 5, 6, 7], "speed": 255.0, "r": 2.5, "life": 0.75, "spread": 0.17, "slow": 1.8},
-	{"name": "CHAIN LIGHTNING", "cast": "chain", "cd": [0.9, 0.8, 0.7, 0.65, 0.6], "dmg": [2.6, 3.0, 3.5, 4.2, 5.0],
+	{"name": "CHAIN LIGHTNING", "cast": "chain", "cd": [0.9, 0.8, 0.7, 0.65, 0.6], "dmg": [3.1, 3.45, 3.8, 4.3, 5.0],
 		"n": [3, 4, 5, 6, 7], "speed": 0.0, "r": 0.0, "life": 0.0, "spread": 0.0},
-	{"name": "STARFALL", "cast": "bolt", "cd": [1.1, 1.0, 0.9, 0.8, 0.7], "dmg": [2.8, 3.1, 3.4, 3.8, 4.2],
+	{"name": "STARFALL", "cast": "bolt", "cd": [1.1, 1.0, 0.9, 0.8, 0.7], "dmg": [3.4, 3.55, 3.7, 3.9, 4.2],
 		"n": [2, 2, 3, 3, 4], "speed": 175.0, "r": 3.0, "life": 2.2, "spread": 0.45, "home": 160.0, "turn": 5.5},
-	{"name": "RUNE CIRCLE", "cast": "rune", "cd": [2.6, 2.4, 2.2, 2.0, 1.8], "dmg": [0.55, 0.7, 0.85, 1.05, 1.25],
+	{"name": "RUNE CIRCLE", "cast": "rune", "cd": [2.6, 2.4, 2.2, 2.0, 1.8], "dmg": [0.66, 0.8, 0.92, 1.08, 1.25],
 		"n": [1, 1, 2, 2, 3], "speed": 0.0, "r": [14.0, 16.0, 18.0, 20.0, 22.0], "life": [2.0, 2.0, 2.25, 2.5, 2.5],
 		"spread": 0.0},
 ]

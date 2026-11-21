@@ -113,7 +113,7 @@ static func _break_urn(w: World, at: Vector2) -> void:
 		what = World.URN_COIN
 		for k in 2:
 			_drop(w, World.PK_COIN, at, Vector2.from_angle(w.rng.randf() * TAU) * 40.0)
-	WorldLevels._drop_party_tome(w, at, WorldLevels.PARTY_TOME_URN)
+	WorldLevels._drop_party_tome(w, at, w.tune.party_tome_urn)
 	w.emit(World.EV_URN, at.x, at.y, what, 0)
 
 

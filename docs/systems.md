@@ -209,3 +209,23 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
 - **Names:** mythic loot (Gauntlets of Tyr, Hermes' Sandals, Eye of Odin...) and unlocks; achievement texts
   match. Version 0.9.0.
 - **Sound:** 14 occult SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
+
+## Economy retune (job E, 21 Nov): level-ups carry the power curve
+
+`floor_tomes` is 0 by default: no spell tome falls from kills or powerups, and the party tome (pickup
+`World.PK_TOME_PARTY`, one random owned spell level for every wizard) drops instead: every Lich, every elite
+(`party_tome_elite` 1.0, a new Tuning row; was a 0.25 constant) and 2% of urns (`party_tome_urn`). Floor tomes used to
+evolve every spell by about 1:40; now the first evolution comes at about 4:00 to 5:00 from picks and party tomes.
+
+- XP: `xp_per_level` 90 -> 55, so level 11 to 12 at 6:00 (was 8.7 without floor tomes).
+- Spells: level 1 to 4 damage up about 20/15/8/3% in `Spells.STATS` (level 5 and evolutions unchanged), because a
+  spell now sits at level 1 to 3 for the first minutes.
+- Horde: `horde_rate_base` 2 -> 1.5, `horde_rate_per_min` 7 -> 5, `enemy_hp_per_min` 0.1 -> 0 and `enemy_hp_mul`
+  1 -> 0.85 (compound `enemy_hp_growth` 1.14 kept). The bots' danger is a hump at minutes 3 to 4 (arrows, orbs,
+  orcs before the first evolution); runs that pass the first Lich mostly win.
+- Bosses: `boss_hp_mul` 3.5 -> 4.5 (the Lich fell in 20 to 35 s), `final_hp_mul` 3.6 -> 2.5.
+- Party: `spawn_party_scale` 0.4 -> 1.0, `enemy_hp_per_player` 0.12 -> 0.3, `boss_hp_per_player` 0.3 -> 0.5
+  (`Bosses.PARTY_HP` follows), `xp_party_scale` 0.8 -> 1.0 (party level within 1 of solo): four wizards' AoE overlaps, so without these
+  a party saw almost no pressure and won every run.
+- Bots value the party tome like a rare chest (`SmashBot.PICKUP_VALUE[15]` 4.0).
+- Before and after bot tables: the job E hand-back (wave 2).

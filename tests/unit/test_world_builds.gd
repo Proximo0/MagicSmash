@@ -215,7 +215,7 @@ func _tomes_tune(floor_tomes: float) -> Tuning:
 	return t
 
 
-## tune.floor_tomes 1 (the default): spell tomes fall from kills and powerups as before, and no party tome drops
+## tune.floor_tomes 1 (the old rule): spell tomes fall from kills and powerups as before, and no party tome drops
 ## from a Lich, an elite or an urn.
 func test_floor_tomes_on_keeps_spell_tomes_and_no_party_tome() -> void:
 	var w := World.new([0], 3, _tomes_tune(1.0))
@@ -241,9 +241,11 @@ func test_floor_tomes_on_keeps_spell_tomes_and_no_party_tome() -> void:
 		assert_true(k.kind != World.PK_TOME_PARTY, "a party tome dropped with floor tomes on")
 
 
-## tune.floor_tomes 0: each Lich drops a party tome, and so do some elites.
+## tune.floor_tomes 0 (the default): each Lich drops a party tome, and so do party_tome_elite of the elites.
 func test_floor_tomes_off_a_lich_and_elites_drop_party_tomes() -> void:
-	var w := World.new([0], 3, _tomes_tune(0.0))
+	var t := _tomes_tune(0.0)
+	t.party_tome_elite = 0.25 # a chance below 1, so the roll is tested
+	var w := World.new([0], 3, t)
 	w.step(DT, {})
 	var lich: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(120, 120))
 	w._kill_enemy(lich, 0)

@@ -160,7 +160,8 @@ func test_a_blast_hurts_enemies_once_and_credits_the_slot() -> void:
 	w.add_hazard(Hazards.BLAST, at, at, 30.0, 0.8, 0.3, 0)
 	for _i: int in range(80):
 		w.step(DT, {})
-	assert_near(1000.0 - e.hp, float(Hazards.KINDS[Hazards.BLAST][Hazards.K_FOE_DMG]), 0.01, "one blast, at the minute's scale")
+	assert_near(1000.0 - e.hp, float(Hazards.KINDS[Hazards.BLAST][Hazards.K_FOE_DMG]) * WorldWaves._hp_scale(w), 0.01,
+		"one blast, at the minute's scale")
 	assert_true(w.record.stat(0, "damage") > 0.0, "the slot gets the credit")
 
 
