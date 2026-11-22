@@ -14,6 +14,7 @@ from PIL import Image
 ROOT = R.ROOT
 LAYOUTS = ROOT / "layouts"
 KLEIN_SIZES = {"walk": (1024, 576), "one": (768, 768), "icon": (512, 512), "tile": (512, 512)}
+BONUS = 2   # walk/action: up to 2 extra tries when none of the normal tries passed (else the drifting sheet is kept)
 TRIES = {"walk": 3, "action": 3, "one": 3, "icon": 2, "tile": 1, "painted": 2}
 CONSIST_MAX = 0.14   # calibrated: consistent sheets 0.03-0.10, a frame with a red cloak 0.16
 
@@ -37,8 +38,15 @@ def key_border(img, hue_tol=28.0):
     lab, _ = ndimage.label(near)
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     m = np.isin(lab, list(edge))
+    lab2, k2 = ndimage.label(near & ~m)  # enclosed magenta pockets (between legs, under arms) the border flood misses
+    if k2:
+        sizes = np.bincount(lab2.ravel())[1:]
+        m |= np.isin(lab2, 1 + np.nonzero(sizes >= 12)[0])
     m = ndimage.binary_dilation(m, iterations=1) & (near | (c > 0.5 * c0) & (dh < hue_tol * 1.5))  # eat the fringe
-    out = (a * 255).astype(np.uint8); out[m] = (255, 0, 255)
+    ring = ndimage.binary_dilation(m, iterations=2) & ~m  # despill: pull magenta tint out of the 2 px next to the key
+    spill = np.clip(np.minimum(a[..., 0], a[..., 2]) - a[..., 1], 0, None) * ring
+    a = a.copy(); a[..., 0] -= spill; a[..., 2] -= spill
+    out = (np.clip(a, 0, 1) * 255).astype(np.uint8); out[m] = (255, 0, 255)
     return Image.fromarray(out), float(m.mean())
 
 
@@ -117,6 +125,8 @@ def phase_b(q, count=4, push_every=20):
     done = R.read_set(R.DONE) | R.read_set(R.FAILED)
     todo = [e for e in q if e["id"] not in done]
     since, n_ids = 0, 0
+    try: prior = json.loads((ROOT / "scores.json").read_text(encoding="utf-8"))
+    except Exception: prior = {}
     for e in todo:
         if R.STOP.exists(): R.log("STOP file found, stopping"); break
         eid, kind = e["id"], e.get("kind"); t0 = time.time(); ok_all = True
@@ -133,7 +143,10 @@ def phase_b(q, count=4, push_every=20):
             f = R.RAW / f"{eid}_{n}.png"
             if f.exists(): continue
             best = None
-            for t in range(TRIES.get(kind, 2)):
+            t_start = len(prior.get(eid, {}).get(str(n), []))  # a redraw continues with new seeds
+            n_tries = TRIES.get(kind, 2) + (BONUS if kind in ("walk", "action") else 0)
+            for t in range(t_start, t_start + n_tries):
+                if t - t_start >= TRIES.get(kind, 2) and best is not None and best[3]: break
                 try:
                     g = torch.Generator("cuda").manual_seed(zlib.crc32(f"K/{eid}/{n}/{t}".encode()))
                     kw = dict(prompt=prompt, width=w, height=h, num_inference_steps=4, guidance_scale=1.0, generator=g)
@@ -158,7 +171,7 @@ def phase_b(q, count=4, push_every=20):
                         if miss: notes += f" missing {miss}"
                     R.record_score(eid, n, t + 1, good, sc, ts, notes)
                     R.log(f"{eid}_{n} try {t+1}: {'ok' if good else 'reject'}{notes}")
-                    if best is None or sc > best[0]: best = (sc, img, orig)
+                    if best is None or (good, sc) > (best[3], best[0]): best = (sc, img, orig, good)
                     if good: break
                 except Exception as ex:
                     R.log(f"{eid}_{n} error: {type(ex).__name__}: {str(ex)[:200]}"); torch.cuda.empty_cache(); time.sleep(5)

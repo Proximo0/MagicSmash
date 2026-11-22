@@ -20,10 +20,10 @@ VIEW = {"walk": "full body, side view facing right", "one": "full body, three-qu
 
 # ---- heroes: race x class ----
 RACE = {  # phrase, must, neg, (height, width)
- "human": ("(human man, round ears, short dark beard)1.2", ["round ears"], "pointed ears, tusks, green skin", (1.0, 1.0)),
+ "human": ("(human man, round ears, short dark beard)1.2", [], "pointed ears, tusks, green skin", (1.0, 1.0)),
  "elf": ("(slender elf, long pointed ears)1.4, long pale hair", ["long pointed ears", "slender"],
          "round ears, beard, stocky, tusks", (1.0, 1.0)),
- "dwarf": ("(short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3", ["short and very wide", "huge braided beard"],
+ "dwarf": ("(short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3", ["broad dwarf", "huge braided beard"],
            "tall, slender, long legs, clean-shaven", (0.8, 1.3)),
  "orc": ("(green skin, big lower tusks, heavy brow)1.4, broad hulking bald orc", ["green skin", "lower tusks", "broad hulking"],
          "human face, smooth chin, beard, slender", (1.1, 1.2)),
@@ -34,7 +34,7 @@ CLS = {  # gear, must, neg
  "mage": ("soot-black robe, wide dark hat, gnarled wooden staff with orange ember tip", ["wide hat", "staff with ember"], "plate armour, sword"),
  "archer": ("brown leather jerkin, deep hood, tall yew longbow, quiver of black-fletched arrows", ["hood", "tall longbow", "quiver"], "sword, plate armour"),
  "priest": ("grey cassock, wooden reliquary on chain, tall iron candle staff with yellow flame, bandaged hands", ["candle staff", "grey cassock"], "armour, sword"),
- "paladin": ("blackened plate with gold edges, iron war hammer, kite shield with yellow sunburst, grey-white cloak", ["kite shield with sunburst", "war hammer"], "robe, bow"),
+ "paladin": ("blackened plate with gold edges, iron war hammer, kite shield with yellow sunburst, grey-white cloak", ["large shield", "war hammer"], "robe, bow"),
  "warden": ("heaviest dark plate, tower shield as tall as the body, short broad sword, chains across chest", ["tower shield", "chains on chest"], "robe, bow"),
  "berserker": ("bare scarred arms, grey wolf pelt, two bearded axes, red war paint, broken helm", ["two axes", "bare arms", "wolf pelt"], "full plate, shield"),
  "archmage": ("gold-threaded layered robe, tall horned mitre, staff with floating burning orange orb", ["horned mitre", "floating orb staff"], "plate armour, sword"),

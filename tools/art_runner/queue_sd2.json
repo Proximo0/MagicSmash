@@ -11,7 +11,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, patched grey hooded cloak, short iron dirk, wind-up (dirk drawn back at the hip, lantern raised)1.2, strike (lunging forward stabbing with the dirk)1.2, follow-through (arm fully extended, lantern swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hooded cloak",
    "lantern",
    "same figure each frame"
@@ -41,7 +40,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, patched grey hooded cloak, short iron dirk, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hooded cloak",
    "lantern",
    "same figure each frame"
@@ -71,7 +69,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, patched grey hooded cloak, short iron dirk, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hooded cloak",
    "lantern",
    "same figure each frame"
@@ -191,7 +188,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, patched grey hooded cloak, short iron dirk, wind-up (dirk drawn back at the hip, lantern raised)1.2, strike (lunging forward stabbing with the dirk)1.2, follow-through (arm fully extended, lantern swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hooded cloak",
    "same figure each frame"
@@ -221,7 +218,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, patched grey hooded cloak, short iron dirk, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hooded cloak",
    "same figure each frame"
@@ -251,7 +248,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, patched grey hooded cloak, short iron dirk, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, helmet, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hooded cloak",
    "same figure each frame"
@@ -371,7 +368,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, dented grey plate armour, great helm, wind-up (two-handed sword raised over the right shoulder)1.2, strike (sword chopping down in a wide arc)1.2, follow-through (sword low to the ground, body bent forward)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "great helm",
    "two-handed sword",
    "same figure each frame"
@@ -401,7 +397,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, dented grey plate armour, great helm, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "great helm",
    "two-handed sword",
    "same figure each frame"
@@ -431,7 +426,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, dented grey plate armour, great helm, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "great helm",
    "two-handed sword",
    "same figure each frame"
@@ -551,7 +545,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, dented grey plate armour, great helm, wind-up (two-handed sword raised over the right shoulder)1.2, strike (sword chopping down in a wide arc)1.2, follow-through (sword low to the ground, body bent forward)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "great helm",
    "same figure each frame"
@@ -581,7 +575,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, dented grey plate armour, great helm, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "great helm",
    "same figure each frame"
@@ -611,7 +605,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, dented grey plate armour, great helm, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "great helm",
    "same figure each frame"
@@ -731,7 +725,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, soot-black robe, wide dark hat, wind-up (staff pulled back, ember tip glowing)1.2, strike (staff thrust forward, orange fire bursting from the tip)1.2, follow-through (staff pointing ahead, embers drifting)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "wide hat",
    "staff with ember",
    "same figure each frame"
@@ -761,7 +754,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, soot-black robe, wide dark hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "wide hat",
    "staff with ember",
    "same figure each frame"
@@ -791,7 +783,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, soot-black robe, wide dark hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "wide hat",
    "staff with ember",
    "same figure each frame"
@@ -911,7 +902,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, soot-black robe, wide dark hat, wind-up (staff pulled back, ember tip glowing)1.2, strike (staff thrust forward, orange fire bursting from the tip)1.2, follow-through (staff pointing ahead, embers drifting)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "wide hat",
    "same figure each frame"
@@ -941,7 +932,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, soot-black robe, wide dark hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "wide hat",
    "same figure each frame"
@@ -971,7 +962,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, soot-black robe, wide dark hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "wide hat",
    "same figure each frame"
@@ -1091,7 +1082,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, brown leather jerkin, deep hood, wind-up (longbow drawn to the cheek, arrow nocked)1.2, strike (string released, arrow leaving the bow)1.2, follow-through (bow arm extended, string trembling)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hood",
    "tall longbow",
    "same figure each frame"
@@ -1121,7 +1111,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, brown leather jerkin, deep hood, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hood",
    "tall longbow",
    "same figure each frame"
@@ -1151,7 +1140,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, brown leather jerkin, deep hood, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "hood",
    "tall longbow",
    "same figure each frame"
@@ -1271,7 +1259,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, brown leather jerkin, deep hood, wind-up (longbow drawn to the cheek, arrow nocked)1.2, strike (string released, arrow leaving the bow)1.2, follow-through (bow arm extended, string trembling)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hood",
    "same figure each frame"
@@ -1301,7 +1289,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, brown leather jerkin, deep hood, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hood",
    "same figure each frame"
@@ -1331,7 +1319,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, brown leather jerkin, deep hood, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, sword, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "hood",
    "same figure each frame"
@@ -1451,7 +1439,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, grey cassock, wooden reliquary on chain, wind-up (candle staff raised high, yellow flame flaring)1.2, strike (staff swung down, flame streaking)1.2, follow-through (staff low, a trail of sparks behind it)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "candle staff",
    "grey cassock",
    "same figure each frame"
@@ -1481,7 +1468,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, grey cassock, wooden reliquary on chain, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "candle staff",
    "grey cassock",
    "same figure each frame"
@@ -1511,7 +1497,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, grey cassock, wooden reliquary on chain, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "candle staff",
    "grey cassock",
    "same figure each frame"
@@ -1631,7 +1616,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, grey cassock, wooden reliquary on chain, wind-up (candle staff raised high, yellow flame flaring)1.2, strike (staff swung down, flame streaking)1.2, follow-through (staff low, a trail of sparks behind it)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "candle staff",
    "same figure each frame"
@@ -1661,7 +1646,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, grey cassock, wooden reliquary on chain, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "candle staff",
    "same figure each frame"
@@ -1691,7 +1676,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, grey cassock, wooden reliquary on chain, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "candle staff",
    "same figure each frame"
@@ -1811,8 +1796,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, blackened plate with gold edges, iron war hammer, wind-up (war hammer lifted behind the head, shield forward)1.2, strike (hammer slamming down)1.2, follow-through (hammer resting low, shield still raised)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
-   "kite shield with sunburst",
+   "large shield",
    "war hammer",
    "same figure each frame"
   ],
@@ -1841,8 +1825,7 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, blackened plate with gold edges, iron war hammer, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
-   "kite shield with sunburst",
+   "large shield",
    "war hammer",
    "same figure each frame"
   ],
@@ -1871,8 +1854,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, blackened plate with gold edges, iron war hammer, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
-   "kite shield with sunburst",
+   "large shield",
    "war hammer",
    "same figure each frame"
   ],
@@ -1903,7 +1885,7 @@
   "must": [
    "long pointed ears",
    "slender",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -1933,7 +1915,7 @@
   "must": [
    "long pointed ears",
    "slender",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -1963,7 +1945,7 @@
   "must": [
    "long pointed ears",
    "slender",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -1991,9 +1973,9 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, blackened plate with gold edges, iron war hammer, wind-up (war hammer lifted behind the head, shield forward)1.2, strike (hammer slamming down)1.2, follow-through (hammer resting low, shield still raised)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2021,9 +2003,9 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, blackened plate with gold edges, iron war hammer, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2051,9 +2033,9 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, blackened plate with gold edges, iron war hammer, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2083,7 +2065,7 @@
   "must": [
    "green skin",
    "lower tusks",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2113,7 +2095,7 @@
   "must": [
    "green skin",
    "lower tusks",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2143,7 +2125,7 @@
   "must": [
    "green skin",
    "lower tusks",
-   "kite shield with sunburst",
+   "large shield",
    "same figure each frame"
   ],
   "scale": {
@@ -2687,7 +2669,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, heaviest dark plate, tower shield as tall as the body, wind-up (tower shield drawn back, short sword cocked)1.2, strike (shield shoved forward, sword thrusting)1.2, follow-through (braced behind the shield, chains swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "tower shield",
    "chains on chest",
    "same figure each frame"
@@ -2717,7 +2698,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, heaviest dark plate, tower shield as tall as the body, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "tower shield",
    "chains on chest",
    "same figure each frame"
@@ -2747,7 +2727,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, heaviest dark plate, tower shield as tall as the body, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "tower shield",
    "chains on chest",
    "same figure each frame"
@@ -2867,7 +2846,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, heaviest dark plate, tower shield as tall as the body, wind-up (tower shield drawn back, short sword cocked)1.2, strike (shield shoved forward, sword thrusting)1.2, follow-through (braced behind the shield, chains swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "tower shield",
    "same figure each frame"
@@ -2897,7 +2876,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, heaviest dark plate, tower shield as tall as the body, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "tower shield",
    "same figure each frame"
@@ -2927,7 +2906,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, heaviest dark plate, tower shield as tall as the body, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bow, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "tower shield",
    "same figure each frame"
@@ -3047,7 +3026,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, bare scarred arms, grey wolf pelt, wind-up (both axes raised overhead, mouth open in a roar)1.2, strike (both axes swinging in crossing arcs)1.2, follow-through (axes low, torso twisted, chest heaving)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "two axes",
    "bare arms",
    "same figure each frame"
@@ -3077,7 +3055,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, bare scarred arms, grey wolf pelt, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "two axes",
    "bare arms",
    "same figure each frame"
@@ -3107,7 +3084,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, bare scarred arms, grey wolf pelt, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "two axes",
    "bare arms",
    "same figure each frame"
@@ -3227,7 +3203,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, bare scarred arms, grey wolf pelt, wind-up (both axes raised overhead, mouth open in a roar)1.2, strike (both axes swinging in crossing arcs)1.2, follow-through (axes low, torso twisted, chest heaving)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "two axes",
    "same figure each frame"
@@ -3257,7 +3233,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, bare scarred arms, grey wolf pelt, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "two axes",
    "same figure each frame"
@@ -3287,7 +3263,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, bare scarred arms, grey wolf pelt, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, full plate, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "two axes",
    "same figure each frame"
@@ -3407,7 +3383,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, gold-threaded layered robe, tall horned mitre, wind-up (staff raised, floating orb flaring)1.2, strike (staff swept forward, orb hurling a burning bolt)1.2, follow-through (arm extended, orb dimming, robes billowing)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "horned mitre",
    "floating orb staff",
    "same figure each frame"
@@ -3437,7 +3412,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, gold-threaded layered robe, tall horned mitre, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "horned mitre",
    "floating orb staff",
    "same figure each frame"
@@ -3467,7 +3441,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, gold-threaded layered robe, tall horned mitre, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "horned mitre",
    "floating orb staff",
    "same figure each frame"
@@ -3587,7 +3560,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, gold-threaded layered robe, tall horned mitre, wind-up (staff raised, floating orb flaring)1.2, strike (staff swept forward, orb hurling a burning bolt)1.2, follow-through (arm extended, orb dimming, robes billowing)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "horned mitre",
    "same figure each frame"
@@ -3617,7 +3590,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, gold-threaded layered robe, tall horned mitre, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "horned mitre",
    "same figure each frame"
@@ -3647,7 +3620,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, gold-threaded layered robe, tall horned mitre, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "horned mitre",
    "same figure each frame"
@@ -3767,7 +3740,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, robe hung with bones and dolls, veiled face, wind-up (wand raised, censer swung back)1.2, strike (wand jabbing forward, censer smoke bursting)1.2, follow-through (arm extended, smoke trailing, dolls swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "veiled face",
    "bones and dolls",
    "same figure each frame"
@@ -3797,7 +3769,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, robe hung with bones and dolls, veiled face, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "veiled face",
    "bones and dolls",
    "same figure each frame"
@@ -3827,7 +3798,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, robe hung with bones and dolls, veiled face, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "veiled face",
    "bones and dolls",
    "same figure each frame"
@@ -3947,7 +3917,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, robe hung with bones and dolls, veiled face, wind-up (wand raised, censer swung back)1.2, strike (wand jabbing forward, censer smoke bursting)1.2, follow-through (arm extended, smoke trailing, dolls swinging)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "veiled face",
    "same figure each frame"
@@ -3977,7 +3947,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, robe hung with bones and dolls, veiled face, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "veiled face",
    "same figure each frame"
@@ -4007,7 +3977,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, robe hung with bones and dolls, veiled face, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, bright colours, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "veiled face",
    "same figure each frame"
@@ -4127,7 +4097,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, fur-trimmed cloak, antlers on hood, wind-up (horn bow drawn, arrow nocked, crow flaring wings)1.2, strike (arrow loosed from the bow)1.2, follow-through (bow arm extended, crow flapping)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "antlered hood",
    "crow on shoulder",
    "same figure each frame"
@@ -4157,7 +4126,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, fur-trimmed cloak, antlers on hood, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "antlered hood",
    "crow on shoulder",
    "same figure each frame"
@@ -4187,7 +4155,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, fur-trimmed cloak, antlers on hood, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "antlered hood",
    "crow on shoulder",
    "same figure each frame"
@@ -4307,7 +4274,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, fur-trimmed cloak, antlers on hood, wind-up (horn bow drawn, arrow nocked, crow flaring wings)1.2, strike (arrow loosed from the bow)1.2, follow-through (bow arm extended, crow flapping)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "antlered hood",
    "same figure each frame"
@@ -4337,7 +4304,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, fur-trimmed cloak, antlers on hood, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "antlered hood",
    "same figure each frame"
@@ -4367,7 +4334,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, fur-trimmed cloak, antlers on hood, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, plate armour, sword, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "antlered hood",
    "same figure each frame"
@@ -4487,7 +4454,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, long dark coat, brimmed hat, wind-up (heavy crossbow raised to the eye, lens glinting)1.2, strike (crossbow firing, bolt leaving with smoke)1.2, follow-through (crossbow lowered, recoiling backward)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "brimmed hat",
    "crossbow with lens",
    "same figure each frame"
@@ -4517,7 +4483,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, long dark coat, brimmed hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "brimmed hat",
    "crossbow with lens",
    "same figure each frame"
@@ -4547,7 +4512,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, long dark coat, brimmed hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "brimmed hat",
    "crossbow with lens",
    "same figure each frame"
@@ -4667,7 +4631,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, long dark coat, brimmed hat, wind-up (heavy crossbow raised to the eye, lens glinting)1.2, strike (crossbow firing, bolt leaving with smoke)1.2, follow-through (crossbow lowered, recoiling backward)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "brimmed hat",
    "same figure each frame"
@@ -4697,7 +4661,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, long dark coat, brimmed hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "brimmed hat",
    "same figure each frame"
@@ -4727,7 +4691,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, long dark coat, brimmed hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, longbow, plate armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "brimmed hat",
    "same figure each frame"
@@ -4847,7 +4811,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, white robes, grey blindfold, wind-up (open book held out, ring of flames growing)1.2, strike (one hand thrust forward, flames shooting out)1.2, follow-through (hand extended, ring of flames fading)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "blindfold",
    "halo of flames",
    "same figure each frame"
@@ -4877,7 +4840,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, white robes, grey blindfold, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "blindfold",
    "halo of flames",
    "same figure each frame"
@@ -4907,7 +4869,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, white robes, grey blindfold, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "blindfold",
    "halo of flames",
    "same figure each frame"
@@ -5027,7 +4988,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, white robes, grey blindfold, wind-up (open book held out, ring of flames growing)1.2, strike (one hand thrust forward, flames shooting out)1.2, follow-through (hand extended, ring of flames fading)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "blindfold",
    "same figure each frame"
@@ -5057,7 +5018,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, white robes, grey blindfold, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "blindfold",
    "same figure each frame"
@@ -5087,7 +5048,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, white robes, grey blindfold, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, armour, weapon, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "blindfold",
    "same figure each frame"
@@ -5207,7 +5168,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, black coat, capotain hat, wind-up (flaming brand held back, scroll raised)1.2, strike (brand lashing forward, fire streaking)1.2, follow-through (brand low, scroll fluttering)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "iron mask",
    "capotain hat",
    "same figure each frame"
@@ -5237,7 +5197,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, black coat, capotain hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "iron mask",
    "capotain hat",
    "same figure each frame"
@@ -5267,7 +5226,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, black coat, capotain hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "iron mask",
    "capotain hat",
    "same figure each frame"
@@ -5387,7 +5345,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, black coat, capotain hat, wind-up (flaming brand held back, scroll raised)1.2, strike (brand lashing forward, fire streaking)1.2, follow-through (brand low, scroll fluttering)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "iron mask",
    "same figure each frame"
@@ -5417,7 +5375,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, black coat, capotain hat, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "iron mask",
    "same figure each frame"
@@ -5447,7 +5405,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, black coat, capotain hat, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, bare face, armour, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "iron mask",
    "same figure each frame"
@@ -5567,7 +5525,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, full pale plate, great winged helm, wind-up (iron mace raised, red cross shield forward)1.2, strike (mace crashing down over the shield)1.2, follow-through (mace low, shield raised, leaning in)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "winged helm",
    "red cross shield",
    "same figure each frame"
@@ -5597,7 +5554,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, full pale plate, great winged helm, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "winged helm",
    "red cross shield",
    "same figure each frame"
@@ -5627,7 +5583,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, full pale plate, great winged helm, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "winged helm",
    "red cross shield",
    "same figure each frame"
@@ -5747,7 +5702,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, full pale plate, great winged helm, wind-up (iron mace raised, red cross shield forward)1.2, strike (mace crashing down over the shield)1.2, follow-through (mace low, shield raised, leaning in)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "winged helm",
    "same figure each frame"
@@ -5777,7 +5732,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, full pale plate, great winged helm, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "winged helm",
    "same figure each frame"
@@ -5807,7 +5762,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, full pale plate, great winged helm, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, robe, bare head, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "winged helm",
    "same figure each frame"
@@ -5927,7 +5882,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, mail with surcoat, bare scarred head, wind-up (glowing war hammer lifted over the back, banner flaring)1.2, strike (hammer swung down, white light bursting)1.2, follow-through (hammer low, light fading, banner swaying)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "bare scarred head",
    "glowing war hammer",
    "same figure each frame"
@@ -5957,7 +5911,6 @@
   "sd_prompt": "pixel art, (human man, round ears, short dark beard)1.2, mail with surcoat, bare scarred head, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "bare scarred head",
    "glowing war hammer",
    "same figure each frame"
@@ -5987,7 +5940,6 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (human man, round ears, short dark beard)1.2, mail with surcoat, bare scarred head, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, pointed ears, tusks, green skin, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "round ears",
    "bare scarred head",
    "glowing war hammer",
    "same figure each frame"
@@ -6107,7 +6059,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, mail with surcoat, bare scarred head, wind-up (glowing war hammer lifted over the back, banner flaring)1.2, strike (hammer swung down, white light bursting)1.2, follow-through (hammer low, light fading, banner swaying)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "bare scarred head",
    "same figure each frame"
@@ -6137,7 +6089,7 @@
   "sd_prompt": "pixel art, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, mail with surcoat, bare scarred head, (single frame, hit reaction)1.3, (head thrown back, body recoiling and leaning away)1.2, arms flung out, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "bare scarred head",
    "same figure each frame"
@@ -6167,7 +6119,7 @@
   "sd_prompt": "pixel art, 3-pose sprite row, (short stocky very wide dwarf)1.4, (huge braided beard to the belt)1.3, mail with surcoat, bare scarred head, (staggering back clutching the chest)1.2, (falling to the knees, weapon dropping)1.2, (lying flat on the back on the ground)1.2, side view facing right, dark gothic 16-bit pixel art, Diablo-like, hard dark outline, desaturated iron grey, bone, dried-blood red, tallow yellow, sickly green, lit from upper left, flat magenta background (#FF00FF)",
   "negative": "text, watermark, border, picture frame, ground, floor, cast shadow, scenery, background objects, blurry, smooth gradient, 3d render, photo, front view, back view, different outfits between frames, tall, slender, long legs, clean-shaven, helmet, shield, standing idle in every frame, extra limbs",
   "must": [
-   "short and very wide",
+   "broad dwarf",
    "huge braided beard",
    "bare scarred head",
    "same figure each frame"

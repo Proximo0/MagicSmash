@@ -78,15 +78,19 @@ def best_pick(eid):
     """(n, score) of the top-ranked picture of an id from scores.json (each picture's best try), or (1, None)."""
     try: d = json.loads((ROOT / "scores.json").read_text(encoding="utf-8")).get(eid, {})
     except Exception: d = {}
-    cands = [(max(t["score"] for t in tries), int(n)) for n, tries in d.items() if tries]
+    cands = []  # pictures with a passing try rank above fallbacks (best of all-rejected tries); stale = redrawn since
+    for n, tries in d.items():
+        live = [t for t in tries if not t.get("stale")]
+        if live: cands.append((any(t["ok"] for t in live), max(t["score"] for t in live), int(n)))
     if not cands: return 1, None
-    s, n = max(cands); return n, s
+    _, s, n = max(cands); return n, s
+
 
 
 def export_best_and_sheet():
     """best/<id>_<n>.jpg for each done id not exported yet, plus sheets/<first>-<last>.jpg of those ids."""
     from PIL import Image, ImageDraw
-    bd = REPO / "best"; bd.mkdir(exist_ok=True); sd = REPO / "sheets"; sd.mkdir(exist_ok=True)
+    bd = REPO / "best"; bd.mkdir(exist_ok=True); sd = REPO / "sheets" / "klein"; sd.mkdir(parents=True, exist_ok=True)
     have = {p.stem.rsplit("_", 1)[0] for p in bd.glob("*.jpg")}
     new = [i for i in (DONE.read_text(encoding="utf-8").split() if DONE.exists() else []) if i not in have]
     pids = painted_ids()
