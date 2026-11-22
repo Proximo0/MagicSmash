@@ -29,6 +29,10 @@ pub const SETTINGS: &[Setting] = &[
     s("seed", "1", "Seed of the fields. Change it only for a new realm; it decides every field's layout."),
     s("admin_port", "7701", "Loopback admin console port (kill switches, moderators). 0 turns the console off. The token is in <db>.admin."),
     s("dev_login", "no", "yes lets anyone log in by a made-up name. Closed test and tests only; never on a public realm."),
+    s("tls_cert", "", "The gateway's TLS certificate chain (PEM, e.g. Let's Encrypt's fullchain.pem). With tls_key the TCP port speaks TLS only (docs/realm/wire.md, Transport security)."),
+    s("tls_key", "", "The private key of tls_cert (PEM, e.g. privkey.pem). Keep it out of backups you share and out of git."),
+    s("tls_dev_cert", "no", "yes makes a self-signed certificate beside the store and speaks TLS with it (clients must be told to trust it). For a test PC without a real name."),
+    s("plain", "no", "yes runs the gateway unencrypted without dev_login (logins and chat in clear text). With no certificate, no dev certificate and neither plain nor dev_login, the gateway refuses to start."),
     // Logs.
     s("log_dir", "logs", "Where structured logs go (realm.log, rotated)."),
     s("log_max_mb", "10", "Rotate realm.log when it reaches this many megabytes."),
@@ -140,6 +144,15 @@ impl Conf {
         }
         if self.yes("dev_login") {
             a.push("--dev-login".into());
+        }
+        if !self.get("tls_cert").is_empty() || !self.get("tls_key").is_empty() {
+            a.push(format!("--tls-cert={}", self.path(root, "tls_cert").display()));
+            a.push(format!("--tls-key={}", self.path(root, "tls_key").display()));
+        } else if self.yes("tls_dev_cert") {
+            a.push("--dev-cert".into());
+        }
+        if self.yes("plain") {
+            a.push("--plain".into());
         }
         a
     }

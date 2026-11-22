@@ -30,9 +30,9 @@ fn hello_and_input_round_trip_and_survive_hostile_bytes() {
     let mut rng = Rng(seed());
     for _ in 0..iters() {
         let (c, r, t) = (rng.next() as u8, rng.next() as u8, rng.next());
-        let h = hello_ticket(rng.next() as u32, c, r, t);
+        let h = hello_ticket(rng.next() as u32, c, r, t, None);
         let mut rd = Rd::new(&h[1..]);
-        assert_eq!(parse_hello(&mut rd).map(|x| (x.1, x.2, x.3)), Some((c, r, t)));
+        assert_eq!(parse_hello(&mut rd).map(|x| (x.class, x.race, x.ticket)), Some((c, r, t)));
         let words: Vec<u16> = (0..1 + rng.below(4)).map(|_| rng.next() as u16 & 0x07FF).collect();
         let seq = rng.next() as u32;
         let i = input_seq(rng.next() as u32, seq, &words);

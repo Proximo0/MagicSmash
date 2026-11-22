@@ -292,7 +292,7 @@ impl Gateway {
         let copy = if full || queue_before { None } else { party.or_else(|| choose(&loads, &self.world.cfg.copies, 1)) };
         if let Some(host_id) = copy {
             return match self.issue(account, hero, field, conn, out, host_id, sheet, drive) {
-                Some((port, copy, ticket)) => Placed::Ticket(Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field, copy }),
+                Some((port, copy, ticket, key)) => Placed::Ticket(Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field, copy, key }),
                 None => Placed::Busy,
             };
         }
@@ -473,7 +473,7 @@ impl Gateway {
     fn enter_vault(&self, s: &mut Session, account: i64, hero: i64, host_id: u32, port: u16, code: u64, vault: u8, seals: u8, sheet: Sheet, drive: Option<Drive>) -> realm_store::Result<Resp> {
         let field = VAULTS[vault as usize].field;
         match self.issue_vault(account, hero, field, s.conn, &s.out, host_id, sheet, drive) {
-            Some(ticket) => {
+            Some((ticket, key)) => {
                 if let Some((room, me, th)) = s.town {
                     if th == hero {
                         self.towns.leave(room, me);
@@ -482,7 +482,7 @@ impl Gateway {
                     }
                 }
                 let _ = port;
-                Ok(Resp::World(WResp::Vault { code, vault, seals, host: self.cfg.public_host.clone(), port, ticket }))
+                Ok(Resp::World(WResp::Vault { code, vault, seals, host: self.cfg.public_host.clone(), port, ticket, key }))
             }
             None => Ok(Resp::Err { code: code::BUSY, msg: "she is already somewhere".into() }),
         }
@@ -490,13 +490,14 @@ impl Gateway {
 
     /// `issue` for a vault's host (no copy rules).
     #[allow(clippy::too_many_arguments)]
-    fn issue_vault(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: Sheet, drive: Option<Drive>) -> Option<u64> {
+    fn issue_vault(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: Sheet, drive: Option<Drive>) -> Option<(u64, realm_server::TicketKey)> {
         let ticket = loop {
             let t = self.random();
             if t != 0 && !self.tickets.lock().unwrap().contains_key(&t) {
                 break t;
             }
         };
+        let key = crate::tls::random_key();
         let hosts = self.hosts.lock().unwrap();
         let slot = hosts.iter().find(|x| x.id == host_id && !x.stopping)?;
         {
@@ -510,12 +511,13 @@ impl Gateway {
         }
         self.tickets.lock().unwrap().insert(
             ticket,
-            crate::gateway::Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None },
+            crate::gateway::Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key },
         );
         let mut e = Entry::new(ticket, hero as u64, sheet, realm_core::Outing::new());
         e.drive = drive;
+        e.key = key;
         let _ = slot.handle.cmds.send(HostCmd::Admit(e));
-        Some(ticket)
+        Some((ticket, key))
     }
 
     fn refund_key(&self, hero: i64, field: u32) {
@@ -529,6 +531,15 @@ impl Gateway {
 
     /// A hero taken out of a closing copy: set down in the copy it closes into, in the same ring.
     pub(crate) fn on_moved(&self, from: u32, hero: u64, ticket: u64, seq: u32, transfer: Transfer, driven: Option<Drive>) {
+        // A fresh key for the new admission, kept on her ticket and sent to her client over TLS in the Moved push:
+        // nothing seen on the old copy's wire is any use on the new one. No ticket: no key, and no HELLO gets in.
+        let key = {
+            let mut t = self.tickets.lock().unwrap();
+            t.get_mut(&ticket).map_or(realm_server::TicketKey::default(), |t| {
+                t.key = crate::tls::random_key();
+                t.key
+            })
+        };
         let dest = {
             let hosts = self.hosts.lock().unwrap();
             let into = hosts.iter().find(|h| h.id == from).and_then(|h| h.closing);
@@ -537,6 +548,7 @@ impl Gateway {
                 e.seq = seq;
                 e.arrive = Some(transfer.ring);
                 e.drive = driven;
+                e.key = key;
                 let _ = h.handle.cmds.send(HostCmd::Admit(e));
                 (h.id, h.field, h.copy, h.handle.addr.port())
             })
@@ -564,7 +576,7 @@ impl Gateway {
             }
         };
         if let Some(tx) = tx {
-            let _ = tx.send(resp_frame(0, &Resp::WorldPush(WResp::Moved { hero: hero as i64, field, copy, host: self.cfg.public_host.clone(), port, ticket })));
+            let _ = tx.send(resp_frame(0, &Resp::WorldPush(WResp::Moved { hero: hero as i64, field, copy, host: self.cfg.public_host.clone(), port, ticket, key })));
         }
         self.world.count(|s| s.moved += 1);
     }
@@ -720,9 +732,9 @@ impl Gateway {
                 _ => continue,
             };
             let Some(host_id) = choose(&self.copy_loads(w.field), &self.world.cfg.copies, 1) else { continue };
-            if let Some((port, copy, ticket)) = self.issue(w.account, w.hero, w.field, w.conn, &w.out, host_id, sheet, w.drive) {
+            if let Some((port, copy, ticket, key)) = self.issue(w.account, w.hero, w.field, w.conn, &w.out, host_id, sheet, w.drive) {
                 self.world.count(|s| s.admitted_from_queue += 1);
-                let _ = w.out.send(resp_frame(0, &Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field: w.field, copy }));
+                let _ = w.out.send(resp_frame(0, &Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field: w.field, copy, key }));
             }
         }
         let mut st = self.world.state.lock().unwrap();
@@ -835,7 +847,7 @@ mod tests {
         let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
         gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
         let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
-        let mut c = GatewayClient::connect(&l.addr.to_string()).unwrap();
+        let mut c = GatewayClient::connect_plain(&l.addr.to_string()).unwrap();
         assert!(matches!(c.login("lost").unwrap(), Resp::Login { .. }));
         let hero = match c.call(Req::CreateHero { name: "Lost".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
             Resp::HeroCreated(id) => id,

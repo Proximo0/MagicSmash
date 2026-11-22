@@ -66,7 +66,7 @@ struct P {
 }
 
 fn player(w: &World, who: &str, hero_name: &str) -> P {
-    let mut c = GatewayClient::connect(&w.addr).unwrap();
+    let mut c = GatewayClient::connect_plain(&w.addr).unwrap();
     let Resp::Login { account } = c.login(who).unwrap() else { panic!() };
     let Resp::HeroCreated(hero) = c.call(Req::CreateHero { name: hero_name.into(), race: 1, class: 1, look: 0, self_found: false }).unwrap() else { panic!() };
     assert!(matches!(c.call(Req::EnterTown { hero }).unwrap(), Resp::Town { .. }));
@@ -159,7 +159,7 @@ fn channels_reach_the_right_ears_and_the_filter_masks() {
     ok(ann.c.call(Req::Chat { text: "oh fuck".into() }).unwrap());
     assert!(bob.c.wait_push(Duration::from_secs(2), |r| matches!(r, Resp::Chat { text, .. } if text == "oh ****").then_some(())).unwrap().is_some());
     // Another account may not speak as her hero, nor a hero not yet in a town.
-    let mut eve = GatewayClient::connect(&w.addr).unwrap();
+    let mut eve = GatewayClient::connect_plain(&w.addr).unwrap();
     eve.login("eve").unwrap();
     assert_eq!(code_of(eve.call(Req::Social(SReq::Talk { hero: ann.hero, chan: chan::TOWN, to: String::new(), text: "x".into() })).unwrap()), code::NOT_YOURS);
 }
@@ -571,7 +571,7 @@ fn a_ban_ends_sessions_and_refuses_login_and_a_wave_bans_by_flag() {
     }
     assert!(closed, "the session ended");
     // Login is refused for the length of the ban; the store has the ban and its ledger row.
-    let mut again = GatewayClient::connect(&w.addr).unwrap();
+    let mut again = GatewayClient::connect_plain(&w.addr).unwrap();
     assert_eq!(code_of(again.login("ann").unwrap()), code::BANNED);
     let acct = w.store.account(ann.account).unwrap().unwrap();
     assert!(acct.banned_until.is_some_and(|u| u > realm_gateway::gateway::now_ms()));
@@ -613,11 +613,11 @@ fn a_ban_ends_sessions_and_refuses_login_and_a_wave_bans_by_flag() {
         assert!(closed);
     }
     for who in ["bob", "cat"] {
-        let mut g = GatewayClient::connect(&w.addr).unwrap();
+        let mut g = GatewayClient::connect_plain(&w.addr).unwrap();
         assert_eq!(code_of(g.login(who).unwrap()), code::BANNED);
     }
     // Annie, not flagged, still logs in. Flags survive the ban (they were kept, not replaced).
-    assert!(matches!(GatewayClient::connect(&w.addr).unwrap().login("ann").unwrap(), Resp::Login { .. }));
+    assert!(matches!(GatewayClient::connect_plain(&w.addr).unwrap().login("ann").unwrap(), Resp::Login { .. }));
     assert_eq!(w.store.account(cat.account).unwrap().unwrap().flags, realm_store::flags::WATCHED | realm_store::flags::DROPS_REDUCED);
     assert_eq!(w.store.account(cat.account).unwrap().unwrap().drops_percent, 50);
     // Everything is in the moderators' log, with who did it.
@@ -658,7 +658,7 @@ fn kick_ends_a_session_without_a_ban_and_the_admin_port_needs_its_token() {
     }
     assert!(closed);
     // A kick is not a ban: she logs in again.
-    assert!(matches!(GatewayClient::connect(&w.addr).unwrap().login("ann").unwrap(), Resp::Login { .. }));
+    assert!(matches!(GatewayClient::connect_plain(&w.addr).unwrap().login("ann").unwrap(), Resp::Login { .. }));
     assert!(w.console().run("log").contains("remote: kick"), "the operator's name is in the log");
     assert!(ask("0123456789abcdef0123", "help").contains("banwave"));
 }

@@ -53,7 +53,7 @@ struct P {
 }
 
 fn player(w: &World, who: &str, hero_name: &str) -> P {
-    let mut c = GatewayClient::connect(&w.addr).unwrap();
+    let mut c = GatewayClient::connect_plain(&w.addr).unwrap();
     let Resp::Login { account } = c.login(who).unwrap() else { panic!() };
     let Resp::HeroCreated(hero) = c.call(Req::CreateHero { name: hero_name.into(), race: 1, class: 1, look: 0, self_found: false }).unwrap() else { panic!() };
     assert!(matches!(c.call(Req::EnterTown { hero }).unwrap(), Resp::Town { .. }));

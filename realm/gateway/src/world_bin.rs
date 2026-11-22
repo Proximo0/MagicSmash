@@ -12,7 +12,8 @@ fn die(msg: &str) -> ! {
 }
 
 fn main() {
-    let mut o = WeekOpts::default();
+    // TLS by default, as a real gateway (an in-memory dev pair the bots trust); `--plain` to compare.
+    let mut o = WeekOpts { tls: true, ..WeekOpts::default() };
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
         let num = |v: &str| v.parse::<f64>().unwrap_or_else(|_| die(&format!("bad value in {arg}")));
@@ -38,8 +39,10 @@ fn main() {
             "--seed" => o.seed = num(v) as u64,
             "--db" => o.db = Some(v.into()),
             "--progress" => o.progress_secs = num(v) as u64,
+            "--tls" => o.tls = true,
+            "--plain" => o.tls = false,
             "--help" | "-h" => {
-                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--recall-secs=240] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS]");
+                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--recall-secs=240] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS] [--plain]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),
