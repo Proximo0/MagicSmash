@@ -3,9 +3,14 @@
 //! `P_ECON` with tag 0. Layouts are in `docs/realm/economy.md` part 2. Strings are `u16 len, bytes`; a `Thing`
 //! is the gateway's (`u8 0, u64 item` or `u8 1, u32 kind, u64 count`).
 
-use crate::proto::{put_str, read_str, ItemInfo, Thing};
+use crate::proto::{put_str, read_str, ItemInfo, Thing, WireRead};
 use realm_server::{put_u16, put_u32, put_u64, Rd};
 use realm_store::Item;
+
+/// Its tags (`proto::ranges::ECONOMY`).
+pub const T_ECON: u8 = 0x33;
+pub const R_ECON: u8 = 0x8B;
+pub const P_ECON: u8 = 0xA8;
 
 /// An item as the economy screens show it: the gateway's `ItemInfo` plus what a price depends on.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,7 +52,7 @@ impl EItem {
         put_u32(w, self.socketed[1]);
     }
     fn read(r: &mut Rd) -> Option<EItem> {
-        Some(EItem { info: ItemInfo::read(r)?, plus: r.u8()?, bound: r.u8()? != 0, socketed: [r.u32()?, r.u32()?] })
+        Some(EItem { info: ItemInfo::read(r)?, plus: r.u8()?, bound: r.flag()?, socketed: [r.u32()?, r.u32()?] })
     }
 }
 
@@ -58,7 +63,7 @@ fn put_items(w: &mut Vec<u8>, v: &[EItem]) {
     }
 }
 fn read_items(r: &mut Rd) -> Option<Vec<EItem>> {
-    let n = r.u16()? as usize;
+    let n = r.count16()?;
     (0..n).map(|_| EItem::read(r)).collect()
 }
 fn put_stacks(w: &mut Vec<u8>, v: &[(u32, u64)]) {
@@ -69,7 +74,7 @@ fn put_stacks(w: &mut Vec<u8>, v: &[(u32, u64)]) {
     }
 }
 fn read_stacks(r: &mut Rd) -> Option<Vec<(u32, u64)>> {
-    let n = r.u16()? as usize;
+    let n = r.count16()?;
     (0..n).map(|_| Some((r.u32()?, r.u64()?))).collect()
 }
 
@@ -294,18 +299,18 @@ impl EResp {
         Some(match r.u8()? {
             0 => EResp::Ok,
             1 => {
-                let n = r.u16()? as usize;
-                let mut v = Vec::with_capacity(n);
+                let n = r.count16()?;
+                let mut v = Vec::new();
                 for _ in 0..n {
                     let (id, kind, stack) = (r.u16()?, r.u8()?, r.u32()?);
-                    let item = if r.u8()? == 1 { Some(EItem::read(r)?) } else { None };
+                    let item = if r.flag()? { Some(EItem::read(r)?) } else { None };
                     v.push(Offer { id, kind, stack, item, price: r.u64()?, left: r.u32()? });
                 }
                 EResp::Offers(v)
             }
             2 => EResp::Coin(r.u64()?),
             3 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 EResp::Buybacks((0..n).map(|_| Some(BuybackInfo { id: r.u64()?, item: EItem::read(r)?, price: r.u64()?, secs_left: r.u32()? })).collect::<Option<_>>()?)
             }
             4 => {
@@ -316,27 +321,28 @@ impl EResp {
                 let my_stacks = read_stacks(r)?;
                 let their_items = read_items(r)?;
                 let their_stacks = read_stacks(r)?;
-                EResp::Trade(TradeView { session, state, me, other, other_name, version, lock_ms, my_items, my_stacks, their_items, their_stacks, my_ok: r.u8()? != 0, their_ok: r.u8()? != 0 })
+                EResp::Trade(TradeView { session, state, me, other, other_name, version, lock_ms, my_items, my_stacks, their_items, their_stacks, my_ok: r.flag()?, their_ok: r.flag()? })
             }
             5 => EResp::Listed { id: r.u64()? as i64, fee: r.u64()? },
             6 => {
-                let n = r.u16()? as usize;
-                let mut v = Vec::with_capacity(n);
+                let n = r.count16()?;
+                let mut v = Vec::new();
                 for _ in 0..n {
-                    let (id, seller, price, expires, mine) = (r.u64()? as i64, read_str(r)?, r.u64()?, r.u64()? as i64, r.u8()? != 0);
+                    let (id, seller, price, expires, mine) = (r.u64()? as i64, read_str(r)?, r.u64()?, r.u64()? as i64, r.flag()?);
                     let (mut item, mut stack) = (None, None);
                     match r.u8()? {
                         1 => item = Some(EItem::read(r)?),
                         2 => stack = Some((r.u32()?, r.u64()?)),
-                        _ => {}
+                        0 => {}
+                        _ => return None,
                     }
                     v.push(ListingInfo { id, seller, price, expires, item, stack, mine });
                 }
                 EResp::Listings(v)
             }
             7 => {
-                let n = r.u16()? as usize;
-                let mut v = Vec::with_capacity(n);
+                let n = r.count16()?;
+                let mut v = Vec::new();
                 for _ in 0..n {
                     v.push(LetterInfo {
                         id: r.u64()? as i64,
@@ -352,7 +358,7 @@ impl EResp {
                 EResp::Letters(v)
             }
             8 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 EResp::Prices((0..n).map(|_| Some(ClassPrice { rarity: r.u8()?, band: r.u8()?, median: r.u64()?, n: r.u32()? })).collect::<Option<_>>()?)
             }
             9 => EResp::Notice { kind: r.u8()?, a: r.u64()? as i64, b: r.u64()?, text: read_str(r)? },
@@ -542,7 +548,7 @@ impl EReq {
             0x11 => EReq::TradeAccept { hero, session: r.u64()? },
             0x12 => {
                 let session = r.u64()?;
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let items = (0..n).map(|_| r.u64().map(|v| v as i64)).collect::<Option<Vec<_>>>()?;
                 EReq::TradeOffer { hero, session, items, stacks: read_stacks(r)? }
             }
@@ -559,7 +565,7 @@ impl EReq {
             0x24 => EReq::MarketMine { hero },
             0x30 => {
                 let (to_name, text) = (read_str(r)?, read_str(r)?);
-                let n = r.u8()? as usize;
+                let n = r.count8()?;
                 let things = (0..n).map(|_| Thing::read(r)).collect::<Option<Vec<_>>>()?;
                 EReq::LetterSend { hero, to_name, text, things, cod: r.u64()? }
             }

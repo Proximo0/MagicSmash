@@ -383,6 +383,14 @@ impl Gateway {
         let Some(account) = s.account else {
             return Ok(Resp::Err { code: code::NOT_LOGGED_IN, msg: "log in first".into() });
         };
+        // The modules' requests (economy, social, world, homes: `proto::MODULES`), each served by its `gate.rs`.
+        let mut req = req;
+        for m in MODULES {
+            match (m.serve)(self, s, account, req) {
+                Ok(r) => return r,
+                Err(back) => req = back,
+            }
+        }
         match req {
             Req::ListHeroes => Ok(Resp::Heroes(self.store.heroes(account, true)?.iter().map(hero_info).collect())),
             Req::CreateHero { name, race, class, look, self_found } => {
@@ -435,7 +443,6 @@ impl Gateway {
                 }
             }
             Req::FieldTicket { hero, field } => self.field_ticket(s, account, hero, field),
-            Req::World(q) => self.world_request(s, account, q),
             Req::Inventory { hero } => self.inventory(account, hero),
             Req::BankDeposit { hero, what, tab } => self.bank(account, hero, what, tab, true),
             Req::BankWithdraw { hero, what, tab } => self.bank(account, hero, what, tab, false),
@@ -521,21 +528,11 @@ impl Gateway {
                 let k = self.smith().fuse(self.meta(0), hero, stat as u32, grade as u32)?;
                 Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: k.0 as u64 })
             }
-            Req::Social(q) => Ok(self.social.handle(self, s, account, q)),
             Req::Cards { hero } => self.cards(account, hero),
             Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
             Req::Sell { hero, item } => self.sell(account, hero, item),
-            Req::Econ(e) => {
-                use crate::economy::wire::EReq;
-                let trade = matches!(e, EReq::TradeInvite { .. } | EReq::TradeAccept { .. } | EReq::TradeOffer { .. } | EReq::TradeConfirm { .. });
-                let market = matches!(e, EReq::MarketList { .. } | EReq::MarketBuy { .. });
-                if (trade && realm_ops::switches::trade_frozen()) || (market && realm_ops::switches::market_frozen()) {
-                    return Ok(Resp::Err { code: code::DISABLED, msg: "frozen by the operators for the moment".into() });
-                }
-                Ok(self.economy.handle(account, e, now_ms()))
-            }
-            Req::Home(q) => Ok(self.homes.handle(self, s, account, q)),
-            Req::Ping | Req::LoginDev { .. } | Req::LoginSteam { .. } => unreachable!(),
+            // Ping and the logins were answered above; every module's requests by the module.
+            _ => Ok(bad("no one serves that request")),
         }
     }
 

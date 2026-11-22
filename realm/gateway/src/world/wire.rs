@@ -1,8 +1,13 @@
 //! The world's part of the gateway wire: one request type (`T_WORLD`, a sub-byte after it), one reply type
 //! (`R_WORLD`), and pushes under `P_WORLD` with tag 0. Layouts are in `docs/realm/world.md`.
 
-use crate::proto::{put_str, read_str};
+use crate::proto::{put_str, read_str, WireRead};
 use realm_server::{put_u16, put_u32, put_u64, Rd};
+
+/// Its tags (`proto::ranges::WORLD`).
+pub const T_WORLD: u8 = 0x60;
+pub const R_WORLD: u8 = 0x91;
+pub const P_WORLD: u8 = 0xB1;
 
 const W_BOARD: u8 = 1;
 const W_LEAVE_QUEUE: u8 = 2;
@@ -169,12 +174,12 @@ impl WResp {
         Some(match r.u8()? {
             WR_BOARD => {
                 let clock = r.u64()?;
-                let n = r.u8()? as usize;
+                let n = r.count8()?;
                 let fields = (0..n)
                     .map(|_| Some(BoardField { field: r.u8()?, tide_in: r.u32()?, tide_left: r.u32()?, boss: r.u8()?, boss_in: r.u32()? }))
                     .collect::<Option<Vec<_>>>()?;
                 let (world_field, world_in, queue) = (r.u8()?, r.u32()?, r.u32()?);
-                let m = r.u16()? as usize;
+                let m = r.count16()?;
                 let copies = (0..m).map(|_| Some((r.u8()?, r.u8()?, r.u32()?))).collect::<Option<Vec<_>>>()?;
                 WResp::Board { clock, fields, world_field, world_in, queue, copies, vaults: r.u32()? }
             }

@@ -2,6 +2,7 @@ class_name HomeWire
 extends RefCounted
 ## The homes' calls on the gateway wire (realm/gateway/src/homes/wire.rs, docs/realm/homes.md): one request tag
 ## (0x70, a sub-byte, the hero, the arguments), one reply tag (0x8C) and one push tag (0xA9), the same body in both.
+## Its tags are the homes row of realm/gateway/src/proto/ranges.rs (mirrored in ui/gw_wire.gd).
 ## Requests return [type, body] like GwWire's; `decode_body` fills a reply Dictionary with "k" (the kind below).
 
 const T_HOME := 0x70
