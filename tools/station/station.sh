@@ -6,8 +6,9 @@
 #         soak    bots through the wire server (gateway, towns, field hosts, store) for STATION_SOAK_SECS (default 7200),
 #                 one summary line; FAIL when the line is not "SOAK ok" (a mismatch, a bot error or a store problem)
 #         world   the world's long proof (realm-world): STATION_WORLD_BOTS (default 200) bots live STATION_WORLD_DAYS (default 7)
-#                 days of the realm clock in STATION_WORLD_SECS (default 7200) with hosts at 20 Hz: copies open and merge,
-#                 the queue, vaults, a field host killed halfway; FAIL when the line is not "WORLD ok"
+#                 days of the realm clock in STATION_WORLD_SECS (default 600, a short soak so a merge never holds the station for hours)
+#                 with hosts at 20 Hz: copies open and merge, the queue, vaults, a field host killed halfway; FAIL when the line is not
+#                 "WORLD ok". The 7200 s run is the queue's `shell` job `script=worldlong` (tools/station/jobs/worldlong.sh).
 #         economy Horde & Hearth's market simulation (realm-economy, record only): STATION_ECONOMY_BOTS (default 4000) bots for
 #                 STATION_ECONOMY_DAYS (default 180) game days with a fresh seed; one line of the sim's summary
 #         ops     Horde & Hearth's operations rehearsal (realm-ops rehearse): a store with play, an online backup with writes going on,
@@ -199,14 +200,10 @@ job_soak() {  # one line: realm-soak's summary
   if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
   echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
-job_world() {  # one line: realm-world's summary
-  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB world FAIL cargo is not installed on this station"; return 1; }
-  local secs="${STATION_WORLD_SECS:-7200}" out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=60000 --realm-cap=150 --vault-max=8 --outing-ticks=6000 --db="${TMPDIR:-/tmp}/station-world.db" 2>&1); line=$(tail -1 <<<"$out")
-  rm -f "${TMPDIR:-/tmp}"/station-world.db*
-  if [[ "$line" == "WORLD ok "* ]]; then echo "JOB world PASS ${line:0:300}"; return 0; fi
-  echo "JOB world FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+job_world() {  # one line: realm-world's summary, a short soak on a merge (jobs/worldlong.sh runs the long one from the queue)
+  local line; line=$(STATION_QUEUE_STUB="${STATION_QUEUE_STUB:-}" bash tools/station/jobs/worldlong.sh "secs=${STATION_WORLD_SECS:-600}" | tail -1)
+  case "$line" in PASS*) echo "JOB world $line"; return 0 ;; esac
+  echo "JOB world FAIL ${line#FAIL }"; return 1
 }
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
 # Deep steps must not make a merge wait: pending_merge says a commit has landed on main that changes something one of this

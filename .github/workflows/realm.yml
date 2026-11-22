@@ -217,6 +217,34 @@ jobs:
           path: build/realm-client
           if-no-files-found: error
 
+  # Licences, advisories, duplicate versions and sources of every crate we depend on (realm/deny.toml): the workspace and the
+  # two workspaces of their own (the Godot module and the store). cargo-deny (MIT/Apache) comes as its prebuilt musl binary,
+  # pinned by version and checked against the SHA-256 of the archive.
+  deny:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CARGO_DENY_VERSION: "0.18.9"
+      CARGO_DENY_SHA256: "491d04e4c05d7c92582e3d40ec94126c52472a546326a6d29473a5a4e73babd2"
+    steps:
+      - uses: actions/checkout@v4
+      - name: cargo-deny ${{ env.CARGO_DENY_VERSION }}
+        run: |
+          f="cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL -o "$RUNNER_TEMP/deny.tgz" "https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/$f.tar.gz"
+          echo "$CARGO_DENY_SHA256  $RUNNER_TEMP/deny.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/deny.tgz" -C "$RUNNER_TEMP"
+          mkdir -p "$HOME/.local/bin" && mv "$RUNNER_TEMP/$f/cargo-deny" "$HOME/.local/bin/" && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: cargo deny check (workspace)
+        working-directory: realm
+        run: cargo deny check
+      - name: cargo deny check (Godot module)
+        working-directory: realm
+        run: cargo deny --manifest-path godot/Cargo.toml check
+      - name: cargo deny check (store)
+        working-directory: realm
+        run: cargo deny --manifest-path store/Cargo.toml check
+
   same-hash:
     needs: [linux, windows]
     runs-on: ubuntu-24.04

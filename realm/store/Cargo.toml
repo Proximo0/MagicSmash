@@ -1,6 +1,7 @@
 [package]
 name = "realm-store"
 version = "0.1.0"
+publish = false
 edition = "2024"
 description = "Horde & Hearth store: accounts, heroes, items, stacks, entitlements and the ledger (SQLite, one writer)."
 

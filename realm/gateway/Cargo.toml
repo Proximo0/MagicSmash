@@ -2,6 +2,7 @@
 name = "realm-gateway"
 edition.workspace = true
 version.workspace = true
+publish = false
 description = "Horde & Hearth gateway: accounts, heroes, towns, field tickets and field hosts in one process."
 
 [lib]

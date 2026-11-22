@@ -2,6 +2,7 @@
 name = "realm-ops"
 edition.workspace = true
 version.workspace = true
+publish = false
 description = "Horde & Hearth operations: logs, metrics, alarms, backups, kill switches, releases, flood limits."
 
 [lib]

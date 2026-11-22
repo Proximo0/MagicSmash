@@ -100,8 +100,8 @@ impl TickRec {
         }
         let mut prev = 0u32;
         for _ in 0..r.u16()? {
-            prev += r.varint()?;
-            t.changes.push((prev as u16, r.u16()?));
+            prev = prev.checked_add(r.varint()?)?;
+            t.changes.push((u16::try_from(prev).ok()?, r.u16()?));
         }
         let flags = r.u8()?;
         if flags & !3 != 0 {

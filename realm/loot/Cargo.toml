@@ -2,6 +2,7 @@
 name = "realm-loot"
 edition.workspace = true
 version.workspace = true
+publish = false
 description = "Horde & Hearth loot on the server: drop tables, rolls, gear, runes, cards, pages, materials and the smith."
 
 [lib]
