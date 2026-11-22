@@ -45,6 +45,10 @@ impl Field {
                 w.u8(v.vault);
                 w.u8(v.seals);
             }
+            None if self.pvp.yard => {
+                w.u8(crate::pvp::YARD);
+                w.u8(0);
+            }
             None => {
                 w.u8(NO_VAULT);
                 w.u8(0);
@@ -120,6 +124,10 @@ impl Field {
         }
         w.u32(self.flow.progress() as u32);
         w.realm(&self.realm);
+        // Section 14's block, only when there is something in it: a field without PvP keeps its bytes and hash.
+        if !self.pvp.is_empty() {
+            self.pvp.write(&mut w.0);
+        }
         w.0
     }
 
@@ -139,6 +147,8 @@ impl Field {
         let cfg = Config { monsters, threads: threads.max(1) };
         let mut f = if vault == NO_VAULT {
             Field::open(field, seed, cfg)
+        } else if vault == crate::pvp::YARD && field == 0 && seals == 0 {
+            Field::open_duel(seed, cfg)
         } else if (vault as usize) < VAULTS.len() && VAULTS[vault as usize].field == field {
             Field::open_vault(vault, seals, seed, cfg)
         } else {
@@ -228,6 +238,11 @@ impl Field {
             f.m.boss_max = b.max_hp;
         }
         f.realm = realm;
+        if r.at < b.len() {
+            let yard = f.pvp.yard;
+            f.pvp = crate::pvp::Pvp::read(b, &mut r.at, f.heroes.len())?;
+            f.pvp.yard = yard;
+        }
         if f.flow.progress() != progress || r.at != b.len() {
             return None;
         }

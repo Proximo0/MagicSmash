@@ -1,5 +1,7 @@
 //! The social calls on the wire (job T1). Requests are tags `0x40..=0x5F`, replies `R_SOCIAL` 0x90, pushes `P_SOCIAL`
 //! 0xB0. The codec is here and `gate.rs` registers it, so `proto` only carries one variant of each; `docs/realm/social.md` lists every tag.
+//! Job R3 (players against players) took the last four request tags, 0x5C..=0x5F (altar wars and duels), replies
+//! 6 and 7 and pushes 9 to 15 (`docs/realm/pvp.md`).
 
 use crate::proto::{put_str, read_str, ItemInfo, Thing, WireRead};
 use realm_server::{put_u16, put_u32, put_u64, Rd};
@@ -55,6 +57,52 @@ pub enum SReq {
     Lists { hero: i64 },
     /// `reason` 0 spam, 1 abuse, 2 cheating, 3 name, 4 other.
     Report { hero: i64, name: String, reason: u8, text: String },
+    /// Job R3: her guild declares an altar war on the guild `foe` for `field`'s next tide (officers and the leader).
+    WarDeclare { hero: i64, foe: String, field: u8 },
+    /// The foe's officer accepts (`accept`) a declared war, or an officer of either guild calls it off (false).
+    WarAnswer { hero: i64, war: u64, accept: bool },
+    WarList { hero: i64 },
+    /// A duel in the town's training yard: `op` `duel_op::CHALLENGE` the hero `name`, `ACCEPT` or `DECLINE` her
+    /// challenge.
+    Duel { hero: i64, op: u8, name: String },
+}
+
+/// `SReq::Duel` operations.
+pub mod duel_op {
+    pub const CHALLENGE: u8 = 0;
+    pub const ACCEPT: u8 = 1;
+    pub const DECLINE: u8 = 2;
+}
+
+/// An altar war as the players see it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WarView {
+    pub id: u64,
+    /// The declaring guild first.
+    pub guilds: [u64; 2],
+    pub names: [String; 2],
+    pub field: u8,
+    /// The field's tide index (`realm_core::tide_start(field, tide)` is when it starts).
+    pub tide: u32,
+    pub accepted: bool,
+}
+
+impl WarView {
+    fn put(&self, w: &mut Vec<u8>) {
+        put_u64(w, self.id);
+        for k in 0..2 {
+            put_u64(w, self.guilds[k]);
+            put_str(w, &self.names[k]);
+        }
+        w.push(self.field);
+        put_u32(w, self.tide);
+        put_bool(w, self.accepted);
+    }
+    fn read(r: &mut Rd) -> Option<WarView> {
+        let id = r.u64()?;
+        let (g0, n0, g1, n1) = (r.u64()?, read_str(r)?, r.u64()?, read_str(r)?);
+        Some(WarView { id, guilds: [g0, g1], names: [n0, n1], field: r.u8()?, tide: r.u32()?, accepted: r.flag()? })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -129,6 +177,9 @@ pub enum SResp {
     Bank { items: Vec<ItemInfo>, stacks: Vec<(u32, u64)> },
     Lists(Lists),
     Reported(u64),
+    /// Job R3: the wars her guild declared or was declared on.
+    Wars(Vec<WarView>),
+    WarDeclared(WarView),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -145,6 +196,18 @@ pub enum SPush {
     FriendStatus { account: i64, name: String, online: bool, place: u8 },
     /// The server says something to this player (muted, silenced, kicked, a rule).
     Notice { text: String },
+    /// Job R3: a war of her guild was declared or accepted.
+    War(WarView),
+    /// A war of her guild was called off (or its tide began unaccepted).
+    WarOff { war: u64 },
+    /// A war ended with its tide: `winner` the guild that held the altars longer (0: a draw), held ticks per side.
+    WarResult { war: u64, winner: u64, held: [u32; 2] },
+    DuelChallenge { from: i64, name: String },
+    DuelDeclined { name: String },
+    /// The duel begins: her foe, and the yard's seed.
+    DuelStart { duel: u64, foe: i64, name: String, seed: u64 },
+    /// It ended: the winner and the loser (a draw: both, `draw`).
+    DuelResult { duel: u64, winner: i64, loser: i64, draw: bool },
 }
 
 // ---- writing and reading helpers
@@ -403,6 +466,28 @@ impl SReq {
                 put_str(&mut w, text);
                 0x5B
             }
+            SReq::WarDeclare { hero, foe, field } => {
+                put_i(&mut w, *hero);
+                put_str(&mut w, foe);
+                w.push(*field);
+                0x5C
+            }
+            SReq::WarAnswer { hero, war, accept } => {
+                put_i(&mut w, *hero);
+                put_u64(&mut w, *war);
+                put_bool(&mut w, *accept);
+                0x5D
+            }
+            SReq::WarList { hero } => {
+                put_i(&mut w, *hero);
+                0x5E
+            }
+            SReq::Duel { hero, op, name } => {
+                put_i(&mut w, *hero);
+                w.push(*op);
+                put_str(&mut w, name);
+                0x5F
+            }
         };
         (t, w)
     }
@@ -440,6 +525,16 @@ impl SReq {
             0x59 => SReq::Ignore { hero, name: read_str(r)?, on: r.flag()? },
             0x5A => SReq::Lists { hero },
             0x5B => SReq::Report { hero, name: read_str(r)?, reason: r.u8()?, text: read_str(r)? },
+            0x5C => SReq::WarDeclare { hero, foe: read_str(r)?, field: r.u8()? },
+            0x5D => SReq::WarAnswer { hero, war: r.u64()?, accept: r.flag()? },
+            0x5E => SReq::WarList { hero },
+            0x5F => {
+                let op = r.u8()?;
+                if op > duel_op::DECLINE {
+                    return None;
+                }
+                SReq::Duel { hero, op, name: read_str(r)? }
+            }
             _ => return None,
         };
         (r.left() == 0).then_some(q)
@@ -504,6 +599,17 @@ impl SResp {
                 w.push(5);
                 put_u64(&mut w, *id);
             }
+            SResp::Wars(v) => {
+                w.push(6);
+                put_u16(&mut w, v.len() as u16);
+                for x in v {
+                    x.put(&mut w);
+                }
+            }
+            SResp::WarDeclared(v) => {
+                w.push(7);
+                v.put(&mut w);
+            }
         }
         w
     }
@@ -534,6 +640,11 @@ impl SResp {
                 SResp::Lists(Lists { friends, pending, ignores })
             }
             5 => SResp::Reported(r.u64()?),
+            6 => {
+                let n = r.count16()?;
+                SResp::Wars((0..n).map(|_| WarView::read(r)).collect::<Option<Vec<_>>>()?)
+            }
+            7 => SResp::WarDeclared(WarView::read(r)?),
             _ => return None,
         };
         (r.left() == 0).then_some(v)
@@ -587,6 +698,44 @@ impl SPush {
                 w.push(8);
                 put_str(&mut w, text);
             }
+            SPush::War(v) => {
+                w.push(9);
+                v.put(&mut w);
+            }
+            SPush::WarOff { war } => {
+                w.push(10);
+                put_u64(&mut w, *war);
+            }
+            SPush::WarResult { war, winner, held } => {
+                w.push(11);
+                put_u64(&mut w, *war);
+                put_u64(&mut w, *winner);
+                put_u32(&mut w, held[0]);
+                put_u32(&mut w, held[1]);
+            }
+            SPush::DuelChallenge { from, name } => {
+                w.push(12);
+                put_i(&mut w, *from);
+                put_str(&mut w, name);
+            }
+            SPush::DuelDeclined { name } => {
+                w.push(13);
+                put_str(&mut w, name);
+            }
+            SPush::DuelStart { duel, foe, name, seed } => {
+                w.push(14);
+                put_u64(&mut w, *duel);
+                put_i(&mut w, *foe);
+                put_str(&mut w, name);
+                put_u64(&mut w, *seed);
+            }
+            SPush::DuelResult { duel, winner, loser, draw } => {
+                w.push(15);
+                put_u64(&mut w, *duel);
+                put_i(&mut w, *winner);
+                put_i(&mut w, *loser);
+                put_bool(&mut w, *draw);
+            }
         }
         w
     }
@@ -604,6 +753,13 @@ impl SPush {
             6 => SPush::FriendRequest { from: rd_i(r)?, name: read_str(r)? },
             7 => SPush::FriendStatus { account: rd_i(r)?, name: read_str(r)?, online: r.flag()?, place: r.u8()? },
             8 => SPush::Notice { text: read_str(r)? },
+            9 => SPush::War(WarView::read(r)?),
+            10 => SPush::WarOff { war: r.u64()? },
+            11 => SPush::WarResult { war: r.u64()?, winner: r.u64()?, held: [r.u32()?, r.u32()?] },
+            12 => SPush::DuelChallenge { from: rd_i(r)?, name: read_str(r)? },
+            13 => SPush::DuelDeclined { name: read_str(r)? },
+            14 => SPush::DuelStart { duel: r.u64()?, foe: rd_i(r)?, name: read_str(r)?, seed: r.u64()? },
+            15 => SPush::DuelResult { duel: r.u64()?, winner: rd_i(r)?, loser: rd_i(r)?, draw: r.flag()? },
             _ => return None,
         };
         (r.left() == 0).then_some(v)
@@ -613,6 +769,10 @@ impl SPush {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn war_view() -> WarView {
+        WarView { id: 3, guilds: [7, 8], names: ["The Pale".into(), "Ash".into()], field: 2, tide: 40, accepted: true }
+    }
 
     #[test]
     fn every_social_request_survives_the_wire() {
@@ -646,7 +806,12 @@ mod tests {
             SReq::Ignore { hero: 1, name: "Bob".into(), on: true },
             SReq::Lists { hero: 1 },
             SReq::Report { hero: 1, name: "Bob".into(), reason: 2, text: "gold".into() },
+            SReq::WarDeclare { hero: 1, foe: "The Pale".into(), field: 3 },
+            SReq::WarAnswer { hero: 1, war: 9, accept: true },
+            SReq::WarList { hero: 1 },
+            SReq::Duel { hero: 1, op: duel_op::ACCEPT, name: "Bob".into() },
         ];
+        assert_eq!(SReq::decode(0x5F, &[1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0]), None, "an unknown duel op is refused");
         for q in reqs {
             let (t, b) = q.encode();
             assert!((T_SOC_FIRST..=T_SOC_LAST).contains(&t));
@@ -676,6 +841,9 @@ mod tests {
             SResp::Bank { items: vec![], stacks: vec![(1, 20)] },
             SResp::Lists(Lists { friends: vec![FriendRow { account: 2, name: "B".into(), online: true, place: 1 }], pending: vec![(3, "C".into())], ignores: vec![(4, "D".into())] }),
             SResp::Reported(12),
+            SResp::Wars(vec![war_view()]),
+            SResp::Wars(vec![]),
+            SResp::WarDeclared(war_view()),
         ];
         for s in resps {
             assert_eq!(SResp::decode(&s.encode()), Some(s.clone()), "{s:?}");
@@ -690,6 +858,13 @@ mod tests {
             SPush::FriendRequest { from: 2, name: "A".into() },
             SPush::FriendStatus { account: 2, name: "A".into(), online: false, place: 0 },
             SPush::Notice { text: "muted".into() },
+            SPush::War(war_view()),
+            SPush::WarOff { war: 3 },
+            SPush::WarResult { war: 3, winner: 7, held: [900, 12] },
+            SPush::DuelChallenge { from: 2, name: "A".into() },
+            SPush::DuelDeclined { name: "A".into() },
+            SPush::DuelStart { duel: 4, foe: 2, name: "A".into(), seed: 77 },
+            SPush::DuelResult { duel: 4, winner: 2, loser: 1, draw: false },
         ];
         for p in pushes {
             assert_eq!(SPush::decode(&p.encode()), Some(p.clone()), "{p:?}");

@@ -181,6 +181,7 @@ impl Field {
     pub fn top_level(&self) -> u8 {
         match &self.realm.vault {
             Some(v) => VAULTS[v.vault as usize].level,
+            None if self.pvp.yard => crate::pvp::YARD_TOP,
             None => FIELDS[self.field as usize].top,
         }
     }
@@ -192,6 +193,9 @@ impl Field {
     /// Start of every tick after the clock moved: tides, field bosses, the world boss, or a vault's timeline.
     pub(crate) fn realm_begin(&mut self) {
         self.realm.clock += 1;
+        if self.pvp.yard {
+            return;
+        }
         if self.realm.vault.is_some() {
             self.vault_begin();
             return;
@@ -263,6 +267,7 @@ impl Field {
             self.realm.altars[a] = Altar { state: ALTAR_LIT, progress: 0, hp };
             self.events.push(Event::Altar { index: a as u8, state: ALTAR_LIT });
         }
+        self.wars_begin(n);
     }
 
     /// The tide is over: WON (two altars held) or LOST (time ran out).
@@ -290,6 +295,7 @@ impl Field {
         for h in self.heroes.iter_mut() {
             h.tide_contrib = 0;
         }
+        self.wars_end();
     }
 
     /// Pays a chest: the heroes (best contribution first, ties by id; at most `take`), their coin, one REWARD event.
@@ -340,6 +346,7 @@ impl Field {
             }
         }
         if self.tide {
+            self.wars_altars();
             self.altars_tick();
         }
         if self.realm.boss.is_some() {

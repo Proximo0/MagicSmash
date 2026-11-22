@@ -94,6 +94,44 @@ pub enum Event {
         state: u8,
         n: u8,
     },
+    /// Section 14 (job R3), appended after the contract's list. The BLOOD MARK was taken, put down, or refused
+    /// (`MARK_*` in `pvp.rs`), or a marked realm marked her.
+    Mark {
+        hero: u16,
+        state: u8,
+    },
+    /// A hero's blow struck a hero: `raw` before her reductions, `amount` taken.
+    Struck {
+        hero: u16,
+        by: u16,
+        raw: u32,
+        amount: u32,
+    },
+    /// A hero's blow downed her (a `Down` event of the same tick says so too).
+    Slain {
+        hero: u16,
+        by: u16,
+    },
+    /// She FELL after a hero downed her: the coin her haul lost went to `by` (0 if `by` had left). The server moves
+    /// the haul's lost items to `by` likewise.
+    Plunder {
+        hero: u16,
+        by: u16,
+        coin: u32,
+    },
+    /// A guild war began or ended with its tide; `winner` 0 or 1 (`guilds[winner]`) or `WAR_DRAW`; held altar ticks.
+    War {
+        war: u64,
+        state: u8,
+        winner: u8,
+        held: [u32; 2],
+    },
+    /// A duel began, was won or was drawn.
+    Duel {
+        state: u8,
+        winner: u16,
+        loser: u16,
+    },
 }
 
 impl Event {
@@ -117,6 +155,12 @@ impl Event {
             Event::Boss { .. } => 14,
             Event::Reward { .. } => 15,
             Event::Vault { .. } => 16,
+            Event::Mark { .. } => 17,
+            Event::Struck { .. } => 18,
+            Event::Slain { .. } => 19,
+            Event::Plunder { .. } => 20,
+            Event::War { .. } => 21,
+            Event::Duel { .. } => 22,
         }
     }
 }
