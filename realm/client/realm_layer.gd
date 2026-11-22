@@ -20,7 +20,9 @@ var is_ground: bool = true
 var view: Rect2 = Rect2()
 ## Screen px per field px.
 var px_scale: float = 1.0
-var hero_tex: Texture2D = null
+## The hero's picture (a FieldArt entry: a still or a walk strip).
+var hero_entry: Dictionary = {}
+var hero_moving: bool = false
 var hero_pos: Vector2 = Vector2.ZERO
 var hero_flip: bool = false
 var hero_alive: bool = true
@@ -54,12 +56,17 @@ func _draw_grid() -> void:
 
 
 func _draw_hero() -> void:
-	if hero_tex == null:
+	if hero_entry.is_empty():
 		return
+	var tex: Texture2D = hero_entry["tex"]
+	var anim: int = int(hero_entry["anim"])
+	var sc: float = float(hero_entry["scale"])
 	var ring_w: float = maxf(1.5 / px_scale, 0.5)
 	var ring: float = maxf(RING_PX, RING_MIN_SCREEN_PX / px_scale)
 	draw_set_transform(hero_pos + Vector2(0, 1), 0.0, Vector2(1, 0.45))
 	draw_arc(Vector2.ZERO, ring, 0.0, TAU, 28, RING_COL, ring_w)
-	var sz := hero_tex.get_size()
+	var fw: float = float(tex.get_width()) / float(anim)
+	var step: int = int(fmod(Time.get_ticks_msec() / 125.0, float(anim))) if anim > 1 and hero_moving and hero_alive else 0
+	var size := Vector2(fw, tex.get_height()) * sc
 	draw_set_transform(hero_pos, 0.0, Vector2(-1.0 if hero_flip else 1.0, 1.0))
-	draw_texture(hero_tex, Vector2(-sz.x / 2.0, -sz.y), Color.WHITE if hero_alive else DEAD_COL)
+	draw_texture_rect_region(tex, Rect2(Vector2(-size.x / 2.0, -size.y), size), Rect2(Vector2(fw * step, 0), Vector2(fw, tex.get_height())), Color.WHITE if hero_alive else DEAD_COL)

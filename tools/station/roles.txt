@@ -1,9 +1,10 @@
 # What each watching station runs on every merge: <STATION_NAME>: jobs [--after=<station>] [--p95=<frame limit ms, 0 = record only>]
 # A station restarts itself when this file changes. No --after means it does not wait for another station.
-# Four of Wands is stopped (21 Nov 2026): no station runs boss, checks, frames or golden. A job is skipped for a merge
+# Four of Wands is stopped (21 Nov 2026): no station runs boss, checks or golden. `frames` now means Horde & Hearth's client drawing 10,000 monsters on the station's own
+# graphics (record only unless a role adds --p95=<ms>, a limit on the 99th-percentile frame), so the laptop and the Celeron record theirs. A job is skipped for a merge
 # that changed nothing it tests. `deep`: between merges the station runs seeded soaks (big store crash fuzz, full-size
 # field bench) and reports them in <machine>-deep.txt instead of sleeping, so a merge of docs or art costs the stations nothing.
 ubuntu: realm deep
-msi: realm deep
-laptop: realm deep
-heatherspc: realm deep
+msi: realm frames deep
+laptop: realm frames deep
+heatherspc: realm frames deep

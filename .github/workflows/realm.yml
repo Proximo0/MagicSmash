@@ -1,6 +1,7 @@
 # realm: the lockstep server, its tools and the Godot native module (realm/README.md).
 # Linux runs realm/check.sh; Linux and Windows run the store's check (realm/store/check.sh) and build the native module, Windows builds the server and the
-# load test for hosting on a Windows PC; both run the same bench and the hashes must match (lockstep needs
+# load test for hosting on a Windows PC; `client-windows` exports the Godot client (realm/client) for Windows with
+# the native module inside, an artifact to download and run to see the frame rate on a real card; both run the same bench and the hashes must match (lockstep needs
 # every machine to compute the same field).
 name: realm
 
@@ -101,6 +102,41 @@ jobs:
         with:
           name: hash-windows
           path: hash-windows.txt
+
+  client-windows:
+    needs: [windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GODOT_VERSION: "4.7.2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: realm-godot-windows
+          path: realm/client/bin
+      - name: Godot and its Windows export template
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dir"
+          unzip -q -j templates.tpz "templates/windows_release_x86_64.exe" "templates/windows_debug_x86_64.exe" -d "$dir"
+      - name: Import and export the client
+        run: |
+          # The first import of a fresh clone does its work and then aborts while quitting: the second is clean.
+          godot --headless --path realm/client --import || godot --headless --path realm/client --import
+          mkdir -p build/realm-client
+          godot --headless --path realm/client --export-release "Windows Desktop" ../../build/realm-client/HordeAndHearth.exe
+          cp realm/client/bin/realm_godot.dll build/realm-client/
+          ls -l build/realm-client
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-client-windows
+          path: build/realm-client
+          if-no-files-found: error
 
   same-hash:
     needs: [linux, windows]

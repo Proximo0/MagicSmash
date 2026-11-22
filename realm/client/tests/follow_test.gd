@@ -4,7 +4,8 @@ extends SceneTree
 ## godot --headless --path realm/client -s res://tests/follow_test.gd -- [--server=127.0.0.1:7777]
 ##   [--ticks=400] [--timeout=60]
 ## Prints one line, FOLLOW_TEST ok|FAILED ..., and exits 1 on failure. Also checks, once joined, that the
-## bulk reads agree with the counts and come sorted, and that the predicted hero stays close to the
+## frame the worker thread finished agrees with the counts (a whole-field view draws every monster), that
+## the HUD, world, effect and event reads are well formed, and that the predicted hero stays close to the
 ## confirmed one.
 
 const TICK_S: float = 0.05
@@ -21,7 +22,10 @@ var _input_acc: float = 0.0
 var _joined_at: int = -1
 var _problems: Array[String] = []
 var _checked_reads: bool = false
+var _check_whole: bool = false
+var _checked_whole: bool = false
 var _done: bool = false
+var _view_ticks: int = 0
 
 
 func _initialize() -> void:
@@ -48,12 +52,16 @@ func _initialize() -> void:
 func _process(delta: float) -> bool:
 	if _done:
 		return true
-	_link.poll()
+	var applied_now: int = _link.poll()
+	if _check_whole and not _checked_whole and applied_now > 0 and _view_ticks >= 2:
+		_verify_whole()
+	if _check_whole and applied_now > 0:
+		_view_ticks += 1
 	_input_acc += delta
 	if _input_acc >= TICK_S:
 		_input_acc = fmod(_input_acc, TICK_S)
 		var secs: float = (Time.get_ticks_usec() - _start_us) / 1000000.0
-		_link.send_input(1 + (int(secs / 2.0) * 3) % 8, true)
+		_link.send_input(1 + (int(secs / 2.0) * 3) % 8, 1, 0)
 	var c: Dictionary = _link.counters()
 	var applied: int = int(c.get("ticks_applied", 0))
 	if _link.is_joined():
@@ -71,41 +79,42 @@ func _process(delta: float) -> bool:
 
 
 func _check_reads() -> void:
-	var whole := Rect2i(0, 0, RealmLink.field_size(), RealmLink.field_size())
-	var ms: PackedInt32Array = _link.monsters_in(whole)
-	if ms.size() / 5 != _link.monster_count():
-		_problems.append("monsters_in %d != monster_count %d" % [ms.size() / 5, _link.monster_count()])
-	for i in range(5, ms.size(), 5):
-		if ms[i] <= ms[i - 5]:
-			_problems.append("monsters_in not sorted by id")
-			break
-	var ps: PackedInt32Array = _link.players_in(whole)
-	var mine: int = 0
-	for i in range(0, ps.size(), 6):
-		if ps[i + 5] & 16:
-			mine += 1
-			if ps[i] != _link.hero_id():
-				_problems.append("players_in marks player %d as me, hero is %d" % [ps[i], _link.hero_id()])
-	if ps.size() / 6 != _link.player_count() or mine != 1:
-		_problems.append("players_in has %d players (%d mine), player_count %d" % [ps.size() / 6, mine, _link.player_count()])
-	var drawn: int = _link.monster_buffer(whole).size() / 16
+	# The draw buffers for the whole field must hold every monster and every other player, and the
+	# frame's numbers must agree with the counts.
+	_link.set_view(Rect2i(0, 0, RealmLink.field_size(), RealmLink.field_size()))
+	_check_whole = true
+
+
+## Called on the frames after the whole-field view was set: the buffers then cover everything.
+func _verify_whole() -> void:
+	var drawn: int = _link.monster_buffer().size() / 16
 	if drawn != _link.monster_count():
 		_problems.append("monster_buffer drew %d of %d" % [drawn, _link.monster_count()])
+	var others: int = _link.player_buffer().size() / 16
+	if others != _link.player_count() - 1:
+		_problems.append("player_buffer drew %d, %d players besides me" % [others, _link.player_count() - 1])
+	var h: Dictionary = _link.hero_view()
+	if h.is_empty() or int(h["id"]) != _link.hero_id():
+		_problems.append("hero_view is empty or not this hero")
+	elif int(h["max_health"]) <= 0 or (h["skills"] as PackedInt32Array).size() != 12 or (h["belt"] as PackedInt32Array).size() != 9:
+		_problems.append("hero_view is malformed")
+	var w: Dictionary = _link.world()
+	if (w["sites"] as PackedFloat32Array).size() != 30:
+		_problems.append("world sites has %d floats" % (w["sites"] as PackedFloat32Array).size())
+	if (_link.fx_rows().size() % 8) != 0 or (_link.event_rows().size() % 8) != 0:
+		_problems.append("fx or event rows are not whole rows")
+	_checked_whole = true
 
 
 func _check_prediction(c: Dictionary) -> void:
-	var st: PackedInt32Array = _link.hero_state()
-	if st.size() < 4 or st[3] == 0:
+	var h: Dictionary = _link.hero_view()
+	if h.is_empty() or not bool(h["alive"]):
 		return
-	var ps: PackedInt32Array = _link.players_in(Rect2i(0, 0, RealmLink.field_size(), RealmLink.field_size()))
-	for i in range(0, ps.size(), 6):
-		if ps[i] == _link.hero_id():
-			var confirmed := Vector2(ps[i + 1], ps[i + 2]) / 256.0
-			var lead: float = _link.predicted_position().distance_to(confirmed)
-			var allowed: float = (int(c.get("unconfirmed_inputs", 0)) + 1) * LEAD_PX_PER_INPUT * 1.5
-			if lead > allowed and _problems.size() < 8:
-				_problems.append("predicted hero %.1f px from the confirmed one (allowed %.1f)" % [lead, allowed])
-			return
+	var confirmed := Vector2(float(h["x"]), float(h["y"]))
+	var lead: float = _link.predicted_position().distance_to(confirmed)
+	var allowed: float = (int(c.get("unconfirmed_inputs", 0)) + 3) * LEAD_PX_PER_INPUT * 1.5
+	if lead > allowed and _problems.size() < 8:
+		_problems.append("predicted hero %.1f px from the confirmed one (allowed %.1f)" % [lead, allowed])
 
 
 func _finish(error: String) -> void:

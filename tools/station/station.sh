@@ -4,16 +4,21 @@
 #   jobs: realm   Horde & Hearth: realm/check.sh and realm/store/check.sh (the Rust core, server and store). Needs cargo;
 #                 a station without it reports SKIP.
 #         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
-#         The four below test Four of Wands, which is stopped; no station runs them now.
+#         deep    (a role word only) between merges: seeded soaks, reported in <machine>-deep.txt
+#         The three below test Four of Wands, which is stopped; no station runs them now.
 #         boss    bots play STATION_SEEDS (default "7 21 33 101 102") to the Archlich, side by side
 #         checks  tools/check_all.sh; on FAIL the failing rows follow the JOB line
-#         frames  the real game at wave 10 with a full horde on this machine's screen and graphics card; FAIL when the
-#                 95th-percentile frame is over STATION_FRAME_P95_MS (default 25; 0 = record only). Needs a desktop session.
+#         frames  Horde & Hearth's client (realm/client) drawing 10,000 monsters or more on this machine's screen and
+#                 graphics card for 60 s: a realm-server with bots and a horde, the client as the bot at zoom 16 (the
+#                 whole rally), one line with the mean and 99th-percentile frame in ms and the monsters drawn. Needs
+#                 cargo, godot and a desktop session (xvfb-run is used when there is none). INFO unless a limit is
+#                 set (--p95=<ms> in roles.txt or STATION_FRAME_P99_MS, applied to the 99th percentile; 0 = record only).
 #         golden  tools/golden.sh against the commit this station tested last (INFO: did the game change?)
 #   --after=M  relay: run a commit only once station M has reported PASS for it; if M failed, report HELD and do nothing
 #   --watch    stay running: every STATION_POLL seconds (default 120) fetch origin/main and run the jobs on a new commit
 #   --no-push  print the report instead of pushing it
-# In watch mode a line for this machine in tools/station/roles.txt replaces the jobs and --after given here.
+# In watch mode a line for this machine in tools/station/roles.txt replaces the jobs and --after given here, for
+# example `msi: realm frames deep`.
 # Run it from a clone kept for the station alone: it checks out origin/main detached and refuses a dirty tree.
 # Report: branch `station-results`, file <machine>.txt (never main, never CI). Read with tools/station/read.sh.
 # STATION_ON_FAIL: optional command run with the report on stdin when a job fails (for example to wake a helper).
@@ -38,7 +43,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -77,18 +82,35 @@ job_checks() {
   grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -6 | cut -c1-160 | sed 's/^ */  /'
   return 1
 }
-job_frames() {
-  local line script p95 limit="${P95:-${STATION_FRAME_P95_MS:-25}}"
-  local out; out=$(timeout 900 "$GODOT" --path . -- --autotest=10 --perf --seed=7 2>&1)
-  line=$(grep '^PERF frames=' <<<"$out" | tail -1); script=$(grep '^PERF total_script' <<<"$out" | tail -1 | awk '{print $3}')
-  [ -n "$line" ] || { echo "JOB frames FAIL no PERF line (no display, or the run died)"; return 1; }
-  p95=$(sed -E 's/.* p95=([0-9.]+).*/\1/' <<<"$line")
-  if [ "$limit" = 0 ]; then  # a machine below the game's minimum: record its numbers, never fail on them
-    echo "JOB frames INFO ${line#PERF } script_ms=$script"
-  elif awk -v a="$p95" -v b="$limit" 'BEGIN { exit !(a <= b) }'; then
-    echo "JOB frames PASS ${line#PERF } script_ms=$script limit_p95=$limit"
+job_frames() {  # one line: the realm client's frame times with a full horde on screen, on this machine's own graphics
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB frames SKIP cargo is not installed on this station"; return 0; }
+  local limit="${P95:-${STATION_FRAME_P99_MS:-0}}" dir port="${STATION_FRAMES_PORT:-7811}" lib out line server runner=()
+  dir="${TMPDIR:-/tmp}/station-frames-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
+  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) lib=realm_godot.dll ;; Darwin) lib=librealm_godot.dylib ;; *) lib=librealm_godot.so ;; esac
+  ( cd realm && cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/godot && cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
+    && cp "realm/godot/target/release/$lib" realm/client/bin/ || { echo "JOB frames FAIL build: $(tail -2 "$dir/build.log" | tr '\n' ' ' | cut -c1-160)"; return 1; }
+  # A fresh clone's first import does its work and then aborts while quitting: the second is clean.
+  ( timeout 180 "$GODOT" --headless --path realm/client --import || timeout 180 "$GODOT" --headless --path realm/client --import ) >"$dir/import.log" 2>&1 || true
+  if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
+  # 1,200 bots, 25,000 monsters, half the bots rallied at the heart: a screen at zoom 16 holds 10,000 and more.
+  realm/target/release/realm-server --port="$port" --bots=1200 --monsters=25000 --rally=0.5 --threads=2 --report=600 >"$dir/server.log" 2>&1 &
+  server=$!
+  sleep 5
+  kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
+  out=$(timeout "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
+  kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
+  line=$(grep '^CLIENT_FRAMES ' <<<"$out" | tail -1)
+  rm -rf "$dir"
+  [ -n "$line" ] || { echo "JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died)"; return 1; }
+  [[ "$line" == "CLIENT_FRAMES ok"* ]] || { echo "JOB frames FAIL ${line#CLIENT_FRAMES }"; return 1; }
+  local p99; p99=$(sed -E 's/.* p99_ms=([0-9.]+).*/\1/' <<<"$line")
+  if [ "$limit" = 0 ]; then
+    echo "JOB frames INFO ${line#CLIENT_FRAMES ok }"
+  elif awk -v a="$p99" -v b="$limit" 'BEGIN { exit !(a <= b) }'; then
+    echo "JOB frames PASS ${line#CLIENT_FRAMES ok } limit_p99=$limit"
   else
-    echo "JOB frames FAIL ${line#PERF } script_ms=$script limit_p95=$limit"; return 1
+    echo "JOB frames FAIL ${line#CLIENT_FRAMES ok } limit_p99=$limit"; return 1
   fi
 }
 job_golden() {  # information only: which pushes changed how the game plays
@@ -135,7 +157,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
 touched() {
   case "$1" in
     idle) return 0 ;;
-    realm) grep -q '^realm/' ;;
+    realm|frames) grep -q '^realm/' ;;
     *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
   esac
 }
@@ -192,7 +214,7 @@ run_once() {
   if [ -n "$held" ]; then
     verdict="STATION HELD $held"
   else
-    if grep -qE '(^| )(boss|checks|frames|golden)( |$)' <<<"${run[*]:-}"; then  # only Godot jobs need the import
+    if grep -qE '(^| )(boss|checks|golden)( |$)' <<<"${run[*]:-}"; then  # only Godot jobs need the import
       tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
     fi
     for j in "${run[@]:+${run[@]}}"; do

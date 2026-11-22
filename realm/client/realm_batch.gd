@@ -10,8 +10,8 @@ extends RefCounted
 const STRIDE: int = 16
 ## Clear texels around each picture, so smoothed sampling does not bleed in a neighbour.
 const PAD: int = 1
-## The shader's frame table size (figures.gdshader MAX_FRAMES).
-const MAX_FRAMES: int = 32
+## The shader's entry table size (figures.gdshader MAX_FRAMES).
+const MAX_FRAMES: int = 64
 ## The item's culling rectangle is not computed from the buffer: cover the whole field and beyond.
 const FIELD_RECT: Rect2 = Rect2(-512, -512, 17408, 17408)
 const SHADER: Shader = preload("res://figures.gdshader")
@@ -24,21 +24,37 @@ var _caps: PackedInt32Array = PackedInt32Array([0, 0])
 var _front: int = 0
 
 
-## `frames` are the pictures in atlas order (the frame numbers RealmLink writes); `z` the draw layer.
-func _init(parent: Node, frames: Array[Texture2D], z: int) -> void:
+## `entries` are the pictures in atlas order (the numbers RealmLink writes), each a Dictionary: `tex` (a
+## picture, or a strip of `anim` frames side by side), `anim` (frames in the strip, 1 for a still picture) and
+## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px). `z` is the draw layer.
+func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 	var cell := Vector2i.ZERO
-	for t in frames:
-		cell = cell.max(Vector2i(t.get_size()))
-	var step: int = cell.x + 2 * PAD
-	var img := Image.create(frames.size() * step, cell.y + 2 * PAD, false, Image.FORMAT_RGBA8)
+	for e in entries:
+		var t: Texture2D = e["tex"]
+		cell = cell.max(Vector2i(t.get_width() / int(e["anim"]), t.get_height()))
+	var total: int = 0
+	for e in entries:
+		total += (e["tex"] as Texture2D).get_width() + 2 * PAD
+	var img := Image.create(total, cell.y + 2 * PAD, false, Image.FORMAT_RGBA8)
 	var rects := PackedVector4Array()
 	rects.resize(MAX_FRAMES)
-	for i in frames.size():
-		var src: Image = frames[i].get_image()
+	var anims := PackedFloat32Array()
+	anims.resize(MAX_FRAMES)
+	var scales := PackedFloat32Array()
+	scales.resize(MAX_FRAMES)
+	anims.fill(1.0)
+	scales.fill(1.0)
+	var x: int = 0
+	for i in entries.size():
+		var src: Image = (entries[i]["tex"] as Texture2D).get_image()
 		src.convert(Image.FORMAT_RGBA8)
-		var at := Vector2i(i * step + PAD, PAD)
+		var at := Vector2i(x + PAD, PAD)
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), at)
-		rects[i] = Vector4(at.x, at.y, src.get_width(), src.get_height())
+		var n: int = int(entries[i]["anim"])
+		rects[i] = Vector4(at.x, at.y, src.get_width() / n, src.get_height())
+		anims[i] = float(n)
+		scales[i] = float(entries[i]["scale"])
+		x += src.get_width() + 2 * PAD
 	img.generate_mipmaps()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(cell)
@@ -48,6 +64,8 @@ func _init(parent: Node, frames: Array[Texture2D], z: int) -> void:
 	material.set_shader_parameter("cell", Vector2(cell))
 	material.set_shader_parameter("atlas", Vector2(img.get_size()))
 	material.set_shader_parameter("rects", rects)
+	material.set_shader_parameter("anims", anims)
+	material.set_shader_parameter("scales", scales)
 	var tex := ImageTexture.create_from_image(img)
 	for k in 2:
 		var mm := MultiMesh.new()

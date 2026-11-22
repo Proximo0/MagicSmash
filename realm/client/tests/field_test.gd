@@ -1,0 +1,116 @@
+extends SceneTree
+## The field client's pieces with no server: the art by file name with stand-ins, the sound hooks, the effect
+## rows and events, the HUD's reads, the input mapping. Prints one line, FIELD_TEST ok|FAILED ..., and exits 1
+## on failure.
+## godot --headless --path realm/client -s res://tests/field_test.gd
+
+var _problems: Array[String] = []
+var _checks: int = 0
+
+
+func _initialize() -> void:
+	_art()
+	_sound()
+	_fx()
+	_hud()
+	_input()
+	var ok: bool = _problems.is_empty()
+	print("FIELD_TEST %s checks=%d%s" % ["ok" if ok else "FAILED", _checks, "" if ok else " problems=\"%s\"" % "; ".join(_problems)])
+	quit(0 if ok else 1)
+
+
+func _check(cond: bool, what: String) -> void:
+	_checks += 1
+	if not cond:
+		_problems.append(what)
+
+
+func _art() -> void:
+	_check(RealmLink.kind_count() == 42, "the core has 42 kinds, got %d" % RealmLink.kind_count())
+	_check(FieldArt.kind_key("plague rat") == "enemy_plague_rat", "kind key of a two-word name")
+	var kinds: Array[Dictionary] = FieldArt.monster_entries()
+	_check(kinds.size() == 42, "42 monster entries, got %d" % kinds.size())
+	var sum: Dictionary = FieldArt.art_summary(kinds)
+	# The Tower's eight are drawn; every other kind has a stand-in until its picture arrives.
+	_check(int(sum["still"]) + int(sum["walk"]) >= 8, "the Tower's eight pictures are found by name: %s" % sum)
+	_check(int(sum["stand-in"]) + int(sum["still"]) + int(sum["walk"]) == 42, "every kind has a picture")
+	for e in kinds:
+		var t: Texture2D = e["tex"]
+		_check(t != null and t.get_width() > 4 and t.get_height() > 4, "a picture or a stand-in with a size")
+		_check(int(e["anim"]) >= 1 and float(e["scale"]) > 0.0, "anim and scale are set")
+	var heroes: Array[Dictionary] = FieldArt.hero_entries()
+	_check(heroes.size() == 24, "24 hero entries, got %d" % heroes.size())
+	var walk: Dictionary = FieldArt.hero_entry(1, 1)
+	_check(walk["art"] == "walk" and int(walk["anim"]) == 4 and is_equal_approx(float(walk["scale"]), 0.5), "elf knight is the walk strip at half scale")
+	_check((walk["tex"] as Texture2D).get_width() % 4 == 0, "a strip of four whole frames")
+	var novice: Dictionary = FieldArt.hero_entry(0, 0)
+	_check(novice["art"] == "walk", "human novice is a walk strip")
+	var borrowed: Dictionary = FieldArt.hero_entry(0, 3)
+	_check(borrowed["art"] == "stand-in", "an orc novice borrows the orc knight")
+	var mage: Dictionary = FieldArt.hero_entry(2, 0)
+	_check(mage["art"] == "still" and int(mage["anim"]) == 1, "a hero with a still picture only")
+	_check(int(FieldArt.art_summary(heroes)["walk"]) == 6, "six heroes have walk strips")
+	# The batch builds an atlas from these.
+	var holder := Node.new()
+	var batch := RealmBatch.new(holder, kinds, 1)
+	_check(batch.count == 0, "a batch starts empty")
+	holder.free()
+
+
+func _sound() -> void:
+	var s := FieldSound.new()
+	s.muted = true
+	s._ready()
+	for _i in 100:
+		s.hook("kill")
+	_check(int(s.played.get("kill", 0)) == 1, "a hundred kills in one instant make one bleep")
+	s.hook("level")
+	s.hook("nonsense")
+	_check(int(s.played.get("level", 0)) == 1 and not s.played.has("nonsense"), "known hooks play, unknown ones do not")
+	var ev := PackedInt32Array([FieldFx.EV_LEVEL, 3, 5, 0, 0, 10, 10, 0, FieldFx.EV_DOWN, 4, 0, 0, 0, 10, 10, 0, FieldFx.EV_BANK, 9, 40, 1, 0, 0, 0, 0])
+	s.from_events(ev, 3)
+	_check(int(s.played.get("down", 0)) == 1, "an ally's fall makes the down bleep")
+	_check(int(s.played.get("level", 0)) == 1, "the level bleep is rate limited")
+	_check(not s.played.has("bank"), "another hero's bank is silent")
+	s.free()
+
+
+func _fx() -> void:
+	var fx := FieldFx.new()
+	fx.my_id = 3
+	var rows := PackedFloat32Array([
+		FieldFx.FX_SWING, 100, 100, 0.5, 110, 72, 1, 0,
+		FieldFx.FX_RING, 100, 100, 96, -1, 4, 0, 0,
+		FieldFx.FX_BOLT, 100, 100, 300, 120, 2, 60, 0,
+		FieldFx.FX_ZONE, 200, 200, 90, 1, 100, 5, 0,
+		FieldFx.FX_STATUS, 100, 100, 3, 0, 0, 0, 1])
+	fx.ingest(rows)
+	_check(fx._items.size() == 3, "a swing, a ring and a bolt are transient effects, a zone and a status are state: %d" % fx._items.size())
+	var ev := PackedInt32Array([
+		FieldFx.EV_KILL, -1, 4, 2, 1, 50, 50, 0,
+		FieldFx.EV_LEVEL, 3, 7, 0, 0, 60, 60, 0,
+		FieldFx.EV_LEVEL, 8, 7, 0, 0, 60, 60, 0,
+		FieldFx.EV_DOWN, 8, 0, 0, 0, 70, 70, 0])
+	fx.events(ev)
+	# A burst, my level (words and a ring), another's level (a ring, no words), another's down (words).
+	_check(fx._items.size() == 3 + 1 + 2 + 1 + 1, "events add bursts and words: %d" % fx._items.size())
+	for i in 2000:
+		fx._add({"k": 20, "x": 0.0, "y": 0.0, "a": 3, "b": 0.0, "c": "ffffff", "t": 0.0, "life": 1.0})
+	_check(fx._items.size() <= FieldFx.MAX_ITEMS, "effects are capped at %d" % FieldFx.MAX_ITEMS)
+	fx.free()
+
+
+func _hud() -> void:
+	var hud := FieldHud.new()
+	hud.card_rects = [Rect2(10, 10, 20, 20), Rect2(40, 10, 20, 20)]
+	_check(hud.card_at(Vector2(15, 15)) == 0 and hud.card_at(Vector2(45, 15)) == 1 and hud.card_at(Vector2(5, 5)) == -1, "a click finds its card")
+	_check(FieldHud.clock(20 * 125) == "2:05", "the clock reads minutes and seconds")
+	_check(FieldHud.TIDE_EVERY_TICKS == 36000 and FieldHud.TIDE_LEN_TICKS == 6000, "a tide every 30 minutes for 5")
+	_check(RealmLink.card_name(1) == "STRENGTH" and RealmLink.potion_name(0) == "HEALING DRAUGHT", "names come from the core's tables")
+	_check(String(RealmLink.skill_info(1)["name"]) == "PROVOKE" and RealmLink.class_name(5) == "PALADIN", "skill and class names")
+	hud.free()
+
+
+func _input() -> void:
+	_check(RealmClient._dir_code(0, 0) == 0 and RealmClient._dir_code(1, 0) == 1 and RealmClient._dir_code(0, 1) == 3, "direction codes")
+	_check(RealmClient._dir_code(-1, -1) == 6 and RealmClient._dir_code(1, -1) == 8, "diagonal direction codes")
