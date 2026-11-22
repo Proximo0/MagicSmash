@@ -201,10 +201,16 @@ def run(out_dir=OUT):
         for key in ("A56", "B112"):
             fs = res[key]
             bobs = [int(f["bob"]) for f in fs.frames]
-            ok, worst = gs.prop_clear_of_face(fs)
-            report.append("   %s: torso bob %d px; prop_clear_of_face %s (%.1f%%); leg gates (failing cases) %s; skin px below belt %d"
-                          % (key, max(bobs) - min(bobs), "ok" if ok else "FAIL", 100 * worst, gs.leg_gates(fs),
-                             gs.no_skin_below_belt(fs)))
+            wb, st = gs.walk_gates(fs)
+            lg_ = gs.prop_clear_of_legs(fs)
+            report.append("   %s: bob %d px; stride %d px; max stance knee bend %.1f deg; max swing bend %.1f; peak swing lift %d px; "
+                          "min pelvis ratio %.3f; trunk lean %.1f deg fwd; foot slide error %d px; walk gates %s"
+                          % (key, max(bobs) - min(bobs), st["stride"], st["max_stance_bend"], st["max_swing_bend"], st["peak_lift"],
+                             st["min_pelvis_ratio"], st["lean"], st["foot_slide_px"], wb))
+            report.append("   %s: prop face %s (%.1f%%), prop on legs %s (%.1f%%), upright %s (tilt %.1f); leg gates %s; skin below belt %d"
+                          % (key, "ok" if gs.prop_clear_of_face(fs)[0] else "FAIL", 100 * gs.prop_clear_of_face(fs)[1],
+                             "ok" if lg_[0] else "FAIL", 100 * lg_[1], gs.prop_upright(fs), fs.prop_info["tilt"] if fs.prop_info else 0,
+                             gs.leg_gates(fs), gs.no_skin_below_belt(fs)))
         for ge, cfg in res["heroB"].carry.items():
             report.append("   carry of %s: one angle for all 8 frames, %+.2f deg from the drawn carry, grip shift %d px (112 master)"
                           % (ge, res["heroB"].carry_dphi[ge], cfg[1]))
