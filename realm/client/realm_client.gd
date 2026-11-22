@@ -106,6 +106,8 @@ var _hud_t: float = 0.0
 var _info: Dictionary = {}
 var _world_info: Dictionary = {}
 var _last_health: int = 0
+var _last_cd: PackedInt32Array = PackedInt32Array([0, 0, 0])
+var _last_alive: bool = true
 var _hero_key: int = -1
 var _debug_text: String = ""
 
@@ -336,8 +338,20 @@ func _on_frame() -> void:
 	_sound.from_events(ev, link.hero_id())
 	if not _info.is_empty():
 		var hp: int = int(_info["health"])
+		var now_s: float = Time.get_ticks_msec() / 1000.0
 		if hp < _last_health:
 			_sound.hook("hit")
+			_hero.hit_at = now_s
+		var cds: PackedInt32Array = _info["skills"]
+		for slot in 3:
+			var cd: int = cds[slot * 4 + 1]
+			if cd > _last_cd[slot]:
+				_hero.atk_at = now_s
+			_last_cd[slot] = cd
+		var alive: bool = bool(_info.get("alive", true))
+		if _last_alive and not alive:
+			_hero.died_at = now_s
+		_last_alive = alive
 		_last_health = hp
 	if _fake.has("tide") and not _world_info.is_empty():
 		_world_info["tide"] = true
