@@ -2,6 +2,7 @@
 # realm/store check: build (no warnings), the tests, then a short crash fuzz (5,000 operations, 20 kills).
 # Quiet: failures only, then one summary line.
 set -u
+command -v sccache >/dev/null 2>&1 && export RUSTC_WRAPPER=sccache
 cd "$(dirname "$0")"
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
@@ -9,7 +10,7 @@ scratch=${REALM_STORE_SCRATCH:-${TMPDIR:-/tmp}/realm-store-check}
 mkdir -p "$scratch"
 export REALM_STORE_SCRATCH="$scratch"
 
-if ! cargo build --release -j2 >"$log" 2>&1; then
+if ! cargo build --release -j"${CARGO_BUILD_JOBS:-2}" >"$log" 2>&1; then
 	grep -A6 -E "^(error|warning)" "$log" | head -20
 	echo "STORE failed: cargo build"
 	exit 1
@@ -19,7 +20,7 @@ if grep -q "^warning" "$log"; then
 	echo "STORE failed: build warnings"
 	exit 1
 fi
-if ! cargo test --release -j2 -q -- --test-threads=2 >"$log" 2>&1; then
+if ! cargo test --release -j"${CARGO_BUILD_JOBS:-2}" -q -- --test-threads=2 >"$log" 2>&1; then
 	grep -E "panicked|FAILED|error(\[|:)" "$log" | head -20
 	echo "STORE failed: cargo test"
 	exit 1

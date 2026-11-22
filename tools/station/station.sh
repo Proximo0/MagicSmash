@@ -2,7 +2,7 @@
 # A station: a spare computer that runs long jobs with no Claude on it and reports a few lines.
 # Usage: tools/station/station.sh [--watch] [--no-push] job [job ...]
 #   jobs: realm   Horde & Hearth: realm/check.sh and realm/store/check.sh (the Rust core, server and store). Needs cargo;
-#                 a station without it reports SKIP.
+#                 a station without it reports FAIL.
 #         soak    bots through the wire server (gateway, towns, field hosts, store) for STATION_SOAK_SECS (default 7200),
 #                 one summary line; FAIL when the line is not "SOAK ok" (a mismatch, a bot error or a store problem)
 #         economy Horde & Hearth's market simulation (realm-economy, record only): STATION_ECONOMY_BOTS (default 4000) bots for
@@ -88,7 +88,10 @@ job_checks() {
 }
 job_frames() {  # one line: the realm client's frame times with a full horde on screen, on this machine's own graphics
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB frames SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB frames FAIL cargo is not installed on this station"; return 1; }
+  local gs="${HH_ART_STATUS-D:\\projects\\hh_art\\status.txt}"  # Horde & Hearth art generation owns the GPU while this file says RUNNING
+  command -v cygpath >/dev/null 2>&1 && [ -n "$gs" ] && gs=$(cygpath -u "$gs" 2>/dev/null || echo "$gs")
+  if [ -n "$gs" ] && [ -f "$gs" ] && grep -q RUNNING "$gs" 2>/dev/null; then echo "JOB frames INFO gpu busy (art generation is RUNNING), skipped"; return 0; fi
   local limit="${P95:-${STATION_FRAME_P99_MS:-0}}" dir port="${STATION_FRAMES_PORT:-7811}" lib out line server runner=()
   dir="${TMPDIR:-/tmp}/station-frames-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) lib=realm_godot.dll ;; Darwin) lib=librealm_godot.dylib ;; *) lib=librealm_godot.so ;; esac
@@ -126,7 +129,7 @@ job_golden() {  # information only: which pushes changed how the game plays
 job_realm() {  # one line: the summary line of each check script; FAIL when a script does not end with its "ok" line
   # A station that was started before Rust was installed still has its old PATH: look in rustup's own folder too.
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB realm SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB realm FAIL cargo is not installed on this station"; return 1; }
   local c out line bad=0 detail=""
   for c in realm/check.sh realm/store/check.sh; do
     [ -f "$c" ] || continue
@@ -134,12 +137,18 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
     if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
     else bad=$((bad + 1)); detail+=" | $c: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
   done
+  if [ "$(uname -s)" = Linux ] && command -v "$GODOT" >/dev/null 2>&1 && [ -f realm/check_client.sh ]; then  # the client against a real server, on Linux machines with Godot
+    local runner=(); [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && runner=(xvfb-run -a)
+    out=$(GODOT="$GODOT" timeout "${STATION_REALM_TIMEOUT:-3600}" "${runner[@]}" bash realm/check_client.sh 2>&1); line=$(tail -1 <<<"$out")
+    if [[ "$line" == "REALM_CLIENT ok "* ]]; then detail+=" | ${line:0:120}"
+    else bad=$((bad + 1)); detail+=" | realm/check_client.sh: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  fi
   echo "JOB realm $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
 }
 job_economy() {  # one line: realm-economy's summary, a longer run than the test; recorded, never a failure of the merge
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB economy SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB economy FAIL cargo is not installed on this station"; return 1; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) out line
   out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout 7000 target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-4000}" --days="${STATION_ECONOMY_DAYS:-180}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-economy.db*
@@ -148,7 +157,7 @@ job_economy() {  # one line: realm-economy's summary, a longer run than the test
 }
 job_soak() {  # one line: realm-soak's summary
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB soak SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB soak FAIL cargo is not installed on this station"; return 1; }
   local secs="${STATION_SOAK_SECS:-7200}" out line
   out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((secs + 900)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$secs" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="${TMPDIR:-/tmp}/station-soak.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-soak.db*
@@ -158,7 +167,7 @@ job_soak() {  # one line: realm-soak's summary
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir
   dir="${TMPDIR:-/tmp}/station-deep-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   ( cd realm && cargo build --release -j2 -q ) >/dev/null 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >/dev/null 2>&1 \
@@ -169,6 +178,12 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
   if out=$(timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300 2>&1); then
     detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
   else bad=$((bad + 1)); detail+=" | bench field=$field seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  local ssecs="${STATION_DEEP_SOAK_SECS:-900}"  # a time-boxed soak with a fresh seed (0 = none); the per-merge soak job is gone from roles.txt
+  if [ "$ssecs" -gt 0 ]; then
+    out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((ssecs + 600)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$ssecs" --seed=$seed --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$dir/soak.db" 2>&1)
+    if [[ "$(tail -1 <<<"$out")" == "SOAK ok "* ]]; then detail+=" | soak seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
+    else bad=$((bad + 1)); detail+=" | soak seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  fi
   rm -rf "$dir"
   echo "JOB deep $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
@@ -199,6 +214,12 @@ publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to t
     sleep 5
   done
   echo "station: could not push the report" >&2; return 1
+}
+
+publish_append() {  # $1 = one line, $2 = file: append it to the file on the results branch (a history, not an overwrite)
+  local old; git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
+  old=$(git show "refs/remotes/origin/$BRANCH:$2" 2>/dev/null | tail -200)
+  publish "${old:+$old$'\n'}$(tr '\n' ' ' <<<"$1")" "$2"
 }
 
 # Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
@@ -245,20 +266,33 @@ run_once() {
     verdict="STATION $([ $failed -eq 0 ] && echo PASS || echo FAIL) jobs=${#run[@]} failed=$failed skipped=$skipped"
   fi
   local report="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=${head:0:7} took=$((SECONDS - start))s"$'\n'"$body$verdict"
-  echo "$head" >"$STATE"
   if [ $failed -gt 0 ] && [ -n "${STATION_ON_FAIL:-}" ]; then bash -c "$STATION_ON_FAIL" <<<"$report" >/dev/null 2>&1 || true; fi
-  if [ "$push" = 1 ]; then publish "$report" || return 2; tail -1 <<<"$report"; else echo "$report"; fi
+  if [ "$push" = 1 ]; then
+    # Push only a report that differs from the last one pushed (ignoring time and took); mark the commit tested only after the push worked.
+    local sig; sig=$(tail -n +2 <<<"$report" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum)
+    if [ "$sig" != "$(cat "$STATE.report" 2>/dev/null)" ]; then publish "$report" || return 2; echo "$sig" >"$STATE.report"; fi
+    echo "$head" >"$STATE"; tail -1 <<<"$report"
+  else echo "$head" >"$STATE"; echo "$report"; fi
   [ $failed -eq 0 ]
 }
 
 if [ "$watch" = 1 ]; then
+  if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
+    ( while true; do publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null; sleep 1800; done ) &
+    trap 'kill $! 2>/dev/null' EXIT
+  fi
   while true; do
     run_once; rc=$?
     [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
-      t0=$SECONDS; body=$(job_deep); v=$([[ "$body" == *" PASS"* || "$body" == *" SKIP "* ]] && echo PASS || echo FAIL)
+      t0=$SECONDS; body=$(job_deep); drc=$?
+      if [ $drc = 2 ]; then sleep 600; continue; fi  # no cargo: a broken machine must not flood the results branch
+      v=$([ $drc = 0 ] && echo PASS || echo FAIL)
       rep="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=$((SECONDS - t0))s"$'\n'"$body"$'\n'"STATION $v deep pass"
-      if [ "$push" = 1 ]; then publish "$rep" "$MACHINE-deep.txt" || true; else echo "$rep"; fi
+      if [ "$push" = 1 ]; then
+        publish "$rep" "$MACHINE-deep.txt" || true
+        if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:400}" "$MACHINE-failures.txt" || true; fi
+      else echo "$rep"; fi
       continue
     fi
     sleep "$POLL"
