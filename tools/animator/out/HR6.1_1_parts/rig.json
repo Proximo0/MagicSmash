@@ -1,0 +1,304 @@
+{
+ "name": "HR6.1_1",
+ "still_frame": 0,
+ "joints": {
+  "head_top": [
+   40,
+   3
+  ],
+  "neck": [
+   40,
+   30
+  ],
+  "pelvis": [
+   39,
+   84
+  ],
+  "shoulder": [
+   39,
+   43
+  ],
+  "elbow": [
+   45,
+   60
+  ],
+  "wrist": [
+   57,
+   70
+  ],
+  "hand_tip": [
+   61,
+   72
+  ],
+  "hip": [
+   40,
+   87
+  ],
+  "knee": [
+   50,
+   103
+  ],
+  "ankle": [
+   62,
+   118
+  ],
+  "heel": [
+   60,
+   127
+  ],
+  "toe": [
+   79,
+   121
+  ]
+ },
+ "ground_y": 127.0,
+ "lengths": {
+  "spine": 54.00925846556311,
+  "head": 27.0,
+  "upper": 18.027756377319946,
+  "fore": 15.620499351813308,
+  "hand": 4.47213595499958,
+  "thigh": 18.867962264113206,
+  "shin": 19.209372712298546,
+  "foot": 19.924858845171276
+ },
+ "far_shoulder_offset": [
+  -2.0,
+  0.0
+ ],
+ "far_hip_offset": [
+  -2.0,
+  0.0
+ ],
+ "rest_angles": {
+  "lean": 1.0609116902642277,
+  "upper": 19.44003482817619,
+  "fore": 50.19442890773481,
+  "thigh": 32.005383208083494,
+  "shin": 38.65980825409009,
+  "pitch": 17.52556837372287
+ },
+ "game_scale": 0.45161290322580644,
+ "parts": {
+  "far_upper": {
+   "png": "far_upper.png",
+   "draw": 0,
+   "origin_in_still": [
+    34,
+    40
+   ],
+   "pivot_joint": "shoulder",
+   "pivot_in_png": [
+    5.0,
+    3.0
+   ],
+   "bone": [
+    "shoulder",
+    "elbow"
+   ],
+   "parent": "torso",
+   "sha1": "5532a073ef8ce99a",
+   "far_copy_of": "near_upper"
+  },
+  "far_fore": {
+   "png": "far_fore.png",
+   "draw": 1,
+   "origin_in_still": [
+    44,
+    58
+   ],
+   "pivot_joint": "elbow",
+   "pivot_in_png": [
+    1.0,
+    2.0
+   ],
+   "bone": [
+    "elbow",
+    "wrist"
+   ],
+   "parent": "far_upper",
+   "sha1": "71441c276271e28f",
+   "far_copy_of": "near_fore"
+  },
+  "far_thigh": {
+   "png": "far_thigh.png",
+   "draw": 2,
+   "origin_in_still": [
+    35,
+    84
+   ],
+   "pivot_joint": "hip",
+   "pivot_in_png": [
+    5.0,
+    3.0
+   ],
+   "bone": [
+    "hip",
+    "knee"
+   ],
+   "parent": "torso",
+   "sha1": "bcbe83ffaa2cf78a",
+   "far_copy_of": "near_thigh"
+  },
+  "far_shin": {
+   "png": "far_shin.png",
+   "draw": 3,
+   "origin_in_still": [
+    47,
+    102
+   ],
+   "pivot_joint": "knee",
+   "pivot_in_png": [
+    3.0,
+    1.0
+   ],
+   "bone": [
+    "knee",
+    "ankle"
+   ],
+   "parent": "far_thigh",
+   "sha1": "0e7af43481361092",
+   "far_copy_of": "near_shin"
+  },
+  "far_foot": {
+   "png": "far_foot.png",
+   "draw": 4,
+   "origin_in_still": [
+    55,
+    115
+   ],
+   "pivot_joint": "ankle",
+   "pivot_in_png": [
+    7.0,
+    3.0
+   ],
+   "bone": [
+    "heel",
+    "toe"
+   ],
+   "parent": "far_shin",
+   "sha1": "475bf47b10a8bd6a",
+   "far_copy_of": "near_foot"
+  },
+  "torso": {
+   "png": "torso.png",
+   "draw": 5,
+   "origin_in_still": [
+    0,
+    0
+   ],
+   "pivot_joint": "pelvis",
+   "pivot_in_png": [
+    39.0,
+    84.0
+   ],
+   "bone": [
+    "pelvis",
+    "neck"
+   ],
+   "parent": null,
+   "sha1": "35b0deb94cbd08ce",
+   "far_copy_of": null
+  },
+  "near_thigh": {
+   "png": "near_thigh.png",
+   "draw": 6,
+   "origin_in_still": [
+    35,
+    84
+   ],
+   "pivot_joint": "hip",
+   "pivot_in_png": [
+    5.0,
+    3.0
+   ],
+   "bone": [
+    "hip",
+    "knee"
+   ],
+   "parent": "torso",
+   "sha1": "4893ac3074702932",
+   "far_copy_of": null
+  },
+  "near_shin": {
+   "png": "near_shin.png",
+   "draw": 7,
+   "origin_in_still": [
+    47,
+    102
+   ],
+   "pivot_joint": "knee",
+   "pivot_in_png": [
+    3.0,
+    1.0
+   ],
+   "bone": [
+    "knee",
+    "ankle"
+   ],
+   "parent": "near_thigh",
+   "sha1": "5d4a6f2836e120db",
+   "far_copy_of": null
+  },
+  "near_foot": {
+   "png": "near_foot.png",
+   "draw": 8,
+   "origin_in_still": [
+    55,
+    115
+   ],
+   "pivot_joint": "ankle",
+   "pivot_in_png": [
+    7.0,
+    3.0
+   ],
+   "bone": [
+    "heel",
+    "toe"
+   ],
+   "parent": "near_shin",
+   "sha1": "ac9144af6c41af4e",
+   "far_copy_of": null
+  },
+  "near_upper": {
+   "png": "near_upper.png",
+   "draw": 9,
+   "origin_in_still": [
+    34,
+    40
+   ],
+   "pivot_joint": "shoulder",
+   "pivot_in_png": [
+    5.0,
+    3.0
+   ],
+   "bone": [
+    "shoulder",
+    "elbow"
+   ],
+   "parent": "torso",
+   "sha1": "3ad402b79948b917",
+   "far_copy_of": null
+  },
+  "near_fore": {
+   "png": "near_fore.png",
+   "draw": 10,
+   "origin_in_still": [
+    44,
+    58
+   ],
+   "pivot_joint": "elbow",
+   "pivot_in_png": [
+    1.0,
+    2.0
+   ],
+   "bone": [
+    "elbow",
+    "wrist"
+   ],
+   "parent": "near_upper",
+   "sha1": "e7f00956e493e656",
+   "far_copy_of": null
+  }
+ }
+}

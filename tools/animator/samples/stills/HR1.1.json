@@ -1,0 +1,84 @@
+{
+ "id": "HR1.1",
+ "name": "hero_human_novice",
+ "source_picture": "HR1.1_1.png",
+ "frame": 1,
+ "stride_px": 220,
+ "facing": "right",
+ "ground_y": 390,
+ "size": [
+  245,
+  403
+ ],
+ "joints": {
+  "head": [
+   111.0,
+   36.6
+  ],
+  "neck": [
+   106.3,
+   76.3
+  ],
+  "pelvis": [
+   98.7,
+   244.5
+  ],
+  "near_shoulder": [
+   94.9,
+   87.6
+  ],
+  "near_elbow": [
+   64.8,
+   144.3
+  ],
+  "near_wrist": [
+   26.6,
+   196.1
+  ],
+  "near_hip": [
+   94.9,
+   244.5
+  ],
+  "near_knee": [
+   155.2,
+   317.2
+  ],
+  "near_ankle": [
+   204.4,
+   390.0
+  ],
+  "near_toe": [
+   245.98000000000002,
+   390
+  ],
+  "far_shoulder": [
+   106.3,
+   87.6
+  ],
+  "far_elbow": [
+   136.4,
+   144.3
+  ],
+  "far_wrist": [
+   174.6,
+   196.1
+  ],
+  "far_hip": [
+   102.5,
+   244.5
+  ],
+  "far_knee": [
+   62.2,
+   320.8
+  ],
+  "far_ankle": [
+   0.6,
+   390.0
+  ],
+  "far_toe": [
+   42.18,
+   390
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

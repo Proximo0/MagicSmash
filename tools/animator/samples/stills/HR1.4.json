@@ -1,0 +1,84 @@
+{
+ "id": "HR1.4",
+ "name": "hero_orc_novice",
+ "source_picture": "HR1.4_1.png",
+ "frame": 3,
+ "stride_px": 244,
+ "facing": "right",
+ "ground_y": 420,
+ "size": [
+  269,
+  433
+ ],
+ "joints": {
+  "head": [
+   116.7,
+   38.5
+  ],
+  "neck": [
+   111.6,
+   81.4
+  ],
+  "pelvis": [
+   103.4,
+   262.9
+  ],
+  "near_shoulder": [
+   99.3,
+   93.6
+  ],
+  "near_elbow": [
+   131.9,
+   154.8
+  ],
+  "near_wrist": [
+   173.1,
+   210.7
+  ],
+  "near_hip": [
+   99.3,
+   262.9
+  ],
+  "near_knee": [
+   64.0,
+   345.3
+  ],
+  "near_ankle": [
+   -2.5,
+   420.0
+  ],
+  "near_toe": [
+   42.38,
+   420
+  ],
+  "far_shoulder": [
+   111.6,
+   93.6
+  ],
+  "far_elbow": [
+   79.0,
+   154.8
+  ],
+  "far_wrist": [
+   37.9,
+   210.7
+  ],
+  "far_hip": [
+   107.5,
+   262.9
+  ],
+  "far_knee": [
+   164.4,
+   341.5
+  ],
+  "far_ankle": [
+   217.5,
+   420.0
+  ],
+  "far_toe": [
+   262.38,
+   420
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

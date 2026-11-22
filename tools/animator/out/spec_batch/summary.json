@@ -1,0 +1,102 @@
+{
+ "HR6.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 52.4,
+   "neck": 2.5,
+   "pelvis": 12.4,
+   "shoulder": 0.3,
+   "elbow": 0.4,
+   "wrist": 0.5,
+   "hip": 10.3,
+   "knee": 1.1,
+   "ankle": 13.8,
+   "toe": 41.8,
+   "far_knee": 13.3,
+   "far_ankle": 16.6
+  },
+  "flags": [],
+  "gear": [],
+  "gear_cut": 0.0,
+  "native_grid": {
+   "found": false,
+   "cell": [
+    3.8200000000000007,
+    3.4200000000000004
+   ],
+   "phase": [
+    2.5,
+    2.75
+   ],
+   "score": [
+    1.1,
+    1.1
+   ],
+   "texel": 4.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 40.0,
+   "112": 80.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 5.33
+ },
+ "HR6.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 40.7,
+   "neck": 0.6,
+   "pelvis": 7.4,
+   "shoulder": 0.4,
+   "elbow": 0.7,
+   "wrist": 1.0,
+   "hip": 9.3,
+   "knee": 3.7,
+   "ankle": 11.5,
+   "toe": 34.7,
+   "far_knee": 1.7,
+   "far_ankle": 9.6
+  },
+  "flags": [],
+  "gear": [],
+  "status": "rejected",
+  "rules": [
+   "G11"
+  ],
+  "failures": [
+   "G11: gear_on_near_side: a rimmed gear blob (a shield?) of 0.027 body heights squared at 200,198 lies 88 % ahead of the trunk axis (limit 25 %): it covers the torso's front and the near arm; a shield belongs on the back, wholly behind the torso"
+  ],
+  "seconds": 1.12
+ },
+ "HR6.4": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 34.1,
+   "neck": 6.5,
+   "pelvis": 10.2,
+   "shoulder": 0.2,
+   "elbow": 0.4,
+   "wrist": 0.5,
+   "hip": 10.9,
+   "knee": 3.4,
+   "ankle": 25.3,
+   "toe": 41.6,
+   "far_knee": 4.9,
+   "far_ankle": 9.6
+  },
+  "flags": [],
+  "gear": [],
+  "status": "rejected",
+  "rules": [
+   "G8",
+   "G15"
+  ],
+  "failures": [
+   "G15: bare_legs: 28 % of the legs have the hand's (skin) colour (limit 25 %): the hand vanishes against the thigh; trousers or greaves in a colour different from the skin",
+   "G8: arm_on_body: a hand is drawn over the body at 188,243 (2 blobs of the hand's colour, 2.62 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 3.78
+ }
+}

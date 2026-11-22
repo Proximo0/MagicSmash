@@ -1,0 +1,84 @@
+{
+ "id": "HR2.2",
+ "name": "hero_elf_knight",
+ "source_picture": "HR2.2_2.png",
+ "frame": 1,
+ "stride_px": 237,
+ "facing": "right",
+ "ground_y": 407,
+ "size": [
+  262,
+  420
+ ],
+ "joints": {
+  "head": [
+   132.4,
+   37.7
+  ],
+  "neck": [
+   127.5,
+   79.2
+  ],
+  "pelvis": [
+   119.6,
+   254.9
+  ],
+  "near_shoulder": [
+   115.6,
+   91.0
+  ],
+  "near_elbow": [
+   84.1,
+   150.3
+  ],
+  "near_wrist": [
+   44.2,
+   204.3
+  ],
+  "near_hip": [
+   115.6,
+   254.9
+  ],
+  "near_knee": [
+   178.6,
+   331.0
+  ],
+  "near_ankle": [
+   230.0,
+   407.0
+  ],
+  "near_toe": [
+   273.45,
+   407
+  ],
+  "far_shoulder": [
+   127.5,
+   91.0
+  ],
+  "far_elbow": [
+   159.0,
+   150.3
+  ],
+  "far_wrist": [
+   198.8,
+   204.3
+  ],
+  "far_hip": [
+   123.5,
+   254.9
+  ],
+  "far_knee": [
+   81.4,
+   334.7
+  ],
+  "far_ankle": [
+   17.0,
+   407.0
+  ],
+  "far_toe": [
+   60.45,
+   407
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

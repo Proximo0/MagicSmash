@@ -1,0 +1,84 @@
+{
+ "id": "HR5.4",
+ "name": "hero_orc_priest",
+ "source_picture": "HR5.4_1.png",
+ "frame": 3,
+ "stride_px": 255,
+ "facing": "right",
+ "ground_y": 453,
+ "size": [
+  280,
+  466
+ ],
+ "joints": {
+  "head": [
+   142.9,
+   40.7
+  ],
+  "neck": [
+   137.4,
+   87.0
+  ],
+  "pelvis": [
+   128.6,
+   283.2
+  ],
+  "near_shoulder": [
+   124.2,
+   100.2
+  ],
+  "near_elbow": [
+   159.4,
+   166.4
+  ],
+  "near_wrist": [
+   203.9,
+   226.7
+  ],
+  "near_hip": [
+   124.2,
+   283.2
+  ],
+  "near_knee": [
+   86.0,
+   372.3
+  ],
+  "near_ankle": [
+   14.1,
+   453.0
+  ],
+  "near_toe": [
+   62.61,
+   453
+  ],
+  "far_shoulder": [
+   137.4,
+   100.2
+  ],
+  "far_elbow": [
+   102.2,
+   166.4
+  ],
+  "far_wrist": [
+   57.7,
+   226.7
+  ],
+  "far_hip": [
+   133.0,
+   283.2
+  ],
+  "far_knee": [
+   194.5,
+   368.1
+  ],
+  "far_ankle": [
+   251.9,
+   453.0
+  ],
+  "far_toe": [
+   300.41,
+   453
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

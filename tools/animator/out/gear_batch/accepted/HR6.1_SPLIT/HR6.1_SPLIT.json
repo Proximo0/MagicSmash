@@ -1,0 +1,93 @@
+{
+ "name": "HR6.1_SPLIT",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "body_height_px": 56,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 40.0,
+   "gain": 1.0,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 40.0,
+   "gain": 1.0,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "native_grid": {
+  "found": false,
+  "cell": [
+   5.720000000000002,
+   6.780000000000003
+  ],
+  "phase": [
+   3.0,
+   4.0
+  ],
+  "score": [
+   1.16,
+   1.19
+  ],
+  "texel": 4.0,
+  "used_cell": [
+   6.964285714285714,
+   6.964285714285714
+  ]
+ },
+ "fit": {
+  "id": "HR6.1_SPLIT",
+  "flags": [],
+  "penalties": {},
+  "on_spec": true,
+  "key_px": 0,
+  "key_at": [],
+  "body_only": true,
+  "loose": [],
+  "layout_scale": 0.998,
+  "robe": false,
+  "ankle_moved_px": -23.6,
+  "arm_from_layout": true,
+  "back_reach": 0.068,
+  "inner_hand": false,
+  "hands": [],
+  "arm_overlap": 0,
+  "gear_blobs": [],
+  "thin_objects": [],
+  "hand_reach": 0.078,
+  "back_cloth": 0.0002,
+  "leg_skin": 0.0,
+  "layout_swapped": {
+   "legs": false,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 52.4,
+   "neck": 2.5,
+   "pelvis": 9.4,
+   "shoulder": 0.3,
+   "elbow": 0.4,
+   "wrist": 0.5,
+   "hip": 10.3,
+   "knee": 1.9,
+   "ankle": 13.7,
+   "toe": 40.8,
+   "far_knee": 12.0,
+   "far_ankle": 16.6
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 403.0,
+  "leg_width": 49.5,
+  "far_arm": "hidden"
+ }
+}

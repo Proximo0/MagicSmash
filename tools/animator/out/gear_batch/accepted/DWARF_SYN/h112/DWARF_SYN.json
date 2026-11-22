@@ -1,0 +1,93 @@
+{
+ "name": "DWARF_SYN",
+ "still_frame": 0,
+ "canvas": [
+  192,
+  160
+ ],
+ "foot_y": 148,
+ "body_height_px": 112,
+ "scale": 0.28717948717948716,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 48.0,
+   "gain": 1.0,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 48.0,
+   "gain": 1.0,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "native_grid": {
+  "found": false,
+  "cell": [
+   11.200000000000006,
+   8.160000000000004
+  ],
+  "phase": [
+   8.0,
+   3.25
+  ],
+  "score": [
+   1.91,
+   1.92
+  ],
+  "texel": 4.0,
+  "used_cell": [
+   3.482142857142857,
+   3.482142857142857
+  ]
+ },
+ "fit": {
+  "id": "DWARF_SYN",
+  "flags": [],
+  "penalties": {},
+  "on_spec": true,
+  "key_px": 0,
+  "key_at": [],
+  "body_only": true,
+  "loose": [],
+  "layout_scale": 1.006,
+  "robe": true,
+  "ankle_moved_px": -7.1,
+  "arm_from_layout": true,
+  "back_reach": 0.0,
+  "inner_hand": false,
+  "hands": [],
+  "arm_overlap": 0,
+  "gear_blobs": [],
+  "thin_objects": [],
+  "hand_reach": 0.073,
+  "back_cloth": 0.0,
+  "leg_skin": 0.0,
+  "layout_swapped": {
+   "legs": false,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 40.5,
+   "neck": 0.5,
+   "pelvis": 6.0,
+   "shoulder": 0.6,
+   "elbow": 0.9,
+   "wrist": 1.1,
+   "hip": 6.9,
+   "knee": 1.1,
+   "ankle": 5.0,
+   "toe": 2.2,
+   "far_knee": 3.1,
+   "far_ankle": 9.6
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 312.0,
+  "leg_width": 31.0,
+  "far_arm": "hidden"
+ }
+}

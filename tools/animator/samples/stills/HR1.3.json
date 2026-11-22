@@ -1,0 +1,84 @@
+{
+ "id": "HR1.3",
+ "name": "hero_dwarf_novice",
+ "source_picture": "HR1.3_4.png",
+ "frame": 1,
+ "stride_px": 201,
+ "facing": "right",
+ "ground_y": 345,
+ "size": [
+  203,
+  358
+ ],
+ "joints": {
+  "head": [
+   96.0,
+   33.6
+  ],
+  "neck": [
+   91.8,
+   68.6
+  ],
+  "pelvis": [
+   85.2,
+   230.4
+  ],
+  "near_shoulder": [
+   81.8,
+   78.6
+  ],
+  "near_elbow": [
+   55.3,
+   128.6
+  ],
+  "near_wrist": [
+   21.7,
+   174.1
+  ],
+  "near_hip": [
+   81.8,
+   230.4
+  ],
+  "near_knee": [
+   130.0,
+   287.7
+  ],
+  "near_ankle": [
+   168.7,
+   345.0
+  ],
+  "near_toe": [
+   205.32999999999998,
+   345
+  ],
+  "far_shoulder": [
+   91.8,
+   78.6
+  ],
+  "far_elbow": [
+   118.4,
+   128.6
+  ],
+  "far_wrist": [
+   152.0,
+   174.1
+  ],
+  "far_hip": [
+   88.5,
+   230.4
+  ],
+  "far_knee": [
+   56.8,
+   290.5
+  ],
+  "far_ankle": [
+   8.3,
+   345.0
+  ],
+  "far_toe": [
+   44.93000000000001,
+   345
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

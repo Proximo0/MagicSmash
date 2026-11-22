@@ -1,0 +1,84 @@
+{
+ "id": "HR6.2",
+ "name": "hero_elf_paladin",
+ "source_picture": "HR6.2_1.png",
+ "frame": 3,
+ "stride_px": 248,
+ "facing": "right",
+ "ground_y": 414,
+ "size": [
+  273,
+  427
+ ],
+ "joints": {
+  "head": [
+   142.9,
+   38.1
+  ],
+  "neck": [
+   137.9,
+   80.3
+  ],
+  "pelvis": [
+   129.8,
+   259.2
+  ],
+  "near_shoulder": [
+   125.8,
+   92.4
+  ],
+  "near_elbow": [
+   157.9,
+   152.7
+  ],
+  "near_wrist": [
+   198.4,
+   207.7
+  ],
+  "near_hip": [
+   125.8,
+   259.2
+  ],
+  "near_knee": [
+   91.0,
+   340.4
+  ],
+  "near_ankle": [
+   25.5,
+   414.0
+  ],
+  "near_toe": [
+   69.72,
+   414
+  ],
+  "far_shoulder": [
+   137.9,
+   92.4
+  ],
+  "far_elbow": [
+   105.8,
+   152.7
+  ],
+  "far_wrist": [
+   65.2,
+   207.7
+  ],
+  "far_hip": [
+   133.8,
+   259.2
+  ],
+  "far_knee": [
+   189.9,
+   336.6
+  ],
+  "far_ankle": [
+   242.2,
+   414.0
+  ],
+  "far_toe": [
+   286.41999999999996,
+   414
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}
