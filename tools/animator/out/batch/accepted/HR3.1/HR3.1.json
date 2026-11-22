@@ -11,14 +11,14 @@
   "walk4": {
    "frames": 4,
    "speed_px_per_cycle": 40.0,
-   "gain": 1.191,
+   "gain": 1.088,
    "ms_per_frame": 250,
    "checks": "ok"
   },
   "walk8": {
    "frames": 8,
    "speed_px_per_cycle": 40.0,
-   "gain": 1.191,
+   "gain": 1.088,
    "ms_per_frame": 125,
    "checks": "ok"
   }
@@ -32,6 +32,32 @@
   "back_reach": 0.063,
   "inner_hand": false,
   "arm_colour_cost": 0.044,
+  "hands": [
+   {
+    "at": [
+     51.1,
+     233.1
+    ],
+    "area": 4.02,
+    "zone": "back",
+    "w": 24,
+    "h": 42,
+    "kind": "forearm",
+    "reach": 1.04
+   },
+   {
+    "at": [
+     69.5,
+     233.9
+    ],
+    "area": 0.92,
+    "zone": "back",
+    "w": 9,
+    "h": 25,
+    "kind": "hand",
+    "reach": 1.0
+   }
+  ],
   "layout_swapped": {
    "legs": false,
    "arms": true
@@ -45,14 +71,15 @@
    "wrist": 8.7,
    "hip": 27.6,
    "knee": 13.7,
-   "ankle": 32.0,
-   "toe": 44.3,
+   "ankle": 27.5,
+   "toe": 36.3,
    "far_knee": 7.0,
    "far_ankle": 42.3
   },
   "score": 1.0,
   "ok": true,
   "body_height": 386.0,
-  "leg_width": 42.5
+  "leg_width": 42.5,
+  "far_arm": "visible"
  }
 }

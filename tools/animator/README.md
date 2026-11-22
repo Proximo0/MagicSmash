@@ -9,8 +9,11 @@ python3 -m tools.animator bake samples/HR6.1_1.png --joints samples/HR6.1_1.json
 python3 -m tools.animator all            # every samples/*.json + out/contact.png
 python3 -m tools.animator auto samples/HR6.1_1.png   # estimated joints JSON
 python3 -m tools.animator batch samples/stills --out out/batch   # fit + gate + bake all 24 stills
+python3 -m tools.animator spec --build all --out out/spec        # pose picture + joints per build
+python3 -m unittest discover tools/animator/tests                # from the repo root
 cd tools/animator/tests && python3 -m unittest discover -s . -p "test_*.py"
 ```
+How a still must be drawn so it fits the rig: `STILL_SPEC.md`. Every rule: `RULES.md`.
 Relative paths are resolved against `tools/animator/` when they do not exist from the cwd.
 
 Scope note (coordinator, 22 Nov): the skeleton/keyframe/IK runtime will be SkelForm
@@ -46,8 +49,8 @@ draw order, bone lengths, rest angles, sha1 per part) so they can be packed into
 4. **Walk** (`motion.py`): thigh, knee and ankle angles per 5-10 % of the cycle read from
    the published normal adult curves (Winter, *Biomechanics and Motor Control of Human
    Movement*, 4th ed. 2009; Perry & Burnfield, *Gait Analysis*, 2nd ed. 2010). Stance 62 %
-   (toe off). Far leg = the same table half a cycle later. Arms: shoulder +-17 deg about +2,
-   elbow 10-35 deg, opposite the legs (Murray, Sepic & Barnard 1967). Trunk 1.5-2.5 deg
+   (toe off). Far leg = the same table half a cycle later. Arms: shoulder +-20 deg about +2 (hanging),
+   elbow 8-28 deg, opposite the legs (Murray, Sepic & Barnard 1967). Trunk 1.5-2.5 deg
    extra lean, twice a cycle. Retargeting (`Gait`): the footprint at heel strike and the
    stride come from the table's own FK on this character's bone lengths (stride =
    distance the planted foot must travel back between heel strike and toe off, divided by
@@ -108,16 +111,44 @@ from the pose layout.
   its top anchor. Robe: each row sheared between the hindmost and foremost leg (0 at the hip,
   full at knee height), hem lag 0.6.
 - Stride: thigh swing gain fitted to the still's own step (x0.95), quantized to 8 game px per
-  cycle so the stance foot moves whole pixels; knee lift 0.30, arm swing 17 deg (x0.4 when
-  holding long gear), heel-strike pitch <= 20 deg, stance dorsiflexion <= 26 deg.
+  cycle so the stance foot moves whole pixels; knee lift 0.30, heel-strike pitch <= 20 deg,
+  stance dorsiflexion <= 26 deg. A stride the legs cannot reach (a planted knee past 55 deg or
+  a planted foot steeper than 45 deg on its toe) is stepped down by 8 px until stance is stance.
+- Arms (R18): a free arm is normalised to hanging before the swing is applied. Whatever pose
+  the still drew (stretched forward, bent at the belt), the posed upper arm is the table's
+  absolute angle: 2 deg +/- 20 deg about straight down (23 at gain 2; Murray 1967: 30-40 deg
+  total), elbow 8 deg (arm back) to 28 deg (arm forward), furthest back at the same-side heel
+  strike, far arm half a cycle later. v1 centred the swing half-way to the still's drawn angle
+  and kept the still's elbow, which is why arms were held out in front. Only a near arm
+  carrying long gear (> 0.30 body heights past the wrist) keeps the drawn pose and swings x0.4.
 - Downscale: 6x supersample, per-block mode with a bonus for dark detail (outlines, eyes),
   palette locked; R16 checks the stance foot moves <= 1 px against its footprint.
-- Foot (owner rule R6): the heel is the bottom of the shin's back edge. The foot is clipped
-  so nothing sticks out more than 1 px behind that line, and the toe must reach ahead.
-- **Rulebook `RULES.md`**: every rule (R1-R16 on baked frames, G1-G7 on the input) with its
+- Foot (owner rule R6, `foot.py`): true by construction. Shin edges are measured on the shin
+  (0.55-0.2 shin lengths above the ankle; v1 measured down to the ankle and took the boot's heel
+  block for the shin). Sole = longest near-level edge (-25..+60 deg) of the lower convex hull of
+  the pixels below the ankle; foot = everything below the ankle line; length = the drawn boot.
+  The foot part is re-seated: shifted whole pixels along the sole so its heel's rear end is
+  the shin's back-edge offset behind the ankle joint (flush at a neutral ankle), nothing
+  stretched or dropped. The walk never plantarflexes past the angle that would swing the heel
+  more than 0.8 game px behind that line (`plantar_limit`, at most 20 deg). G9 refuses, before
+  baking, a boot under 0.24 of the leg length (the still is wrong) or one not longer than the
+  shin is wide. v1's "short boots on steep shins" was mostly its own measurement: it put the
+  heel where the leaning shin's back line met the ground, mid-boot.
+- Arms in the still (owner: "there is three arms there"; G8, R17): `fit.hand_census` lists
+  every other blob of the front hand's colour (hue within 30 deg, chroma x0.45-1.9, lightness
+  -0.10..+0.35, hand-sized or forearm-shaped, at arm's reach, rows from 0.12 body heights
+  under the shoulder to 0.08 under the hip). At the silhouette's back edge = the far arm,
+  visible: it is erased from the body with a 3 px rim, the hole filled, and its own pixels
+  become the far forearm and hand (turned into the near forearm's frame, tip on the rig's
+  hand tip; the shaded copy of the near sleeve is kept only above where the real pixels
+  start, so there is never a second hand). With body on both sides = an arm drawn over the
+  body: G8 refuses the still. Nothing found = far arm hidden: shaded copy as before. R17 then
+  counts on every baked frame: any hand-sized blob of the hands' colours in the arm rows that
+  is not on a forearm part fails.
+- **Rulebook `RULES.md`**: every rule (R1-R18 on baked frames, G1-G9 on the input) with its
   check function and a failing-example test; `tests/test_rules.py::TestRulebook` fails if
-  one is missing or an owner rule (third leg, crooked elbow, backwards foot, heel) loses its
-  mark. A still failing a G rule is never animated: `out/batch/needs_attention/<id>.png`
+  one is missing or an owner rule (third leg, crooked elbow, backwards foot, heel, third arm,
+  short boot) loses its mark. A still failing a G rule is never animated: `out/batch/needs_attention/<id>.png`
   shows the fitted skeleton with failed joints ringed. Any failed rule -> nothing in
   `accepted/`, and `batch` exits 1.
 - `skf.py` writes `<id>.skf` (zip: armature.json, atlas0.png, readme.md). **Unverified against
@@ -125,15 +156,18 @@ from the pose layout.
   texture anchor are guesses, named constants at the top of skf.py. The robe shear is
   exported rigid. Open one in the editor (v0.9) once and flip the constants.
 
-Batch result (22 Nov): 7 accepted (HR1.1 HR3.1 HR4.1 HR4.2 HR6.1 HR6.3 HR6.4), 17 rejected:
-- R6: HR1.2, HR1.4, HR2.2, HR2.4, HR5.2. Short boots drawn on steep shins, so the toe never
-  passes the shin's front line. HR2.4 also has a sword along the leg that widens the shin.
-- G1 or G5 (fit failed): HR3.2, HR3.3, HR3.4, HR4.3, HR5.3. Wide robes or dwarves with legs
-  hidden; HR5.3's layout is badly scaled.
-- G6, arm drawn over the body: HR1.3, HR4.4, HR5.4.
-- G4: HR2.1 (back foot). G2: HR2.3. R1, third leg-wide run at row 66: HR5.1.
-- G7, shield sliced between forearm and torso: HR6.2.
-- Timing: about 1.1 s mean and 2.3 s max per character on one core.
+Batch result (22 Nov, after the three-arm fix, arm swing and foot model): 5 accepted
+(HR1.2 HR2.2 HR3.1 HR4.2 HR5.1), 19 rejected. Of the 7 accepted before, HR1.1, HR6.1 and HR6.3
+had an arm left painted on the body (three arms in the walk); HR4.1 and HR6.4 are refused by
+the same rule (two-handed crossbow; a hand on the shield).
+- G8, arm drawn over the body: HR1.1 HR1.3 HR1.4 HR2.1 HR2.3 HR2.4 HR3.2 HR4.1 HR4.4 HR5.2 HR5.3
+  HR5.4 HR6.1 HR6.3 HR6.4. HR2.1 and HR5.2 are false alarms of the colour test (blood on the
+  tabard, a belt pouch); both fail another rule as well.
+- G9, boot too short or shin too wide for it: HR1.1 HR1.3 HR2.3 HR2.4 HR3.2 HR3.3 HR3.4 HR4.3
+  HR5.2. G1/G2/G5 (robes, dwarves, layout): HR2.3 HR3.2 HR3.3 HR3.4 HR4.3 HR5.3. G4: HR2.1.
+  G6: HR1.3 HR4.4 HR5.4. G7: HR6.2.
+- R6 no longer rejects anything: HR1.2 and HR2.2 pass with the new foot model.
+- Timing: about 0.9 s mean and 2.5 s max per character on one core.
 
 ## Limits (what it cannot cut well)
 - Long robes and skirts (HR3.2 wizard, the elves' loin cloth): kept rigid with the torso, so
@@ -150,9 +184,21 @@ Batch result (22 Nov): 7 accepted (HR1.1 HR3.1 HR4.1 HR4.2 HR6.1 HR6.3 HR6.4), 1
 - The slide/ground checks use the posed joints (float, game px); a 1-px pixel jitter from
   the reduction is not itself checked.
 
+- The hand test is by colour. It misses a second arm whose hand has another colour than the
+  front hand (two different gloves) and it refuses stills with hand-coloured things on the
+  torso. Stills drawn on `STILL_SPEC.md` do not depend on it.
+- Normalising the arm to hanging uncovers the torso where the still drew the arm; that area
+  is a fill (HR2.2's chest is patchy). The fitted upper arm also takes whatever chest it lies
+  on (HR2.2's emblem swings with the arm). Stills on spec draw the upper arm as its own shape.
+- A boot's shaft above the ankle line belongs to the shin; where the still drew the foot
+  toe-up 40 deg the shaft keeps that angle (HR3.1: red-brown boot pixels at the shin's end).
+- The six legacy hand-joint samples (`all`, 130 px strips) were not re-tuned for the new foot
+  model and arm rules: 5 of 6 now fail R6/R16/R18 there.
+
 ## Next
-Cut held gear (strapped shields) as its own part instead of rejecting (G7); a foot model for
-short boots on steep shins (R6 rejects); robes under G5; verify the .skf in the editor.
+Take the joints of a still drawn on spec as exact (skip the fit's snapping) and cut the far arm
+from the layout when it is drawn behind the back.
+Cut held gear (strapped shields) as its own part instead of rejecting (G7); robes under G5; verify the .skf in the editor.
 Monster rigs (quadruped, floater, blob), four directions (front/back need a different cut),
 layout-supplied joints on the MSI, arm-point fitting for the art runner's joint files,
 packing `*_parts/` into SkelForm `.skf`.

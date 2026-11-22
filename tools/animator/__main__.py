@@ -3,6 +3,8 @@
   python3 -m tools.animator all [--out out/]          bake every sample with a JSON + contact sheet
   python3 -m tools.animator auto samples/HR6.1_1.png  print estimated joints JSON
   python3 -m tools.animator batch samples/stills --out out/batch   fit + gate + bake all stills
+  python3 -m tools.animator spec --build human|elf|dwarf|orc --out DIR   pose layout picture,
+                                   joints JSON and reference mannequin for a build (STILL_SPEC.md)
 Relative paths that do not exist from the current directory are taken from tools/animator/.
 """
 import argparse
@@ -51,7 +53,16 @@ def main(argv=None):
     bt.add_argument("stills", nargs="?", default="samples/stills")
     bt.add_argument("--out", default="out/batch")
     bt.add_argument("--no-skf", action="store_true")
+    sp = sub.add_parser("spec")
+    sp.add_argument("--build", choices=["human", "elf", "dwarf", "orc", "all"], default="all")
+    sp.add_argument("--out", default="out/spec")
     args = ap.parse_args(argv)
+    if args.cmd == "spec":
+        from . import spec
+        for b in (list(spec.BUILDS) if args.build == "all" else [args.build]):
+            for kind, p in spec.write(b, _out(args.out)).items():
+                print(f"{b} {kind}: {p}")
+        return 0
     if args.cmd == "batch":
         from .batch import run
         acc, rej = run(_in(args.stills), _out(args.out), skf=not args.no_skf)

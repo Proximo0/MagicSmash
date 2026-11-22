@@ -22,7 +22,10 @@ import test_animator
 
 HERE = os.path.join(ROOT, "tools", "animator")
 STILLS = os.path.join(HERE, "samples", "stills")
-OWNER_RULES = {"R1", "R4", "R5", "R6"}      # third leg, crooked elbow, backwards foot, heel
+GOOD = "HR4.2"       # a still that passes every rule (HR6.1 was the example until the owner saw
+                     # its third arm: it now fails G8)
+OWNER_RULES = {"R1", "R4", "R5", "R6", "R17", "G8", "G9"}   # third leg, crooked elbow, backwards foot,
+                                                            # heel, third arm (output and input), short boot
 
 
 def read_rulebook():
@@ -44,8 +47,9 @@ def read_rulebook():
 
 def test_classes():
     import test_rules
+    import test_arms_feet
     out = {}
-    for mod in (test_animator, test_rules):
+    for mod in (test_animator, test_rules, test_arms_feet):
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             if issubclass(obj, unittest.TestCase):
                 out[name] = obj
@@ -95,7 +99,7 @@ class TestGate(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        png = os.path.join(STILLS, "HR6.1.png")
+        png = os.path.join(STILLS, GOOD + ".png")
         cls.img, cls.data, cls.masks = fit_still(png, png[:-4] + ".json")
 
     def broken(self):
@@ -165,7 +169,7 @@ class TestGate(unittest.TestCase):
         ch = Character.from_still(png, png[:-4] + ".json")
         out = [t for t, _ in autocut.gate_cut(ch.info)]
         self.assertTrue(any(t.startswith("G7:") for t in out), out)
-        good = Character.from_still(os.path.join(STILLS, "HR6.1.png"), os.path.join(STILLS, "HR6.1.json"),
+        good = Character.from_still(os.path.join(STILLS, GOOD + ".png"), os.path.join(STILLS, GOOD + ".json"),
                                     fitted=(self.img, self.data, self.masks))
         self.assertEqual(autocut.gate_cut(good.info), [])
 
@@ -225,10 +229,10 @@ class TestBatch(unittest.TestCase):
             src = os.path.join(tmp, "in")
             os.makedirs(src)
             for ext in (".png", ".json"):
-                shutil.copy(os.path.join(STILLS, "HR6.1" + ext), os.path.join(src, "HR6.1" + ext))
+                shutil.copy(os.path.join(STILLS, GOOD + ext), os.path.join(src, GOOD + ext))
             # a broken copy: the layout's front leg is replaced by nonsense, so the fit fails
-            shutil.copy(os.path.join(STILLS, "HR6.1.png"), os.path.join(src, "BAD.png"))
-            with open(os.path.join(STILLS, "HR6.1.json")) as f:
+            shutil.copy(os.path.join(STILLS, GOOD + ".png"), os.path.join(src, "BAD.png"))
+            with open(os.path.join(STILLS, GOOD + ".json")) as f:
                 lay = json.load(f)
             from PIL import Image
             im = np.array(Image.open(os.path.join(src, "BAD.png")).convert("RGBA"))
@@ -238,9 +242,9 @@ class TestBatch(unittest.TestCase):
                 json.dump(lay, f)
             from tools.animator.batch import run
             acc, rej = run(src, os.path.join(tmp, "out"), skf=False, log=lambda *a: None)
-            self.assertEqual([c for c, _ in acc], ["HR6.1"])
+            self.assertEqual([c for c, _ in acc], [GOOD])
             self.assertEqual([c for c, _ in rej], ["BAD"])
-            self.assertEqual(os.listdir(os.path.join(tmp, "out", "accepted")), ["HR6.1"])
+            self.assertEqual(os.listdir(os.path.join(tmp, "out", "accepted")), [GOOD])
             self.assertTrue(os.path.exists(os.path.join(tmp, "out", "needs_attention", "BAD.png")))
         finally:
             shutil.rmtree(tmp)

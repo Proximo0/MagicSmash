@@ -24,7 +24,7 @@ from PIL import Image
 
 from . import checks
 from .cut import cut_still, load_still
-from .foot import behind_back_edge, fit_foot
+from .foot import behind_back_edge, fit_foot, reseat
 from .motion import MOTIONS, Gait, fit_walk, walk
 from .rig import Rig, screen_angle, SIDES
 
@@ -40,6 +40,7 @@ OUTLINE_MIN = 0.12   # share of a silhouette block an outline colour needs to wi
 DETAIL_DELTA = 45    # a detail colour is this much darker than its block's mean luma ...
 DETAIL_MIN = 0.12    # ... and covers at least this share of the block ...
 DETAIL_BONUS = 2.5   # ... and then counts this many times
+HEEL_TOL = 0.8       # game px the posed heel may swing behind the shin's back edge (rule R6: 1)
 STRIDE_QUANT = 8     # game px: stride per cycle is a multiple of this, so at 8 (and 4)
                      # frames the stance foot moves a whole number of px per frame
 
@@ -62,7 +63,8 @@ def refit_foot(rig, parts, radius):
     for k in ("heel", "toe", "ankle"):
         data["joints"][k] = [round(float(f[k][0]), 2), round(float(f[k][1]), 2)]
     data["foot_fit"] = {"pitch": f["pitch"], "length": round(f["length"], 2),
-                        "back": round(f["back"], 2), "front": round(f["front"], 2)}
+                        "back": round(f["back"], 2), "front": round(f["front"], 2),
+                        "seat": f["seat"], "cut": f["cut"]}
     return Rig(data), f
 
 
@@ -80,9 +82,15 @@ class Character:
         self.parts, self.labels, self.info = cut_still(self.still, self.rig)
         self.rig, self.foot = refit_foot(self.rig, self.parts, self.info["radius"])
         if self.foot is not None:   # cut again so the whole boot (heel included) is the foot
-            self.parts, self.labels, self.info = cut_still(self.still, self.rig)
+            drawn = json.loads(json.dumps(self.rig.data))      # the foot where it is drawn
+            for k_ in ("heel", "toe"):
+                drawn["joints"][k_] = [drawn["joints"][k_][i] - self.foot["seat"][i] for i in (0, 1)]
+            self.parts, self.labels, self.info = cut_still(self.still, Rig(drawn))
+            for nm in ("near_foot", "far_foot"):      # heel's rear end onto the shin's back edge
+                self.parts[nm].img = reseat(self.parts[nm].img, self.foot["seat"])
         self.palette = self.info["palette"]
         self.k = BODY_H / self.rig.body_height
+        self.rig.data["heel_tol_px"] = HEEL_TOL / self.k
         self.name = self.rig.name
         far = self.rig.data.get("far", {})
         self.step_px = float(self.rig.j["heel"][0] - far["heel"][0]) if "heel" in far else None
@@ -103,6 +111,7 @@ class Character:
         ch.parts, ch.labels, ch.info = cut_auto(img, ch.rig, masks)
         ch.palette = ch.info["palette"]
         ch.k = BODY_H / REF_BH
+        ch.rig.data["heel_tol_px"] = HEEL_TOL / ch.k
         ch.name = ch.rig.name
         ch.step_px = float(data["stride_still"])
         return ch
@@ -331,7 +340,19 @@ def bake_motion(ch, motion, n=None, gait=None):
 def context(ch, motion, gait, n):
     k = ch.k
     ff = ch.rig.data.get("foot_fit", {})
+    # the hands' own colours, read from the two forearm parts (checks.arm_count)
+    hc, hpx = set(), 0
+    neck_y = int(ch.rig.j["neck"][1])
+    body_imgs = [p.img[neck_y:] for nm, p in ch.parts.items()
+                 if not (nm.endswith("_upper") or nm.endswith("_fore") or nm.startswith("gear:"))]
+    for nm in ("near_fore", "far_fore"):
+        if nm in ch.parts:
+            c_, n_ = checks.hand_colours(ch.parts[nm].img, ch.rig.j["wrist"], ch.rig.j["hand_tip"],
+                                         other=body_imgs)
+            hc |= c_
+            hpx = max(hpx, n_)
     return {
+        "hand_colours": hc, "hand_px": hpx, "body_h": ch.rig.body_height * k,
         "name": ch.name, "motion": motion.name, "n": n, "k": k,
         "lengths": {b: L * k for b, _, _, L in ch.rig.bone_pairs()},
         "bones": [(b, a, c) for b, a, c, _ in ch.rig.bone_pairs()],
@@ -350,6 +371,8 @@ def context(ch, motion, gait, n):
         "rigid": [nm for nm in ch.parts if nm in ("torso", "back") or nm.startswith("gear:")],
         "cloth": [nm for nm, p in ch.parts.items() if getattr(p, "kind", "rigid") != "rigid"],
         "gain": getattr(motion, "gain", 1.0),
+        # arms exempt from the hang rule: a near arm carrying long gear is held steady
+        "steady_arms": ["near"] if getattr(motion, "arm", 1.0) < 1.0 else [],
     }
 
 

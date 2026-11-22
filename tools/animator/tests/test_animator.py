@@ -264,11 +264,11 @@ class TestBrokenInputs(Base):
 
 
 class TestSamples(unittest.TestCase):
-    def test_paladins_pass(self):
+    def test_accepted_stills_pass(self):
         from tools.animator.bake import bake_all
         from tools.animator.fit import fit_still, gate_still
         from tools.animator.autocut import gate_cut
-        for name in ("HR6.1", "HR6.4"):     # HR6.2 is rejected at the input (G7, sliced shield)
+        for name in ("HR4.2", "HR3.1"):     # both arms accounted for: near in front, far behind
             png = os.path.join(SAMPLES, "stills", name + ".png")
             fitted = fit_still(png, png[:-4] + ".json")
             self.assertEqual(gate_still(fitted[1]), [], name)

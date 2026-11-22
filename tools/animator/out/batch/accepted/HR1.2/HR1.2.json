@@ -1,0 +1,73 @@
+{
+ "name": "HR1.2",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 40.0,
+   "gain": 1.079,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 40.0,
+   "gain": 1.079,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "fit": {
+  "id": "HR1.2",
+  "flags": [],
+  "penalties": {},
+  "layout_scale": 1.003,
+  "robe": true,
+  "back_reach": 0.092,
+  "inner_hand": false,
+  "arm_colour_cost": 0.084,
+  "hands": [
+   {
+    "at": [
+     61.0,
+     222.9
+    ],
+    "area": 8.82,
+    "zone": "back",
+    "w": 23,
+    "h": 23,
+    "kind": "hand",
+    "reach": 0.94
+   }
+  ],
+  "layout_swapped": {
+   "legs": true,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 27.6,
+   "neck": 16.0,
+   "pelvis": 8.4,
+   "shoulder": 10.5,
+   "elbow": 29.6,
+   "wrist": 2.8,
+   "hip": 4.1,
+   "knee": 6.9,
+   "ankle": 19.4,
+   "toe": 14.0,
+   "far_knee": 15.8,
+   "far_ankle": 29.6
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 400.0,
+  "leg_width": 36.0,
+  "far_arm": "visible"
+ }
+}

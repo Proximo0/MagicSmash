@@ -42,7 +42,7 @@ from PIL import Image
 
 from .colour import to_oklab
 from .foot import fit_foot
-from .imgops import components, runs, seg_dist
+from .imgops import components, dilate, runs, seg_dist
 from .rig import ik2
 
 ALPHA_T = 128
@@ -61,6 +61,92 @@ BACK_ARM_REACH = 0.07  # silhouette this far (x body height) behind the back lin
 INNER_L = 0.08        # ... and lightness distance
 
 LAYOUT_TOP_MARGIN = 12   # the layout was fitted to the picture's bounding box
+
+
+HAND_ROWS = (0.12, 0.08)   # hands are looked for from this far (x body height) below the
+                           # shoulder to this far below the hip
+HAND_HUE = 30.0            # deg of OKLab hue from the front hand's colour: the other hand is
+HAND_CHROMA = (0.45, 1.9)  # shaded (HR1.1: far hand redder and darker, near one lighter), so
+HAND_L = (-0.10, 0.35)     # hue, chroma ratio and lightness each get their own window
+HAND_GREY = 0.03           # OKLab chroma under which the hand is grey (glove, gauntlet)
+HAND_AREA = (0.50, 20.0)   # x the front hand's lit area (bigger and not limb-shaped: clothing)
+HAND_SIZE = (0.02, 0.12)   # x body height: a hand blob's width and height
+HAND_FILL = 0.4            # a fist fills at least this much of its bounding box
+HAND_REACH = (0.55, 1.3)   # x arm length from the shoulder
+LIMB_W = 0.07              # x body height: a bare forearm is at most this wide ...
+LIMB_H = 0.10              # ... and at least this long
+OUTLINE_DARK = 70          # brightest channel of an outline pixel
+EDGE = 0.03                # x body height: a blob this close to the silhouette's edge is clear of the body
+
+
+def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, arm_len):
+    """Every other hand (or bare forearm) of the still besides the front hand: list of dicts
+    with centre, area (x the front hand's lit area), size and zone (`back` = behind the torso's
+    back line, `front` = ahead of its front line, `inside` = drawn over the body).  A hand is a
+    compact blob of the front hand's colour (shading allowed: HAND_AB, HAND_L), hand-sized, at
+    arm's reach from the shoulder; a bare forearm is a longer blob of that colour, arm-wide.
+    `exclude` = the near arm's own pixels."""
+    if not hand_blob.any():
+        return []
+    H, W = body.shape
+    yy, xx = np.mgrid[0:H, 0:W]
+    by_, bx_ = np.where(hand_blob)
+    dd_ = np.hypot(bx_ + 0.5 - shoulder[0], by_ + 0.5 - shoulder[1])
+    tip = np.array([bx_[np.argmax(dd_)] + 0.5, by_[np.argmax(dd_)] + 0.5])
+    hb = hand_blob & (np.hypot(xx + 0.5 - tip[0], yy + 0.5 - tip[1]) < 0.045 * BH)
+    if hb.sum() < 6:
+        return []
+    # the hand's own colour: its lit pixels (outline and held gear are darker or rarer)
+    px = lab_img[hb]
+    lit = px[px[:, 0] > np.percentile(px[:, 0], 35)]
+    ref = np.median(lit if len(lit) >= 4 else px, 0)
+    dab = np.hypot(*(lab_img - ref)[..., 1:].transpose(2, 0, 1))
+    dl = lab_img[..., 0] - ref[0]
+    tip_area = float((hb & (dab < INNER_AB) & (np.abs(dl) < INNER_L)).sum())
+    if tip_area < 4:
+        return []
+    # same hue as the hand (shading moves lightness and chroma far more than hue)
+    c_ref = float(np.hypot(ref[1], ref[2]))
+    chroma = np.hypot(lab_img[..., 1], lab_img[..., 2])
+    if c_ref >= HAND_GREY:
+        hue = np.degrees(np.arctan2(lab_img[..., 2], lab_img[..., 1]) - math.atan2(ref[2], ref[1]))
+        hue = np.abs((hue + 180.0) % 360.0 - 180.0)
+        same = (hue < HAND_HUE) & (chroma > HAND_CHROMA[0] * c_ref) & (chroma < HAND_CHROMA[1] * c_ref)
+    else:               # a grey glove or gauntlet: no hue to speak of
+        same = dab < HAND_GREY
+    same &= (dl > HAND_L[0]) & (dl < HAND_L[1])
+    zone = body & same & ~dilate(exclude, max(2, int(0.012 * BH))) & \
+        (yy >= sh_y + HAND_ROWS[0] * BH) & (yy <= hip_y + HAND_ROWS[1] * BH)
+    out = []
+    if not zone.any():
+        return out
+    cl, cs = components(zone)
+    for kk, sz in sorted(cs.items(), key=lambda kv: -kv[1]):
+        if sz < HAND_AREA[0] * tip_area:
+            break
+        m = cl == kk
+        ys, xs = np.where(m)
+        w, h = int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)
+        c = np.array([xs.mean() + 0.5, ys.mean() + 0.5])
+        dd = np.hypot(xs + 0.5 - shoulder[0], ys + 0.5 - shoulder[1]) / arm_len
+        d = float(np.hypot(*(c - shoulder))) / arm_len
+        if not ((dd >= HAND_REACH[0]) & (dd <= HAND_REACH[1])).any():
+            continue
+        row_w = float(np.median(m.sum(1)[m.any(1)]))
+        limb = h >= LIMB_H * BH and row_w <= LIMB_W * BH
+        if sz > HAND_AREA[1] * tip_area and not limb:
+            continue      # clothing or bare body of the hand's colour, not a limb
+        fist = not limb
+        # zone: a blob at the silhouette's own back (or front) edge is clear of the body; one
+        # with body on both sides of it is drawn over the body
+        rows_ = np.unique(ys)
+        left = np.array([xs[ys == r].min() - np.argmax(body[r]) for r in rows_])
+        right = np.array([(W - 1 - np.argmax(body[r, ::-1])) - xs[ys == r].max() for r in rows_])
+        z = "back" if np.median(left) <= EDGE * BH else "front" if np.median(right) <= EDGE * BH else "inside"
+        out.append({"at": [round(float(c[0]), 1), round(float(c[1]), 1)],
+                    "area": round(sz / tip_area, 2), "zone": z, "w": w, "h": h,
+                    "kind": "hand" if fist else "forearm", "reach": round(d, 2), "mask": m})
+    return out
 
 
 def load_single(path):
@@ -589,12 +675,33 @@ def fit_still(png, layout_json):
             report["arm_colour_cost"] = round(arm_cost, 3)
     fdir = (wr2 - elbow) / max(float(np.hypot(*(wr2 - elbow))), 1e-9)
     hand_tip = wr2 + fdir * 0.06 * BH
+    # every other hand or bare forearm in the picture (the near arm's own pixels excluded)
+    Pg_ = np.stack([xx + 0.5, yy + 0.5], -1).astype(float)
+    r_arm = 1.5 * 0.045 * BH
+    own_arm = (seg_dist(Pg_, shoulder, elbow)[0] < r_arm) | (seg_dist(Pg_, elbow, hand_tip)[0] < r_arm)
+    census = hand_census(lab_img, body, hand_blob | (own_arm & body), hand_blob, shoulder, sh_y,
+                         hip_y, BH, Lu + Lf)
+    # a blob beside one at the back edge is the same hand; what is left inside is an arm
+    # drawn over the body
+    back_any = np.zeros_like(body)
+    for c in census:
+        if c["zone"] == "back":
+            back_any |= c["mask"]
+    if back_any.any():
+        near_back = dilate(back_any, max(2, int(0.025 * BH)))
+        for c in census:
+            if c["zone"] == "inside" and (c["mask"] & near_back).any():
+                c["zone"] = "back"
+                back_any |= c["mask"]
+    report["hands"] = [{k: v for k, v in c.items() if k != "mask"} for c in census]
+    dark = img[..., :3].max(-1) < OUTLINE_DARK
+    census_back = back_any | (dilate(back_any, 3) & body & dark & ~own_arm) if back_any.any() else back_any
     # back hand (to erase): a compact blob behind the back line, at arm's reach below the
     # shoulder (a cape or hood behind the back is bigger, or starts higher)
-    far_blob = back_hand.copy()
+    far_blob = back_hand | census_back
     if inner_hand:
         far_blob |= far_extra
-    elif back_zone.any() and not back_hand.any():
+    elif back_zone.any() and not far_blob.any():
         bl, bs = components(back_zone)
         reach = Lu + Lf
         for k2, sz in sorted(bs.items(), key=lambda kv: -kv[1]):
@@ -654,15 +761,26 @@ def fit_still(png, layout_json):
         "far_shoulder_offset": [round(-0.025 * BH, 2), 0.0],
         "far_hip_offset": [round(float(B["hip"][0] - F["hip"][0]), 2) if robe else round(-0.02 * BH, 2), 0.0],
         "foot_fit": {"pitch": ff["pitch"], "length": round(float(ff["length"]), 2),
-                     "back": round(float(ff["back"]), 2), "front": round(float(ff["front"]), 2)},
+                     "back": round(float(ff["back"]), 2), "front": round(float(ff["front"]), 2),
+                     "seat": ff.get("seat", [0, 0]), "cut": ff.get("cut")},
         "torso_lines": {"front": round(f20, 2), "back": round(b20, 2)},
         "robe": bool(robe), "merge_y": int(merge_y),
         "stride_still": round(float(ff["heel"][0] - (btoe[0] - ff["length"])), 2),
         "track_ankle": rnd(F["ankle"]),
         "fit": report,
     }
+    if far_blob.any():
+        # make the far hand solid: close gaps and holes up to 7 % of the body height across (the
+        # shaded middle of a hand, the line between hand and cuff), never onto the near arm
+        r_ = max(2, int(0.035 * BH))
+        grown = dilate(far_blob, r_)
+        far_blob = (far_blob | (~dilate(~grown, r_) & body)) & ~hand_blob
     masks = {"body": body, "detached": detached, "plate": plate, "hand": hand_blob,
              "far_hand": far_blob}
+    # the far arm: visible in the still (cut out as the real far arm) or hidden (a shaded
+    # copy of the near arm is drawn instead); never both
+    report["far_arm"] = "visible" if far_blob.any() else "hidden"
+    data["far_arm"] = report["far_arm"]
     return img, data, masks
 
 
@@ -677,7 +795,7 @@ LR_SIMILAR = 0.35      # front and back leg segment lengths within 35 % of each 
 
 
 def gate_still(data):
-    """Input gate (RULES.md G1-G6).  Returns a list of "G#: rule: detail" failures and the
+    """Input gate (RULES.md G1-G6, G8, G9).  Returns a list of "G#: rule: detail" failures and the
     joints to mark on the picture: [(text, [joint names])]."""
     J = {k: np.array(v, float) for k, v in data["joints"].items()}
     F = {k: np.array(v, float) for k, v in data["far"].items()}
@@ -731,6 +849,31 @@ def gate_still(data):
     if "arm drawn over the body" in flags:
         out.append(("G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over "
                     "the torso; it would stay painted on while the cut arm swings", ["shoulder"]))
+    # G9 the drawn foot can keep rule R6 (heel on the shin's back edge, toe ahead of its
+    # front edge) in every frame of the walk; a boot too short for the leg is the still's fault
+    ffit = data.get("foot_fit")
+    if ffit and "front foot not measured" not in flags:
+        from .foot import foot_faults
+        from .motion import STANCE_DORSI_MAX, SWING_ANKLE
+        leg = float(L["thigh"] + L["shin"])
+        ah = float(np.hypot(*(J["ankle"] - J["heel"]))) if "cut" not in ffit or not ffit["cut"] else \
+            abs(float((J["heel"] - J["ankle"]) @ np.array(ffit["cut"][2:])))
+        from .foot import plantar_limit
+        tol = data.get("heel_tol_px", 5.5)
+        flex = (-min(-SWING_ANKLE[0], plantar_limit(ffit["back"], ah, tol)), STANCE_DORSI_MAX)
+        for t in foot_faults(ffit["length"], leg, ffit["back"], ffit["front"], ah, flex):
+            out.append(("G9: foot_length: " + t, ["heel", "toe"]))
+    # G8 every arm in the still belongs to exactly one arm part: a hand or bare forearm drawn
+    # over the body cannot be cut from the torso and would stay painted on it (a third arm)
+    inside = [h for h in rep.get("hands", []) if h["zone"] == "inside"]
+    if inside:
+        h = max(inside, key=lambda c: c["area"])
+        out.append(("G8: arm_on_body: a %s is drawn over the body at %d,%d (%d blob%s of the hand's "
+                    "colour): it cannot be cut from the torso and would stay painted on while the "
+                    "arms swing; draw the near arm clear of the torso and the far arm hidden or "
+                    "clear behind the back" % (h["kind"], h["at"][0], h["at"][1], len(inside),
+                                               "" if len(inside) == 1 else "s"),
+                    [tuple(c["at"]) for c in inside]))
     return out
 
 
@@ -755,8 +898,8 @@ def gate_picture(img, data, fails, path):
     y = img.shape[0] + 4
     for text, joints in fails:
         for jn in joints:
-            if jn in allj:
-                x0, y0 = allj[jn]
+            if jn in allj or isinstance(jn, tuple):
+                x0, y0 = jn if isinstance(jn, tuple) else allj[jn]
                 d.ellipse([x0 - 8, y0 - 8, x0 + 8, y0 + 8], outline=(255, 0, 0), width=3)
         d.text((4, y), text[:110], fill=(160, 0, 0))
         y += 12

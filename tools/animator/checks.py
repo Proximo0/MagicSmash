@@ -324,7 +324,196 @@ def two_arms(frames, ctx):
     return out
 
 
-RULES = [bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
+HAND_SHARE = 0.6     # the hand's commonest lit colours covering this share of it are "hand colours"
+HAND_COMMON = 3.0    # see hand_colours
+HAND_BLOB = 0.4      # a blob of them off the forearms, this big x a hand (min 3 px), is another hand
+ARM_ROWS = 0.08      # arm rows run from the shoulders to this far (x body height) below the hips
+
+
+def hand_colours(part_img, wrist, tip, lit=70, other=None):
+    """The colours a hand is made of: the commonest lit colours of a forearm part's pixels
+    around the hand (between wrist and tip), up to HAND_SHARE of them.  A colour that the
+    rest of the body (`other`: images of the non-arm parts) uses HAND_COMMON times more than
+    the hand does is cloth the cuff shares with the clothes, not a hand colour.  Returns
+    (set of (r,g,b), number of hand pixels in still px)."""
+    wrist = np.asarray(wrist, float)
+    tip = np.asarray(tip, float)
+    mid = (wrist + tip) / 2
+    r = max(float(np.hypot(*(tip - wrist))) * 0.75, 2.0)
+    ys, xs = np.where(part_img[..., 3] > 0)
+    if not len(ys):
+        return set(), 0
+    near = np.hypot(xs + 0.5 - mid[0], ys + 0.5 - mid[1]) <= r
+    px = part_img[ys[near], xs[near], :3]
+    n_hand = len(px)
+    px = px[px.max(1) >= lit]
+    if not len(px):
+        return set(), n_hand
+    cols, cnt = np.unique(px, axis=0, return_counts=True)
+    if other:
+        key = lambda a: a[:, 0].astype(np.int64) * 65536 + a[:, 1].astype(np.int64) * 256 + a[:, 2]
+        ok = np.concatenate([o[o[..., 3] > 0][:, :3] for o in other])
+        if len(ok):
+            ks, kc = np.unique(key(ok), return_counts=True)
+            elsewhere = dict(zip(ks.tolist(), kc.tolist()))
+            keep = np.array([elsewhere.get(int(k_), 0) <= HAND_COMMON * c_ for k_, c_ in zip(key(cols), cnt)])
+            cols, cnt = cols[keep], cnt[keep]
+            if not len(cols):
+                return set(), n_hand
+    order = np.argsort(-cnt)
+    out, acc = set(), 0
+    for i in order:
+        out.add(tuple(int(v) for v in cols[i]))
+        acc += cnt[i]
+        if acc >= HAND_SHARE * cnt.sum():
+            break
+    return out, n_hand
+
+
+def _blobs(mask):
+    """4-connected blobs of a small bool image: list of (size, y, x of its centre)."""
+    seen = np.zeros_like(mask)
+    out = []
+    H, W = mask.shape
+    for y, x in zip(*np.where(mask)):
+        if seen[y, x]:
+            continue
+        stack, pts = [(y, x)], []
+        seen[y, x] = True
+        while stack:
+            cy, cx = stack.pop()
+            pts.append((cy, cx))
+            for ny, nx in ((cy + 1, cx), (cy - 1, cx), (cy, cx + 1), (cy, cx - 1)):
+                if 0 <= ny < H and 0 <= nx < W and mask[ny, nx] and not seen[ny, nx]:
+                    seen[ny, nx] = True
+                    stack.append((ny, nx))
+        a = np.array(pts)
+        out.append((len(pts), float(a[:, 0].mean()), float(a[:, 1].mean())))
+    return out
+
+
+def arm_count(frames, ctx):
+    """At most two arms and two hands in any frame (owner, 22 Nov: "there is three arms
+    there"), measured on the baked pixels and not on the rig: in the arm rows (shoulders to
+    just below the hips) every blob of the hands' colours that is as big as a hand must lie
+    on a forearm part, at the end of that forearm (around its wrist and hand tip), and there
+    are at most two such blobs.  A hand painted on the torso, cape, robe or a leg fails."""
+    out = []
+    cols = ctx.get("hand_colours")
+    if not cols:
+        return out
+    k = ctx["k"]
+    min_px = max(3.0, HAND_BLOB * ctx.get("hand_px", 0) * k * k)
+    lut = np.array(sorted(cols), np.int32)
+    keys = lut[:, 0] * 65536 + lut[:, 1] * 256 + lut[:, 2]
+    reach = ctx["lengths"]["near.hand"] * 1.5 + 2.0
+    for i, f in enumerate(frames):
+        J = _J(f["meta"])
+        names = f["meta"]["labels"]
+        rgba, lab = f["rgba"], f["label"]
+        y0 = int(min(J["near.shoulder"][1], J["far.shoulder"][1]))
+        y1 = int(max(J["near.hip"][1], J["far.hip"][1]) + ARM_ROWS * ctx["body_h"]) + 1
+        code = rgba[..., 0].astype(np.int32) * 65536 + rgba[..., 1].astype(np.int32) * 256 + rgba[..., 2]
+        hand = np.isin(code, keys) & (rgba[..., 3] > 0)
+        hand[:max(y0, 0)] = False
+        hand[y1:] = False
+        arm_ids = [names.index(n) for n in names
+                   if n.endswith("_upper") or n.endswith("_fore") or n.startswith("gear:")]
+        fore = {s: names.index(s + "_fore") for s in SIDES if s + "_fore" in names}
+        off = hand & ~np.isin(lab, arm_ids)
+        for sz, cy, cx in _blobs(off):
+            if sz >= min_px:
+                out.append(f"frame {i}: arm_count: a hand-coloured blob of {sz}px at {cx:.0f},{cy:.0f} is not "
+                           f"on a forearm (a third hand or arm painted on the body)")
+        n_hands = 0
+        for s, li in fore.items():
+            for sz, cy, cx in _blobs(hand & (lab == li)):
+                if sz < min_px:
+                    continue
+                n_hands += 1
+                seg = _seg_d(np.array([cx + 0.5, cy + 0.5]), J[s + ".elbow"], J[s + ".hand_tip"])
+                if seg > reach:
+                    out.append(f"frame {i}: arm_count: {s} hand is {seg:.1f}px off the end of its forearm")
+        if n_hands > 2:
+            out.append(f"frame {i}: arm_count: {n_hands} hand-sized blobs on the forearms (at most two hands)")
+    return out
+
+
+def _seg_d(p, a, b):
+    ab = b - a
+    t = min(1.0, max(0.0, float((p - a) @ ab) / max(float(ab @ ab), 1e-9)))
+    return float(np.hypot(*(p - (a + t * ab))))
+
+
+ARM_HANG = 0.45      # mid-stance (nearest baked frame, up to 1/16 cycle off): wrist within this
+                     # x arm length sideways of its shoulder (an arm at 25 deg is 0.42)
+ARM_FWD = 32.0       # deg: a free upper arm is never further than this from hanging down
+ARM_MEAN = 12.0      # deg: ... and over the cycle it is centred on hanging within this
+ARM_MIN_SWING = 20.0  # deg: peak to peak; less is a stiff arm
+LEGS_APART = 0.3     # x thigh length between the two feet's reach: above this the walk has steps
+
+
+def _vert(v):
+    """Angle of a limb from straight down, + = forward (the facing way), degrees."""
+    return float(np.degrees(np.arctan2(v[0], v[1])))
+
+
+def arm_swing(frames, ctx):
+    """Arms swing opposite to the legs and hang near the body at mid-stance (owner brief,
+    22 Nov: "the near arm is held stretched out in front ... the walk reads stiff").  For
+    each free arm (an arm carrying long gear is held steady and is exempt, ctx steady_arms):
+    when a foot is furthest ahead (its heel strike) the arm on that side is behind the other
+    arm, and over the cycle arms and feet move against each other; in the frame where the feet pass each other the wrist is within ARM_HANG arm lengths
+    of the line straight down from the shoulder; the upper arm never leaves hanging by more
+    than ARM_FWD, is centred on hanging over the cycle, and swings at least ARM_MIN_SWING."""
+    out = []
+    f_ = ctx.get("facing", 1)
+    steady = set(ctx.get("steady_arms", ()))
+    A = {s: [] for s in SIDES}
+    T = {s: [] for s in SIDES}
+    for f in frames:
+        J = _J(f["meta"])
+        for s in SIDES:
+            A[s].append(_vert((J[s + ".elbow"] - J[s + ".shoulder"]) * [f_, 1]))
+            T[s].append(float(J[s + ".ankle"][0] - J[s + ".hip"][0]) * f_)   # foot ahead of its hip
+    if not ctx.get("travels", True) or len(frames) < 2:
+        return out
+    free = [s for s in SIDES if s not in steady]
+    dt = np.array(T["near"]) - np.array(T["far"])
+    da = np.array(A["near"]) - np.array(A["far"])
+    if len(free) == 2 and dt.max() - dt.min() > LEGS_APART * ctx["lengths"]["near.thigh"]:
+        # opposite phase: with the near foot furthest ahead the near arm is the one behind,
+        # and the other way round; over the whole cycle the two differences move against
+        # each other (the arms trail the legs by a few frames, so not every frame is tested)
+        for i, lead in ((int(np.argmax(dt)), "near"), (int(np.argmin(dt)), "far")):
+            if da[i] * dt[i] >= 0:
+                out.append(f"frame {i}: arm_swing: {lead} leg and {lead} arm are both forward "
+                           f"(arms must swing opposite to the legs)")
+        if float(np.sum((da - da.mean()) * (dt - dt.mean()))) >= 0:
+            out.append("frame 0: arm_swing: over the cycle the arms swing with the legs, not against them")
+    for i in range(len(frames)):
+        for s in free:
+            if abs(A[s][i]) > ARM_FWD:
+                out.append(f"frame {i}: arm_swing: {s} upper arm is {A[s][i]:+.0f} deg from hanging "
+                           f"(held out, limit {ARM_FWD:.0f})")
+    # mid-stance: the frame where the swinging foot passes the planted one
+    mid = int(np.argmin([abs(float(_J(f["meta"])["near.ankle"][0] - _J(f["meta"])["far.ankle"][0]))
+                         for f in frames]))
+    Jm = _J(frames[mid]["meta"])
+    arm_len = ctx["lengths"]["near.upper"] + ctx["lengths"]["near.fore"]
+    for s in free:
+        dx = abs(float(Jm[s + ".wrist"][0] - Jm[s + ".shoulder"][0]))
+        if dx > ARM_HANG * arm_len or Jm[s + ".wrist"][1] <= Jm[s + ".shoulder"][1]:
+            out.append(f"frame {mid}: arm_swing: at mid-stance the {s} hand is {dx:.1f}px from the line "
+                       f"under its shoulder (arm must hang near the body, limit {ARM_HANG * arm_len:.1f})")
+        if abs(float(np.mean(A[s]))) > ARM_MEAN:
+            out.append(f"frame 0: arm_swing: {s} arm swings about {np.mean(A[s]):+.0f} deg, not about hanging")
+        if max(A[s]) - min(A[s]) < ARM_MIN_SWING:
+            out.append(f"frame 0: arm_swing: {s} arm swings only {max(A[s]) - min(A[s]):.0f} deg (stiff)")
+    return out
+
+
+RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
          rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms]
 
 
@@ -340,7 +529,7 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_direction": "R5", "heel_flush": "R6", "foot_slide": "R7", "stance_ground": "R8",
             "foot_sink": "R8", "bone_length": "R9", "joint_limit": "R10", "draw_order": "R11",
             "rigid_part": "R12", "cycle_closes": "R13", "mirror_timing": "R14", "palette": "R15",
-            "foot_jitter": "R16"}
+            "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18"}
 
 
 def rule_id(failure):

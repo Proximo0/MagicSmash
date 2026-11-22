@@ -10,20 +10,25 @@
    "wrist": 11.9,
    "hip": 7.6,
    "knee": 8.1,
-   "ankle": 22.3,
-   "toe": 26.6,
+   "ankle": 17.8,
+   "toe": 16.0,
    "far_knee": 5.0,
    "far_ankle": 37.5
   },
   "flags": [
    "back hand found at 36,206 (erased)"
   ],
-  "gear_cut": 0.0,
-  "gain": 1.9,
-  "speed_px_per_cycle": 56.0,
-  "status": "accepted",
-  "rules": [],
-  "seconds": 1.28
+  "status": "rejected",
+  "rules": [
+   "G8",
+   "G9"
+  ],
+  "failures": [
+   "G9: foot_length: the drawn boot is 31 px, 0.18 of the leg length as drawn (177 px); a human foot is 0.24-0.30: the still's boot is too short (it is not stretched)",
+   "G9: foot_length: the boot (31 px) is too short for the shin's width at the ankle (back 19 + front 14 px): with the ankle flexed the toe is only -8 px ahead of the shin's front line (needs 3.5)",
+   "G8: arm_on_body: a hand is drawn over the body at 120,241 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 0.33
  },
  "HR1.2": {
   "fit_score": 1.0,
@@ -36,24 +41,18 @@
    "wrist": 2.8,
    "hip": 4.1,
    "knee": 6.9,
-   "ankle": 18.6,
-   "toe": 22.0,
+   "ankle": 19.4,
+   "toe": 14.0,
    "far_knee": 15.8,
    "far_ankle": 29.6
   },
   "flags": [],
   "gear_cut": 0.78,
-  "gain": 1.95,
-  "speed_px_per_cycle": 56.0,
-  "status": "rejected",
-  "rules": [
-   "R6"
-  ],
-  "failures": [
-   "frame 2: heel_flush: far foot does not reach ahead of the shin",
-   "frame 4: heel_flush: far foot does not reach ahead of the shin"
-  ],
-  "seconds": 1.37
+  "gain": 1.08,
+  "speed_px_per_cycle": 40.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 2.05
  },
  "HR1.3": {
   "fit_score": 0.8,
@@ -67,7 +66,7 @@
    "hip": 16.7,
    "knee": 5.4,
    "ankle": 24.2,
-   "toe": 23.5,
+   "toe": 17.9,
    "far_knee": 2.9,
    "far_ankle": 49.5
   },
@@ -77,12 +76,16 @@
   ],
   "status": "rejected",
   "rules": [
-   "G6"
+   "G6",
+   "G8",
+   "G9"
   ],
   "failures": [
-   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings",
+   "G9: foot_length: the boot (56 px) is too short for the shin's width at the ankle (back 24 + front 23 px): with the ankle flexed the toe is only +2 px ahead of the shin's front line (needs 3.5)",
+   "G8: arm_on_body: a forearm is drawn over the body at 121,226 (6 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.26
+  "seconds": 0.27
  },
  "HR1.4": {
   "fit_score": 0.9,
@@ -96,44 +99,24 @@
    "hip": 4.1,
    "knee": 12.3,
    "ankle": 28.5,
-   "toe": 52.9,
+   "toe": 65.8,
    "far_knee": 3.6,
    "far_ankle": 47.4
   },
   "flags": [
    "moved > 12% BH: toe"
   ],
-  "gear_cut": 0.81,
-  "gain": 1.57,
-  "speed_px_per_cycle": 56.0,
   "status": "rejected",
   "rules": [
-   "R6"
+   "G8"
   ],
   "failures": [
-   "frame 0: heel_flush: near rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel +1.8px behind the shin's back edge, toe -0.4px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
-   "frame 0: heel_flush: near rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel +1.7px behind the shin's back edge, toe -0.2px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel +2.2px behind the shin's back edge, toe -1.3px ahead of its front edge",
-   "frame 2: heel_flush: near rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 4: heel_flush: far rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
-   "frame 5: heel_flush: near rig heel +2.2px behind the shin's back edge, toe -1.3px ahead of its front edge",
-   "frame 5: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.2px ahead of its front edge",
-   "frame 6: heel_flush: near rig heel +1.8px behind the shin's back edge, toe -0.4px ahead of its front edge",
-   "frame 6: heel_flush: far rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
-   "frame 7: heel_flush: near rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge"
+   "G8: arm_on_body: a hand is drawn over the body at 137,272 (2 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.59
+  "seconds": 0.37
  },
  "HR2.1": {
-  "fit_score": 0.9,
+  "fit_score": 1.0,
   "moved_px": {
    "head_top": 25.6,
    "neck": 10.2,
@@ -144,23 +127,24 @@
    "hip": 7.5,
    "knee": 9.4,
    "ankle": 41.6,
-   "toe": 50.4,
+   "toe": 43.8,
    "far_knee": 14.6,
    "far_ankle": 33.8
   },
   "flags": [
    "ground plate erased (1887 px)",
-   "back hand found at 65,195 (erased)",
-   "moved > 12% BH: toe"
+   "back hand found at 65,195 (erased)"
   ],
   "status": "rejected",
   "rules": [
-   "G4"
+   "G4",
+   "G8"
   ],
   "failures": [
-   "G4: feet_facing: back foot points backwards"
+   "G4: feet_facing: back foot points backwards",
+   "G8: arm_on_body: a forearm is drawn over the body at 143,267 (3 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.58
+  "seconds": 0.63
  },
  "HR2.2": {
   "fit_score": 1.0,
@@ -173,8 +157,8 @@
    "wrist": 15.7,
    "hip": 8.0,
    "knee": 7.9,
-   "ankle": 21.3,
-   "toe": 27.6,
+   "ankle": 18.7,
+   "toe": 12.4,
    "far_knee": 9.9,
    "far_ankle": 29.7
   },
@@ -182,34 +166,11 @@
    "back hand found at 57,189 (erased)"
   ],
   "gear_cut": 0.0,
-  "gain": 1.46,
+  "gain": 1.34,
   "speed_px_per_cycle": 48.0,
-  "status": "rejected",
-  "rules": [
-   "R6"
-  ],
-  "failures": [
-   "frame 0: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 1: heel_flush: near foot does not reach ahead of the shin",
-   "frame 1: heel_flush: far rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
-   "frame 3: heel_flush: far foot does not reach ahead of the shin",
-   "frame 0: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 1: heel_flush: near foot does not reach ahead of the shin",
-   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -0.9px ahead of its front edge",
-   "frame 2: heel_flush: near foot does not reach ahead of the shin",
-   "frame 2: heel_flush: far rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 4: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 5: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -0.9px ahead of its front edge",
-   "frame 5: heel_flush: far foot does not reach ahead of the shin",
-   "frame 6: heel_flush: near rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
-   "frame 6: heel_flush: far foot does not reach ahead of the shin",
-   "frame 7: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
-   "frame 7: heel_flush: far foot does not reach ahead of the shin"
-  ],
-  "seconds": 1.68
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.78
  },
  "HR2.3": {
   "fit_score": 0.9,
@@ -223,7 +184,7 @@
    "hip": 12.8,
    "knee": 8.0,
    "ankle": 24.8,
-   "toe": 5.7,
+   "toe": 1.1,
    "far_knee": 3.6,
    "far_ankle": 47.2
   },
@@ -232,12 +193,16 @@
   ],
   "status": "rejected",
   "rules": [
-   "G2"
+   "G2",
+   "G8",
+   "G9"
   ],
   "failures": [
-   "G2: proportions: front shin 45px vs back shin 28px"
+   "G2: proportions: front shin 45px vs back shin 28px",
+   "G9: foot_length: the drawn boot is 68 px, 0.63 of the leg length as drawn (107 px): longer than any build allows (0.60)",
+   "G8: arm_on_body: a hand is drawn over the body at 134,199 (2 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.45
+  "seconds": 0.51
  },
  "HR2.4": {
   "fit_score": 1.0,
@@ -250,46 +215,22 @@
    "wrist": 19.3,
    "hip": 26.8,
    "knee": 12.3,
-   "ankle": 18.6,
-   "toe": 26.9,
+   "ankle": 17.7,
+   "toe": 20.4,
    "far_knee": 8.0,
    "far_ankle": 36.9
   },
   "flags": [],
-  "gear_cut": 0.52,
-  "gain": 1.92,
-  "speed_px_per_cycle": 56.0,
   "status": "rejected",
   "rules": [
-   "R6"
+   "G8",
+   "G9"
   ],
   "failures": [
-   "frame 0: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 0: heel_flush: far rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 2: heel_flush: near rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
-   "frame 0: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 0: heel_flush: far rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel -1.3px behind the shin's back edge, toe -4.4px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 2: heel_flush: near rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel -1.9px behind the shin's back edge, toe -4.0px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 4: heel_flush: near rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
-   "frame 4: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 5: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
-   "frame 5: heel_flush: far rig heel -1.3px behind the shin's back edge, toe -4.5px ahead of its front edge",
-   "frame 6: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 6: heel_flush: far rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
-   "frame 7: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
-   "frame 7: heel_flush: far rig heel -1.9px behind the shin's back edge, toe -4.0px ahead of its front edge"
+   "G9: foot_length: the boot (46 px) is too short for the shin's width at the ankle (back 23 + front 51 px): with the ankle flexed the toe is only -35 px ahead of the shin's front line (needs 3.5)",
+   "G8: arm_on_body: a forearm is drawn over the body at 152,288 (3 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.61
+  "seconds": 0.37
  },
  "HR3.1": {
   "fit_score": 1.0,
@@ -302,21 +243,21 @@
    "wrist": 8.7,
    "hip": 27.6,
    "knee": 13.7,
-   "ankle": 32.0,
-   "toe": 44.3,
+   "ankle": 27.5,
+   "toe": 36.3,
    "far_knee": 7.0,
    "far_ankle": 42.3
   },
   "flags": [],
   "gear_cut": 0.0,
-  "gain": 1.19,
+  "gain": 1.09,
   "speed_px_per_cycle": 40.0,
   "status": "accepted",
   "rules": [],
-  "seconds": 1.69
+  "seconds": 2.14
  },
  "HR3.2": {
-  "fit_score": 0.2,
+  "fit_score": 0.1,
   "moved_px": {
    "head_top": 28.5,
    "neck": 7.0,
@@ -326,30 +267,34 @@
    "wrist": 12.7,
    "hip": 8.1,
    "knee": 26.5,
-   "ankle": 121.7,
-   "toe": 35.9,
+   "ankle": 130.2,
+   "toe": 110.4,
    "far_knee": 39.5,
    "far_ankle": 115.3
   },
   "flags": [
    "two feet not found at the ground",
-   "moved > 12% BH: ankle, far_ankle"
+   "moved > 12% BH: ankle, toe, far_ankle"
   ],
   "status": "rejected",
   "rules": [
    "G1",
    "G2",
-   "G5"
+   "G5",
+   "G8",
+   "G9"
   ],
   "failures": [
    "G1: limb_count: two separate legs not found in the silhouette",
    "G2: proportions: front shin 47px vs back shin 26px",
-   "G5: fit_score: 0.20 < 0.7 (two feet not found at the ground | moved > 12% BH: ankle, far_ankle)"
+   "G5: fit_score: 0.10 < 0.7 (two feet not found at the ground | moved > 12% BH: ankle, toe, far_ankle)",
+   "G9: foot_length: the boot (87 px) is too short for the shin's width at the ankle (back 27 + front 82 px): with the ankle flexed the toe is only -28 px ahead of the shin's front line (needs 3.5)",
+   "G8: arm_on_body: a hand is drawn over the body at 137,235 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.3
+  "seconds": 0.24
  },
  "HR3.3": {
-  "fit_score": 0.4,
+  "fit_score": 0.3,
   "moved_px": {
    "head_top": 11.3,
    "neck": 7.5,
@@ -359,26 +304,29 @@
    "wrist": 19.4,
    "hip": 0.6,
    "knee": 0.8,
-   "ankle": 32.5,
-   "toe": 30.2,
+   "ankle": 26.6,
+   "toe": 52.8,
    "far_knee": 77.8,
    "far_ankle": 170.3
   },
   "flags": [
    "ground plate erased (4253 px)",
    "leg axis not found",
-   "moved > 12% BH: far_knee, far_ankle"
+   "moved > 12% BH: toe, far_knee, far_ankle"
   ],
   "status": "rejected",
   "rules": [
    "G1",
-   "G5"
+   "G5",
+   "G9"
   ],
   "failures": [
    "G1: limb_count: two separate legs not found in the silhouette",
-   "G5: fit_score: 0.40 < 0.7 (ground plate erased (4253 px) | leg axis not found | moved > 12% BH: far_knee, far_ankle)"
+   "G5: fit_score: 0.30 < 0.7 (ground plate erased (4253 px) | leg axis not found | moved > 12% BH: toe, far_knee, far_ankle)",
+   "G9: foot_length: the drawn boot is 14 px, 0.11 of the leg length as drawn (127 px); a human foot is 0.24-0.30: the still's boot is too short (it is not stretched)",
+   "G9: foot_length: the boot (14 px) is too short for the shin's width at the ankle (back 9 + front 27 px): with the ankle flexed the toe is only -23 px ahead of the shin's front line (needs 3.5)"
   ],
-  "seconds": 0.53
+  "seconds": 0.44
  },
  "HR3.4": {
   "fit_score": 0.56,
@@ -392,7 +340,7 @@
    "hip": 23.5,
    "knee": 31.6,
    "ankle": 69.8,
-   "toe": 61.5,
+   "toe": 63.0,
    "far_knee": 18.9,
    "far_ankle": 38.8
   },
@@ -402,15 +350,17 @@
   ],
   "status": "rejected",
   "rules": [
-   "G5"
+   "G5",
+   "G9"
   ],
   "failures": [
-   "G5: fit_score: 0.56 < 0.7 (back hand found at 61,250 (erased) | moved > 12% BH: ankle, toe)"
+   "G5: fit_score: 0.56 < 0.7 (back hand found at 61,250 (erased) | moved > 12% BH: ankle, toe)",
+   "G9: foot_length: the boot (86 px) is too short for the shin's width at the ankle (back 36 + front 58 px): with the ankle flexed the toe is only -14 px ahead of the shin's front line (needs 3.5)"
   ],
-  "seconds": 1.29
+  "seconds": 1.31
  },
  "HR4.1": {
-  "fit_score": 1.0,
+  "fit_score": 0.9,
   "moved_px": {
    "head_top": 26.3,
    "neck": 15.3,
@@ -420,20 +370,23 @@
    "wrist": 6.6,
    "hip": 21.8,
    "knee": 13.7,
-   "ankle": 38.3,
-   "toe": 40.5,
+   "ankle": 39.2,
+   "toe": 48.8,
    "far_knee": 7.3,
    "far_ankle": 42.8
   },
   "flags": [
-   "back hand found at 52,191 (erased)"
+   "back hand found at 52,191 (erased)",
+   "moved > 12% BH: toe"
   ],
-  "gear_cut": 1.35,
-  "gain": 1.97,
-  "speed_px_per_cycle": 56.0,
-  "status": "accepted",
-  "rules": [],
-  "seconds": 1.66
+  "status": "rejected",
+  "rules": [
+   "G8"
+  ],
+  "failures": [
+   "G8: arm_on_body: a forearm is drawn over the body at 94,261 (4 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 0.5
  },
  "HR4.2": {
   "fit_score": 1.0,
@@ -446,18 +399,18 @@
    "wrist": 7.3,
    "hip": 3.8,
    "knee": 5.2,
-   "ankle": 23.0,
-   "toe": 27.6,
+   "ankle": 24.6,
+   "toe": 30.3,
    "far_knee": 12.5,
    "far_ankle": 26.1
   },
   "flags": [],
   "gear_cut": 0.0,
-  "gain": 1.97,
-  "speed_px_per_cycle": 56.0,
+  "gain": 1.11,
+  "speed_px_per_cycle": 40.0,
   "status": "accepted",
   "rules": [],
-  "seconds": 1.62
+  "seconds": 2.47
  },
  "HR4.3": {
   "fit_score": 0.65,
@@ -471,7 +424,7 @@
    "hip": 17.0,
    "knee": 6.2,
    "ankle": 27.4,
-   "toe": 18.9,
+   "toe": 17.9,
    "far_knee": 3.8,
    "far_ankle": 42.3
   },
@@ -483,13 +436,15 @@
   "status": "rejected",
   "rules": [
    "G1",
-   "G5"
+   "G5",
+   "G9"
   ],
   "failures": [
    "G1: limb_count: no hand found outside the torso",
-   "G5: fit_score: 0.65 < 0.7 (ground plate erased (3243 px) | front hand not found, layout arm used | moved > 12% BH: far_ankle)"
+   "G5: fit_score: 0.65 < 0.7 (ground plate erased (3243 px) | front hand not found, layout arm used | moved > 12% BH: far_ankle)",
+   "G9: foot_length: the boot (59 px) is too short for the shin's width at the ankle (back 25 + front 36 px): with the ankle flexed the toe is only -9 px ahead of the shin's front line (needs 3.5)"
   ],
-  "seconds": 0.19
+  "seconds": 0.25
  },
  "HR4.4": {
   "fit_score": 0.9,
@@ -502,8 +457,8 @@
    "wrist": 5.6,
    "hip": 23.2,
    "knee": 1.9,
-   "ankle": 21.9,
-   "toe": 30.1,
+   "ankle": 22.1,
+   "toe": 17.6,
    "far_knee": 10.0,
    "far_ankle": 33.9
   },
@@ -512,15 +467,17 @@
   ],
   "status": "rejected",
   "rules": [
-   "G6"
+   "G6",
+   "G8"
   ],
   "failures": [
-   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings",
+   "G8: arm_on_body: a forearm is drawn over the body at 134,274 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.99
+  "seconds": 1.0
  },
  "HR5.1": {
-  "fit_score": 1.0,
+  "fit_score": 0.9,
   "moved_px": {
    "head_top": 28.2,
    "neck": 8.2,
@@ -530,24 +487,20 @@
    "wrist": 3.5,
    "hip": 18.7,
    "knee": 6.7,
-   "ankle": 36.6,
-   "toe": 44.2,
+   "ankle": 39.1,
+   "toe": 50.6,
    "far_knee": 22.2,
    "far_ankle": 26.5
   },
-  "flags": [],
+  "flags": [
+   "moved > 12% BH: toe"
+  ],
   "gear_cut": 1.67,
-  "gain": 2.0,
-  "speed_px_per_cycle": 56.0,
-  "status": "rejected",
-  "rules": [
-   "R1"
-  ],
-  "failures": [
-   "frame 0: two_legs: row 66 has 3 leg-wide runs (a third leg?)",
-   "frame 0: two_legs: row 66 has 3 leg-wide runs (a third leg?)"
-  ],
-  "seconds": 1.34
+  "gain": 1.0,
+  "speed_px_per_cycle": 32.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 2.09
  },
  "HR5.2": {
   "fit_score": 1.0,
@@ -560,46 +513,23 @@
    "wrist": 3.4,
    "hip": 9.4,
    "knee": 3.5,
-   "ankle": 13.0,
-   "toe": 35.0,
+   "ankle": 8.6,
+   "toe": 31.5,
    "far_knee": 11.5,
    "far_ankle": 29.4
   },
   "flags": [],
-  "gear_cut": 0.4,
-  "gain": 1.69,
-  "speed_px_per_cycle": 48.0,
   "status": "rejected",
   "rules": [
-   "R6"
+   "G8",
+   "G9"
   ],
   "failures": [
-   "frame 0: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 0: heel_flush: far rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 2: heel_flush: near rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
-   "frame 0: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 0: heel_flush: far rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
-   "frame 1: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.3px ahead of its front edge",
-   "frame 1: heel_flush: far rig heel -0.3px behind the shin's back edge, toe -3.1px ahead of its front edge",
-   "frame 2: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
-   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 3: heel_flush: near rig heel -1.3px behind the shin's back edge, toe -2.0px ahead of its front edge",
-   "frame 3: heel_flush: far rig heel -0.6px behind the shin's back edge, toe -2.8px ahead of its front edge",
-   "frame 4: heel_flush: near rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
-   "frame 4: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 5: heel_flush: near rig heel -0.3px behind the shin's back edge, toe -3.1px ahead of its front edge",
-   "frame 5: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.3px ahead of its front edge",
-   "frame 6: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
-   "frame 6: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
-   "frame 7: heel_flush: near rig heel -0.6px behind the shin's back edge, toe -2.8px ahead of its front edge",
-   "frame 7: heel_flush: far rig heel -1.3px behind the shin's back edge, toe -2.0px ahead of its front edge"
+   "G9: foot_length: the drawn boot is 24 px, 0.14 of the leg length as drawn (170 px); a human foot is 0.24-0.30: the still's boot is too short (it is not stretched)",
+   "G9: foot_length: the boot (24 px) is too short for the shin's width at the ankle (back 11 + front 21 px): with the ankle flexed the toe is only -12 px ahead of the shin's front line (needs 3.5)",
+   "G8: arm_on_body: a hand is drawn over the body at 140,256 (7 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.3
+  "seconds": 0.49
  },
  "HR5.3": {
   "fit_score": 0.6,
@@ -613,7 +543,7 @@
    "hip": 41.4,
    "knee": 32.7,
    "ankle": 58.5,
-   "toe": 64.3,
+   "toe": 61.2,
    "far_knee": 10.6,
    "far_ankle": 46.1
   },
@@ -624,13 +554,15 @@
   "status": "rejected",
   "rules": [
    "G2",
-   "G5"
+   "G5",
+   "G8"
   ],
   "failures": [
    "G2: proportions: front shin 33px vs back shin 46px",
-   "G5: fit_score: 0.60 < 0.7 (detached piece(s) 5700 px kept as gear | moved > 12% BH: neck, hip, ankle, toe, far_ankle)"
+   "G5: fit_score: 0.60 < 0.7 (detached piece(s) 5700 px kept as gear | moved > 12% BH: neck, hip, ankle, toe, far_ankle)",
+   "G8: arm_on_body: a hand is drawn over the body at 116,321 (6 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.55
+  "seconds": 0.77
  },
  "HR5.4": {
   "fit_score": 0.9,
@@ -643,8 +575,8 @@
    "wrist": 11.7,
    "hip": 8.9,
    "knee": 6.8,
-   "ankle": 22.4,
-   "toe": 32.9,
+   "ankle": 23.3,
+   "toe": 19.4,
    "far_knee": 1.4,
    "far_ankle": 38.9
   },
@@ -653,12 +585,14 @@
   ],
   "status": "rejected",
   "rules": [
-   "G6"
+   "G6",
+   "G8"
   ],
   "failures": [
-   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings",
+   "G8: arm_on_body: a hand is drawn over the body at 161,292 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.74
+  "seconds": 0.97
  },
  "HR6.1": {
   "fit_score": 1.0,
@@ -671,18 +605,20 @@
    "wrist": 21.8,
    "hip": 0.6,
    "knee": 15.1,
-   "ankle": 33.5,
-   "toe": 12.1,
+   "ankle": 33.3,
+   "toe": 18.5,
    "far_knee": 12.0,
    "far_ankle": 46.5
   },
   "flags": [],
-  "gear_cut": 0.8,
-  "gain": 1.3,
-  "speed_px_per_cycle": 48.0,
-  "status": "accepted",
-  "rules": [],
-  "seconds": 1.62
+  "status": "rejected",
+  "rules": [
+   "G8"
+  ],
+  "failures": [
+   "G8: arm_on_body: a hand is drawn over the body at 136,267 (2 blobs of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 0.56
  },
  "HR6.2": {
   "fit_score": 1.0,
@@ -695,8 +631,8 @@
    "wrist": 9.0,
    "hip": 20.1,
    "knee": 0.5,
-   "ankle": 26.6,
-   "toe": 26.1,
+   "ankle": 28.5,
+   "toe": 23.2,
    "far_knee": 14.5,
    "far_ankle": 28.7
   },
@@ -709,7 +645,7 @@
   "failures": [
    "G7: gear_cut: the forearm's seam with the body runs 2.1 radii through drawn colour (> 1.7): held gear (a shield?) would be cut in two"
   ],
-  "seconds": 0.78
+  "seconds": 0.9
  },
  "HR6.3": {
   "fit_score": 0.85,
@@ -722,8 +658,8 @@
    "wrist": 57.5,
    "hip": 16.2,
    "knee": 1.6,
-   "ankle": 30.1,
-   "toe": 11.6,
+   "ankle": 27.7,
+   "toe": 7.0,
    "far_knee": 19.7,
    "far_ankle": 75.3
   },
@@ -731,12 +667,14 @@
    "ground plate erased (1241 px)",
    "moved > 12% BH: far_ankle"
   ],
-  "gear_cut": 0.36,
-  "gain": 1.04,
-  "speed_px_per_cycle": 32.0,
-  "status": "accepted",
-  "rules": [],
-  "seconds": 1.85
+  "status": "rejected",
+  "rules": [
+   "G8"
+  ],
+  "failures": [
+   "G8: arm_on_body: a hand is drawn over the body at 137,223 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 0.67
  },
  "HR6.4": {
   "fit_score": 1.0,
@@ -749,17 +687,19 @@
    "wrist": 22.7,
    "hip": 25.8,
    "knee": 20.7,
-   "ankle": 25.2,
-   "toe": 5.7,
+   "ankle": 25.3,
+   "toe": 4.0,
    "far_knee": 4.1,
    "far_ankle": 42.3
   },
   "flags": [],
-  "gear_cut": 0.78,
-  "gain": 1.77,
-  "speed_px_per_cycle": 56.0,
-  "status": "accepted",
-  "rules": [],
-  "seconds": 2.21
+  "status": "rejected",
+  "rules": [
+   "G8"
+  ],
+  "failures": [
+   "G8: arm_on_body: a hand is drawn over the body at 154,259 (1 blob of the hand's colour): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
+  ],
+  "seconds": 0.85
  }
 }

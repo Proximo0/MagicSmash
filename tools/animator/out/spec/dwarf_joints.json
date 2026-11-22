@@ -1,0 +1,195 @@
+{
+ "id": "SPEC_dwarf",
+ "name": "spec_dwarf",
+ "build": "dwarf",
+ "facing": "right",
+ "ground_y": 428,
+ "size": [
+  384,
+  448
+ ],
+ "body_height": 310,
+ "stride_px": 161.2,
+ "joints": {
+  "head": [
+   176.0,
+   158.3
+  ],
+  "neck": [
+   176.0,
+   198.6
+  ],
+  "pelvis": [
+   176.0,
+   304.0
+  ],
+  "near_shoulder": [
+   172.9,
+   215.6
+  ],
+  "near_elbow": [
+   201.5,
+   258.1
+  ],
+  "near_wrist": [
+   235.7,
+   284.8
+  ],
+  "near_hip": [
+   176.0,
+   310.2
+  ],
+  "near_knee": [
+   195.2,
+   357.7
+  ],
+  "near_ankle": [
+   205.9,
+   407.8
+  ],
+  "near_toe": [
+   237.5,
+   428.0
+  ],
+  "far_shoulder": [
+   165.2,
+   215.6
+  ],
+  "far_elbow": [
+   165.2,
+   266.8
+  ],
+  "far_wrist": [
+   171.2,
+   309.8
+  ],
+  "far_hip": [
+   169.8,
+   310.2
+  ],
+  "far_knee": [
+   147.5,
+   359.0
+  ],
+  "far_ankle": [
+   125.3,
+   407.8
+  ],
+  "far_toe": [
+   156.9,
+   428.0
+  ]
+ },
+ "extra_joints": {
+  "head_top": [
+   176.0,
+   118.0
+  ],
+  "near_hand_tip": [
+   250.4,
+   296.2
+  ],
+  "near_heel": [
+   191.0,
+   428.0
+  ],
+  "far_heel": [
+   110.4,
+   428.0
+  ]
+ },
+ "fractions_of_body_height": {
+  "head_top": [
+   0.0,
+   1.0
+  ],
+  "neck": [
+   0.0,
+   0.74
+  ],
+  "pelvis": [
+   0.0,
+   0.4
+  ],
+  "near_shoulder": [
+   -0.01,
+   0.685
+  ],
+  "near_hip": [
+   0.0,
+   0.38
+  ],
+  "far_hip": [
+   -0.02,
+   0.38
+  ],
+  "head": [
+   0.0,
+   0.87
+  ],
+  "near_knee": [
+   0.062,
+   0.227
+  ],
+  "near_ankle": [
+   0.096,
+   0.065
+  ],
+  "near_heel": [
+   0.048,
+   0.0
+  ],
+  "near_toe": [
+   0.198,
+   0.0
+  ],
+  "far_knee": [
+   -0.092,
+   0.223
+  ],
+  "far_ankle": [
+   -0.164,
+   0.065
+  ],
+  "far_heel": [
+   -0.212,
+   0.0
+  ],
+  "far_toe": [
+   -0.062,
+   0.0
+  ],
+  "near_elbow": [
+   0.082,
+   0.548
+  ],
+  "near_wrist": [
+   0.193,
+   0.462
+  ],
+  "near_hand_tip": [
+   0.24,
+   0.425
+  ],
+  "far_shoulder": [
+   -0.035,
+   0.685
+  ],
+  "far_elbow": [
+   -0.035,
+   0.52
+  ],
+  "far_wrist": [
+   -0.015,
+   0.381
+  ]
+ },
+ "half_widths_px": {
+  "thigh": 19.2,
+  "shin": 14.9,
+  "arm": 13.0,
+  "fore": 11.8
+ },
+ "far_arm": "hidden",
+ "note": "drawn from tools/animator/spec.py: joints are known, not detected (STILL_SPEC.md)"
+}
