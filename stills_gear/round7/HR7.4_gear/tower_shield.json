@@ -1,0 +1,14 @@
+{
+ "slot": "back",
+ "anchor": [
+  128,
+  160
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.36,
+ "guide": "shield",
+ "note": "a shield seen face-on, upright, filling the box; the anchor is its middle. A shield that goes on the back is drawn FACE-ON too: the painted face of the shield with its emblem, never its edge or its inside as a dark frame round a hollow middle (it reads as a crate)"
+}
