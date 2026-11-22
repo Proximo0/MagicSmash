@@ -9,6 +9,9 @@ root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 case "$file" in *.gd) ;; *) exit 0 ;; esac
 rel="${file#"$root"/}"
 [ "$rel" != "$file" ] && [ -f "$root/$rel" ] || exit 0
+# realm/ is its own Godot project (realm/client) with GDExtension classes the root project does not know: checking it
+# against the root project gives false errors. realm/check_client.sh covers those scripts.
+case "$rel" in realm/*) exit 0 ;; esac
 command -v "${GODOT:-godot}" >/dev/null 2>&1 || exit 0
 cd "$root" || exit 0
 problems=""
