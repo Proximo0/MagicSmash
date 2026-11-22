@@ -65,6 +65,10 @@ def frame_consistency(img, n):
 
 
 # ---------- prompts for Klein (natural language; queue_sd sd_prompt with weights stripped) ----------
+LEGS = "Exactly two legs, both feet pointing the walking direction, side view. "
+NEEDS_HAND = ROOT / "needs_hand.txt"   # pictures that failed every try (anatomy or other checks): not accepted, fix by hand
+
+
 def klein_prompt(e):
     import ab_klein as K
     s = K.subject(e); k = e.get("kind")
@@ -72,7 +76,7 @@ def klein_prompt(e):
     if e.get("style") == "painted": return s
     if k == "walk":
         return (f"Redraw this pixel art walk-cycle sprite sheet keeping exactly the same four poses, positions and sizes, "
-                f"{bg}, as: {s}. The same character with the same outfit and colours in all four frames, detailed 16-bit pixel art.")
+                f"{bg}, as: {s}. {LEGS if __import__('anatomy').applies(e) else ''}The same character with the same outfit and colours in all four frames, detailed 16-bit pixel art.")
     if k == "action":
         n = len(__import__("walk").ACTIONS[e["pose"]])
         return (f"Redraw this pixel art sprite row keeping exactly the same {n} pose{'s' if n > 1 else ''}, positions and sizes, "
@@ -145,7 +149,7 @@ def phase_a(q):
 
 # ---------- phase B ----------
 def phase_b(q, count=4, push_every=20):
-    import torch, walk as W, score as S, ab_klein as K
+    import torch, walk as W, score as S, ab_klein as K, anatomy as AN
     os.environ["AB_NOLORA"] = "1"
     pipe = K.load("sprite"); R.log("phase B: Klein loaded")
     done = R.read_set(R.DONE) | R.read_set(R.FAILED)
@@ -178,7 +182,12 @@ def phase_b(q, count=4, push_every=20):
                     kw = dict(prompt=prompt, width=w, height=h, num_inference_steps=4, guidance_scale=1.0, generator=g)
                     if layout is not None: kw["image"] = layout.resize((w, h))
                     orig = pipe(**kw).images[0]; img, frac = (key_border(orig) if keyed else (orig, 1.0))
-                    if kind == "walk": good, sc, notes = W.check_sheet(img, min_leg_diff=0.12)
+                    if kind == "walk":
+                        good, sc, notes = W.check_sheet(img, min_leg_diff=0.12)
+                        if AN.applies(e):  # anatomy gate: extra leg, stray leg, foot pointing backwards in any frame fails
+                            a_ok, a_notes, _ = AN.check(img, e, layout)
+                            if not a_ok: good, sc = False, sc - 1.0
+                            notes += " " + a_notes
                     elif kind == "action": good, sc, notes = W.check_frames(img, nfr)
                     elif kind == "one": good, sc, notes = W.check_single(img)
                     else: good, sc, notes = True, 0.0, ""
@@ -202,6 +211,8 @@ def phase_b(q, count=4, push_every=20):
                 except Exception as ex:
                     R.log(f"{eid}_{n} error: {type(ex).__name__}: {str(ex)[:200]}"); torch.cuda.empty_cache(); time.sleep(5)
             if best is None: ok_all = False; continue
+            if not best[3]:  # every try failed: keep the file for reference but list it for hand fixing, not accepted
+                with open(NEEDS_HAND, "a", encoding="utf-8") as fh: fh.write(f"{eid}_{n}\n")
             if keyed: (R.RAW / "orig").mkdir(exist_ok=True); best[2].save(R.RAW / "orig" / f.name)
             best[1].save(f)
         dt = time.time() - t0
