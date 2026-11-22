@@ -1,9 +1,20 @@
 class_name GwWire
 extends RefCounted
-## The gateway's TCP wire (docs/realm/wire.md, realm/gateway/src/proto.rs) in GDScript: every request the shell
+## The gateway's TCP wire (docs/realm/wire.md, realm/gateway/src/proto/) in GDScript: every request the shell
 ## sends is built here as a body, every reply and push is read here into a Dictionary with a "t" (the type
 ## constant below) and its fields. Frames are `u32 len, u8 type, u32 tag, body`, little endian; strings are
 ## `u16 len, UTF-8`. A u64 is a GDScript int (a ticket above 2^63 is a negative int with the same bits).
+
+# Who owns which type byte: the server's one table, realm/gateway/src/proto/ranges.rs (mirror it here when it changes).
+#   module   job  requests      replies     pushes
+#   core     W1   0x01..0x32    0x80..0x8A  0xA0..0xA7   (this file)
+#   economy  E1   0x33..0x3F    0x8B        0xA8
+#   social   T1   0x40..0x5F    0x90        0xB0         (this file, T_SOC_*)
+#   world    W2   0x60..0x6F    0x91        0xB1
+#   homes    H1   0x70..0x73    0x8C        0xA9         (homes/home_wire.gd)
+#   pvp      R3   0x74..0x77    0x8D        0xAA         (reserved)
+#   steam    P1   0x78..0x7B    0x8E        0xAB         (reserved)
+# 0x00 and 0xC0..0xEF belong to nobody; 0xF0..0xFF never go on the wire (R_LOST below is the client's own).
 
 # requests
 const T_LOGIN_DEV := 0x01
@@ -87,7 +98,7 @@ const R_LOST := 0xFF
 
 const FRAME_MAX := 1 << 20
 
-# Error codes of R_ERR (proto.rs `code`).
+# Error codes of R_ERR (proto/mod.rs `code`).
 const E_BAD_REQUEST := 1
 const E_NOT_LOGGED_IN := 2
 const E_DISABLED := 3

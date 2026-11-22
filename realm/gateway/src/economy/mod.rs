@@ -14,6 +14,8 @@ pub mod prices;
 pub mod sim;
 pub mod trade;
 pub mod wire;
+/// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
+pub mod gate;
 
 use crate::proto::{code, resp_frame, Resp};
 use realm_store::*;

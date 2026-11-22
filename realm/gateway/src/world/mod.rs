@@ -11,6 +11,8 @@
 pub mod copies;
 pub mod week;
 pub mod wire;
+/// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
+pub mod gate;
 
 use crate::gateway::{bad, now_ms, Gateway, HostSlot, Loc, Session, VaultSlot};
 use crate::loot::RewardKind;

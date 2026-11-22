@@ -49,6 +49,12 @@ What goes between a player and the realm, every number chosen and why. Code: `re
   `DB.bosskills` (one `hero boss` line, fsync'd), because the store has no such record.
 - Disconnect: half the haul's coin is lost (`coin/2`) and the rest banked. Gate, waystone, kick and stop bank everything.
 
+- Type bytes are owned per module in one table, `gateway/src/proto/ranges.rs` (core W1, economy E1, social T1, world W2,
+  homes H1, reserved pvp R3 and steam P1; a test fails on an overlap or a tag outside its module's span). The core's
+  messages are `proto/base.rs`; each other module's `Req`/`Resp` variants are thin wrappers coded and served by its own
+  `gate.rs` (`proto::WireModule`), registered with one line in `proto::MODULES`. Decoders refuse what they cannot read
+  whole, cap every count at the bytes left, accept flags only as 0 or 1, and re-encode to the same bytes:
+  `proto/fuzz.rs` checks it with 200 000 seeded cases a test run (`REALM_FUZZ_CASES`, `REALM_FUZZ_SEED` for more).
 - Social calls (job T1): requests 0x40..0x5B, reply 0x90, push 0xB0, error `MUTED` 17; see `social.md`. A connection's writer
   ends on an empty frame (the moderators' "end this session").
 

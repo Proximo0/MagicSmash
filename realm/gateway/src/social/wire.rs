@@ -1,7 +1,7 @@
 //! The social calls on the wire (job T1). Requests are tags `0x40..=0x5F`, replies `R_SOCIAL` 0x90, pushes `P_SOCIAL`
-//! 0xB0. The codec is here so `proto.rs` only carries one variant of each; `docs/realm/social.md` lists every tag.
+//! 0xB0. The codec is here and `gate.rs` registers it, so `proto` only carries one variant of each; `docs/realm/social.md` lists every tag.
 
-use crate::proto::{put_str, read_str, ItemInfo, Thing};
+use crate::proto::{put_str, read_str, ItemInfo, Thing, WireRead};
 use realm_server::{put_u16, put_u32, put_u64, Rd};
 
 pub const T_SOC_FIRST: u8 = 0x40;
@@ -169,8 +169,12 @@ fn put_opt_copy(w: &mut Vec<u8>, c: Option<(u8, u8)>) {
 }
 
 fn rd_opt_copy(r: &mut Rd) -> Option<Option<(u8, u8)>> {
-    let (p, f, k) = (r.u8()?, r.u8()?, r.u8()?);
-    Some((p != 0).then_some((f, k)))
+    // None is written 0, 0, 0 and nothing else reads as None.
+    match (r.u8()?, r.u8()?, r.u8()?) {
+        (0, 0, 0) => Some(None),
+        (1, f, k) => Some(Some((f, k))),
+        _ => None,
+    }
 }
 
 impl PartyView {
@@ -189,9 +193,9 @@ impl PartyView {
     }
     fn read(r: &mut Rd) -> Option<PartyView> {
         let (id, leader, copy) = (r.u64()?, rd_i(r)?, rd_opt_copy(r)?);
-        let n = r.u8()? as usize;
+        let n = r.count8()?;
         let members = (0..n)
-            .map(|_| Some(PartyMember { hero: rd_i(r)?, name: read_str(r)?, class: r.u8()?, level: r.u16()?, online: r.u8()? != 0 }))
+            .map(|_| Some(PartyMember { hero: rd_i(r)?, name: read_str(r)?, class: r.u8()?, level: r.u16()?, online: r.flag()? }))
             .collect::<Option<Vec<_>>>()?;
         Some(PartyView { id, leader, members, copy })
     }
@@ -208,7 +212,7 @@ fn put_party(w: &mut Vec<u8>, p: &Option<PartyView>) {
 }
 
 fn rd_party(r: &mut Rd) -> Option<Option<PartyView>> {
-    Some(if r.u8()? != 0 { Some(PartyView::read(r)?) } else { None })
+    Some(if r.flag()? { Some(PartyView::read(r)?) } else { None })
 }
 
 impl GuildView {
@@ -238,11 +242,11 @@ impl GuildView {
     fn read(r: &mut Rd) -> Option<GuildView> {
         let (id, name, motd, my_rank) = (r.u64()?, read_str(r)?, read_str(r)?, r.u8()?);
         let perms = [r.u16()?, r.u16()?, r.u16()?, r.u16()?];
-        let n = r.u16()? as usize;
+        let n = r.count16()?;
         let members = (0..n)
-            .map(|_| Some(GuildMember { account: rd_i(r)?, name: read_str(r)?, rank: r.u8()?, online: r.u8()? != 0 }))
+            .map(|_| Some(GuildMember { account: rd_i(r)?, name: read_str(r)?, rank: r.u8()?, online: r.flag()? }))
             .collect::<Option<Vec<_>>>()?;
-        let n = r.u16()? as usize;
+        let n = r.count16()?;
         let board = (0..n).map(|_| Some(Post { id: r.u64()?, author: read_str(r)?, text: read_str(r)?, at: rd_i(r)? })).collect::<Option<Vec<_>>>()?;
         Some(GuildView { id, name, motd, my_rank, perms, members, board })
     }
@@ -410,7 +414,7 @@ impl SReq {
         let q = match t {
             0x40 => SReq::Talk { hero, chan: r.u8()?, to: read_str(r)?, text: read_str(r)? },
             0x41 => SReq::PartyInvite { hero, name: read_str(r)? },
-            0x42 => SReq::PartyAnswer { hero, inviter: rd_i(r)?, accept: r.u8()? != 0 },
+            0x42 => SReq::PartyAnswer { hero, inviter: rd_i(r)?, accept: r.flag()? },
             0x43 => SReq::PartyLeave { hero },
             0x44 => SReq::PartyKick { hero, target: rd_i(r)? },
             0x45 => SReq::PartyLead { hero, target: rd_i(r)? },
@@ -418,7 +422,7 @@ impl SReq {
             0x47 => SReq::PartyInfo { hero },
             0x48 => SReq::GuildCreate { hero, name: read_str(r)? },
             0x49 => SReq::GuildInvite { hero, name: read_str(r)? },
-            0x4A => SReq::GuildAnswer { hero, guild: r.u64()?, accept: r.u8()? != 0 },
+            0x4A => SReq::GuildAnswer { hero, guild: r.u64()?, accept: r.flag()? },
             0x4B => SReq::GuildLeave { hero },
             0x4C => SReq::GuildKick { hero, target: rd_i(r)? },
             0x4D => SReq::GuildRank { hero, target: rd_i(r)?, rank: r.u8()? },
@@ -426,14 +430,14 @@ impl SReq {
             0x4F => SReq::GuildMotd { hero, text: read_str(r)? },
             0x50 => SReq::GuildPost { hero, text: read_str(r)? },
             0x51 => SReq::GuildUnpost { hero, post: r.u64()? },
-            0x52 => SReq::GuildBank { hero, what: Thing::read(r)?, tab: r.u32()?, deposit: r.u8()? != 0 },
+            0x52 => SReq::GuildBank { hero, what: Thing::read(r)?, tab: r.u32()?, deposit: r.flag()? },
             0x53 => SReq::GuildBankView { hero, tab: r.u32()? },
             0x54 => SReq::GuildInfo { hero },
             0x55 => SReq::GuildDisband { hero },
             0x56 => SReq::FriendAdd { hero, name: read_str(r)? },
-            0x57 => SReq::FriendAnswer { hero, from: rd_i(r)?, accept: r.u8()? != 0 },
+            0x57 => SReq::FriendAnswer { hero, from: rd_i(r)?, accept: r.flag()? },
             0x58 => SReq::FriendRemove { hero, target: rd_i(r)? },
-            0x59 => SReq::Ignore { hero, name: read_str(r)?, on: r.u8()? != 0 },
+            0x59 => SReq::Ignore { hero, name: read_str(r)?, on: r.flag()? },
             0x5A => SReq::Lists { hero },
             0x5B => SReq::Report { hero, name: read_str(r)?, reason: r.u8()?, text: read_str(r)? },
             _ => return None,
@@ -509,23 +513,23 @@ impl SResp {
         let r = &mut r;
         let v = match r.u8()? {
             0 => SResp::Party(rd_party(r)?),
-            1 => SResp::Guild(if r.u8()? != 0 { Some(GuildView::read(r)?) } else { None }),
+            1 => SResp::Guild(if r.flag()? { Some(GuildView::read(r)?) } else { None }),
             2 => SResp::GuildCreated(r.u64()?),
             3 => {
-                let n = r.u32()? as usize;
+                let n = r.count32()?;
                 let items = (0..n).map(|_| ItemInfo::read(r)).collect::<Option<Vec<_>>>()?;
-                let n = r.u32()? as usize;
+                let n = r.count32()?;
                 let stacks = (0..n).map(|_| Some((r.u32()?, r.u64()?))).collect::<Option<Vec<_>>>()?;
                 SResp::Bank { items, stacks }
             }
             4 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let friends = (0..n)
-                    .map(|_| Some(FriendRow { account: rd_i(r)?, name: read_str(r)?, online: r.u8()? != 0, place: r.u8()? }))
+                    .map(|_| Some(FriendRow { account: rd_i(r)?, name: read_str(r)?, online: r.flag()?, place: r.u8()? }))
                     .collect::<Option<Vec<_>>>()?;
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let pending = (0..n).map(|_| Some((rd_i(r)?, read_str(r)?))).collect::<Option<Vec<_>>>()?;
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let ignores = (0..n).map(|_| Some((rd_i(r)?, read_str(r)?))).collect::<Option<Vec<_>>>()?;
                 SResp::Lists(Lists { friends, pending, ignores })
             }
@@ -598,7 +602,7 @@ impl SPush {
             4 => SPush::GuildInvite { guild: r.u64()?, guild_name: read_str(r)?, from: read_str(r)? },
             5 => SPush::GuildChanged,
             6 => SPush::FriendRequest { from: rd_i(r)?, name: read_str(r)? },
-            7 => SPush::FriendStatus { account: rd_i(r)?, name: read_str(r)?, online: r.u8()? != 0, place: r.u8()? },
+            7 => SPush::FriendStatus { account: rd_i(r)?, name: read_str(r)?, online: r.flag()?, place: r.u8()? },
             8 => SPush::Notice { text: read_str(r)? },
             _ => return None,
         };

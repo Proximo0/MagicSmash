@@ -2,7 +2,7 @@
 //! arguments), one reply tag `R_HOME`, and pushes under `P_HOME` with the same body. Layouts: `docs/realm/homes.md`.
 //! Strings are `u16 len, bytes`; an item is the gateway's `ItemInfo` (its `slot` is the house cell).
 
-use crate::proto::{put_str, read_str, ItemInfo};
+use crate::proto::{put_str, read_str, ItemInfo, WireRead};
 use realm_server::{put_u16, put_u32, put_u64, Rd};
 
 pub const T_HOME: u8 = 0x70;
@@ -235,7 +235,7 @@ fn put_entries(w: &mut Vec<u8>, v: &[EntryInfo]) {
     }
 }
 fn read_entries(r: &mut Rd) -> Option<Vec<EntryInfo>> {
-    let n = r.u16()? as usize;
+    let n = r.count16()?;
     (0..n).map(|_| Some(EntryInfo { id: r.u64()?, at: r.u64()? as i64, name: read_str(r)?, text: read_str(r)? })).collect()
 }
 
@@ -358,14 +358,14 @@ impl HResp {
             0 => HResp::Ok,
             1 => {
                 let open = r.u32()?;
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let taken = r.bytes(n)?.to_vec();
                 let m = r.u32()?;
                 HResp::Streets { open, taken, mine: (m != u32::MAX).then_some(m) }
             }
             2 => {
                 let street = r.u32()?;
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 let plots = (0..n)
                     .map(|_| {
                         let (index, status, rule) = (r.u8()?, r.u8()?, r.u8()?);
@@ -376,27 +376,27 @@ impl HResp {
             }
             3 => {
                 let (plot, owner, name) = (r.u32()?, read_str(r)?, read_str(r)?);
-                let (rule, status, mine, until) = (r.u8()?, r.u8()?, r.u8()? != 0, r.u64()? as i64);
-                let n = r.u16()? as usize;
+                let (rule, status, mine, until) = (r.u8()?, r.u8()?, r.flag()?, r.u64()? as i64);
+                let n = r.count16()?;
                 let items = (0..n).map(|_| ItemInfo::read(r)).collect::<Option<Vec<_>>>()?;
                 HResp::House(HouseView { plot, owner, name, rule, status, until, mine, items, book: read_entries(r)? })
             }
-            4 => HResp::Moved { item: r.u64()? as i64, house: r.u8()? != 0, cell: r.u16()? },
+            4 => HResp::Moved { item: r.u64()? as i64, house: r.flag()?, cell: r.u16()? },
             5 => HResp::Crafted(ItemInfo::read(r)?),
             6 => HResp::Paid { plot: r.u32()?, until: r.u64()? as i64, coin: r.u64()? },
             7 => HResp::Strike { damage: r.u32()?, total: r.u64()?, dps: r.u32()?, count: r.u32()?, best: r.u32()? },
             8 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 HResp::Board((0..n).map(|_| Some((read_str(r)?, r.u8()?, r.u32()?))).collect::<Option<_>>()?)
             }
-            9 => HResp::Rest { sitting: r.u8()? != 0, secs: r.u32()?, rested_ms: r.u32()?, pct: r.u8()? },
+            9 => HResp::Rest { sitting: r.flag()?, secs: r.u32()?, rested_ms: r.u32()?, pct: r.u8()? },
             10 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 HResp::Stalls((0..n).map(|_| Some(Stall { seller: read_str(r)?, listings: r.u32()?, cheapest: r.u64()? })).collect::<Option<_>>()?)
             }
             11 => HResp::Where { kind: r.u8()?, arg: r.u32()? },
             12 => {
-                let n = r.u16()? as usize;
+                let n = r.count16()?;
                 HResp::Catalogue((0..n).map(|_| Some((r.u16()?, r.u32()?, r.u64()?, r.u64()?))).collect::<Option<_>>()?)
             }
             13 => HResp::Book(read_entries(r)?),

@@ -14,6 +14,8 @@ mod log;
 mod modtools;
 mod party;
 pub mod wire;
+/// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
+pub mod gate;
 
 pub use filter::{default_filter, Filter, Verdict};
 pub use guild::{perm, GuildSnap};

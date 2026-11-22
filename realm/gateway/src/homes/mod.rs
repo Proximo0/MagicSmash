@@ -15,6 +15,8 @@ pub mod place;
 pub mod plots;
 mod rest;
 pub mod wire;
+/// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
+pub mod gate;
 mod yard;
 
 use crate::gateway::{err as store_err, now_ms, Gateway, Session};
