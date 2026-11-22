@@ -45,8 +45,9 @@ LIMBS = ("near_upper", "near_fore", "near_thigh", "near_shin", "near_foot",
          "far_upper", "far_fore", "far_thigh", "far_shin", "far_foot")
 RIGID_PROPS = ("back", "cape", "head")
 NFRAMES = 8
-MAX_STANCE_BEND = 15.0  # degrees of knee bend a stance leg may have
-MAX_SWING_BEND = 50.0   # ... and a swing leg
+MAX_STANCE_BEND = 20.0  # degrees of knee bend a stance leg may have (at contact and push-off; ~straight at mid-stance)
+MAX_SWING_BEND = 60.0   # ... and a swing leg
+MAX_MID_BEND = 10.0     # a stance knee at mid-stance is near straight
 NB = 8                 # bins along a leg segment for its width and colour profile
 
 
@@ -264,6 +265,25 @@ def tidy_sprite(sp, min_px=4):
     return a
 
 
+def despeckle_idx(a, region=None):
+    """Isolated single pixels (all 8 neighbours of another colour class, `speckle_mask`) take the commonest colour among
+    their opaque neighbours, or vanish when they have none.  `region`: only these pixels may change."""
+    a = a.copy()
+    m = speckle_mask(a)
+    if region is not None:
+        m &= region
+    p = np.pad(a, 1, constant_values=-1)
+    for y, x in zip(*np.nonzero(m)):
+        nb = [int(v) for v in p[y:y + 3, x:x + 3].ravel() if v >= 0]
+        nb.remove(int(a[y, x]))
+        if nb:
+            vals, cnt = np.unique(nb, return_counts=True)
+            a[y, x] = vals[np.argmax(cnt)]
+        else:
+            a[y, x] = -1
+    return a
+
+
 def _ring(op):
     p = np.pad(op, 1, constant_values=False)
     inner = p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
@@ -443,7 +463,7 @@ def prop_upright(fs, tol=10.0):
     return True
 
 
-def walk_gates(fs, bend=15.0, swing=50.0, pelvis=0.95):
+def walk_gates(fs, bend=20.0, swing=60.0, pelvis=0.95):
     """Gates on the solved walk of a master FrameSet.  Returns (failing cases per gate, stats):
       stance_bend: a planted leg's knee bent more than `bend`; swing_bend: a swinging leg's more than `swing`;
       swing_lift: a swing foot higher than 4 x m px (8 at 112) or a foot never lifted 2 x m px (4 at 112)
@@ -453,8 +473,9 @@ def walk_gates(fs, bend=15.0, swing=50.0, pelvis=0.95):
       foot_slide: a planted foot's contact point does not move back by exactly the step between two frames."""
     w = fs.walk
     m = w["m"]
-    bad = dict.fromkeys(("stance_bend", "swing_bend", "swing_lift", "pelvis_height", "trunk_lean", "foot_slide"), 0)
-    stats = {"stride": w["stride"], "max_stance_bend": 0.0, "max_swing_bend": 0.0, "min_pelvis_ratio": 9.0,
+    bad = dict.fromkeys(("stance_bend", "swing_bend", "swing_lift", "pelvis_height", "trunk_lean", "foot_slide",
+                         "mid_stance_bend"), 0)
+    stats = {"stride": w["stride"], "max_stance_bend": 0.0, "max_swing_bend": 0.0, "min_pelvis_ratio": 9.0, "mid_stance_bend": 0.0,
              "lean": w["lean"], "peak_lift": 0, "foot_slide_px": 0}
     for side in ("near", "far"):
         lifts = []
@@ -463,6 +484,9 @@ def walk_gates(fs, bend=15.0, swing=50.0, pelvis=0.95):
             if lg["planted"]:
                 stats["max_stance_bend"] = max(stats["max_stance_bend"], lg["flex"])
                 bad["stance_bend"] += int(lg["flex"] > bend + 0.5)
+                if lg.get("s") == 2:
+                    stats["mid_stance_bend"] = max(stats["mid_stance_bend"], lg["flex"])
+                    bad["mid_stance_bend"] += int(lg["flex"] > MAX_MID_BEND + 0.5)
             else:
                 stats["max_swing_bend"] = max(stats["max_swing_bend"], lg["flex"])
                 bad["swing_bend"] += int(lg["flex"] > swing + 0.5)
@@ -473,13 +497,89 @@ def walk_gates(fs, bend=15.0, swing=50.0, pelvis=0.95):
             bad["pelvis_height"] += int(ratio < pelvis)
             g = fs.frames[(i + 1) % len(fs.frames)]["legs"][side]
             if lg["planted"] and g["planted"]:
-                err = abs((g["cx"] - lg["cx"]) + w["step"])
+                # the contact point: the heel, and the toe when the boot goes up onto its toe at push-off
+                key = "cxr" if g.get("fstep", 0) > 0 else "cx"
+                a_ = lg["cxr"] if g.get("fstep", 0) > 0 else lg["cx"]
+                err = abs((g[key] - a_) + w["step"])
                 stats["foot_slide_px"] = max(stats["foot_slide_px"], err)
                 bad["foot_slide"] += int(err > 0)
         stats["peak_lift"] = max(stats["peak_lift"], max(lifts) if lifts else 0)
     bad["swing_lift"] += int(stats["peak_lift"] < 2 * m)
     bad["trunk_lean"] += int(not (0.0 <= w["lean"] <= 6.0))
     return bad, stats
+
+
+def speckle_mask(idx):
+    """Opaque pixels whose 8 neighbours all differ in colour class (palette index; transparent differs too)."""
+    H, W = idx.shape
+    p = np.pad(idx, 1, constant_values=-1)
+    same = np.zeros((H, W), bool)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            if dy or dx:
+                same |= p[1 + dy:1 + dy + H, 1 + dx:1 + dx + W] == idx
+    return (idx >= 0) & ~same
+
+
+def speckle(fs):
+    """Gate: (speckles inside drawn parts (legs, boots, arms), speckles anywhere), summed over the 8 frames."""
+    li = {n: k for k, n in enumerate(fs.names)}
+    drawn = [li[n] for n in fs.names if n.endswith(("_thigh", "_shin", "_foot", "_upper", "_fore"))]
+    inside = anywhere = 0
+    for f in fs.frames:
+        m = speckle_mask(f["idx"])
+        anywhere += int(m.sum())
+        inside += int((m & np.isin(f["label"], drawn)).sum())
+    return inside, anywhere
+
+
+def arm_gates(fs, still_arms=None):
+    """Gates on the arms of rendered frames.  Returns (failing cases, stats):
+      arm_count: a frame shows more than two arms (a third hand-coloured blob below the head), or the far arm is
+                 seen (>= 6 px) in fewer than 4 of the 8 frames while the still has two arms;
+      stats: arms seen per frame (near, far, each >= 3 px), hand blobs per frame."""
+    li = {n: k for k, n in enumerate(fs.names)}
+    bad = {"arm_count": 0}
+    still_arms = fs.still_arms if still_arms is None else still_arms
+    seen, blobs, far_seen = [], [], 0
+    for f in fs.frames:
+        lab = f["label"]
+        near = int(np.isin(lab, [li.get("near_upper", -1), li.get("near_fore", -1)]).sum())
+        far = int(np.isin(lab, [li.get("far_upper", -1), li.get("far_fore", -1)]).sum())
+        seen.append((near >= 3) + (far >= 3))
+        far_seen += far >= 6
+        hx0, hy0, hx1, hy1 = f["head_box"]
+        m = np.isin(f["idx"], list(fs.skin)) & np.isin(lab, [li.get("near_fore", -1), li.get("far_fore", -1)]) \
+            if fs.skin else np.zeros(lab.shape, bool)
+        n = _components(m, 2)
+        blobs.append(n)
+        bad["arm_count"] += int(n > 2)
+    bad["arm_count"] += int(still_arms == 2 and far_seen < 4)
+    bad["arm_count"] += int(still_arms == 1 and far_seen > 0)
+    return bad, {"arms_seen": seen, "hand_blobs": blobs, "far_arm_frames": far_seen}
+
+
+def _components(mask, min_px=1):
+    """Number of 8-connected components of `mask` with at least min_px pixels."""
+    H, W = mask.shape
+    seen = np.zeros_like(mask)
+    n = 0
+    for y, x in zip(*np.nonzero(mask)):
+        if seen[y, x]:
+            continue
+        stack, size = [(y, x)], 0
+        seen[y, x] = True
+        while stack:
+            cy, cx = stack.pop()
+            size += 1
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    ny, nx = cy + dy, cx + dx
+                    if 0 <= ny < H and 0 <= nx < W and mask[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+        n += size >= min_px
+    return n
 
 
 def no_skin_below_belt(fs):
@@ -516,6 +616,8 @@ class Hero:
         gears = gears if gears is not None else load_gear(png)
         ch = Character.from_still(png, joints, fitted=fitted, body_h=master, gear=gears)
         self.ch, self.fitted, self.gears = ch, fitted, gears
+        # a shield on the back or a cloak hides the far arm: the still shows one arm, so the walk shows one
+        self.still_arms = 1 if any(g.slot == "cape" or (g.slot == "back" and "shield" in g.name) for g in gears) else 2
         self.name = ch.name
         self.canvas = (int(round(BASE_CANVAS[0] * m)), int(round(BASE_CANVAS[1] * m)))
         self.foot_y = int(round(BASE_FOOT * m))
@@ -591,11 +693,24 @@ class Hero:
         self.walk = None
         self.prop_info = None
         if ff is not None and (ff >= 0).any():
-            rows = np.nonzero((ff >= 0).any(1))[0]
-            low = ff[rows[int(len(rows) * 0.7):]]
+            lows = []
+            for nm_ in ("near_fore",) if "near_fore" in self.sprites else ("far_fore",):
+                if nm_ in self.sprites:
+                    sp_ = self.variant(nm_, 0)[0]
+                    rows = np.nonzero((sp_ >= 0).any(1))[0]
+                    if len(rows):
+                        lows.append(sp_[rows[int(len(rows) * 0.7):]])
+            low = np.concatenate([a.ravel() for a in lows])
             cols, cnt = np.unique(low[low >= 0], return_counts=True)
-            self.skin = {int(c) for c in cols if not self.dark[c] and self.palette[c][0] > self.palette[c][2]
-                         and self.palette[c][1] >= 70 and self.palette[c][0] >= 150}
+            lit = [(int(c), int(n)) for c, n in zip(cols, cnt) if not self.dark[c] and self.palette[c][0] > self.palette[c][2]
+                   and self.palette[c][1] >= 70 and self.palette[c][0] >= 150]
+            hc = self.sprites["head"][0]
+            hv, hn = np.unique(hc[hc >= 0], return_counts=True)
+            face = {int(c) for c, n in zip(hv, hn) if n >= 6 and not self.dark[c]}      # skin shows on the face too
+            lit = [t for t in lit if t[0] in face] or lit
+            if lit:
+                c0 = max(lit, key=lambda t: t[1])[0]            # the hand's colour, and its close shades
+                self.skin = {c for c, n in lit if float(np.abs(self.palette[c].astype(float) - self.palette[c0]).sum()) < 90}
             if not self.skin and len(cols):
                 self.skin = {int(cols[np.argmax(cnt)])}
 
@@ -618,7 +733,7 @@ class Hero:
                 vec = (self.rig.j[b] - self.rig.j[a]) * self.k
                 for pt in ((0.0, 0.0), tuple(rot2(vec, step * STEP))):
                     out = fill_disc(out, (pt[0] - rx, pt[1] - ry), r, self.dark)
-            out = tidy_sprite(out)
+            out = despeckle_idx(tidy_sprite(out))
             out, rx, ry = trim(out, rx, ry, self.even)
             self._rot[key] = (out, rx, ry)
         return self._rot[key]
@@ -695,10 +810,11 @@ class Hero:
             sp, ox, oy = self.sprites[nm]
             h, w = sp.shape
             sh = [rnd(max(0.0, pel - (oy + r + 0.5)) * want, q) for r in range(h)]
-            out = np.full((h, w + max(sh) + (max(sh) % q)), -1, np.int16)
+            lo, hi = min(sh), max(sh)            # (a trunk that leans too far forward is sheared back: negative shifts)
+            out = np.full((h, w + hi - lo + ((hi - lo) % q)), -1, np.int16)
             for r in range(h):
-                out[r, sh[r]:sh[r] + w] = sp[r]
-            self.sprites[nm] = (out, ox, oy)
+                out[r, sh[r] - lo:sh[r] - lo + w] = sp[r]
+            self.sprites[nm] = (out, ox + lo, oy)
         neck = float(g.G(rig.j["neck"])[1])
         top = float(g.G(rig.j["head_top"])[1])
         self.lean_eff = rest + math.degrees(math.atan2(rnd(max(0.0, pel - neck) * want, q), pel - neck))
@@ -714,7 +830,7 @@ class Hero:
         ch, rig, k, pal = self.ch, self.rig, self.k, self.palette
         K = self.K
         pidx = {nm: to_index(ch.parts[nm].img, pal) for nm in ch.parts if nm.endswith(("thigh", "shin"))}
-        allc = np.concatenate([to_index(p.img, pal)[p.mask] for nm, p in ch.parts.items() if not nm.startswith("far_")])
+        allc = np.concatenate([to_index(p.img, pal)[p.mask] for nm, p in ch.parts.items() if nm.startswith("near_") and nm.endswith(("thigh", "shin", "foot"))])
         dk = allc[self.dark[allc]]
         self.outline = int(np.bincount(dk, minlength=K).argmax()) if len(dk) else int(np.argmin(_luma(pal)))
         self.look = {}
@@ -743,12 +859,47 @@ class Hero:
                 for b_ in range(NB):
                     if cp[b_] < 0:
                         cp[b_] = next((cp[j] for j in sorted(range(NB), key=lambda j: abs(j - b_)) if cp[j] >= 0), 0)
-                self.look[nm] = {"w": w, "c": np.array(cp), "L": L}
+                self.look[nm] = {"w": w, "c": np.array(self._bands(cp)), "L": L}
         for seg in ("thigh", "shin"):
             nr, fr = self.look["near_" + seg], self.look["far_" + seg]
             fr["c"] = np.array([self._shade(c) if c == n else c for c, n in zip(fr["c"], nr["c"])])
         for lk in self.look.values():
             lk["s"] = np.array([self._shade(c) for c in lk["c"]])
+            lk["l"] = np.array([self._light(c) for c in lk["c"]])
+
+    @staticmethod
+    def _bands(cp, maxn=4):
+        """The colour of each of the NB bins along a bone merged into at most `maxn` runs (cuff, guard, cloth ...):
+        the shortest run is absorbed by its longer neighbour until few enough remain."""
+        runs = []
+        for c in cp:
+            if runs and runs[-1][0] == c:
+                runs[-1][1] += 1
+            else:
+                runs.append([c, 1])
+        while len(runs) > maxn:
+            i = min(range(len(runs)), key=lambda j: runs[j][1])
+            nb = [j for j in (i - 1, i + 1) if 0 <= j < len(runs)]
+            j = max(nb, key=lambda j: runs[j][1])
+            runs[j][1] += runs[i][1]
+            del runs[i]
+            k = 0
+            while k < len(runs) - 1:
+                if runs[k][0] == runs[k + 1][0]:
+                    runs[k][1] += runs[k + 1][1]
+                    del runs[k + 1]
+                else:
+                    k += 1
+        return [c for c, n in runs for _ in range(n)]
+
+    def _light(self, c):
+        """The palette colour nearest to 1.3 x colour c (one shade lighter) when one is clearly lighter, else c."""
+        pal = self.palette.astype(float)
+        want = np.minimum(pal[c] * 1.3 + 6, 255)
+        d = ((pal - want) ** 2 * np.array([3, 4, 2])).sum(1)
+        d[c] = 1e18
+        j = int(np.argmin(d))
+        return j if _luma(pal[j]) > _luma(pal[c]) + 8 else int(c)
 
     def _shade(self, c):
         """The palette colour nearest to 0.72 x colour c (one shade darker), never c itself."""
@@ -760,7 +911,7 @@ class Hero:
 
     def _capsule(self, p0, p1, lk, hip_row=None):
         W, H = self.canvas
-        w, cp, sp = lk["w"], lk["c"], lk["s"]
+        w, cp, sp, lt = lk["w"], lk["c"], lk["s"], lk["l"]
         pad = int(w.max() / 2) + 3
         x0, x1 = max(0, int(min(p0[0], p1[0])) - pad), min(W, int(max(p0[0], p1[0])) + pad + 1)
         y0, y1 = max(0, int(min(p0[1], p1[1])) - pad), min(H, int(max(p0[1], p1[1])) + pad + 1)
@@ -779,7 +930,7 @@ class Hero:
         if nx * -1.0 + ny * 0.5 < 0:
             nx, ny = -nx, -ny
         s = (qx * nx + qy * ny) / np.maximum(h, 1e-6)
-        col = np.where(s > 0.35, sp[bi], cp[bi]).astype(np.int16)
+        col = np.where(s > 0.35, sp[bi], np.where(s < -0.45, lt[bi], cp[bi])).astype(np.int16)
         full = np.zeros((H, W), bool)
         colf = np.full((H, W), -1, np.int16)
         full[y0:y1, x0:x1] = inside
@@ -810,6 +961,8 @@ class Hero:
         ring = _ring(own > 0)
         ring[:int(hip[1]) + 1] = False
         col[ring] = self.outline
+        col = despeckle_idx(col)
+        own[col < 0] = 0
         return col, own, area
 
     def _arm_chain(self, steps, side):
@@ -844,14 +997,25 @@ class Hero:
         b1, b2 = knee - hip, ank - knee
         return math.degrees(math.atan2(b1[0] * b2[1] - b1[1] * b2[0], b1 @ b2))
 
+    def _foot_rows(self, side, step):
+        """Lowest row of the boot turned by `step` and the x of its left / right end on that row, relative to the ankle."""
+        sp, rx, ry = self.variant(side + "_foot", step)
+        rows = np.nonzero((sp >= 0).any(1))[0]
+        cols = np.nonzero(sp[rows[-1]] >= 0)[0]
+        return rx + int(cols.min()), rx + int(cols.max())
+
     def _walk_try(self, Hdy, step, peak, i0, gy, hip_x):
         """The 8 frames of a walk with the pelvis Hdy above the flat ankle row (2 px bob at 112: lower at
-        the two double-support frames), stance feet moving back `step` px a frame (stride = 4 x step),
-        swing feet lifted (0.6, 1, 0.6) x peak.  Returns (legs per frame, metrics)."""
+        the two double-support frames, highest at mid-stance), stance feet moving back `step` px a frame (stride =
+        4 x step), swing feet lifted (0.6, 1, 0.6) x peak.  Boots: heel strike (toe up) at contact, flat through the
+        stance, toe-off (heel up) at push-off and the first swing frame, toe up again before the strike: the three
+        precomputed angles.  The planted contact point (heel, then the toe at push-off) moves back exactly `step`.
+        Returns (legs per frame, metrics)."""
         from .rig import ik2
         rig, k, q, m = self.rig, self.k, self.q, int(self.m)
         l1, l2 = rig.lengths["thigh"] * k, rig.lengths["shin"] * k
-        out, st, sw, viol = [], 0.0, 0.0, 0.0
+        out, st, sw, viol, mid = [], 0.0, 0.0, 0.0, 0.0
+        HS, TO = -1, 1
         for i in range(NFRAMES):
             s_n, s_f = (i - i0) % 8, (i - i0 - 4) % 8
             low = s_n in (0, 4)
@@ -859,18 +1023,24 @@ class Hero:
             legs = {}
             for side, s in (("near", s_n), ("far", s_f)):
                 planted = s <= 4
+                hip = np.array([hip_x[side], hip_y], float)
+                l0, r0 = self._foot_rows(side, 0)
                 if planted:
-                    x_off, lift = 2 * step - s * step, 0
+                    fs_ = HS if s == 0 else 0           # (a toe-up-onto-the-toe boot at s == 4 would shorten the leg at its longest reach)
+                    x_off = 2 * step - s * step
+                    if s == 0:
+                        x_ank = hip_x[side] + x_off + l0 - self._foot_rows(side, fs_)[0]
+                    elif s == 4:
+                        x_ank = hip_x[side] + (2 * step - 3 * step) + r0 - step - self._foot_rows(side, fs_)[1]
+                    else:
+                        x_ank = hip_x[side] + x_off
+                    ank = np.array([x_ank, self._ankle_ground_y(side, fs_)], float)
                 else:
                     w = s - 5
-                    x_off, lift = -step + (w + 1) * step, rnd((0.6, 1.0, 0.6)[w] * peak, q)
-                fs_ = 0          # boots stay flat in this walk (the 3-angle set is kept for later)
-                ank = np.array([hip_x[side] + x_off, min(gy[side] - lift, self._ankle_ground_y(side, fs_) - 0)], float)
-                if not planted:
-                    ank[1] = min(gy[side] - lift, self._ankle_ground_y(side, fs_))
-                else:
-                    ank[1] = gy[side]
-                hip = np.array([hip_x[side], hip_y], float)
+                    fs_ = (TO, 0, HS)[w]
+                    lift = rnd((0.6, 1.0, 0.6)[w] * peak, q)
+                    x_off = -step + (w + 1) * step
+                    ank = np.array([hip_x[side] + x_off, self._ankle_ground_y(side, fs_) - lift], float)
                 knee, _ = ik2(hip, ank, l1, l2, 1.0)
                 knee = np.array([rnd(knee[0], q), rnd(knee[1], q)], float)
                 for _ in range(4):
@@ -880,13 +1050,15 @@ class Hero:
                 f = self._flex(hip, knee, ank)
                 if planted:
                     st = max(st, f)
+                    if s == 2:
+                        mid = max(mid, f)
                 else:
                     sw = max(sw, f)
                 viol = max(viol, float(np.hypot(*(ank - hip))) - (l1 + l2))
-                legs[side] = {"hip": hip, "knee": knee, "ankle": ank, "planted": planted, "foot_step": fs_,
+                legs[side] = {"hip": hip, "knee": knee, "ankle": ank, "planted": planted, "foot_step": fs_, "s": s,
                               "short": max(0.0, float(np.hypot(*(ank - hip))) - (l1 + l2))}
             out.append((legs, low))
-        return out, {"stance": st, "swing": sw, "viol": viol}
+        return out, {"stance": st, "swing": sw, "viol": viol, "mid": mid}
 
     def _solve_walk(self):
         """Walk solved from an upright pelvis: fixed height above the ankle row, planted feet placed ahead of /
@@ -902,19 +1074,39 @@ class Hero:
         L = (rig.lengths["thigh"] + rig.lengths["shin"]) * k
         cands = []
         for step in range(q, q * 9, q):
-            for Hdy in range(-(-int(math.ceil(L)) // q) * q, int(0.90 * L), -q):
+            for Hdy in range(-(-int(math.ceil(L)) // q) * q, int(0.955 * L), -q):
                 for peak in (m, 2 * m, 3 * m, 4 * m):
                     fr, met = self._walk_try(Hdy, step, peak, i0, gy, hip_x)
-                    pen = (max(met["stance"] - MAX_STANCE_BEND, 0) * 2 + max(met["swing"] - MAX_SWING_BEND, 0)
-                           + max(met["viol"] - 0.8, 0) * 20)
-                    cands.append(((pen > 0.0, peak < 2 * m, pen if pen > 0 else 0.0, -step, -Hdy, peak), fr, met, step, Hdy, peak))
+                    pen = (max(met["stance"] - MAX_STANCE_BEND - 0.4, 0) * 2 + max(met["swing"] - MAX_SWING_BEND - 0.4, 0)
+                           + max(met["viol"] - 1.3, 0) * 20 + max(met["mid"] - MAX_MID_BEND - 0.4, 0) * 2)
+                    cands.append(((pen > 0.0, peak < 2 * m, pen if pen > 0 else 0.0, -step, -Hdy, abs(peak - 3 * m)), fr, met, step, Hdy, peak))
         best = min(cands, key=lambda c_: c_[0])
         _, fr, met, step, Hdy, peak = best
         rest_y = rnd(g.G(Jr["near.hip"])[1], q)
         self.sched = [(legs, int(legs["near"]["hip"][1] - rest_y), low) for legs, low in fr]
         self.walk = {"step": step, "stride": 4 * step, "Hdy": Hdy, "L": L, "peak": peak, "i0": i0, "gy": gy,
-                     "stance_bend": met["stance"], "swing_bend": met["swing"], "feasible": not best[0][0],
+                     "stance_bend": met["stance"], "swing_bend": met["swing"], "mid_bend": met["mid"], "feasible": not best[0][0],
                      "lean": self.lean_eff, "m": m}
+
+    def _arm_steps(self, i, old):
+        """Arms swing opposite the legs in whole rotation steps: the near arm goes back as the near foot strikes
+        (+ = back), the far arm forward.  A near hand that carries a prop keeps its forearm direction (the prop only
+        translates) and swings its upper arm less; the far arm bends at the elbow as it comes forward."""
+        if not hasattr(self, "_arm_base"):
+            self._arm_base = (int(round(np.mean([self.step_of(J, "near_upper") for J in self.J]))),
+                              int(round(np.mean([self.step_of(J, "near_fore") for J in self.J]))))
+        s = (i - self.walk["i0"]) % 8
+        c = math.cos(2 * math.pi * s / 8)
+        carries = any(g.slot == "near_hand" for g in self.gears)
+        out = {}
+        bn, fn = self._arm_base
+        un = int(round(bn + (2 if carries else 3) * c))
+        out["near_upper"] = un
+        out["near_fore"] = fn if carries else int(un - 1 if un >= 2 else un)
+        uf = int(round(1 - 3 * c))
+        out["far_upper"] = uf
+        out["far_fore"] = int(uf - 1 if uf >= 2 else uf)
+        return {k: max(-MAX_STEP, min(MAX_STEP, v)) for k, v in out.items() if k in old}
 
     # -- one frame, body, arms, legs (the prop is added by `props`)
     def base_frame(self, i):
@@ -923,8 +1115,12 @@ class Hero:
         for nm in ("near_upper", "near_fore", "far_upper", "far_fore"):
             if nm in ch.parts:
                 steps[nm] = self.step_of(self.J2[i] if nm.startswith("far_") else self.J[i], nm)
+        steps.update(self._arm_steps(i, steps))
         legs, bob, low = self.sched[i]
-        belt = int(round(g.G(self.Jrest["pelvis"])[1])) + bob       # the belt row
+        belt0 = int(round(g.G(self.Jrest["pelvis"])[1])) + bob      # the belt row
+        tsp, _, toy = self.sprites["torso"]
+        hem = toy + tsp.shape[0] - 1 + bob                          # tunic / skirt hem: a hand may overlap that, not the legs
+        belt = int(max(belt0, min(hem, belt0 + 0.25 * rig.lengths["thigh"] * self.k)))
         # the far hand never hangs below the belt (no skin on the legs): the nearest far-arm pose to the gait's
         # (|dupper| + |dfore| steps) whose hand ends above the belt row
         hide_far = False
@@ -1027,15 +1223,31 @@ class Hero:
                 cfg = (phi, gx * m)
                 ho = max(self._face_overlap(ge, cfg, i) for i in range(NFRAMES))
                 lo = max(self._leg_overlap(ge, cfg, i) for i in range(NFRAMES))
-                score = max(ho, lo) / 0.02
+                gap = max(self._hand_gap(ge, cfg, i) for i in range(NFRAMES))
+                score = max(ho, lo) / 0.02 + 50.0 * max(gap - 2.0, 0.0)
                 if best is None or score < best[0] - 1e-9:
                     best = (score, cfg, phi - phi0, ho, lo)
-                if ho <= 0.0 and lo <= 0.01:
+                if ho <= 0.0 and lo <= 0.01 and gap <= 2.0:
                     break
             self.carry[ge.name] = best[1]
             self.carry_dphi[ge.name] = best[2]
             self.carry_overlap[ge.name] = best[3]
-            self.carry_info[ge.name] = {"tilt": best[1][0], "long": bool(long_), "legs": best[4]}
+            self.carry_info[ge.name] = {"tilt": best[1][0], "long": bool(long_), "legs": best[4],
+                                          "gap": max(self._hand_gap(ge, best[1], i) for i in range(NFRAMES))}
+
+    def _hand_gap(self, ge, cfg, i):
+        """Chebyshev distance in px from the prop's nearest pixel to the near hand (forearm sprite): a held prop touches it."""
+        sp, org = self._prop_org(ge, cfg, i)
+        ys, xs = np.nonzero(sp[..., 3] > 0)
+        hsp = self.variant("near_fore", self.fd[i]["steps"]["near_fore"])[0]
+        ho = self.fd[i]["origin"]["near_fore"]
+        hy, hx = np.nonzero(hsp >= 0)
+        if len(xs) == 0 or len(hx) == 0:
+            return 0.0
+        px, py = xs + int(org[0]), ys + int(org[1])
+        fx, fy = hx + int(ho[0]), hy + int(ho[1])
+        d = np.maximum(np.abs(px[:, None] - fx[None, :]), np.abs(py[:, None] - fy[None, :]))
+        return float(d.min())
 
     def _leg_overlap(self, ge, cfg, i):
         sp, org = self._prop_org(ge, cfg, i)
@@ -1131,7 +1343,7 @@ class Hero:
                 if nm in props:
                     sp, org, var = props[nm]
                     variant[nm] = var
-                    if nm.startswith("gear:") and nm != "gear:shield" and pm is None:
+                    if nm[5:] in self.carry and pm is None:
                         pm = (int(org[0]), int(org[1]), sp >= 0)
                 elif nm.endswith(("_thigh", "_shin")) and nm in self.look:
                     lg = fd["legs"][side]
@@ -1147,7 +1359,7 @@ class Hero:
                     sp = self.variant(nm, fd["steps"][nm])[0]
                     org = fd["origin"][nm]
                     variant[nm] = ("step", fd["steps"][nm])
-                    if fd["hide_far"] and nm in ("far_upper", "far_fore"):
+                    if (fd["hide_far"] or self.still_arms == 1) and nm in ("far_upper", "far_fore"):
                         offs[nm] = (int(org[0]), int(org[1]))        # the far arm would put a hand below the belt
                         continue
                     if nm.endswith("_foot"):
@@ -1163,6 +1375,8 @@ class Hero:
                     variant[nm] = ("rigid", 0)
                 offs[nm] = (int(org[0]), int(org[1]))
                 _paste(idx, lab, sp, org, li)
+            drawn = [k for k, n in enumerate(names) if n.endswith(("_thigh", "_shin", "_foot", "_upper", "_fore"))]
+            idx = despeckle_idx(idx, np.isin(lab, drawn))      # no isolated pixel inside a leg, boot or arm
             hs = self.sprites["head"][0]
             ho = fd["origin"]["head"]
             holes, legs = {}, {}
@@ -1175,8 +1389,9 @@ class Hero:
                 ang = math.degrees(math.atan2(cross, (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1])))
                 rows = np.nonzero(feet[side].any(1))[0] if side in feet else []
                 cx = int(np.nonzero(feet[side][rows[-1]])[0].min()) if len(rows) else -1
+                cxr = int(np.nonzero(feet[side][rows[-1]])[0].max()) if len(rows) else -1
                 legs[side] = {"planted": lg["planted"], "flex": ang, "area": area, "hip": tuple(a), "knee": tuple(b),
-                              "ankle": tuple(c), "sole": int(rows[-1]) if len(rows) else -1,
+                              "ankle": tuple(c), "sole": int(rows[-1]) if len(rows) else -1, "cxr": cxr, "fstep": lg["foot_step"], "s": lg["s"],
                               "lift": (self.foot_y - 1 - int(rows[-1])) if len(rows) else 0, "cx": cx,
                               "hdy": float(self.walk["gy"][side] - a[1] + (int(self.m) if fd["low"] else 0))}
             frames.append({"idx": idx, "label": lab, "offset": offs, "variant": variant, "bob": fd["bob"],
@@ -1185,6 +1400,7 @@ class Hero:
                            "head_n": int((hs >= 0).sum()), "legmask": self.legmask[i]})
         fs = FrameSet(frames, names, self.palette, self.master, self.foot_y, self.pel_x)
         fs.skin = set(self.skin)
+        fs.still_arms = self.still_arms
         fs.walk = dict(self.walk)
         fs.prop_info = next(iter(self.carry_info.values()), None)
         return fs
@@ -1221,6 +1437,7 @@ class FrameSet:
         self.frames, self.names, self.palette = frames, names, palette
         self.master, self.foot_y, self.pel_x = master, foot_y, pel_x
         self.skin = set()
+        self.still_arms = 2
 
     def rgba(self, i):
         return to_rgba(self.frames[i]["idx"], self.palette)
@@ -1238,6 +1455,7 @@ class FrameSet:
                                                                 f["prop"][2].repeat(2, 0).repeat(2, 1))})
         r = FrameSet(out, self.names, self.palette, self.master * 2, self.foot_y * 2, self.pel_x * 2)
         r.skin = self.skin
+        r.still_arms = self.still_arms
         r.prop_info = self.prop_info
         return r
 
@@ -1272,6 +1490,7 @@ class FrameSet:
                         "prop": None if f["prop"] is None else _half_prop(f["prop"])})
         r = FrameSet(out, self.names, self.palette, self.master // 2, self.foot_y // 2, self.pel_x // 2)
         r.skin = self.skin
+        r.still_arms = self.still_arms
         r.prop_info = self.prop_info
         return r
 
@@ -1349,24 +1568,64 @@ def measure(fs, known=True, head_row=None):
     return out
 
 
+# ------------------------------------------------------------------ the whole gate
+def run_gates(fs):
+    """Every gate on the 56 px frames of one hero.  Returns {gate: (ok, value)}; a hero is accepted when all are ok."""
+    g = {}
+    wb, st = walk_gates(fs)
+    for k, v in wb.items():
+        g[k] = (v == 0, v)
+    g["pelvis_ratio"] = (st["min_pelvis_ratio"] >= 0.95, round(float(st["min_pelvis_ratio"]), 3))
+    g["trunk_lean_deg"] = (0.0 <= fs.walk["lean"] <= 6.0, round(float(fs.walk["lean"]), 2))
+    g["stance_knee_deg"] = (st["max_stance_bend"] <= MAX_STANCE_BEND + 0.5, round(float(st["max_stance_bend"]), 1))
+    g["swing_knee_deg"] = (st["max_swing_bend"] <= MAX_SWING_BEND + 0.5, round(float(st["max_swing_bend"]), 1))
+    g["stride_px"] = (st["stride"] >= 8, st["stride"])
+    for k, v in leg_gates(fs).items():
+        g[k] = (v == 0, v)
+    g["joint_holes"] = (count_hole_frames(fs) == 0, count_hole_frames(fs))
+    g["far_hand_on_legs"] = (no_skin_below_belt(fs) == 0, no_skin_below_belt(fs))
+    ok, w = prop_clear_of_face(fs)
+    g["prop_off_face"] = (ok, round(100 * w, 2))
+    ok, w = prop_clear_of_legs(fs)
+    g["prop_off_legs"] = (ok, round(100 * w, 2))
+    g["prop_upright"] = (prop_upright(fs), round(float(fs.prop_info["tilt"]), 1) if fs.prop_info else 0.0)
+    gap = fs.prop_info.get("gap", 0.0) if fs.prop_info else 0.0
+    g["prop_in_hand"] = (gap <= 2.0, gap)
+    ab, ast = arm_gates(fs)
+    g["arm_count"] = (ab["arm_count"] == 0, "expect %d, far arm seen in %d frames, hand blobs max %d"
+                      % (fs.still_arms, ast["far_arm_frames"], max(ast["hand_blobs"])))
+    inside, anywhere = speckle(fs)
+    g["speckle_drawn_parts"] = (inside == 0, inside)
+    m = measure(fs)
+    rigid = {n: m[n]["all"][1] for n in m if n in ("head", "torso") or n.startswith("gear:")}
+    worst = max([v for v in rigid.values() if v == v] or [0.0])
+    g["rigid_parts_change_pct"] = (worst == 0.0, round(float(worst), 2))
+    bob = [int(f["bob"]) for f in fs.frames]
+    g["bob_px"] = (max(bob) - min(bob) == 1, max(bob) - min(bob))
+    rows = [np.nonzero((f["idx"] >= 0).any(1))[0].max() for f in fs.frames]
+    g["feet_on_ground"] = (all(fs.foot_y - 2 <= r <= fs.foot_y - 1 for r in rows), int(max(rows)))
+    g["palette_colours"] = (len(fs.palette) <= PALETTE_N, len(fs.palette))
+    g["alpha_clean"] = (all(set(np.unique(fs.rgba(i)[..., 3])) <= {0, 255} for i in range(len(fs.frames))), 0)
+    return g
+
+
 # ------------------------------------------------------------------ whole bake
-def bake_hero(png, joints, even_master=True):
-    """Both masters of one hero.  Returns dict with FrameSets and timings.
-    A: 56 master, 112 = 2x nearest.  B: 112 master with even origins, 56 = 2:1 of it."""
+def bake_game_size(png, joints):
+    """The shipped set: the 56 px walk, authored natively at 56 px (every part, whole-pixel origins, so rigid parts are
+    exactly rigid at 56 and nothing is derived by a 2:1 step).  Returns (FrameSet, Hero, seconds)."""
     from .fit import fit_still
     from .gear import load_gear
     t0 = time.time()
     fitted = fit_still(png, joints)
     gears = load_gear(png)
-    t1 = time.time()
-    ha = Hero(png, joints, 56, False, fitted, gears)
-    A56 = ha.bake()
+    hero = Hero(png, joints, 56, False, fitted, gears)
+    return hero.bake(), hero, time.time() - t0
+
+
+def bake_hero(png, joints):
+    """The 56 px walk (the shipped set, `bake_game_size`) and its exact 2x nearest 112 px copy.  (The earlier 112 px even-origin
+    master with a 2:1 derivation is retired: it cannot keep boot angles and a contact point on even pixels, and the game ships 56.)"""
+    t0 = time.time()
+    A56, ha, sec = bake_game_size(png, joints)
     A112 = A56.up2()
-    t2 = time.time()
-    hb = Hero(png, joints, 112, True, fitted, gears)
-    B112 = hb.bake()
-    B56 = B112.down2()
-    t3 = time.time()
-    return {"A56": A56, "A112": A112, "B112": B112, "B56": B56, "heroA": ha, "heroB": hb,
-            "seconds": {"fit": t1 - t0, "master56_and_2x": t2 - t1, "master112_and_2to1": t3 - t2,
-                        "total": t3 - t0}}
+    return {"A56": A56, "A112": A112, "heroA": ha, "seconds": {"total": time.time() - t0}}
