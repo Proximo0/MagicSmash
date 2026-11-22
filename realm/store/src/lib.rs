@@ -61,6 +61,8 @@ pub trait Store: Send + Sync {
 	fn stack(&self, owner: Owner, kind: StackKind) -> Result<u64>;
 	fn stacks(&self, owner: Owner) -> Result<Vec<(StackKind, u64)>>;
 	fn entitlements(&self, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>>;
+	/// The cards the account has learned from pages (the shell lists a hero's deck cards with it).
+	fn owned_cards(&self, account: AccountId) -> Result<Vec<u16>>;
 	/// Everything the account minted and where it is, and per stack kind minted, spent, sent, received, held.
 	fn trace(&self, account: AccountId) -> Result<Trace>;
 	/// What the account sent, and what its receivers sent onward of it, to `depth` hops.

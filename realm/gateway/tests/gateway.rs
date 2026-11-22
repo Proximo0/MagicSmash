@@ -26,10 +26,14 @@ impl Drop for World {
 }
 
 fn world(name: &str, dev_login: bool) -> World {
+    world_with(name, Config { dev_login, secret: 77, ..Config::default() })
+}
+
+fn world_with(name: &str, cfg: Config) -> World {
     let db = std::env::temp_dir().join(format!("realm-gw-{}-{name}.db", std::process::id()));
     let _ = std::fs::remove_file(&db);
     let store = Arc::new(SqliteStore::open(&db).unwrap());
-    let gw = Gateway::start(store.clone(), Config { dev_login, secret: 77, ..Config::default() });
+    let gw = Gateway::start(store.clone(), cfg);
     let sim = SimOpts { field: 0, seed: 3, monsters: 100, threads: 1, bots: 0, rally_permille: 0, level: 0 };
     gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
     let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
@@ -246,3 +250,58 @@ fn spends_and_the_smith_are_the_players_own() {
     assert!(w.store.item(junk).unwrap().is_none());
     assert_eq!(w.store.verify().unwrap().problems, Vec::<String>::new());
 }
+
+/// What the shell (job C2) added to the gateway: the item list carries `+` and what the sockets hold, the deck cards
+/// a hero may use, a merchant's buy and sell, and the dev kit a new hero gets under `--dev-grant`.
+#[test]
+fn the_shells_calls_cards_merchants_and_the_dev_kit() {
+    let w = world_with("shell", Config { dev_login: true, dev_grant: true, secret: 77, ..Config::default() });
+    let mut ann = login(&w, "ann");
+    let h = make_hero(&mut ann, "Annie", 1);
+    // The kit: coin, embers, runes, two draughts and three items of level 1.
+    let inv = ann.inventory(h).unwrap();
+    assert_eq!((inv.stack(1, 1), inv.stack(1, 1000), inv.stack(1, 2001), inv.stack(1, 100)), (500, 30, 4, 2));
+    assert_eq!(inv.items.len(), 3);
+    assert!(inv.items.iter().all(|i| i.level == 1 && i.kind == PlaceKind::Bag as u8 && i.plus == 0));
+    // No kit without the flag.
+    let plain = world("shell-plain", true);
+    let mut bo = login(&plain, "bo");
+    let hb = make_hero(&mut bo, "Bobby", 2);
+    assert!(bo.inventory(hb).unwrap().items.is_empty());
+
+    // A socketed rune and a plus show in the list.
+    let rare = inv.items.iter().find(|i| i.rarity == 2).unwrap().id;
+    assert_eq!(ann.call(Req::Socket { hero: h, item: rare, socket: 0, kind: 2001 }).unwrap().clone(), Resp::Smith { item: rare, plus: 0, success: true, amount: 10 });
+    let Resp::Smith { item: up, plus, .. } = ann.call(Req::Upgrade { hero: h, item: rare }).unwrap() else { panic!() };
+    assert_eq!(plus, 1);
+    let it = ann.inventory(h).unwrap().items.into_iter().find(|i| i.id == up).unwrap();
+    assert_eq!((it.plus, it.socketed.clone()), (1, vec![2001]));
+
+    // The deck cards: the novice twelve at level 1; a hero of level 5 has two more.
+    assert_eq!(ann.call(Req::Cards { hero: h }).unwrap(), Resp::Cards((0..12).collect()));
+    let mut cy = login(&w, "cy");
+    let hc = make_hero(&mut cy, "Cyrus", 2);
+    assert_eq!(code_of(ann.call(Req::Cards { hero: hc }).unwrap()), code::NOT_YOURS, "not her hero");
+    w.store.stack_credit(sys(&w, 90), Owner::bag(h), StackKind::page(25), 1, true, "grant").unwrap();
+    assert_eq!(ann.call(Req::LearnPage { hero: h, card: 25 }).unwrap(), Resp::Ok);
+    assert_eq!(ann.call(Req::Cards { hero: h }).unwrap(), Resp::Cards((0..12).chain([25]).collect()));
+
+    // Buy: a draught is 20 coin; the price list is the merchant's; coin and bag judge the rest.
+    let coin0 = ann.inventory(h).unwrap().stack(1, 1);
+    let Resp::Smith { amount, .. } = ann.call(Req::Buy { hero: h, kind: 100, n: 3 }).unwrap() else { panic!() };
+    assert_eq!(amount, 60);
+    let inv = ann.inventory(h).unwrap();
+    assert_eq!((inv.stack(1, 1), inv.stack(1, 100)), (coin0 - 60, 5));
+    assert_eq!(code_of(ann.call(Req::Buy { hero: h, kind: 1, n: 1 }).unwrap()), code::BAD_REQUEST, "coin is not for sale");
+    assert_eq!(code_of(ann.call(Req::Buy { hero: h, kind: 100, n: 0 }).unwrap()), code::BAD_REQUEST);
+    assert_eq!(code_of(ann.call(Req::Buy { hero: h, kind: 105, n: 99 }).unwrap()), code::INSUFFICIENT, "400 coin each");
+    assert_eq!(ann.inventory(h).unwrap().stack(1, 1), coin0 - 60, "a refused purchase takes nothing");
+    // Sell: a common item level 1 pays 2 coin; an item that is not in her bag is refused.
+    let common = inv.items.iter().find(|i| i.rarity == 0).unwrap().id;
+    let before = ann.inventory(h).unwrap().stack(1, 1);
+    assert_eq!(ann.call(Req::Sell { hero: h, item: common }).unwrap(), Resp::Smith { item: 0, plus: 0, success: true, amount: 2 });
+    assert_eq!(ann.inventory(h).unwrap().stack(1, 1), before + 2);
+    assert_eq!(code_of(ann.call(Req::Sell { hero: h, item: common }).unwrap()), code::MISSING, "it is gone");
+    assert_eq!(w.store.verify().unwrap().problems, Vec::<String>::new());
+}
+

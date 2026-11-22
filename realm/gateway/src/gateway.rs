@@ -36,6 +36,9 @@ pub struct Config {
     pub secret: u64,
     /// Where first boss kills are kept (None: in memory).
     pub first_kills: Option<std::path::PathBuf>,
+    /// Dev only (`--dev-grant`, with dev login): a new hero is given a small kit (coin, embers, a few items, runes,
+    /// potions) so the shell's bank, smith and merchants can be tried on day one. Minted as "grant".
+    pub dev_grant: bool,
 }
 
 /// The loot secret kept in `path` (16 hex digits), made from the clock, the process and the OS's random hasher
@@ -183,6 +186,8 @@ fn item_info(i: &Item) -> ItemInfo {
         kind: i.place.kind as u8,
         tab: i.place.tab,
         slot: i.place.slot,
+        plus: i.spec.plus,
+        socketed: i.socketed.iter().map(|s| s.map_or(0, |k| k.0)).collect(),
     }
 }
 
@@ -337,6 +342,9 @@ impl Gateway {
                     p.job = NO_JOB;
                     self.player(account, Cmd::HeroSave { hero: id, progress: p })?;
                 }
+                if self.cfg.dev_grant && self.cfg.dev_login {
+                    self.dev_kit(id);
+                }
                 Ok(Resp::HeroCreated(id))
             }
             Req::DeleteHero { hero } => {
@@ -447,6 +455,9 @@ impl Gateway {
                 let k = self.smith().fuse(self.meta(0), hero, stat as u32, grade as u32)?;
                 Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: k.0 as u64 })
             }
+            Req::Cards { hero } => self.cards(account, hero),
+            Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
+            Req::Sell { hero, item } => self.sell(account, hero, item),
             Req::Ping | Req::LoginDev { .. } | Req::LoginSteam { .. } => unreachable!(),
         }
     }
@@ -547,6 +558,62 @@ impl Gateway {
             let _ = slot.handle.cmds.send(HostCmd::Admit(Entry { ticket, hero: hero as u64, sheet, outing }));
         }
         Ok(Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field, copy })
+    }
+
+    /// The deck cards the hero may use: the novice twelve, one more at each even class level to 24 (the store's
+    /// `card_owned`), and the pages the account has learned.
+    fn cards(&self, account: i64, hero: i64) -> Result<Resp> {
+        let h = self.own_hero(account, hero)?;
+        let level = h.progress.class_level;
+        let mut v: Vec<u16> = (0..limits::DECK_CARDS).filter(|&c| c < limits::NOVICE_CARDS || (c < limits::NOVICE_CARDS + 12 && level >= 2 * (c - limits::NOVICE_CARDS + 1))).collect();
+        for c in self.store.owned_cards(account)? {
+            if !v.contains(&c) {
+                v.push(c);
+            }
+        }
+        v.sort_unstable();
+        Ok(Resp::Cards(v))
+    }
+
+    /// A merchant sells potions: coin first, then the potion, the coin given back if the bag cannot take it.
+    fn buy(&self, account: i64, hero: i64, kind: u32, n: u32) -> Result<Resp> {
+        self.own_hero(account, hero)?;
+        let Some(price) = potion_price(kind) else { return Ok(bad("the merchant does not sell that")) };
+        if n == 0 || n > 99 {
+            return Ok(bad("1 to 99 at a time"));
+        }
+        let cost = price * n as u64;
+        let bag = Owner::bag(hero);
+        self.server(Cmd::StackDebit { from: bag, kind: StackKind::COIN, count: cost, reason: "buy".into() })?;
+        let credit = Cmd::StackCredit { to: bag, kind: StackKind(kind), count: n as u64, minted: false, reason: "buy".into() };
+        if let Err(e) = self.server(credit) {
+            let _ = self.server(Cmd::StackCredit { to: bag, kind: StackKind::COIN, count: cost, minted: false, reason: "refund".into() });
+            return Err(e);
+        }
+        Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: cost })
+    }
+
+    /// A merchant buys an item from her bag at `sell_price`.
+    fn sell(&self, account: i64, hero: i64, item: i64) -> Result<Resp> {
+        self.own_hero(account, hero)?;
+        let it = self.item_at(item, PlaceKind::Bag, hero)?;
+        let price = sell_price(&it.spec);
+        self.server(Cmd::SellItem { hero, item, price })?;
+        Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: price })
+    }
+
+    /// The `--dev-grant` kit: 500 coin, 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
+    /// uncommon and a common item of level 1 from The Fool's Road.
+    fn dev_kit(&self, hero: i64) {
+        let mut rng = realm_loot::rng::Rng::new(hero as u64 ^ 0xD3F_0001);
+        let bag = Owner::bag(hero);
+        for (kind, count) in [(StackKind::COIN, 500u64), (StackKind::material(0), 30), (StackKind::rune(0, 1), 4), (StackKind::potion(0), 2)] {
+            let _ = self.server(Cmd::StackCredit { to: bag, kind, count, minted: true, reason: "grant".into() });
+        }
+        for rarity in [2u8, 1, 0] {
+            let spec = realm_loot::gear::make_item(&mut rng, 0, 1, rarity);
+            let _ = self.server(Cmd::Mint { to: Dest::bag(hero), spec, reason: "grant".into() });
+        }
     }
 
     fn inventory(&self, account: i64, hero: i64) -> Result<Resp> {
@@ -834,6 +901,19 @@ impl Gateway {
 }
 
 /// The potion id a belt entry holds, for tests.
+/// What a merchant asks for a potion of stack kind 100 + p, in coin (None: not a potion he sells).
+pub fn potion_price(kind: u32) -> Option<u64> {
+    const PRICES: [u64; 6] = [20, 60, 60, 120, 120, 400];
+    kind.checked_sub(100).and_then(|p| PRICES.get(p as usize)).copied()
+}
+
+/// What a merchant pays for an item: `2 x (1 + level / 4)` coin times 1, 2, 5, 12 or 40 by rarity. Far under what the
+/// smith would pay in embers and coin to make it, so selling is a way to be rid of an item, not a faucet.
+pub fn sell_price(spec: &ItemSpec) -> u64 {
+    const BY_RARITY: [u64; 5] = [1, 2, 5, 12, 40];
+    2 * (1 + spec.item_level as u64 / 4) * BY_RARITY[(spec.rarity as usize).min(4)]
+}
+
 pub fn belt_potion(kind: u32) -> u8 {
     if kind >= 100 && kind < 106 { (kind - 100) as u8 } else { P_NONE }
 }

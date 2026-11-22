@@ -24,6 +24,7 @@ fn main() {
     let (mut db, mut port, mut fields, mut field_port) = ("realm.db".to_string(), 7700u16, vec![0u8, 1, 2, 3, 4, 5], 7800u16);
     let (mut monsters, mut threads, mut seed, mut dev, mut public_host, mut bind, mut secs) = (20_000u32, 1usize, 1u64, false, String::new(), "0.0.0.0".to_string(), 0u64);
     let mut copies = 1u32;
+    let mut dev_grant = false;
     let mut secret: Option<u64> = None;
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
@@ -38,12 +39,13 @@ fn main() {
             "--threads" => threads = num(v).max(1) as usize,
             "--seed" => seed = num(v),
             "--dev-login" => dev = true,
+            "--dev-grant" => dev_grant = true,
             "--public-host" => public_host = v.to_string(),
             "--bind" => bind = v.to_string(),
             "--secs" => secs = num(v),
             "--secret" => secret = Some(num(v)),
             "--help" | "-h" => {
-                println!("realm-gateway [--db=realm.db] [--dev-login] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--secs=N]");
+                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--secs=N]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),
@@ -55,7 +57,7 @@ fn main() {
     let store = Arc::new(SqliteStore::open(&db).unwrap_or_else(|e| die(&format!("open {db}: {e}"))));
     let secret = secret.unwrap_or_else(|| load_secret(std::path::Path::new(&format!("{db}.secret"))));
     let first_kills = Some(std::path::PathBuf::from(format!("{db}.bosskills")));
-    let gw = Gateway::start(store, Config { dev_login: dev, public_host, secret, first_kills });
+    let gw = Gateway::start(store, Config { dev_login: dev, public_host, secret, first_kills, dev_grant });
     let mut udp = Vec::new();
     let mut n = 0u16;
     for c in 0..copies {

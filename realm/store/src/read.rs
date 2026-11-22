@@ -112,6 +112,12 @@ pub fn stacks(c: &Connection, o: &Owner) -> Result<Vec<(StackKind, u64)>> {
 	Ok(v)
 }
 
+/// The cards an account has learned from pages (the deck cards 12 to 29 it owns beyond its level's), ascending.
+pub fn owned_cards(c: &Connection, account: AccountId) -> Result<Vec<u16>> {
+	let mut st = c.prepare_cached("SELECT card FROM owned_cards WHERE account = ?1 ORDER BY card")?;
+	Ok(st.query_map([account], |r| r.get::<_, u16>(0))?.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 pub fn entitlements(c: &Connection, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>> {
 	let mut st = c.prepare_cached("SELECT kind, count FROM entitlements WHERE account = ?1 ORDER BY kind")?;
 	let v = st

@@ -41,6 +41,10 @@ pub const T_SALVAGE: u8 = 0x1C;
 pub const T_UPGRADE: u8 = 0x1D;
 pub const T_REROLL: u8 = 0x1E;
 pub const T_FUSE: u8 = 0x1F;
+/// The shell's additions (job C2): the cards a hero may put in a deck, and a merchant's buy and sell.
+pub const T_CARDS: u8 = 0x30;
+pub const T_BUY: u8 = 0x31;
+pub const T_SELL: u8 = 0x32;
 
 // ---- replies
 pub const R_OK: u8 = 0x80;
@@ -53,6 +57,7 @@ pub const R_TICKET: u8 = 0x86;
 pub const R_INVENTORY: u8 = 0x87;
 pub const R_PONG: u8 = 0x88;
 pub const R_SMITH: u8 = 0x89;
+pub const R_CARDS: u8 = 0x8A;
 
 // ---- pushes (tag 0)
 pub const P_TOWN_SNAPSHOT: u8 = 0xA0;
@@ -157,6 +162,12 @@ pub enum Req {
     Upgrade { hero: i64, item: i64 },
     Reroll { hero: i64, item: i64 },
     Fuse { hero: i64, stat: u8, grade: u8 },
+    /// The deck cards (0..30) the hero may put in her deck: the novice twelve, a card each even level to 24, pages learned.
+    Cards { hero: i64 },
+    /// A merchant sells `n` of a potion kind (a stack kind 100..106) for coin.
+    Buy { hero: i64, kind: u32, n: u32 },
+    /// A merchant buys an item from her bag for coin.
+    Sell { hero: i64, item: i64 },
     Ping,
 }
 
@@ -306,6 +317,21 @@ impl Req {
                 w.extend_from_slice(&[*stat, *grade]);
                 T_FUSE
             }
+            Req::Cards { hero } => {
+                put_u64(&mut w, *hero as u64);
+                T_CARDS
+            }
+            Req::Buy { hero, kind, n } => {
+                put_u64(&mut w, *hero as u64);
+                put_u32(&mut w, *kind);
+                put_u32(&mut w, *n);
+                T_BUY
+            }
+            Req::Sell { hero, item } => {
+                put_u64(&mut w, *hero as u64);
+                put_u64(&mut w, *item as u64);
+                T_SELL
+            }
             Req::Ping => T_PING,
         };
         (t, w)
@@ -356,6 +382,9 @@ impl Req {
             T_UPGRADE => Req::Upgrade { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_REROLL => Req::Reroll { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_FUSE => Req::Fuse { hero: hero(&mut r)?, stat: r.u8()?, grade: r.u8()? },
+            T_CARDS => Req::Cards { hero: hero(&mut r)? },
+            T_BUY => Req::Buy { hero: hero(&mut r)?, kind: r.u32()?, n: r.u32()? },
+            T_SELL => Req::Sell { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_PING => Req::Ping,
             _ => return None,
         };
@@ -442,6 +471,10 @@ pub struct ItemInfo {
     pub kind: u8,
     pub tab: u32,
     pub slot: u32,
+    /// The smith's `+` (0 to 10).
+    pub plus: u8,
+    /// What each socket holds (a stack kind: a rune or a monster card), 0 when empty; `sockets` entries.
+    pub socketed: Vec<u32>,
 }
 
 impl ItemInfo {
@@ -457,6 +490,10 @@ impl ItemInfo {
             w.push(*s);
             put_u16(w, *p);
         }
+        w.push(self.plus);
+        for i in 0..self.sockets as usize {
+            put_u32(w, self.socketed.get(i).copied().unwrap_or(0));
+        }
     }
     pub fn read(r: &mut Rd) -> Option<ItemInfo> {
         let id = r.u64()? as i64;
@@ -465,7 +502,9 @@ impl ItemInfo {
         let (level, tab, slot) = (r.u16()?, r.u32()?, r.u32()?);
         let n = r.u8()? as usize;
         let lines = (0..n).map(|_| Some((r.u8()?, r.u16()?))).collect::<Option<Vec<_>>>()?;
-        Some(ItemInfo { id, base, gear_slot, level, rarity, lines, sockets, kind, tab, slot })
+        let plus = r.u8()?;
+        let socketed = (0..sockets).map(|_| r.u32()).collect::<Option<Vec<_>>>()?;
+        Some(ItemInfo { id, base, gear_slot, level, rarity, lines, sockets, kind, tab, slot, plus, socketed })
     }
 }
 
@@ -571,6 +610,8 @@ pub enum Resp {
     /// A smith's result: the item now (0 when none), its `+`, whether the step worked, and what it cost or gave:
     /// embers for an upgrade's cost or a salvage's yield, coin for a socket, a rune's stack kind for a fuse.
     Smith { item: i64, plus: u8, success: bool, amount: u64 },
+    /// The deck cards a hero owns (`Req::Cards`).
+    Cards(Vec<u16>),
     // pushes
     Snapshot(TownSnapshot),
     Chat { from: u16, name: String, text: String },
@@ -634,6 +675,13 @@ impl Resp {
                 put_u64(&mut w, *amount);
                 R_SMITH
             }
+            Resp::Cards(v) => {
+                put_u16(&mut w, v.len() as u16);
+                for c in v {
+                    put_u16(&mut w, *c);
+                }
+                R_CARDS
+            }
             Resp::Snapshot(s) => {
                 s.put(&mut w);
                 P_TOWN_SNAPSHOT
@@ -685,6 +733,10 @@ impl Resp {
             R_INVENTORY => Resp::Inventory(Inventory::read(&mut r)?),
             R_PONG => Resp::Pong,
             R_SMITH => Resp::Smith { item: r.u64()? as i64, plus: r.u8()?, success: r.u8()? != 0, amount: r.u64()? },
+            R_CARDS => {
+                let n = r.u16()? as usize;
+                Resp::Cards((0..n).map(|_| r.u16()).collect::<Option<Vec<_>>>()?)
+            }
             P_TOWN_SNAPSHOT => Resp::Snapshot(TownSnapshot::read(&mut r)?),
             P_TOWN_CHAT => Resp::Chat { from: r.u16()?, name: read_str(&mut r)?, text: read_str(&mut r)? },
             P_TOWN_ARRIVE => Resp::Arrive(Member::read(&mut r)?),
@@ -773,6 +825,9 @@ mod tests {
             Req::Upgrade { hero: 4, item: 9 },
             Req::Reroll { hero: 4, item: 9 },
             Req::Fuse { hero: 4, stat: 2, grade: 1 },
+            Req::Cards { hero: 4 },
+            Req::Buy { hero: 4, kind: 100, n: 3 },
+            Req::Sell { hero: 4, item: 9 },
             Req::Ping,
         ];
         for q in reqs {
@@ -787,7 +842,7 @@ mod tests {
     fn every_reply_and_push_survives_the_wire() {
         let hero = HeroInfo { id: 3, name: "Mira".into(), race: 1, class: 2, look: 9, job: 0, class_level: 12, class_xp: 6000, unspent: 2, stats: [1, 2, 3, 4, 0, 0], deck: vec![0, 1], belt: [100, 0, 105], waystones: [-1, 2, -1, -1, -1, -1], self_found: false, deleted: false };
         let inv = Inventory {
-            items: vec![ItemInfo { id: 5, base: 2, gear_slot: 1, level: 10, rarity: 2, lines: vec![(0, 3), (2, 1)], sockets: 1, kind: 1, tab: 0, slot: 4 }],
+            items: vec![ItemInfo { id: 5, base: 2, gear_slot: 1, level: 10, rarity: 2, lines: vec![(0, 3), (2, 1)], sockets: 1, kind: 1, tab: 0, slot: 4, plus: 2, socketed: vec![2011] }],
             stacks: vec![(1, 1, 500), (3, 100, 4)],
         };
         let rs = vec![
@@ -801,6 +856,7 @@ mod tests {
             Resp::Inventory(inv.clone()),
             Resp::Pong,
             Resp::Smith { item: 5, plus: 3, success: true, amount: 120 },
+            Resp::Cards(vec![0, 1, 12, 25]),
             Resp::Snapshot(TownSnapshot { tick: 77, at: vec![(1, 100, 200, 3), (2, 4000, 5, 0)] }),
             Resp::Chat { from: 1, name: "Bo".into(), text: "hi".into() },
             Resp::Arrive(Member { id: 4, name: "Zed".into(), class: 1, race: 0, level: 3, look: 0 }),
