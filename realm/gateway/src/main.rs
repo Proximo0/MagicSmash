@@ -84,6 +84,9 @@ fn main() {
     if let Err(e) = gw.social.persist(std::path::Path::new(&format!("{db}.social"))) {
         die(&format!("social log {db}.social: {e}"));
     }
+    if let Err(e) = gw.homes.persist(std::path::Path::new(&format!("{db}.homes"))) {
+        die(&format!("homes file {db}.homes: {e}"));
+    }
     if let Some(p) = admin_port {
         let token = realm_gateway::social::admin::load_token(std::path::Path::new(&format!("{db}.admin")));
         let a = realm_gateway::social::admin::serve(gw.clone(), p, token).unwrap_or_else(|e| die(&format!("admin port {p}: {e}")));

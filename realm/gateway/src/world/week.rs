@@ -135,6 +135,10 @@ impl WeekReport {
             && s.admitted_from_queue > 0
             && s.vaults_closed > 0
             && (!self.killed || s.hosts_lost == 1)
+            // An outing is lost (its haul since the last bank; banked coin is checked above) only with the killed
+            // host: every one the bots saw end that way is a ticket that host held.
+            && self.lost_outings <= s.tickets_lost
+            && (self.killed || s.tickets_lost == 0)
             && self.counts.world_bosses as f64 >= self.days / 7.0 * 27.0
     }
 
@@ -376,6 +380,37 @@ fn coin_of(store: &SqliteStore, hero: i64, account: i64) -> u64 {
     c(Owner::bag(hero)) + c(Owner::bank(account))
 }
 
+/// The most the realm clock runs ahead of the slowest field copy (4 min 30 s of the realm, half a minute short of
+/// a tide). Each host step sets its field to the realm's clock, so no step jumps farther than this: shorter than a
+/// tide (5 min), a field boss's stay (8 min) and a world boss ride (15 min), every copy steps inside each of their
+/// windows and counts each one, however slowly a loaded box runs it. Unbounded, a host the box starves for a
+/// moment jumps a whole window at this speed (a ride is 45 ms of the wall) and the run counts fewer than the week
+/// held.
+pub const CLOCK_LEAD: u64 = (realm_core::tables::TIDE_LEN - realm_core::tables::secs(30)) as u64;
+/// The clock has not moved this long (a field copy stopped stepping and never ended): an error, and the wall's
+/// pace from then on so the run still ends.
+const PACE_STALL: Duration = Duration::from_secs(30);
+
+/// Moves the week's clock: `speed` ticks every 50 ms of the wall, held to `CLOCK_LEAD` past the slowest field copy
+/// (each copy steps to the realm's clock on its next tick), until `ticks` or `stop`.
+fn pace(gw: &Gateway, clock: &RealmClock, speed: u64, ticks: u64, stop: &AtomicBool, sh: &Mutex<Shared>) {
+    let start = Instant::now();
+    let (mut moved_at, mut free) = (Instant::now(), false);
+    while !stop.load(Ordering::Relaxed) && clock.now() < ticks {
+        let wall = start.elapsed().as_millis() as u64 * realm_core::TICK_HZ as u64 / 1000 * speed;
+        let floor = gw.field_clocks().into_iter().min().unwrap_or(0);
+        let to = if free { wall } else { wall.min(floor + CLOCK_LEAD) }.min(ticks);
+        if to > clock.now() {
+            clock.set(to);
+            moved_at = Instant::now();
+        } else if !free && moved_at.elapsed() > PACE_STALL {
+            sh.lock().unwrap().errors.push(format!("the realm clock stalled at {}: a field copy stopped stepping ({:?})", clock.now(), gw.field_clocks()));
+            free = true;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
 pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     let db = o.db.clone().unwrap_or_else(|| std::env::temp_dir().join(format!("realm-week-{}-{}.db", std::process::id(), o.seed)));
     for ext in ["", "-wal", "-shm"] {
@@ -384,7 +419,8 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     let store = Arc::new(SqliteStore::open(&db).map_err(|e| e.to_string())?);
     let ticks = (o.days * 24.0 * 3600.0 * realm_core::TICK_HZ as f64) as u64;
     let speed = ((ticks as f64 / (o.secs * realm_core::TICK_HZ as f64)).ceil() as u32).max(1);
-    let clock = RealmClock::wall(0, speed);
+    // The clock runs at `speed` but never more than `CLOCK_LEAD` ahead of the slowest field copy (`pace`).
+    let clock = RealmClock::manual(0);
     let world = WorldConfig {
         copies: o.copies,
         realm_cap: o.realm_cap,
@@ -410,6 +446,10 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     let stop = Arc::new(AtomicBool::new(false));
     let sh = Arc::new(Mutex::new(Shared::default()));
     let start = Instant::now();
+    let pacer = {
+        let (gw, clock, stop, sh) = (gw.clone(), clock.clone(), stop.clone(), sh.clone());
+        std::thread::spawn(move || pace(&gw, &clock, speed as u64, ticks, &stop, &sh))
+    };
     let mut threads = Vec::new();
     for b in 0..o.bots as u64 {
         let (addr, stop, sh, o2, clock, store) = (addr.clone(), stop.clone(), sh.clone(), o.clone(), clock.clone(), store.clone());
@@ -482,6 +522,7 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     }
     rep.days = clock.now() as f64 / (24.0 * 3600.0 * realm_core::TICK_HZ as f64);
     stop.store(true, Ordering::Relaxed);
+    let _ = pacer.join();
     for t in threads {
         let _ = t.join();
     }

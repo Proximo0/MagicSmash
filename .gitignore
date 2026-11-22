@@ -19,3 +19,4 @@ tools/music/out/candidates/
 
 # The sentry-godot addon is fetched by tools/fetch_sentry.sh (large native binaries)
 /addons/sentry/
+/target/

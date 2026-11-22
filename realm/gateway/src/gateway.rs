@@ -160,6 +160,8 @@ pub struct Gateway {
     ticket_rng: AtomicU64,
     /// Parties, guilds, friends, chat channels and the moderators' hooks (job T1).
     pub social: crate::social::Social,
+    /// Houses and the shared places (job H1).
+    pub homes: crate::homes::Homes,
 }
 
 pub fn now_ms() -> i64 {
@@ -251,6 +253,7 @@ impl Gateway {
             next_conn: AtomicU64::new(1),
             ticket_rng: AtomicU64::new(IdGen::new().boot | 1),
             social: crate::social::Social::default(),
+            homes: crate::homes::Homes::default(),
         });
         let g = gw.clone();
         let applier = std::thread::Builder::new().name("applier".into()).spawn(move || g.applier(rx)).expect("thread");
@@ -474,6 +477,9 @@ impl Gateway {
             Req::Equip { hero, item } => {
                 self.own_hero(account, hero)?;
                 let it = self.store.item(item)?.ok_or_else(|| Error::Missing(format!("item {item}")))?;
+                if crate::homes::catalogue::is_house_thing(it.spec.base) {
+                    return Ok(bad("furniture is not worn"));
+                }
                 let to = Dest::at(PlaceKind::Worn, hero, 0, it.spec.gear_slot as u32);
                 self.player(account, Cmd::MoveItem { item, to }).map(|_| Resp::Ok)
             }
@@ -517,6 +523,7 @@ impl Gateway {
             Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
             Req::Sell { hero, item } => self.sell(account, hero, item),
             Req::Econ(e) => Ok(self.economy.handle(account, e, now_ms())),
+            Req::Home(q) => Ok(self.homes.handle(self, s, account, q)),
             Req::Ping | Req::LoginDev { .. } | Req::LoginSteam { .. } => unreachable!(),
         }
     }
@@ -559,6 +566,7 @@ impl Gateway {
     fn leave_town_of(&self, s: &mut Session, only: Option<i64>) {
         if let Some((room, me, hero)) = s.town {
             if only.is_none_or(|h| h == hero) {
+                self.homes.depart(&self.towns, room, me, hero, now_ms());
                 self.towns.leave(room, me);
                 self.economy.detach(hero);
                 let mut locs = self.locs.lock().unwrap();
@@ -701,18 +709,24 @@ impl Gateway {
     fn sell(&self, account: i64, hero: i64, item: i64) -> Result<Resp> {
         self.own_hero(account, hero)?;
         let it = self.item_at(item, PlaceKind::Bag, hero)?;
+        if crate::homes::catalogue::is_plaque(it.spec.base) {
+            return Ok(bad("a plaque is kept, not sold"));
+        }
         let price = sell_price(&it.spec);
         self.server(Cmd::SellItem { hero, item, price })?;
         Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: price })
     }
 
-    /// The `--dev-grant` kit: 500 coin, 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
+    /// The `--dev-grant` kit: 3,500 coin (500, and 3,000 for the homes), 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
     /// uncommon and a common item of level 1 from The Fool's Road.
     fn dev_kit(&self, hero: i64) {
         let mut rng = realm_loot::rng::Rng::new(hero as u64 ^ 0xD3F_0001);
         let bag = Owner::bag(hero);
         for (kind, count) in [(StackKind::COIN, 500u64), (StackKind::material(0), 30), (StackKind::rune(0, 1), 4), (StackKind::potion(0), 2)] {
             let _ = self.server(Cmd::StackCredit { to: bag, kind, count, minted: true, reason: "grant".into() });
+        }
+        for (kind, count) in crate::homes::DEV_KIT {
+            let _ = self.server(Cmd::StackCredit { to: bag, kind: StackKind(kind), count, minted: true, reason: "grant".into() });
         }
         for rarity in [2u8, 1, 0] {
             let spec = realm_loot::gear::make_item(&mut rng, 0, 1, rarity);
@@ -855,18 +869,21 @@ impl Gateway {
         };
         match self.store.hero(hero) {
             Ok(Some(h)) => {
-                let total = h.progress.class_xp + f.xp;
+                // A hero rested at a campfire (job H1) banks a few percent more class XP while the rest lasts.
+                let rested = f.xp * self.homes.rested_pct(hero, now_ms()) / 100;
+                let f_xp = f.xp + rested;
+                let total = h.progress.class_xp + f_xp;
                 let levels = level_for_xp(total).max(h.progress.class_level).saturating_sub(h.progress.class_level);
                 let mut potions: Vec<(StackKind, u64)> =
                     f.potions.iter().enumerate().filter(|(_, n)| **n > 0).map(|(p, n)| (StackKind::potion(p as u32), *n as u64)).collect();
                 let waystone = f.waystone.filter(|&w| w != NO_WAYSTONE).map(|w| (field, w as i32));
                 for attempt in 0..8u128 {
-                    let delta = haul.clone().into_delta(OutingDelta { coin: f.coin, xp: f.xp, levels, items: Vec::new(), stacks: Vec::new(), potions_used: potions.clone(), waystone });
+                    let delta = haul.clone().into_delta(OutingDelta { coin: f.coin, xp: f_xp, levels, items: Vec::new(), stacks: Vec::new(), potions_used: potions.clone(), waystone });
                     let id = ((f.ticket as u128) << 64) | f.seq as u128 | (attempt << 40);
                     let m = Meta::new(id, 0, now_ms());
                     match self.store.apply_outing(m, hero, delta) {
                         Ok(_) => {
-                            done = Some((f.coin, f.xp, levels, potions.iter().map(|p| p.1 as u32).sum()));
+                            done = Some((f.coin, f_xp, levels, potions.iter().map(|p| p.1 as u32).sum()));
                             break;
                         }
                         // She drank what she no longer has (the bag changed during the outing): apply the rest.

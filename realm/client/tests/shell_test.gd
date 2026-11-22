@@ -105,6 +105,18 @@ func _unit() -> void:
 	b.put_u16(1)
 	_check(int(GwWire.decode(GwWire.P_TOWN_DEPART, PackedByteArray([1, 0, 9]))["t"]) == GwWire.R_ERR, "a trailing byte is refused")
 	_check(GwWire.decode(GwWire.P_TOWN_DEPART, PackedByteArray([5, 0]))["id"] == 5, "a depart push reads")
+	# The homes' wire (job H1): a Where reply reads, and the cell and plot arithmetic matches the gateway's.
+	var hb := StreamPeerBuffer.new()
+	hb.big_endian = false
+	hb.put_u8(HomeWire.K_WHERE)
+	hb.put_u8(HomeMap.HOUSE)
+	hb.put_u32(9)
+	var hd: Dictionary = GwWire.decode(HomeWire.R_HOME, hb.data_array)
+	_check(int(hd["k"]) == HomeWire.K_WHERE and int(hd["kind"]) == HomeMap.HOUSE and int(hd["arg"]) == 9, "a homes reply decodes")
+	_check(HomeWire.go(7, HomeMap.STREET, 3)[0] == HomeWire.T_HOME and (HomeWire.go(7, HomeMap.STREET, 3)[1] as PackedByteArray).size() == 1 + 8 + 1 + 4, "a Go request is sub, hero, kind, arg")
+	_check(HomeMap.cell_of(1, 2, 3) == 132 and HomeMap.street_of(HomeMap.plot_id(2, 5)) == 2 and HomeMap.cell_px(0) == Vector2(1472, 1472), "cells and plots count as the gateway does")
+	_check(HomeMap.FURNITURE.size() == 24 and GameNames.base_name(9000) == "CHAIR" and GameNames.base_name(9107).begins_with("PLAQUE"), "furniture and plaques have names")
+
 	# Names and prices.
 	_check(GameNames.base_name(0) == "PILGRIM'S DIRK" and GameNames.base_name(521) == "BOG RING" and GameNames.base_name(999) == "BASE 999", "a base has a name")
 	_check(GameNames.stack_name(2001) == "RUNE OF MIGHT I" and GameNames.stack_name(1000) == "EMBERS" and GameNames.stack_name(1) == "COIN", "stack names")
@@ -196,7 +208,7 @@ func _run() -> void:
 	await _frames(3)
 	var town: TownScreen = _shell.base as TownScreen
 	_check(town.me >= 0 and town.members.has(town.me), "she is a member of the room")
-	_check(_shell.coin() == 500 and _shell.items_at(GameNames.PLACE_BAG).size() == 3, "the dev grant gave coin and three items")
+	_check(_shell.coin() == 3500 and _shell.items_at(GameNames.PLACE_BAG).size() == 3, "the dev grant gave coin and three items")
 	_check(await _until(func() -> bool: return town.snapshots >= 3), "snapshots arrive")
 	var p0: Vector2 = town.shown(town.me)
 	_shell.link.send_only(GwWire.town_input(1))
@@ -254,7 +266,7 @@ func _run() -> void:
 	await _press("qty:10")
 	await _press("move")
 	_check(await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_BANK, 1) == 10), "10 coin are in the bank")
-	_check(_shell.coin() == 490, "and 490 are in the bag")
+	_check(_shell.coin() == 3490, "and 3490 are in the bag")
 	var bank: BankPanel = _shell.panel_of("BankPanel") as BankPanel
 	var common: Dictionary = {}
 	for it in _shell.items_at(GameNames.PLACE_BAG):
@@ -270,6 +282,74 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BANK).is_empty() and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "and she can take it out again: " + _shell.top().toast_text)
 	await _press("close")
 	await _frames(2)
+
+	# Homes and the shared places (job H1): the places list takes her to the first street, she rents the last plot,
+	# knocks, crafts a chair from the dev kit's linen and places it on the grid; then back to the plaza.
+	var coin_h: int = _shell.coin()
+	await _press("places")
+	_check(_shell.panel_of("PlacesPanel") != null, "PLACES opens over the town")
+	await _frames(3)
+	await _shot("23_places")
+	await _press("go:%d:1" % HomeMap.STREET)
+	_check(await _until(func() -> bool: return _shell.place == [HomeMap.STREET, 1] and _shell.base is TownScreen), "she walks to the first street")
+	await _frames(3)
+	_check(_shell.town.has("members") and (_shell.base as TownScreen).stations.size() == 2 + HomeMap.PLOTS_PER_STREET, "the street's doors are stations")
+	await _shot("24_street")
+	await _press("street")
+	var street: StreetPanel = _shell.panel_of("StreetPanel") as StreetPanel
+	_check(street != null and await _until(func() -> bool: return street.plots.size() == 24), "the street map shows 24 plots")
+	await _press("plot:23")
+	await _frames(2)
+	await _shot("25_street_map")
+	await _press("rent:1")
+	_check(await _until(func() -> bool: return _shell.coin() == coin_h - 280), "a week's rent of the back plot is 280 coin from her bag")
+	_check(await _until(func() -> bool: return street.mine == HomeMap.plot_id(1, 23)), "the house is hers on the street board")
+	await _press("visit")
+	_check(await _until(func() -> bool: return _shell.place == [HomeMap.HOUSE, 23] and bool(_shell.house.get("mine", false))), "she walks into her house")
+	await _frames(3)
+	await _press("house")
+	var housep: HousePanel = _shell.panel_of("HousePanel") as HousePanel
+	_check(housep != null and await _until(func() -> bool: return housep.recipes.size() == 32), "the house screen has the carpenter's 32 pieces")
+	await _press("craft:0")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).any(func(i: Dictionary) -> bool: return int(i["base"]) == HomeMap.FURNITURE_BASE)), "the carpenter made a chair")
+	var chair: int = 0
+	for it in _shell.items_at(GameNames.PLACE_BAG):
+		if int(it["base"]) == HomeMap.FURNITURE_BASE:
+			chair = int(it["id"])
+	_check(GameNames.item_name(_shell.item_by_id(chair)) == "CHAIR", "it is named a chair")
+	await _press("bag:%d" % chair)
+	await _press("cell:0:4:4")
+	_check(await _until(func() -> bool: return _shell.house.get("items", []).size() == 1), "she placed the chair on the grid")
+	var placed: Dictionary = _shell.house["items"][0]
+	_check(int(placed["id"]) == chair and int(placed["slot"]) == HomeMap.cell_of(0, 4, 4) and int(placed["place"]) == 7, "the same item is now in the house, at cell 44")
+	_check(_shell.item_by_id(chair).is_empty() or int(_shell.item_by_id(chair)["place"]) != GameNames.PLACE_BAG, "and it is no longer in her bag")
+	await _frames(3)
+	await _shot("26_house")
+	await _press("pickup")
+	await _press("cell:0:4:4")
+	await _press("pickup")
+	_check(await _until(func() -> bool: return _shell.house.get("items", []).is_empty() and _shell.items_at(GameNames.PLACE_BAG).any(func(i: Dictionary) -> bool: return int(i["id"]) == chair)), "picking it up puts the same item back in her bag")
+	await _press("bag:%d" % chair)
+	await _press("cell:0:2:2")
+	_check(await _until(func() -> bool: return _shell.house.get("items", []).size() == 1 and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "the chair stays in the house, her bag is as it was")
+	await _press("close")
+	await _press("places")
+	await _press("go:%d:0" % HomeMap.YARD)
+	_check(await _until(func() -> bool: return _shell.place == [HomeMap.YARD, 0]), "she walks to the training yard")
+	await _frames(3)
+	await (_shell.base as TownScreen).open_station("dummy")
+	var yard: YardPanel = _shell.panel_of("YardPanel") as YardPanel
+	_check(yard != null, "the dummy opens")
+	await _press("strike")
+	_check(await _until(func() -> bool: return int(yard.last.get("damage", 0)) > 0 and int(yard.last.get("dps", 0)) > 0), "a blow on the dummy reports damage and a rate")
+	await _frames(3)
+	await _shot("27_yard")
+	await _press("close")
+	await _press("places")
+	await _press("go:%d:0" % HomeMap.PLAZA)
+	_check(await _until(func() -> bool: return _shell.place == [HomeMap.PLAZA, 0] and _shell.base is TownScreen), "and back to the plaza")
+	town = _shell.base as TownScreen
+	await _frames(3)
 
 	# Smith.
 	await town.open_station("smith")

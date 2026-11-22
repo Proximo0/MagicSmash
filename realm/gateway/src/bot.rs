@@ -5,9 +5,10 @@
 use crate::client::GatewayClient;
 use crate::proto::*;
 use realm_core::tables::WAYSTONE_PX;
-use realm_core::{Field, IN_INTERACT, SUB};
+use realm_core::{Field, IN_DIR, IN_INTERACT, SUB};
 use realm_server::bots::{dir_toward, Bot};
 use realm_server::client::LockstepClient;
+use realm_server::lockstep::INPUT_QUEUE_MAX;
 use realm_server::MSG_BYE;
 use std::net::UdpSocket;
 use std::time::{Duration, Instant};
@@ -79,6 +80,8 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
     let (mut joined_at, mut banked_at, mut last_pos, mut still, mut wiggle) = (0u32, None::<u32>, (0, 0), 0u32, 0u32);
     let mut round = 0u64;
     let mut held_since: Option<u32> = None;
+    // Host ticks between two of her rounds (the most seen): how far one input can carry her (see `approach`).
+    let (mut round_tick, mut gap) = (None::<u32>, 1u32);
     // A host that stops sending ticks (gone without a word) ends the outing instead of hanging here.
     let (mut seen_tick, mut seen_at) = (u32::MAX, Instant::now());
     let result = loop {
@@ -97,9 +100,15 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         }
         c.apply();
         let mut word = 0u16;
+        // Some(n): walk `word` for n ticks, then stand (a bounded walk near the stone).
+        let mut steps: Option<u32> = None;
         let mut go: Option<u16> = None;
         if let (Some(f), Some(id)) = (c.field(), c.hero()) {
             let tick = f.tick();
+            if let Some(t0) = round_tick {
+                gap = gap.max(tick.saturating_sub(t0)).min(GAP_MAX);
+            }
+            round_tick = Some(tick);
             if tick != seen_tick {
                 (seen_tick, seen_at) = (tick, Instant::now());
             } else if gw.pushes.iter().any(|r| matches!(r, Resp::Outing { left, .. } if *left != 255)) {
@@ -130,13 +139,13 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
                                     word = bt.input;
                                 }
                             } else {
-                                word = if near { hold(&mut bot, f) } else { dir_toward(dx, dy) as u16 };
+                                (word, steps) = if near { (hold(&mut bot, f), None) } else { approach(f, id, (p.x, p.y), (wx, wy), gap) };
                             }
                         } else if near {
                             word = hold(&mut bot, f);
                             held_since.get_or_insert(tick);
                         } else {
-                            word = dir_toward(dx, dy) as u16;
+                            (word, steps) = approach(f, id, (p.x, p.y), (wx, wy), gap);
                             if (p.x, p.y) == last_pos {
                                 still += 1;
                             } else {
@@ -148,7 +157,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
                             }
                             if wiggle > 0 {
                                 wiggle -= 1;
-                                word = ((tick / 5) % 8 + 1) as u16;
+                                (word, steps) = (((tick / 5) % 8 + 1) as u16, None);
                             }
                         }
                         last_pos = (p.x, p.y);
@@ -178,8 +187,11 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
             }
         }
         if c.welcomed() {
-            let d = c.input_word(word);
-            let _ = sock.send(&d);
+            for _ in 0..steps.unwrap_or(0) {
+                let _ = sock.send(&c.input_word(word));
+            }
+            let last = if steps.is_some() { word & !IN_DIR } else { word };
+            let _ = sock.send(&c.input_word(last));
         }
         if opts.stop.as_ref().is_some_and(|s| s.load(std::sync::atomic::Ordering::Relaxed)) {
             break Ok(());
@@ -204,6 +216,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
             bot = None;
             moves += 1;
             round = 0;
+            round_tick = None;
         }
     };
     let abrupt = opts.drop_after_bank && out.joined;
@@ -247,6 +260,28 @@ fn hold(bot: &mut Option<Bot>, f: &Field) -> u16 {
         }
         None => IN_INTERACT,
     }
+}
+
+/// The most host ticks between two rounds `approach` plans for (a stall longer than this is a stall).
+const GAP_MAX: u32 = 400;
+
+/// Walking to the stone at `(wx, wy)` from `(x, y)`: the direction word, and None to walk on, or Some(n) to walk n
+/// ticks and then stand. The host repeats her last input until her next arrives, up to `gap` host ticks later; a
+/// host that runs many ticks for each of her inputs (a fast test host, or a bot the box starves) would carry her
+/// through the stone's ring and out again, round after round. Within two rounds' walk of the ring she sends a
+/// bounded walk instead (the host queues `INPUT_QUEUE_MAX` inputs: two steps, then a stand), so she arrives
+/// however few inputs reach the host.
+fn approach(f: &Field, id: u16, (x, y): (i32, i32), (wx, wy): (i32, i32), gap: u32) -> (u16, Option<u32>) {
+    let dir = dir_toward(wx - x, wy - y) as u16;
+    let (nx, ny) = f.walk(id, x, y, dir);
+    let len = |dx: i32, dy: i32| ((dx as i64).pow(2) + (dy as i64).pow(2)).isqrt();
+    let step = len(nx - x, ny - y).max(1);
+    let left = len(wx - x, wy - y) - (WAYSTONE_PX - 12) as i64 * SUB as i64;
+    if left > step * 2 * gap as i64 {
+        return (dir, None);
+    }
+    let most = INPUT_QUEUE_MAX as i64 - 1;
+    (dir, Some(((left + step - 1) / step).clamp(1, most) as u32))
 }
 
 /// A `Moved` push for this ticket, waiting a little for it: the new copy's port.

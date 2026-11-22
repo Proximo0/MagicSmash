@@ -180,6 +180,8 @@ pub enum Req {
     /// A merchant buys an item from her bag for coin.
     Sell { hero: i64, item: i64 },
     Econ(crate::economy::wire::EReq),
+    /// Houses and the shared places (job H1; tag 0x70, `homes::wire`).
+    Home(crate::homes::HReq),
     /// Parties, guilds, friends, chat channels, reports (job T1; tags 0x40..0x5F, `social::wire`).
     Social(crate::social::SReq),
     World(crate::world::wire::WReq),
@@ -360,6 +362,10 @@ impl Req {
                 q.put(&mut w);
                 T_WORLD
             }
+            Req::Home(q) => {
+                q.put(&mut w);
+                crate::homes::T_HOME
+            }
             Req::Ping => T_PING,
         };
         (t, w)
@@ -415,6 +421,7 @@ impl Req {
             T_SELL => Req::Sell { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_ECON => Req::Econ(crate::economy::wire::EReq::read(&mut r)?),
             T_WORLD => Req::World(crate::world::wire::WReq::read(&mut r)?),
+            crate::homes::T_HOME => Req::Home(crate::homes::HReq::read(&mut r)?),
             T_PING => Req::Ping,
             crate::social::T_SOC_FIRST..=crate::social::T_SOC_LAST => return crate::social::SReq::decode(t, b).map(Req::Social),
             _ => return None,
@@ -664,6 +671,9 @@ pub enum Resp {
     World(crate::world::wire::WResp),
     /// A world push: a queue place, a move to another copy, boss news.
     WorldPush(crate::world::wire::WResp),
+    /// A homes reply (job H1, tag 0x8C) and push (0xA9): `homes::wire`.
+    Home(crate::homes::HResp),
+    HomePush(crate::homes::HResp),
 }
 
 impl Resp {
@@ -733,6 +743,14 @@ impl Resp {
             Resp::EconPush(e) => {
                 e.put(&mut w);
                 P_ECON
+            }
+            Resp::Home(h) => {
+                h.put(&mut w);
+                crate::homes::R_HOME
+            }
+            Resp::HomePush(h) => {
+                h.put(&mut w);
+                crate::homes::P_HOME
             }
             Resp::Social(s) => {
                 w = s.encode();
@@ -807,6 +825,8 @@ impl Resp {
             }
             R_ECON => Resp::Econ(crate::economy::wire::EResp::read(&mut r)?),
             P_ECON => Resp::EconPush(crate::economy::wire::EResp::read(&mut r)?),
+            crate::homes::R_HOME => Resp::Home(crate::homes::HResp::read(&mut r)?),
+            crate::homes::P_HOME => Resp::HomePush(crate::homes::HResp::read(&mut r)?),
             crate::social::R_SOCIAL => return crate::social::SResp::decode(b).map(Resp::Social),
             crate::social::P_SOCIAL => return crate::social::SPush::decode(b).map(Resp::SocialPush),
             R_WORLD => Resp::World(crate::world::wire::WResp::read(&mut r)?),
@@ -903,6 +923,7 @@ mod tests {
             Req::Buy { hero: 4, kind: 100, n: 3 },
             Req::Sell { hero: 4, item: 9 },
             Req::Social(crate::social::SReq::Talk { hero: 4, chan: 1, to: String::new(), text: "hi".into() }),
+            Req::Home(crate::homes::HReq::Go { hero: 4, kind: 6, arg: 9 }),
             Req::Ping,
         ];
         for q in reqs {
@@ -934,6 +955,8 @@ mod tests {
             Resp::Cards(vec![0, 1, 12, 25]),
             Resp::Social(crate::social::SResp::Reported(3)),
             Resp::SocialPush(crate::social::SPush::Notice { text: "n".into() }),
+            Resp::Home(crate::homes::HResp::Where { kind: 6, arg: 9 }),
+            Resp::HomePush(crate::homes::HResp::Notice { kind: 0, a: 1, text: "Bob".into() }),
             Resp::Snapshot(TownSnapshot { tick: 77, at: vec![(1, 100, 200, 3), (2, 4000, 5, 0)] }),
             Resp::Chat { from: 1, name: "Bo".into(), text: "hi".into() },
             Resp::Arrive(Member { id: 4, name: "Zed".into(), class: 1, race: 0, level: 3, look: 0 }),

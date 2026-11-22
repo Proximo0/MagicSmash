@@ -142,6 +142,9 @@ impl Economy {
                 if it.socketed.iter().any(|s| s.is_some()) {
                     return bad("empty the sockets first");
                 }
+                if crate::homes::catalogue::is_plaque(it.spec.base) {
+                    return bad("a plaque is kept, not sold");
+                }
                 let price = npc_pays(&it.spec);
                 self.store.sell_item(self.meta(now), hero, id, price)?;
                 let mut st = self.st.lock().unwrap();

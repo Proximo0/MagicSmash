@@ -7,6 +7,7 @@ pub mod conn;
 pub mod economy;
 pub mod gateway;
 pub mod harness;
+pub mod homes;
 pub mod loot;
 pub mod proto;
 pub mod sheet;

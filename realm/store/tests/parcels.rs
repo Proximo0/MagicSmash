@@ -245,3 +245,43 @@ fn escrow_shows_in_trace_and_verify_catches_a_stray() {
 	let r = w.t.s.verify().unwrap();
 	assert!(!r.ok());
 }
+
+/// Fuzz seed 922952: a clawback destroyed the one item a listing held in escrow and left the parcel row behind,
+/// empty ("a parcel holding nothing", "a listing with more than one entry"). A parcel a clawback empties ends with
+/// it; one that still holds something stays.
+#[test]
+fn a_clawback_that_empties_a_parcel_ends_it() {
+	let mut w = world("p-clawback");
+	let it = w.t.mint_bag(w.ha, 5);
+	let id = listing(&mut w.t, w.ha, vec![it], vec![], 100, 0).unwrap();
+	let plan = w.t.s.clawback_plan(w.a, 0).unwrap();
+	assert!(plan.items.contains(&it));
+	let m = w.t.m();
+	let (removed, _, _) = w.t.s.clawback(m, plan, "farm").unwrap();
+	assert!(removed.contains(&it));
+	assert!(w.t.s.parcel(id).unwrap().is_none(), "the emptied listing ends");
+	assert!(w.t.s.listings(&ListingQuery { now: w.t.now, limit: 10, ..Default::default() }).unwrap().is_empty());
+	w.t.ok();
+	// a stack listing clawed in full ends too; clawed in part it stays
+	w.t.credit(Owner::bag(w.ha), StackKind::material(2), 10);
+	let full = listing(&mut w.t, w.ha, vec![], vec![(StackKind::material(2), 4)], 50, 0).unwrap();
+	let part = listing(&mut w.t, w.ha, vec![], vec![(StackKind::material(2), 4)], 50, 0).unwrap();
+	let esc = |p: i64| Owner { kind: PlaceKind::Market, id: p };
+	let m = w.t.m();
+	let plan = ClawbackPlan { items: vec![], stacks: vec![(esc(full), StackKind::material(2), 9), (esc(part), StackKind::material(2), 1)] };
+	w.t.s.clawback(m, plan, "farm").unwrap();
+	assert!(w.t.s.parcel(full).unwrap().is_none());
+	assert_eq!(w.t.s.parcel(part).unwrap().unwrap().stacks, vec![(StackKind::material(2), 3)]);
+	w.t.ok();
+	// a letter that keeps one of its two things stays
+	let i1 = w.t.mint_bag(w.ha, 5);
+	let i2 = w.t.mint_bag(w.ha, 5);
+	let l = letter(&mut w.t, w.ha, w.hb, vec![i1, i2], vec![], 0).unwrap();
+	let m = w.t.m();
+	w.t.s.clawback(m, ClawbackPlan { items: vec![i1], stacks: vec![] }, "farm").unwrap();
+	assert_eq!(w.t.s.parcel(l).unwrap().unwrap().items.len(), 1);
+	w.t.ok();
+	let m = w.t.m();
+	w.t.s.parcel_take(m, l, w.hb, 0).unwrap();
+	w.t.ok();
+}
