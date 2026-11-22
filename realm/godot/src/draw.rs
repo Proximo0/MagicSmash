@@ -17,34 +17,42 @@ pub struct SubRect {
 }
 
 impl SubRect {
-    fn contains(&self, x: i32, y: i32) -> bool {
+    pub fn contains(&self, x: i32, y: i32) -> bool {
         x >= self.x0 && x < self.x1 && y >= self.y0 && y < self.y1
     }
 }
 
+#[cfg(test)]
 pub const MON_ELITE: i32 = 1;
+#[cfg(test)]
 pub const MON_HURT: i32 = 2;
+#[cfg(test)]
 pub const PLY_LEFT: i32 = 1;
+#[cfg(test)]
 pub const PLY_MOVING: i32 = 2;
+#[cfg(test)]
 pub const PLY_HURT: i32 = 4;
+#[cfg(test)]
 pub const PLY_DEAD: i32 = 8;
+#[cfg(test)]
 pub const PLY_ME: i32 = 16;
 
-/// The stand-in pictures: eight monster frames shared by the core's kinds, and five classes by four races
-/// (a NOVICE is drawn as the first class) until the field client loads the real sheets by name.
-const MONSTER_FRAMES: usize = 8;
-const HERO_CLASSES: usize = 5;
-const HERO_RACES: usize = 4;
+/// The atlas frames: one per monster kind (the core's 42), and one per class (NOVICE and the five classes)
+/// by race. The field client builds the atlases from art files by name, with stand-ins for missing ones.
+pub const MONSTER_FRAMES: usize = realm_core::KINDS.len();
+pub const HERO_CLASSES: usize = 6;
+pub const HERO_RACES: usize = 4;
 
 fn monster_frame(kind: u8) -> usize {
-    usize::from(kind) % MONSTER_FRAMES
+    usize::from(kind).min(MONSTER_FRAMES - 1)
 }
 
 fn hero_frame(class: u8, race: u8) -> usize {
-    (usize::from(class).max(1) - 1).min(HERO_CLASSES - 1) * HERO_RACES + usize::from(race).min(HERO_RACES - 1)
+    usize::from(class).min(HERO_CLASSES - 1) * HERO_RACES + usize::from(race).min(HERO_RACES - 1)
 }
 
 /// `id, x, y, picture, flags` for every live monster in `r`, by id.
+#[cfg(test)]
 pub fn monsters_in(f: &Field, r: SubRect) -> Vec<i32> {
     let m = f.monsters();
     let mut out = Vec::new();
@@ -58,6 +66,7 @@ pub fn monsters_in(f: &Field, r: SubRect) -> Vec<i32> {
 }
 
 /// `id, x, y, class, race, flags` for every present player in `r`, by id.
+#[cfg(test)]
 pub fn players_in(f: &Field, r: SubRect, me: Option<u16>) -> Vec<i32> {
     let mut out = Vec::new();
     for (i, p) in f.players().iter().enumerate() {
@@ -82,6 +91,11 @@ pub const ELITE_SCALE: f32 = 1.25;
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const HURT: [f32; 4] = [1.0, 0.3, 0.3, 1.0];
 const ELITE: [f32; 4] = [1.0, 0.82, 0.3, 1.0];
+const CHAMP: [f32; 4] = [0.85, 0.45, 1.0, 1.0];
+const CURSED: [f32; 4] = [0.65, 0.45, 0.85, 1.0];
+const STUNNED: [f32; 4] = [0.6, 0.75, 1.0, 1.0];
+const SLOWED: [f32; 4] = [0.55, 0.85, 0.95, 1.0];
+pub const CHAMP_SCALE: f32 = 1.6;
 const DEAD: [f32; 4] = [0.55, 0.55, 0.6, 0.45];
 /// Bob seeds run 1..=BOB_SEEDS so neighbours bob out of step.
 const BOB_SEEDS: usize = 31;
@@ -147,9 +161,23 @@ impl DrawState {
         let mut out = Vec::with_capacity(self.order.len() * STRIDE);
         for &(_, id) in &self.order {
             let i = id as usize;
-            let elite = m.is_elite(i);
-            let s = if elite { ELITE_SCALE } else { 1.0 };
-            let tint = if m.hurt[i] != 0 { HURT } else if elite { ELITE } else { WHITE };
+            let (elite, champ) = (m.is_elite(i), m.is_champion(i));
+            let s = if champ { CHAMP_SCALE } else if elite { ELITE_SCALE } else { 1.0 };
+            let tint = if m.hurt[i] != 0 {
+                HURT
+            } else if m.curse[i] != 0 {
+                CURSED
+            } else if m.stun[i] != 0 {
+                STUNNED
+            } else if m.slow[i] != 0 {
+                SLOWED
+            } else if champ {
+                CHAMP
+            } else if elite {
+                ELITE
+            } else {
+                WHITE
+            };
             let back = self.monsters.back(i, m.x[i], m.y[i]);
             put(&mut out, m.x[i], m.y[i], s, s, tint, back, monster_frame(m.kind[i]), 0);
         }
@@ -214,7 +242,7 @@ mod tests {
         let ms = monsters_in(&f, half);
         assert!(ms.len() > 5 * 50, "only {} monsters in view", ms.len() / 5);
         assert!(ms.chunks(5).zip(ms.chunks(5).skip(1)).all(|(a, b)| a[0] < b[0]));
-        assert!(ms.chunks(5).all(|m| half.contains(m[1], m[2]) && (0..8).contains(&m[3])));
+        assert!(ms.chunks(5).all(|m| half.contains(m[1], m[2]) && (0..42).contains(&m[3])));
         // No cap: every live monster comes back for the whole field.
         assert_eq!(monsters_in(&f, ALL).len() / 5, f.monster_count() as usize);
         let ps = players_in(&f, ALL, Some(2));

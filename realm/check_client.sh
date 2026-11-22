@@ -2,7 +2,10 @@
 # realm client check: builds the native module (realm/godot) into realm/client/bin, builds the server, starts
 # a server with 300 bots and 8 000 monsters and a lossy relay in front of it (5% loss, 80 ms delay, 20 ms
 # jitter, each way), then runs realm/client/tests/follow_test.gd twice at once, straight to the server and
-# through the relay: 400 ticks each, every hash check must pass. Quiet: failures, then one summary line.
+# through the relay: 400 ticks each, every hash check must pass. Before that it runs the field client's
+# pieces with no server (tests/field_test.gd), and after it, when a display or xvfb-run is there, the real
+# client as the bot for a second at zoom 1, 2 and 4 (screenshots in SHOTS_DIR, default a temp dir).
+# Quiet: failures, then one summary line.
 # Ports: SERVER_PORT (7791) and RELAY_PORT (7792). GODOT picks the Godot binary (default godot).
 set -u
 cd "$(dirname "$0")"
@@ -49,6 +52,12 @@ if ! import && ! import; then
 	fail "godot --import"
 fi
 
+field=$(timeout 120 "$GODOT" --headless --path client -s res://tests/field_test.gd 2>&1 | grep -m1 "^FIELD_TEST")
+if [[ "$field" != "FIELD_TEST ok"* ]]; then
+	echo "${field:-FIELD_TEST printed nothing}"
+	fail "field test"
+fi
+
 ./target/release/realm-server --port="$SERVER_PORT" --bots=300 --monsters=8000 --rally=0.3 --threads=2 --report=60 >"$work/server.log" 2>&1 &
 pids+=($!)
 ./target/release/realm-loadtest --relay="$RELAY_PORT" --to=127.0.0.1:"$SERVER_PORT" --loss=0.05 --delay-ms=80 --jitter-ms=20 --seed=7 >"$work/relay_proc.log" 2>&1 &
@@ -80,7 +89,22 @@ if ! kill -0 "${pids[0]}" 2>/dev/null; then
 fi
 [ "$bad" = 0 ] || fail "follow test"
 
+# The real client, drawing: the bot plays one second at each zoom, a screenshot each. Needs somewhere to draw.
+shots="skipped (no display)"
+runner=()
+if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
+if [ -n "${DISPLAY:-}" ] || [ ${#runner[@]} -gt 0 ]; then
+	shots_dir="${SHOTS_DIR:-$work/shots}"
+	mkdir -p "$shots_dir"
+	if ! timeout 120 "${runner[@]}" "$GODOT" --path client -- --server=127.0.0.1:"$SERVER_PORT" --shots="$shots_dir" --secs=1 --mute >"$work/shots.log" 2>&1; then
+		grep -E "CLIENT_FRAMES|ERROR|SCRIPT ERROR" "$work/shots.log" | grep -v ALSA | head -6
+		fail "scripted client"
+	fi
+	for z in 1 2 4; do [ -s "$shots_dir/zoom$z.png" ] || fail "no screenshot at zoom $z"; done
+	shots="zoom 1/2/4 $(grep -m1 -Eo 'monsters_drawn=[0-9]+' "$work/shots.log")"
+fi
+
 # The relay reports every 10 s: its last line covers the whole test (to the server / to the clients).
 d_hash=$(line direct | grep -Eo "passed=[0-9]+ failed=[0-9]+")
 r_hash=$(line relay | grep -Eo "passed=[0-9]+ failed=[0-9]+")
-echo "REALM_CLIENT ok server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"
+echo "REALM_CLIENT ok $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"

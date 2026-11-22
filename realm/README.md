@@ -13,7 +13,9 @@ except `godot/`, the Godot native module, which is its own cargo workspace with 
   `RealmLink`, a lockstep player inside Godot. Its own workspace and `Cargo.lock`.
 - `store/`: the store (accounts, heroes, items, stacks, entitlements and the ledger), its own cargo workspace with
   `rusqlite` (bundled SQLite); `store/check.sh`; see `docs/realm/store.md`.
-- `client/`: HORDE & HEARTH's realm client, a separate Godot 4.7 project that plays through `RealmLink`.
+- `client/`: HORDE & HEARTH's realm client, a separate Godot 4.7 project that plays through `RealmLink` (the
+  simulation on a worker thread inside the module). The field's scripts are in `client/field/`; see
+  `docs/realm/client.md`.
 - The lockstep client logic is `server/src/client.rs` (socket-free: the load test and the module both drive
   it) and `server/src/predict.rs` (the hero's prediction and smoothing).
 
@@ -47,7 +49,8 @@ does both. Godot finds the module through `client/.godot/extension_list.cfg`, wh
 ./target/release/realm-loadtest --relay=7778 --to=127.0.0.1:7777 --loss=0.05 --delay-ms=80 --jitter-ms=20 &
 ./target/release/realm-loadtest --server=127.0.0.1:7778 --players=4 --follow --secs=20
 
-# The game window: play with arrows or WASD, space for the skill, 1/2/3 for zoom 1/2/4.
+# The game window: arrows or WASD move, Space/E/R the skills, F banks, 4/5/6 potions, Z X C V pick a card,
+# 1/2/3 zoom 1/2/4, F3 the numbers (docs/realm/client.md).
 godot --path client -- --server=127.0.0.1:7777
 # Scripted: a screenshot and numbers per zoom, then stats.json; --zoom=8 shows a whole rally's horde.
 godot --path client -- --server=127.0.0.1:7777 --bot --shots=/tmp/shots --secs=5
