@@ -96,5 +96,75 @@
   "status": "accepted",
   "rules": [],
   "missing_gear_guide": "second axe in the far hand (far_hand slot, no second-weapon guide)"
+ },
+ "HR9.1": {
+  "body_tries": 6,
+  "status": "no body after 6 tries",
+  "rules": [
+   "G10",
+   "G12",
+   "G13",
+   "G8"
+  ],
+  "missing_gear_guide": null
+ },
+ "HR9.2": {
+  "body_tries": 6,
+  "status": "no body after 6 tries",
+  "rules": [
+   "G10",
+   "G12",
+   "G8"
+  ],
+  "missing_gear_guide": null
+ },
+ "HR9.3": {
+  "body_tries": 6,
+  "status": "no body after 6 tries",
+  "rules": [
+   "G1",
+   "G10",
+   "G12",
+   "G5",
+   "G8"
+  ],
+  "missing_gear_guide": null
+ },
+ "HR9.4": {
+  "body_tries": 6,
+  "status": "no body after 6 tries",
+  "rules": [
+   "G10",
+   "G12",
+   "G13",
+   "G15",
+   "G16",
+   "G8"
+  ],
+  "missing_gear_guide": null
+ },
+ "HR10.1": {
+  "body_tries": 3,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "censer in the off hand"
+ },
+ "HR10.2": {
+  "body_tries": 3,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "censer in the off hand"
+ },
+ "HR10.3": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "censer in the off hand"
+ },
+ "HR10.4": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "censer in the off hand"
  }
 }
