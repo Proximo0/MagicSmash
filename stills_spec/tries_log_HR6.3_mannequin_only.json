@@ -1,0 +1,86 @@
+{
+ "HR6.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.7
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G9"
+   ],
+   "gen_s": 12.7
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5"
+   ],
+   "fit": 0.65,
+   "fixes_in_prompt": [
+    "G9",
+    "G1"
+   ],
+   "gen_s": 13.1
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G9",
+    "G1",
+    "G5"
+   ],
+   "gen_s": 13.5
+  },
+  {
+   "t": 5,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G9",
+    "G1",
+    "G5"
+   ],
+   "gen_s": 13.7
+  },
+  {
+   "t": 6,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G9",
+    "G1",
+    "G5",
+    "G8"
+   ],
+   "gen_s": 13.9
+  }
+ ]
+}

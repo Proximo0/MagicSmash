@@ -1,0 +1,237 @@
+{
+ "HR6.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 0.8,
+   "fixes_in_prompt": [],
+   "gen_s": 19.1
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 16.8
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 16.9
+  }
+ ],
+ "HR6.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [],
+   "gen_s": 16.9
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1"
+   ],
+   "gen_s": 17.3
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "R16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G8"
+   ],
+   "gen_s": 17.7
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G8"
+   ],
+   "gen_s": 18.4
+  }
+ ],
+ "HR6.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [],
+   "gen_s": 18.7
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "gen_s": 18.6
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "gen_s": 18.7
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "gen_s": 18.8
+  },
+  {
+   "t": 5,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "gen_s": 18.9
+  },
+  {
+   "t": 6,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G9"
+   ],
+   "gen_s": 18.9
+  }
+ ],
+ "HR6.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 0.9,
+   "fixes_in_prompt": [],
+   "gen_s": 18.9
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 0.9,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 19.0
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G6",
+    "G8"
+   ],
+   "fit": 0.8,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 19.0
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G6"
+   ],
+   "gen_s": 19.0
+  }
+ ]
+}
