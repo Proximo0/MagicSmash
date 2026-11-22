@@ -29,11 +29,17 @@ var cam: Vector2 = TownMap.CENTRE
 var look_at: Vector2 = Vector2(-1, -1)
 var _clock: float = 0.0
 var _prompt: Dictionary = {}
+## The stations of the place she is in (TownMap's in the plaza; doors and boards elsewhere: HomeMap.stations_for).
+var stations: Array[Dictionary] = []
+## Which floor of her house is drawn (0 or 1).
+var floor_no: int = 0
+var _rest_poll: float = 0.0
 
 
 func opened() -> void:
 	modal = false
 	var t: Dictionary = shell.town
+	stations = HomeMap.stations_for(shell.place, shell.street_plots)
 	size_px = float(t.get("size", 4096))
 	me = int(t.get("me", -1))
 	for m in t.get("members", []):
@@ -93,7 +99,8 @@ func _process(delta: float) -> void:
 	elif members.has(me):
 		cam = cam.lerp(shown(me), 1.0 - exp(-delta * 12.0))
 	_send_direction()
-	_prompt = TownMap.near(shown(me), TownMap.USE_PX) if members.has(me) else {}
+	_prompt = TownMap.near(shown(me), TownMap.USE_PX, stations) if members.has(me) else {}
+	_poll_rest(delta)
 
 
 func _send_direction() -> void:
@@ -115,6 +122,7 @@ func w2s(p: Vector2) -> Vector2:
 
 func paint() -> void:
 	_ground()
+	HomeDraw.props(self)
 	_stations()
 	_heroes()
 	_hud()
@@ -142,9 +150,13 @@ func _ground() -> void:
 			if wp.x < 0 or wp.y < 0 or wp.x > size_px or wp.y > size_px:
 				continue
 			var h: int = _hash(tx, ty)
-			var inside: bool = wp.distance_to(TownMap.CENTRE) < TownMap.PLAZA_R
+			var tint: Variant = HomeDraw.floor_tint(shell.place, wp)
+			var inside: bool = wp.distance_to(TownMap.CENTRE) < TownMap.PLAZA_R if tint == null else false
 			var v: float = float(h % 100) / 100.0 * 0.03
 			var col: Color = Color(0.17 + v, 0.15 + v, 0.15 + v) if inside else Color(0.08 + v, 0.075 + v, 0.07 + v)
+			if tint != null:
+				var tc: Color = tint
+				col = Color(tc.r + v, tc.g + v, tc.b + v)
 			var r := Rect2(w2s(Vector2(tx * tile, ty * tile)), Vector2(ts, ts))
 			draw_rect(r, col)
 			if inside:
@@ -162,6 +174,8 @@ func _ground() -> void:
 	var rim := Rect2(w2s(Vector2.ZERO), Vector2(size_px, size_px) * ZOOM)
 	draw_rect(rim, UiKit.BLOOD, false, 3.0)
 	# The hearth in the middle of the plaza.
+	if int(shell.place[0]) != HomeMap.PLAZA:
+		return
 	var hc: Vector2 = w2s(TownMap.CENTRE)
 	var fl: float = 0.85 + 0.15 * sin(_clock * 8.0)
 	draw_circle(hc, 44.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.07))
@@ -172,7 +186,7 @@ func _ground() -> void:
 
 
 func _stations() -> void:
-	for s in TownMap.STATIONS:
+	for s in stations:
 		var at: Vector2 = s["at"]
 		var sz: Vector2 = (s["size"] as Vector2) * ZOOM
 		var c: Vector2 = w2s(at)
@@ -189,7 +203,7 @@ func _stations() -> void:
 			draw_rect(r, col.darkened(0.55))
 			draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.34)), col)
 			draw_rect(r, UiKit.GOLD if (near_it or hover_id == id) else UiKit.GOLD_DIM, false, 2.0)
-			UiKit.rune(self, c - Vector2(12, 14), TownMap.STATIONS.find(s) + 2, 24.0, Color(UiKit.GOLD, 0.7), 1.5)
+			UiKit.rune(self, c - Vector2(12, 14), stations.find(s) + 2, 24.0, Color(UiKit.GOLD, 0.7), 1.5)
 			if s["id"] == "gate":
 				for k in 6:
 					var gx: float = r.position.x + (k + 0.5) * r.size.x / 6.0
@@ -244,6 +258,7 @@ func _hud() -> void:
 	button("party", Rect2(UiKit.W - 250, 44, 76, 26), "PARTY" + (" %d" % shell.party["members"].size() if not shell.party.is_empty() else ""), true, false, 12)
 	button("guild", Rect2(UiKit.W - 170, 44, 76, 26), "GUILD", true, false, 12)
 	button("social", Rect2(UiKit.W - 90, 44, 80, 26), "CHAT" + (" *" if not shell.invites.is_empty() else ""), true, false, 12)
+	_place_hud()
 	if not _prompt.is_empty():
 		var s: String = "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(_prompt["name"])]
 		var w: float = UiKit.text_width(s, 18) + 30.0
@@ -278,8 +293,9 @@ func _minimap() -> void:
 	UiKit.frame(self, r, UiKit.GOLD_DIM, Color(0.03, 0.03, 0.04, 0.85))
 	var k: float = (r.size.x - 8.0) / size_px
 	var o: Vector2 = r.position + Vector2(4, 4)
-	draw_arc(o + TownMap.CENTRE * k, TownMap.PLAZA_R * k, 0.0, TAU, 28, Color(UiKit.GOLD_DIM, 0.6), 1.0)
-	for s in TownMap.STATIONS:
+	if int(shell.place[0]) == HomeMap.PLAZA:
+		draw_arc(o + TownMap.CENTRE * k, TownMap.PLAZA_R * k, 0.0, TAU, 28, Color(UiKit.GOLD_DIM, 0.6), 1.0)
+	for s in stations:
 		draw_rect(Rect2(o + (s["at"] as Vector2) * k - Vector2(2, 2), Vector2(4, 4)), UiKit.GOLD)
 	for id in members:
 		var p: Vector2 = o + shown(id) * k
@@ -291,7 +307,7 @@ func _minimap() -> void:
 func on_press(id: String) -> void:
 	if id.begins_with("st:"):
 		var sid: String = id.trim_prefix("st:")
-		var s: Dictionary = TownMap.station(sid)
+		var s: Dictionary = TownMap.station(sid, stations)
 		if shown(me).distance_to(s["at"]) <= TownMap.CLICK_PX:
 			open_station(sid)
 		else:
@@ -315,6 +331,16 @@ func on_press(id: String) -> void:
 			shell.open_panel(SettingsPanel.new())
 		"leave":
 			shell.leave_town()
+		"places":
+			_open_home("PlacesPanel", PlacesPanel)
+		"house":
+			_open_home("HousePanel", HousePanel)
+		"street":
+			_open_home("StreetPanel", StreetPanel)
+		"sit":
+			sit_or_stand()
+		"stairs":
+			floor_no = 1 - floor_no
 		"chatbox":
 			typing = true
 
@@ -334,29 +360,100 @@ func open_bag() -> void:
 		shell.open_panel(BagPanel.new())
 
 
-## Opens a station's panel (after reading the hero's things fresh).
+## Opens a station's panel (after reading the hero's things fresh), or walks through a door.
 func open_station(sid: String) -> void:
 	if shell.top() != self:
 		return
-	await shell.refresh_all()
-	if not STATION_PANELS.has(sid):
+	var st: Dictionary = TownMap.station(sid, stations)
+	if st.is_empty():
 		return
+	if st.has("go") and not (st["go"] as Array).is_empty():
+		var go: Array = st["go"]
+		await shell.go_place(int(go[0]), int(go[1]))
+		return
+	await shell.refresh_all()
 	var p: UiScreen = null
-	match sid:
-		"bank":
-			p = BankPanel.new()
-		"smith":
-			p = SmithPanel.new()
-		"merchants":
-			p = MerchantPanel.new()
-		"reader":
-			p = ReaderPanel.new()
-		"trainer":
-			p = TrainerPanel.new()
-		"gate":
-			p = GatePanel.new()
+	if st.has("open"):
+		match String(st["open"]):
+			"StallsPanel":
+				p = StallsPanel.new()
+			"YardPanel":
+				p = YardPanel.new()
+			"GuildPanel":
+				p = GuildPanel.new()
+			"StreetPanel":
+				var sp := StreetPanel.new()
+				if st.has("plot"):
+					sp.selected = int(st["plot"])
+				p = sp
+	else:
+		match sid:
+			"bank":
+				p = BankPanel.new()
+			"smith":
+				p = SmithPanel.new()
+			"merchants":
+				p = MerchantPanel.new()
+			"reader":
+				p = ReaderPanel.new()
+			"trainer":
+				p = TrainerPanel.new()
+			"gate":
+				p = GatePanel.new()
 	if p != null and shell.top() == self:
 		shell.open_panel(p)
+
+
+func _open_home(cls_name: String, cls: GDScript) -> void:
+	if shell.panel_of(cls_name) == null:
+		shell.open_panel(cls.new())
+
+
+## The place's own buttons under the hero's box: the places list, sitting at a fire, and by place the house or
+## the street.
+func _place_hud() -> void:
+	var kind: int = int(shell.place[0])
+	UiKit.text(self, Vector2(UiKit.W / 2.0, 12), HomeMap.place_name(kind, int(shell.place[1])), 16, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	button("places", Rect2(10, 84, 86, 26), "PLACES", true, false, 12)
+	var fires: Array[Vector2] = HomeMap.fires_here(shell.place, shell.house.get("items", []))
+	var at_fire: bool = false
+	if members.has(me):
+		for f in fires:
+			if shown(me).distance_to(f) <= HomeMap.FIRE_REACH:
+				at_fire = true
+	var sitting: bool = bool(shell.rest.get("sitting", false))
+	button("sit", Rect2(102, 84, 70, 26), "STAND" if sitting else "SIT", at_fire or sitting, sitting, 12)
+	if kind == HomeMap.HOUSE:
+		button("house", Rect2(178, 84, 86, 26), "HOUSE", true, false, 12)
+		button("stairs", Rect2(270, 84, 96, 26), "UPSTAIRS" if floor_no == 0 else "DOWNSTAIRS", true, false, 12)
+	elif kind == HomeMap.STREET:
+		button("street", Rect2(178, 84, 86, 26), "STREET", true, false, 12)
+	if bool(shell.rest.get("sitting", false)) or int(shell.rest.get("rested_ms", 0)) > 0:
+		var ms: int = int(shell.rest.get("rested_ms", 0))
+		var txt: String = ("SITTING %ds  " % int(shell.rest.get("secs", 0)) if sitting else "") + ("RESTED +%d%%  %d:%02d" % [int(shell.rest.get("pct", 0)), ms / 60000, (ms / 1000) % 60] if ms > 0 else "")
+		UiKit.text(self, Vector2(10, 114), txt, 12, UiKit.GOOD)
+
+
+## Sits at a fire or stands up; the reply says how long and how rested she is.
+func sit_or_stand() -> void:
+	var sub: int = HomeWire.Q_STAND if bool(shell.rest.get("sitting", false)) else HomeWire.Q_SIT
+	var r: Dictionary = await shell.act(HomeWire.hero_only(sub, shell.hero_id()))
+	if int(r["t"]) == HomeWire.R_HOME and int(r.get("k", -1)) == HomeWire.K_REST:
+		shell.rest = r
+		_rest_poll = 0.0
+
+
+## While she sits the gateway counts the minutes; ask now and then so the screen shows the rest she has earned.
+func _poll_rest(delta: float) -> void:
+	if not bool(shell.rest.get("sitting", false)):
+		return
+	_rest_poll += delta
+	if _rest_poll < 5.0:
+		return
+	_rest_poll = 0.0
+	var r: Dictionary = await shell.link.call_req(HomeWire.hero_only(HomeWire.Q_STATUS, shell.hero_id()))
+	if int(r["t"]) == HomeWire.R_HOME and int(r.get("k", -1)) == HomeWire.K_REST:
+		shell.rest = r
 
 
 func send_chat(text: String) -> void:
