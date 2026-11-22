@@ -1,0 +1,1 @@
+2026-11-22T17:06:25Z PASS id=261122113636-1762 kind=soak secs=1803 soak seed=17826 secs=1800 SOAK ok secs=1801 cycles=994 heroes=40 outings=994 banked=994 left_gate=0 left_waystone=943 timeouts=0 coin=17042226 xp=18632263 levels=425 potions=0 deposits=994 points=865 snapshots=7744 chats=3390 
