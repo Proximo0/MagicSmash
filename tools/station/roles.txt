@@ -7,7 +7,9 @@
 # `soak` runs inside `deep` now (time-boxed, fresh seed; STATION_DEEP_SOAK_SECS, default 900), so no role lists it. A deep FAIL also appends a line to <machine>-failures.txt.
 # `balance` (laptop): careers 1 to 60 of every class and job, alone and in parties (docs/realm/balance.md).
 # `realm` is deterministic, so only ubuntu and msi run it; the laptop and heatherspc spend that time on seeds, careers and frames.
-ubuntu: realm world ops deep
-msi: realm deep
-laptop: frames balance deep
-heatherspc: economy deep
+ubuntu: realm world ops queue deep
+msi: realm queue deep
+laptop: frames balance queue deep
+heatherspc: economy queue deep
+# `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with tools/station/queue.sh,
+# see README) and falls back to `deep` only when the queue has nothing for this machine. A merge still comes first and interrupts a long job.

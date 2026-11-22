@@ -45,9 +45,10 @@ MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
 POLL="${STATION_POLL:-120}"
 BRANCH=station-results
-watch=0; push=1; after=""; jobs=(); deep=0
+. tools/station/queue_lib.sh  # the work queue (queue_step, hours_mark); read now, like the rest of the script
+watch=0; push=1; after=""; jobs=(); deep=0; queue=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -56,7 +57,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -235,6 +236,7 @@ step_run() {  # $1 = output file, rest = command; the command's status, or 99 wh
 }
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
   # Returns 0 pass, 1 fail, 2 skipped (no cargo), 3 interrupted: a merge landed, the rest of the pass was abandoned (not a failure).
+  [ -n "${STATION_QUEUE_STUB:-}" ] && { echo "JOB deep PASS stub"; return 0; }  # tests: no heavy commands
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir rc
@@ -326,7 +328,7 @@ publish_append() {  # $1 = one line, $2 = file: append it to the file on the res
 }
 
 # Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
-self_sum() { cat tools/station/station.sh tools/station/roles.txt 2>/dev/null | cksum; }
+self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
 run_once() {
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
@@ -385,20 +387,25 @@ if [ "$watch" = 1 ]; then
     trap 'kill $! 2>/dev/null' EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
+  hours_init
   while true; do
     run_once; rc=$?
     [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
-    if [ $rc != 3 ]; then after_merge=1; fi  # a merge was just tested: the next deep pass is published
+    if [ $rc != 3 ]; then after_merge=1; hours_mark busy; fi  # a merge was just tested: the next deep pass is published
+    if [ $rc = 3 ] && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main: the next job of the work queue, if there is one
+      queue_step; qrc=$?
+      if [ $qrc = 0 ] || [ $qrc = 3 ]; then hours_mark busy; continue; fi  # ran one (or a merge cut it short): look at main again
+    fi
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
       t0=$SECONDS; body=$(job_deep); drc=$?
-      now=$(date +%s)
+      now=$(date +%s); hours_mark busy
       if [ $drc = 3 ]; then deep_cut=$((deep_cut + 1)); echo "station: deep pass interrupted, a merge landed"; continue; fi
       hourly=0; [ $((now - last_pub)) -ge 3600 ] && hourly=1
       if [ $drc = 2 ]; then  # no cargo: SKIP, a broken machine sleeps and tells the branch at most hourly
         if [ "$push" = 1 ] && [ $hourly = 1 ]; then
           publish "STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=0s"$'\n'"$body"$'\n'"STATION SKIP deep pass" "$MACHINE-deep.txt" && last_pub=$now || true
         fi
-        sleep "$POLL"; continue
+        sleep "$POLL"; hours_mark idle; continue
       fi
       deep_n=$((deep_n + 1)); deep_seeds="$(printf %s "${deep_seeds:+$deep_seeds,}$(grep -o 'seed=[0-9]*' <<<"$body" | head -1 | cut -d= -f2)" | tail -c 120)"
       v=$([ $drc = 0 ] && echo PASS || echo FAIL)
@@ -410,9 +417,9 @@ if [ "$watch" = 1 ]; then
         if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:400}" "$MACHINE-failures.txt" || true; fi
       else echo "$rep"; fi
       if [ $drc = 0 ]; then sleep "${STATION_DEEP_GAP:-10}"; else sleep "$POLL"; fi
-      continue
+      hours_mark idle; continue
     fi
-    sleep "$POLL"
+    sleep "$POLL"; hours_mark idle
   done
 fi
 run_once
