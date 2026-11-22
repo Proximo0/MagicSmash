@@ -139,6 +139,8 @@ KNEE_LIFT = 0.30      # swing-knee flexion x (1 + KNEE_LIFT (gain - 1)) above 20
 ARM_SWING = 20.0      # deg: shoulder swing amplitude at gain 1 (Murray 1967: 30-40 deg total, brisk)
 ARM_MAX = 23.0        # deg: arm swing amplitude cap (gain 2)
 ARM_CENTRE = 2.0      # deg: the swing is centred on the arm hanging straight down
+CARRY_UPPER = 20.0     # deg, pass 8: carry pose of a long hand gear: upper arm forward of hanging ...
+CARRY_ELBOW = 55.0     # ... elbow flexion (forearm 75 deg from hanging: forward, a little down)
 FAR_BACK = 0.25       # R27: deg the far upper arm leans back per deg of extra far-elbow flexion ...
 FAR_BACK_MAX = 10.0   # ... at most this much
 ELBOW = (8.0, 28.0)   # deg: elbow flexion, arm back .. arm forward (Murray: 10-35)
@@ -491,9 +493,14 @@ class Gait:
                 ks = [i / 32 for i in range(32)]
                 self._arm_mean = {c: float(np.mean([self.m.get("near." + c, q) for q in ks]))
                                   for c in ("upper", "elbow")}
-            r = self.rig.rest
+            r = self.rest_arm = self.rig.rest
             rest_up = min(max(r["upper"], -40.0), 60.0)
             rest_el = min(max(wrap(r["fore"] - r["upper"]), 0.0), 130.0)
+            if getattr(self.m, "carry", False):
+                # CARRY POSE (pass 8): the upper arm a little forward, the elbow bent so the forearm
+                # points forward and a little down: the hand sits ahead of the torso at belt height
+                # and bobs; the gear is held upright from there, clear of legs and face by position
+                rest_up, rest_el = CARRY_UPPER, CARRY_ELBOW
             up = rest_up + k * (up - self._arm_mean["upper"])
             el = rest_el + k * (el - self._arm_mean["elbow"])
         if s == "far":

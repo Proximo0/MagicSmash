@@ -18,6 +18,15 @@ What goes between a player and the realm, every number chosen and why. Code: `re
   resent only after `rtt + 1` ticks (`RESEND_SLACK` = 1) without an ack. The RTT is learned from acks as a smoothed value in
   quarter ticks (`srtt4`; whole ticks rounded to a standstill); it starts at `RTT_START` = 4. Measured on a lossy link in the
   `lockstep.rs` tests: 57,776 B against 330,456 B, worst stall 4 ticks against 13.
+- The tick record's flags byte (bit 0 hash, bit 1 realm clock) has bit 2 for the **PvP block** (job R3b): `u16 n`,
+  then n entries, each tagged with a byte from the PvP span of `gateway/src/proto/ranges.rs`:
+  - `0x74 GUILD u16 id, u64 guild`: the guild of this record's join `id` (`Join.guild`, never 0, once per join);
+  - `0x75 WAR u64 war, u64 guild a, u64 guild b, u32 tide`: a war to arm (`WarArm`).
+  `Lockstep::apply` tags each join's guild (`Field::set_guild`), then arms the wars (`Field::declare_war`), then
+  applies the inputs, the clock and the step, on the host and every follower alike. A record with no guilded join
+  and no war has no block, so its bytes are those of before R3b. The decoder refuses unknown tags, an empty block, a
+  GUILD for no join of the record or a second one for the same join, and a guild of 0. It is in the field wire fuzz
+  (`server/src/wirefuzz.rs`).
 - `HASH_EVERY` 20 ticks (1 s) keeps desyncs visible. `MAX_DATAGRAM` 1200 stays under any common MTU. `TIMEOUT` 5 s of silence
   drops a client (a disconnect, below).
 
@@ -28,6 +37,10 @@ What goes between a player and the realm, every number chosen and why. Code: `re
   handed back (`HostMsg::Unused`) so the hero is free again.
 - A hero enters at the gate (`GATE_ENTRY_PX` 120 from it) or at her waystone for that field, with a scatter of
   `ENTRY_SCATTER_PX` 30. Each hero has tallies fed from core events (coin, xp, potions, kills).
+- Job R3b: `Entry.guild` (her guild at admit), `HostCmd::War(WarArm)` (arm a war with the next record),
+  `HostMsg::War{host, war, held, over}` (a copy's held altar ticks at the war's end, or when it stops during the
+  war), `Flush.plunders` (which falls of the flush were plunders, and by whom) and `Flush.plunder_coin` (the part of
+  her banked coin that was plundered, as (victim, coin), not in `coin`). See `pvp.md`.
 - Result flush: when a hero leaves (gate, waystone), falls, is kicked, disconnects or the host stops, and every
   `XP_FLUSH_TICKS` 200 (10 s) for xp, the host sends a `Flush{ticket, seq, coin, xp, potions, banked, fell, left}` to the
   gateway. The applier applies it with request id `ticket<<64 | seq | attempt<<40`, so a retry is idempotent. Why the 10 s xp

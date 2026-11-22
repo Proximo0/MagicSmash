@@ -60,6 +60,7 @@ fn case_name(c: &Cmd) -> &'static str {
 		| Cmd::StackDebit { .. }
 		| Cmd::StackTransfer { .. }
 		| Cmd::Outing { .. }
+		| Cmd::Plunder { .. }
 		| Cmd::Trade { .. }
 		| Cmd::GrantEntitlement { .. }
 		| Cmd::ParcelPut { .. }
@@ -69,7 +70,7 @@ fn case_name(c: &Cmd) -> &'static str {
 	}
 }
 
-const VARIANTS: usize = 24;
+const VARIANTS: usize = 25;
 
 /// One command of every kind, each aimed at y's things.
 fn cases(w: &W) -> Vec<Cmd> {
@@ -102,6 +103,7 @@ fn cases(w: &W) -> Vec<Cmd> {
 		Cmd::StackDebit { from: Owner::bag(w.hy), kind: StackKind::COIN, count: 5, reason: "buy".into() },
 		Cmd::StackTransfer { from: Owner::bag(w.hy), to: Owner::bank(w.y), kind: StackKind::COIN, count: 5 },
 		Cmd::Outing { hero: w.hy, delta: OutingDelta { coin: 10, ..Default::default() } },
+		Cmd::Plunder { from: w.hx, to: w.hy, items: vec![spec(1)], stacks: vec![(StackKind::material(1), 3)], coin: 10 },
 		Cmd::Trade {
 			a: TradeSide { hero: w.hx, items: vec![], stacks: vec![] },
 			b: TradeSide { hero: w.hy, items: vec![w.iy], stacks: vec![(StackKind::COIN, 500)] },

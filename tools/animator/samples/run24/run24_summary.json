@@ -1,0 +1,123 @@
+{
+ "HR1.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR2.1": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR2.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR2.3": {
+  "status": "rejected",
+  "rules": [
+   "R23",
+   "R25"
+  ]
+ },
+ "HR2.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR3.1": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR3.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR3.3": {
+  "status": "rejected",
+  "rules": [
+   "R23",
+   "R25"
+  ]
+ },
+ "HR3.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR4.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR4.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR4.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR4.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR5.1": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR5.2": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR5.3": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR5.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR6.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR6.2": {
+  "status": "rejected",
+  "rules": [
+   "R17",
+   "R27"
+  ]
+ },
+ "HR6.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR6.4": {
+  "status": "accepted",
+  "rules": []
+ }
+}

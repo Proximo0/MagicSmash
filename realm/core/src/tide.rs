@@ -211,6 +211,9 @@ impl Field {
                 }
             }
         }
+        if self.tide && !self.pvp.wars.is_empty() {
+            self.wars_late(self.realm.tide_index);
+        }
         if let Some(b) = &self.realm.boss {
             if clock >= b.leaves {
                 self.boss_leaves();

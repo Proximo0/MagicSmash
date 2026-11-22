@@ -184,7 +184,9 @@ fn parcel_op(r: &mut Rng, w: &World, h: HeroId, now: Millis, roll: u64) -> Cmd {
 }
 
 /// The op for stream index `idx`, from the seed and the database as it now is.
-fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
+/// `plunder` (job R3b): rolls 900..=929 are plunders and some outings bank plundered coin; off, the stream is the
+/// one from before plunders (the seeds in `tests/fuzz_seeds.rs` replay what they found).
+fn generate(seed: u64, idx: u64, w: &World, now: Millis, plunder: bool) -> Cmd {
 	let mut r = Rng::new(seed ^ idx.wrapping_mul(0x2545_f491_4f6c_dd1d));
 	if idx < ACCOUNTS {
 		return Cmd::AccountBySteam { steam_id: 76_561_198_000_000_000 + seed % 1000 * 1000 + idx };
@@ -218,7 +220,7 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 				.map(|(k, n)| (k, if r.chance(5) { n + 1 } else { 1 + r.below(n) }))
 				.take(2)
 				.collect();
-			Cmd::Outing {
+			let mut out = Cmd::Outing {
 				hero: h,
 				delta: OutingDelta {
 					coin: r.below(500),
@@ -228,8 +230,16 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 					stacks: (0..r.below(3)).map(|_| (rand_stack_kind(&mut r), 1 + r.below(20))).collect(),
 					potions_used: if r.chance(60) { potions } else { vec![] },
 					waystone: if r.chance(30) { Some((r.below(6) as u8, r.below(8) as i32)) } else { None },
+					plundered: Vec::new(),
 				},
+			};
+			// Drawn after everything else, so the stream without plunders is unchanged.
+			if plunder && r.chance(20) {
+				if let (Cmd::Outing { delta, .. }, Some(&(v, _, _))) = (&mut out, r.pick(&w.heroes)) {
+					delta.plundered.push((v, 1 + r.below(100)));
+				}
 			}
+			out
 		}
 		200..=279 => {
 			let to = rand_dest(&mut r, w, h, a);
@@ -383,6 +393,17 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 			let card = if r.chance(80) { r.pick(&pages).copied() } else { None };
 			Cmd::LearnPage { hero: h, card: card.unwrap_or(12 + r.below(18) as u16) }
 		}
+		900..=929 if plunder => {
+			// a plundered fall (job R3b): h's lost haul goes to another hero, sometimes herself (refused)
+			let to = r.pick(&w.heroes).map(|x| x.0).unwrap_or(h);
+			Cmd::Plunder {
+				from: h,
+				to,
+				items: (0..r.below(4)).map(|_| rand_spec(&mut r, lvl)).collect(),
+				stacks: (0..r.below(3)).map(|_| (rand_stack_kind(&mut r), 1 + r.below(20))).collect(),
+				coin: r.below(300),
+			}
+		}
 		950..=999 => parcel_op(&mut r, w, h, now, roll),
 		_ => {
 			// actor-checked moves: a player moving its own things, or trying someone else's
@@ -529,7 +550,7 @@ pub fn child(db: &Path, seed: u64, start: u64, end: u64, resubmit: Option<&Path>
 					continue;
 				}
 			}
-			let cmd = generate(seed, j, &w, now);
+			let cmd = generate(seed, j, &w, now, std::env::var(PLUNDER_ENV).is_ok_and(|v| v == "1"));
 			let (actor, probe) = actor_for(seed, j, &cmd, &w);
 			let id = if let Cmd::Trade { a, b } = &cmd { crate::codec::trade_request_id(a, b, j) } else { request_id(seed, j) };
 			if probe {
@@ -559,7 +580,12 @@ pub struct FuzzConfig {
 	pub dir: PathBuf,
 	pub exe: PathBuf,
 	pub verbose: bool,
+	/// Plunders in the stream (job R3b); off replays the streams from before them.
+	pub plunder: bool,
 }
+
+/// How the parent tells a child whether its stream has plunders.
+pub const PLUNDER_ENV: &str = "REALM_STORE_FUZZ_PLUNDER";
 
 #[derive(Clone, Debug, Default)]
 pub struct FuzzReport {
@@ -639,6 +665,7 @@ pub fn parent(cfg: &FuzzConfig) -> FuzzReport {
 		}
 		let mut cmd = Command::new(&cfg.exe);
 		cmd.arg("fuzz-child").arg(&db).arg(cfg.seed.to_string()).arg(next.to_string()).arg(end.to_string());
+		cmd.env(PLUNDER_ENV, if cfg.plunder { "1" } else { "0" });
 		if let Some((lo, hi, lines)) = &inflight {
 			let mut f = std::fs::File::create(&resub_path).unwrap();
 			writeln!(f, "{lo} {hi}").unwrap();

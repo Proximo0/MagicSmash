@@ -12,7 +12,7 @@
 //! in town or logged out does not count.
 
 use super::*;
-use realm_core::pvp::{DUEL_DRAW, DUEL_WON, MARK_WAIT_TICKS};
+use realm_core::pvp::{DUEL_DRAW, DUEL_WON, MARK_WAIT_TICKS, WARS_MAX};
 use realm_core::tables::{FIELDS, NEVER, TIDE_LEN};
 use realm_core::{tide_start, Config, Event, Field, Outing, TICK_HZ};
 
@@ -199,6 +199,11 @@ impl Social {
             }
             if g.at_war(w.guilds[0], w.field, w.tide, war) || g.at_war(w.guilds[1], w.field, w.tide, war) {
                 return Err(fail(code::REFUSED, "already at war in that tide"));
+            }
+            // Job R3b: what a field copy would refuse (`Field::declare_war`, at most `WARS_MAX` a tide) is refused
+            // here, so no accepted war waits for the grace and ends as a draw.
+            if g.wars.values().filter(|x| x.accepted && x.field == w.field && x.tide == w.tide).count() >= WARS_MAX {
+                return Err(fail(code::REFUSED, "too many wars in that tide"));
             }
             g.commit("wacc", &[&war.to_string()]);
             let view = g.war_view(&g.wars[&war]);

@@ -190,6 +190,14 @@ pub trait Store: Send + Sync {
 			r => Err(unexpected(r)),
 		}
 	}
+	/// A plundered fall (rules section 14): the haul a hero lost goes to the hero who downed her, in one
+	/// transaction. Returns where each item landed (the winner's bag, or her mail when the bag is full).
+	fn plunder(&self, m: Meta, from: HeroId, to: HeroId, items: Vec<ItemSpec>, stacks: Vec<(StackKind, u64)>, coin: u64) -> Result<Vec<(ItemId, Place)>> {
+		match self.run(m, Cmd::Plunder { from, to, items, stacks, coin })? {
+			Reply::Items(v) => Ok(v),
+			r => Err(unexpected(r)),
+		}
+	}
 	/// Two heroes swap items and stacks between their bags atomically. Use `trade_request_id` for `m.id`.
 	/// Escrow a listing or letter from a hero's bag (the server only).
 	fn parcel_put(&self, m: Meta, cmd: Cmd) -> Result<i64> {
