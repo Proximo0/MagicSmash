@@ -1,0 +1,26 @@
+ram_total_mb=14069
+ram_free_mb=5432
+page_mb=1997
+page_used_mb=324
+page_peak_mb=458
+commit_limit_mb=16067
+commit_free_mb=2352
+cores=8
+disk_free_gb=C:36
+--- top programs by memory (MB)
+   1833  95x svchost
+   1792  10x claude
+   1090  12x chrome
+    662  11x msedgewebview2
+    588   7x steamwebhelper
+    476   7x msedge
+    411   1x MsMpEng
+    404   1x explorer
+    254   8x RuntimeBroker
+    202   1x Memory Compression
+    182   1x StartMenuExperienceHost
+    156   1x copilotapphost
+    150   2x powershell
+    149   9x copilotapp
+    119   1x SearchHost
+gpu=none-or-not-nvidia
