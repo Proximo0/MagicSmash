@@ -91,6 +91,28 @@ def klein_size(e):
 
 
 # ---------- phase A ----------
+LAYOUT_TRIES = 4
+REPLACED = ROOT / "replaced"
+LAYOUT_REDO = ROOT / "layout_redo.txt"   # walk/action ids whose Klein pictures all failed: layout redrawn once
+
+
+def redo_layouts(eids):
+    """Move each id's layout and pictures aside (replaced/), mark its tries stale, un-done it; phase A then redraws the layout."""
+    (REPLACED / "layouts").mkdir(parents=True, exist_ok=True); (REPLACED / "orig").mkdir(exist_ok=True)
+    sp = ROOT / "scores.json"; sc = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {}
+    for eid in eids:
+        lp = LAYOUTS / f"{eid}.png"
+        if lp.exists(): lp.replace(REPLACED / "layouts" / lp.name)
+        for ts in sc.get(eid, {}).values():
+            for t in ts: t["stale"] = True
+        for f in list(R.RAW.glob(f"{eid}_*.png")) + list((R.RAW / "orig").glob(f"{eid}_*.png")):
+            f.replace((REPLACED / "orig" if f.parent.name == "orig" else REPLACED) / f.name)
+    sp.write_text(json.dumps(sc, indent=0), encoding="utf-8")
+    for p in (R.DONE, R.FAILED):
+        if p.exists(): p.write_text("".join(i + "\n" for i in p.read_text(encoding="utf-8").split() if i not in eids), encoding="utf-8")
+    R.log(f"layouts to redraw: {sorted(eids)}")
+
+
 def phase_a(q):
     need = [e for e in q if e.get("kind") in ("walk", "action") and not (LAYOUTS / f"{e['id']}.png").exists()]
     if not need: return
@@ -101,13 +123,17 @@ def phase_a(q):
     for e in need:
         if R.STOP.exists(): return
         eid = e["id"]; best = None
-        for t in range(2):
+        t0 = 2 if (REPLACED / "layouts" / f"{eid}.png").exists() else 0  # a redrawn layout starts with new seeds
+        for t in range(t0, t0 + LAYOUT_TRIES):
             try:
                 pose = e.get("pose") if e["kind"] == "action" else None
                 img = gen(R.sd_prompt(e), e.get("shape", "s"), walk=e["kind"] == "walk", height=e.get("scale") or e.get("height"),
                           strong=True, negative=e.get("negative"), seed=zlib.crc32(f"L/{eid}/{t}".encode()), action=pose, size=e.get("size"))
                 img, frac = R.key_magenta(img)
                 ok, sc, notes = W.check_sheet(img) if not pose else W.check_frames(img, len(W.ACTIONS[pose]))
+                if not pose:  # walk layout: the figure must stay the same in all 4 frames, or Klein copies the drift
+                    cd = frame_consistency(img, 4)
+                    if cd > CONSIST_MAX: ok, sc = False, sc - (cd - CONSIST_MAX) * 2
                 if best is None or sc > best[0]: best = (sc, img)
                 if ok: break
             except Exception as ex:
@@ -179,6 +205,9 @@ def phase_b(q, count=4, push_every=20):
             if keyed: (R.RAW / "orig").mkdir(exist_ok=True); best[2].save(R.RAW / "orig" / f.name)
             best[1].save(f)
         dt = time.time() - t0
+        if kind in ("walk", "action") and not any(t.get("ok") for ts in json.loads((ROOT / "scores.json").read_text(encoding="utf-8")).get(eid, {}).values() for t in ts if not t.get("stale")) \
+                and not (REPLACED / "layouts" / f"{eid}.png").exists():
+            with open(LAYOUT_REDO, "a", encoding="utf-8") as fh: fh.write(eid + "\n")  # every picture failed: the layout is suspect
         with open(R.DONE if ok_all else R.FAILED, "a", encoding="utf-8") as fh: fh.write(eid + "\n")
         n_ids += 1; since += 1
         R.log(f"{eid} {'done' if ok_all else 'FAILED'} in {dt:.0f}s ({dt / count:.1f}s/picture) [{e.get('name', '')}]")
@@ -202,6 +231,12 @@ def main():
     if R.STOP.exists():
         R.status("STOPPED during phase A"); R.push("stop"); return
     phase_b(q)
+    redo = R.read_set(LAYOUT_REDO) if LAYOUT_REDO.exists() else set()
+    if redo and not R.STOP.exists():  # one more round for ids whose pictures all failed: new layout, then Klein again
+        import torch; gc.collect(); torch.cuda.empty_cache()
+        redo_layouts(redo); LAYOUT_REDO.unlink()
+        phase_a(q)
+        if not R.STOP.exists(): phase_b(q)
     left = [x for x in R.load_queue() if x["id"] not in R.read_set(R.DONE) | R.read_set(R.FAILED)]
     R.status(("FINISHED" if not left else "STOPPED") + f" {len(left)} ids left")
     R.push("final" if not left else "stop"); R.log("exit")
