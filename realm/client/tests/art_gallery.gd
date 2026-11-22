@@ -1,6 +1,6 @@
 extends SceneTree
 ## Every picture in realm/client/art at game size over each field's ground colour, with a 56 px ruler, saved as a PNG.
-## A walk strip is drawn as its first frame at FieldArt.WALK_SCALE (2 texture px per world px), a still at 1:1; the
+## A walk strip is drawn as its first frame at its scale (FieldArt.walk_params: 0.5, 2 texture px per world px, unless its .json says otherwise), a still at 1:1; the
 ## whole sheet is then magnified x3 so a world pixel is 3 on the PNG. One row per picture, one column per field
 ## (FieldArt.FIELD_COLOURS), the file name on the left. Pure Image work: needs no display. Prints
 ## ART_GALLERY ok sprites=<n> out=<path> and exits 1 when a picture cannot be read.
@@ -34,9 +34,11 @@ func _initialize() -> void:
 			continue
 		img.convert(Image.FORMAT_RGBA8)
 		if f.ends_with("_walk.png"):
-			var w: int = img.get_width() / FieldArt.WALK_FRAMES
+			var p: Dictionary = FieldArt.walk_params(f.trim_suffix("_walk.png"), "res://art", img.get_width())
+			var w: int = img.get_width() / int(p["anim"])
+			var sc: float = float(p["scale"])
 			img = img.get_region(Rect2i(0, 0, w, img.get_height()))
-			img.resize(maxi(1, w / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_NEAREST)
+			img.resize(maxi(1, roundi(w * sc)), maxi(1, roundi(img.get_height() * sc)), Image.INTERPOLATE_NEAREST)
 		var s: Vector2i = Vector2i(mini(img.get_width(), MAX_CELL), mini(img.get_height(), MAX_CELL))
 		if s.x != img.get_width() or s.y != img.get_height():
 			img.resize(s.x, s.y, Image.INTERPOLATE_NEAREST)

@@ -90,7 +90,7 @@ func _draw_hero() -> void:
 	if strip != null:
 		step = FieldAnim.frame_at(t, FieldAnim.ATK_S if state == FieldAnim.ATTACK else FieldAnim.DIE_S, n) if n > 1 else 0
 	elif anim > 1 and hero_moving and hero_alive:
-		step = int(fmod(now * 8.0, float(anim)))
+		step = int(fmod(now * float(hero_entry.get("fps", FieldArt.WALK_FPS)), float(anim)))
 	var size := Vector2(fw, tex.get_height()) * sc
 	var since_death: float = now - died_at
 	draw_set_transform(hero_pos, FieldAnim.tilt(state, strip != null, since_death, hero_flip), Vector2(-1.0 if hero_flip else 1.0, 1.0))
