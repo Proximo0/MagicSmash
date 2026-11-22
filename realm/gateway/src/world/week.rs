@@ -51,6 +51,8 @@ pub struct WeekOpts {
     pub vault_max: u32,
     /// Ticks a bot's outing lasts before she heads home.
     pub outing_ticks: u32,
+    /// Wall seconds a bot follows an outing before recalling her (she is followed to her final push after it).
+    pub recall_secs: f64,
     /// A leader (every fourth bot) opens a vault every this many sessions (the second first); a follower joins one
     /// when it can.
     pub vault_every: u64,
@@ -75,6 +77,7 @@ impl Default for WeekOpts {
             realm_cap: 30,
             vault_max: 3,
             outing_ticks: 400,
+            recall_secs: 240.0,
             vault_every: 3,
             kill: true,
             seed: 7,
@@ -97,6 +100,8 @@ pub struct WeekReport {
     pub queued: u64,
     pub moved_bots: u64,
     pub lost_outings: u64,
+    /// Outings the bot recalled after `recall_secs` (followed to their end, their coin reported).
+    pub recalled: u64,
     pub stats: super::WorldStats,
     pub counts: realm_server::host::HostCounts,
     pub peak_heroes: u32,
@@ -147,7 +152,7 @@ impl WeekReport {
         let c = &self.counts;
         let (items, stacks, ledger) = self.store_rows;
         format!(
-            "WORLD {} days={:.2} secs={:.0} heroes={} cycles={} outings={} vault_runs={} vault_joins={} queued={} queue_max={} admitted={} copies_opened={} merges={} moved={} moved_bots={} peak_copies={} peak_heroes={} tides={} won={} bosses={} killed={} world_bosses={} chests={} news={} keys={} refunds={} vaults_closed={} host_killed={} tickets_lost={} lost_outings={} doubled={}/{} coin_mismatch={} kill_losses={} left_placed={} errors={} verify={} items={items} stacks={stacks} ledger_rows={ledger}",
+            "WORLD {} days={:.2} secs={:.0} heroes={} cycles={} outings={} vault_runs={} vault_joins={} queued={} queue_max={} admitted={} copies_opened={} merges={} moved={} moved_bots={} peak_copies={} peak_heroes={} tides={} won={} bosses={} killed={} world_bosses={} chests={} news={} keys={} refunds={} vaults_closed={} host_killed={} tickets_lost={} lost_outings={} recalled={} doubled={}/{} coin_mismatch={} kill_losses={} left_placed={} errors={} verify={} items={items} stacks={stacks} ledger_rows={ledger}",
             if self.ok() { "ok" } else { "FAILED" },
             self.days,
             self.secs,
@@ -178,6 +183,7 @@ impl WeekReport {
             s.hosts_lost,
             s.tickets_lost,
             self.lost_outings,
+            self.recalled,
             self.doubled,
             self.samples,
             self.coin_mismatches.len(),
@@ -202,6 +208,7 @@ struct Shared {
     queued: u64,
     moved_bots: u64,
     lost_outings: u64,
+    recalled: u64,
     errors: Vec<String>,
 }
 
@@ -227,15 +234,25 @@ fn await_ticket(gw: &mut GatewayClient, stop: &AtomicBool) -> Result<Option<u64>
     }
 }
 
+/// A recalled outing that has not ended after this long is stuck: an error.
+const OUTING_STUCK: Duration = Duration::from_secs(240);
+
 /// Follows one outing to its end: the last Outing push (cumulative coin of the ticket) and why she left. On stop,
-/// a hero the host plays is recalled.
-fn await_outing(gw: &mut GatewayClient, hero: i64, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(u64, u8), String> {
-    let mut recalled = false;
+/// or after `recall` (`WeekOpts::recall_secs`), a hero the host plays is recalled; she is followed to her final push
+/// either way. An outing asks for up to 1.5 × `outing_ticks` host ticks (450 s of the wall at the station's 20 Hz),
+/// so `recall` is a pace, not a hang guard. Giving up there instead (job W2's first form) dropped the connection, she
+/// was kicked, and the haul she banked on leaving (most of an outing's coin) was in the store but never reported:
+/// the station's `hero 126: store 1349722, reported 32019`.
+fn await_outing(gw: &mut GatewayClient, hero: i64, recall: Duration, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(u64, u8), String> {
+    let mut recalled: Option<Instant> = None;
     let start = Instant::now();
     loop {
-        if stop.load(Ordering::Relaxed) && !recalled {
+        if recalled.is_none() && (stop.load(Ordering::Relaxed) || start.elapsed() > recall) {
             let _ = gw.call(Req::World(WReq::Recall { hero })).map_err(io)?;
-            recalled = true;
+            recalled = Some(Instant::now());
+            if !stop.load(Ordering::Relaxed) {
+                sh.lock().unwrap().recalled += 1;
+            }
         }
         let got = gw
             .wait_push(Duration::from_millis(200), |r| match r {
@@ -253,8 +270,8 @@ fn await_outing(gw: &mut GatewayClient, hero: i64, stop: &AtomicBool, sh: &Mutex
             }
             None => {}
         }
-        if start.elapsed() > Duration::from_secs(240) {
-            return Err(format!("hero {hero}: her outing never ended"));
+        if recalled.is_some_and(|r| r.elapsed() > OUTING_STUCK) {
+            return Err(format!("hero {hero}: her outing never ended (recalled {:.0} s ago)", recalled.map_or(0.0, |r| r.elapsed().as_secs_f64())));
         }
     }
 }
@@ -354,7 +371,7 @@ fn session(addr: &str, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: 
             r => return Err(format!("bot ticket: {r:?}")),
         }
     }
-    let (coin, left) = await_outing(&mut gw, hero.id, stop, sh)?;
+    let (coin, left) = await_outing(&mut gw, hero.id, Duration::from_secs_f64(o.recall_secs), stop, sh)?;
     {
         let mut s = sh.lock().unwrap();
         *s.reported.entry(hero.id).or_insert(0) += coin;
@@ -545,6 +562,7 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     rep.queued = s.queued;
     rep.moved_bots = s.moved_bots;
     rep.lost_outings = s.lost_outings;
+    rep.recalled = s.recalled;
     rep.errors = s.errors.clone();
     rep.heroes = s.heroes.len() as u64;
     for (&h, &a) in &s.heroes {
