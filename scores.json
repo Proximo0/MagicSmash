@@ -766,7 +766,8 @@
 "great helm": 0.0252,
 "two-handed sword": 0.0011
 },
-"notes": "legdiff 0.76/0.72 sym 0.68/0.65/0.70/0.61 h 433-503 consist 0.06 missing ['lower tusks', 'great helm', 'two-handed sword']"
+"notes": "legdiff 0.76/0.72 sym 0.68/0.65/0.70/0.61 h 433-503 consist 0.06 missing ['lower tusks', 'great helm', 'two-handed sword']",
+"stale": true
 },
 {
 "try": 2,
@@ -778,7 +779,8 @@
 "great helm": 0.0633,
 "two-handed sword": 0.0078
 },
-"notes": "legdiff 0.93/0.83 sym 0.73/0.66/0.72/0.65 h 422-503 edge-magenta 91% consist 0.09 missing ['great helm', 'two-handed sword']"
+"notes": "legdiff 0.93/0.83 sym 0.73/0.66/0.72/0.65 h 422-503 edge-magenta 91% consist 0.09 missing ['great helm', 'two-handed sword']",
+"stale": true
 },
 {
 "try": 3,
@@ -790,7 +792,20 @@
 "great helm": 0.0126,
 "two-handed sword": 0.0107
 },
-"notes": "legdiff 0.67/0.62 sym 0.75/0.58/0.74/0.66 h 419-427 consist 0.15 missing ['great helm', 'two-handed sword']"
+"notes": "legdiff 0.67/0.62 sym 0.75/0.58/0.74/0.66 h 419-427 consist 0.15 missing ['great helm', 'two-handed sword']",
+"stale": true
+},
+{
+"try": 4,
+"ok": true,
+"score": 0.904,
+"traits": {
+"green skin": 0.3666,
+"lower tusks": 0.2095,
+"great helm": 0.4359,
+"two-handed sword": 0.001
+},
+"notes": "legdiff 0.65/0.69 sym 0.69/0.50/0.65/0.59 h 432-434 consist 0.09 missing ['two-handed sword']"
 }
 ]
 },
@@ -1184,7 +1199,8 @@
 "hood": 0.9667,
 "tall longbow": 0.0333
 },
-"notes": "legdiff 0.42/0.30 sym 0.89/0.57/0.63/0.72 h 332-401 consist 0.15 missing ['tall longbow']"
+"notes": "legdiff 0.42/0.30 sym 0.89/0.57/0.63/0.72 h 332-401 consist 0.15 missing ['tall longbow']",
+"stale": true
 },
 {
 "try": 2,
@@ -1196,7 +1212,8 @@
 "hood": 0.8615,
 "tall longbow": 0.0287
 },
-"notes": "legdiff 0.34/0.34 sym 0.80/0.58/0.67/0.45 h 328-452 consist 0.09 missing ['tall longbow']"
+"notes": "legdiff 0.34/0.34 sym 0.80/0.58/0.67/0.45 h 328-452 consist 0.09 missing ['tall longbow']",
+"stale": true
 },
 {
 "try": 3,
@@ -1208,7 +1225,44 @@
 "hood": 0.9395,
 "tall longbow": 0.018
 },
-"notes": "legdiff 0.52/0.44 sym 0.58/0.58/0.52/0.34 h 329-449 consist 0.04 missing ['tall longbow']"
+"notes": "legdiff 0.52/0.44 sym 0.58/0.58/0.52/0.34 h 329-449 consist 0.04 missing ['tall longbow']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.95,
+"traits": {
+"broad dwarf": 0.9908,
+"huge braided beard": 0.9867,
+"hood": 0.9179,
+"tall longbow": 0.0418
+},
+"notes": "legdiff 0.58/0.52 sym 0.62/0.35/0.61/0.45 h 328-453 consist 0.08 missing ['tall longbow']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.906,
+"traits": {
+"broad dwarf": 0.9947,
+"huge braided beard": 0.995,
+"hood": 0.9789,
+"tall longbow": 0.0266
+},
+"notes": "legdiff 0.52/0.46 sym 0.73/0.64/0.46/0.58 h 339-452 consist 0.07 missing ['tall longbow']"
+},
+{
+"try": 6,
+"ok": true,
+"score": 0.954,
+"traits": {
+"broad dwarf": 0.9957,
+"huge braided beard": 0.9951,
+"hood": 0.8578,
+"tall longbow": 0.0447
+},
+"notes": "legdiff 0.50/0.23 sym 0.63/0.60/0.56/0.37 h 327-433 consist 0.05 missing ['tall longbow']"
 }
 ],
 "3": [
@@ -1222,7 +1276,8 @@
 "hood": 0.8449,
 "tall longbow": 0.0144
 },
-"notes": "legdiff 0.49/0.38 sym 0.67/0.44/0.73/0.57 h 332-468 consist 0.14 missing ['tall longbow']"
+"notes": "legdiff 0.49/0.38 sym 0.67/0.44/0.73/0.57 h 332-468 consist 0.14 missing ['tall longbow']",
+"stale": true
 },
 {
 "try": 2,
@@ -1234,7 +1289,8 @@
 "hood": 0.9986,
 "tall longbow": 0.1968
 },
-"notes": "legdiff 0.47/0.33 sym 0.75/0.61/0.54/0.60 h 331-460 consist 0.08"
+"notes": "legdiff 0.47/0.33 sym 0.75/0.61/0.54/0.60 h 331-460 consist 0.08",
+"stale": true
 },
 {
 "try": 3,
@@ -1246,7 +1302,32 @@
 "hood": 0.9533,
 "tall longbow": 0.0489
 },
-"notes": "legdiff 0.54/0.50 sym 0.68/0.48/0.60/0.62 h 328-443 consist 0.14 missing ['short and very wide', 'tall longbow']"
+"notes": "legdiff 0.54/0.50 sym 0.68/0.48/0.60/0.62 h 328-443 consist 0.14 missing ['short and very wide', 'tall longbow']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.927,
+"traits": {
+"broad dwarf": 0.9894,
+"huge braided beard": 0.9801,
+"hood": 0.904,
+"tall longbow": 0.8775
+},
+"notes": "legdiff 0.43/0.29 sym 0.77/0.67/0.69/0.64 h 328-441 consist 0.02"
+},
+{
+"try": 5,
+"ok": true,
+"score": 1.346,
+"traits": {
+"broad dwarf": 0.9412,
+"huge braided beard": 0.9241,
+"hood": 0.9681,
+"tall longbow": 0.9951
+},
+"notes": "legdiff 0.55/0.39 sym 0.53/0.69/0.58/0.52 h 331-340 consist 0.08"
 }
 ],
 "4": [
@@ -1483,7 +1564,8 @@
 "candle staff": 0.0457,
 "grey cassock": 0.8429
 },
-"notes": "legdiff 0.34/0.35 sym 0.71/0.45/0.74/0.46 h 309-466 consist 0.06 missing ['candle staff']"
+"notes": "legdiff 0.34/0.35 sym 0.71/0.45/0.74/0.46 h 309-466 consist 0.06 missing ['candle staff']",
+"stale": true
 },
 {
 "try": 2,
@@ -1495,7 +1577,8 @@
 "candle staff": 0.9964,
 "grey cassock": 0.6132
 },
-"notes": "legdiff 0.14/0.15 sym 0.58/0.69/0.60/0.60 h 311-467 consist 0.08 missing ['short and very wide']"
+"notes": "legdiff 0.14/0.15 sym 0.58/0.69/0.60/0.60 h 311-467 consist 0.08 missing ['short and very wide']",
+"stale": true
 },
 {
 "try": 3,
@@ -1507,7 +1590,20 @@
 "candle staff": 0.0633,
 "grey cassock": 0.7994
 },
-"notes": "legdiff 0.24/0.27 sym 0.81/0.56/0.48/0.43 h 321-457 consist 0.09 missing ['candle staff']"
+"notes": "legdiff 0.24/0.27 sym 0.81/0.56/0.48/0.43 h 321-457 consist 0.09 missing ['candle staff']",
+"stale": true
+},
+{
+"try": 4,
+"ok": true,
+"score": 1.467,
+"traits": {
+"broad dwarf": 0.9635,
+"huge braided beard": 0.9911,
+"candle staff": 0.7387,
+"grey cassock": 0.8791
+},
+"notes": "legdiff 0.58/0.57 sym 0.44/0.29/0.39/0.25 h 433-443 consist 0.08"
 }
 ],
 "3": [
@@ -1521,7 +1617,8 @@
 "candle staff": 0.3522,
 "grey cassock": 0.986
 },
-"notes": "legdiff 0.18/0.19 sym 0.80/0.58/0.79/0.72 h 312-450 consist 0.05"
+"notes": "legdiff 0.18/0.19 sym 0.80/0.58/0.79/0.72 h 312-450 consist 0.05",
+"stale": true
 },
 {
 "try": 2,
@@ -1533,7 +1630,8 @@
 "candle staff": 0.0633,
 "grey cassock": 0.8333
 },
-"notes": "legdiff 0.18/0.20 sym 0.81/0.66/0.85/0.60 h 312-432 consist 0.04 missing ['candle staff']"
+"notes": "legdiff 0.18/0.20 sym 0.81/0.66/0.85/0.60 h 312-432 consist 0.04 missing ['candle staff']",
+"stale": true
 },
 {
 "try": 3,
@@ -1545,7 +1643,44 @@
 "candle staff": 0.0721,
 "grey cassock": 0.8418
 },
-"notes": "legdiff 0.33/0.36 sym 0.74/0.56/0.32/0.30 h 311-452 consist 0.06 missing ['candle staff']"
+"notes": "legdiff 0.33/0.36 sym 0.74/0.56/0.32/0.30 h 311-452 consist 0.06 missing ['candle staff']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.704,
+"traits": {
+"broad dwarf": 0.9696,
+"huge braided beard": 0.9993,
+"candle staff": 0.0575,
+"grey cassock": 0.8093
+},
+"notes": "legdiff 0.30/0.32 sym 0.79/0.50/0.79/0.52 h 311-448 consist 0.08 missing ['candle staff']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.894,
+"traits": {
+"broad dwarf": 0.988,
+"huge braided beard": 0.9989,
+"candle staff": 0.0833,
+"grey cassock": 0.9381
+},
+"notes": "legdiff 0.44/0.45 sym 0.85/0.34/0.84/0.35 h 315-473 consist 0.05 missing ['candle staff']"
+},
+{
+"try": 6,
+"ok": true,
+"score": 1.176,
+"traits": {
+"broad dwarf": 0.9785,
+"huge braided beard": 0.9995,
+"candle staff": 0.0326,
+"grey cassock": 0.5234
+},
+"notes": "legdiff 0.54/0.59 sym 0.69/0.29/0.46/0.21 h 427-463 consist 0.07 missing ['candle staff']"
 }
 ],
 "4": [
@@ -1632,7 +1767,8 @@
 "kite shield with sunburst": 0.1836,
 "war hammer": 0.9624
 },
-"notes": "legdiff 0.53/0.49 sym 0.77/0.21/0.78/0.42 h 460-467 consist 0.15 missing ['round ears']"
+"notes": "legdiff 0.53/0.49 sym 0.77/0.21/0.78/0.42 h 460-467 consist 0.15 missing ['round ears']",
+"stale": true
 },
 {
 "try": 2,
@@ -1643,7 +1779,8 @@
 "kite shield with sunburst": 0.037,
 "war hammer": 0.8069
 },
-"notes": "legdiff 0.69/0.67 sym 0.67/0.55/0.60/0.49 h 492-493 edge-magenta 68% consist 0.19 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.69/0.67 sym 0.67/0.55/0.60/0.49 h 492-493 edge-magenta 68% consist 0.19 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1654,7 +1791,70 @@
 "kite shield with sunburst": 0.002,
 "war hammer": 0.9493
 },
-"notes": "legdiff 0.65/0.53 sym 0.71/0.57/0.64/0.66 h 462-462 consist 0.26 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.65/0.53 sym 0.71/0.57/0.64/0.66 h 462-462 consist 0.26 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 1.136,
+"traits": {
+"large shield": 0.9404,
+"war hammer": 0.9681
+},
+"notes": "legdiff 0.60/0.38 sym 0.63/0.53/0.59/0.50 h 461-464 consist 0.24",
+"stale": true
+},
+{
+"try": 5,
+"ok": true,
+"score": 1.423,
+"traits": {
+"large shield": 0.9804,
+"war hammer": 0.9412
+},
+"notes": "legdiff 0.47/0.46 sym 0.64/0.53/0.65/0.56 h 462-462 consist 0.11",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 1.325,
+"traits": {
+"large shield": 0.6058,
+"war hammer": 0.9982
+},
+"notes": "legdiff 0.75/0.72 sym 0.46/0.11/0.67/0.40 h 391-395 consist 0.24"
+},
+{
+"try": 7,
+"ok": false,
+"score": 1.526,
+"traits": {
+"large shield": 0.9493,
+"war hammer": 0.8895
+},
+"notes": "legdiff 0.78/0.78 sym 0.67/0.31/0.67/0.39 h 396-398 consist 0.23"
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.455,
+"traits": {
+"large shield": 0.717,
+"war hammer": 0.9019
+},
+"notes": "legdiff 0.73/0.70 sym 0.59/0.61/0.56/0.38 h 397-397 consist 0.17"
+},
+{
+"try": 9,
+"ok": true,
+"score": 1.565,
+"traits": {
+"large shield": 0.9482,
+"war hammer": 0.83
+},
+"notes": "legdiff 0.68/0.68 sym 0.61/0.46/0.70/0.37 h 396-396 consist 0.12"
 }
 ],
 "2": [
@@ -1667,7 +1867,8 @@
 "kite shield with sunburst": 0.005,
 "war hammer": 0.9442
 },
-"notes": "legdiff 0.68/0.69 sym 0.72/0.25/0.64/0.62 h 460-464 consist 0.23 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.68/0.69 sym 0.72/0.25/0.64/0.62 h 460-464 consist 0.23 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 2,
@@ -1678,7 +1879,8 @@
 "kite shield with sunburst": 0.1052,
 "war hammer": 0.9958
 },
-"notes": "legdiff 0.50/0.50 sym 0.54/0.59/0.56/0.59 h 458-462 consist 0.15 missing ['round ears']"
+"notes": "legdiff 0.50/0.50 sym 0.54/0.59/0.56/0.59 h 458-462 consist 0.15 missing ['round ears']",
+"stale": true
 },
 {
 "try": 3,
@@ -1689,7 +1891,39 @@
 "kite shield with sunburst": 0.005,
 "war hammer": 0.8164
 },
-"notes": "legdiff 0.56/0.53 sym 0.79/0.48/0.80/0.42 h 461-463 consist 0.19 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.56/0.53 sym 0.79/0.48/0.80/0.42 h 461-463 consist 0.19 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": true,
+"score": 1.07,
+"traits": {
+"large shield": 0.4111,
+"war hammer": 0.7564
+},
+"notes": "legdiff 0.49/0.53 sym 0.69/0.27/0.62/0.39 h 459-460 consist 0.13",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.4,
+"traits": {
+"large shield": 0.8911,
+"war hammer": 0.9996
+},
+"notes": "legdiff 0.61/0.58 sym 0.52/0.46/0.64/0.37 h 394-419 consist 0.20"
+},
+{
+"try": 6,
+"ok": true,
+"score": 1.224,
+"traits": {
+"large shield": 0.7372,
+"war hammer": 0.9149
+},
+"notes": "legdiff 0.43/0.40 sym 0.66/0.68/0.66/0.45 h 391-391 consist 0.14"
 }
 ],
 "3": [
@@ -1702,7 +1936,28 @@
 "kite shield with sunburst": 0.931,
 "war hammer": 0.6058
 },
-"notes": "legdiff 0.68/0.68 sym 0.60/0.37/0.67/0.37 h 456-459 consist 0.08 missing ['round ears']"
+"notes": "legdiff 0.68/0.68 sym 0.60/0.37/0.67/0.37 h 456-459 consist 0.08 missing ['round ears']",
+"stale": true
+},
+{
+"try": 2,
+"ok": false,
+"score": 1.28,
+"traits": {
+"large shield": 0.9093,
+"war hammer": 0.8926
+},
+"notes": "legdiff 0.44/0.46 sym 0.70/0.57/0.61/0.61 h 396-396 consist 0.17"
+},
+{
+"try": 3,
+"ok": true,
+"score": 1.463,
+"traits": {
+"large shield": 0.9214,
+"war hammer": 0.9263
+},
+"notes": "legdiff 0.54/0.55 sym 0.61/0.45/0.66/0.42 h 390-392 consist 0.14"
 }
 ],
 "4": [
@@ -1715,7 +1970,8 @@
 "kite shield with sunburst": 0.0869,
 "war hammer": 0.8449
 },
-"notes": "legdiff 0.45/0.36 sym 0.65/0.53/0.64/0.39 h 457-463 consist 0.17 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.45/0.36 sym 0.65/0.53/0.64/0.39 h 457-463 consist 0.17 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 2,
@@ -1726,7 +1982,8 @@
 "kite shield with sunburst": 0.0131,
 "war hammer": 0.7705
 },
-"notes": "legdiff 0.66/0.49 sym 0.64/0.45/0.55/0.42 h 457-459 consist 0.25 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.66/0.49 sym 0.64/0.45/0.55/0.42 h 457-459 consist 0.25 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1737,7 +1994,92 @@
 "kite shield with sunburst": 0.0069,
 "war hammer": 0.9964
 },
-"notes": "legdiff 0.64/0.50 sym 0.62/0.48/0.56/0.53 h 458-462 consist 0.22 missing ['round ears', 'kite shield with sunburst']"
+"notes": "legdiff 0.64/0.50 sym 0.62/0.48/0.56/0.53 h 458-462 consist 0.22 missing ['round ears', 'kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 1.488,
+"traits": {
+"large shield": 0.8387,
+"war hammer": 0.9768
+},
+"notes": "legdiff 0.63/0.59 sym 0.65/0.47/0.58/0.38 h 456-457 consist 0.15",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.29,
+"traits": {
+"large shield": 0.9546,
+"war hammer": 0.9962
+},
+"notes": "legdiff 0.41/0.45 sym 0.67/0.42/0.63/0.42 h 460-466 consist 0.19",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 1.54,
+"traits": {
+"large shield": 0.9289,
+"war hammer": 0.9607
+},
+"notes": "legdiff 0.72/0.65 sym 0.65/0.51/0.66/0.50 h 459-468 consist 0.17",
+"stale": true
+},
+{
+"try": 7,
+"ok": true,
+"score": 1.262,
+"traits": {
+"large shield": 0.8376,
+"war hammer": 0.6689
+},
+"notes": "legdiff 0.62/0.51 sym 0.64/0.36/0.60/0.31 h 460-469 consist 0.13",
+"stale": true
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.375,
+"traits": {
+"large shield": 0.8652,
+"war hammer": 0.931
+},
+"notes": "legdiff 0.50/0.51 sym 0.59/0.55/0.67/0.53 h 396-396 consist 0.15"
+},
+{
+"try": 9,
+"ok": false,
+"score": 1.534,
+"traits": {
+"large shield": 0.9099,
+"war hammer": 0.9978
+},
+"notes": "legdiff 0.68/0.64 sym 0.59/0.54/0.60/0.49 h 394-396 consist 0.17"
+},
+{
+"try": 10,
+"ok": false,
+"score": 1.57,
+"traits": {
+"large shield": 0.9508,
+"war hammer": 0.908
+},
+"notes": "legdiff 0.72/0.73 sym 0.70/0.12/0.71/0.39 h 396-397 consist 0.18"
+},
+{
+"try": 11,
+"ok": true,
+"score": 1.489,
+"traits": {
+"large shield": 0.9952,
+"war hammer": 0.9981
+},
+"notes": "legdiff 0.61/0.49 sym 0.62/0.61/0.63/0.15 h 392-396 consist 0.12"
 }
 ]
 },
@@ -1753,7 +2095,8 @@
 "kite shield with sunburst": 0.0069,
 "war hammer": 0.1907
 },
-"notes": "legdiff 0.74/0.74 sym 0.63/0.68/0.45/0.69 h 363-366 consist 0.23 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.74/0.74 sym 0.63/0.68/0.45/0.69 h 363-366 consist 0.23 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 2,
@@ -1765,7 +2108,8 @@
 "kite shield with sunburst": 0.0099,
 "war hammer": 0.7969
 },
-"notes": "legdiff 0.79/0.76 sym 0.69/0.36/0.55/0.46 h 366-366 consist 0.25 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.79/0.76 sym 0.69/0.36/0.55/0.46 h 366-366 consist 0.25 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1777,7 +2121,85 @@
 "kite shield with sunburst": 0.0044,
 "war hammer": 0.3398
 },
-"notes": "legdiff 0.65/0.53 sym 0.69/0.50/0.56/0.61 h 365-366 consist 0.16 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.65/0.53 sym 0.69/0.50/0.56/0.61 h 365-366 consist 0.16 missing ['kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 1.211,
+"traits": {
+"long pointed ears": 0.9067,
+"slender": 0.1037,
+"large shield": 0.628,
+"war hammer": 0.9877
+},
+"notes": "legdiff 0.70/0.56 sym 0.34/0.50/0.55/0.51 h 364-365 consist 0.14",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.244,
+"traits": {
+"long pointed ears": 0.8824,
+"slender": 0.1871,
+"large shield": 0.6316,
+"war hammer": 0.9832
+},
+"notes": "legdiff 0.68/0.64 sym 0.26/0.53/0.37/0.53 h 367-367 consist 0.17",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 1.063,
+"traits": {
+"long pointed ears": 0.4263,
+"slender": 0.0211,
+"large shield": 0.537,
+"war hammer": 0.9734
+},
+"notes": "legdiff 0.67/0.64 sym 0.41/0.54/0.36/0.54 h 366-366 consist 0.17 missing ['slender']",
+"stale": true
+},
+{
+"try": 7,
+"ok": false,
+"score": 1.042,
+"traits": {
+"long pointed ears": 0.9768,
+"slender": 0.2254,
+"large shield": 0.5487,
+"war hammer": 0.3433
+},
+"notes": "legdiff 0.67/0.57 sym 0.60/0.58/0.54/0.63 h 365-365 consist 0.17",
+"stale": true
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.121,
+"traits": {
+"long pointed ears": 0.9395,
+"slender": 0.2379,
+"large shield": 0.2539,
+"war hammer": 0.9515
+},
+"notes": "legdiff 0.64/0.58 sym 0.53/0.64/0.60/0.55 h 367-367 consist 0.17",
+"stale": true
+},
+{
+"try": 9,
+"ok": true,
+"score": 0.657,
+"traits": {
+"long pointed ears": 0.1403,
+"slender": 0.044,
+"large shield": 0.3775,
+"war hammer": 0.5273
+},
+"notes": "legdiff 0.57/0.38 sym 0.59/0.46/0.58/0.33 h 396-398 consist 0.13 missing ['slender']"
 }
 ],
 "2": [
@@ -1791,7 +2213,8 @@
 "kite shield with sunburst": 0.0051,
 "war hammer": 0.4552
 },
-"notes": "legdiff 0.60/0.62 sym 0.68/0.70/0.59/0.65 h 367-369 consist 0.20 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.60/0.62 sym 0.68/0.70/0.59/0.65 h 367-369 consist 0.20 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 2,
@@ -1803,7 +2226,8 @@
 "kite shield with sunburst": 0.025,
 "war hammer": 0.6602
 },
-"notes": "legdiff 0.61/0.48 sym 0.56/0.30/0.75/0.64 h 363-366 consist 0.18 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.61/0.48 sym 0.56/0.30/0.75/0.64 h 363-366 consist 0.18 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1815,7 +2239,85 @@
 "kite shield with sunburst": 0.0086,
 "war hammer": 0.7356
 },
-"notes": "legdiff 0.62/0.60 sym 0.74/0.66/0.70/0.61 h 367-367 consist 0.19 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.62/0.60 sym 0.74/0.66/0.70/0.61 h 367-367 consist 0.19 missing ['kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 1.172,
+"traits": {
+"long pointed ears": 0.9761,
+"slender": 0.1168,
+"large shield": 0.5448,
+"war hammer": 0.9835
+},
+"notes": "legdiff 0.62/0.62 sym 0.60/0.52/0.51/0.71 h 364-365 consist 0.19",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.032,
+"traits": {
+"long pointed ears": 0.9899,
+"slender": 0.363,
+"large shield": 0.1234,
+"war hammer": 0.1836
+},
+"notes": "legdiff 0.71/0.76 sym 0.51/0.56/0.50/0.68 h 367-367 consist 0.19",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 0.829,
+"traits": {
+"long pointed ears": 0.9191,
+"slender": 0.2846,
+"large shield": 0.1907,
+"war hammer": 0.7982
+},
+"notes": "legdiff 0.69/0.51 sym 0.30/0.53/0.60/0.45 h 364-365 consist 0.25",
+"stale": true
+},
+{
+"try": 7,
+"ok": false,
+"score": 1.066,
+"traits": {
+"long pointed ears": 0.9681,
+"slender": 0.153,
+"large shield": 0.4766,
+"war hammer": 0.502
+},
+"notes": "legdiff 0.69/0.68 sym 0.61/0.40/0.59/0.51 h 367-367 consist 0.21",
+"stale": true
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.027,
+"traits": {
+"long pointed ears": 0.9515,
+"slender": 0.1859,
+"large shield": 0.15,
+"war hammer": 0.1432
+},
+"notes": "legdiff 0.81/0.81 sym 0.61/0.29/0.60/0.37 h 366-366 consist 0.21",
+"stale": true
+},
+{
+"try": 9,
+"ok": true,
+"score": 0.399,
+"traits": {
+"long pointed ears": 0.1461,
+"slender": 0.0742,
+"large shield": 0.2553,
+"war hammer": 0.1023
+},
+"notes": "legdiff 0.30/0.25 sym 0.49/0.49/0.58/0.45 h 398-399 consist 0.14 missing ['slender']"
 }
 ],
 "3": [
@@ -1829,7 +2331,8 @@
 "kite shield with sunburst": 0.9442,
 "war hammer": 0.2674
 },
-"notes": "legdiff 0.78/0.66 sym 0.58/0.31/0.46/0.68 h 367-367 consist 0.22 missing ['slender']"
+"notes": "legdiff 0.78/0.66 sym 0.58/0.31/0.46/0.68 h 367-367 consist 0.22 missing ['slender']",
+"stale": true
 },
 {
 "try": 2,
@@ -1841,7 +2344,8 @@
 "kite shield with sunburst": 0.0018,
 "war hammer": 0.9824
 },
-"notes": "legdiff 0.63/0.50 sym 0.45/0.55/0.53/0.50 h 366-366 consist 0.18 missing ['slender', 'kite shield with sunburst']"
+"notes": "legdiff 0.63/0.50 sym 0.45/0.55/0.53/0.50 h 366-366 consist 0.18 missing ['slender', 'kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1853,7 +2357,121 @@
 "kite shield with sunburst": 0.0075,
 "war hammer": 0.5312
 },
-"notes": "legdiff 0.78/0.72 sym 0.72/0.40/0.34/0.55 h 365-366 consist 0.29 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.78/0.72 sym 0.72/0.40/0.34/0.55 h 365-366 consist 0.29 missing ['kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.849,
+"traits": {
+"long pointed ears": 0.9612,
+"slender": 0.2598,
+"large shield": 0.0995,
+"war hammer": 0.1105
+},
+"notes": "legdiff 0.82/0.70 sym 0.63/0.29/0.46/0.57 h 363-364 consist 0.24 missing ['large shield']",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.26,
+"traits": {
+"long pointed ears": 0.9916,
+"slender": 0.5273,
+"large shield": 0.8634,
+"war hammer": 0.9972
+},
+"notes": "legdiff 0.64/0.57 sym 0.42/0.33/0.47/0.70 h 365-365 consist 0.22",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 1.211,
+"traits": {
+"long pointed ears": 0.6514,
+"slender": 0.0418,
+"large shield": 0.9984,
+"war hammer": 0.5254
+},
+"notes": "legdiff 0.70/0.72 sym 0.54/0.45/0.51/0.64 h 364-364 consist 0.16 missing ['slender']",
+"stale": true
+},
+{
+"try": 7,
+"ok": false,
+"score": 0.863,
+"traits": {
+"long pointed ears": 0.9921,
+"slender": 0.4494,
+"large shield": 0.4455,
+"war hammer": 0.3141
+},
+"notes": "legdiff 0.59/0.46 sym 0.69/0.66/0.62/0.62 h 367-367 consist 0.21",
+"stale": true
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.06,
+"traits": {
+"long pointed ears": 0.9975,
+"slender": 0.3886,
+"large shield": 0.5564,
+"war hammer": 0.6188
+},
+"notes": "legdiff 0.74/0.64 sym 0.66/0.61/0.63/0.66 h 366-366 consist 0.25",
+"stale": true
+},
+{
+"try": 9,
+"ok": false,
+"score": 0.494,
+"traits": {
+"long pointed ears": 0.0583,
+"slender": 0.0211,
+"large shield": 0.4397,
+"war hammer": 0.9429
+},
+"notes": "legdiff 0.29/0.25 sym 0.51/0.60/0.64/0.65 h 405-453 consist 0.20 missing ['long pointed ears', 'slender']"
+},
+{
+"try": 10,
+"ok": false,
+"score": 0.41,
+"traits": {
+"long pointed ears": 0.5679,
+"slender": 0.069,
+"large shield": 0.2975,
+"war hammer": 0.1711
+},
+"notes": "legdiff 0.60/0.32 sym 0.36/0.47/0.66/0.55 h 411-412 consist 0.23 missing ['slender']"
+},
+{
+"try": 11,
+"ok": false,
+"score": 0.567,
+"traits": {
+"long pointed ears": 0.2451,
+"slender": 0.1037,
+"large shield": 0.179,
+"war hammer": 0.0647
+},
+"notes": "legdiff 0.74/0.50 sym 0.49/0.41/0.44/0.45 h 388-389 consist 0.18 missing ['war hammer']"
+},
+{
+"try": 12,
+"ok": true,
+"score": 0.867,
+"traits": {
+"long pointed ears": 0.5176,
+"slender": 0.1152,
+"large shield": 0.8856,
+"war hammer": 0.4688
+},
+"notes": "legdiff 0.39/0.37 sym 0.65/0.46/0.69/0.44 h 402-403 consist 0.11"
 }
 ],
 "4": [
@@ -1867,7 +2485,8 @@
 "kite shield with sunburst": 0.0027,
 "war hammer": 0.1561
 },
-"notes": "legdiff 0.63/0.50 sym 0.59/0.52/0.71/0.72 h 364-366 consist 0.17 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.63/0.50 sym 0.59/0.52/0.71/0.72 h 364-366 consist 0.17 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 2,
@@ -1879,7 +2498,8 @@
 "kite shield with sunburst": 0.0084,
 "war hammer": 0.9899
 },
-"notes": "legdiff 0.66/0.65 sym 0.51/0.25/0.48/0.53 h 365-366 consist 0.28 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.66/0.65 sym 0.51/0.25/0.48/0.53 h 365-366 consist 0.28 missing ['kite shield with sunburst']",
+"stale": true
 },
 {
 "try": 3,
@@ -1891,7 +2511,133 @@
 "kite shield with sunburst": 0.0069,
 "war hammer": 0.3398
 },
-"notes": "legdiff 0.60/0.70 sym 0.54/0.63/0.45/0.62 h 366-367 consist 0.17 missing ['kite shield with sunburst']"
+"notes": "legdiff 0.60/0.70 sym 0.54/0.63/0.45/0.62 h 366-367 consist 0.17 missing ['kite shield with sunburst']",
+"stale": true
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.849,
+"traits": {
+"long pointed ears": 0.9789,
+"slender": 0.3363,
+"large shield": 0.1836,
+"war hammer": 0.2309
+},
+"notes": "legdiff 0.61/0.53 sym 0.43/0.63/0.48/0.65 h 361-362 consist 0.20",
+"stale": true
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.023,
+"traits": {
+"long pointed ears": 0.9372,
+"slender": 0.2187,
+"large shield": 0.566,
+"war hammer": 0.646
+},
+"notes": "legdiff 0.72/0.58 sym 0.38/0.52/0.62/0.63 h 364-365 consist 0.22",
+"stale": true
+},
+{
+"try": 6,
+"ok": false,
+"score": 1.0,
+"traits": {
+"long pointed ears": 0.9966,
+"slender": 0.4054,
+"large shield": 0.3886,
+"war hammer": 0.1944
+},
+"notes": "legdiff 0.65/0.51 sym 0.71/0.62/0.55/0.69 h 366-367 consist 0.14",
+"stale": true
+},
+{
+"try": 7,
+"ok": false,
+"score": 0.941,
+"traits": {
+"long pointed ears": 0.973,
+"slender": 0.304,
+"large shield": 0.5448,
+"war hammer": 0.2337
+},
+"notes": "legdiff 0.70/0.55 sym 0.43/0.48/0.44/0.45 h 368-368 consist 0.20",
+"stale": true
+},
+{
+"try": 8,
+"ok": false,
+"score": 1.169,
+"traits": {
+"long pointed ears": 0.9746,
+"slender": 0.3923,
+"large shield": 0.7387,
+"war hammer": 0.3416
+},
+"notes": "legdiff 0.60/0.61 sym 0.60/0.63/0.47/0.68 h 367-369 consist 0.16",
+"stale": true
+},
+{
+"try": 9,
+"ok": false,
+"score": 0.845,
+"traits": {
+"long pointed ears": 0.3311,
+"slender": 0.045,
+"large shield": 0.8679,
+"war hammer": 0.9005
+},
+"notes": "legdiff 0.43/0.34 sym 0.62/0.50/0.66/0.51 h 397-403 consist 0.15 missing ['slender']"
+},
+{
+"try": 10,
+"ok": false,
+"score": 0.483,
+"traits": {
+"long pointed ears": 0.0588,
+"slender": 0.0108,
+"large shield": 0.1968,
+"war hammer": 0.6792
+},
+"notes": "legdiff 0.40/0.32 sym 0.55/0.66/0.61/0.62 h 396-397 consist 0.18 missing ['long pointed ears', 'slender']"
+},
+{
+"try": 11,
+"ok": false,
+"score": 0.496,
+"traits": {
+"long pointed ears": 0.0086,
+"slender": 0.0293,
+"large shield": 0.2926,
+"war hammer": 0.9353
+},
+"notes": "legdiff 0.73/0.44 sym 0.48/0.49/0.45/0.55 h 393-394 consist 0.27 missing ['long pointed ears', 'slender']"
+},
+{
+"try": 12,
+"ok": false,
+"score": 0.629,
+"traits": {
+"long pointed ears": 0.628,
+"slender": 0.1571,
+"large shield": 0.4941,
+"war hammer": 0.1645
+},
+"notes": "legdiff 0.45/0.36 sym 0.61/0.49/0.53/0.59 h 390-398 consist 0.19"
+},
+{
+"try": 13,
+"ok": false,
+"score": 0.731,
+"traits": {
+"long pointed ears": 0.9421,
+"slender": 0.3141,
+"large shield": 0.691,
+"war hammer": 0.3504
+},
+"notes": "legdiff 0.66/0.30 sym 0.59/0.53/0.53/0.55 h 400-401 consist 0.21"
 }
 ]
 },
@@ -2229,7 +2975,8 @@
 "bow": 0.0,
 "arrow": 0.0
 },
-"notes": " missing ['bow', 'arrow']"
+"notes": " missing ['bow', 'arrow']",
+"stale": true
 },
 {
 "try": 2,
@@ -2239,7 +2986,18 @@
 "bow": 0.0228,
 "arrow": 0.0001
 },
-"notes": " missing ['bow', 'arrow']"
+"notes": " missing ['bow', 'arrow']",
+"stale": true
+},
+{
+"try": 3,
+"ok": true,
+"score": 0.511,
+"traits": {
+"bow": 0.9612,
+"arrow": 0.0605
+},
+"notes": " missing ['arrow']"
 }
 ],
 "3": [
@@ -2251,7 +3009,8 @@
 "bow": 0.0001,
 "arrow": 0.0002
 },
-"notes": " missing ['bow', 'arrow']"
+"notes": " missing ['bow', 'arrow']",
+"stale": true
 },
 {
 "try": 2,
@@ -2260,6 +3019,27 @@
 "traits": {
 "bow": 0.0062,
 "arrow": 0.0002
+},
+"notes": " missing ['bow', 'arrow']",
+"stale": true
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.007,
+"traits": {
+"bow": 0.0115,
+"arrow": 0.0021
+},
+"notes": " missing ['bow', 'arrow']"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.024,
+"traits": {
+"bow": 0.0314,
+"arrow": 0.0164
 },
 "notes": " missing ['bow', 'arrow']"
 }
@@ -2373,7 +3153,8 @@
 "hammer": 0.0262,
 "light beam": 0.0496
 },
-"notes": " missing ['hammer', 'light beam']"
+"notes": " missing ['hammer', 'light beam']",
+"stale": true
 },
 {
 "try": 2,
@@ -2382,6 +3163,27 @@
 "traits": {
 "hammer": 0.0481,
 "light beam": 0.0096
+},
+"notes": " missing ['hammer', 'light beam']",
+"stale": true
+},
+{
+"try": 3,
+"ok": false,
+"score": -0.07,
+"traits": {
+"hammer": 0.216,
+"light beam": 0.8449
+},
+"notes": " edge-magenta 90%"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.034,
+"traits": {
+"hammer": 0.0181,
+"light beam": 0.0492
 },
 "notes": " missing ['hammer', 'light beam']"
 }
@@ -2732,6 +3534,976 @@
 "traits": {
 "round flask": 0.2539,
 "red liquid": 0.5964
+},
+"notes": ""
+}
+]
+},
+"IC6.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.404,
+"traits": {
+"grey flask": 0.8007,
+"ash swirl": 0.007
+},
+"notes": " missing ['ash swirl']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.471,
+"traits": {
+"grey flask": 0.9093,
+"ash swirl": 0.0323
+},
+"notes": " missing ['ash swirl']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.299,
+"traits": {
+"grey flask": 0.5908,
+"ash swirl": 0.0066
+},
+"notes": " missing ['ash swirl']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.441,
+"traits": {
+"grey flask": 0.8791,
+"ash swirl": 0.0032
+},
+"notes": " missing ['ash swirl']"
+}
+]
+},
+"IC6.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.545,
+"traits": {
+"oil bottle": 0.9191,
+"whetstone": 0.1711
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.557,
+"traits": {
+"oil bottle": 0.988,
+"whetstone": 0.1268
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.613,
+"traits": {
+"oil bottle": 0.9641,
+"whetstone": 0.2628
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.792,
+"traits": {
+"oil bottle": 0.9888,
+"whetstone": 0.5946
+},
+"notes": ""
+}
+]
+},
+"IC6.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.985,
+"traits": {
+"ink pot": 0.9869,
+"quill": 0.983
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.994,
+"traits": {
+"ink pot": 0.9958,
+"quill": 0.9922
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.993,
+"traits": {
+"ink pot": 0.993,
+"quill": 0.9933
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.97,
+"traits": {
+"ink pot": 0.9789,
+"quill": 0.9607
+},
+"notes": ""
+}
+]
+},
+"IC6.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.684,
+"traits": {
+"gold coin": 0.8245,
+"skull face": 0.5429
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.296,
+"traits": {
+"gold coin": 0.2214,
+"skull face": 0.3702
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.678,
+"traits": {
+"gold coin": 0.6406,
+"skull face": 0.7154
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.683,
+"traits": {
+"gold coin": 0.9329,
+"skull face": 0.434
+},
+"notes": ""
+}
+]
+},
+"IC6.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.94,
+"traits": {
+"urn": 0.904,
+"glowing feather": 0.9754
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.934,
+"traits": {
+"urn": 0.9252,
+"glowing feather": 0.9421
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.971,
+"traits": {
+"urn": 0.9686,
+"glowing feather": 0.9738
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.856,
+"traits": {
+"urn": 0.8449,
+"glowing feather": 0.8679
+},
+"notes": ""
+}
+]
+},
+"IC7.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.245,
+"traits": {
+"fist gauntlet": 0.4844,
+"single centred item": 0.0066
+},
+"notes": " missing ['single centred item']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.486,
+"traits": {
+"fist gauntlet": 0.9672,
+"single centred item": 0.0051
+},
+"notes": " missing ['single centred item']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.477,
+"traits": {
+"fist gauntlet": 0.9458,
+"single centred item": 0.0087
+},
+"notes": " missing ['single centred item']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.292,
+"traits": {
+"fist gauntlet": 0.502,
+"single centred item": 0.0815
+},
+"notes": " missing ['single centred item']"
+}
+]
+},
+"IC7.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.762,
+"traits": {
+"eye": 0.8715,
+"triangle": 0.6531
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.859,
+"traits": {
+"eye": 0.9099,
+"triangle": 0.8081
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.886,
+"traits": {
+"eye": 0.9553,
+"triangle": 0.8176
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.838,
+"traits": {
+"eye": 0.9404,
+"triangle": 0.7356
+},
+"notes": ""
+}
+]
+},
+"IC7.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.537,
+"traits": {
+"boot": 0.9363,
+"wings": 0.1375
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.531,
+"traits": {
+"boot": 0.9191,
+"wings": 0.1432
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.452,
+"traits": {
+"boot": 0.784,
+"wings": 0.12
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.392,
+"traits": {
+"boot": 0.7372,
+"wings": 0.0464
+},
+"notes": " missing ['wings']"
+}
+]
+},
+"IC7.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.423,
+"traits": {
+"heart": 0.1225,
+"veins": 0.7233
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.338,
+"traits": {
+"heart": 0.1931,
+"veins": 0.4824
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.515,
+"traits": {
+"heart": 0.2134,
+"veins": 0.8164
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.606,
+"traits": {
+"heart": 0.4244,
+"veins": 0.7879
+},
+"notes": ""
+}
+]
+},
+"IC7.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.509,
+"traits": {
+"round shield": 0.9945,
+"single centred item": 0.0233
+},
+"notes": " missing ['single centred item']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.572,
+"traits": {
+"round shield": 0.9983,
+"single centred item": 0.1451
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.517,
+"traits": {
+"round shield": 0.9951,
+"single centred item": 0.0385
+},
+"notes": " missing ['single centred item']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.562,
+"traits": {
+"round shield": 0.9997,
+"single centred item": 0.1251
+},
+"notes": ""
+}
+]
+},
+"IC7.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.746,
+"traits": {
+"four leaves": 0.8007,
+"coins": 0.691
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.37,
+"traits": {
+"four leaves": 0.6406,
+"coins": 0.0995
+},
+"notes": " missing ['coins']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.329,
+"traits": {
+"four leaves": 0.6567,
+"coins": 0.0017
+},
+"notes": " missing ['coins']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.468,
+"traits": {
+"four leaves": 0.9344,
+"coins": 0.0018
+},
+"notes": " missing ['coins']"
+}
+]
+},
+"IC8.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.476,
+"traits": {
+"lantern": 0.9522,
+"single centred item": 0.0003
+},
+"notes": " missing ['single centred item']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.45,
+"traits": {
+"lantern": 0.9005,
+"single centred item": 0.0002
+},
+"notes": " missing ['single centred item']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.395,
+"traits": {
+"lantern": 0.7905,
+"single centred item": 0.0001
+},
+"notes": " missing ['single centred item']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.225,
+"traits": {
+"lantern": 0.4494,
+"single centred item": 0.0
+},
+"notes": " missing ['single centred item']"
+}
+]
+},
+"IC8.2": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.045,
+"traits": {
+"great helm": 0.0895,
+"single centred item": 0.0007
+},
+"notes": " missing ['great helm', 'single centred item']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.501,
+"traits": {
+"great helm": 0.9963,
+"single centred item": 0.0067
+},
+"notes": " missing ['single centred item']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.502,
+"traits": {
+"great helm": 0.9977,
+"single centred item": 0.006
+},
+"notes": " missing ['single centred item']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.461,
+"traits": {
+"great helm": 0.9191,
+"single centred item": 0.0019
+},
+"notes": " missing ['single centred item']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.506,
+"traits": {
+"great helm": 0.9975,
+"single centred item": 0.0152
+},
+"notes": " missing ['single centred item']"
+}
+]
+},
+"IC8.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.424,
+"traits": {
+"wide hat": 0.6775,
+"flame": 0.1711
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.216,
+"traits": {
+"wide hat": 0.3739,
+"flame": 0.0575
+},
+"notes": " missing ['flame']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.168,
+"traits": {
+"wide hat": 0.304,
+"flame": 0.0326
+},
+"notes": " missing ['flame']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.684,
+"traits": {
+"wide hat": 0.8895,
+"flame": 0.4785
+},
+"notes": ""
+}
+]
+},
+"IC8.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.391,
+"traits": {
+"hood": 0.2568,
+"arrow": 0.5254
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.034,
+"traits": {
+"hood": 0.0349,
+"arrow": 0.0328
+},
+"notes": " missing ['hood', 'arrow']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.657,
+"traits": {
+"hood": 0.7535,
+"arrow": 0.5603
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.256,
+"traits": {
+"hood": 0.461,
+"arrow": 0.0515
+},
+"notes": " missing ['arrow']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.588,
+"traits": {
+"hood": 0.5195,
+"arrow": 0.6567
+},
+"notes": ""
+}
+]
+},
+"IC8.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.478,
+"traits": {
+"candle": 0.9557,
+"halo": 0.0008
+},
+"notes": " missing ['halo']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.382,
+"traits": {
+"candle": 0.7649,
+"halo": 0.0
+},
+"notes": " missing ['halo']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.464,
+"traits": {
+"candle": 0.9263,
+"halo": 0.0021
+},
+"notes": " missing ['halo']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.439,
+"traits": {
+"candle": 0.8775,
+"halo": 0.0005
+},
+"notes": " missing ['halo']"
+}
+]
+},
+"IC8.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.469,
+"traits": {
+"hammer": 0.0,
+"sunburst shield": 0.9372
+},
+"notes": " missing ['hammer']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.626,
+"traits": {
+"hammer": 0.2583,
+"sunburst shield": 0.9942
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.57,
+"traits": {
+"hammer": 0.1968,
+"sunburst shield": 0.9438
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.527,
+"traits": {
+"hammer": 0.1052,
+"sunburst shield": 0.9482
+},
+"notes": ""
+}
+]
+},
+"IC11.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.818,
+"traits": {
+"profile face": 0.9801,
+"round ear": 0.6567
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.931,
+"traits": {
+"profile face": 0.9956,
+"round ear": 0.867
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.371,
+"traits": {
+"profile face": 0.4902,
+"round ear": 0.2524
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.863,
+"traits": {
+"profile face": 0.9871,
+"round ear": 0.7387
+},
+"notes": ""
+}
+]
+},
+"IC11.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.913,
+"traits": {
+"long ear": 0.9935,
+"profile": 0.8322
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.838,
+"traits": {
+"long ear": 0.9962,
+"profile": 0.6792
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.778,
+"traits": {
+"long ear": 0.9935,
+"profile": 0.5622
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.684,
+"traits": {
+"long ear": 0.9865,
+"profile": 0.3812
 },
 "notes": ""
 }
