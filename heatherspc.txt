@@ -1,5 +1,5 @@
-STATION machine=heatherspc time=2026-11-22T04:04Z commit=9f168ae took=1s
-JOB realm SKIP cargo is not installed on this station
-JOB frames SKIP cargo is not installed on this station
-JOB economy SKIP cargo is not installed on this station
-STATION PASS jobs=3 failed=0 skipped=0
+STATION machine=heatherspc time=2026-11-22T05:20Z commit=99d2d0e took=11s
+JOB realm FAIL realm/check.sh: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release | realm/store/check.sh: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release
+JOB frames FAIL build: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stabl
+JOB economy INFO seed=149912 error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release of Rust and set it as your default toolchain. 
+STATION FAIL jobs=3 failed=2 skipped=0
