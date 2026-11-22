@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-22T14:43Z commit=630ff16 took=1923s
-JOB realm PASS REALM ok tests=400 bench 300x8000 tick_ms=5.52/7.92 follower=ok 8 tower_tick_ms=5.39/7.33 tower_follower=ok 3 | STORE ok tests=46 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=25.8  | REALM_CLIENT ok gallery_sprites=34 field_test_checks=125 shell_test_checks=102 shell_shots=35 shots: zoom 1/2/4 monsters
-JOB world FAIL world secs=600     Finished `release` profile [optimized] target(s) in 0.02s WORLD FAILED days=7.00 secs=601 heroes=200 cycles=523 outings=523 vault_runs=15 vault_joins=14 queued=388 queue_max=71 admitted=344 copies_opened=2 merges=0 moved=0 moved_bots=0 peak_copies=7 peak_heroes=153 tides=2351
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-184314 schema=3 items=0 stacks=0 ledger=144 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
-STATION FAIL jobs=3 failed=1 skipped=0
+STATION machine=ubuntu time=2026-11-22T15:20Z commit=191186c took=2086s
+JOB realm FAIL REALM ok tests=400 bench 300x8000 tick_ms=5.69/7.55 follower=ok 8 tower_tick_ms=5.57/7.22 tower_follower=ok 3 | STORE ok tests=46 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=26.1  | realm/check_client.sh: direct: FOLLOW_TEST FAILED server=127.0.0.1:7791 ticks=401 hash_checks passed=20 failed=0 join_kb=220 in_kb_s=1.5 out_kb_s=0.38 sim_ms=9.81 stall_ms_max=153 mispredicts=6/389 problems="predicted hero 
+JOB world FAIL world secs=600     Finished `release` profile [optimized] target(s) in 0.02s WORLD FAILED days=7.00 secs=601 heroes=200 cycles=521 outings=521 vault_runs=10 vault_joins=10 queued=402 queue_max=65 admitted=365 copies_opened=2 merges=0 moved=0 moved_bots=0 peak_copies=7 peak_heroes=151 tides=2351
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-192007 schema=3 items=0 stacks=0 ledger=150 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
+STATION FAIL jobs=3 failed=2 skipped=0
