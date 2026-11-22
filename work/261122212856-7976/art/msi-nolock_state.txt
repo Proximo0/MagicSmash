@@ -1,0 +1,41 @@
+The following sleep states are available on this system:
+    Standby (S0 Low Power Idle) Network Connected
+    Hibernate
+    Fast Startup
+
+The following sleep states are not available on this system:
+    Standby (S1)
+	The system firmware does not support this standby state.
+	This standby state is disabled when S0 low power idle is supported.
+
+    Standby (S2)
+	The system firmware does not support this standby state.
+	This standby state is disabled when S0 low power idle is supported.
+
+    Standby (S3)
+	This standby state is disabled when S0 low power idle is supported.
+
+    Hybrid Sleep
+	Standby (S3) is not available.
+	The hypervisor does not support this standby state.
+
+Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
+  GUID Alias: SCHEME_BALANCED
+  Subgroup GUID: 7516b95f-f776-4464-8c53-06167f40cc99  (Display)
+    GUID Alias: SUB_VIDEO
+    Power Setting GUID: 3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e  (Turn off display after)
+      GUID Alias: VIDEOIDLE
+      Minimum Possible Setting: 0x00000000
+      Maximum Possible Setting: 0xffffffff
+      Possible Settings increment: 0x00000001
+      Possible Settings units: Seconds
+    Current AC Power Setting Index: 0x00000000
+    Current DC Power Setting Index: 0x000000b4
+
+
+HKEY_CURRENT_USER\Control Panel\Desktop
+    DelayLockInterval    REG_DWORD    0xffffffff
+
+
+
+ERROR: The system was unable to find the specified registry key or value.
