@@ -53,7 +53,7 @@ fn quick(copies: CopyRules) -> WorldConfig {
 }
 
 fn login(r: &Realm, name: &str) -> GatewayClient {
-    let mut c = GatewayClient::connect(&r.addr).unwrap();
+    let mut c = GatewayClient::connect_plain(&r.addr).unwrap();
     assert!(matches!(c.login(name).unwrap(), Resp::Login { .. }));
     c
 }
@@ -93,7 +93,10 @@ fn coin(r: &Realm, h: i64) -> u64 {
 #[test]
 fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
     // Hosts at 250 Hz and a vault every sixth session of a leader keep the run near a minute and a half of CPU.
-    let o = WeekOpts { bots: 32, secs: 30.0, realm_cap: 24, tick_us: 4_000, vault_every: 6, ..WeekOpts::default() };
+    // Outings ask for 0.8 s to 2.4 s of host ticks; a bot recalls hers after 1.5 s and follows her to the end, so some
+    // outings end by a recall and the coin they bank on leaving must still be what was reported (the station's
+    // `hero 126: store 1349722, reported 32019`: a bot that gave up instead left that coin unreported).
+    let o = WeekOpts { bots: 32, secs: 30.0, realm_cap: 24, tick_us: 4_000, vault_every: 6, recall_secs: 1.5, ..WeekOpts::default() };
     let r = run_week(&o).unwrap();
     for e in r.errors.iter().take(5) {
         eprintln!("{e}");
@@ -108,6 +111,7 @@ fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
     assert!(r.counts.bosses as f64 >= 7.0 * 12.0 * 6.0 / 4.0, "field bosses: {}", r.counts.bosses);
     // About 130 outings on an idle box; a loaded one (other builds on its cores) has done under 90.
     assert!(r.outings >= 60 && r.vault_runs >= 1, "outings {} vault runs {}", r.outings, r.vault_runs);
+    assert!(r.recalled >= 1, "some outings outlast the recall: {}", r.line());
 }
 
 #[test]
@@ -126,16 +130,17 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     // A host-played hero in copy 0, the player in copy 1 (the emptier), another in copy 0: copy 1 is the emptier
     // and closes into copy 0.
     assert!(matches!(a.call(Req::World(WReq::BotTicket { hero: ha, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { copy: 0, .. }));
-    let (host, port, ticket) = match p.call(Req::FieldTicket { hero: hp, field: 0 }).unwrap() {
-        Resp::Ticket { host, port, ticket, copy: 1, .. } => (host, port, ticket),
+    let (host, port, ticket, key) = match p.call(Req::FieldTicket { hero: hp, field: 0 }).unwrap() {
+        Resp::Ticket { host, port, ticket, copy: 1, key, .. } => (host, port, ticket, key),
         r => panic!("{r:?}"),
     };
     assert!(matches!(b.call(Req::World(WReq::BotTicket { hero: hb, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { copy: 0, .. }));
     // She fights well past the merge (3 s of grace is 600 ticks here), then banks and leaves from the new copy.
     // The walk to a waystone is slow in host ticks when the box starves the bot (its inputs come every 50 ms).
     let play = PlayOpts { fight_ticks: 2_000, max_ticks: 24_000, ..PlayOpts::default() };
-    let out = play_field(&mut p, &host, port, ticket, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
+    let out = play_field(&mut p, &host, port, ticket, key, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
     assert_eq!(out.moves, 1, "{out:?}");
+    assert_eq!(out.fresh_keys, 1, "the new copy admitted her with a fresh key, sent over TLS: {out:?}");
     assert!(out.left == 0 || out.left == 1, "she left by the gate or a waystone after the move: {out:?}");
     assert_eq!(coin(&r, hp), out.coin, "what was reported banked is in her bag");
     let s = r.gw.world.stats();
@@ -320,14 +325,14 @@ fn heroes_play_their_own_class_level_job_and_gear() {
     let mut n = login(&r, "newcomer");
     let hn = hero(&mut n, "Newcomer", PRIEST);
     for (cl, id, want_class, want_level) in [(&mut c, h, PRIEST, 45u8), (&mut n, hn, NOVICE, 1u8)] {
-        let (port, ticket) = match cl.call(Req::FieldTicket { hero: id, field: 4 }).unwrap() {
-            Resp::Ticket { port, ticket, .. } => (port, ticket),
+        let (port, ticket, key) = match cl.call(Req::FieldTicket { hero: id, field: 4 }).unwrap() {
+            Resp::Ticket { port, ticket, key, .. } => (port, ticket, key),
             r => panic!("{r:?}"),
         };
         let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
         sock.connect(("127.0.0.1", port)).unwrap();
         sock.set_nonblocking(true).unwrap();
-        let mut lc = LockstepClient::with_ticket(ticket, 1);
+        let mut lc = LockstepClient::with_ticket(ticket, key, 1);
         let mut buf = [0u8; 2048];
         let end = Instant::now() + Duration::from_secs(STALL_SECS);
         let mut seen = None;
@@ -354,6 +359,6 @@ fn heroes_play_their_own_class_level_job_and_gear() {
             assert_eq!(j, job, "her job");
             assert_eq!((gear[3], gear[1]), (9, 4), "her gear's lines");
         }
-        let _ = sock.send(&[realm_server::MSG_BYE]);
+        let _ = sock.send(&lc.bye());
     }
 }

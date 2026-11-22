@@ -18,6 +18,11 @@ mod geo;
 mod hero;
 mod mods;
 mod monster;
+pub mod pvp;
+#[cfg(test)]
+mod probe;
+#[cfg(test)]
+mod wirefuzz;
 mod sheet;
 mod spawn;
 mod state;
@@ -38,6 +43,7 @@ pub use events::Event;
 pub use flow::{NEIGHBOURS, STEP as FLOW_STEP, UNREACHED};
 pub use hero::*;
 pub use mods::*;
+pub use pvp::{Duel, IN_MARK, PHit, Pvp, War};
 pub use monster::{BOSS, CHAMPION, CLUTCH_PX, ELITE, Monsters, level_scale, max_hp};
 pub use sheet::{Outing, Sheet, line_points, owned_cards};
 pub use tables::{CLASSES, KINDS, Kind, TICK_HZ};
@@ -169,6 +175,8 @@ pub struct Field {
     pub(crate) tide: bool,
     /// The clock, the tide's altars, the boss and the vault run: state.
     pub(crate) realm: tide::Realm,
+    /// Players against players (section 14): the realm flag, wars, a duel, guild tags, who downed whom.
+    pub(crate) pvp: pvp::Pvp,
     /// Births on (a field) or off (tools, tests; later a vault's timeline).
     pub(crate) births: bool,
     pub(crate) kills_total: u64,
@@ -239,6 +247,7 @@ impl Field {
             shots: Vec::new(),
             tide: false,
             realm: tide::Realm::new(),
+            pvp: pvp::Pvp::default(),
             births: true,
             kills_total: 0,
             spawns_total: 0,
@@ -402,8 +411,11 @@ impl Field {
         assert!(id < u16::MAX as usize, "too many heroes");
         let (x, y) = self.terrain.nearest_open(x, y);
         let mut h = Hero::enter_top(sheet, outing, self.top_level(), x, y);
-        h.last_struck = if outing.struck_ago == NEVER { NEVER } else { self.tick.saturating_sub(outing.struck_ago) };
+        // A strike older than every section-14 window (the mark's ten minutes) is as good as none: a field younger
+        // than her wait would otherwise read it as tick 0, a fresh strike.
+        h.last_struck = if outing.struck_ago >= pvp::MARK_WAIT_TICKS { NEVER } else { self.tick.saturating_sub(outing.struck_ago) };
         self.heroes[id] = h;
+        self.pvp_join(id as u16);
         id as u16
     }
 
@@ -411,6 +423,7 @@ impl Field {
         if let Some(p) = self.heroes.get_mut(id as usize) {
             *p = Hero::default();
         }
+        self.forget_slot(id);
     }
 
     pub fn step<I: Copy + Into<u16>>(&mut self, inputs: &[I]) {
@@ -428,8 +441,10 @@ impl Field {
         let words: Vec<u16> = inputs.iter().map(|&i| i.into()).collect();
         self.build_hero_grid();
         self.realm_begin();
+        self.pvp_begin();
         self.compute_mods();
         self.phase_heroes(&words);
+        self.pvp_settle();
         mark(Phase::Input);
         self.phase_flow();
         mark(Phase::Flow);
@@ -439,6 +454,9 @@ impl Field {
         self.phase_move();
         mark(Phase::Move);
         self.phase_fight();
+        if self.pvp.yard {
+            self.duel_end_check();
+        }
         mark(Phase::Fight);
         if self.births {
             self.phase_spawn();

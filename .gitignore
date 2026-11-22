@@ -20,3 +20,8 @@ tools/music/out/candidates/
 # The sentry-godot addon is fetched by tools/fetch_sentry.sh (large native binaries)
 /addons/sentry/
 /target/
+# TLS keys and certificates (the gateway's --dev-cert pair, a real pair): never commit them.
+*.pem
+*.dev-key.pem
+*.dev-cert.pem
+*.dev-cert.names

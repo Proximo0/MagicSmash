@@ -75,11 +75,16 @@ impl RealmLink {
 
     /// As `connect_to_host`, for a field host behind a gateway: `ticket` is what the gateway's FIELD_TICKET
     /// returned (a 64-bit number, passed as its two halves `ticket_high` and `ticket_low`, each 0 to
-    /// 4294967295); the host takes the hero's sheet from the store.
+    /// 4294967295) and `key` its 16-byte secret (the HELLO proves the ticket with it); the host takes the hero's
+    /// sheet from the store. False when the key is not 16 bytes.
     #[func]
-    fn connect_with_ticket(&mut self, host: GString, port: i32, ticket_high: i64, ticket_low: i64) -> bool {
+    fn connect_with_ticket(&mut self, host: GString, port: i32, ticket_high: i64, ticket_low: i64, key: PackedByteArray) -> bool {
         let ticket = ((ticket_high as u64 & 0xFFFF_FFFF) << 32) | (ticket_low as u64 & 0xFFFF_FFFF);
-        let client = LockstepClient::with_ticket(ticket, self.threads.max(1) as usize);
+        let Ok(key) = <[u8; 16]>::try_from(key.to_vec().as_slice()).map(realm_server::TicketKey) else {
+            godot_error!("RealmLink: a field ticket's key is 16 bytes");
+            return false;
+        };
+        let client = LockstepClient::with_ticket(ticket, key, self.threads.max(1) as usize);
         self.open_link(host, port, client)
     }
 

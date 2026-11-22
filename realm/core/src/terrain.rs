@@ -311,6 +311,23 @@ pub fn build_vault(field: u8, seed: u64) -> Terrain {
     Terrain { field, map: g.map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, hash }
 }
 
+/// The town's training yard (job R3): an open square of `YARD_PX` walled round, no sites (no gate, no waystones,
+/// so no safe ground), the same for every seed.
+pub fn build_yard(seed: u64) -> Terrain {
+    let _ = seed;
+    let mut map = vec![WALL; CELLS];
+    let half = crate::pvp::YARD_PX / 64;
+    let c = W / 2;
+    for y in c - half..c + half {
+        for x in c - half..c + half {
+            map[idx(x, y)] = 0;
+        }
+    }
+    let hash = map_hash(&map);
+    let heart = (FIELD / 2, FIELD / 2);
+    Terrain { field: 0, map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, hash }
+}
+
 /// Pillars in a vault, their radius, the cells they keep from the walls and from the centre.
 const PILLARS: u32 = 8;
 const PILLAR_R: i32 = 2;

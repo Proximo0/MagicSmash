@@ -56,6 +56,8 @@ var embedded: bool = false
 var ticket_host: String = ""
 var ticket_port: int = 0
 var ticket: int = 0
+## The ticket's 16-byte secret (FIELD_TICKET's "key"), sent in the HELLO.
+var ticket_key: PackedByteArray = PackedByteArray()
 var script_move: int = -1
 var _warn_text: String = ""
 var _warn_until: float = 0.0
@@ -157,7 +159,7 @@ func _ready() -> void:
 	add_child(_sound)
 	_build_hud()
 	if embedded:
-		var ok: bool = link.connect_with_ticket(ticket_host, ticket_port, (ticket >> 32) & 0xFFFFFFFF, ticket & 0xFFFFFFFF)
+		var ok: bool = link.connect_with_ticket(ticket_host, ticket_port, (ticket >> 32) & 0xFFFFFFFF, ticket & 0xFFFFFFFF, ticket_key)
 		if not ok:
 			push_error("cannot open the field at %s:%d" % [ticket_host, ticket_port])
 	elif not link.connect_to_host(_host, _port, _hero_class, _race):

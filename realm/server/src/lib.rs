@@ -6,6 +6,9 @@ pub mod client;
 pub mod driver;
 pub mod host;
 pub mod lockstep;
+pub mod mac;
+#[cfg(test)]
+mod probe;
 pub mod predict;
 pub mod realm_clock;
 pub mod report;
@@ -15,6 +18,8 @@ pub mod stats;
 pub mod view;
 pub mod wire;
 pub mod world;
+#[cfg(test)]
+mod wirefuzz;
 
 pub const DEFAULT_PORT: u16 = 7777;
 /// Largest datagram payload either side sends.
@@ -28,6 +33,32 @@ pub const WIRE_SKILL: u8 = realm_core::IN_SKILL1 as u8;
 pub const MSG_HELLO: u8 = 0x01;
 pub const MSG_INPUT: u8 = 0x02;
 pub const MSG_BYE: u8 = 0x03;
+/// A ticketed player's INPUT: `0x04, u32 counter, <the INPUT after its message byte>, u64 tag` (`seal`).
+pub const MSG_SEALED_INPUT: u8 = 0x04;
+/// A ticketed player's BYE: `0x05, u32 counter, u64 tag`.
+pub const MSG_SEALED_BYE: u8 = 0x05;
+
+/// The secret a field ticket carries (`docs/realm/wire.md`, "Transport security"): 128 random bits from the gateway,
+/// fresh for each admission, sent only over the gateway's TLS. It keys the field MACs (`mac::siphash24`) and never
+/// crosses UDP. Its Debug shows no bytes.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub struct TicketKey(pub [u8; 16]);
+
+impl std::fmt::Debug for TicketKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TicketKey(<redacted>)")
+    }
+}
+
+impl TicketKey {
+    pub fn is_zero(&self) -> bool {
+        self.0 == [0; 16]
+    }
+    /// The 8-byte tag over `parts` (each a domain byte or field, in order).
+    pub fn tag(&self, parts: &[&[u8]]) -> u64 {
+        mac::siphash24(&self.0, &parts.concat())
+    }
+}
 pub const MSG_WELCOME: u8 = 0x81;
 pub const MSG_SNAPSHOT: u8 = 0x82;
 /// Protocol A version 1 snapshot (deltas): the core job's extension.
@@ -114,25 +145,84 @@ impl<'a> Rd<'a> {
     }
 }
 
-/// HELLO: `0x01, u32 proto, u8 class, u8 race, u64 ticket`. A field host that was given a gateway wants a
-/// ticket (from `FIELD_TICKET`) and ignores class and race; a crowd-test server has no tickets and joins a
-/// bench hero of that class (0..4 is KNIGHT to PALADIN) and race.
+/// HELLO: `0x01, u32 proto, u8 class, u8 race, u64 ticket, [u64 nonce, u64 mac]`. A field host that was given a
+/// gateway wants a ticket (from `FIELD_TICKET`) and proof of its key: the client's `nonce` and
+/// `mac = SipHash(key, "H", proto, ticket, nonce)`; it ignores class and race. A crowd-test server has no tickets and
+/// joins a bench hero of that class (0..4 is KNIGHT to PALADIN) and race.
 pub fn hello(proto: u32, class: u8, race: u8) -> Vec<u8> {
-    hello_ticket(proto, class, race, 0)
+    hello_ticket(proto, class, race, 0, None)
 }
 
-pub fn hello_ticket(proto: u32, class: u8, race: u8, ticket: u64) -> Vec<u8> {
+pub fn hello_mac(key: &TicketKey, proto: u32, ticket: u64, nonce: u64) -> u64 {
+    key.tag(&[b"H", &proto.to_le_bytes(), &ticket.to_le_bytes(), &nonce.to_le_bytes()])
+}
+
+/// `proof`: the ticket's key and this client's nonce (the key itself is not sent).
+pub fn hello_ticket(proto: u32, class: u8, race: u8, ticket: u64, proof: Option<(&TicketKey, u64)>) -> Vec<u8> {
     let mut w = vec![MSG_HELLO];
     put_u32(&mut w, proto);
     w.push(class);
     w.push(race);
     put_u64(&mut w, ticket);
+    if let Some((key, nonce)) = proof {
+        put_u64(&mut w, nonce);
+        put_u64(&mut w, hello_mac(key, proto, ticket, nonce));
+    }
     w
 }
 
-/// A parsed HELLO (`ticket` 0 when the client sent none).
-pub fn parse_hello(r: &mut Rd) -> Option<(u32, u8, u8, u64)> {
-    Some((r.u32()?, r.u8()?, r.u8()?, r.u64().unwrap_or(0)))
+/// A parsed HELLO (`ticket` 0 and `proof` None when the client sent none). `proof` is (nonce, mac).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Hello {
+    pub proto: u32,
+    pub class: u8,
+    pub race: u8,
+    pub ticket: u64,
+    pub proof: Option<(u64, u64)>,
+}
+
+pub fn parse_hello(r: &mut Rd) -> Option<Hello> {
+    let (proto, class, race) = (r.u32()?, r.u8()?, r.u8()?);
+    let ticket = r.u64().unwrap_or(0);
+    let proof = match (r.u64(), r.u64()) {
+        (Some(n), Some(m)) => Some((n, m)),
+        _ => None,
+    };
+    Some(Hello { proto, class, race, ticket, proof })
+}
+
+/// True when `proof` proves `key` for this HELLO.
+pub fn hello_proves(key: &TicketKey, h: &Hello) -> bool {
+    !key.is_zero() && h.proof.is_some_and(|(nonce, mac)| hello_mac(key, h.proto, h.ticket, nonce) == mac)
+}
+
+/// Seals a client's INPUT or BYE (`MSG_INPUT`/`MSG_BYE` as built below) with the session's key: `0x04|0x05, u32
+/// counter, body, u64 tag` where `tag = SipHash(key, type, counter, body)`. The counter must rise with every datagram;
+/// the host drops a stale or repeated one.
+pub fn seal(key: &TicketKey, counter: u32, msg: &[u8]) -> Vec<u8> {
+    let (t, body) = match msg.first() {
+        Some(&MSG_INPUT) => (MSG_SEALED_INPUT, &msg[1..]),
+        Some(&MSG_BYE) => (MSG_SEALED_BYE, &msg[1..]),
+        _ => return msg.to_vec(),
+    };
+    let mut w = Vec::with_capacity(msg.len() + 12);
+    w.push(t);
+    put_u32(&mut w, counter);
+    w.extend_from_slice(body);
+    put_u64(&mut w, key.tag(&[&[t], &counter.to_le_bytes(), body]));
+    w
+}
+
+/// Opens a sealed datagram: its counter and body when the tag is the key's, else None.
+pub fn unseal<'a>(key: &TicketKey, msg: &'a [u8]) -> Option<(u32, &'a [u8])> {
+    let t = *msg.first()?;
+    if !matches!(t, MSG_SEALED_INPUT | MSG_SEALED_BYE) || msg.len() < 13 || key.is_zero() {
+        return None;
+    }
+    let counter = u32::from_le_bytes(msg[1..5].try_into().ok()?);
+    let (body, tag) = msg[5..].split_at(msg.len() - 13);
+    let tag = u64::from_le_bytes(tag.try_into().ok()?);
+    (key.tag(&[&[t], &counter.to_le_bytes(), body]) == tag).then_some((counter, body))
 }
 
 /// INPUT: `0x02, u32 ticks applied, u8 byte 0, u8 zoom, u8 byte 1` (rules section 1: direction and skills,
@@ -192,13 +282,22 @@ pub fn parse_input(r: &mut Rd) -> Option<InputMsg> {
     Some(InputMsg { ack, word, zoom, seq_words })
 }
 
-/// WELCOME: `0x81, u32 player id, u32 tick, u16 tick hz, u32 field width px, u32 field height px`.
-pub fn welcome(id: u32, tick: u32) -> Vec<u8> {
+/// WELCOME: `0x81, u32 player id, u32 tick, u16 tick hz, u32 field width px, u32 field height px, [u64 mac]`. To
+/// a ticketed player the host adds `mac = SipHash(key, "W", nonce, id, tick)` over her HELLO's nonce, so a WELCOME
+/// nobody with the key sent is not believed.
+pub fn welcome(id: u32, tick: u32, auth: Option<(&TicketKey, u64)>) -> Vec<u8> {
     let mut w = vec![MSG_WELCOME];
     put_u32(&mut w, id);
     put_u32(&mut w, tick);
     put_u16(&mut w, realm_core::TICK_HZ as u16);
     put_u32(&mut w, realm_core::FIELD_PX as u32);
     put_u32(&mut w, realm_core::FIELD_PX as u32);
+    if let Some((key, nonce)) = auth {
+        put_u64(&mut w, welcome_mac(key, nonce, id, tick));
+    }
     w
+}
+
+pub fn welcome_mac(key: &TicketKey, nonce: u64, id: u32, tick: u32) -> u64 {
+    key.tag(&[b"W", &nonce.to_le_bytes(), &id.to_le_bytes(), &tick.to_le_bytes()])
 }

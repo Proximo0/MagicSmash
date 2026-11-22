@@ -1,14 +1,16 @@
 //! A blocking gateway client: what the bots, the tests and (in step with the Godot module later) a client
-//! use to speak the TCP side. It keeps what the server pushes (snapshots, chat, outing results) in `pushes`.
+//! use to speak the TCP side, plain or over TLS (`tls::ClientStream`). It keeps what the server pushes
+//! (snapshots, chat, outing results) in `pushes`.
 
 use crate::proto::*;
+use crate::tls::{rustls::ClientConfig, ClientStream};
 use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub struct GatewayClient {
-    stream: TcpStream,
+    stream: ClientStream,
     buf: Vec<u8>,
     tag: u32,
     /// Unsolicited messages, oldest first.
@@ -18,16 +20,27 @@ pub struct GatewayClient {
 }
 
 impl GatewayClient {
-    pub fn connect(addr: impl ToSocketAddrs) -> std::io::Result<GatewayClient> {
-        let stream = TcpStream::connect(addr)?;
-        stream.set_nodelay(true)?;
-        let peer_ip = stream.peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();
+    /// TLS, the gateway's certificate checked against the public roots and the name in `addr`: the default.
+    pub fn connect(addr: &str) -> std::io::Result<GatewayClient> {
+        GatewayClient::connect_with(addr, Some(&crate::tls::client_config_public()))
+    }
+
+    /// Plain TCP, only for a `--plain`/`--dev-login` gateway (the in-process tests).
+    pub fn connect_plain(addr: &str) -> std::io::Result<GatewayClient> {
+        GatewayClient::connect_with(addr, None)
+    }
+
+    /// TLS when `tls` is given (`tls::ClientTls::config`), plain TCP for None: the handshake runs here, so a refused
+    /// certificate is this call's error.
+    pub fn connect_with(addr: &str, tls: Option<&Arc<ClientConfig>>) -> std::io::Result<GatewayClient> {
+        let stream = ClientStream::connect(addr, tls)?;
+        let peer_ip = stream.tcp().peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();
         Ok(GatewayClient { stream, buf: Vec::new(), tag: 0, pushes: VecDeque::new(), peer_ip })
     }
 
     /// Reads what has arrived, waiting at most `wait`; `Ok(false)` when the server closed the connection.
     fn fill(&mut self, wait: Duration) -> std::io::Result<bool> {
-        self.stream.set_read_timeout(Some(wait.max(Duration::from_millis(1))))?;
+        self.stream.tcp().set_read_timeout(Some(wait.max(Duration::from_millis(1))))?;
         let mut tmp = [0u8; 16 * 1024];
         match self.stream.read(&mut tmp) {
             Ok(0) => Ok(false),

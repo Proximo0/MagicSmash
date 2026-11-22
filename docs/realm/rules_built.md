@@ -206,3 +206,38 @@ Built in `core/src/{tide,boss,vault,transfer,bots,gates}.rs` and `tables/realm.r
 1. The party gate on the first three fields and the jobs gate (above): a tide-size rule and a role-aware contribution measure.
 2. The world boss's slot in the day, the vault overtime of 3 minutes, whether a won tide should end the tide at once, and whether a downed hero moved to another copy should keep the down.
 3. The client expects `world["boss"]` (name, health, max health, position): the core has `Field::boss()`, `boss_pos()` and `boss_health()` for the server to put there.
+
+## R3: players against players (section 14)
+
+Built in `core/src/pvp.rs` with hooks in `attack.rs`, `combat.rs`, `act.rs`, `mods.rs`, `tide.rs`, `state.rs`,
+`terrain.rs` (`build_yard`), `events.rs` and `bots.rs` (`Plan::hunter`). Tests are in `core/tests/pvp.rs`.
+Every number and the open questions are in `docs/realm/pvp.md`.
+
+- **Who may strike whom.** One relation, `Field::hostile` and `Field::foes`, covers:
+  - both heroes marked;
+  - two guilds of a war that is on (its tide is running);
+  - the pair of a running duel in a yard.
+  Nobody strikes or is struck within 300 px of a waystone or the gate, and a vault is safe everywhere. Blows do
+  40% of the monster damage, through the target's reductions, for every weapon shape and the Ring, Thick, Volley,
+  Dash and Zone skills. They are gathered with the monster hits through the hero grid, only by flagged heroes off
+  safe ground, and applied in hero order.
+- **The mark.**
+  - The rite needs class level 20 and a 5 s hold of interact plus `IN_MARK` (`0x4000`) at a waystone; it never banks.
+  - +25% coin and +15 luck while marked.
+  - The helper ban (`may_help`, 60 s) covers heals, shields, buffs, raises and SANCTUARY.
+  - A fall after a hero's blow pays the downer the lost coin (`Plunder`).
+  - The 10-minute wait is carried in the outing, and home through `Flush.mark` to the gateway's mark book, which
+    stores the ticks left. It runs down only in a field; town and logged-out time do not count.
+  - Kill credit (the downer) is cleared on rise, on a non-hero down, and on leave (`forget_slot`, which also
+    disowns the leaver's drops and zones).
+- **Gateway limits:** 32 armed wars per field, 3 waiting declared per guild, one accepted war per guild per tide,
+  5 PvP requests a minute per account, 64 duels at once stepped outside the social lock, and fought wars with no
+  result are drawn a minute after their tide.
+- **Events, appended after `Vault`:** `Mark` 17, `Struck` 18, `Slain` 19, `Plunder` 20, `War` 21, `Duel` 22.
+- **State: no saved format changed.** The PvP block (tag `0x50`) is appended to the state bytes only when non-empty,
+  so a field without PvP hashes as before, and `STATE_VERSION` stays 3. A yard is vault byte 254.
+- **Fixed:** `join` read a carried `struck_ago` larger than the field's tick as a strike at tick 0. A strike older
+  than 10 minutes now reads as none.
+- **Bots:** a bot never raises a hero the help ban forbids, and a hunter never raises her own prey.
+- **Budget:** 1,000 heroes, 500 of them marked hunters, among 20,000 monsters, with a tide and 4 threads. The worst
+  field is THE WORLD'S EDGE at 6.19 ms mean and 13.17 ms p99. Hashes are equal on 1 to 4 threads and on a follower.

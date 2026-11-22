@@ -107,11 +107,15 @@ pub struct Entry {
     pub arrive: Option<u8>,
     /// The host plays her itself (`driver.rs`): she joins at once, no HELLO.
     pub drive: Option<Drive>,
+    /// The ticket's secret (random for each admission, from the gateway over TLS): her HELLO must prove it (it is
+    /// never sent), her INPUT and BYE are tagged with it. A ticket whose key is all
+    /// zeros joins nobody by HELLO.
+    pub key: TicketKey,
 }
 
 impl Entry {
     pub fn new(ticket: u64, hero: u64, sheet: Sheet, outing: Outing) -> Entry {
-        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None }
+        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None, key: TicketKey::default() }
     }
 }
 
@@ -178,6 +182,9 @@ pub struct Flush {
     pub banked: bool,
     /// None: she is still in the field.
     pub left: Option<Leave>,
+    /// Section 14 (job R3): her BLOOD MARK and the ticks since her last strike on a hero (`NEVER`), sent when either
+    /// changed and always when she leaves, so her next outing carries them.
+    pub mark: Option<(bool, u32)>,
 }
 
 /// One credited hero of a kill.
@@ -266,6 +273,9 @@ pub struct HostStatus {
     pub members: Mutex<Vec<u64>>,
     pub pending: AtomicU32,
     pub counts: Mutex<HostCounts>,
+    /// Datagrams dropped as unproven: a HELLO without proof of its ticket's key, an INPUT or BYE from an address
+    /// that has not joined, with a wrong tag or a stale counter, a follower on a ticketed field.
+    pub refused: AtomicU64,
 }
 
 impl HostStatus {
@@ -281,6 +291,7 @@ impl HostStatus {
             members: Mutex::new(Vec::new()),
             pending: AtomicU32::new(0),
             counts: Mutex::new(HostCounts::default()),
+            refused: AtomicU64::new(0),
         }
     }
 }
@@ -430,6 +441,11 @@ struct Client {
     bytes: u64,
     view_mon: u32,
     view_ply: u32,
+    /// A ticketed player: the key her HELLO proved, its nonce, and her last INPUT or BYE counter (a repeated HELLO
+    /// must prove it again). 0 and None on a crowd-test server.
+    key: Option<TicketKey>,
+    nonce: u64,
+    counter: u32,
 }
 
 /// What a ticketed hero has earned and not yet sent.
@@ -449,6 +465,10 @@ struct Tally {
     urgent: bool,
     gate: bool,
     last_flush: u32,
+    /// Her mark, the tick of her last strike on a hero (`NEVER`), and whether either changed since the last flush.
+    marked: bool,
+    struck: u32,
+    mark_dirty: bool,
 }
 
 impl Tally {
@@ -467,7 +487,9 @@ impl Tally {
             fell: self.fell,
             banked: self.banked || left.is_some(),
             left,
+            mark: (self.mark_dirty || left.is_some()).then(|| (self.marked, if self.struck == realm_core::tables::NEVER { self.struck } else { tick.saturating_sub(self.struck) })),
         };
+        self.mark_dirty = false;
         self.banked = false;
         self.coin = 0;
         self.lost = 0;
@@ -540,7 +562,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
     let mut scratch = Scratch::default();
     let mut out = Vec::new();
     let mut inbox: Vec<(SocketAddr, Vec<u8>)> = Vec::new();
-    let (mut send_errors, mut hellos, mut received) = (0u64, 0u64, 0u64);
+    let (mut send_errors, mut hellos, mut received, mut refused) = (0u64, 0u64, 0u64, 0u64);
     let mut rng = opts.sim.seed ^ 0xC11E;
     let start = Instant::now();
     let period = Duration::from_micros(opts.tick_us as u64);
@@ -681,11 +703,17 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             match r.u8() {
                 Some(MSG_HELLO) if stopping.is_none() => {
                     hellos += 1;
-                    let Some((proto, class, race, ticket)) = parse_hello(&mut r) else { continue };
+                    let Some(hello) = parse_hello(&mut r) else { continue };
+                    let Hello { proto, class, race, ticket, proof } = hello;
                     if let Some(c) = clients.get(&from) {
-                        // A repeated HELLO: the WELCOME was lost.
-                        if let Some(id) = c.id {
-                            if sock.send_to(&welcome(id as u32, sim.field.tick()), from).is_err() {
+                        // A repeated HELLO: the WELCOME was lost. A ticketed one must prove the key again, with the
+                        // same nonce (a HELLO seen on the wire and replayed from here only repeats the WELCOME).
+                        let same = match &c.key {
+                            None => true,
+                            Some(k) => hello_proves(k, &hello) && proof.is_some_and(|p| p.0 == c.nonce),
+                        };
+                        if let (Some(id), true) = (c.id, same) {
+                            if sock.send_to(&welcome(id as u32, sim.field.tick(), c.key.as_ref().map(|k| (k, c.nonce))), from).is_err() {
                                 send_errors += 1;
                             }
                         }
@@ -694,13 +722,22 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                     let mut who: Option<(u64, u64)> = None;
                     let mut req: Option<JoinReq> = None;
                     let (mut seq, mut moved_in) = (0u32, false);
+                    let mut proved: Option<(TicketKey, u64)> = None;
                     if proto != PROTO_B {
                         if opts.require_tickets {
+                            // The ticket names her; only proof of its key lets her in. A wrong proof leaves the ticket
+                            // waiting, so a stranger who guessed a ticket number cannot burn it either.
+                            let ok = pending.get(&ticket).is_some_and(|(e, _)| hello_proves(&e.key, &hello));
+                            if !ok {
+                                refused += 1;
+                                continue;
+                            }
                             let Some((e, _)) = pending.remove(&ticket) else { continue };
                             let (x, y) = arrival(&sim.field, &e, &mut rng);
                             who = Some((e.hero, e.ticket));
                             seq = e.seq;
                             moved_in = e.arrive.is_some();
+                            proved = proof.map(|p| (e.key, p.0));
                             req = Some(JoinReq { sheet: e.sheet, outing: e.outing, x, y });
                         } else {
                             let rr = realm_core::rng_next(&mut rng);
@@ -709,7 +746,10 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                             // The HELLO's class is 0..4 (KNIGHT to PALADIN); the core's class 0 is the NOVICE.
                             req = Some(JoinReq { sheet: Sheet::bench(1 + class.min(4), race.min(3), sim.bench_level()), outing: Outing::new(), x, y });
                         }
-                    } else if !opts.allow_followers {
+                    } else if !opts.allow_followers || opts.require_tickets {
+                        // A follower takes no ticket, so a ticketed field has none (the state stream it would send
+                        // to any address is a flood tool).
+                        refused += 1;
                         continue;
                     }
                     let c = Client {
@@ -729,27 +769,49 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                         bytes: 0,
                         view_mon: 0,
                         view_ply: 0,
+                        key: proved.map(|p| p.0),
+                        nonce: proved.map_or(0, |p| p.1),
+                        counter: 0,
                     };
                     if let Some(rq) = req {
                         joins.push(sim_join::Req { addr: Some(from), req: rq, who, seq, drive: None, moved_in });
                     }
                     clients.insert(from, c);
                 }
-                Some(MSG_INPUT) => {
-                    if let (Some(c), Some(m)) = (clients.get_mut(&from), parse_input(&mut r)) {
-                        c.ack = c.ack.max(m.ack);
-                        c.resend.on_ack(m.ack, sim.field.tick());
-                        c.zoom = m.zoom;
-                        c.heard = Instant::now();
-                        // A lockstep player numbers its inputs and repeats the last few; they wait in its queue.
-                        match m.seq_words {
-                            Some((seq, words)) => c.queue.take(seq, &words),
-                            None => c.input = m.word,
-                        }
+                // A ticketed field takes a player's INPUT and BYE only sealed with her key (a right tag and a
+                // counter above the last), from the address that proved her ticket; a crowd-test server takes them
+                // bare too.
+                Some(t @ (MSG_INPUT | MSG_SEALED_INPUT | MSG_BYE | MSG_SEALED_BYE)) => {
+                    let Some(c) = clients.get_mut(&from) else {
+                        refused += 1;
+                        continue;
+                    };
+                    let sealed = matches!(t, MSG_SEALED_INPUT | MSG_SEALED_BYE);
+                    if sealed {
+                        let opened = c.key.as_ref().and_then(|k| unseal(k, &msg)).filter(|(n, _)| *n > c.counter);
+                        let Some((n, body)) = opened else {
+                            refused += 1;
+                            continue;
+                        };
+                        c.counter = n;
+                        r = Rd::new(body);
+                    } else if opts.require_tickets || c.key.is_some() {
+                        refused += 1;
+                        continue;
                     }
-                }
-                Some(MSG_BYE) => {
-                    if let Some(c) = clients.remove(&from) {
+                    if matches!(t, MSG_INPUT | MSG_SEALED_INPUT) {
+                        if let Some(m) = parse_input(&mut r) {
+                            c.ack = c.ack.max(m.ack);
+                            c.resend.on_ack(m.ack, sim.field.tick());
+                            c.zoom = m.zoom;
+                            c.heard = Instant::now();
+                            // A lockstep player numbers its inputs and repeats the last few; they wait in its queue.
+                            match m.seq_words {
+                                Some((seq, words)) => c.queue.take(seq, &words),
+                                None => c.input = m.word,
+                            }
+                        }
+                    } else if let Some(c) = clients.remove(&from) {
                         if let Some(id) = c.id {
                             leaves.push(id);
                             if let Some(mut t) = tallies.remove(&id) {
@@ -802,13 +864,14 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         for (j, id) in joins.iter().zip(ids) {
             if let Some(c) = j.addr.and_then(|a| clients.get_mut(&a)) {
                 c.id = Some(id);
-                if sock.send_to(&welcome(id as u32, tick), j.addr.unwrap_or(([0, 0, 0, 0], 0).into())).is_err() {
+                if sock.send_to(&welcome(id as u32, tick, c.key.as_ref().map(|k| (k, c.nonce))), j.addr.unwrap_or(([0, 0, 0, 0], 0).into())).is_err() {
                     send_errors += 1;
                 }
             }
             if let Some((hero, ticket)) = j.who {
                 let belt_ids = sim.field.players().get(id as usize).map_or([realm_core::tables::P_NONE; 3], |h| h.belt.map(|b| b.0));
-                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: tick });
+                let (marked, struck) = sim.field.players().get(id as usize).map_or((false, realm_core::tables::NEVER), |h| (h.marked, h.last_struck));
+                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
                 if let Some(d) = &j.drive {
                     drivers.insert(id, Driver::new(id, d, tick, vault_row.is_some()));
                 }
@@ -843,6 +906,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         }
         status.heroes.store(sim.field.player_count(), Ordering::Relaxed);
         status.pending.store(pending.len() as u32, Ordering::Relaxed);
+        status.refused.store(refused, Ordering::Relaxed);
         status.tick.store(tick, Ordering::Relaxed);
         status.clock.store(sim.field.clock(), Ordering::Relaxed);
         status.tide.store(sim.field.tide(), Ordering::Relaxed);
@@ -897,7 +961,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                         c.state_next = 0;
                         c.resend = Resend::default();
                         let id = c.id.map_or(u32::MAX, |i| i as u32);
-                        if sock.send_to(&welcome(id, tick), addr).is_err() {
+                        if sock.send_to(&welcome(id, tick, c.key.as_ref().map(|k| (k, c.nonce))), addr).is_err() {
                             send_errors += 1;
                         }
                     }
@@ -978,7 +1042,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         }
         if opts.report_secs > 0 && tick % (opts.report_secs * 20) == 0 {
             report(&sim.field, opts.sim.threads, &w, sim.ls.state_bytes(&sim.field).len());
-            eprintln!("net clients={} received={received} hellos={hellos} send_errors={send_errors}", clients.len());
+            eprintln!("net clients={} received={received} hellos={hellos} refused={refused} send_errors={send_errors}", clients.len());
             w = Window::default();
         } else if opts.report_secs == 0 && w.ticks.len() >= 400 {
             w = Window::default();
@@ -1103,6 +1167,19 @@ fn collect(field: &Field, tallies: &mut HashMap<u16, Tally>, clients: &mut HashM
                             t.urgent = true;
                         }
                     }
+                }
+            }
+            // Section 14 (job R3): the mark taken or put down, and her strikes on heroes, go home with her.
+            Event::Mark { hero, .. } => {
+                if let Some(t) = tallies.get_mut(&hero) {
+                    t.marked = field.players().get(hero as usize).is_some_and(|h| h.marked);
+                    t.mark_dirty = true;
+                }
+            }
+            Event::Struck { by, .. } => {
+                if let Some(t) = tallies.get_mut(&by) {
+                    t.struck = tick;
+                    t.mark_dirty = true;
                 }
             }
             Event::Fallen { hero, coin } => {
@@ -1299,7 +1376,7 @@ mod tests {
         let (hx, hy) = f.terrain().heart;
         let id = f.join(&Sheet::bench(0, 0, 1), &Outing::new(), hx, hy);
         let mut tallies = HashMap::new();
-        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: 0 });
+        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
         let mut counts = HostCounts::default();
         let mut got = Vec::new();
         for _ in 0..20_000 {

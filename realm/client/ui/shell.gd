@@ -4,7 +4,10 @@ extends Node
 ## sheet, the bag and the settings, and the hand-off to the field client (a ticket) and back (the outing's result).
 ## One Shell owns the gateway connection (GwLink), what the screens share (account, heroes, the chosen hero, her
 ## inventory and cards, the town's roster) and the stack of screens: one base screen and the panels over it.
-##   godot --path realm/client [-- --gateway=host:port] [--dev=NAME]
+##   godot --path realm/client [-- --gateway=host:port] [--dev=NAME] [--dev-cert=PEM | --plain]
+## The gateway connection is TLS, checked against Godot's trusted roots; a dev build (only) may trust one
+## certificate file instead (--dev-cert, e.g. the gateway's DB.dev-cert.pem) or speak plain TCP (--plain, for a
+## --dev-login gateway). See GwLink.
 ## The field is the RealmClient scene node added while a hero is out; the shell's canvas is 960 x 540, the field's
 ## 480 x 270, switched with the window's content scale.
 
@@ -68,6 +71,12 @@ var field_flags: Array[String] = []
 func _ready() -> void:
 	ShellSettings.load_file()
 	ShellSettings.apply(get_window())
+	for a in OS.get_cmdline_user_args():
+		var kv: PackedStringArray = a.trim_prefix("--").split("=", true, 1)
+		if kv[0] == "plain":
+			link.plain = true
+		elif kv[0] == "dev-cert" and kv.size() > 1:
+			link.dev_cert = kv[1]
 	add_child(link)
 	layer.layer = 10
 	add_child(layer)
@@ -208,6 +217,9 @@ func connect_gateway() -> bool:
 ## Logs in with a dev name and shows the hero list. Returns "" or the problem.
 func login(name: String) -> String:
 	if not await connect_gateway():
+		# A refused certificate says so; it never falls back to plain text.
+		if not link.last_error.is_empty():
+			return link.last_error.to_upper()
 		return "CANNOT REACH %s:%d" % [gateway_host, gateway_port]
 	var r: Dictionary = await link.call_req(GwWire.login_dev(name))
 	if int(r["t"]) != GwWire.R_LOGIN:
@@ -510,11 +522,11 @@ func go_field(field: int) -> String:
 	var host: String = String(r["host"])
 	if host.is_empty():
 		host = gateway_host
-	_open_field(host, int(r["port"]), int(r["ticket"]), field)
+	_open_field(host, int(r["port"]), int(r["ticket"]), r["key"] as PackedByteArray, field)
 	return ""
 
 
-func _open_field(host: String, port: int, ticket: int, field: int) -> void:
+func _open_field(host: String, port: int, ticket: int, key: PackedByteArray, field: int) -> void:
 	layer.visible = false
 	if base != null:
 		base.queue_free()
@@ -525,6 +537,7 @@ func _open_field(host: String, port: int, ticket: int, field: int) -> void:
 	c.ticket_host = host
 	c.ticket_port = port
 	c.ticket = ticket
+	c.ticket_key = key
 	c.escaped.connect(_field_escape)
 	field_client = c
 	in_field = true

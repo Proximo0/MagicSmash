@@ -45,17 +45,29 @@ pub struct Config {
     pub world: WorldConfig,
 }
 
-/// The loot secret kept in `path` (16 hex digits), made from the clock, the process and the OS's random hasher
-/// the first time.
+/// The loot secret kept in `path`: 32 bytes from the OS's secure random source the first time (64 hex digits,
+/// written 0600 with `tls::write_private`); the loot rolls use its first 8 bytes (`Config::secret` is a u64). An
+/// older file of 16 hex digits is read as it always was, so a store keeps its secret.
 pub fn load_secret(path: &std::path::Path) -> u64 {
     if let Ok(t) = std::fs::read_to_string(path) {
-        if let Ok(v) = u64::from_str_radix(t.trim(), 16) {
-            return v;
+        let t = t.trim();
+        if t.len() == 16 {
+            if let Ok(v) = u64::from_str_radix(t, 16) {
+                return v;
+            }
+        } else if t.len() == 64 {
+            if let Ok(v) = u64::from_str_radix(&t[..16], 16) {
+                return v;
+            }
         }
     }
-    let v = IdGen::new().boot;
-    let _ = std::fs::write(path, format!("{v:016x}\n"));
-    v
+    let mut b = [0u8; 32];
+    crate::tls::fill_random(&mut b);
+    let hex: String = b.iter().map(|x| format!("{x:02x}")).collect();
+    if let Err(e) = crate::tls::write_private(path, format!("{hex}\n").as_bytes()) {
+        eprintln!("realm-gateway: {}: {e}", path.display());
+    }
+    u64::from_str_radix(&hex[..16], 16).unwrap_or(0)
 }
 
 /// Where a hero is. A hero is in one place: a town room, or a field (from the ticket until her final flush is
@@ -84,6 +96,9 @@ pub(crate) struct Ticket {
     /// Moved from a closing copy and not yet in the new one: her last flush number and the haul's coin she carries,
     /// banked (as a disconnect) if she never arrives.
     pub(crate) moved: Option<(u32, u64)>,
+    /// The ticket's field key (`realm_server::host::Entry`): random, replaced by a fresh one at each move to another
+    /// another copy admits her with the same ones.
+    pub(crate) key: realm_server::TicketKey,
 }
 
 /// A vault's host: its row, seals, the code its party enters with, and who paid its key.
@@ -264,6 +279,8 @@ impl Gateway {
                 while !g.stop.load(Ordering::Relaxed) {
                     std::thread::sleep(Duration::from_millis(1000 / crate::town::STEP_HZ as u64));
                     g.towns.step();
+                    // Job R3: duels in the training yard step with the town.
+                    g.social.run_duels();
                 }
             })
             .expect("thread");
@@ -424,8 +441,9 @@ impl Gateway {
                 Ok(Resp::Ok)
             }
             Req::TownInput { dir } => {
-                if let Some((room, me, _)) = s.town {
+                if let Some((room, me, hero)) = s.town {
                     self.towns.input(room, me, dir);
+                    self.social.duel_input(hero, dir);
                 }
                 Ok(Resp::Ok)
             }
@@ -648,9 +666,11 @@ impl Gateway {
     /// Issues a ticket to host `host_id` for a hero who is free (checked by the caller under `locs`): she is
     /// placed in the field, the host is told to admit her. None if the host is gone or she was placed meanwhile.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64)> {
+    pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64, realm_server::TicketKey)> {
         let h = self.store.hero(hero).ok().flatten()?;
         let mut outing = Outing::new();
+        // Job R3: her BLOOD MARK and its ten-minute wait come with her from the last outing.
+        self.social.outing_mark(hero, &mut outing);
         let way = h.progress.waystones.get(field as usize).copied().unwrap_or(-1);
         outing.waystone = if way >= 0 { way as u8 } else { NO_WAYSTONE };
         let ticket = loop {
@@ -659,6 +679,8 @@ impl Gateway {
                 break t;
             }
         };
+        // The ticket number is an id (the store's request ids); the key is the secret (`docs/realm/wire.md`).
+        let key = crate::tls::random_key();
         let hosts = self.hosts.lock().unwrap();
         let slot = hosts.iter().find(|x| x.id == host_id && !x.stopping && x.closing.is_none())?;
         {
@@ -675,12 +697,13 @@ impl Gateway {
         self.social.party_set_copy(hero, field, slot.copy, now_ms());
         self.tickets.lock().unwrap().insert(
             ticket,
-            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None },
+            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key },
         );
         let mut e = Entry::new(ticket, hero as u64, sheet, outing);
         e.drive = drive;
+        e.key = key;
         let _ = slot.handle.cmds.send(HostCmd::Admit(e));
-        Some((slot.handle.addr.port(), slot.copy, ticket))
+        Some((slot.handle.addr.port(), slot.copy, ticket, key))
     }
 
     /// The deck cards the hero may use: the novice twelve, one more at each even class level to 24 (the store's
@@ -861,6 +884,10 @@ impl Gateway {
     /// flush's number: a flush sent twice (or retried after a database error) is applied once.
     pub(crate) fn apply(&self, f: Flush) {
         let hero = f.hero as i64;
+        // Job R3: her mark and its wait, for her next outing.
+        if let Some((marked, struck_ago)) = f.mark {
+            self.social.note_mark(hero, marked, struck_ago);
+        }
         let info = self.tickets.lock().unwrap().get(&f.ticket).map(|t| (t.account, t.field));
         let Some((_account, field)) = info else { return };
         let mut done: Option<(u64, u64, u16, u32)> = None;
@@ -1047,7 +1074,7 @@ impl Gateway {
         let moved = self.tickets.lock().unwrap().get(&ticket).and_then(|t| t.moved);
         if let Some((seq, coin)) = moved {
             let lost = coin / 2;
-            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect) });
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect), mark: None });
             self.world.count(|s| s.moved_lost += 1);
             return;
         }

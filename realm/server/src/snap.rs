@@ -285,7 +285,7 @@ fn decode_lists(r: &mut Rd, v: &mut View, v1: bool, base: Option<&View>) -> Opti
     let nc = r.u16()?;
     let nm = r.u16()?;
     let (ox, oy) = (v.ox, v.oy);
-    let px = |d: u16, o: i32| (d as i32 + o) as u16;
+    let px = |d: u16, o: i32| (d as i32).wrapping_add(o) as u16;
     let mut prev = 0u32;
     for _ in 0..np {
         if !v1 {
@@ -295,7 +295,7 @@ fn decode_lists(r: &mut Rd, v: &mut View, v1: bool, base: Option<&View>) -> Opti
             continue;
         }
         let g = r.varint()?;
-        let id = prev + (g >> 2);
+        let id = prev.checked_add(g >> 2)?;
         prev = id;
         let rec = if g & 3 == 2 {
             let (dx, dy) = (r.u16()?, r.u16()?);
@@ -324,7 +324,7 @@ fn decode_lists(r: &mut Rd, v: &mut View, v1: bool, base: Option<&View>) -> Opti
     for _ in 0..nm {
         let g = r.varint()?;
         let (gap, mode) = if v1 { (g >> 2, g & 3) } else { (g, 2) };
-        let id = prev + gap;
+        let id = prev.checked_add(gap)?;
         prev = id;
         let rec = if mode == 2 {
             let b = r.bytes(3)?;

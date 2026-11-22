@@ -6,6 +6,12 @@ extends Node
 ##   var r: Dictionary = await link.call_req(GwWire.plain(GwWire.T_LIST_HEROES))
 ## A reply is a Dictionary with "t" (GwWire.R_*); R_ERR has "code" and "msg"; a lost connection or a reply that
 ## never comes (REPLY_TIMEOUT_S) answers R_LOST with "msg".
+## Transport (docs/realm/wire.md, "Transport security"): TLS (StreamPeerTLS over the StreamPeerTCP), the gateway's
+## certificate checked against Godot's trusted roots (TLSOptions.client() with no chain: the engine's CA bundle, or
+## the project's network/tls/certificate_bundle_override) and the name connected to. Only a dev build
+## (OS.is_debug_build) may trust one certificate file instead (`dev_cert`, the gateway's DB.dev-cert.pem) or speak
+## plain TCP (`plain`, for a --dev-login gateway); a release build ignores both. A failed handshake is an error
+## (`last_error`), never a retry in clear text.
 
 signal pushed(msg: Dictionary)
 signal lost(reason: String)
@@ -25,7 +31,15 @@ class Pending extends RefCounted:
 			done.emit(r)
 
 
-var _peer: StreamPeerTCP = StreamPeerTCP.new()
+var _tcp: StreamPeerTCP = StreamPeerTCP.new()
+## What frames are read from and written to: the TLS peer over `_tcp`, or `_tcp` itself when plain.
+var _peer: StreamPeer = null
+var _tls: StreamPeerTLS = null
+## Dev builds only: speak plain TCP / trust this PEM certificate instead of the trusted roots.
+var plain: bool = false
+var dev_cert: String = ""
+## Why the last `open` failed, for the shell to show ("" when it could not even reach the address).
+var last_error: String = ""
 var _buf: PackedByteArray = PackedByteArray()
 var _tag: int = 0
 var _pending: Dictionary = {}
@@ -38,34 +52,86 @@ var frames_in: int = 0
 var frames_out: int = 0
 
 
-## Opens the connection and waits until it is up (or fails). True when connected.
+## Opens the connection and waits until it is up (or fails). True when connected; `last_error` says why not.
 func open(h: String, p: int) -> bool:
 	close()
 	host = h
 	port = p
-	_peer = StreamPeerTCP.new()
-	if _peer.connect_to_host(h, p) != OK:
+	last_error = ""
+	_tcp = StreamPeerTCP.new()
+	_peer = _tcp
+	_tls = null
+	if _tcp.connect_to_host(h, p) != OK:
 		return false
 	var started: float = _now
 	while true:
-		_peer.poll()
-		var st: int = _peer.get_status()
+		_tcp.poll()
+		var st: int = _tcp.get_status()
 		if st == StreamPeerTCP.STATUS_CONNECTED:
-			_peer.set_no_delay(true)
-			connected = true
-			return true
+			_tcp.set_no_delay(true)
+			break
 		if st == StreamPeerTCP.STATUS_ERROR or st == StreamPeerTCP.STATUS_NONE or _now - started > CONNECT_TIMEOUT_S:
 			return false
 		await get_tree().process_frame
+	var dev: bool = OS.is_debug_build()
+	if plain and dev:
+		push_warning("GwLink: plain TCP to %s:%d: logins and chat are not encrypted (dev build, --plain)" % [h, p])
+		connected = true
+		return true
+	var trusted: X509Certificate = null
+	if dev and not dev_cert.is_empty():
+		trusted = X509Certificate.new()
+		if trusted.load(dev_cert) != OK:
+			last_error = "cannot read the dev certificate %s" % dev_cert
+			_tcp.disconnect_from_host()
+			return false
+	_tls = StreamPeerTLS.new()
+	if _tls.connect_to_stream(_tcp, h, TLSOptions.client(trusted)) != OK:
+		last_error = "secure connection to %s failed to start" % h
+		_tcp.disconnect_from_host()
+		return false
+	while true:
+		# The TCP peer is polled too, so a reset shows as an error here instead of a stall.
+		_tcp.poll()
+		_tls.poll()
+		var st: int = _tls.get_status()
+		if st == StreamPeerTLS.STATUS_CONNECTED:
+			_peer = _tls
+			connected = true
+			return true
+		if st == StreamPeerTLS.STATUS_ERROR_HOSTNAME_MISMATCH:
+			last_error = "the gateway's certificate is not for %s" % h
+			break
+		if st == StreamPeerTLS.STATUS_ERROR or st == StreamPeerTLS.STATUS_DISCONNECTED:
+			last_error = "secure connection to %s refused (its certificate is not trusted, or it does not speak TLS)" % h
+			break
+		if _now - started > CONNECT_TIMEOUT_S:
+			last_error = "secure connection to %s timed out" % h
+			break
+		await get_tree().process_frame
+	_tls.disconnect_from_stream()
+	_tls = null
+	_tcp.disconnect_from_host()
 	return false
 
 
 func close() -> void:
-	if _peer.get_status() != StreamPeerTCP.STATUS_NONE:
-		_peer.disconnect_from_host()
+	if _tls != null:
+		_tls.disconnect_from_stream()
+		_tls = null
+	if _tcp.get_status() != StreamPeerTCP.STATUS_NONE:
+		_tcp.disconnect_from_host()
+	_peer = _tcp
 	connected = false
 	_buf.clear()
 	_fail_all("closed")
+
+
+## True while the stream (TLS or plain) is up.
+func _up() -> bool:
+	if _tls != null:
+		return _tls.get_status() == StreamPeerTLS.STATUS_CONNECTED
+	return _tcp.get_status() == StreamPeerTCP.STATUS_CONNECTED
 
 
 func _fail_all(why: String) -> void:
@@ -104,8 +170,10 @@ func _process(delta: float) -> void:
 	_now += delta
 	if not connected:
 		return
-	_peer.poll()
-	if _peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+	_tcp.poll()
+	if _tls != null:
+		_tls.poll()
+	if not _up():
 		connected = false
 		_fail_all("the gateway closed the connection")
 		lost.emit("the gateway closed the connection")
@@ -128,7 +196,10 @@ func _drain() -> void:
 		var len: int = _buf.decode_u32(0)
 		if len < 5 or len > GwWire.FRAME_MAX:
 			connected = false
-			_peer.disconnect_from_host()
+			if _tls != null:
+				_tls.disconnect_from_stream()
+				_tls = null
+			_tcp.disconnect_from_host()
 			_fail_all("bad frame")
 			lost.emit("bad frame")
 			return

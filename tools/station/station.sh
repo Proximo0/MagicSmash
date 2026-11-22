@@ -6,8 +6,9 @@
 #         soak    bots through the wire server (gateway, towns, field hosts, store) for STATION_SOAK_SECS (default 7200),
 #                 one summary line; FAIL when the line is not "SOAK ok" (a mismatch, a bot error or a store problem)
 #         world   the world's long proof (realm-world): STATION_WORLD_BOTS (default 200) bots live STATION_WORLD_DAYS (default 7)
-#                 days of the realm clock in STATION_WORLD_SECS (default 7200) with hosts at 20 Hz: copies open and merge,
-#                 the queue, vaults, a field host killed halfway; FAIL when the line is not "WORLD ok"
+#                 days of the realm clock in STATION_WORLD_SECS (default 600, a short soak so a merge never holds the station for hours)
+#                 with hosts at 20 Hz: copies open and merge, the queue, vaults, a field host killed halfway; FAIL when the line is not
+#                 "WORLD ok". The 7200 s run is the queue's `shell` job `script=worldlong` (tools/station/jobs/worldlong.sh).
 #         economy Horde & Hearth's market simulation (realm-economy, record only): STATION_ECONOMY_BOTS (default 4000) bots for
 #                 STATION_ECONOMY_DAYS (default 180) game days with a fresh seed; one line of the sim's summary
 #         ops     Horde & Hearth's operations rehearsal (realm-ops rehearse): a store with play, an online backup with writes going on,
@@ -45,9 +46,10 @@ MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
 POLL="${STATION_POLL:-120}"
 BRANCH=station-results
-watch=0; push=1; after=""; jobs=(); deep=0
+. tools/station/queue_lib.sh  # the work queue (queue_step, hours_mark); read now, like the rest of the script
+watch=0; push=1; after=""; jobs=(); deep=0; queue=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -56,7 +58,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -115,8 +117,16 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   sleep 5
   kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
   out=$(timeout "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
-  kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
   line=$(grep '^CLIENT_FRAMES ' <<<"$out" | tail -1)
+  # Pictures for Curtis, at most once in 20 hours a machine: the same battle at zoom 16 (already saved), 4 and 2,
+  # pushed to the results branch as shots/<machine>-zoom<N>.png (overwritten, so the branch holds only the newest).
+  local stamp="${TMPDIR:-/tmp}/station-shots-stamp-$MACHINE"
+  if [ "$push" = 1 ] && [ "${STATION_SHOTS:-1}" = 1 ] && [[ "$line" == "CLIENT_FRAMES ok"* ]] && [ -z "$(find "$stamp" -mmin -1200 2>/dev/null)" ]; then
+    timeout 120 "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots_near" --secs=3 --zooms=4,2 --mute >/dev/null 2>&1 || true
+    cp "$dir"/shots_near/zoom*.png "$dir/shots/" 2>/dev/null
+    publish_shots "$dir/shots" && touch "$stamp"
+  fi
+  kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
   rm -rf "$dir"
   [ -n "$line" ] || { echo "JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died)"; return 1; }
   [[ "$line" == "CLIENT_FRAMES ok"* ]] || { echo "JOB frames FAIL ${line#CLIENT_FRAMES }"; return 1; }
@@ -164,20 +174,22 @@ job_ops() {  # one line: realm-ops rehearse on this machine's own disk
   if [[ "$line" == "OPS ok "* ]]; then echo "JOB ops PASS ${line:7:300}"; return 0; fi
   echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
-job_economy() {  # one line: realm-economy's summary, a longer run than the test; recorded, never a failure of the merge
+job_economy() {  # one line: realm-economy's summary; recorded, never a failure of the merge. Kept to minutes (the 4000-bot 180-day
+  # run took two hours a merge and kept the station from the work queue; that long run is the queue's `economy` job now)
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB economy FAIL cargo is not installed on this station"; return 1; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout 7000 target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-4000}" --days="${STATION_ECONOMY_DAYS:-180}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout "${STATION_ECONOMY_TIMEOUT:-900}" target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-1000}" --days="${STATION_ECONOMY_DAYS:-30}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-economy.db*
   if [[ "$line" == "ECONOMY ok "* ]]; then echo "JOB economy INFO seed=$seed ${line:8:260}"; else echo "JOB economy INFO seed=$seed $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
-job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md); recorded, never a failure of the merge
+job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md); recorded, never a failure of the merge. Kept to
+  # minutes: its old limit was a day per merge; the full careers run is the queue's `balance` job now
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB balance SKIP cargo is not installed on this station"; return 0; }
   local out line
-  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-86000}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-2}" 20 "${STATION_BALANCE_FAST:-1}" 200 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-900}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-1}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
   if [[ "$line" == "BALANCE "* ]]; then echo "JOB balance INFO ${line:8:260}"; else echo "JOB balance INFO $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
@@ -190,14 +202,10 @@ job_soak() {  # one line: realm-soak's summary
   if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
   echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
-job_world() {  # one line: realm-world's summary
-  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB world FAIL cargo is not installed on this station"; return 1; }
-  local secs="${STATION_WORLD_SECS:-7200}" out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=60000 --realm-cap=150 --vault-max=8 --outing-ticks=6000 --db="${TMPDIR:-/tmp}/station-world.db" 2>&1); line=$(tail -1 <<<"$out")
-  rm -f "${TMPDIR:-/tmp}"/station-world.db*
-  if [[ "$line" == "WORLD ok "* ]]; then echo "JOB world PASS ${line:0:300}"; return 0; fi
-  echo "JOB world FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+job_world() {  # one line: realm-world's summary, a short soak on a merge (jobs/worldlong.sh runs the long one from the queue)
+  local line; line=$(STATION_QUEUE_STUB="${STATION_QUEUE_STUB:-}" bash tools/station/jobs/worldlong.sh "secs=${STATION_WORLD_SECS:-600}" | tail -1)
+  case "$line" in PASS*) echo "JOB world $line"; return 0 ;; esac
+  echo "JOB world FAIL ${line#FAIL }"; return 1
 }
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
 # Deep steps must not make a merge wait: pending_merge says a commit has landed on main that changes something one of this
@@ -227,6 +235,7 @@ step_run() {  # $1 = output file, rest = command; the command's status, or 99 wh
 }
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
   # Returns 0 pass, 1 fail, 2 skipped (no cargo), 3 interrupted: a merge landed, the rest of the pass was abandoned (not a failure).
+  [ -n "${STATION_QUEUE_STUB:-}" ] && { echo "JOB deep PASS stub"; return 0; }  # tests: no heavy commands
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir rc
@@ -294,6 +303,23 @@ publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to t
   echo "station: could not push the report" >&2; return 1
 }
 
+publish_shots() {  # $1 = a folder of zoom<N>.png: adds them to the results branch as shots/<machine>-zoom<N>.png in one commit
+  local parent tree commit idx f blob n=0
+  git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
+  parent=$(git rev-parse -q --verify "refs/remotes/origin/$BRANCH" || true)
+  idx=$(mktemp -u)
+  [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
+  for f in "$1"/zoom*.png; do
+    [ -s "$f" ] || continue
+    blob=$(git hash-object -w "$f")
+    GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo 100644 "$blob" "shots/$MACHINE-$(basename "$f")"; n=$((n+1))
+  done
+  [ "$n" -gt 0 ] || { rm -f "$idx"; return 1; }
+  tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
+  commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $n crowd screenshots")
+  GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null
+}
+
 publish_append() {  # $1 = one line, $2 = file: append it to the file on the results branch (a history, not an overwrite)
   local old; git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
   old=$(git show "refs/remotes/origin/$BRANCH:$2" 2>/dev/null | tail -200)
@@ -301,7 +327,37 @@ publish_append() {  # $1 = one line, $2 = file: append it to the file on the res
 }
 
 # Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
-self_sum() { cat tools/station/station.sh tools/station/roles.txt 2>/dev/null | cksum; }
+# The heartbeat loop, one per station: every STATION_HEARTBEAT_SECS (default 1800) it publishes <machine>-heartbeat.txt.
+# A re-exec runs no EXIT trap, so `restart` stops the loop before every exec. The loop also ends by itself when the
+# station process is gone or a newer loop has written its pid to $STATE.heartbeat (an exec keeps the pid, so the pid
+# alone cannot tell the old station from the new). STATION_HEARTBEAT_LOG (tests) gets "<loop pid> <time>" each round.
+hb_pid=""
+heartbeat_start() {
+  local station=$$
+  (
+    me=$BASHPID
+    echo "$me" >"$STATE.heartbeat"
+    mine() { kill -0 "$station" 2>/dev/null && [ "$(cat "$STATE.heartbeat" 2>/dev/null)" = "$me" ]; }
+    while mine; do
+      [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
+      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null
+      left="${STATION_HEARTBEAT_SECS:-1800}"
+      while [ "$left" -gt 0 ] && mine; do sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
+    done
+  ) &
+  hb_pid=$!
+}
+heartbeat_stop() { [ -z "$hb_pid" ] || kill "$hb_pid" 2>/dev/null; hb_pid=""; }
+# Loops an older version of this script left behind (it exec'd without stopping its loop): children of this pid,
+# killed before this station starts any of its own. Linux ps, else Git Bash's (an optional status letter, PID, PPID).
+heartbeat_reap() {
+  local p
+  for p in $({ ps -e -o pid=,ppid= 2>/dev/null || ps 2>/dev/null | awk 'NR > 1 { if ($1 !~ /^[0-9]+$/) $1 = ""; $0 = $0; print $1, $2 }'; } | awk -v pp=$$ '$2 == pp { print $1 }'); do
+    kill "$p" 2>/dev/null
+  done
+}
+restart() { heartbeat_stop; exec bash tools/station/station.sh "$@"; }
+self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
 run_once() {
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
@@ -322,7 +378,7 @@ run_once() {
   fi
   git checkout -q --detach "$head"
   # This commit changed the script: restart first, so the commit is tested by its own version (the state is not saved yet).
-  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then exec bash tools/station/station.sh "${ARGS[@]}"; fi
+  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then restart "${ARGS[@]}"; fi
   local start=$SECONDS failed=0 body="" skipped=0 run=() j
   local base changed="" known=0; base=$(cat "$STATE" 2>/dev/null)
   if [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null); then known=1; fi
@@ -356,24 +412,30 @@ run_once() {
 
 if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
-    ( while true; do publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null; sleep 1800; done ) &
-    trap 'kill $! 2>/dev/null' EXIT
+    heartbeat_reap
+    heartbeat_start
+    trap heartbeat_stop EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
+  hours_init
   while true; do
     run_once; rc=$?
-    [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
-    if [ $rc != 3 ]; then after_merge=1; fi  # a merge was just tested: the next deep pass is published
+    [ "$(self_sum)" = "$started" ] || restart "$@"
+    if [ $rc != 3 ]; then after_merge=1; hours_mark busy; fi  # a merge was just tested: the next deep pass is published
+    if [ $rc = 3 ] && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main: the next job of the work queue, if there is one
+      queue_step; qrc=$?
+      if [ $qrc = 0 ] || [ $qrc = 3 ]; then hours_mark busy; continue; fi  # ran one (or a merge cut it short): look at main again
+    fi
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
       t0=$SECONDS; body=$(job_deep); drc=$?
-      now=$(date +%s)
+      now=$(date +%s); hours_mark busy
       if [ $drc = 3 ]; then deep_cut=$((deep_cut + 1)); echo "station: deep pass interrupted, a merge landed"; continue; fi
       hourly=0; [ $((now - last_pub)) -ge 3600 ] && hourly=1
       if [ $drc = 2 ]; then  # no cargo: SKIP, a broken machine sleeps and tells the branch at most hourly
         if [ "$push" = 1 ] && [ $hourly = 1 ]; then
           publish "STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=0s"$'\n'"$body"$'\n'"STATION SKIP deep pass" "$MACHINE-deep.txt" && last_pub=$now || true
         fi
-        sleep "$POLL"; continue
+        sleep "$POLL"; hours_mark idle; continue
       fi
       deep_n=$((deep_n + 1)); deep_seeds="$(printf %s "${deep_seeds:+$deep_seeds,}$(grep -o 'seed=[0-9]*' <<<"$body" | head -1 | cut -d= -f2)" | tail -c 120)"
       v=$([ $drc = 0 ] && echo PASS || echo FAIL)
@@ -385,9 +447,9 @@ if [ "$watch" = 1 ]; then
         if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:400}" "$MACHINE-failures.txt" || true; fi
       else echo "$rep"; fi
       if [ $drc = 0 ]; then sleep "${STATION_DEEP_GAP:-10}"; else sleep "$POLL"; fi
-      continue
+      hours_mark idle; continue
     fi
-    sleep "$POLL"
+    sleep "$POLL"; hours_mark idle
   done
 fi
 run_once

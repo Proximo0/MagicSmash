@@ -9,7 +9,6 @@ use realm_core::{Field, IN_DIR, IN_INTERACT, SUB};
 use realm_server::bots::{dir_toward, Bot};
 use realm_server::client::LockstepClient;
 use realm_server::lockstep::INPUT_QUEUE_MAX;
-use realm_server::MSG_BYE;
 use std::net::UdpSocket;
 use std::time::{Duration, Instant};
 
@@ -51,6 +50,8 @@ pub struct Outcome {
     pub joined: bool,
     /// Times her copy closed and she was moved to another.
     pub moves: u32,
+    /// Of those, the moves whose Moved push brought a key unlike the one she had (each admission has its own).
+    pub fresh_keys: u32,
 }
 
 fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
@@ -60,7 +61,7 @@ fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
 
 /// Plays one outing with a ticket the gateway gave. `gw` is the same connection that asked for the ticket (its
 /// Outing pushes are read here).
-pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, opts: &PlayOpts) -> Result<Outcome, String> {
+pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, key: realm_server::TicketKey, opts: &PlayOpts) -> Result<Outcome, String> {
     let host = if host.is_empty() { gw.peer_ip.clone() } else { host.to_string() };
     let open = |port: u16| -> Result<UdpSocket, String> {
         let sock = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
@@ -69,8 +70,8 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         Ok(sock)
     };
     let mut sock = open(port)?;
-    let mut c = LockstepClient::with_ticket(ticket, 1);
-    let mut moves = 0u32;
+    let mut c = LockstepClient::with_ticket(ticket, key, 1);
+    let (mut moves, mut fresh_keys, mut key_now) = (0u32, 0u32, key);
     let mut out = Outcome { left: 255, ..Outcome::default() };
     let mut bot: Option<Bot> = None;
     let start = Instant::now();
@@ -102,7 +103,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         let mut word = 0u16;
         // Some(n): walk `word` for n ticks, then stand (a bounded walk near the stone).
         let mut steps: Option<u32> = None;
-        let mut go: Option<u16> = None;
+        let mut go: Option<(u16, realm_server::TicketKey)> = None;
         if let (Some(f), Some(id)) = (c.field(), c.hero()) {
             let tick = f.tick();
             if let Some(t0) = round_tick {
@@ -207,10 +208,13 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
                 go = gw.pushes.remove(i).and_then(|r| moved_port(&r, ticket));
             }
         }
-        if let Some(p) = go {
-            let _ = sock.send(&[MSG_BYE]);
+        if let Some((p, new_key)) = go {
+            let _ = sock.send(&c.bye());
             sock = open(p)?;
-            c = LockstepClient::with_ticket(ticket, 1);
+            // The new copy admits her with a fresh key (from the Moved push, over TLS).
+            fresh_keys += (new_key != key_now) as u32;
+            key_now = new_key;
+            c = LockstepClient::with_ticket(ticket, new_key, 1);
             seen_at = Instant::now();
             out.joined = false;
             bot = None;
@@ -221,10 +225,11 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
     };
     let abrupt = opts.drop_after_bank && out.joined;
     if !abrupt {
-        let _ = sock.send(&[MSG_BYE]);
+        let _ = sock.send(&c.bye());
     }
     drop(sock);
     out.moves = moves;
+    out.fresh_keys = fresh_keys;
     result?;
     // The result of the outing arrives from the gateway once the store has it.
     let wait = if abrupt { Duration::from_secs(12) } else { Duration::from_secs(8) };
@@ -284,14 +289,14 @@ fn approach(f: &Field, id: u16, (x, y): (i32, i32), (wx, wy): (i32, i32), gap: u
     (dir, Some(((left + step - 1) / step).clamp(1, most) as u32))
 }
 
-/// A `Moved` push for this ticket, waiting a little for it: the new copy's port.
-fn wait_moved(gw: &mut GatewayClient, ticket: u64) -> Result<Option<u16>, String> {
+/// A `Moved` push for this ticket, waiting a little for it: the new copy's port and key.
+fn wait_moved(gw: &mut GatewayClient, ticket: u64) -> Result<Option<(u16, realm_server::TicketKey)>, String> {
     gw.wait_push(Duration::from_millis(1_500), |r| moved_port(r, ticket)).map_err(|e| e.to_string())
 }
 
-fn moved_port(r: &Resp, ticket: u64) -> Option<u16> {
+fn moved_port(r: &Resp, ticket: u64) -> Option<(u16, realm_server::TicketKey)> {
     match r {
-        Resp::WorldPush(crate::world::wire::WResp::Moved { ticket: t, port, .. }) if *t == ticket => Some(*port),
+        Resp::WorldPush(crate::world::wire::WResp::Moved { ticket: t, port, key, .. }) if *t == ticket => Some((*port, *key)),
         _ => None,
     }
 }

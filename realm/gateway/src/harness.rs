@@ -5,6 +5,7 @@ use crate::bot::{play_field, Outcome, PlayOpts};
 use crate::client::GatewayClient;
 use crate::gateway::{Config, Gateway};
 use crate::proto::*;
+use crate::tls::rustls::ClientConfig;
 use realm_core::tables::{FIELDS, STAT_NAMES};
 use realm_server::host::HostOpts;
 use realm_server::sim::SimOpts;
@@ -80,8 +81,8 @@ pub fn bot_hero_name(bot: u64) -> String {
 pub type Prep = dyn Fn(&HeroInfo) + Send + Sync;
 
 /// One cycle of a bot's life against a gateway. The hero persists between cycles (the bot logs out and back in).
-pub fn cycle(addr: &str, bot: u64, field: u8, play: &PlayOpts, prep: &Prep, stats: &mut BotStats) -> Result<(), String> {
-    let mut gw = GatewayClient::connect(addr).map_err(io)?;
+pub fn cycle(addr: &str, tls: Option<&Arc<ClientConfig>>, bot: u64, field: u8, play: &PlayOpts, prep: &Prep, stats: &mut BotStats) -> Result<(), String> {
+    let mut gw = GatewayClient::connect_with(addr, tls).map_err(io)?;
     match gw.login(&format!("soak-bot-{bot}")).map_err(io)? {
         Resp::Login { .. } => {}
         r => return Err(format!("login: {r:?}")),
@@ -123,16 +124,16 @@ pub fn cycle(addr: &str, bot: u64, field: u8, play: &PlayOpts, prep: &Prep, stat
     let mut ticket = None;
     for _ in 0..100 {
         match gw.call(Req::FieldTicket { hero: hero.id, field }).map_err(io)? {
-            Resp::Ticket { host, port, ticket: t, .. } => {
-                ticket = Some((host, port, t));
+            Resp::Ticket { host, port, ticket: t, key, .. } => {
+                ticket = Some((host, port, t, key));
                 break;
             }
             Resp::Err { code: code::BUSY, .. } => std::thread::sleep(Duration::from_millis(200)),
             r => return Err(format!("field ticket: {r:?}")),
         }
     }
-    let (host, port, t) = ticket.ok_or("the hero stayed busy")?;
-    let out: Outcome = play_field(&mut gw, &host, port, t, play)?;
+    let (host, port, t, key) = ticket.ok_or("the hero stayed busy")?;
+    let out: Outcome = play_field(&mut gw, &host, port, t, key, play)?;
     stats.outings += 1;
     stats.coin += out.coin;
     stats.xp += out.xp;
@@ -214,11 +215,13 @@ pub struct SoakOpts {
     pub progress_secs: u64,
     /// Start every new hero at class level 12 and at waystone 0 of every field, so a short run sees fights and banks.
     pub fast: bool,
+    /// The gateway and its bots speak TLS (an in-memory dev certificate the bots trust).
+    pub tls: bool,
 }
 
 impl Default for SoakOpts {
     fn default() -> Self {
-        SoakOpts { bots: 8, secs: 60, fields: vec![0], monsters: 1500, threads: 1, db: None, seed: 1, play: PlayOpts::default(), progress_secs: 0, fast: false }
+        SoakOpts { bots: 8, secs: 60, fields: vec![0], monsters: 1500, threads: 1, db: None, seed: 1, play: PlayOpts::default(), progress_secs: 0, fast: false, tls: false }
     }
 }
 
@@ -277,7 +280,8 @@ pub fn run_soak(o: &SoakOpts) -> Result<SoakReport, String> {
         let sim = SimOpts { field: f.min(FIELDS.len() as u8 - 1), seed: o.seed + i as u64, monsters: o.monsters, threads: o.threads, bots: 0, rally_permille: 0, level: 0, vault: None };
         gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).map_err(|e| e.to_string())?;
     }
-    let listener = crate::conn::listen(gw.clone(), "127.0.0.1:0").map_err(|e| e.to_string())?;
+    let (server_tls, client_tls) = if o.tls { crate::tls::loopback_pair().map(|(s, c)| (Some(s), Some(c)))? } else { (None, None) };
+    let listener = crate::conn::listen_tls(gw.clone(), "127.0.0.1:0", server_tls).map_err(|e| e.to_string())?;
     let addr = listener.addr.to_string();
     let stop = Arc::new(AtomicBool::new(false));
     let prep: Arc<Box<Prep>> = Arc::new(if o.fast { Box::new(fast_prep(store.clone())) } else { Box::new(|_: &HeroInfo| {}) });
@@ -287,6 +291,7 @@ pub fn run_soak(o: &SoakOpts) -> Result<SoakReport, String> {
     let mut threads = Vec::new();
     for b in 0..o.bots as u64 {
         let (addr, stop, total, cycles, fields, play, prep) = (addr.clone(), stop.clone(), total.clone(), cycles.clone(), o.fields.clone(), o.play.clone(), prep.clone());
+        let client_tls = client_tls.clone();
         let seed = o.seed;
         threads.push(std::thread::spawn(move || {
             let mut n = 0u64;
@@ -296,7 +301,7 @@ pub fn run_soak(o: &SoakOpts) -> Result<SoakReport, String> {
                 let mut p = play.clone();
                 p.seed = seed ^ (b << 20) ^ n;
                 p.stop = Some(stop.clone());
-                if let Err(e) = cycle(&addr, b, field, &p, &**prep, &mut st) {
+                if let Err(e) = cycle(&addr, client_tls.as_ref(), b, field, &p, &**prep, &mut st) {
                     st.errors.push(format!("bot {b}: {e}"));
                     if !stop.load(Ordering::Relaxed) {
                         std::thread::sleep(Duration::from_millis(500));

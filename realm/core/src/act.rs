@@ -115,16 +115,31 @@ impl Field {
                 // The slot is emptied as `leave` does: the save holds nothing of a hero who is gone, so the
                 // running field must not either.
                 *h = Hero::default();
+                self.forget_slot(id);
                 self.events.push(Event::Bank { hero: id, coin, waystone: NO_WAYSTONE });
                 self.events.push(Event::Leave { hero: id });
                 continue;
             }
             // Banking: interact held within 48 px of a waystone for 3 s, unhurt.
             let near = self.terrain.waystones.iter().position(|&(wx, wy)| d2(h.x, h.y, wx, wy) <= (WAYSTONE_PX * SUB) as i64 * (WAYSTONE_PX * SUB) as i64);
+            // The BLOOD MARK's rite (section 14): interact with the mark bit held, 5 s; it never banks. Changing
+            // between the rite and banking starts the hold over.
+            if (inp ^ prev) & crate::pvp::IN_MARK != 0 {
+                h.hold = 0;
+            }
             match near {
                 None => {
                     h.hold = 0;
                     h.banked = false;
+                }
+                Some(_) if inp & IN_INTERACT != 0 && inp & crate::pvp::IN_MARK != 0 => {
+                    if !h.hurt {
+                        h.hold += 1;
+                    }
+                    if h.hold >= crate::pvp::MARK_HOLD {
+                        h.hold = 0;
+                        self.mark_rite(i);
+                    }
                 }
                 Some(w) if inp & IN_INTERACT != 0 => {
                     // A hit pauses the hold for that tick; it does not start it over.
@@ -140,6 +155,7 @@ impl Field {
                                 self.events.push(Event::Bank { hero: id, coin, waystone: w as u8 });
                             }
                             *h = Hero::default();
+                            self.forget_slot(id);
                             self.events.push(Event::Leave { hero: id });
                             continue;
                         } else {
@@ -165,7 +181,7 @@ impl Field {
         let mods = &self.mods;
         grid_box(&self.hgrid, PCELLS_W, PCELL_SHIFT, x - r, y - r, x + r, y + r, |q| {
             let qh = &heroes[q as usize];
-            if q as usize != i && qh.alive() && d2(qh.x, qh.y, x, y) <= r as i64 * r as i64 {
+            if q as usize != i && qh.alive() && d2(qh.x, qh.y, x, y) <= r as i64 * r as i64 && self.may_help(q as usize, i) {
                 let rate = mods[q as usize].raise_pct;
                 if best.is_none_or(|(b, bq)| rate > b || (rate == b && (q as u16) < bq)) {
                     best = Some((rate, q as u16));
@@ -215,6 +231,7 @@ impl Field {
         h.raise = 0;
         h.health = h.max_health;
         self.events.push(Event::Fallen { hero: i as u16, coin: lost });
+        self.plunder(i, lost);
     }
 
     fn drink(&mut self, i: usize, slot: usize, m: &Mods) {
@@ -268,12 +285,18 @@ impl Field {
             Act::GroupEffect { px, fx } => {
                 let ticks = pct(EFFECTS[fx as usize].ticks as u32, rank as i64).min(u16::MAX as u32) as u16;
                 for q in self.allies_within(hx, hy, px, true) {
+                    if !self.may_help(i, q) {
+                        continue;
+                    }
                     let qh = &mut self.heroes[q];
                     qh.fx[fx as usize] = qh.fx[fx as usize].max(ticks);
                 }
             }
             Act::GroupHeal { px, pct: p } => {
                 for q in self.allies_within(hx, hy, px, false) {
+                    if !self.may_help(i, q) {
+                        continue;
+                    }
                     let qh = &mut self.heroes[q];
                     if qh.downed > 0 {
                         rise_up(qh, RISE_HEALTH_PCT * self.mods[q].rise_pct / 100);
