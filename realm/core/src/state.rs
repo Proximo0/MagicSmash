@@ -220,7 +220,12 @@ impl Field {
         let mut lists = [Vec::new(), Vec::new()];
         for l in &mut lists {
             for _ in 0..r.u32()? {
-                l.push((r.u32()?, r.u16()?, r.u16()?));
+                let cell = r.u32()?;
+                // A source outside the grid would index past the flow field (found by the wire fuzz, seed 273593).
+                if cell as usize >= crate::CELLS {
+                    return None;
+                }
+                l.push((cell, r.u16()?, r.u16()?));
             }
         }
         let progress = r.u32()? as usize;
