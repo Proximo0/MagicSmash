@@ -25,6 +25,7 @@ from . import checks
 from .bake import BODY_H, BODY_SIZES, CANVAS_H, CANVAS_W, FOOT_Y, Character, bake_all, write_outputs
 from .autocut import gate_cut
 from .fit import fit_still, gate_still, gate_picture
+from .gear import gate_gear, load_gear
 
 BG = (52, 70, 52)
 
@@ -46,6 +47,24 @@ def _strip_img(frames, scale, bad_frames=()):
         d.rectangle([i * CANVAS_W * scale, 0, (i + 1) * CANVAS_W * scale - 1, im.height - 1],
                     outline=(255, 40, 40), width=2)
     return im
+
+
+def _with_gear(img, gears):
+    """The body still with its gear pictures in a column to its right (for the sheets)."""
+    if not gears:
+        return img
+    H = img.shape[0]
+    n = len(gears)
+    w = max(1, max(int(g.img.shape[1] * (H / n) / g.img.shape[0]) for g in gears))
+    out = np.zeros((H, img.shape[1] + w, 4), np.uint8)
+    out[:, :img.shape[1]] = img
+    for i, g in enumerate(gears):
+        h = H // n
+        im = Image.fromarray(g.img, "RGBA")
+        im = im.resize((max(1, int(g.img.shape[1] * h / g.img.shape[0])), h), Image.NEAREST)
+        a = np.array(im)
+        out[i * h:i * h + h, img.shape[1]:img.shape[1] + a.shape[1]] = a
+    return out
 
 
 def _fail_frames(fails):
@@ -73,20 +92,23 @@ def run(still_dir, out_dir, counts=(4, 8), skf=True, log=print, sizes=BODY_SIZES
         t0 = time.time()
         img, data, masks = fit_still(png, png[:-4] + ".json")
         gate = gate_still(data)
+        gears = load_gear(png)
+        gate += gate_gear(gears)
         rec = {"fit_score": data["fit"]["score"], "moved_px": data["fit"]["moved_px"],
                "flags": data["fit"]["flags"]}
+        rec["gear"] = [g.name + ":" + str(g.slot) for g in gears]
         frames8 = {}
         chs = {}
         if not gate:
             for bh in sizes:
-                chs[bh] = Character.from_still(png, png[:-4] + ".json", fitted=(img, data, masks), body_h=bh)
+                chs[bh] = Character.from_still(png, png[:-4] + ".json", fitted=(img, data, masks), body_h=bh, gear=gears)
             ch = chs[sizes[0]]
             gate = gate_cut(ch.info)
             rec["gear_cut"] = round(ch.info["gear_cut"], 2)
             rec["native_grid"] = {k: v for k, v in ch.grid.items() if k != "used_cell"}
         if gate:
             ids = sorted({g[0].split(":")[0] for g in gate}, key=lambda r: int(r[1:]))
-            gate_picture(img, data, gate, os.path.join(na_dir, cid + ".png"))
+            gate_picture(_with_gear(img, gears), data, gate, os.path.join(na_dir, cid + ".png"))
             rec.update(status="rejected", rules=ids, failures=[g[0] for g in gate])
         else:
             baked, fails, bad = {}, [], {}
@@ -131,7 +153,7 @@ def run(still_dir, out_dir, counts=(4, 8), skf=True, log=print, sizes=BODY_SIZES
         (accepted if rec["status"] == "accepted" else rejected).append((cid, rec["rules"]))
         log(f"{cid}: {rec['status']:8s} {dt:4.1f}s  fit {rec['fit_score']:.2f}"
             + (f"  rules {','.join(rec['rules'])}" if rec["rules"] else ""))
-        rows.append((cid, rec, frames8, img, data, gate))
+        rows.append((cid, rec, frames8, _with_gear(img, gears), data, gate))
     sheet = contact(rows, os.path.join(out_dir, "contact.png"))
     with open(os.path.join(out_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=1, default=float)

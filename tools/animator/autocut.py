@@ -350,6 +350,18 @@ def cut_auto(still, rig, masks):
         p.extent = (int(ys.min()), int(ys.max()) + 1)
         parts[nm] = p
         cloth[nm] = p
+    # scraps left in the torso below the hips that do not touch it (slivers of the erased far
+    # leg's outline, a too-small "robe" merged back) would hang in the air behind the legs
+    # while the walk moves on (rule R24): they are dropped, the far leg is redrawn anyway
+    tm = parts["torso"].img[..., 3] > 0
+    if tm.any():
+        cl, cs = components(tm)
+        biggest = max(cs, key=cs.get)
+        for k in cs:
+            if k != biggest:
+                ys_ = np.flatnonzero((cl == k).any(1))
+                if ys_.min() > hip_y:
+                    parts["torso"].img[cl == k] = 0
     info = {"labels": lab, "codes": code, "palette": pal, "radius": R, "image": img,
             "far_arm": "own pixels" if far_real is not None else "copy of the near arm",
             "cloth": list(cloth), "robe_mode": robe_mode, "gear_reach": gear_reach,

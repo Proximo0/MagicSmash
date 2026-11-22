@@ -11,6 +11,8 @@ python3 -m tools.animator auto samples/HR6.1_1.png   # estimated joints JSON
 python3 -m tools.animator batch samples/stills --out out/batch   # fit + gate + bake all 24 stills
 python3 -m tools.animator batch samples/stills_spec --out out/spec_batch   # the stills drawn on spec
 python3 -m tools.animator spec --build all --out out/spec        # pose picture + joints per build
+python3 -m tools.animator spec --gear --out out/spec             # gear layout guides + JSON per kind
+python3 -m tools.animator batch samples/stills_gear --out out/gear_batch   # body + gear characters
 python3 -m unittest discover tools/animator/tests                # from the repo root
 cd tools/animator/tests && python3 -m unittest discover -s . -p "test_*.py"
 ```
@@ -225,6 +227,41 @@ Batch results, 22 Nov, both sizes:
   the tightened G8 (0.60 of a hand of skin colour on the body). By eye HR4.2 is clean; HR2.2 has
   a loose thin line at the hip in two frames; HR3.1 is very dark with red specks at the feet;
   HR5.1's hand and chain are smeared. None of these four was drawn on spec.
+
+## Body + gear, 22 Nov (`gear.py`; recipe and file layout in `STILL_SPEC.md`)
+Two rounds of stills with the gear painted in gave 1 clean hero of 7 sets: the image model puts
+the shield in front of the arm about half the time and lets weapons cross the legs, whatever the
+prompt says. Now the model draws only the bare body, and each piece of gear alone:
+`<id>.png` + `<id>.json` + `<id>_gear/<name>.png` + `<id>_gear/<name>.json` (slot `back`,
+`near_hand`, `far_hand` or `cape`; anchor; up; size as a fraction of the body height).
+- **Bake.** The body is cut, posed and reduced as before, without any gear in it. Each gear is
+  turned and scaled from its own picture into a game-size sprite (6 x supersample, angle on a
+  0.5 deg grid, cached) and laid over the finished body frame at whole pixels, using the body's
+  label map as the depth: `back` just behind the torso (in front of the far limbs), `cape`
+  behind that, hand gear just behind or in front of its arm. Frames keep the body-only picture
+  (`frame["body"]`) and each gear layer (`meta["gear"]`) so the checks can compare them.
+- **Rules.** R20 pixels = picture under the rigid move (hash), R21 grip within 1 px of the hand,
+  R22 back gear never over the near arm, R23 never over the head, R25 hand gear never across a
+  shin or foot, R24 one connected figure per frame; G12 no gear in a body still, G13 no loose
+  blob in a still, G14 the gear picture itself, G15 no skin-coloured legs.
+- **Hand.** The grip goes on the middle of the hand as drawn (`fit` measures the hand-coloured
+  pixels near the layout's hand: HR6.1's fist is 11 px off the layout's), carried in the
+  forearm's frame. A near hand with gear is a carried arm (drawn pose, 40 % swing).
+- **Also fixed.** Scraps of the erased far leg left in the torso part are dropped (the dwarf
+  mannequin at 112 px had 3-6 loose px behind the heels: R24 found them). On a body still the
+  fit no longer takes a colourless lump behind the back for the far hand.
+- **Dwarf boot** 0.160 BH = 0.46 of the leg, the middle of what G9 allows for its shin
+  (`spec.boot_range`: 0.335-0.60); per-build boot sentences in `spec.BOOT_WORDS`.
+- **Results** (`out/gear_batch/contact.png`): PAL_SYN, ELF_SYN (staff + cape), ORC_SYN (maul),
+  DWARF_SYN (shield + axe) and HR6.1_SPLIT (the accepted paladin, shield and hammer cut out by
+  hand in `tests/fixtures.py`) are accepted at 56 and 112 px. The split paladin's shield emblem
+  is the same crisp pixels in all 8 frames; baked into the torso it shimmered.
+- **Weak points.** No real gear picture from the image model has been through this yet. G12's
+  thin-object test only sees what sticks out of the silhouette; a sheathed sword lying wholly
+  over the body is not seen. Back gear does not tilt with the torso's 1.5-2.5 deg lean. A face-on
+  shield on a side-view back is a convention, not a projection. Gear is not in the `.skf`
+  (it is in `<id>_parts/rig.json` with slot, anchor and parent). The far hand's gear is drawn
+  but untested on real art. R24 and G13/G15 now also refuse old stills (HR2.2 loose line).
 
 ## Limits (what it cannot cut well)
 - Long robes and skirts (HR3.2 wizard, the elves' loin cloth): kept rigid with the torso, so

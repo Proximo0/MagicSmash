@@ -159,6 +159,54 @@ def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, ar
     return out
 
 
+LOOSE_MIN = 9              # px: an opaque blob this big that is not connected to the body is a loose
+                           # piece (G13); smaller ones are keying dust and are dropped
+HELD_MAX = 0.11            # x body height: an empty hand's blob ends this close to the hand's middle
+BACK_CLOTH_MARGIN = 0.05   # x body height behind the layout's back line before cloth is counted ...
+BACK_CLOTH_MAX = 0.010     # ... and x body height squared of it that a bare body may have (long hair)
+LEG_SKIN_TOP = 0.05        # x body height under the hips where the leg region starts (a tunic's hem)
+LEG_SKIN_SHIN = 0.5        # share of the shin, from the knee down, that counts as leg (not boot)
+LEG_SKIN_MAX = 0.25        # G15: share of the lit leg pixels that may have the hand's colour
+
+
+def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top_y):
+    """Share of the pixels of the thighs and the upper LEG_SKIN_SHIN of the shins (boot shafts
+    and leg wraps are below that) that have the front hand's colour, by the same colour test as the hand census
+    (hue within HAND_HUE, chroma and lightness windows).  None when there is no hand."""
+    if not hand_blob.any():
+        return None
+    H, W = body.shape
+    yy, xx = np.mgrid[0:H, 0:W]
+    if hand_at is None:
+        by_, bx_ = np.where(hand_blob)
+        i = int(np.argmax(np.hypot(bx_ + 0.5 - shoulder[0], by_ + 0.5 - shoulder[1])))
+        hand_at = np.array([bx_[i] + 0.5, by_[i] + 0.5])
+    hb = hand_blob & (np.hypot(xx + 0.5 - hand_at[0], yy + 0.5 - hand_at[1]) < 0.045 * BH)
+    if hb.sum() < 6:
+        return None
+    px = lab_img[hb]
+    lit = px[px[:, 0] > np.percentile(px[:, 0], 35)]
+    ref = np.median(lit if len(lit) >= 4 else px, 0)
+    dl = lab_img[..., 0] - ref[0]
+    c_ref = float(np.hypot(ref[1], ref[2]))
+    if c_ref >= HAND_GREY:
+        chroma = np.hypot(lab_img[..., 1], lab_img[..., 2])
+        hue = np.degrees(np.arctan2(lab_img[..., 2], lab_img[..., 1]) - math.atan2(ref[2], ref[1]))
+        hue = np.abs((hue + 180.0) % 360.0 - 180.0)
+        same = (hue < HAND_HUE) & (chroma > HAND_CHROMA[0] * c_ref) & (chroma < HAND_CHROMA[1] * c_ref)
+    else:
+        same = np.hypot(*(lab_img - ref)[..., 1:].transpose(2, 0, 1)) < HAND_GREY
+    same &= (dl > HAND_L[0]) & (dl < HAND_L[1])
+    P = np.stack([xx + 0.5, yy + 0.5], -1).astype(float)
+    legs = np.zeros_like(body)
+    for i, (a, b) in enumerate(bones):      # thigh, shin, thigh, shin
+        d, t = seg_dist(P, np.asarray(a, float), np.asarray(b, float))
+        legs |= (d <= r) & (t >= 0) & ((t <= LEG_SKIN_SHIN) | (i % 2 == 0))
+    legs &= body & (yy >= top_y)
+    n = int(legs.sum())
+    return round(float((legs & same).sum()) / n, 3) if n else None
+
+
 def load_single(path):
     """The still with hard alpha and the background key's fringe cleaned (intake.clean_key)."""
     a = np.array(Image.open(path).convert("RGBA"))
@@ -354,9 +402,17 @@ def fit_still(png, layout_json):
     main = max(sizes, key=sizes.get)
     body = lab == main
     detached = np.zeros_like(A)
+    loose = []
     for k, s in sizes.items():
         if k != main and s >= DUST_FRAC * sizes[main]:
             detached |= lab == k
+        if k != main and s >= LOOSE_MIN:
+            ys_, xs_ = np.where(lab == k)
+            loose.append((k, {"at": [int(xs_.mean()), int(ys_.mean())], "px": int(s)}))
+    # a still that is the bare body only (STILL_SPEC.md): written so by `spec`, or it has gear
+    # pictures beside it
+    body_only = lay.get("format") == "body" or os.path.isdir(png[:-4] + "_gear")
+    report["body_only"] = bool(body_only)
     if detached.any():
         report["flags"].append(f"detached piece(s) {int(detached.sum())} px kept as gear")
     LJ = {k: np.array(v, float) for k, v in lay["joints"].items()}
@@ -365,6 +421,8 @@ def fit_still(png, layout_json):
     detached &= ~plate
     if plate.any():
         report["flags"].append(f"ground plate erased ({int(plate.sum())} px)")
+    # G13: opaque blobs not connected to the body (a ground plate found above is not one)
+    report["loose"] = [rec for k, rec in loose if not (plate & (lab == k)).any()]
     rows = np.flatnonzero(body.any(1))
     ground = int(rows[-1]) + 1
     hx = int(LJ["head"][0])
@@ -762,7 +820,8 @@ def fit_still(png, layout_json):
     far_blob = back_hand | census_back
     if inner_hand:
         far_blob |= far_extra
-    elif back_zone.any() and not far_blob.any():
+    elif back_zone.any() and not far_blob.any() and not body_only:   # a bare body's far arm is hidden;
+        # what sticks out behind its back without the hand's colour is clothing, not a hand
         bl, bs = components(back_zone)
         reach = Lu + Lf
         for k2, sz in sorted(bs.items(), key=lambda kv: -kv[1]):
@@ -778,6 +837,41 @@ def fit_still(png, layout_json):
                 break
     # ---- gear blobs (G11): rimmed shapes and how much of each lies over the torso front
     report["gear_blobs"] = gear_census(img, body, BH, axis, sh_y, hip_y + 0.08 * BH)
+    # ---- a bare body still (G12): nothing rigid and thin, nothing in the hand, no cloth behind
+    # the back
+    if body_only:
+        from .intake import thin_objects
+        report["thin_objects"] = [{k: v for k, v in t.items() if k != "mask"} for t in thin_objects(body, BH)]
+        hc = (wr2 + hand_tip) / 2
+        dh = np.hypot(xx + 0.5 - hc[0], yy + 0.5 - hc[1])
+        along = (xx + 0.5 - wr2[0]) * fdir[0] + (yy + 0.5 - wr2[1]) * fdir[1]
+        past = hand_blob & (along > -0.03 * BH)
+        report["hand_reach"] = round(float(dh[past].max()) / BH, 3) if past.any() else 0.0
+        chest_back = lay.get("chest_px", [None, None])[1] or b20
+        cloth_ = body & (xx + 0.5 < axis(yy + 0.5) - chest_back - BACK_CLOTH_MARGIN * BH) & \
+            (yy > neck[1]) & (yy <= hip_y) & ~far_blob
+        report["back_cloth"] = round(float(cloth_.sum()) / (BH * BH), 4)
+    # ---- where the hand really is (gear is gripped there): the middle of the hand-coloured
+    # pixels near the layout's hand; the image model draws the fist a few px off the layout
+    hand_c = (wr2 + hand_tip) / 2
+    if hand_blob.any():
+        near_ = hand_blob & (np.hypot(xx + 0.5 - hand_c[0], yy + 0.5 - hand_c[1]) < 0.045 * BH)
+        if near_.sum() >= 6:
+            px_ = lab_img[near_]
+            lit_ = px_[px_[:, 0] > np.percentile(px_[:, 0], 35)]
+            ref_ = np.median(lit_ if len(lit_) >= 4 else px_, 0)
+            skin_ = hand_blob & (np.hypot(*(lab_img - ref_)[..., 1:].transpose(2, 0, 1)) < INNER_AB) & \
+                (np.abs(lab_img[..., 0] - ref_[0]) < INNER_L) & \
+                (np.hypot(xx + 0.5 - hand_c[0], yy + 0.5 - hand_c[1]) < 0.09 * BH)
+            if skin_.sum() >= 6:
+                ys_, xs_ = np.where(skin_)
+                hand_c = np.array([xs_.mean() + 0.5, ys_.mean() + 0.5])
+    # ---- G15: skin colour on the legs (the hand would vanish against the thigh)
+    report["leg_skin"] = leg_skin(lab_img, img, body, hand_blob, (wr2 + hand_tip) / 2 if spec_arm else None,
+                                  shoulder, BH,
+                                  [(F["hip"] * [1, 0] + [0, hip_y], F["knee"]), (F["knee"], ff["ankle"]),
+                                   (B["hip"] * [1, 0] + [0, hip_y], B["knee"]), (B["knee"], B["ankle"])],
+                                  max(F["shin_w"] / 2, 0.025 * BH), hip_y + LEG_SKIN_TOP * BH)
     # ---- radii
     radius = {"thigh": max(0.55 * leg_w, 0.03 * BH), "shin": max(F["shin_w"] / 2, 0.025 * BH),
               "foot": max(0.4 * F["shin_w"], 0.02 * BH), "upper": 0.045 * BH, "fore": 0.042 * BH}
@@ -830,6 +924,7 @@ def fit_still(png, layout_json):
         "robe": bool(robe), "merge_y": int(merge_y),
         "stride_still": round(float(ff["heel"][0] - (btoe[0] - ff["length"])), 2),
         "track_ankle": rnd(F.get("ankle_run", F["ankle"])),
+        "hand_centre": rnd(hand_c),
         "fit": report,
     }
     if far_blob.any():
@@ -942,6 +1037,34 @@ def gate_still(data):
                         "wholly behind the torso" % (g["area"], g["at"][0], g["at"][1],
                                                      100 * g["front"], 100 * GEAR_FRONT_MAX),
                         [tuple(g["at"])]))
+    # G12 a body still is the bare body: gear is drawn separately (gear.py) and never in it
+    if rep.get("body_only"):
+        for g in rep.get("gear_blobs", []):
+            out.append(("G12: gear_in_body: a rimmed blob (a shield?) of %.3f body heights squared at "
+                        "%d,%d is drawn into the body still; gear is drawn as its own picture"
+                        % (g["area"], g["at"][0], g["at"][1]), [tuple(g["at"])]))
+        for t in rep.get("thin_objects", []):
+            out.append(("G12: gear_in_body: a long thin rigid object (%.2f body heights long, a weapon "
+                        "or staff?) at %d,%d is drawn into the body still; gear is drawn as its own "
+                        "picture" % (t["length"], t["at"][0], t["at"][1]), [tuple(t["at"])]))
+        if rep.get("hand_reach", 0) > HELD_MAX:
+            out.append(("G12: gear_in_body: the near hand's shape reaches %.2f body heights from the "
+                        "hand's middle (an empty open hand: at most %.2f): something is held; the "
+                        "body still has empty hands" % (rep["hand_reach"], HELD_MAX), ["wrist"]))
+        if rep.get("back_cloth", 0) > BACK_CLOTH_MAX:
+            out.append(("G12: gear_in_body: %.3f body heights squared of the still hang behind the back "
+                        "line (limit %.3f): a cape, cloak or pack is drawn into the body still"
+                        % (rep["back_cloth"], BACK_CLOTH_MAX), ["neck"]))
+    # G13 nothing loose: every opaque blob is connected to the body
+    for b in rep.get("loose", []):
+        out.append(("G13: loose_blob: %d px at %d,%d are not connected to the body (a loose piece "
+                    "would float beside the walk)" % (b["px"], b["at"][0], b["at"][1]), [tuple(b["at"])]))
+    # G15 the legs do not have the hand's colour (bare legs: the hand vanishes against the thigh
+    # and cannot be counted)
+    if rep.get("leg_skin") is not None and rep["leg_skin"] > LEG_SKIN_MAX:
+        out.append(("G15: bare_legs: %.0f %% of the legs have the hand's (skin) colour (limit %.0f %%): "
+                    "the hand vanishes against the thigh; trousers or greaves in a colour different "
+                    "from the skin" % (100 * rep["leg_skin"], 100 * LEG_SKIN_MAX), ["hip", "knee"]))
     # G8 every arm in the still belongs to exactly one arm part: a hand or bare forearm drawn
     # over the body cannot be cut from the torso and would stay painted on it (a third arm)
     inside = [h for h in rep.get("hands", []) if h["zone"] == "inside"]

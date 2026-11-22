@@ -14,7 +14,7 @@ import numpy as np
 
 from helpers import ROOT
 
-from tools.animator import autocut, checks, fit
+from tools.animator import autocut, checks, fit, gear
 from tools.animator.cloth import pendulum
 from tools.animator.fit import fit_still, gate_still
 
@@ -24,7 +24,7 @@ HERE = os.path.join(ROOT, "tools", "animator")
 STILLS = os.path.join(HERE, "samples", "stills")
 GOOD = "HR4.2"       # a still that passes every rule (HR6.1 was the example until the owner saw
                      # its third arm: it now fails G8)
-OWNER_RULES = {"R1", "R4", "R5", "R6", "R17", "R19", "G8", "G9", "G10", "G11"}   # third leg, crooked elbow, backwards foot,
+OWNER_RULES = {"R1", "R4", "R5", "R6", "R17", "R19", "R24", "G8", "G9", "G10", "G11", "G13", "G15"}   # third leg, crooked elbow, backwards foot,
                                                             # heel, third arm (output and input), short boot
 
 
@@ -49,8 +49,9 @@ def test_classes():
     import test_rules
     import test_arms_feet
     import test_intake
+    import test_gear
     out = {}
-    for mod in (test_animator, test_rules, test_arms_feet, test_intake):
+    for mod in (test_animator, test_rules, test_arms_feet, test_intake, test_gear):
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             if issubclass(obj, unittest.TestCase):
                 out[name] = obj
@@ -62,7 +63,7 @@ class TestRulebook(unittest.TestCase):
         rules = read_rulebook()
         self.assertTrue(rules)
         classes = test_classes()
-        mods = {"checks": checks, "fit": fit, "autocut": autocut}
+        mods = {"checks": checks, "fit": fit, "autocut": autocut, "gear": gear}
         for rid, r in rules.items():
             self.assertTrue(r["text"], rid)
             mod, _, fn = r.get("check", "").partition(".")
@@ -89,7 +90,8 @@ class TestRulebook(unittest.TestCase):
             self.assertIn("checks." + f.__name__, listed, f"checks.{f.__name__} not in RULES.md")
         for rid in set(checks.RULE_IDS.values()):
             self.assertIn(rid, rules, f"{rid} used by checks.rule_id but not in RULES.md")
-        for name, fn in (("fit.gate_still", fit.gate_still), ("autocut.gate_cut", autocut.gate_cut)):
+        for name, fn in (("fit.gate_still", fit.gate_still), ("autocut.gate_cut", autocut.gate_cut),
+                         ("gear.gate_gear", gear.gate_gear)):
             for gid in set(re.findall(r'"(G\d+):', inspect.getsource(fn))):
                 self.assertIn(gid, rules, f"{gid} used by the gate but not in RULES.md")
                 self.assertEqual(rules[gid]["check"], name, gid)

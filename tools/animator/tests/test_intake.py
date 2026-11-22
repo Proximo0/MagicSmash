@@ -284,33 +284,51 @@ class TestTwoSizes(unittest.TestCase):
 
 
 class TestBoots(unittest.TestCase):
-    """The dwarf layout asks for boots that are clearly long (G9 refused 6 of 6 dwarf stills)."""
+    """Every layout's boot is clearly longer than the shin is wide and sits inside what G9 allows;
+    the dwarf's is in the middle of that range (at the top of it the image model overshot)."""
 
     def test_layout_boots_are_long_in_every_build(self):
         for b in spec.BUILDS:
             n = spec.foot_numbers(b)
             self.assertGreaterEqual(n["foot_per_shin_width"], 1.6, b)
             self.assertGreaterEqual(n["toe_ahead"], 0.045, b)
-            self.assertTrue(foot.FOOT_LEG[0] <= n["foot_per_leg"] <= foot.FOOT_LEG_STOCKY, (b, n))
+            lo, hi = spec.boot_range(b)
+            self.assertEqual(n["foot_per_leg_allowed"], [lo, hi])
+            self.assertEqual(hi, foot.FOOT_LEG_STOCKY)
+            self.assertGreaterEqual(lo, foot.FOOT_LEG[0])
+            self.assertTrue(lo < n["foot_per_leg"] < hi, (b, n))
         d = spec.foot_numbers("dwarf")
-        self.assertGreaterEqual(d["foot_per_shin_width"], 2.2)
-        self.assertGreaterEqual(d["toe_ahead"], 0.12)
+        self.assertGreaterEqual(d["foot_per_shin_width"], 2.0)
+        self.assertGreaterEqual(d["toe_ahead"], 0.08)
+
+    def test_dwarf_boot_is_in_the_middle_of_the_allowed_range(self):
+        lo, hi = spec.boot_range("dwarf")
+        r = spec.foot_numbers("dwarf")["foot_per_leg"]
+        self.assertAlmostEqual(r, (lo + hi) / 2, delta=0.02)
+        # room both ways: the model drew boots 1.22-1.33 x as long as the old layout asked
+        # (0.71-0.77 of the leg, refused); from the middle 1.29 x is still inside
+        self.assertLessEqual(1.29 * r, hi)
 
     def test_dwarf_boot_survives_what_the_image_model_does_to_it(self):
-        # shin 1.4 x as thick, boot 0.8 x as long as the layout asks: still no G9 fault
         from tools.animator.motion import STANCE_DORSI_MAX, SWING_ANKLE
         b = spec.BUILDS["dwarf"]
         bh = b["bh"]
-        length = 0.8 * b["foot"] * bh
-        half = 1.4 * b["r_shin"] * bh
         leg = (b["hip"] - b["ankle"]) * bh
         ah = b["ankle"] * bh
-        flex = (-min(-SWING_ANKLE[0], foot.plantar_limit(half, ah, 5.5)), STANCE_DORSI_MAX)
-        self.assertEqual(foot.foot_faults(length, leg, half, half, ah, flex), [])
-        # the first layout (foot 0.150, shin 0.048, hip 0.38) did not survive it
-        old = foot.foot_faults(0.8 * 0.150 * bh, (0.38 - 0.065) * bh, 1.4 * 0.048 * bh, 1.4 * 0.048 * bh, ah,
-                               (-min(-SWING_ANKLE[0], foot.plantar_limit(1.4 * 0.048 * bh, ah, 5.5)), STANCE_DORSI_MAX))
-        self.assertTrue(old)
+
+        def faults(shin, boot, foot_bh=b["foot"], r_shin=b["r_shin"], leg_=leg):
+            half = shin * r_shin * bh
+            flex = (-min(-SWING_ANKLE[0], foot.plantar_limit(half, ah, 5.5)), STANCE_DORSI_MAX)
+            return foot.foot_faults(boot * foot_bh * bh, leg_, half, half, ah, flex)
+        self.assertEqual(faults(1.4, 1.0), [])       # shin 1.4 x as thick: no G9 fault
+        self.assertEqual(faults(1.0, 0.8), [])       # boot 0.8 x as long: none
+        self.assertEqual(faults(1.0, 1.29), [])      # boot 1.29 x as long: none
+        # both at once (thick shin and short boot) is refused: the price of leaving the top of
+        # the range, where the 0.200 boot survived it and then overshot the upper limit
+        self.assertTrue(faults(1.4, 0.8))
+        self.assertTrue(faults(1.0, 1.25, foot_bh=0.200))     # the old layout, drawn 1.25 x: too long
+        # the first layout (foot 0.150, shin 0.048, hip 0.38) did not survive a thick shin either
+        self.assertTrue(faults(1.4, 0.8, foot_bh=0.150, r_shin=0.048, leg_=(0.38 - 0.065) * bh))
 
     def test_heel_block_boot_stands_on_its_heel_and_toe(self):
         # a boot with a heel block and a sprung toe: the sole passes within 2 px of both the

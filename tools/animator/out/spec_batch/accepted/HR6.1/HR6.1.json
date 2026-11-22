@@ -51,6 +51,8 @@
   "on_spec": true,
   "key_px": 0,
   "key_at": [],
+  "body_only": false,
+  "loose": [],
   "layout_scale": 0.998,
   "robe": false,
   "ankle_moved_px": -23.6,
@@ -80,6 +82,7 @@
     ]
    }
   ],
+  "leg_skin": 0.0,
   "layout_swapped": {
    "legs": false,
    "arms": false

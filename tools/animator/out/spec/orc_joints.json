@@ -185,6 +185,10 @@
   ]
  },
  "foot": {
+  "foot_per_leg_allowed": [
+   0.285,
+   0.6
+  ],
   "foot": 0.135,
   "foot_px": 56.7,
   "shin_width": 0.084,
@@ -201,5 +205,10 @@
   "fore": 15.1
  },
  "far_arm": "hidden",
+ "format": "body",
+ "chest_px": [
+  44.1,
+  42.0
+ ],
  "note": "drawn from tools/animator/spec.py: joints are known, not detected (STILL_SPEC.md)"
 }

@@ -15,7 +15,13 @@ Every rule a baked walk (R) or an input still (G) must pass. One rule per line:
   length is 2 baked pixels (`checks.TOL_PX x ctx["size_x"]`), and the walk is the same walk. A
   character must pass every R rule at both sizes.
 - Never loosen a rule. 22 Nov (stills drawn on spec): G8 tightened, G10, G11 and R19 added; R1,
-  R16 and R17 measure more exactly (their limits are unchanged).
+  R16 and R17 measure more exactly (their limits are unchanged). 22 Nov (body + gear): R20-R25
+  and G12-G15 added; nothing else changed.
+- Gear (`gear.py`, `STILL_SPEC.md`): a character is a bare body still plus gear pictures. Gear is
+  never cut from the body or mixed into it: each gear is a layer laid over the finished body
+  frame, so R20-R23 and R25 are true by construction and the checks guard the construction.
+  G12-G15 and R24 apply to every still (G12 only to body stills); the legacy stills with gear
+  painted in keep G7 and G11.
 - G rules gate the still before anything is animated. A still that fails one is not baked; it goes to
   `out/batch/needs_attention/<id>.png` with the failed joints ringed. R rules run on every baked frame.
   A character that fails any rule writes nothing into `out/batch/accepted/`, and `batch` exits 1.
@@ -51,6 +57,16 @@ G9  | owner | The drawn foot can keep R6 in every frame: it is at least 0.24 of 
 G10 | owner | No pixel of the background key's colour (magenta, pure or shaded: red and blue both at least 60, green at most 0.35 of the smaller, red and blue within 20 % of each other) is left in the still. Our intake removes the half-keyed rim itself (`intake.clean_key`: fringe within 3 px of the background takes the nearest inside colour, hard alpha); what is left after that is unkeyed background and the still is refused | check: fit.gate_still | test: TestKeyColour.test_g10_key_colour_left_in_still, TestKeyColour.test_clean_key_removes_fringe
 G11 | owner | No large gear over the torso's front or the near arm (a shield belongs on the back). Measured: a gear blob is a patch of the body of at least 0.006 body heights squared walled in completely by a rim of one lit colour (`intake.rimmed_blobs`); at most 25 % of it may lie ahead of the trunk axis (the neck-pelvis line) between the shoulder row and 0.08 body heights under the hips | check: fit.gate_still | test: TestGearPlacement.test_g11_shield_on_near_side, TestGearPlacement.test_g11_threshold
 R19 | owner | No pixel of the background key's colour (as in G10) in any baked frame, at either size | check: checks.key_colour | test: TestKeyColour.test_r19_key_colour_in_frame
+R20 | -     | Every gear's pixels are its own picture in every frame, apart from the rigid move: the gear's sprite is made again from its picture at that frame's turn and compared by hash with what the frame holds, every gear pixel the frame shows is that sprite's pixel at that place, and a gear that does not turn (back) has one hash in all frames | check: checks.gear_rigid | test: TestGearBake.test_r20_gear_pixel_changed
+R21 | -     | A gear held in a hand has its grip within 1 px of the middle of that hand in every frame | check: checks.gear_grip | test: TestGearBake.test_r21_grip_off_the_hand
+R22 | -     | Back gear (shield, cape) is layered behind the torso and never draws over the near arm | check: checks.gear_back | test: TestGearBake.test_r22_back_gear_over_the_near_arm
+R23 | -     | Gear never covers the head (the body's pixels above the neck joint's row) | check: checks.gear_head | test: TestGearBake.test_r23_gear_over_the_head
+R24 | owner | The baked figure is one connected shape in every frame: any opaque blob not connected to the body (a loose stick floating behind the heels, gear that left its hand) is refused | check: checks.loose_blobs | test: TestGearBake.test_r24_loose_blob_in_a_frame
+R25 | -     | Gear held in a hand never crosses a leg below the knee (shins and feet) | check: checks.gear_legs | test: TestGearBake.test_r25_weapon_across_the_legs
+G12 | -     | A body still (layout `"format": "body"`, or gear pictures beside it) is the bare body: it contains no gear. Refused: any rimmed blob as in G11, wherever it lies; a long thin rigid object (`intake.thin_objects`: a part of the silhouette narrower than 0.035 body heights, at least 0.14 long, within 0.012 RMS of a straight line); anything held (the near hand's shape reaching more than 0.11 body heights from the hand's middle); cloth behind the back (more than 0.010 body heights squared further than 0.05 behind the layout's back line between neck and hips) | check: fit.gate_still | test: TestBodyStill.test_g12_shield_drawn_into_the_body, TestBodyStill.test_g12_staff_drawn_into_the_body, TestBodyStill.test_g12_hammer_in_the_hand, TestBodyStill.test_g12_cape_drawn_into_the_body, TestBodyStill.test_g12_real_still_with_gear_drawn_in
+G13 | owner | Nothing loose in the still: every opaque blob of 9 px or more is connected to the body (smaller ones are keying dust and are dropped; a ground plate is still erased) | check: fit.gate_still | test: TestBodyStill.test_g13_loose_stick_in_the_still
+G14 | -     | A gear picture is one connected shape with a known slot (one gear per slot), its anchor inside the picture (a hand grip on the gear itself), a size of 0.05 to 1.40 body heights, at least 24 px long, and no key colour left | check: gear.gate_gear | test: TestGearPictures.test_g14_gear_picture
+G15 | owner | The legs do not have the hand's colour: at most 25 % of the thighs and upper shins may pass the hand-colour test of G8 (bare legs: the hand vanishes against the thigh and cannot be counted). Trousers or greaves in a colour different from the skin | check: fit.gate_still | test: TestBodyStill.test_g15_bare_legs
 ```
 
 Measured on the three stills drawn on spec (22 Nov), with the margin to each limit:
@@ -64,3 +80,16 @@ Measured on the three stills drawn on spec (22 Nov), with the margin to each lim
 G8 before the change read the hand's colour off the hammer's head (the blob's point furthest from
 the shoulder) and so saw no hand at all on HR6.4. G11 only knows gear with a rim; a plain
 board without one is not seen (HR6.4's shield is refused through the arm drawn over it).
+
+Body + gear, measured (22 Nov, `samples/stills_gear`, 56 and 112 px):
+
+| character | G12 hand reach (limit 0.11) | G12 cloth behind the back (limit 0.010) | G12 rimmed / thin objects | G15 skin on the legs (limit 0.25) | result |
+|---|---|---|---|---|---|
+| PAL_SYN (mannequin + synthetic shield, hammer) | 0.067 | 0.000 | 0 / 0 | 0.00 | accepted |
+| HR6.1_SPLIT (HR6.1 with shield and hammer cut out by hand) | 0.078 | 0.000 | 0 / 0 | 0.00 | accepted |
+| HR6.1 as drawn, handed in as a body still | held: refused | - | 1 rimmed blob: refused | 0.00 | refused G12 |
+
+New rules on the old stills: R24 refuses HR2.2 (the loose line at its hip, seen by eye before);
+G13 refuses loose pieces on HR2.1, HR5.3, HR5.4; G15 refuses HR4.1, HR4.4, HR5.4 and the spec
+still HR6.4 (grey-green trousers on a green orc), all of which already failed another rule.
+`samples/stills` now: accepted HR3.1 HR4.2 HR5.1; `samples/stills_spec`: accepted HR6.1.

@@ -25,6 +25,7 @@ from PIL import Image
 from . import checks
 from .cut import cut_still, load_still
 from .foot import behind_back_edge, fit_foot, reseat
+from .gear import hand_local as _hand_local
 from .imgops import shift
 from .motion import MOTIONS, Gait, fit_walk, walk
 from .rig import Rig, screen_angle, SIDES
@@ -85,6 +86,7 @@ class Character:
     foot_y, pelvis_x = FOOT_Y, PELVIS_X
     native = False            # parts are flat blocks of a native grid (see from_still)
     grid = None
+    gear = ()                 # gear.Gear attachments (from_still: <id>_gear/*.json)
 
     def __init__(self, still_path=None, joints_path=None):
         self.auto = False
@@ -110,7 +112,7 @@ class Character:
         self.step_px = float(self.rig.j["heel"][0] - far["heel"][0]) if "heel" in far else None
 
     @classmethod
-    def from_still(cls, png, layout_json, fitted=None, body_h=BODY_H, native=True):
+    def from_still(cls, png, layout_json, fitted=None, body_h=BODY_H, native=True, gear=None):
         """body_h: game px of a REF_BH still (56 or 112); the canvas scales with it.
         native: rebuild every cut part from flat blocks of the still's native grid before it is
         posed (intake.detect_grid; when the still has no rigid grid, the blocks are the output
@@ -158,6 +160,16 @@ class Character:
         ch.rig.data["heel_tol_px"] = HEEL_TOL / (BODY_H / REF_BH)
         ch.name = ch.rig.name
         ch.step_px = float(data["stride_still"])
+        if gear is None:
+            from .gear import load_gear
+            gear = load_gear(png)
+        ch.gear = list(gear)
+        if ch.gear:               # colours of the gear pictures join the palette (R15)
+            ch.palette = np.unique(np.concatenate([ch.palette] + [g.palette for g in ch.gear]), axis=0)
+            # a near hand that holds gear is a carried arm: it keeps the still's pose and swings at
+            # GEAR_ARM, so the weapon stays where its angle put it (ahead of the body, off the legs)
+            if any(g.slot == "near_hand" for g in ch.gear):
+                ch.info["gear_reach"] = max(ch.info.get("gear_reach", 0), 2 * GEAR_LONG)
         return ch
 
     def to_game(self, P):
@@ -296,8 +308,10 @@ def _luma(c):
     return (r * 3 + g * 4 + b * 2) / 9.0
 
 
-def reduce(rgba, lab, SS=SS, native=False):
-    """native: the sub-pixels are flat native blocks, so the plain mode is the picture; only
+def reduce(rgba, lab, SS=SS, native=False, cover=0.5):
+    """cover: share of a block that must be opaque for the game pixel to be (gear sprites use
+    less than half so thin handles stay whole).
+    native: the sub-pixels are flat native blocks, so the plain mode is the picture; only
     the silhouette keeps its outline rule (a third of the block), no bonus for dark detail."""
     detail_bonus, outline_min = (1.0, 0.3) if native else (DETAIL_BONUS, OUTLINE_MIN)
     H4, W4 = lab.shape
@@ -308,7 +322,7 @@ def reduce(rgba, lab, SS=SS, native=False):
     blk = col.reshape(H, SS, W, SS).transpose(0, 2, 1, 3).reshape(H, W, N)
     lb = lab.reshape(H, SS, W, SS).transpose(0, 2, 1, 3).reshape(H, W, N)
     opaque = (blk >= 0).sum(-1)
-    on = opaque * 2 >= N
+    on = opaque >= cover * N
     out = np.zeros((H, W, 4), np.uint8)
     l = np.zeros((H, W), np.int16)
     ys, xs = np.where(on)
@@ -372,7 +386,8 @@ def bake_motion(ch, motion, n=None, gait=None):
     n = n or motion.frames
     gait = gait or Gait(ch.rig, motion)
     cloth = None
-    if any(getattr(p, "kind", "rigid") != "rigid" for p in ch.parts.values()):
+    if any(getattr(p, "kind", "rigid") != "rigid" for p in ch.parts.values()) or \
+            any(g.slot == "cape" for g in ch.gear):
         from .cloth import ClothSim
         cloth = ClothSim(ch, gait)
     frames = []
@@ -387,9 +402,19 @@ def bake_motion(ch, motion, n=None, gait=None):
                 "draw_order": names[1:], "labels": names,
                 "digests": {nm: ch.parts[nm].digest() for nm in names[1:]},
                 "pose": pose}
+        body = None
+        if ch.gear:               # gear is laid over the finished body frame, never mixed into it
+            from .gear import composite
+            body = {"rgba": rgba, "label": lab}
+            rgba, lab, names, layers = composite(ch, rgba, lab, names, J, cloth, p)
+            meta["labels"] = names
+            meta["gear"] = layers
+            meta["digests"].update({g.label: g.digest() for g in ch.gear})
         if cloth is not None:
             meta["cloth"] = {"cape_deg": cloth.cape_angle(p)}
         frames.append({"rgba": rgba, "label": lab, "meta": meta})
+        if body is not None:
+            frames[-1]["body"] = body
     closing = frames.pop()
     ctx = context(ch, motion, gait, n)
     ctx["closing"] = closing["meta"]
@@ -429,8 +454,14 @@ def context(ch, motion, gait, n):
         "shin_back": ff.get("back", ch.info["radius"]["shin"]) * k,
         "shin_front": ff.get("front", ch.info["radius"]["shin"]) * k,
         "palette": ch.palette,
-        "cut_digests": {nm: p.digest() for nm, p in ch.parts.items()},
-        "rigid": [nm for nm in ch.parts if nm in ("torso", "back") or nm.startswith("gear:")],
+        "cut_digests": dict({nm: p.digest() for nm, p in ch.parts.items()},
+                            **{g.label: g.digest() for g in ch.gear}),
+        "rigid": [nm for nm in ch.parts if nm in ("torso", "back") or nm.startswith("gear:")]
+        + [g.label for g in ch.gear],
+        "gear": {g.label: g for g in ch.gear},
+        "hand_local": [v * k for v in _hand_local(ch.rig)]
+        if ch.gear else [0.0, 0.0],
+        "gear_scale": {g.label: g.size * ch.rig.body_height * k / max(g.extent, 1.0) for g in ch.gear},
         "cloth": [nm for nm, p in ch.parts.items() if getattr(p, "kind", "rigid") != "rigid"],
         "gain": getattr(motion, "gain", 1.0),
         # arms exempt from the hang rule: a near arm carrying long gear is held steady
@@ -542,6 +573,9 @@ def export_parts(ch, out_dir):
             "kind": getattr(p, "kind", "rigid"),
             "far_copy_of": name.replace("far_", "near_") if side == "far" else None,
         }
+    if ch.gear:
+        from .gear import export
+        parts.update(export(ch, d))
     out = {"name": ch.name, "still_frame": ch.frame_index, "joints": rig.data["joints"],
            "ground_y": rig.ground_y, "lengths": rig.lengths,
            "far_shoulder_offset": rig.far_shoulder_offset.tolist(),

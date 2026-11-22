@@ -48,7 +48,12 @@ BUILDS = {
     # 0.120 BH ahead of the shin's front edge on the layout (0.054 before) and the boot still
     # passes G9 when the model thickens the shin and shortens the boot by those factors
     # (tests/test_intake.py::TestBoots).
-    "dwarf": {"foot": 0.200, "bh": 310, "neck": 0.74, "shoulder": 0.685, "pelvis": 0.43, "hip": 0.41, "ankle": 0.065,
+    # 22 Nov, later: with the 0.200 boot (0.58 of the leg, the top of what G9 allows) and "long
+    # boots" in the prompt the model overshot to 0.71-0.77 and was refused the other way.  The
+    # boot is now the middle of what G9 allows for this layout's shin (boot_range: 0.335-0.60 of
+    # the leg): 0.46 of the leg = 0.160 BH, about as long as the shin is tall.  It still passes
+    # with the shin drawn 1.4 x as thick, and with the boot drawn up to 1.29 x as long.
+    "dwarf": {"foot": 0.160, "bh": 310, "neck": 0.74, "shoulder": 0.685, "pelvis": 0.43, "hip": 0.41, "ankle": 0.065,
               "upper": 0.165, "fore": 0.140, "hand": 0.060,
               "r_thigh": 0.058, "r_shin": 0.040, "r_arm": 0.042, "r_fore": 0.038,
               "chest": (0.115, 0.115), "head": (0.110, 0.130)},
@@ -143,6 +148,8 @@ def layout(build):
         "foot": foot_numbers(build),
         "half_widths_px": {k[2:]: round(b[k] * b["bh"], 1) for k in ("r_thigh", "r_shin", "r_arm", "r_fore")},
         "far_arm": "hidden",
+        "format": "body",       # the still is the bare body; gear comes as <id>_gear/*.png + .json
+        "chest_px": [round(b["chest"][0] * b["bh"], 1), round(b["chest"][1] * b["bh"], 1)],
         "note": "drawn from tools/animator/spec.py: joints are known, not detected (STILL_SPEC.md)",
     }
 
@@ -231,6 +238,41 @@ def reference(build):
     return im
 
 
+BOOT_RANGE = (0.24, 0.60)   # boot length / leg length (hip to ankle) that G9 accepts (foot.FOOT_LEG[0],
+                            # foot.FOOT_LEG_STOCKY), the same for every build
+
+
+def boot_range(build, shin=1.0):
+    """Boot length / leg length that G9 accepts for this build's layout: from the shortest boot
+    that is still long enough for the layout's shin width (drawn `shin` x as thick) at every
+    ankle angle of the walk, to BOOT_RANGE[1]."""
+    from . import foot
+    from .motion import STANCE_DORSI_MAX, SWING_ANKLE
+    b = BUILDS[build]
+    bh = b["bh"]
+    leg, ah, half = (b["hip"] - b["ankle"]) * bh, b["ankle"] * bh, shin * b["r_shin"] * bh
+    flex = (-min(-SWING_ANKLE[0], foot.plantar_limit(half, ah, 5.5)), STANCE_DORSI_MAX)
+    r = BOOT_RANGE[0]
+    while r < BOOT_RANGE[1] and foot.foot_faults(r * leg, leg, half, half, ah, flex):
+        r += 0.005
+    return (round(r, 3), BOOT_RANGE[1])
+
+# what to write in the prompt about the boots, per build: the target stated plainly
+BOOT_WORDS = {
+    "human": "ordinary ankle boots; each foot about a third as long as the whole leg and clearly "
+             "longer than the lower leg is wide",
+    "elf": "slim ordinary ankle boots; each foot a little under a third as long as the whole leg and "
+           "almost twice as long as the lower leg is wide",
+    "dwarf": "ordinary ankle boots, not oversized and not long; each foot about as long as the shin is "
+             "tall and twice as long as the lower leg is wide",
+    "orc": "ordinary heavy ankle boots; each foot about a third as long as the whole leg and clearly "
+           "longer than the lower leg is wide",
+}
+BOOT_WORDS_ALL = ("the heel of each boot ends straight under the back of the leg, no heel sticking out "
+                  "behind; flat soles on the ground line, toes not curled up; boot shafts as narrow as "
+                  "the lower leg, no fur cuffs")
+
+
 def foot_numbers(build):
     """What the layout asks of the boot, for STILL_SPEC.md and the tests: foot length and shin
     width (x BH and px), foot / leg (hip to ankle), and how far the toe is ahead of the shin's
@@ -239,7 +281,8 @@ def foot_numbers(build):
     b = BUILDS[build]
     leg = b["hip"] - b["ankle"]
     ahead = b["foot"] - 2 * b["r_shin"]
-    return {"foot": b["foot"], "foot_px": round(b["foot"] * b["bh"], 1),
+    return {"foot_per_leg_allowed": list(boot_range(build)),
+            "foot": b["foot"], "foot_px": round(b["foot"] * b["bh"], 1),
             "shin_width": round(2 * b["r_shin"], 3), "shin_width_px": round(2 * b["r_shin"] * b["bh"], 1),
             "foot_per_leg": round(b["foot"] / leg, 2), "foot_per_shin_width": round(b["foot"] / (2 * b["r_shin"]), 2),
             "toe_ahead": round(ahead, 3), "toe_ahead_px": round(ahead * b["bh"], 1)}
@@ -252,6 +295,121 @@ def arm_gap(build):
     J = joints(build)
     front = PELVIS_X + b["chest"][0] * b["bh"]
     return J["near_wrist"][0] - b["r_fore"] * b["bh"] - 2 - front
+
+
+# ------------------------------------------------------------------ gear layout guides
+# kind -> picture size, the box the gear is drawn in (x0, y0, x1, y1), the anchor, and the JSON
+# that goes with a gear drawn on the guide.  The gear is drawn upright (up = picture up), alone.
+GEAR_GUIDES = {
+    "shield": {"size": (256, 320), "box": (28, 20, 228, 300), "anchor": (128, 160),
+               "json": {"slot": "back", "anchor": [128, 160], "up": [0, -1], "size": 0.36},
+               "words": "a shield seen face-on, upright, filling the box; the anchor is its middle"},
+    "one_hand_weapon": {"size": (160, 384), "box": (30, 16, 130, 368), "anchor": (80, 316),
+                        "json": {"slot": "near_hand", "anchor": [80, 316], "up": [0, -1], "size": 0.34,
+                                 "angle": 110, "in_front": False},
+                        "words": "a hammer, sword, axe or mace standing upright, head or point at the top, "
+                                 "grip at the bottom; the anchor is the middle of the grip"},
+    "two_hand_weapon": {"size": (192, 448), "box": (26, 12, 166, 436), "anchor": (96, 330),
+                        "json": {"slot": "near_hand", "anchor": [96, 330], "up": [0, -1], "size": 0.62,
+                                 "angle": 115, "in_front": False},
+                        "words": "a greatsword, great axe or maul standing upright, head or point at the "
+                                 "top; the anchor is where the leading hand grips, a quarter up the haft"},
+    # the staff is carried, not planted: gripped a quarter up, so its foot ends above the knees
+    # and never crosses a shin (R25)
+    "staff": {"size": (128, 448), "box": (34, 8, 94, 440), "anchor": (64, 330),
+              "json": {"slot": "near_hand", "anchor": [64, 330], "up": [0, -1], "size": 0.90,
+                       "angle": 112, "in_front": False},
+              "words": "a staff or spear standing upright, head at the top, at least as thick as the "
+                       "marked shaft width; the anchor is the grip, a quarter of the way up"},
+    "cape": {"size": (224, 384), "box": (24, 16, 200, 368), "anchor": (176, 28),
+             "json": {"slot": "cape", "anchor": [176, 28], "up": [0, -1], "size": 0.52},
+             "words": "a cape seen from the side, hanging flat and straight down from the shoulder; the "
+                      "anchor is its top front corner, where it sits on the shoulder"},
+}
+
+
+def gear_guide(kind):
+    """The layout guide for one kind of gear: black picture, the box outlined, the anchor marked
+    with a cross and a ring, the up direction with an arrow (RGB)."""
+    g = GEAR_GUIDES[kind]
+    im = Image.new("RGB", g["size"], (0, 0, 0))
+    d = ImageDraw.Draw(im)
+    x0, y0, x1, y1 = g["box"]
+    d.rectangle([x0, y0, x1, y1], outline=(0, 255, 255), width=2)
+    ax, ay = g["anchor"]
+    d.line([(ax - 12, ay), (ax + 12, ay)], fill=(255, 255, 0), width=2)
+    d.line([(ax, ay - 12), (ax, ay + 12)], fill=(255, 255, 0), width=2)
+    d.ellipse([ax - 7, ay - 7, ax + 7, ay + 7], outline=(255, 0, 0), width=2)
+    d.line([(x1 - 10, y0 + 46), (x1 - 10, y0 + 10)], fill=(0, 255, 0), width=2)       # up arrow
+    d.polygon([(x1 - 10, y0 + 4), (x1 - 16, y0 + 16), (x1 - 4, y0 + 16)], fill=(0, 255, 0))
+    if kind == "staff":                                                              # shaft width
+        d.line([(ax - 7, y1 - 30), (ax - 7, y1 - 6)], fill=(90, 90, 90), width=1)
+        d.line([(ax + 7, y1 - 30), (ax + 7, y1 - 6)], fill=(90, 90, 90), width=1)
+    return im
+
+
+def write_gear(out_dir):
+    """`spec --gear`: <kind>_guide.png and <kind>.json (the JSON to save beside a gear picture
+    drawn on that guide, as <id>_gear/<name>.json) for every kind in GEAR_GUIDES."""
+    os.makedirs(out_dir, exist_ok=True)
+    paths = {}
+    for kind, g in GEAR_GUIDES.items():
+        p = os.path.join(out_dir, "gear_" + kind + "_guide.png")
+        gear_guide(kind).save(p)
+        j = os.path.join(out_dir, "gear_" + kind + ".json")
+        with open(j, "w") as f:
+            json.dump(dict(g["json"], guide=kind, note=g["words"]), f, indent=1)
+        paths[kind] = (p, j)
+    return paths
+
+
+def example_gear(kind):
+    """A flat synthetic gear picture drawn on its guide (RGBA): shield, one_hand_weapon (a
+    hammer), staff or cape.  For the tests and the worked example in STILL_SPEC.md."""
+    g = GEAR_GUIDES[kind]
+    im = Image.new("RGBA", g["size"], (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    ink = (16, 14, 14, 255)
+    x0, y0, x1, y1 = g["box"]
+    ax, ay = g["anchor"]
+    if kind == "shield":
+        pts = [(x0, y0), (x1, y0), (x1, y0 + 150), (ax, y1), (x0, y0 + 150)]
+        d.polygon(pts, fill=(196, 150, 40, 255))
+        d.line(pts + [pts[0]], fill=ink, width=8)
+        inner = [(x0 + 22, y0 + 22), (x1 - 22, y0 + 22), (x1 - 22, y0 + 140), (ax, y1 - 34), (x0 + 22, y0 + 140)]
+        d.polygon(inner, fill=(36, 44, 110, 255))
+        d.ellipse([ax - 26, ay - 46, ax + 26, ay + 6], fill=(230, 200, 70, 255))
+    elif kind in ("one_hand_weapon", "two_hand_weapon"):
+        d.rectangle([ax - 9, y0 + 40, ax + 9, y1], fill=ink)                 # haft
+        d.rectangle([ax - 5, y0 + 40, ax + 5, y1 - 4], fill=(122, 84, 48, 255))
+        d.rectangle([x0, y0, x1, y0 + 78], fill=ink)                          # head
+        d.rectangle([x0 + 6, y0 + 6, x1 - 6, y0 + 72], fill=(150, 154, 166, 255))
+        d.rectangle([x0 + 6, y0 + 6, x1 - 6, y0 + 22], fill=(200, 204, 214, 255))
+    elif kind == "staff":
+        d.rectangle([ax - 9, y0 + 30, ax + 9, y1], fill=ink)
+        d.rectangle([ax - 5, y0 + 30, ax + 5, y1 - 4], fill=(122, 84, 48, 255))
+        d.ellipse([ax - 24, y0, ax + 24, y0 + 48], fill=ink)
+        d.ellipse([ax - 18, y0 + 6, ax + 18, y0 + 42], fill=(90, 190, 220, 255))
+    elif kind == "cape":
+        pts = [(ax, ay - 8), (ax - 60, ay), (x0, y1), (x0 + 110, y1), (ax, ay + 60)]
+        d.polygon(pts, fill=(120, 30, 40, 255))
+        d.line(pts + [pts[0]], fill=ink, width=6)
+    return im
+
+
+def write_example(out_dir, cid="PAL_SYN", build="human", gear=(("shield", "shield"), ("hammer", "one_hand_weapon"))):
+    """The worked example of STILL_SPEC.md as files: the mannequin of `build` as the bare body
+    (<cid>.png, <cid>.json) with synthetic gear pictures in <cid>_gear/ (name, guide kind)."""
+    os.makedirs(os.path.join(out_dir, cid + "_gear"), exist_ok=True)
+    png = os.path.join(out_dir, cid + ".png")
+    reference(build).save(png)
+    with open(os.path.join(out_dir, cid + ".json"), "w") as f:
+        json.dump(dict(layout(build), id=cid, name=cid), f, indent=1)
+    for name, kind in gear:
+        example_gear(kind).save(os.path.join(out_dir, cid + "_gear", name + ".png"))
+        with open(os.path.join(out_dir, cid + "_gear", name + ".json"), "w") as f:
+            json.dump(GEAR_GUIDES[kind]["json"], f, indent=1)
+    return png
 
 
 def write(build, out_dir):

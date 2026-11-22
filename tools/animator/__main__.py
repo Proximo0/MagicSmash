@@ -5,6 +5,9 @@
   python3 -m tools.animator batch samples/stills --out out/batch   fit + gate + bake all stills
   python3 -m tools.animator spec --build human|elf|dwarf|orc --out DIR   pose layout picture,
                                    joints JSON and reference mannequin for a build (STILL_SPEC.md)
+  python3 -m tools.animator spec --gear --out DIR     gear layout guides (box, anchor, up) + JSON
+                                   for shield, one-hand weapon, two-hand weapon, staff, cape
+  python3 -m tools.animator spec --example --out DIR  the worked example: synthetic body + gear
 Relative paths that do not exist from the current directory are taken from tools/animator/.
 """
 import argparse
@@ -59,9 +62,19 @@ def main(argv=None):
     sp = sub.add_parser("spec")
     sp.add_argument("--build", choices=["human", "elf", "dwarf", "orc", "all"], default="all")
     sp.add_argument("--out", default="out/spec")
+    sp.add_argument("--gear", action="store_true", help="write the gear layout guides instead")
+    sp.add_argument("--example", action="store_true",
+                    help="write the worked example (synthetic body + shield + hammer) into --out")
     args = ap.parse_args(argv)
     if args.cmd == "spec":
         from . import spec
+        if args.gear:
+            for kind, (p, j) in spec.write_gear(_out(args.out)).items():
+                print(f"gear {kind}: {p} {j}")
+            return 0
+        if args.example:
+            print("example:", spec.write_example(_out(args.out)))
+            return 0
         for b in (list(spec.BUILDS) if args.build == "all" else [args.build]):
             for kind, p in spec.write(b, _out(args.out)).items():
                 print(f"{b} {kind}: {p}")

@@ -18,6 +18,7 @@
   "flags": [
    "back hand found at 37,207 (erased)"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8"
@@ -25,7 +26,7 @@
   "failures": [
    "G8: arm_on_body: a hand is drawn over the body at 120,241 (3 blobs of the hand's colour, 7.22 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.81
+  "seconds": 0.85
  },
  "HR1.2": {
   "fit_score": 1.0,
@@ -44,6 +45,7 @@
    "far_ankle": 29.6
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8"
@@ -51,7 +53,7 @@
   "failures": [
    "G8: arm_on_body: a hand is drawn over the body at 137,241 (6 blobs of the hand's colour, 0.60 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.83
+  "seconds": 1.74
  },
  "HR1.3": {
   "fit_score": 0.8,
@@ -73,6 +75,7 @@
    "possible arm drawn over the body (hand-coloured blob at 89,191): it would stay painted on the torso",
    "moved > 12% BH: far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G6",
@@ -106,6 +109,7 @@
   "flags": [
    "moved > 12% BH: toe"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8"
@@ -113,7 +117,7 @@
   "failures": [
    "G8: arm_on_body: a hand is drawn over the body at 137,272 (2 blobs of the hand's colour, 9.55 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.75
+  "seconds": 1.89
  },
  "HR2.1": {
   "fit_score": 1.0,
@@ -135,16 +139,21 @@
    "ground plate erased (1887 px)",
    "back hand found at 65,195 (erased)"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G4",
-   "G8"
+   "G8",
+   "G13"
   ],
   "failures": [
    "G4: feet_facing: back foot points backwards",
+   "G13: loose_blob: 9 px at 102,380 are not connected to the body (a loose piece would float beside the walk)",
+   "G13: loose_blob: 58 px at 138,380 are not connected to the body (a loose piece would float beside the walk)",
+   "G13: loose_blob: 10 px at 41,401 are not connected to the body (a loose piece would float beside the walk)",
    "G8: arm_on_body: a forearm is drawn over the body at 143,267 (7 blobs of the hand's colour, 6.38 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.11
+  "seconds": 1.09
  },
  "HR2.2": {
   "fit_score": 1.0,
@@ -165,6 +174,7 @@
   "flags": [
    "back hand found at 56,189 (erased)"
   ],
+  "gear": [],
   "gear_cut": 0.0,
   "native_grid": {
    "found": false,
@@ -187,9 +197,23 @@
    "56": 48.0,
    "112": 96.0
   },
-  "status": "accepted",
-  "rules": [],
-  "seconds": 4.84
+  "status": "rejected",
+  "rules": [
+   "R24"
+  ],
+  "failures": [
+   "112px frame 0: loose_blob: 3 px of robe at 109,105 are not connected to the body",
+   "112px frame 1: loose_blob: 7 px of cape at 76,90 are not connected to the body",
+   "112px frame 1: loose_blob: 3 px of robe at 110,100 are not connected to the body",
+   "112px frame 3: loose_blob: 7 px of cape at 76,90 are not connected to the body",
+   "112px frame 0: loose_blob: 3 px of robe at 109,105 are not connected to the body",
+   "112px frame 2: loose_blob: 7 px of cape at 76,90 are not connected to the body",
+   "112px frame 2: loose_blob: 3 px of robe at 110,100 are not connected to the body",
+   "112px frame 3: loose_blob: 3 px of robe at 110,101 are not connected to the body",
+   "112px frame 5: loose_blob: 4 px of robe at 110,104 are not connected to the body",
+   "112px frame 6: loose_blob: 7 px of cape at 76,90 are not connected to the body"
+  ],
+  "seconds": 5.2
  },
  "HR2.3": {
   "fit_score": 0.9,
@@ -210,6 +234,7 @@
   "flags": [
    "moved > 12% BH: far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8",
@@ -219,7 +244,7 @@
    "G9: foot_length: the drawn boot is 68 px, 0.68 of the leg length as drawn (100 px): longer than any build allows (0.60)",
    "G8: arm_on_body: a hand is drawn over the body at 134,199 (3 blobs of the hand's colour, 4.62 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.19
+  "seconds": 1.09
  },
  "HR2.4": {
   "fit_score": 1.0,
@@ -238,6 +263,7 @@
    "far_ankle": 36.9
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8",
@@ -247,7 +273,7 @@
    "G9: foot_length: the boot (50 px) is too short for the shin's width at the ankle (back 20 + front 53 px): with the ankle flexed the toe is only -32 px ahead of the shin's front line (needs 3.5)",
    "G8: arm_on_body: a forearm is drawn over the body at 152,288 (6 blobs of the hand's colour, 23.34 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.29
+  "seconds": 1.34
  },
  "HR3.1": {
   "fit_score": 1.0,
@@ -266,6 +292,7 @@
    "far_ankle": 42.3
   },
   "flags": [],
+  "gear": [],
   "gear_cut": 0.0,
   "native_grid": {
    "found": true,
@@ -290,7 +317,7 @@
   },
   "status": "accepted",
   "rules": [],
-  "seconds": 4.01
+  "seconds": 4.38
  },
  "HR3.2": {
   "fit_score": 0.1,
@@ -312,6 +339,7 @@
    "two feet not found at the ground",
    "moved > 12% BH: ankle, toe, far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G1",
@@ -330,7 +358,7 @@
    "G10: key_colour: 1 pixel of the background key's colour (magenta) left in the still after cleaning its rim: the background is not keyed out there",
    "G8: arm_on_body: a hand is drawn over the body at 137,236 (3 blobs of the hand's colour, 3.30 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.91
+  "seconds": 0.94
  },
  "HR3.3": {
   "fit_score": 0.3,
@@ -353,6 +381,7 @@
    "leg axis not found",
    "moved > 12% BH: toe, far_knee, far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G1",
@@ -365,7 +394,7 @@
    "G9: foot_length: the drawn boot is 14 px, 0.11 of the leg length as drawn (127 px); a human foot is 0.24-0.30: the still's boot is too short (it is not stretched)",
    "G9: foot_length: the boot (14 px) is too short for the shin's width at the ankle (back 9 + front 27 px): with the ankle flexed the toe is only -23 px ahead of the shin's front line (needs 3.5)"
   ],
-  "seconds": 0.78
+  "seconds": 0.66
  },
  "HR3.4": {
   "fit_score": 0.56,
@@ -387,6 +416,7 @@
    "back hand found at 61,250 (erased)",
    "moved > 12% BH: ankle, toe"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G5",
@@ -398,7 +428,7 @@
    "G9: foot_length: the boot (86 px) is too short for the shin's width at the ankle (back 36 + front 58 px): with the ankle flexed the toe is only -15 px ahead of the shin's front line (needs 3.5)",
    "G8: arm_on_body: a hand is drawn over the body at 96,251 (1 blob of the hand's colour, 0.45 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.78
+  "seconds": 1.72
  },
  "HR4.1": {
   "fit_score": 1.0,
@@ -419,14 +449,17 @@
   "flags": [
    "back hand found at 52,192 (erased)"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
-   "G8"
+   "G8",
+   "G15"
   ],
   "failures": [
+   "G15: bare_legs: 62 % of the legs have the hand's (skin) colour (limit 25 %): the hand vanishes against the thigh; trousers or greaves in a colour different from the skin",
    "G8: arm_on_body: a forearm is drawn over the body at 94,261 (9 blobs of the hand's colour, 15.15 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.09
+  "seconds": 0.97
  },
  "HR4.2": {
   "fit_score": 1.0,
@@ -445,6 +478,7 @@
    "far_ankle": 26.1
   },
   "flags": [],
+  "gear": [],
   "gear_cut": 0.0,
   "native_grid": {
    "found": false,
@@ -469,7 +503,7 @@
   },
   "status": "accepted",
   "rules": [],
-  "seconds": 4.98
+  "seconds": 5.15
  },
  "HR4.3": {
   "fit_score": 0.65,
@@ -492,6 +526,7 @@
    "front hand not found, layout arm used",
    "moved > 12% BH: far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G1",
@@ -504,7 +539,7 @@
    "G9: foot_length: the drawn boot is 66 px, 0.65 of the leg length as drawn (101 px): longer than any build allows (0.60)",
    "G9: foot_length: the boot (66 px) is too short for the shin's width at the ankle (back 24 + front 40 px): with the ankle flexed the toe is only -6 px ahead of the shin's front line (needs 3.5)"
   ],
-  "seconds": 0.37
+  "seconds": 0.34
  },
  "HR4.4": {
   "fit_score": 0.9,
@@ -525,16 +560,19 @@
   "flags": [
    "possible arm drawn over the body (hand-coloured blob at 118,232): it would stay painted on the torso"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G6",
-   "G8"
+   "G8",
+   "G15"
   ],
   "failures": [
    "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings",
+   "G15: bare_legs: 72 % of the legs have the hand's (skin) colour (limit 25 %): the hand vanishes against the thigh; trousers or greaves in a colour different from the skin",
    "G8: arm_on_body: a forearm is drawn over the body at 133,270 (2 blobs of the hand's colour, 23.96 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.57
+  "seconds": 1.66
  },
  "HR5.1": {
   "fit_score": 0.9,
@@ -555,6 +593,7 @@
   "flags": [
    "moved > 12% BH: toe"
   ],
+  "gear": [],
   "gear_cut": 0.2,
   "native_grid": {
    "found": false,
@@ -579,7 +618,7 @@
   },
   "status": "accepted",
   "rules": [],
-  "seconds": 4.7
+  "seconds": 5.02
  },
  "HR5.2": {
   "fit_score": 1.0,
@@ -598,6 +637,7 @@
    "far_ankle": 29.4
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8",
@@ -608,7 +648,7 @@
    "G9: foot_length: the boot (24 px) is too short for the shin's width at the ankle (back 14 + front 19 px): with the ankle flexed the toe is only -13 px ahead of the shin's front line (needs 3.5)",
    "G8: arm_on_body: a hand is drawn over the body at 140,256 (13 blobs of the hand's colour, 10.87 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.71
+  "seconds": 1.57
  },
  "HR5.3": {
   "fit_score": 0.6,
@@ -630,16 +670,20 @@
    "detached piece(s) 5700 px kept as gear",
    "moved > 12% BH: neck, hip, ankle, toe, far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G5",
-   "G8"
+   "G8",
+   "G13"
   ],
   "failures": [
    "G5: fit_score: 0.60 < 0.7 (detached piece(s) 5700 px kept as gear | moved > 12% BH: neck, hip, ankle, toe, far_ankle)",
+   "G13: loose_blob: 5700 px at 226,223 are not connected to the body (a loose piece would float beside the walk)",
+   "G13: loose_blob: 9 px at 49,443 are not connected to the body (a loose piece would float beside the walk)",
    "G8: arm_on_body: a hand is drawn over the body at 116,321 (14 blobs of the hand's colour, 8.97 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 0.78
+  "seconds": 0.6
  },
  "HR5.4": {
   "fit_score": 0.9,
@@ -660,16 +704,21 @@
   "flags": [
    "possible arm drawn over the body (hand-coloured blob at 91,272): it would stay painted on the torso"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G6",
-   "G8"
+   "G8",
+   "G13",
+   "G15"
   ],
   "failures": [
    "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings",
+   "G13: loose_blob: 18 px at 158,387 are not connected to the body (a loose piece would float beside the walk)",
+   "G15: bare_legs: 38 % of the legs have the hand's (skin) colour (limit 25 %): the hand vanishes against the thigh; trousers or greaves in a colour different from the skin",
    "G8: arm_on_body: a hand is drawn over the body at 161,292 (3 blobs of the hand's colour, 8.24 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 2.59
+  "seconds": 2.3
  },
  "HR6.1": {
   "fit_score": 1.0,
@@ -688,6 +737,7 @@
    "far_ankle": 46.5
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8"
@@ -695,7 +745,7 @@
   "failures": [
    "G8: arm_on_body: a hand is drawn over the body at 136,267 (6 blobs of the hand's colour, 12.03 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 2.48
+  "seconds": 2.19
  },
  "HR6.2": {
   "fit_score": 1.0,
@@ -714,6 +764,7 @@
    "far_ankle": 28.7
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G11"
@@ -721,7 +772,7 @@
   "failures": [
    "G11: gear_on_near_side: a rimmed gear blob (a shield?) of 0.026 body heights squared at 149,214 lies 80 % ahead of the trunk axis (limit 25 %): it covers the torso's front and the near arm; a shield belongs on the back, wholly behind the torso"
   ],
-  "seconds": 1.98
+  "seconds": 2.14
  },
  "HR6.3": {
   "fit_score": 0.85,
@@ -743,6 +794,7 @@
    "ground plate erased (1226 px)",
    "moved > 12% BH: far_ankle"
   ],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8",
@@ -754,7 +806,7 @@
    "G11: gear_on_near_side: a rimmed gear blob (a shield?) of 0.016 body heights squared at 102,139 lies 94 % ahead of the trunk axis (limit 25 %): it covers the torso's front and the near arm; a shield belongs on the back, wholly behind the torso",
    "G8: arm_on_body: a hand is drawn over the body at 137,223 (12 blobs of the hand's colour, 4.38 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 1.1
+  "seconds": 1.23
  },
  "HR6.4": {
   "fit_score": 1.0,
@@ -773,6 +825,7 @@
    "far_ankle": 42.3
   },
   "flags": [],
+  "gear": [],
   "status": "rejected",
   "rules": [
    "G8",
@@ -782,6 +835,6 @@
    "G10: key_colour: 1 pixel of the background key's colour (magenta) left in the still after cleaning its rim: the background is not keyed out there",
    "G8: arm_on_body: a hand is drawn over the body at 154,259 (4 blobs of the hand's colour, 3.93 of a hand in all, limit 0.15): it cannot be cut from the torso and would stay painted on while the arms swing; draw the near arm clear of the torso and the far arm hidden or clear behind the back"
   ],
-  "seconds": 2.1
+  "seconds": 2.18
  }
 }

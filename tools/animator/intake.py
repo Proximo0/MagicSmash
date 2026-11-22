@@ -17,6 +17,8 @@ flat blocks a few still px across.  `detect_grid` measures that block size per a
 `native` makes the native picture, one pixel per block in the block's mode colour, palette
 locked; the joints and the cut then live in native px (`scale_layout`).
 """
+import math
+
 import numpy as np
 
 from .imgops import dilate, fill
@@ -139,6 +141,40 @@ def gear_census(rgba, body, BH, axis_x, row0, row1):
                     "area": round(float(m.sum()) / (BH * BH), 4),
                     "front": round(float((m & front).sum()) / float(m.sum()), 2),
                     "box": [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())], "rim": rgb})
+    return out
+
+
+THIN_W = 0.035        # x body height: a part of the silhouette narrower than this is "thin" ...
+THIN_LEN = 0.14       # ... and one at least this long ...
+THIN_STRAIGHT = 0.012  # ... lying within this (RMS) of one straight line is a rigid object
+                      # (a sword, staff, spear shaft, bow limb, hammer handle), not a limb, hair or cloth
+
+
+def thin_objects(body, BH):
+    """Long thin rigid things sticking out of a silhouette (rule G12): list of dicts with
+    centre, length (x BH) and the mask.  Method: the silhouette opened by half THIN_W loses
+    every part narrower than THIN_W; each lost piece at least THIN_LEN long whose pixels lie
+    on one straight line is a rigid object.  No limb of any build is that narrow, fingers and
+    hair spikes are shorter."""
+    from .imgops import components
+    r = max(2, int(round(0.5 * THIN_W * BH)))
+    core = ~dilate(~np.pad(body, r + 1), r)
+    opened = dilate(core, r)[r + 1:-r - 1, r + 1:-r - 1]
+    thin = body & ~opened
+    out = []
+    cl, cs = components(thin)
+    for k, sz in cs.items():
+        if sz < THIN_LEN * BH * 2:
+            continue
+        ys, xs = np.where(cl == k)
+        P = np.stack([xs, ys], 1).astype(float)
+        c = P.mean(0)
+        w, v = np.linalg.eigh(np.cov((P - c).T))
+        t = (P - c) @ v[:, 1]
+        length = float(t.max() - t.min())
+        if length >= THIN_LEN * BH and math.sqrt(max(w[0], 0.0)) <= THIN_STRAIGHT * BH:
+            out.append({"at": [round(float(c[0]), 1), round(float(c[1]), 1)],
+                        "length": round(length / BH, 3), "mask": cl == k})
     return out
 
 

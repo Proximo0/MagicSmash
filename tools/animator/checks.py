@@ -358,6 +358,147 @@ def two_arms(frames, ctx):
     return out
 
 
+def loose_blobs(frames, ctx):
+    """R24: the baked figure is one connected shape (8-connected); any other opaque blob is a
+    loose piece (a stick floating behind the heels, gear that left its hand)."""
+    from .imgops import components
+    out = []
+    for i, f in enumerate(frames):
+        lab, sizes = components(f["rgba"][..., 3] > 0)
+        if len(sizes) <= 1:
+            continue
+        main = max(sizes, key=sizes.get)
+        for k, s in sizes.items():
+            if k == main:
+                continue
+            ys, xs = np.where(lab == k)
+            nm = f["meta"]["labels"][int(np.bincount(f["label"][ys, xs]).argmax())]
+            out.append(f"frame {i}: loose_blob: {s} px of {nm} at {int(xs.mean())},{int(ys.mean())} "
+                       "are not connected to the body")
+    return out
+
+
+def _gear_layers(f):
+    return f["meta"].get("gear", {})
+
+
+def gear_rigid(frames, ctx):
+    """R20: every gear's drawn pixels are its own picture under that frame's rigid move.  The
+    sprite is made again from the picture (turn, scale) and compared by hash with what the frame
+    holds; every pixel the frame shows of the gear must be that sprite's pixel at that place;
+    a gear whose angle does not change (back) has one hash in all frames."""
+    import hashlib
+    out = []
+    first = {}
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        for nm, L in _gear_layers(f).items():
+            g = ctx["gear"][nm]
+            want, _ = g.sprite(ctx["gear_scale"][nm], L["phi"])
+            h = hashlib.sha1(np.ascontiguousarray(L["rgba"]).tobytes()).hexdigest()
+            if L["rgba"].shape != want.shape or h != hashlib.sha1(np.ascontiguousarray(want).tobytes()).hexdigest():
+                out.append(f"frame {i}: gear_rigid: {nm} is not its picture turned {L['phi']:.1f} deg "
+                           "(pixels changed)")
+                continue
+            if L["slot"] == "back":
+                if first.setdefault(nm, h) != h:
+                    out.append(f"frame {i}: gear_rigid: {nm} (back) differs from frame 0")
+            ys, xs = np.where(f["label"] == names.index(nm))
+            if not len(ys):
+                continue
+            sy, sx = ys - L["at"][1], xs - L["at"][0]
+            ok = (sy >= 0) & (sx >= 0) & (sy < want.shape[0]) & (sx < want.shape[1])
+            same = np.zeros(len(ys), bool)
+            same[ok] = (want[sy[ok], sx[ok]] == f["rgba"][ys[ok], xs[ok]]).all(-1) & (want[sy[ok], sx[ok], 3] > 0)
+            if not same.all():
+                j = int(np.flatnonzero(~same)[0])
+                out.append(f"frame {i}: gear_rigid: {int((~same).sum())} px of {nm} in the frame are not "
+                           f"its picture's (first at {int(xs[j])},{int(ys[j])})")
+    return out
+
+
+def gear_grip(frames, ctx):
+    """R21: a hand-slot gear's grip is within 1 px of the middle of its hand in every frame."""
+    from .gear import hand_point
+    out = []
+    tol = _tol(ctx)
+    for i, f in enumerate(frames):
+        J = f["meta"]["joints"]
+        for nm, L in _gear_layers(f).items():
+            if L["slot"] not in ("near_hand", "far_hand"):
+                continue
+            s = L["slot"][:-5]
+            hand = hand_point(J[s + ".elbow"], J[s + ".wrist"], ctx["hand_local"])
+            d = float(np.hypot(*(np.array(L["grip"], float) - hand)))
+            if d > tol:
+                out.append(f"frame {i}: gear_grip: {nm} grip is {d:.1f} px from the {s} hand (max {tol:.0f})")
+    return out
+
+
+def gear_back(frames, ctx):
+    """R22: back gear never draws over the near arm (it is behind the torso and the near arm,
+    in front of the far arm)."""
+    out = []
+    for i, f in enumerate(frames):
+        body = f.get("body")
+        if body is None:
+            continue
+        names = f["meta"]["labels"]
+        arm = np.isin(body["label"], [names.index(n) for n in ("near_upper", "near_fore") if n in names])
+        for nm, L in _gear_layers(f).items():
+            if L["slot"] not in ("back", "cape"):
+                continue
+            n = int((arm & (f["label"] == names.index(nm))).sum())
+            if n:
+                out.append(f"frame {i}: gear_back: {nm} covers {n} px of the near arm")
+            t = names.index("torso") if "torso" in names else None
+            if t is not None and L["rank"] > t:
+                out.append(f"frame {i}: gear_back: {nm} is layered in front of the torso")
+    return out
+
+
+def gear_head(frames, ctx):
+    """R23: gear never covers the head (the body's pixels above the neck joint's row)."""
+    out = []
+    for i, f in enumerate(frames):
+        body = f.get("body")
+        if body is None:
+            continue
+        names = f["meta"]["labels"]
+        neck = int(np.floor(f["meta"]["joints"]["neck"][1]))
+        head = body["label"] > 0
+        head[neck:] = False
+        for nm in _gear_layers(f):
+            n = int((head & (f["label"] == names.index(nm))).sum())
+            if n:
+                out.append(f"frame {i}: gear_head: {nm} covers {n} px of the head")
+    return out
+
+
+def gear_legs(frames, ctx):
+    """R25: gear held in a hand never crosses the legs below the knees (shins and feet)."""
+    out = []
+    for i, f in enumerate(frames):
+        body = f.get("body")
+        if body is None:
+            continue
+        names = f["meta"]["labels"]
+        low = np.isin(body["label"], [names.index(n) for n in names if n.endswith("_shin") or n.endswith("_foot")])
+        for nm, L in _gear_layers(f).items():
+            if L["slot"] not in ("near_hand", "far_hand"):
+                continue
+            x0, y0 = L["at"]
+            h, w = L["rgba"].shape[:2]
+            H, W = low.shape
+            cx0, cy0, cx1, cy1 = max(x0, 0), max(y0, 0), min(x0 + w, W), min(y0 + h, H)
+            if cx1 <= cx0 or cy1 <= cy0:
+                continue
+            n = int((low[cy0:cy1, cx0:cx1] & (L["rgba"][cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0, 3] > 0)).sum())
+            if n:
+                out.append(f"frame {i}: gear_legs: {nm} crosses {n} px of a shin or foot")
+    return out
+
+
 HAND_SHARE = 0.6     # the hand's commonest lit colours covering this share of it are "hand colours"
 HAND_COMMON = 3.0    # see hand_colours
 HAND_BLOB = 0.4      # a blob of them off the forearms, this big x a hand (min 3 px), is another hand
@@ -555,7 +696,8 @@ def arm_swing(frames, ctx):
 
 
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
-         rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour]
+         rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour,
+         gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs]
 
 
 def run_all(frames, ctx):
@@ -570,7 +712,9 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_direction": "R5", "heel_flush": "R6", "foot_slide": "R7", "stance_ground": "R8",
             "foot_sink": "R8", "bone_length": "R9", "joint_limit": "R10", "draw_order": "R11",
             "rigid_part": "R12", "cycle_closes": "R13", "mirror_timing": "R14", "palette": "R15",
-            "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19"}
+            "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19",
+            "gear_rigid": "R20", "gear_grip": "R21", "gear_back": "R22", "gear_head": "R23",
+            "loose_blob": "R24", "gear_legs": "R25"}
 
 
 def rule_id(failure):

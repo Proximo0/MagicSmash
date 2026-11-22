@@ -55,6 +55,8 @@
   "on_spec": false,
   "key_px": 0,
   "key_at": [],
+  "body_only": false,
+  "loose": [],
   "layout_scale": 1.003,
   "robe": true,
   "ankle_moved_px": -14.9,
@@ -90,6 +92,7 @@
   ],
   "arm_overlap": 0.09,
   "gear_blobs": [],
+  "leg_skin": 0.0,
   "layout_swapped": {
    "legs": true,
    "arms": false
