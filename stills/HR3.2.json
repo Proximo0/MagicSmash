@@ -1,0 +1,84 @@
+{
+ "id": "HR3.2",
+ "name": "hero_elf_mage",
+ "source_picture": "HR3.2_4.png",
+ "frame": 3,
+ "stride_px": 222,
+ "facing": "right",
+ "ground_y": 415,
+ "size": [
+  247,
+  428
+ ],
+ "joints": {
+  "head": [
+   125.6,
+   38.2
+  ],
+  "neck": [
+   120.5,
+   80.5
+  ],
+  "pelvis": [
+   112.5,
+   259.8
+  ],
+  "near_shoulder": [
+   108.4,
+   92.6
+  ],
+  "near_elbow": [
+   140.6,
+   153.1
+  ],
+  "near_wrist": [
+   181.3,
+   208.2
+  ],
+  "near_hip": [
+   108.4,
+   259.8
+  ],
+  "near_knee": [
+   73.5,
+   341.2
+  ],
+  "near_ankle": [
+   7.9,
+   415.0
+  ],
+  "near_toe": [
+   52.23,
+   415
+  ],
+  "far_shoulder": [
+   120.5,
+   92.6
+  ],
+  "far_elbow": [
+   88.4,
+   153.1
+  ],
+  "far_wrist": [
+   47.7,
+   208.2
+  ],
+  "far_hip": [
+   116.5,
+   259.8
+  ],
+  "far_knee": [
+   172.7,
+   337.4
+  ],
+  "far_ankle": [
+   225.1,
+   415.0
+  ],
+  "far_toe": [
+   269.43,
+   415
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

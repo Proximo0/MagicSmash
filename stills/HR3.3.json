@@ -1,0 +1,84 @@
+{
+ "id": "HR3.3",
+ "name": "hero_dwarf_mage",
+ "source_picture": "HR3.3_2.png",
+ "frame": 1,
+ "stride_px": 189,
+ "facing": "right",
+ "ground_y": 366,
+ "size": [
+  214,
+  379
+ ],
+ "joints": {
+  "head": [
+   109.0,
+   35.0
+  ],
+  "neck": [
+   104.5,
+   72.2
+  ],
+  "pelvis": [
+   97.5,
+   244.2
+  ],
+  "near_shoulder": [
+   93.9,
+   82.8
+  ],
+  "near_elbow": [
+   65.7,
+   135.9
+  ],
+  "near_wrist": [
+   30.0,
+   184.4
+  ],
+  "near_hip": [
+   93.9,
+   244.2
+  ],
+  "near_knee": [
+   145.1,
+   305.1
+  ],
+  "near_ankle": [
+   186.3,
+   366.0
+  ],
+  "near_toe": [
+   225.24,
+   366
+  ],
+  "far_shoulder": [
+   104.5,
+   82.8
+  ],
+  "far_elbow": [
+   132.8,
+   135.9
+  ],
+  "far_wrist": [
+   168.5,
+   184.4
+  ],
+  "far_hip": [
+   101.0,
+   244.2
+  ],
+  "far_knee": [
+   67.3,
+   308.1
+  ],
+  "far_ankle": [
+   15.7,
+   366.0
+  ],
+  "far_toe": [
+   54.64,
+   366
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

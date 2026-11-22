@@ -1,0 +1,84 @@
+{
+ "id": "HR5.2",
+ "name": "hero_elf_priest",
+ "source_picture": "HR5.2_3.png",
+ "frame": 3,
+ "stride_px": 224,
+ "facing": "right",
+ "ground_y": 407,
+ "size": [
+  249,
+  420
+ ],
+ "joints": {
+  "head": [
+   130.4,
+   37.7
+  ],
+  "neck": [
+   125.4,
+   79.2
+  ],
+  "pelvis": [
+   117.6,
+   254.9
+  ],
+  "near_shoulder": [
+   113.6,
+   91.0
+  ],
+  "near_elbow": [
+   145.1,
+   150.3
+  ],
+  "near_wrist": [
+   185.0,
+   204.3
+  ],
+  "near_hip": [
+   113.6,
+   254.9
+  ],
+  "near_knee": [
+   79.4,
+   334.7
+  ],
+  "near_ankle": [
+   15.0,
+   407.0
+  ],
+  "near_toe": [
+   58.45,
+   407
+  ],
+  "far_shoulder": [
+   125.4,
+   91.0
+  ],
+  "far_elbow": [
+   93.9,
+   150.3
+  ],
+  "far_wrist": [
+   54.1,
+   204.3
+  ],
+  "far_hip": [
+   121.5,
+   254.9
+  ],
+  "far_knee": [
+   176.6,
+   331.0
+  ],
+  "far_ankle": [
+   228.0,
+   407.0
+  ],
+  "far_toe": [
+   271.45,
+   407
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}
