@@ -48,11 +48,7 @@ impl Sheet {
         if level < SKILL1_LEVEL {
             c = NOVICE;
         }
-        let job = if c != NOVICE && level >= JOB_LEVEL {
-            CLASSES[c as usize].jobs[(class & BENCH_SECOND_JOB != 0) as usize]
-        } else {
-            NONE
-        };
+        let job = if c != NOVICE && level >= JOB_LEVEL { CLASSES[c as usize].jobs[(class & BENCH_SECOND_JOB != 0) as usize] } else { NONE };
         let spent = level as u16 - 1;
         let mut points = [0u16; 6];
         let mut given = 0;
@@ -81,13 +77,22 @@ impl Sheet {
 
     /// The class level the field counts (the ceiling: its top level + 2).
     pub fn counted_level(&self, field: u8) -> u8 {
-        self.class_level.min(FIELDS[field as usize].top + CEILING_ABOVE_TOP).max(1)
+        self.counted_level_top(FIELDS[field as usize].top)
+    }
+
+    /// The same for a place whose top level is `top` (a vault's level).
+    pub fn counted_level_top(&self, top: u8) -> u8 {
+        self.class_level.min(top + CEILING_ABOVE_TOP).max(1)
     }
 
     /// The six stats after race, points and gear, under the field's ceiling: points scale with the
     /// counted level, gear above the ceiling scales down by line points.
     pub fn stats(&self, field: u8) -> [u16; 6] {
-        let lvl = self.counted_level(field);
+        self.stats_top(FIELDS[field as usize].top)
+    }
+
+    pub fn stats_top(&self, top: u8) -> [u16; 6] {
+        let lvl = self.counted_level_top(top);
         let race = &RACES[self.race as usize % RACES.len()];
         let spent = (self.class_level as u32).saturating_sub(1).max(1);
         let counted = (lvl as u32).saturating_sub(1);
@@ -104,7 +109,11 @@ impl Sheet {
 
     /// The weapon's item level the field counts.
     pub fn weapon_level(&self, field: u8) -> u8 {
-        self.gear_level.min(self.counted_level(field)).max(1)
+        self.weapon_level_top(FIELDS[field as usize].top)
+    }
+
+    pub fn weapon_level_top(&self, top: u8) -> u8 {
+        self.gear_level.min(self.counted_level_top(top)).max(1)
     }
 }
 
@@ -141,6 +150,9 @@ pub struct Outing {
     pub marked: bool,
     /// Ticks since she last struck a hero (`NEVER`).
     pub struck_ago: u32,
+    /// Contribution so far to the running tide and to the running boss (rules 8), carried between copies.
+    pub tide_contrib: u32,
+    pub boss_contrib: u32,
 }
 
 impl Outing {
@@ -162,6 +174,8 @@ impl Outing {
             waystone: NO_WAYSTONE,
             marked: false,
             struck_ago: NEVER,
+            tide_contrib: 0,
+            boss_contrib: 0,
         }
     }
 }

@@ -4,10 +4,13 @@
 use crate::flow::{NEIGHBOURS, STEP, UNREACHED};
 use crate::tables::*;
 use crate::util::{d2, grid_box, isqrt, par_ranges, pct};
-use crate::{cell_of, Field, Shot, CELLS_W, CELL_SHIFT, FIELD, GRID_MARGIN, PCELLS_W, PCELL_SHIFT, SUB};
+use crate::{CELL_SHIFT, CELLS_W, FIELD, Field, GRID_MARGIN, PCELL_SHIFT, PCELLS_W, SUB, Shot, cell_of};
 
 pub const ELITE: u8 = 1;
 pub const CHAMPION: u8 = 2;
+/// A boss's monster slot (rules 8): its health is `Monsters::boss_max`, it takes no stun, slow, push or pull, and
+/// it neither walks by the flow nor strikes by contact (its attacks are `boss.rs`).
+pub const BOSS: u8 = 4;
 /// Aura map bits (cells near a howler, wailer, or a mender on a mend tick).
 pub const AURA_HOWL: u8 = 1;
 pub const AURA_WAIL: u8 = 2;
@@ -49,6 +52,10 @@ pub struct Monsters {
     pub timer: Vec<u8>,
     /// Hurt this tick: output only.
     pub hurt: Vec<u8>,
+    /// The health of the boss, when one runs (one at a time).
+    pub boss_max: u32,
+    /// Monster health and damage percent (a vault's seals): 100 in a field.
+    pub scale_pct: u32,
 }
 
 impl Monsters {
@@ -65,6 +72,8 @@ impl Monsters {
             curse: vec![0; cap],
             timer: vec![0; cap],
             hurt: vec![0; cap],
+            boss_max: 0,
+            scale_pct: 100,
         }
     }
     pub fn len(&self) -> usize {
@@ -83,17 +92,30 @@ impl Monsters {
         self.flags[i] & CHAMPION != 0
     }
     pub fn max_hp(&self, i: usize) -> u32 {
-        max_hp(self.kind[i], self.level[i], self.flags[i])
+        if self.flags[i] & BOSS != 0 {
+            return self.boss_max;
+        }
+        pct(max_hp(self.kind[i], self.level[i], self.flags[i]), self.scale_pct as i64).max(1)
+    }
+    pub fn is_boss(&self, i: usize) -> bool {
+        self.flags[i] & BOSS != 0
+    }
+    /// Stun, slow, push and pull find no purchase: brutes and bosses.
+    pub fn immovable(&self, i: usize) -> bool {
+        self.flags[i] & BOSS != 0 || self.row(i).beh & BRUTE != 0
     }
     /// Contact damage per hit at its level.
     pub fn damage(&self, i: usize) -> u32 {
         let d = level_scale(self.row(i).damage, self.level[i], POWER_PCT_PER_LEVEL);
-        if self.is_champion(i) { d * CHAMPION_DAMAGE_MUL } else { d }
+        let d = if self.is_champion(i) { d * CHAMPION_DAMAGE_MUL } else { d };
+        pct(d, self.scale_pct as i64).max(1)
     }
     /// XP (and coin) a kill pays.
     pub fn xp(&self, i: usize) -> u32 {
         let x = level_scale(self.row(i).xp, self.level[i], POWER_PCT_PER_LEVEL);
-        if self.is_champion(i) {
+        if self.is_boss(i) {
+            x * BOSS_XP_MUL
+        } else if self.is_champion(i) {
             x * CHAMPION_XP_MUL
         } else if self.is_elite(i) {
             x * ELITE_XP_MUL
@@ -128,6 +150,8 @@ pub(crate) struct Throw {
     ty: i32,
     dmg: u32,
     lob: bool,
+    /// The monster that threw it, so a throw the pool has no room for lets it throw again next tick.
+    who: u32,
 }
 
 #[inline]
@@ -161,7 +185,7 @@ impl Field {
             }
             let c = cell_of(m.x[i], m.y[i]);
             let d = self.flow.dist[c];
-            if d != UNREACHED {
+            if d != UNREACHED && m.flags[i] & BOSS == 0 {
                 let base = self.src_d0.get(self.flow.src[c] as usize).copied().unwrap_or(0);
                 if d.saturating_sub(base) > RECYCLE_CELLS * STEP && !hero_near(m.x[i], m.y[i]) {
                     // Left far behind by every hero: free the slot so births put it back in play.
@@ -173,7 +197,7 @@ impl Field {
                 }
             }
             let beh = KINDS[m.kind[i] as usize].beh;
-            if beh & (HOWLER | WAILER) != 0 || (mend_tick && beh & MENDER != 0) {
+            if m.flags[i] & BOSS == 0 && (beh & (HOWLER | WAILER) != 0 || (mend_tick && beh & MENDER != 0)) {
                 self.aura_list.push(i as u32);
             }
             self.mcells.push((i as u32, c as u32));
@@ -227,7 +251,8 @@ impl Field {
         }
         for t in throws {
             if self.shots.len() >= SHOT_POOL {
-                break;
+                self.m.timer[t.who as usize] = 0;
+                continue;
             }
             self.shots.push(make_shot(&t));
         }
@@ -245,7 +270,7 @@ impl Field {
     fn move_one(&self, i: usize, room: bool, throws: &mut Vec<Throw>) -> (i32, i32, u8) {
         let m = &self.m;
         let (x, y, mut t) = (m.x[i], m.y[i], m.timer[i]);
-        if m.hp[i] == 0 || m.stun[i] > 0 {
+        if m.hp[i] == 0 || m.stun[i] > 0 || m.flags[i] & BOSS != 0 {
             return (x, y, t);
         }
         let c = cell_of(x, y);
@@ -258,6 +283,9 @@ impl Field {
         let hero = &self.heroes[self.flow.src[c] as usize];
         let hd = if hero.alive() { isqrt(d2(hero.x, hero.y, x, y)) / SUB as i64 } else { i64::MAX } as i64;
         let mut speed = row.speed as i64 * SUB as i64 / TICK_HZ as i64;
+        if self.quick() {
+            speed = speed * TIDE_SPEED_PCT as i64 / 100;
+        }
         if m.slow[i] > 0 && beh & BRUTE == 0 {
             speed = speed * SLOW_SPEED_PCT as i64 / 100;
         }
@@ -278,12 +306,11 @@ impl Field {
             }
         }
         if beh & (SPITTER | LOBBER) != 0 && room {
-            let (near, every, lob) =
-                if beh & SPITTER != 0 { (SPITTER_STOP_PX, SPIT_EVERY, false) } else { (LOBBER_STOP_PX, LOB_EVERY, true) };
+            let (near, every, lob) = if beh & SPITTER != 0 { (SPITTER_STOP_PX, SPIT_EVERY, false) } else { (LOBBER_STOP_PX, LOB_EVERY, true) };
             if hd <= near as i64 {
                 stop = true;
                 if t == 0 {
-                    throws.push(Throw { x, y, tx: hero.x, ty: hero.y, dmg: m.damage(i), lob });
+                    throws.push(Throw { x, y, tx: hero.x, ty: hero.y, dmg: m.damage(i), lob, who: i as u32 });
                     t = every - 1;
                 } else {
                     t -= 1;
@@ -410,7 +437,7 @@ impl Field {
             let r2 = (CONTACT_PX * SUB) as i64 * (CONTACT_PX * SUB) as i64;
             grid_box(&self.grid, CELLS_W, CELL_SHIFT, p.x - r, p.y - r, p.x + r, p.y + r, |i| {
                 let i = i as usize;
-                if m.hp[i] > 0 && m.stun[i] == 0 && d2(m.x[i], m.y[i], p.x, p.y) <= r2 {
+                if m.hp[i] > 0 && m.stun[i] == 0 && m.flags[i] & BOSS == 0 && d2(m.x[i], m.y[i], p.x, p.y) <= r2 {
                     out.push((id as u16, i as u32, m.damage(i) * m.row(i).hits as u32));
                 }
             });
@@ -479,7 +506,6 @@ impl Field {
         v.sort_unstable();
         out.extend(v.into_iter().map(|q| (q, dmg)));
     }
-
 }
 
 /// Where the k-th member of a clutch stands, in clutch spacings: the centre, then around it.

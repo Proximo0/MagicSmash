@@ -5,11 +5,13 @@ pub mod cards;
 pub mod classes;
 pub mod fields;
 pub mod kinds;
+pub mod realm;
 
 pub use cards::*;
 pub use classes::*;
 pub use fields::*;
 pub use kinds::*;
+pub use realm::*;
 
 pub const TICK_HZ: u32 = 20;
 

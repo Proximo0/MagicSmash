@@ -8,12 +8,13 @@
 //! - `--relay=PORT --to=HOST:PORT [--loss=0.05 --delay-ms=80 --jitter-ms=20 --seed=1 --secs=N]`: no clients;
 //!   a relay that drops and delays datagrams both ways (`relay.rs`).
 
+mod botgate;
 mod relay;
 
 use realm_server::client::LockstepClient;
 use realm_server::snap::{decode, peek};
 use realm_server::stats::{dist, kb};
-use realm_server::view::{box_size, View};
+use realm_server::view::{View, box_size};
 use realm_server::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::net::UdpSocket;
@@ -90,7 +91,9 @@ fn parse() -> Args {
             "--seed" => a.seed = num(v),
             "--zoom" => a.zoom = num(v) as u8,
             "--help" | "-h" => {
-                println!("realm-loadtest [--server=127.0.0.1:7777] [--clients=N] [--proto=a0|a1] [--follow] [--players=N] [--secs=10] [--threads=1] [--zoom=1]");
+                println!(
+                    "realm-loadtest [--server=127.0.0.1:7777] [--clients=N] [--proto=a0|a1] [--follow] [--players=N] [--secs=10] [--threads=1] [--zoom=1]"
+                );
                 println!("realm-loadtest --relay=PORT --to=HOST:PORT [--loss=0.05] [--delay-ms=80] [--jitter-ms=20] [--seed=1] [--secs=N]");
                 std::process::exit(0);
             }
@@ -173,17 +176,28 @@ impl BClient {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("bots") {
+        botgate::run();
+        return;
+    }
     let a = parse();
     if let Some(port) = a.relay {
-        let r = relay::RelayArgs { port, to: a.to.clone(), loss_ppm: a.loss_ppm, delay_ms: a.delay_ms, jitter_ms: a.jitter_ms, seed: a.seed, secs: (a.secs > 0).then_some(a.secs as u64) };
+        let r = relay::RelayArgs {
+            port,
+            to: a.to.clone(),
+            loss_ppm: a.loss_ppm,
+            delay_ms: a.delay_ms,
+            jitter_ms: a.jitter_ms,
+            seed: a.seed,
+            secs: (a.secs > 0).then_some(a.secs as u64),
+        };
         if let Err(e) = relay::run(&r) {
             die(&format!("relay: {e}"));
         }
         return;
     }
-    let mut players: Vec<Player> = (0..a.clients)
-        .map(|_| Player { sock: socket(&a.server), id: None, mv: 0, ack: 0, parts: BTreeMap::new(), ring: VecDeque::new(), bytes: 0 })
-        .collect();
+    let mut players: Vec<Player> =
+        (0..a.clients).map(|_| Player { sock: socket(&a.server), id: None, mv: 0, ack: 0, parts: BTreeMap::new(), ring: VecDeque::new(), bytes: 0 }).collect();
     let mut counts = Counts::default();
     let mut rng = a.seed;
     for (k, p) in players.iter().enumerate() {

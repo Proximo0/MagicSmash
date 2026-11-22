@@ -70,7 +70,10 @@ fn swarm_is_born_in_clutches_of_8() {
                 continue;
             }
             let mut run = 1;
-            while k + run < s.len() && m.kind[s[k + run] as usize] == rat && dist(m.x[i], m.y[i], m.x[s[k + run] as usize], m.y[s[k + run] as usize]) <= px(3 * 18) as i64 {
+            while k + run < s.len()
+                && m.kind[s[k + run] as usize] == rat
+                && dist(m.x[i], m.y[i], m.x[s[k + run] as usize], m.y[s[k + run] as usize]) <= px(3 * 18) as i64
+            {
                 run += 1;
             }
             best = best.max(run);

@@ -1,10 +1,9 @@
 //! The six terrain generators, one per terrain rule (rules section 6).
 
-use crate::tables::*;
-use crate::terrain::{near_site, Gen, W};
 use crate::CELLS;
 use crate::CELLS_W;
-
+use crate::tables::*;
+use crate::terrain::{Gen, W, near_site};
 
 fn road_line(g: &mut Gen, cells: &[(i32, i32)]) {
     let gate = cells[0];

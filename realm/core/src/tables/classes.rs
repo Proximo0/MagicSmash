@@ -161,7 +161,7 @@ pub const CLASSES: [ClassRow; 6] = [
         name: "PRIEST",
         health: 220,
         health_per_level: 22,
-        weapon: Weapon { name: "HOLY LIGHT", shape: Shape::Ring { px: 96 }, damage: 15, every: 12, push_px: 0 },
+        weapon: Weapon { name: "HOLY LIGHT", shape: Shape::Ring { px: 96 }, damage: 28, every: 12, push_px: 0 },
         threat: 7,
         skill1: S_SANCTUARY,
         skill2: S_CONSECRATE,
@@ -261,7 +261,12 @@ pub const SKILLS: [Skill; 21] = [
     Skill { name: "HAMMERFALL", level: SKILL2_LEVEL, cooldown: secs(18), act: Act::Ring { px: 100, dmg: 120, stun: 30 } },
     Skill { name: "RAMPART", level: JOB_LEVEL, cooldown: secs(90), act: Act::Zone { zone: Z_RAMPART, reach: 0 } },
     Skill { name: "BLOOD RAGE", level: JOB_LEVEL, cooldown: secs(90), act: Act::SelfEffect { fx: FX_BLOOD_RAGE } },
-    Skill { name: "CATACLYSM", level: JOB_LEVEL, cooldown: secs(120), act: Act::Thick { reach: 500, px: 140, dmg: 400, delay: 30, count: 5, every: secs(1) as u16 } },
+    Skill {
+        name: "CATACLYSM",
+        level: JOB_LEVEL,
+        cooldown: secs(120),
+        act: Act::Thick { reach: 500, px: 140, dmg: 400, delay: 30, count: 5, every: secs(1) as u16 },
+    },
     Skill { name: "PLAGUE", level: JOB_LEVEL, cooldown: secs(90), act: Act::Curse { px: 300, ticks: secs(10) as u8 } },
     Skill { name: "HAIL", level: JOB_LEVEL, cooldown: secs(100), act: Act::Zone { zone: Z_HAIL, reach: 400 } },
     Skill { name: "DEADEYE", level: JOB_LEVEL, cooldown: secs(90), act: Act::SelfEffect { fx: FX_DEADEYE } },
@@ -320,8 +325,7 @@ pub struct Effect {
     pub luck: i32,
 }
 
-const E: Effect =
-    Effect { name: "", ticks: 0, dmg_pct: 0, as_pct: 0, move_pct: 0, taken_pct: 0, unhurt: false, nofall: false, xp_pct: 0, luck: 0 };
+const E: Effect = Effect { name: "", ticks: 0, dmg_pct: 0, as_pct: 0, move_pct: 0, taken_pct: 0, unhurt: false, nofall: false, xp_pct: 0, luck: 0 };
 
 pub const FX_PROVOKE: u8 = 0;
 pub const FX_AEGIS: u8 = 1;

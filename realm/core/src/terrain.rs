@@ -4,7 +4,7 @@
 
 use crate::tables::*;
 use crate::util::{at_angle, rng_next};
-use crate::{terrain_gen, CELLS, CELLS_W, CELL_SHIFT, FIELD, SUB};
+use crate::{CELL_SHIFT, CELLS, CELLS_W, FIELD, SUB, terrain_gen};
 
 pub(crate) const W: i32 = CELLS_W as i32;
 /// Diagonal scans flag gaps under this many cells (about `MIN_PASSAGE` across).
@@ -268,12 +268,8 @@ pub fn build(field: u8, seed: u64) -> Terrain {
         }
         // Carve each cut-off site a straight corridor to the nearest reached site.
         for &c in &cut {
-            let to = cells
-                .iter()
-                .copied()
-                .filter(|&(x, y)| reach[idx(x, y)])
-                .min_by_key(|&(x, y)| ((x - c.0).pow(2) + (y - c.1).pow(2), x, y))
-                .unwrap_or(gate_c);
+            let to =
+                cells.iter().copied().filter(|&(x, y)| reach[idx(x, y)]).min_by_key(|&(x, y)| ((x - c.0).pow(2) + (y - c.1).pow(2), x, y)).unwrap_or(gate_c);
             g.disc(c.0, c.1, SITE_CLEAR, 0, WALL);
             g.line(c, to, REPAIR_R + round as i32 / 2, 0, WALL);
         }
@@ -289,6 +285,37 @@ pub fn build(field: u8, seed: u64) -> Terrain {
     let hash = map_hash(&g.map);
     Terrain { field, map: g.map, gate, waystones, altars, heart, hash }
 }
+
+/// A vault's arena (rules 10): a square of `VAULT_ARENA_PX` at the heart, walled all round, with a few pillars
+/// from the seed. No gate and no waystones (they sit in the walls, where nobody stands).
+pub fn build_vault(field: u8, seed: u64) -> Terrain {
+    let mut map = vec![WALL; CELLS];
+    let half = VAULT_ARENA_PX / 64;
+    let c = W / 2;
+    for y in c - half..c + half {
+        for x in c - half..c + half {
+            map[idx(x, y)] = 0;
+        }
+    }
+    let mut g = Gen { map, rng: seed ^ 0x5A17_0000_0000_0000 ^ ((field as u64) << 40) };
+    for _ in 0..PILLARS {
+        let span = (half - 2 * PILLAR_EDGE) as i32;
+        let (cx, cy) = (c - half + PILLAR_EDGE + g.r(span), c - half + PILLAR_EDGE + g.r(span));
+        if (cx - c).abs() < PILLAR_CLEAR && (cy - c).abs() < PILLAR_CLEAR {
+            continue;
+        }
+        g.disc(cx, cy, PILLAR_R, WALL, 0);
+    }
+    let hash = map_hash(&g.map);
+    let heart = (FIELD / 2, FIELD / 2);
+    Terrain { field, map: g.map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, hash }
+}
+
+/// Pillars in a vault, their radius, the cells they keep from the walls and from the centre.
+const PILLARS: u32 = 8;
+const PILLAR_R: i32 = 2;
+const PILLAR_EDGE: i32 = 6;
+const PILLAR_CLEAR: i32 = 8;
 
 fn map_hash(map: &[u8]) -> u64 {
     let mut h = 0xCBF2_9CE4_8422_2325u64;

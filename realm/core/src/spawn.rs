@@ -5,48 +5,35 @@ use crate::monster::*;
 use crate::tables::*;
 use crate::terrain::{level_at, ring_of};
 use crate::util::{grid_box, rng_next};
-use crate::{Field, FIELD, PCELLS_W, PCELL_SHIFT, SUB, VIEW_H, VIEW_W};
+use crate::{FIELD, Field, PCELL_SHIFT, PCELLS_W, SUB, VIEW_H, VIEW_W};
 
 impl Field {
-    /// The spawn phase: births toward the density target, out of every hero's screen and off walls.
+    /// The spawn phase: births toward the density target, out of every hero's screen and off walls. In a tide the
+    /// target doubles; in a vault it follows the timeline and the vault's own kinds and level.
     pub(crate) fn phase_spawn(&mut self) {
-        if self.live.is_empty() {
+        if self.live.is_empty() || !self.vault_births_on() {
             return;
         }
-        let mut target = DENSITY_BASE.min(DENSITY_BASE_PER_HERO * self.live.len() as u32);
-        for &q in &self.live {
-            let h = &self.heroes[q as usize];
-            target += RING_WEIGHT[ring_of(h.x, h.y) as usize];
-        }
-        let target = target.min(self.cfg.monsters);
-        let row = &FIELDS[self.field as usize];
-        let kinds = row.first_kind as usize..(row.first_kind + row.kind_count) as usize;
+        let (target, kinds, fixed_level) = match self.realm.vault {
+            Some(v) => {
+                let row = &VAULTS[v.vault as usize];
+                (self.vault_target(), row.first_kind as usize..(row.first_kind + row.kind_count) as usize, Some(row.level))
+            }
+            None => {
+                let mut target = DENSITY_BASE.min(DENSITY_BASE_PER_HERO * self.live.len() as u32);
+                for &q in &self.live {
+                    let h = &self.heroes[q as usize];
+                    target += RING_WEIGHT[ring_of(h.x, h.y) as usize];
+                }
+                let row = &FIELDS[self.field as usize];
+                (target, row.first_kind as usize..(row.first_kind + row.kind_count) as usize, None)
+            }
+        };
+        let target = self.tide_target(target).min(self.cfg.monsters);
         let total: u32 = KINDS[kinds.clone()].iter().map(|k| k.weight).sum();
         let mut fails = 0;
         while self.alive < target && !self.free.is_empty() {
-            let mut placed = None;
-            for _ in 0..SPAWN_TRIES {
-                let r = rng_next(&mut self.rng);
-                let p = &self.heroes[self.live[(r % self.live.len() as u64) as usize] as usize];
-                let (lo, hi) = if self.terrain.at(p.x, p.y) & DARK != 0 {
-                    (DARK_BIRTH_MIN_PX, DARK_BIRTH_MAX_PX)
-                } else {
-                    (BIRTH_MIN_PX, BIRTH_MAX_PX)
-                };
-                let span = (hi * 2 + 1) as u64;
-                let dx = ((r >> 16) % span) as i32 - hi;
-                let dy = ((r >> 32) % span) as i32 - hi;
-                let dd = (dx * dx + dy * dy) as i64;
-                if dd < (lo * lo) as i64 || dd > (hi * hi) as i64 {
-                    continue;
-                }
-                let (x, y) = (p.x + dx * SUB, p.y + dy * SUB);
-                if self.birth_ok(x, y) {
-                    placed = Some((x, y));
-                    break;
-                }
-            }
-            let Some((x, y)) = placed else {
+            let Some((x, y)) = self.find_birth() else {
                 fails += 1;
                 if fails >= SPAWN_FAILS_PER_TICK {
                     break;
@@ -63,7 +50,7 @@ impl Field {
                 }
                 pick -= KINDS[k].weight;
             }
-            let level = level_at(self.field, x, y);
+            let level = fixed_level.unwrap_or_else(|| level_at(self.field, x, y));
             let champ_one_in = if ring_of(x, y) == RING_HEART { CHAMPION_HEART_ONE_IN } else { CHAMPION_ONE_IN };
             for member in 0..KINDS[kind].clutch as i32 {
                 let (ox, oy) = clutch_offset(member);
@@ -84,6 +71,31 @@ impl Field {
                 self.spawned.push(slot);
             }
         }
+    }
+
+    /// A place to be born: out of every hero's screen, off walls, 400 to 700 px from a random hero (250 to 450 in
+    /// the dark), in at most `SPAWN_TRIES` tries.
+    pub(crate) fn find_birth(&mut self) -> Option<(i32, i32)> {
+        if self.live.is_empty() {
+            return None;
+        }
+        for _ in 0..SPAWN_TRIES {
+            let r = rng_next(&mut self.rng);
+            let p = &self.heroes[self.live[(r % self.live.len() as u64) as usize] as usize];
+            let (lo, hi) = if self.terrain.at(p.x, p.y) & DARK != 0 { (DARK_BIRTH_MIN_PX, DARK_BIRTH_MAX_PX) } else { (BIRTH_MIN_PX, BIRTH_MAX_PX) };
+            let span = (hi * 2 + 1) as u64;
+            let dx = ((r >> 16) % span) as i32 - hi;
+            let dy = ((r >> 32) % span) as i32 - hi;
+            let dd = (dx * dx + dy * dy) as i64;
+            if dd < (lo * lo) as i64 || dd > (hi * hi) as i64 {
+                continue;
+            }
+            let (x, y) = (p.x + dx * SUB, p.y + dy * SUB);
+            if self.birth_ok(x, y) {
+                return Some((x, y));
+            }
+        }
+        None
     }
 
     fn birth_ok(&self, x: i32, y: i32) -> bool {
@@ -108,12 +120,12 @@ impl Field {
         m.kind[i] = kind;
         m.level[i] = level;
         m.flags[i] = flags;
-        m.hp[i] = max_hp(kind, level, flags);
         m.stun[i] = 0;
         m.slow[i] = 0;
         m.curse[i] = 0;
         m.timer[i] = 0;
         m.hurt[i] = 0;
+        m.hp[i] = m.max_hp(i);
         self.alive += 1;
         self.spawns_total += 1;
     }

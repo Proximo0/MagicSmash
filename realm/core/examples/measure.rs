@@ -140,7 +140,13 @@ fn phases() {
     }
     let m = mean(&total);
     let (kills, births, downs) = f.counters();
-    line += &format!(" | tick {:.2}/{:.2} max {:.2} | kills {kills} births {births} downs {downs} recycled {}", m, pctl(&mut total, 99), pctl(&mut total, 100), f.recycled());
+    line += &format!(
+        " | tick {:.2}/{:.2} max {:.2} | kills {kills} births {births} downs {downs} recycled {}",
+        m,
+        pctl(&mut total, 99),
+        pctl(&mut total, 100),
+        f.recycled()
+    );
     println!("{line}");
 }
 
@@ -295,7 +301,18 @@ fn kite() {
                             n150 += (d < 150) as u32;
                         }
                     }
-                    eprintln!("t {:>3}s hp {}/{} alive {} n60 {n60} n150 {n150} kills {} dir {} pos {},{} ring {}", t / 20, h.health, h.max_health, f.monster_count(), f.counters().0, input & 15, h.x / SUB, h.y / SUB, ring_of(h.x, h.y));
+                    eprintln!(
+                        "t {:>3}s hp {}/{} alive {} n60 {n60} n150 {n150} kills {} dir {} pos {},{} ring {}",
+                        t / 20,
+                        h.health,
+                        h.max_health,
+                        f.monster_count(),
+                        f.counters().0,
+                        input & 15,
+                        h.x / SUB,
+                        h.y / SUB,
+                        ring_of(h.x, h.y)
+                    );
                 }
                 fell |= f.events().iter().any(|e| matches!(e, Event::Fallen { .. }));
                 if down_at.is_none() && f.events().contains(&Event::Down { hero: id }) {

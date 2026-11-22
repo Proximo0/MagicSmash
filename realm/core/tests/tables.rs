@@ -13,11 +13,7 @@ fn contract() -> String {
 fn table(doc: &str, head: &str) -> Vec<Vec<String>> {
     let lines: Vec<&str> = doc.lines().collect();
     let at = lines.iter().position(|l| l.starts_with(head)).unwrap_or_else(|| panic!("no table {head}"));
-    lines[at + 2..]
-        .iter()
-        .take_while(|l| l.starts_with('|'))
-        .map(|l| l.trim_matches('|').split('|').map(|c| c.trim().to_string()).collect())
-        .collect()
+    lines[at + 2..].iter().take_while(|l| l.starts_with('|')).map(|l| l.trim_matches('|').split('|').map(|c| c.trim().to_string()).collect()).collect()
 }
 
 const FIELD_NAMES: [&str; 6] = ["Fool's Road", "Hanged Wood", "Moon Marsh", "Hermit's Peaks", "The Tower", "World's Edge"];
@@ -55,7 +51,13 @@ fn every_monster_row_matches_the_contract() {
         assert_eq!(beh, k.beh, "{}: {}", k.name, r[2]);
         let n: Vec<u32> = r[3..7].iter().map(|c| c.parse().unwrap()).collect();
         assert_eq!(n, vec![k.speed, k.health, k.damage, k.xp], "{}", k.name);
-        let clutch = if r[2].contains("clutches of 4") { 4 } else if k.beh & SWARM != 0 { SWARM_CLUTCH } else { 1 };
+        let clutch = if r[2].contains("clutches of 4") {
+            4
+        } else if k.beh & SWARM != 0 {
+            SWARM_CLUTCH
+        } else {
+            1
+        };
         assert_eq!(k.clutch, clutch, "{}", k.name);
         assert_eq!(k.hits, if r[2].contains("twice as often") { 2 } else { 1 }, "{}", k.name);
         if let Some(into) = r[2].split("splitter into ").nth(1) {
@@ -93,7 +95,10 @@ fn every_class_row_matches_the_contract() {
         let h: Vec<u32> = r[2].replace(['+', ','], " ").split_whitespace().map(|v| v.parse().unwrap()).collect();
         assert_eq!(h, vec![c.health, c.health_per_level], "{}", c.name);
         assert!(r[3].starts_with(c.weapon.name), "{}", c.name);
-        assert!(r[3].contains(&format!("{} damage", c.weapon.damage)), "{}", c.name);
+        // The PRIEST's HOLY LIGHT is 28 where the contract has 15 (rules_built.md, R2: the walker gate).
+        let damage = if c.name == "PRIEST" { 15 } else { c.weapon.damage };
+        assert!(r[3].contains(&format!("{damage} damage")), "{}", c.name);
+        assert!(c.name != "PRIEST" || c.weapon.damage == 28);
         assert!(r[3].contains(&format!("{} ticks", c.weapon.every)), "{}", c.name);
         let threat: Vec<i32> = r[4].split('.').map(|v| v.parse().unwrap()).collect();
         assert_eq!(threat[0] * 10 + threat[1], c.threat, "{}", c.name);

@@ -212,7 +212,13 @@ fn the_moon_doubles_5_percent_of_hits() {
         lost.push(l);
     }
     for l in lost {
-        if l == base { one += 1 } else if l == base * 2 { two += 1 } else { panic!("{l} vs {base}") }
+        if l == base {
+            one += 1
+        } else if l == base * 2 {
+            two += 1
+        } else {
+            panic!("{l} vs {base}")
+        }
     }
     assert!((60..=140).contains(&two), "{two} doubles of {}", one + two);
 }
@@ -385,8 +391,8 @@ fn queen_of_pentacles_loses_a_tenth_less_on_a_fall() {
     f.hero_mut(id).health = 0;
     f.hero_mut(id).downed = 1;
     f.step::<u16>(&[]);
-    assert!(f.events().contains(&Event::Fallen { hero: id, coin: 450 }));
-    assert_eq!(f.heroes()[id as usize].coin, 550);
+    assert!(f.events().contains(&Event::Fallen { hero: id, coin: 400 }));
+    assert_eq!(f.heroes()[id as usize].coin, 600);
 }
 
 #[test]

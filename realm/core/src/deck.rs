@@ -1,10 +1,10 @@
 //! The deck (rules section 5): draws from the field's seed, the hero's id and her draw count; a queue of
 //! nine offers; picks by input; and what the copies she picked add up to.
 
+use crate::Field;
 use crate::events::Event;
 use crate::tables::*;
 use crate::util::{mix, pct};
-use crate::Field;
 
 /// Sums one number over the copies of every card.
 pub fn card_sum(copies: &[u8; NCARDS + 1], f: impl Fn(CardFx) -> i64) -> i64 {
@@ -205,7 +205,9 @@ impl Field {
 /// Takes card `k` (1-based) of the oldest offer.
 pub fn pick(f: &mut Field, i: usize, k: u8) {
     let h = &mut f.heroes[i];
-    let Some(offer) = h.offers.first().copied() else { return };
+    let Some(offer) = h.offers.first().copied() else {
+        return;
+    };
     if k == 0 || k > DRAW_MAX {
         return;
     }

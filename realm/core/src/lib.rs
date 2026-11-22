@@ -7,33 +7,47 @@
 
 mod act;
 mod attack;
+mod boss;
+pub mod bots;
 mod combat;
 mod deck;
 mod events;
 mod flow;
+pub mod gates;
+mod geo;
 mod hero;
-mod monster;
 mod mods;
+mod monster;
 mod sheet;
 mod spawn;
 mod state;
 pub mod tables;
 mod terrain;
 mod terrain_gen;
+mod tide;
+mod transfer;
 mod util;
+mod vault;
 
 pub use act::walk_step;
 pub use attack::Hit;
-pub use deck::{card_mods, roll as roll_offer, CardMods};
+pub use boss::{Boss, Cast, Mire};
+pub use geo::{in_beam, near_segment};
+pub use deck::{CardMods, card_mods, roll as roll_offer};
 pub use events::Event;
 pub use flow::{NEIGHBOURS, STEP as FLOW_STEP, UNREACHED};
 pub use hero::*;
 pub use mods::*;
-pub use monster::{level_scale, max_hp, Monsters, CHAMPION, CLUTCH_PX, ELITE};
-pub use sheet::{line_points, owned_cards, Outing, Sheet};
-pub use tables::{Kind, CLASSES, KINDS, TICK_HZ};
-pub use terrain::{check as check_terrain, level_at, narrow_count, ring_of, Terrain};
-pub use util::{grid_box, rng_next, Grid};
+pub use monster::{BOSS, CHAMPION, CLUTCH_PX, ELITE, Monsters, level_scale, max_hp};
+pub use sheet::{Outing, Sheet, line_points, owned_cards};
+pub use tables::{CLASSES, KINDS, Kind, TICK_HZ};
+pub use terrain::{Terrain, check as check_terrain, level_at, narrow_count, ring_of};
+pub use tide::{
+    Altar, Realm, boss_due, coin_at, field_boss_window, next_field_boss, next_world_boss, tide_countdown, tide_last, tide_running, tide_start, world_ride,
+};
+pub use transfer::Transfer;
+pub use util::{Grid, grid_box, rng_next};
+pub use vault::{RUN_GOING, RUN_LOST, RUN_WON, VaultRun, chest_rolls, seal_scale};
 
 use flow::{Flow, Source};
 use tables::*;
@@ -151,8 +165,10 @@ pub struct Field {
     pub(crate) zones: Vec<Zone>,
     pub(crate) drops: Vec<Drop>,
     pub(crate) shots: Vec<Shot>,
-    /// A tide is running (driven by the tide job; JUDGEMENT reads it).
+    /// A tide is running (rules 8; JUDGEMENT reads it).
     pub(crate) tide: bool,
+    /// The clock, the tide's altars, the boss and the vault run: state.
+    pub(crate) realm: tide::Realm,
     /// Births on (a field) or off (tools, tests; later a vault's timeline).
     pub(crate) births: bool,
     pub(crate) kills_total: u64,
@@ -171,6 +187,8 @@ pub struct Field {
     pub(crate) src_d0: Vec<u16>,
     pub(crate) events: Vec<Event>,
     pub(crate) credits: Vec<u16>,
+    /// The heroes of this tick's REWARD events and their contributions.
+    pub(crate) reward_list: Vec<(u16, u32)>,
     pub(crate) mcells: Vec<(u32, u32)>,
     pub(crate) hcells: Vec<(u32, u32)>,
     pub(crate) live: Vec<u16>,
@@ -198,6 +216,11 @@ impl Field {
     /// A field (0..5) from its row and a seed: its terrain, level range and kinds.
     pub fn open(field: u8, seed: u64, cfg: Config) -> Field {
         let field = field.min(FIELDS.len() as u8 - 1);
+        Field::open_with(field, seed, cfg, terrain::build(field, seed))
+    }
+
+    /// A field (or a vault's arena) over a terrain already built.
+    pub(crate) fn open_with(field: u8, seed: u64, cfg: Config, terrain: Terrain) -> Field {
         let cap = cfg.monsters as usize;
         Field {
             cfg: Config { monsters: cfg.monsters, threads: cfg.threads.max(1) },
@@ -205,7 +228,7 @@ impl Field {
             seed,
             tick: 0,
             rng: seed,
-            terrain: terrain::build(field, seed),
+            terrain,
             m: Monsters::new(cap),
             free: (0..cap as u32).rev().collect(),
             alive: 0,
@@ -215,6 +238,7 @@ impl Field {
             drops: Vec::new(),
             shots: Vec::new(),
             tide: false,
+            realm: tide::Realm::new(),
             births: true,
             kills_total: 0,
             spawns_total: 0,
@@ -230,6 +254,7 @@ impl Field {
             src_d0: Vec::new(),
             events: Vec::new(),
             credits: Vec::new(),
+            reward_list: Vec::new(),
             mcells: Vec::new(),
             hcells: Vec::new(),
             live: Vec::new(),
@@ -299,7 +324,7 @@ impl Field {
     pub fn tide(&self) -> bool {
         self.tide
     }
-    /// Set by the tide job (section 8); JUDGEMENT reads it.
+    /// Tools and tests: a tide's flag alone (the schedule drives it in a running field).
     pub fn set_tide(&mut self, on: bool) {
         self.tide = on;
     }
@@ -376,7 +401,7 @@ impl Field {
         };
         assert!(id < u16::MAX as usize, "too many heroes");
         let (x, y) = self.terrain.nearest_open(x, y);
-        let mut h = Hero::enter(sheet, outing, self.field, x, y);
+        let mut h = Hero::enter_top(sheet, outing, self.top_level(), x, y);
         h.last_struck = if outing.struck_ago == NEVER { NEVER } else { self.tick.saturating_sub(outing.struck_ago) };
         self.heroes[id] = h;
         id as u16
@@ -398,9 +423,11 @@ impl Field {
         self.tick += 1;
         self.events.clear();
         self.credits.clear();
+        self.reward_list.clear();
         self.spawned.clear();
         let words: Vec<u16> = inputs.iter().map(|&i| i.into()).collect();
         self.build_hero_grid();
+        self.realm_begin();
         self.compute_mods();
         self.phase_heroes(&words);
         mark(Phase::Input);
@@ -422,9 +449,8 @@ impl Field {
 
     fn compute_mods(&mut self) {
         let this = &*self;
-        let parts = par_ranges(self.heroes.len(), self.cfg.threads, combat::FIGHT_MIN_PER_THREAD, |a, b| {
-            (a..b).map(|i| mods::mods_of(this, i)).collect::<Vec<_>>()
-        });
+        let parts =
+            par_ranges(self.heroes.len(), self.cfg.threads, combat::FIGHT_MIN_PER_THREAD, |a, b| (a..b).map(|i| mods::mods_of(this, i)).collect::<Vec<_>>());
         self.mods = parts.into_iter().flatten().collect();
     }
 
@@ -465,11 +491,7 @@ impl Field {
             .enumerate()
             .filter(|(_, p)| p.alive())
             .map(|(i, p)| {
-                let d = if p.has_fx(FX_PROVOKE) {
-                    0
-                } else {
-                    FLOW_LEAD + ((THREAT_TOP - p.threat()) * THREAT_HEAD_MUL).max(0)
-                };
+                let d = if p.has_fx(FX_PROVOKE) { 0 } else { FLOW_LEAD + ((THREAT_TOP - p.threat()) * THREAT_HEAD_MUL).max(0) };
                 (cell_of(p.x, p.y) as u32, i as u16, d as u16)
             })
             .collect()

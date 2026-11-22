@@ -7,7 +7,7 @@ use crate::hero::*;
 use crate::mods::*;
 use crate::tables::*;
 use crate::util::{d2, grid_box, pct};
-use crate::{Field, Zone, FIELD, PCELLS_W, PCELL_SHIFT, SUB};
+use crate::{FIELD, Field, PCELL_SHIFT, PCELLS_W, SUB, Zone};
 
 /// One tick of walking in direction `dir` (0 none, 1..8) at `move_pct` percent more speed, sliding along
 /// walls. The simulation and the client's prediction both move a hero with this and nothing else.
@@ -90,6 +90,7 @@ impl Field {
             let dir = (inp & IN_DIR).min(8) as usize;
             let (ux, uy) = DIRS[dir];
             h.moving = dir != 0;
+            h.idle = if dir != 0 { 0 } else { h.idle.saturating_add(1) };
             if dir != 0 {
                 h.dir = dir as u8;
                 if ux < 0 {
@@ -119,19 +120,25 @@ impl Field {
                 continue;
             }
             // Banking: interact held within 48 px of a waystone for 3 s, unhurt.
-            let near = self.terrain.waystones.iter().position(|&(wx, wy)| {
-                d2(h.x, h.y, wx, wy) <= (WAYSTONE_PX * SUB) as i64 * (WAYSTONE_PX * SUB) as i64
-            });
+            let near = self.terrain.waystones.iter().position(|&(wx, wy)| d2(h.x, h.y, wx, wy) <= (WAYSTONE_PX * SUB) as i64 * (WAYSTONE_PX * SUB) as i64);
             match near {
                 None => {
                     h.hold = 0;
                     h.banked = false;
                 }
                 Some(w) if inp & IN_INTERACT != 0 => {
-                    h.hold += 1;
+                    // A hit pauses the hold for that tick; it does not start it over.
+                    if !h.hurt {
+                        h.hold += 1;
+                    }
                     if h.hold >= BANK_HOLD {
                         h.hold = 0;
                         if h.banked && h.waystone == w as u8 {
+                            // What she carries since the last bank goes in as she leaves.
+                            let coin = std::mem::take(&mut h.coin);
+                            if coin > 0 {
+                                self.events.push(Event::Bank { hero: id, coin, waystone: w as u8 });
+                            }
                             *h = Hero::default();
                             self.events.push(Event::Leave { hero: id });
                             continue;
@@ -165,8 +172,12 @@ impl Field {
                 }
             }
         });
+        let vault = self.realm.vault.is_some();
         let h = &mut self.heroes[i];
-        h.downed -= 1;
+        // In a vault there is no waystone to wake at: the downed wait to be raised until the run ends.
+        if !(vault && h.downed == 1) {
+            h.downed -= 1;
+        }
         match best {
             Some((rate, by)) => {
                 h.raise += rate;
@@ -195,8 +206,8 @@ impl Field {
                 return;
             }
         }
-        let keep = self.mods[i].keep_tenths.min(TENTHS);
-        let lost = h.coin / 2 * (TENTHS - keep) / TENTHS;
+        let keep = self.mods[i].keep_tenths.min(FALL_LOSS_TENTHS);
+        let lost = h.coin * (FALL_LOSS_TENTHS - keep) / TENTHS;
         h.coin -= lost;
         let (wx, wy) = self.terrain.waystones.get(h.waystone as usize).copied().unwrap_or(self.terrain.gate);
         h.x = wx;
@@ -209,7 +220,9 @@ impl Field {
     fn drink(&mut self, i: usize, slot: usize, m: &Mods) {
         let h = &mut self.heroes[i];
         let (p, n) = h.belt[slot];
-        let Some(row) = POTIONS.get(p as usize) else { return };
+        let Some(row) = POTIONS.get(p as usize) else {
+            return;
+        };
         if n == 0 || h.belt_rest[slot] > 0 {
             return;
         }
@@ -267,7 +280,10 @@ impl Field {
                         self.events.push(Event::Raise { hero: q as u16, by: i as u16 });
                     } else {
                         let amount = pct(pct(qh.max_health, p as i64), rank as i64);
-                        qh.heal(amount, tick);
+                        let healed = qh.heal(amount, tick);
+                        if q != i {
+                            self.credit(i, healed);
+                        }
                     }
                 }
                 self.heroes[i].active = tick;
@@ -323,7 +339,7 @@ impl Field {
         let row = &ZONES[zone as usize];
         let per_act = row.dmg_s * ZONE_EVERY / TICK_HZ;
         // Like every hero damage: the weapon's item level, then the power product.
-        let lvl = weapon_pct(self.heroes[owner].sheet.weapon_level(self.field));
+        let lvl = weapon_pct(self.heroes[owner].sheet.weapon_level_top(self.top_level()));
         let dmg = (per_act as u64 * lvl / 100 * m.power / POWER_ONE * rank as u64 / 100) as u32;
         let heal_tenths = row.heal_s * 10 * ZONE_EVERY / TICK_HZ * rank / 100;
         let px = row.px * m.size_pct as i32 / 100;
@@ -331,4 +347,3 @@ impl Field {
         self.zones.push(Zone { x, y, px, kind: zone, owner: owner as u16, left: ticks, age: 0, dmg, heal_tenths });
     }
 }
-
