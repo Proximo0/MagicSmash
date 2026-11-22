@@ -3,11 +3,15 @@
 
 pub mod bots;
 pub mod client;
+pub mod host;
 pub mod lockstep;
 pub mod predict;
+pub mod report;
+pub mod sim;
 pub mod snap;
 pub mod stats;
 pub mod view;
+pub mod wire;
 
 pub const DEFAULT_PORT: u16 = 7777;
 /// Largest datagram payload either side sends.
@@ -15,13 +19,8 @@ pub const MAX_DATAGRAM: usize = 1200;
 /// IP + UDP header bytes per datagram, for wire totals.
 pub const UDP_OVERHEAD: usize = 28;
 
-/// The skill bit of the one-byte move a client sends (bits 0..3 are the direction).
-pub const WIRE_SKILL: u8 = 0x80;
-
-/// A client's one-byte move as the core's input: the direction, and the skill bit as skill 1.
-pub fn wire_input(mv: u8) -> u16 {
-    (mv & 0x0F) as u16 | if mv & WIRE_SKILL != 0 { realm_core::IN_SKILL1 } else { 0 }
-}
+/// The skill bit a client that only knows skill 1 sets in byte 0 (the core's `IN_SKILL1`).
+pub const WIRE_SKILL: u8 = realm_core::IN_SKILL1 as u8;
 
 pub const MSG_HELLO: u8 = 0x01;
 pub const MSG_INPUT: u8 = 0x02;
@@ -112,33 +111,82 @@ impl<'a> Rd<'a> {
     }
 }
 
-/// HELLO: `0x01, u32 proto, u8 class, u8 race`.
+/// HELLO: `0x01, u32 proto, u8 class, u8 race, u64 ticket`. A field host that was given a gateway wants a
+/// ticket (from `FIELD_TICKET`) and ignores class and race; a crowd-test server has no tickets and joins a
+/// bench hero of that class (0..4 is KNIGHT to PALADIN) and race.
 pub fn hello(proto: u32, class: u8, race: u8) -> Vec<u8> {
+    hello_ticket(proto, class, race, 0)
+}
+
+pub fn hello_ticket(proto: u32, class: u8, race: u8, ticket: u64) -> Vec<u8> {
     let mut w = vec![MSG_HELLO];
     put_u32(&mut w, proto);
     w.push(class);
     w.push(race);
+    put_u64(&mut w, ticket);
     w
 }
 
-/// INPUT: `0x02, u32 last snapshot tick seen, u8 move, u8 zoom`.
+/// A parsed HELLO (`ticket` 0 when the client sent none).
+pub fn parse_hello(r: &mut Rd) -> Option<(u32, u8, u8, u64)> {
+    Some((r.u32()?, r.u8()?, r.u8()?, r.u64().unwrap_or(0)))
+}
+
+/// INPUT: `0x02, u32 ticks applied, u8 byte 0, u8 zoom, u8 byte 1` (rules section 1: direction and skills,
+/// then the pick and potions). A byte-0-only client sends 0 for byte 1.
 pub fn input(ack: u32, mv: u8, zoom: u8) -> Vec<u8> {
+    input_word(ack, mv as u16, zoom)
+}
+
+pub fn input_word(ack: u32, word: u16, zoom: u8) -> Vec<u8> {
     let mut w = vec![MSG_INPUT];
     put_u32(&mut w, ack);
-    w.push(mv);
+    w.push(word as u8);
     w.push(zoom);
+    w.push((word >> 8) as u8);
     w
 }
 
-/// A lockstep player's INPUT: `0x02, u32 ticks applied, u8 move, u8 zoom, u32 seq, u8 n, n x u8 move`:
-/// `moves[0]` is this input's move and the rest repeat the moves of seqs `seq - 1`, `seq - 2`, ...
-pub fn input_seq(ack: u32, seq: u32, moves: &[u8]) -> Vec<u8> {
-    let mut w = input(ack, moves.first().copied().unwrap_or(0), 1);
+/// A lockstep player's INPUT: the INPUT above, then `u32 seq, u8 n, n x u16 word`: `words[0]` is this
+/// input's word and the rest repeat the words of seqs `seq - 1`, `seq - 2`, ...
+pub fn input_seq(ack: u32, seq: u32, words: &[u16]) -> Vec<u8> {
+    let mut w = input_word(ack, words.first().copied().unwrap_or(0), 1);
     put_u32(&mut w, seq);
-    let earlier = moves.get(1..).unwrap_or_default();
+    let earlier = words.get(1..).unwrap_or_default();
     w.push(earlier.len() as u8);
-    w.extend_from_slice(earlier);
+    for &e in earlier {
+        put_u16(&mut w, e);
+    }
     w
+}
+
+/// An INPUT read back: `seq_words` is `Some((seq, [word of seq, word of seq - 1, ...]))` for a lockstep player.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InputMsg {
+    pub ack: u32,
+    pub word: u16,
+    pub zoom: u8,
+    pub seq_words: Option<(u32, Vec<u16>)>,
+}
+
+/// Reads an INPUT after its message byte. Fails soft on short input.
+pub fn parse_input(r: &mut Rd) -> Option<InputMsg> {
+    let ack = r.u32()?;
+    let b0 = r.u8()?;
+    let zoom = r.u8()?;
+    let b1 = r.u8()?;
+    let word = wire::clean_input(wire::word_of(b0, b1));
+    let seq_words = match r.u32() {
+        Some(seq) => {
+            let mut words = vec![word];
+            for _ in 0..r.u8()? {
+                words.push(wire::clean_input(r.u16()?));
+            }
+            Some((seq, words))
+        }
+        None => None,
+    };
+    Some(InputMsg { ack, word, zoom, seq_words })
 }
 
 /// WELCOME: `0x81, u32 player id, u32 tick, u16 tick hz, u32 field width px, u32 field height px`.

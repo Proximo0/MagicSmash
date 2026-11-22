@@ -82,6 +82,16 @@ name = "realm-core"
 version = "0.1.0"
 
 [[package]]
+name = "realm-gateway"
+version = "0.1.0"
+dependencies = [
+ "realm-core",
+ "realm-loot",
+ "realm-server",
+ "realm-store",
+]
+
+[[package]]
 name = "realm-loadtest"
 version = "0.1.0"
 dependencies = [

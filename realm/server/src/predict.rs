@@ -35,7 +35,7 @@ fn clamp_len(dx: i32, dy: i32, max: i32) -> (i32, i32) {
 #[derive(Clone, Copy, Debug)]
 struct Pending {
     seq: u32,
-    input: u8,
+    input: u16,
     x: i32,
     y: i32,
 }
@@ -59,7 +59,7 @@ pub struct Predictor {
 impl Predictor {
     /// The player sends `input` for its next tick: returns its seq and moves the prediction one step.
     /// `step(x, y, input)` is one tick of the hero's walking.
-    pub fn push(&mut self, input: u8, step: impl Fn(i32, i32, u8) -> (i32, i32)) -> u32 {
+    pub fn push(&mut self, input: u16, step: impl Fn(i32, i32, u16) -> (i32, i32)) -> u32 {
         self.last_seq += 1;
         let seq = self.last_seq;
         let Some((rx, ry)) = self.raw else {
@@ -83,7 +83,7 @@ impl Predictor {
 
     /// The follower reached a tick where the hero is at `(x, y)` (`alive` or not) and the input with `seq`
     /// was in force: drops the inputs the server has used and replays the rest from there with `step`.
-    pub fn confirm(&mut self, x: i32, y: i32, alive: bool, seq: u32, step: impl Fn(i32, i32, u8) -> (i32, i32)) {
+    pub fn confirm(&mut self, x: i32, y: i32, alive: bool, seq: u32, step: impl Fn(i32, i32, u16) -> (i32, i32)) {
         while self.pending.front().is_some_and(|p| p.seq < seq) {
             self.pending.pop_front();
         }
@@ -142,7 +142,7 @@ fn follow(ax: i32, ay: i32, tx: i32, ty: i32) -> (i32, i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{wire_input, WIRE_SKILL};
+    use realm_core::IN_SKILL1;
     use realm_core::{Config, Field, Outing, Sheet, FIELD};
 
     /// A field with no monsters, so nothing but inputs moves or hurts the hero.
@@ -154,19 +154,19 @@ mod tests {
         (f, id)
     }
 
-    fn walk(t: u32) -> u8 {
-        let dir = 1 + (t / 7 % 8) as u8;
-        if t % 50 == 0 { dir | WIRE_SKILL } else { dir }
+    fn walk(t: u32) -> u16 {
+        let dir = 1 + (t / 7 % 8) as u16;
+        if t % 50 == 0 { dir | IN_SKILL1 } else { dir }
     }
 
     /// The walking step the client hands the predictor.
-    fn step_of(f: &Field, id: u16) -> impl Fn(i32, i32, u8) -> (i32, i32) + '_ {
-        move |x, y, input| f.walk(id, x, y, wire_input(input))
+    fn step_of(f: &Field, id: u16) -> impl Fn(i32, i32, u16) -> (i32, i32) + '_ {
+        move |x, y, input| f.walk(id, x, y, input)
     }
 
-    fn inputs_for(id: u16, input: u8) -> Vec<u16> {
+    fn inputs_for(id: u16, input: u16) -> Vec<u16> {
         let mut inputs = vec![0u16; id as usize + 1];
-        inputs[id as usize] = wire_input(input);
+        inputs[id as usize] = input;
         inputs
     }
 
@@ -174,8 +174,8 @@ mod tests {
     fn run(lag: usize, ticks: u32, late: Option<u32>) -> (Predictor, Vec<((i32, i32), (i32, i32))>) {
         let (mut f, id) = quiet_field();
         let mut pred = Predictor::default();
-        let mut sent: VecDeque<(u32, u8)> = VecDeque::new();
-        let mut in_force = (0u32, 0u8);
+        let mut sent: VecDeque<(u32, u16)> = VecDeque::new();
+        let mut in_force = (0u32, 0u16);
         let mut trail = Vec::new();
         pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0, step_of(&f, id));
         for t in 1..=ticks {
@@ -203,7 +203,7 @@ mod tests {
         let (mut x, mut y) = (f.players()[id as usize].x, f.players()[id as usize].y);
         for t in 0..400 {
             let input = walk(t);
-            (x, y) = f.walk(id, x, y, wire_input(input));
+            (x, y) = f.walk(id, x, y, input);
             f.step(&inputs_for(id, input));
             assert_eq!((x, y), (f.players()[id as usize].x, f.players()[id as usize].y), "tick {t}");
         }
@@ -212,10 +212,10 @@ mod tests {
     #[test]
     fn the_step_never_enters_a_wall() {
         let (f, id) = quiet_field();
-        for dir in 1..=8u8 {
+        for dir in 1..=8u16 {
             let (mut x, mut y) = (f.players()[id as usize].x, f.players()[id as usize].y);
             for _ in 0..4000 {
-                (x, y) = f.walk(id, x, y, wire_input(dir));
+                (x, y) = f.walk(id, x, y, dir);
                 assert!((0..FIELD).contains(&x) && (0..FIELD).contains(&y) && !f.terrain().wall(x, y), "dir {dir}: ({x}, {y})");
             }
         }
@@ -241,8 +241,8 @@ mod tests {
         let (mut f, id) = quiet_field();
         let mut pred = Predictor::default();
         pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0, step_of(&f, id));
-        let mut sent: VecDeque<(u32, u8)> = VecDeque::new();
-        let mut in_force = (0u32, 0u8);
+        let mut sent: VecDeque<(u32, u16)> = VecDeque::new();
+        let mut in_force = (0u32, 0u16);
         let mut shown = pred.shown().unwrap_or_default();
         let mut wrong_since: Option<u32> = None;
         let mut longest = 0;
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn a_far_correction_jumps_at_once() {
         let mut pred = Predictor::default();
-        let east = |x: i32, y: i32, input: u8| (x + 3 * SUB * (input != 0) as i32, y);
+        let east = |x: i32, y: i32, input: u16| (x + 3 * SUB * (input != 0) as i32, y);
         pred.confirm(FIELD / 2, FIELD / 2, true, 0, east);
         pred.push(1, east);
         pred.confirm(FIELD / 4, FIELD / 4, true, 1, east);
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn a_dead_hero_is_not_moved_by_inputs() {
         let mut pred = Predictor::default();
-        let east = |x: i32, y: i32, _: u8| (x + 3 * SUB, y);
+        let east = |x: i32, y: i32, _: u16| (x + 3 * SUB, y);
         pred.confirm(FIELD / 2, FIELD / 2, false, 0, east);
         for _ in 0..5 {
             pred.push(3, east);

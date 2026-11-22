@@ -54,6 +54,8 @@ pub trait Store: Send + Sync {
 	fn account(&self, id: AccountId) -> Result<Option<Account>>;
 	fn hero(&self, id: HeroId) -> Result<Option<Hero>>;
 	fn heroes(&self, account: AccountId, include_deleted: bool) -> Result<Vec<Hero>>;
+	/// The live hero with this name (case does not matter), for mail and whispers.
+	fn hero_by_name(&self, name: &str) -> Result<Option<Hero>>;
 	fn item(&self, id: ItemId) -> Result<Option<Item>>;
 	fn items_at(&self, kind: PlaceKind, owner: i64) -> Result<Vec<Item>>;
 	fn stack(&self, owner: Owner, kind: StackKind) -> Result<u64>;

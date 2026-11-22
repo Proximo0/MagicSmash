@@ -1,6 +1,6 @@
 //! Protocol B: every client runs the whole field; the server sends what changed each tick.
 //!
-//! A tick record (this job's packing): `u16 n joins, [u16 id, u8 class, u8 race, u8 level, i32 x, i32 y]`,
+//! A tick record (this job's packing): `u16 n joins, [u16 id, sheet, outing, i32 x, i32 y]` (`wire.rs`),
 //! `u16 n leaves, [u16 id]`, `u16 n changes, [varint slot gap, u16 input]` (inputs persist until changed),
 //! `u8 has hash, [u64 hash after the tick]` (every 20 ticks).
 //!
@@ -12,8 +12,8 @@
 //! `u32 n` and the persistent `u16` inputs, then the field (`Field::to_bytes`).
 //!
 //! A lockstep player (HELLO proto 4) is a follower whose own inputs enter the stream. Its INPUT adds
-//! `u32 seq, u8 n, n x u8 move` (a number per input sent, from 1, and the moves of seqs `seq - 1` back to
-//! `seq - n`, so one lost INPUT costs nothing). The server queues them and uses one a tick
+//! `u32 seq, u8 n, n x u16 word` (a number per input sent, from 1, and the two-byte inputs of seqs `seq - 1`
+//! back to `seq - n`, so one lost INPUT costs nothing). The server queues them and uses one a tick
 //! (`InputQueue`). The first B datagram of each tick's send to a player is
 //! `0x92, u32 first tick, u8 n, n x u32 seq` (the seq of the input in force for that player at ticks
 //! `first .. first + n`, every tick after its acknowledgement) followed by a whole `0x90` datagram. That is
@@ -23,18 +23,27 @@
 //! apply joins, leaves and inputs in the same order.
 
 use crate::{put_i32, put_u16, put_u32, put_u64, put_varint, Rd, MAX_DATAGRAM, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS};
+use crate::wire::{put_outing, put_sheet, read_outing, read_sheet};
 use realm_core::{Field, Outing, Phase, Sheet};
 
 pub const HASH_EVERY: u32 = 20;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// A hero entering the field: her saved sheet and her outing state (a fresh one, or the one she left another
+/// copy with), where she stands, and the slot the core must give her (every follower checks it).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Join {
     pub id: u16,
-    pub class: u8,
-    pub race: u8,
-    pub level: u8,
+    pub sheet: Sheet,
+    pub outing: Outing,
     pub x: i32,
     pub y: i32,
+}
+
+impl Join {
+    /// A bench hero (bots, the crowd test's HELLO class and race): see `Sheet::bench`.
+    pub fn bench(id: u16, class: u8, race: u8, level: u8, x: i32, y: i32) -> Join {
+        Join { id, sheet: Sheet::bench(class, race, level), outing: Outing::new(), x, y }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -51,9 +60,8 @@ impl TickRec {
         put_u16(w, self.joins.len() as u16);
         for j in &self.joins {
             put_u16(w, j.id);
-            w.push(j.class);
-            w.push(j.race);
-            w.push(j.level);
+            put_sheet(w, &j.sheet);
+            put_outing(w, &j.outing);
             put_i32(w, j.x);
             put_i32(w, j.y);
         }
@@ -81,7 +89,7 @@ impl TickRec {
         let mut r = Rd::new(b);
         let mut t = TickRec { tick, ..TickRec::default() };
         for _ in 0..r.u16()? {
-            t.joins.push(Join { id: r.u16()?, class: r.u8()?, race: r.u8()?, level: r.u8()?, x: r.i32()?, y: r.i32()? });
+            t.joins.push(Join { id: r.u16()?, sheet: read_sheet(&mut r)?, outing: read_outing(&mut r)?, x: r.i32()?, y: r.i32()? });
         }
         for _ in 0..r.u16()? {
             t.leaves.push(r.u16()?);
@@ -116,7 +124,7 @@ impl Lockstep {
             }
         }
         for j in &rec.joins {
-            let id = f.join(&Sheet::bench(j.class, j.race, j.level), &Outing::new(), j.x, j.y);
+            let id = f.join(&j.sheet, &j.outing, j.x, j.y);
             ok &= id == j.id;
             if self.inputs.len() <= id as usize {
                 self.inputs.resize(id as usize + 1, 0);
@@ -239,30 +247,31 @@ pub fn take_seq_head(b: &[u8]) -> Option<(u32, Vec<u32>, &[u8])> {
     Some((first, seqs, &b[r.at..]))
 }
 
-/// Earlier moves repeated in each lockstep player's INPUT.
+/// Earlier inputs repeated in each lockstep player's INPUT.
 pub const INPUT_REPEAT: usize = 3;
 /// Inputs a player may have waiting on the server; beyond this the oldest go (the client runs fast).
 pub const INPUT_QUEUE_MAX: usize = 3;
 
 /// A lockstep player's inputs on the server: each tick uses the next one in seq order, so inputs that
 /// arrive unevenly (jitter) still move the hero one input a tick, as the player's prediction assumes. With
-/// none waiting the last one holds.
+/// none waiting the last one holds (the core reads picks and potions as edges, so a held word does not
+/// pick or drink twice).
 #[derive(Clone, Debug, Default)]
 pub struct InputQueue {
     newest: u32,
-    queue: std::collections::VecDeque<(u32, u8)>,
+    queue: std::collections::VecDeque<(u32, u16)>,
     /// The input in force and its seq.
     pub seq: u32,
-    pub input: u8,
+    pub input: u16,
 }
 
 impl InputQueue {
-    /// An INPUT: `moves[0]` is `seq`'s move, `moves[k]` is `seq - k`'s. Seqs already seen are ignored.
-    pub fn take(&mut self, seq: u32, moves: &[u8]) {
-        for k in (0..moves.len()).rev() {
+    /// An INPUT: `words[0]` is `seq`'s word, `words[k]` is `seq - k`'s. Seqs already seen are ignored.
+    pub fn take(&mut self, seq: u32, words: &[u16]) {
+        for k in (0..words.len()).rev() {
             let Some(s) = seq.checked_sub(k as u32).filter(|&s| s > self.newest) else { continue };
             self.newest = s;
-            self.queue.push_back((s, moves[k] & 0x8F));
+            self.queue.push_back((s, words[k]));
         }
         while self.queue.len() > INPUT_QUEUE_MAX {
             self.queue.pop_front();
@@ -270,12 +279,81 @@ impl InputQueue {
     }
 
     /// The input for the next tick.
-    pub fn next_tick(&mut self) -> u8 {
+    pub fn next_tick(&mut self) -> u16 {
         if let Some((s, m)) = self.queue.pop_front() {
             self.seq = s;
             self.input = m;
         }
         self.input
+    }
+}
+
+/// Which records a client gets this tick: every new one at once, and one it has not acknowledged only after
+/// a whole round trip has passed since it was last sent (then again after another), so a client with a
+/// 160 ms round trip is not sent every tick four times over. The round trip is measured from the client's own
+/// acknowledgements, in server ticks, smoothed over 4.
+#[derive(Clone, Debug)]
+pub struct Resend {
+    /// tick -> the server tick it was last sent at, for ticks not yet acknowledged.
+    sent: std::collections::BTreeMap<u32, u32>,
+    /// tick -> the server tick it was first sent at (for the round trip sample).
+    first: std::collections::BTreeMap<u32, u32>,
+    acked: u32,
+    /// Smoothed round trip in quarter ticks.
+    srtt4: u32,
+}
+
+/// The round trip assumed before the first acknowledgement (200 ms).
+pub const RTT_START: u32 = 4;
+/// A record is sent again when its last send is older than `rtt + RESEND_SLACK` ticks.
+pub const RESEND_SLACK: u32 = 1;
+
+impl Default for Resend {
+    fn default() -> Self {
+        Resend { sent: Default::default(), first: Default::default(), acked: 0, srtt4: RTT_START * 4 }
+    }
+}
+
+impl Resend {
+    /// The client says it has applied every tick up to `ack`; `now` is the server's tick count.
+    pub fn on_ack(&mut self, ack: u32, now: u32) {
+        if ack > self.acked {
+            if let Some(&f) = self.first.get(&ack) {
+                let sample = now.saturating_sub(f).max(1);
+                self.srtt4 = ((3 * self.srtt4 + 4 * sample + 2) / 4).max(4);
+            }
+            self.acked = ack;
+            self.sent = self.sent.split_off(&(ack + 1));
+            self.first = self.first.split_off(&(ack + 1));
+        }
+    }
+
+    /// The ticks to send now out of `have` (ascending): the new ones, and the old ones a round trip has
+    /// passed on. Ticks at or before the acknowledgement are skipped. Marks the picked ones sent.
+    pub fn pick(&mut self, now: u32, have: impl Iterator<Item = u32>) -> Vec<u32> {
+        let wait = self.rtt() + RESEND_SLACK;
+        let mut out = Vec::new();
+        for t in have.filter(|&t| t > self.acked) {
+            let due = match self.sent.get(&t) {
+                None => true,
+                Some(&at) => now.saturating_sub(at) >= wait,
+            };
+            if due {
+                self.sent.insert(t, now);
+                self.first.entry(t).or_insert(now);
+                out.push(t);
+            }
+        }
+        out
+    }
+
+    /// The smoothed round trip in server ticks, rounded up.
+    pub fn rtt(&self) -> u32 {
+        self.srtt4.div_ceil(4)
+    }
+
+    pub fn acked(&self) -> u32 {
+        self.acked
     }
 }
 
@@ -356,14 +434,14 @@ mod tests {
             let mut rec = TickRec { tick: t, ..TickRec::default() };
             if t <= 3 {
                 for k in 0..20u16 {
-                    rec.joins.push(Join { id: (t as u16 - 1) * 20 + k, class: (k % 5) as u8, race: (k % 4) as u8, level: 1, x: FIELD / 2 + k as i32 * 50 * SUB, y: FIELD / 2 });
+                    rec.joins.push(Join::bench((t as u16 - 1) * 20 + k, (k % 5) as u8, (k % 4) as u8, 1 + (k % 3) as u8 * 20, FIELD / 2 + k as i32 * 50 * SUB, FIELD / 2));
                 }
             }
             if t == 150 {
                 rec.leaves.push(5);
             }
             if t == 160 {
-                rec.joins.push(Join { id: 5, class: 1, race: 1, level: 1, x: FIELD / 3, y: FIELD / 3 });
+                rec.joins.push({ let mut j = Join::bench(5, 1, 1, 30, FIELD / 3, FIELD / 3); j.outing.coin = 90; j.outing.level = 4; j });
             }
             let want: Vec<u16> = (0..60u32).map(|i| if i == 5 && (150..160).contains(&t) { 0 } else { ((i * 7 + t / 15) % 9) as u16 }).collect();
             rec.changes = ls.changes(&rec, &want);
@@ -440,11 +518,102 @@ mod tests {
     fn the_input_queue_drops_the_oldest_beyond_its_limit() {
         let mut q = InputQueue::default();
         for s in 1..=6u32 {
-            q.take(s, &[s as u8 | INPUT_SKILL_BIT]);
+            q.take(s, &[s as u16 | INPUT_SKILL_BIT]);
         }
         assert_eq!(q.next_tick(), 4 | INPUT_SKILL_BIT);
         assert_eq!(q.seq, 4);
     }
 
-    const INPUT_SKILL_BIT: u8 = crate::WIRE_SKILL;
+    /// One run of a lossy link, `resend` or not: returns (bytes the server sent, ticks the client applied,
+    /// the longest run of server ticks the client stood still after the join).
+    fn run_link(resend: bool, one_way: u32, loss_pct: u64, total: u32) -> (u64, u32, u32) {
+        let rec = |t: u32| -> Vec<u8> { (0..60u32).map(|i| (t.wrapping_mul(31) + i) as u8).collect() };
+        let mut asm = Assembler::default();
+        let mut rs = Resend::default();
+        let mut rng = 12345u64;
+        let lost = |rng: &mut u64| {
+            *rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (*rng >> 33) % 100 < loss_pct
+        };
+        // (arrives at server tick, payload)
+        let mut to_client: Vec<(u32, Vec<Vec<u8>>)> = Vec::new();
+        let mut to_server: Vec<(u32, u32)> = Vec::new();
+        let (mut ack_at_server, mut applied, mut bytes) = (0u32, 0u32, 0u64);
+        let (mut still, mut worst) = (0u32, 0u32);
+        for n in 1..=total {
+            // The server hears the acknowledgements that arrive now.
+            for &(_, a) in to_server.iter().filter(|(at, _)| *at <= n) {
+                ack_at_server = ack_at_server.max(a);
+            }
+            to_server.retain(|(at, _)| *at > n);
+            rs.on_ack(ack_at_server, n);
+            let have = (ack_at_server + 1)..=n;
+            let ticks: Vec<u32> = if resend { rs.pick(n, have) } else { have.collect() };
+            let owned: Vec<Vec<u8>> = ticks.iter().map(|&t| rec(t)).collect();
+            let recs: Vec<(u32, &[u8])> = ticks.iter().zip(&owned).map(|(&t, b)| (t, b.as_slice())).collect();
+            let mut out = Vec::new();
+            pack_reserving(&recs, 0, &mut out);
+            bytes += out.iter().map(|d| d.len() as u64).sum::<u64>();
+            if !lost(&mut rng) {
+                to_client.push((n + one_way, out));
+            }
+            // The client takes what arrives now, applies what it can, and acknowledges.
+            for (_, ds) in to_client.iter().filter(|(at, _)| *at <= n) {
+                for d in ds {
+                    asm.take(d, applied).unwrap();
+                }
+            }
+            to_client.retain(|(at, _)| *at > n);
+            let before = applied;
+            while let Some(b) = asm.next(applied + 1) {
+                assert_eq!(b, rec(applied + 1));
+                applied += 1;
+            }
+            still = if applied > before { 0 } else { still + 1 };
+            worst = worst.max(still);
+            if !lost(&mut rng) {
+                to_server.push((n + one_way, applied));
+            }
+        }
+        (bytes, applied, worst)
+    }
+
+    #[test]
+    fn a_tick_is_repeated_only_after_one_round_trip() {
+        // 80 ms each way is 4 ticks each way; 5% of datagrams lost each way.
+        let (old_bytes, old_applied, old_worst) = run_link(false, 4, 5, 600);
+        let (new_bytes, new_applied, new_worst) = run_link(true, 4, 5, 600);
+        println!("LINK old bytes={old_bytes} applied={old_applied} worst_stall={old_worst} new bytes={new_bytes} applied={new_applied} worst_stall={new_worst}");
+        assert!(old_applied > 580 && new_applied > 580, "{old_applied} {new_applied}");
+        assert!(new_bytes * 2 < old_bytes, "bytes {new_bytes} against {old_bytes}");
+        // The price is one more round trip (rtt + slack ticks) on a lost record, not a stall without end.
+        assert!(new_worst <= 4 + old_worst + 6, "stall {new_worst} against {old_worst}");
+        // With no loss nothing is ever sent twice.
+        let (clean_bytes, clean_applied, _) = run_link(true, 4, 0, 600);
+        let (once, _, _) = run_link(false, 0, 0, 600);
+        assert!(clean_applied > 590);
+        assert!(clean_bytes < once * 11 / 10, "{clean_bytes} against {once}");
+    }
+
+    #[test]
+    fn the_round_trip_is_learned_from_the_acknowledgements() {
+        let mut rs = Resend::default();
+        let mut now = 0;
+        for t in 1..=40u32 {
+            now += 1;
+            assert_eq!(rs.pick(now, t..=t), vec![t]);
+            // The ack of tick t comes 10 ticks later.
+            if t > 10 {
+                rs.on_ack(t - 10, now);
+            }
+        }
+        assert!((9..=11).contains(&rs.rtt()), "rtt {}", rs.rtt());
+        // Unacknowledged ticks are sent again only once rtt + slack ticks have gone by.
+        let again = rs.pick(now + 1, 31..=40);
+        assert!(again.is_empty(), "{again:?}");
+        let again = rs.pick(now + rs.rtt() + RESEND_SLACK, 31..=40);
+        assert_eq!(again.len(), 10);
+    }
+
+    const INPUT_SKILL_BIT: u16 = realm_core::IN_SKILL1;
 }
