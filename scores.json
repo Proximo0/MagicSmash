@@ -18835,5 +18835,1617 @@
 "notes": " missing ['upside down man', 'dead tree', 'serene face']"
 }
 ]
+},
+"DK1.11": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0002,
+"two cups": 0.0,
+"water stream": 0.0
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0005,
+"two cups": 0.0,
+"water stream": 0.0006
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0002,
+"two cups": 0.0,
+"water stream": 0.0
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0003,
+"two cups": 0.0,
+"water stream": 0.0
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0002,
+"two cups": 0.0,
+"water stream": 0.0002
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0006,
+"two cups": 0.0,
+"water stream": 0.0006
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"winged figure": 0.0002,
+"two cups": 0.0,
+"water stream": 0.0001
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"winged figure": 0.0038,
+"two cups": 0.0001,
+"water stream": 0.0008
+},
+"notes": " missing ['winged figure', 'two cups', 'water stream']"
+}
+]
+},
+"DK1.12": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"goat-headed devil": 0.0073,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.01,
+"traits": {
+"goat-headed devil": 0.0291,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.027,
+"traits": {
+"goat-headed devil": 0.0804,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.012,
+"traits": {
+"goat-headed devil": 0.0365,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.006,
+"traits": {
+"goat-headed devil": 0.0188,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.021,
+"traits": {
+"goat-headed devil": 0.0623,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.017,
+"traits": {
+"goat-headed devil": 0.05,
+"two chained figures": 0.0003,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.014,
+"traits": {
+"goat-headed devil": 0.043,
+"two chained figures": 0.0,
+"red glow": 0.0
+},
+"notes": " missing ['goat-headed devil', 'two chained figures', 'red glow']"
+}
+]
+},
+"DK1.13": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"sun with stern face": 0.0007,
+"withered sunflowers": 0.0
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"sun with stern face": 0.0003,
+"withered sunflowers": 0.0006
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.006,
+"traits": {
+"sun with stern face": 0.0112,
+"withered sunflowers": 0.0013
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"sun with stern face": 0.0013,
+"withered sunflowers": 0.0003
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"sun with stern face": 0.0001,
+"withered sunflowers": 0.0
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"sun with stern face": 0.0011,
+"withered sunflowers": 0.0001
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"sun with stern face": 0.0038,
+"withered sunflowers": 0.0008
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"sun with stern face": 0.0044,
+"withered sunflowers": 0.0005
+},
+"notes": " missing ['sun with stern face', 'withered sunflowers']"
+}
+]
+},
+"DK1.14": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"angel with trumpet": 0.0015,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0009,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0002,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"angel with trumpet": 0.0037,
+"dead rising from graves": 0.0001
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0001,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0001,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0007,
+"dead rising from graves": 0.0001
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"angel with trumpet": 0.0002,
+"dead rising from graves": 0.0
+},
+"notes": " missing ['angel with trumpet', 'dead rising from graves']"
+}
+]
+},
+"DK1.15": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0003
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0001
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0001
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0001,
+"four beasts": 0.0003
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"dancing figure": 0.0,
+"laurel wreath": 0.0,
+"four beasts": 0.0001
+},
+"notes": " missing ['dancing figure', 'laurel wreath', 'four beasts']"
+}
+]
+},
+"DK1.16": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.003,
+"traits": {
+"figure in bed": 0.0005,
+"nine swords": 0.0051
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"figure in bed": 0.0057,
+"nine swords": 0.003
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"figure in bed": 0.0004,
+"nine swords": 0.0012
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"figure in bed": 0.0012,
+"nine swords": 0.005
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"figure in bed": 0.0,
+"nine swords": 0.0002
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"figure in bed": 0.0001,
+"nine swords": 0.0023
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.004,
+"traits": {
+"figure in bed": 0.0001,
+"nine swords": 0.0072
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"figure in bed": 0.0021,
+"nine swords": 0.0019
+},
+"notes": " missing ['figure in bed', 'nine swords']"
+}
+]
+},
+"DK1.17": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.219,
+"traits": {
+"three hooded figures": 0.4378,
+"raised goblets": 0.0002
+},
+"notes": " missing ['raised goblets']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.394,
+"traits": {
+"three hooded figures": 0.7879,
+"raised goblets": 0.0006
+},
+"notes": " missing ['raised goblets']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.034,
+"traits": {
+"three hooded figures": 0.0675,
+"raised goblets": 0.0001
+},
+"notes": " missing ['three hooded figures', 'raised goblets']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.176,
+"traits": {
+"three hooded figures": 0.3504,
+"raised goblets": 0.0021
+},
+"notes": " missing ['raised goblets']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.409,
+"traits": {
+"three hooded figures": 0.8056,
+"raised goblets": 0.0129
+},
+"notes": " missing ['raised goblets']"
+}
+]
+},
+"DK1.18": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0027
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.001
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0047
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0008
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0002
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0004
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0022
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"hand from cloud": 0.0,
+"burning staff": 0.0049
+},
+"notes": " missing ['hand from cloud', 'burning staff']"
+}
+]
+},
+"DK1.19": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.07,
+"traits": {
+"two beggars": 0.0006,
+"snow": 0.0001,
+"lit church window": 0.2108
+},
+"notes": " missing ['two beggars', 'snow']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.01,
+"traits": {
+"two beggars": 0.0002,
+"snow": 0.0,
+"lit church window": 0.0284
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.021,
+"traits": {
+"two beggars": 0.0009,
+"snow": 0.0003,
+"lit church window": 0.0623
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"two beggars": 0.0002,
+"snow": 0.0002,
+"lit church window": 0.0089
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.006,
+"traits": {
+"two beggars": 0.0,
+"snow": 0.0,
+"lit church window": 0.017
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.008,
+"traits": {
+"two beggars": 0.0004,
+"snow": 0.0001,
+"lit church window": 0.0221
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"two beggars": 0.0,
+"snow": 0.0,
+"lit church window": 0.0023
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.006,
+"traits": {
+"two beggars": 0.0004,
+"snow": 0.0003,
+"lit church window": 0.0163
+},
+"notes": " missing ['two beggars', 'snow', 'lit church window']"
+}
+]
+},
+"DK1.20": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0,
+"stone courtyard": 0.0
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0,
+"stone courtyard": 0.0001
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0,
+"stone courtyard": 0.0
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0001,
+"cups of flowers": 0.0001,
+"stone courtyard": 0.0001
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0001,
+"cups of flowers": 0.0001,
+"stone courtyard": 0.0
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0001,
+"stone courtyard": 0.0
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0,
+"stone courtyard": 0.0001
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"two children": 0.0,
+"cups of flowers": 0.0,
+"stone courtyard": 0.0001
+},
+"notes": " missing ['two children', 'cups of flowers', 'stone courtyard']"
+}
+]
+},
+"DK1.21": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.009,
+"traits": {
+"fallen figure": 0.0001,
+"ten swords": 0.0258,
+"black sky": 0.0004
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.001,
+"black sky": 0.0
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.0021,
+"black sky": 0.0001
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.0013,
+"black sky": 0.0
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.055,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.1645,
+"black sky": 0.0001
+},
+"notes": " missing ['fallen figure', 'black sky']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.0055,
+"black sky": 0.0
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.0027,
+"black sky": 0.0
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"fallen figure": 0.0,
+"ten swords": 0.0002,
+"black sky": 0.0
+},
+"notes": " missing ['fallen figure', 'ten swords', 'black sky']"
+}
+]
+},
+"DK1.22": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.015,
+"traits": {
+"queen": 0.0001,
+"great gold coin": 0.0,
+"carved throne": 0.0457
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.006,
+"traits": {
+"queen": 0.0001,
+"great gold coin": 0.0,
+"carved throne": 0.0183
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.04,
+"traits": {
+"queen": 0.0001,
+"great gold coin": 0.0,
+"carved throne": 0.1192
+},
+"notes": " missing ['queen', 'great gold coin']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.08,
+"traits": {
+"queen": 0.0002,
+"great gold coin": 0.0,
+"carved throne": 0.2408
+},
+"notes": " missing ['queen', 'great gold coin']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.019,
+"traits": {
+"queen": 0.0001,
+"great gold coin": 0.0,
+"carved throne": 0.0571
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.01,
+"traits": {
+"queen": 0.0001,
+"great gold coin": 0.0,
+"carved throne": 0.0287
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"queen": 0.0,
+"great gold coin": 0.0,
+"carved throne": 0.0052
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.015,
+"traits": {
+"queen": 0.0002,
+"great gold coin": 0.0,
+"carved throne": 0.046
+},
+"notes": " missing ['queen', 'great gold coin', 'carved throne']"
+}
+]
+},
+"DK1.23": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0001,
+"rearing horse": 0.0008,
+"burning staff": 0.0001
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0,
+"rearing horse": 0.0001,
+"burning staff": 0.0
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0001,
+"rearing horse": 0.0003,
+"burning staff": 0.0002
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0003,
+"rearing horse": 0.0001,
+"burning staff": 0.0001
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0,
+"rearing horse": 0.0,
+"burning staff": 0.0003
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0002,
+"rearing horse": 0.0001,
+"burning staff": 0.0004
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"armoured knight": 0.0001,
+"rearing horse": 0.0001,
+"burning staff": 0.0002
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"armoured knight": 0.0012,
+"rearing horse": 0.0003,
+"burning staff": 0.0025
+},
+"notes": " missing ['armoured knight', 'rearing horse', 'burning staff']"
+}
+]
+},
+"ST1.1": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.024,
+"traits": {
+"horde silhouettes": 0.0208,
+"blood moon": 0.0518,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'blood moon', 'empty left space']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.021,
+"traits": {
+"horde silhouettes": 0.0088,
+"blood moon": 0.055,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'blood moon', 'empty left space']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.099,
+"traits": {
+"horde silhouettes": 0.0338,
+"blood moon": 0.2644,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'empty left space']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"horde silhouettes": 0.0013,
+"blood moon": 0.0091,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'blood moon', 'empty left space']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.026,
+"traits": {
+"horde silhouettes": 0.0155,
+"blood moon": 0.0637,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'blood moon', 'empty left space']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.016,
+"traits": {
+"horde silhouettes": 0.0015,
+"blood moon": 0.0457,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'blood moon', 'empty left space']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.115,
+"traits": {
+"horde silhouettes": 0.0637,
+"blood moon": 0.2814,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'empty left space']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.052,
+"traits": {
+"horde silhouettes": 0.0086,
+"blood moon": 0.1461,
+"empty left space": 0.0
+},
+"notes": " missing ['horde silhouettes', 'empty left space']"
+}
+]
+},
+"ST1.2": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.046,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0219,
+"blood moon": 0.1168
+},
+"notes": " missing ['heroes', 'horde']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.044,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0333,
+"blood moon": 0.0974
+},
+"notes": " missing ['heroes', 'horde', 'blood moon']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.057,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0492,
+"blood moon": 0.1217
+},
+"notes": " missing ['heroes', 'horde']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.042,
+"traits": {
+"heroes": 0.0,
+"horde": 0.018,
+"blood moon": 0.1074
+},
+"notes": " missing ['heroes', 'horde']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.115,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0311,
+"blood moon": 0.3141
+},
+"notes": " missing ['heroes', 'horde']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.109,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0092,
+"blood moon": 0.3191
+},
+"notes": " missing ['heroes', 'horde']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.248,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0914,
+"blood moon": 0.6531
+},
+"notes": " missing ['heroes', 'horde']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.057,
+"traits": {
+"heroes": 0.0,
+"horde": 0.0326,
+"blood moon": 0.1394
+},
+"notes": " missing ['heroes', 'horde']"
+}
+]
+},
+"ST1.3": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.007,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0276,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.014,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0571,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0098,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.011,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.045,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.004,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0162,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.007,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0268,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.004,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0155,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"hearth": 0.0,
+"three heroes": 0.0,
+"horde": 0.0176,
+"empty upper third": 0.0
+},
+"notes": " missing ['hearth', 'three heroes', 'horde', 'empty upper third']"
+}
+]
+},
+"ST1.4": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.049,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.1944,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'empty top']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.049,
+"traits": {
+"small heroes": 0.0002,
+"hearth": 0.0,
+"rising horde": 0.1968,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'empty top']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.027,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.1074,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'empty top']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.0146,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'rising horde', 'empty top']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.021,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.0845,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'rising horde', 'empty top']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.091,
+"traits": {
+"small heroes": 0.0001,
+"hearth": 0.0,
+"rising horde": 0.3648,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'empty top']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.033,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.133,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'empty top']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.022,
+"traits": {
+"small heroes": 0.0,
+"hearth": 0.0,
+"rising horde": 0.0863,
+"empty top": 0.0
+},
+"notes": " missing ['small heroes', 'hearth', 'rising horde', 'empty top']"
+}
+]
 }
 }
