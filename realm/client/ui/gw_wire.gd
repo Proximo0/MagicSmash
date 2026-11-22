@@ -37,6 +37,31 @@ const T_FUSE := 0x1F
 const T_CARDS := 0x30
 const T_BUY := 0x31
 const T_SELL := 0x32
+# the social calls (job T1, docs/realm/social.md): tags 0x40.., one reply tag and one push tag
+const T_SOC_TALK := 0x40
+const T_SOC_PARTY_INVITE := 0x41
+const T_SOC_PARTY_ANSWER := 0x42
+const T_SOC_PARTY_LEAVE := 0x43
+const T_SOC_PARTY_KICK := 0x44
+const T_SOC_PARTY_LEAD := 0x45
+const T_SOC_PARTY_GO := 0x46
+const T_SOC_PARTY_INFO := 0x47
+const T_SOC_GUILD_CREATE := 0x48
+const T_SOC_GUILD_INVITE := 0x49
+const T_SOC_GUILD_ANSWER := 0x4A
+const T_SOC_GUILD_LEAVE := 0x4B
+const T_SOC_GUILD_KICK := 0x4C
+const T_SOC_GUILD_RANK := 0x4D
+const T_SOC_GUILD_MOTD := 0x4F
+const T_SOC_GUILD_POST := 0x50
+const T_SOC_GUILD_UNPOST := 0x51
+const T_SOC_GUILD_INFO := 0x54
+const T_SOC_FRIEND_ADD := 0x56
+const T_SOC_FRIEND_ANSWER := 0x57
+const T_SOC_FRIEND_REMOVE := 0x58
+const T_SOC_IGNORE := 0x59
+const T_SOC_LISTS := 0x5A
+const T_SOC_REPORT := 0x5B
 # replies
 const R_OK := 0x80
 const R_ERR := 0x81
@@ -49,12 +74,14 @@ const R_INVENTORY := 0x87
 const R_PONG := 0x88
 const R_SMITH := 0x89
 const R_CARDS := 0x8A
+const R_SOCIAL := 0x90
 # pushes
 const P_TOWN_SNAPSHOT := 0xA0
 const P_TOWN_CHAT := 0xA1
 const P_TOWN_ARRIVE := 0xA2
 const P_TOWN_DEPART := 0xA3
 const P_OUTING := 0xA4
+const P_SOCIAL := 0xB0
 ## Not on the wire: the link's own answer when the connection is gone or a reply never came.
 const R_LOST := 0xFF
 
@@ -77,6 +104,16 @@ const E_INVALID := 13
 const E_SLOW_DOWN := 14
 const E_INTERNAL := 15
 const E_NO_FIELD := 16
+const E_MUTED := 17
+
+## Chat channels (the say channel is the older T_CHAT).
+const CHAN_TOWN := 1
+const CHAN_TRADE := 2
+const CHAN_PARTY := 3
+const CHAN_GUILD := 4
+const CHAN_WHISPER := 5
+const CHAN_NAMES: Array[String] = ["SAY", "TOWN", "TRADE", "PARTY", "GUILD", "WHISPER"]
+const RANK_NAMES: Array[String] = ["LEADER", "OFFICER", "MEMBER", "RECRUIT"]
 
 
 static func _buf() -> StreamPeerBuffer:
@@ -264,7 +301,212 @@ static func buy(hero: int, kind: int, n: int) -> Array:
 	return [T_BUY, b.data_array]
 
 
+static func soc_talk(hero: int, chan: int, to: String, text: String) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(chan)
+	put_str(b, to)
+	put_str(b, text)
+	return [T_SOC_TALK, b.data_array]
+
+
+## A social request that is only the hero (leave, info, lists).
+static func soc_hero(t: int, hero: int) -> Array:
+	return hero_only(t, hero)
+
+
+## A hero and a name or text (invite, create, post, friend add, motd).
+static func soc_str(t: int, hero: int, s: String) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_str(b, s)
+	return [t, b.data_array]
+
+
+## A hero and an id (party kick or lead: a hero id; guild kick: an account id).
+static func soc_id(t: int, hero: int, id: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(id)
+	return [t, b.data_array]
+
+
+## Answers an invitation: party (the inviter's hero), guild (the guild id) or friend (the account).
+static func soc_answer(t: int, hero: int, id: int, accept: bool) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(id)
+	b.put_u8(1 if accept else 0)
+	return [t, b.data_array]
+
+
+static func soc_guild_rank(hero: int, account: int, rank: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(account)
+	b.put_u8(rank)
+	return [T_SOC_GUILD_RANK, b.data_array]
+
+
+static func soc_party_go(hero: int, field: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(field)
+	return [T_SOC_PARTY_GO, b.data_array]
+
+
+static func soc_ignore(hero: int, name: String, on: bool) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_str(b, name)
+	b.put_u8(1 if on else 0)
+	return [T_SOC_IGNORE, b.data_array]
+
+
+## `reason`: 0 spam, 1 abuse, 2 cheating, 3 name, 4 other.
+static func soc_report(hero: int, name: String, reason: int, text: String) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_str(b, name)
+	b.put_u8(reason)
+	put_str(b, text)
+	return [T_SOC_REPORT, b.data_array]
+
+
 # ---- replies and pushes
+
+static func _party(b: StreamPeerBuffer) -> Dictionary:
+	if b.get_u8() == 0:
+		return {}
+	var p := {}
+	p["id"] = b.get_u64()
+	p["leader"] = b.get_64()
+	var has_copy: int = b.get_u8()
+	var field: int = b.get_u8()
+	var copy: int = b.get_u8()
+	p["copy"] = [field, copy] if has_copy != 0 else []
+	var members: Array[Dictionary] = []
+	for i in b.get_u8():
+		var m := {}
+		m["hero"] = b.get_64()
+		m["name"] = get_str(b)
+		m["class"] = b.get_u8()
+		m["level"] = b.get_u16()
+		m["online"] = b.get_u8() != 0
+		members.append(m)
+	p["members"] = members
+	return p
+
+
+static func _guild(b: StreamPeerBuffer) -> Dictionary:
+	if b.get_u8() == 0:
+		return {}
+	var g := {}
+	g["id"] = b.get_u64()
+	g["name"] = get_str(b)
+	g["motd"] = get_str(b)
+	g["my_rank"] = b.get_u8()
+	var perms: Array[int] = []
+	for i in 4:
+		perms.append(b.get_u16())
+	g["perms"] = perms
+	var members: Array[Dictionary] = []
+	for i in b.get_u16():
+		var m := {}
+		m["account"] = b.get_64()
+		m["name"] = get_str(b)
+		m["rank"] = b.get_u8()
+		m["online"] = b.get_u8() != 0
+		members.append(m)
+	g["members"] = members
+	var board: Array[Dictionary] = []
+	for i in b.get_u16():
+		var p := {}
+		p["id"] = b.get_u64()
+		p["author"] = get_str(b)
+		p["text"] = get_str(b)
+		p["at"] = b.get_64()
+		board.append(p)
+	g["board"] = board
+	return g
+
+
+static func _social_reply(b: StreamPeerBuffer, d: Dictionary) -> void:
+	d["k"] = b.get_u8()
+	match int(d["k"]):
+		0:
+			d["party"] = _party(b)
+		1:
+			d["guild"] = _guild(b)
+		2:
+			d["guild_id"] = b.get_u64()
+		3:
+			var items: Array[Dictionary] = []
+			for i in b.get_u32():
+				items.append(_item(b))
+			var stacks: Array[Array] = []
+			for i in b.get_u32():
+				var kind: int = b.get_u32()
+				stacks.append([0, kind, b.get_64()])
+			d["items"] = items
+			d["stacks"] = stacks
+		4:
+			var friends: Array[Dictionary] = []
+			for i in b.get_u16():
+				var f := {}
+				f["account"] = b.get_64()
+				f["name"] = get_str(b)
+				f["online"] = b.get_u8() != 0
+				f["place"] = b.get_u8()
+				friends.append(f)
+			var pending: Array[Dictionary] = []
+			for i in b.get_u16():
+				var a: int = b.get_64()
+				pending.append({"account": a, "name": get_str(b)})
+			var ignores: Array[Dictionary] = []
+			for i in b.get_u16():
+				var a2: int = b.get_64()
+				ignores.append({"account": a2, "name": get_str(b)})
+			d["friends"] = friends
+			d["pending"] = pending
+			d["ignores"] = ignores
+		5:
+			d["report"] = b.get_u64()
+
+
+static func _social_push(b: StreamPeerBuffer, d: Dictionary) -> void:
+	d["k"] = b.get_u8()
+	match int(d["k"]):
+		0:
+			d["chan"] = b.get_u8()
+			d["from"] = get_str(b)
+			d["to"] = get_str(b)
+			d["text"] = get_str(b)
+		1:
+			d["inviter"] = b.get_64()
+			d["name"] = get_str(b)
+		2:
+			d["party"] = _party(b)
+		3:
+			d["field"] = b.get_u8()
+		4:
+			d["guild"] = b.get_u64()
+			d["guild_name"] = get_str(b)
+			d["from"] = get_str(b)
+		5:
+			pass
+		6:
+			d["from"] = b.get_64()
+			d["name"] = get_str(b)
+		7:
+			d["account"] = b.get_64()
+			d["name"] = get_str(b)
+			d["online"] = b.get_u8() != 0
+			d["place"] = b.get_u8()
+		8:
+			d["text"] = get_str(b)
+
+
 
 static func _member(b: StreamPeerBuffer) -> Dictionary:
 	var m := {}
@@ -390,6 +632,10 @@ static func decode(t: int, body: PackedByteArray) -> Dictionary:
 			for i in b.get_u16():
 				cards.append(b.get_u16())
 			d["cards"] = cards
+		R_SOCIAL:
+			_social_reply(b, d)
+		P_SOCIAL:
+			_social_push(b, d)
 		P_TOWN_SNAPSHOT:
 			d["tick"] = b.get_u32()
 			var at: Array[Array] = []

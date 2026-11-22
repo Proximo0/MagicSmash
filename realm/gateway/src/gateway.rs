@@ -128,6 +128,8 @@ pub struct Gateway {
     threads: Mutex<Vec<JoinHandle<()>>>,
     next_conn: AtomicU64,
     ticket_rng: AtomicU64,
+    /// Parties, guilds, friends, chat channels and the moderators' hooks (job T1).
+    pub social: crate::social::Social,
 }
 
 pub fn now_ms() -> i64 {
@@ -177,7 +179,7 @@ fn hero_info(h: &Hero) -> HeroInfo {
     }
 }
 
-fn item_info(i: &Item) -> ItemInfo {
+pub(crate) fn item_info(i: &Item) -> ItemInfo {
     ItemInfo {
         id: i.id,
         base: i.spec.base,
@@ -216,6 +218,7 @@ impl Gateway {
             threads: Mutex::new(Vec::new()),
             next_conn: AtomicU64::new(1),
             ticket_rng: AtomicU64::new(IdGen::new().boot | 1),
+            social: crate::social::Social::default(),
         });
         let g = gw.clone();
         let applier = std::thread::Builder::new().name("applier".into()).spawn(move || g.applier(rx)).expect("thread");
@@ -373,6 +376,11 @@ impl Gateway {
             }
             Req::Chat { text } => {
                 let Some((room, me, _)) = s.town else { return Ok(bad("not in a town")) };
+                // Muted, rate and word filter (job T1) before the room hears it.
+                let text = match self.social.gate(account, crate::social::chan::SAY, &text, now_ms()) {
+                    Ok(t) => t,
+                    Err(r) => return Ok(r.resp()),
+                };
                 match self.towns.chat(room, me, &text) {
                     Ok(()) => Ok(Resp::Ok),
                     Err(crate::town::ChatError::SlowDown) => Ok(Resp::Err { code: code::SLOW_DOWN, msg: "slow down".into() }),
@@ -462,6 +470,7 @@ impl Gateway {
                 let k = self.smith().fuse(self.meta(0), hero, stat as u32, grade as u32)?;
                 Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: k.0 as u64 })
             }
+            Req::Social(q) => Ok(self.social.handle(self, s, account, q)),
             Req::Cards { hero } => self.cards(account, hero),
             Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
             Req::Sell { hero, item } => self.sell(account, hero, item),
@@ -496,6 +505,7 @@ impl Gateway {
             locs.insert(hero, Loc::Town { conn: s.conn });
         }
         let info = Member { id: 0, name: h.name.clone(), class: h.class, race: h.race, level: h.progress.class_level, look: h.look };
+        self.social.attach(hero, account, &h.name, h.class, h.progress.class_level, s.conn, s.out.clone(), crate::social::PLACE_TOWN);
         let (room, me, members) = self.towns.enter(info, s.out.clone());
         s.town = Some((room, me, hero));
         self.economy.attach(hero, room, s.out.clone());
@@ -511,6 +521,7 @@ impl Gateway {
                 let mut locs = self.locs.lock().unwrap();
                 if matches!(locs.get(&hero), Some(Loc::Town { conn }) if *conn == s.conn) {
                     locs.remove(&hero);
+                    self.social.detach_hero(hero, s.conn);
                 }
                 s.town = None;
             }
@@ -520,6 +531,7 @@ impl Gateway {
     /// A connection has ended.
     pub fn close_session(&self, s: &mut Session) {
         self.leave_town_of(s, None);
+        self.social.detach_conn(s.conn);
     }
 
     fn field_ticket(&self, s: &mut Session, account: i64, hero: i64, field: u8) -> Result<Resp> {
@@ -541,7 +553,9 @@ impl Gateway {
         // The emptier copy of the field.
         let (port, copy) = {
             let hosts = self.hosts.lock().unwrap();
-            let Some(slot) = hosts.iter().filter(|h| h.handle.field == field).min_by_key(|h| h.handle.heroes.load(Ordering::Relaxed)) else {
+            // A party's heroes share a copy (job T1): the one a party mate's ticket was given, else the emptier.
+            let shared = self.social.party_copy(hero, field, now_ms()).and_then(|c| hosts.iter().find(|h| h.handle.field == field && h.copy == c));
+            let Some(slot) = shared.or_else(|| hosts.iter().filter(|h| h.handle.field == field).min_by_key(|h| h.handle.heroes.load(Ordering::Relaxed))) else {
                 return Ok(Resp::Err { code: code::NO_FIELD, msg: "that field is closed".into() });
             };
             (slot.handle.addr.port(), slot.copy)
@@ -555,6 +569,8 @@ impl Gateway {
             }
             locs.insert(hero, Loc::Field { ticket, out: s.out.clone() });
         }
+        self.social.attach(hero, account, &h.name, h.class, h.progress.class_level, s.conn, s.out.clone(), crate::social::PLACE_FIELD);
+        self.social.party_set_copy(hero, field, copy, now_ms());
         // Leaving the town room (if she is in one here) must not free the hero: take the room only.
         if let Some((room, me, th)) = s.town {
             if th == hero {

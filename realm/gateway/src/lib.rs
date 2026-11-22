@@ -10,4 +10,5 @@ pub mod harness;
 pub mod loot;
 pub mod proto;
 pub mod sheet;
+pub mod social;
 pub mod town;

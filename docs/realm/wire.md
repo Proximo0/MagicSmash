@@ -49,6 +49,9 @@ What goes between a player and the realm, every number chosen and why. Code: `re
   `DB.bosskills` (one `hero boss` line, fsync'd), because the store has no such record.
 - Disconnect: half the haul's coin is lost (`coin/2`) and the rest banked. Gate, waystone, kick and stop bank everything.
 
+- Social calls (job T1): requests 0x40..0x5B, reply 0x90, push 0xB0, error `MUTED` 17; see `social.md`. A connection's writer
+  ends on an empty frame (the moderators' "end this session").
+
 ## Proof
 
 - `gateway/tests/gateway.rs`: login, names, towns, chat, snapshots, tickets, bank, mail, spends, smith.

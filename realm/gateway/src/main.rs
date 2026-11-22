@@ -21,10 +21,15 @@ fn die(msg: &str) -> ! {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("admin") {
+        let args: Vec<String> = std::env::args().skip(2).collect();
+        std::process::exit(realm_gateway::social::admin::cli(&args));
+    }
     let (mut db, mut port, mut fields, mut field_port) = ("realm.db".to_string(), 7700u16, vec![0u8, 1, 2, 3, 4, 5], 7800u16);
     let (mut monsters, mut threads, mut seed, mut dev, mut public_host, mut bind, mut secs) = (20_000u32, 1usize, 1u64, false, String::new(), "0.0.0.0".to_string(), 0u64);
     let mut copies = 1u32;
     let mut dev_grant = false;
+    let mut admin_port: Option<u16> = None;
     let mut secret: Option<u64> = None;
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
@@ -44,8 +49,9 @@ fn main() {
             "--bind" => bind = v.to_string(),
             "--secs" => secs = num(v),
             "--secret" => secret = Some(num(v)),
+            "--admin-port" => admin_port = Some(num(v) as u16),
             "--help" | "-h" => {
-                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--secs=N]");
+                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--admin-port=N (loopback console, token in DB.admin)] [--secs=N]\n       realm-gateway admin (--db=FILE | --connect=ADDR --token-file=FILE) [--op=NAME] COMMAND... (try: help)");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),
@@ -58,6 +64,14 @@ fn main() {
     let secret = secret.unwrap_or_else(|| load_secret(std::path::Path::new(&format!("{db}.secret"))));
     let first_kills = Some(std::path::PathBuf::from(format!("{db}.bosskills")));
     let gw = Gateway::start(store, Config { dev_login: dev, public_host, secret, first_kills, dev_grant });
+    if let Err(e) = gw.social.persist(std::path::Path::new(&format!("{db}.social"))) {
+        die(&format!("social log {db}.social: {e}"));
+    }
+    if let Some(p) = admin_port {
+        let token = realm_gateway::social::admin::load_token(std::path::Path::new(&format!("{db}.admin")));
+        let a = realm_gateway::social::admin::serve(gw.clone(), p, token).unwrap_or_else(|e| die(&format!("admin port {p}: {e}")));
+        println!("ADMIN {a}");
+    }
     let mut udp = Vec::new();
     let mut n = 0u16;
     for c in 0..copies {

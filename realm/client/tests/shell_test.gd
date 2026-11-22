@@ -86,6 +86,12 @@ func _type(board: OuijaBoard, word: String) -> void:
 
 
 func _unit() -> void:
+	# The social wire (job T1): a talk request is tag 0x40 with hero, channel, name and text; a notice push reads.
+	var talk: Array = GwWire.soc_talk(5, GwWire.CHAN_TOWN, "", "hi")
+	_check(int(talk[0]) == 0x40 and (talk[1] as PackedByteArray).size() == 8 + 1 + 2 + 0 + 2 + 2, "a talk request is built as the gateway reads it")
+	var note: Dictionary = GwWire.decode(GwWire.P_SOCIAL, PackedByteArray([8, 1, 0, 120]))
+	_check(int(note["k"]) == 8 and String(note["text"]) == "x", "a notice push is read")
+	_check(int(GwWire.decode(GwWire.P_SOCIAL, PackedByteArray([8, 1, 0, 120, 9]))["t"]) == GwWire.R_ERR, "a push with a trailing byte is refused")
 	# The wire: a login frame is len, type, tag, then a string.
 	var req: Array = GwWire.login_dev("ann")
 	var f: PackedByteArray = GwWire.frame(int(req[0]), 7, req[1])
@@ -200,6 +206,38 @@ func _run() -> void:
 	await town.send_chat("hello town")
 	_check(await _until(func() -> bool: return town.chat_log.size() > 0), "her chat line comes back from the room")
 	_check(town.chat_log.size() > 0 and String(town.chat_log[0]["text"]) == "hello town", "the chat line is what she said")
+	# Living together (job T1): the chat, party and guild panels over the town. She talks on the town channel, founds a
+	# guild, posts to its board and sees an empty party.
+	await _press("social")
+	_check(_shell.panel_of("ChatPanel") != null, "CHAT opens over the town")
+	var chat: ChatPanel = _shell.panel_of("ChatPanel") as ChatPanel
+	chat.send("/t hello realm")
+	_check(await _until(func() -> bool: return _shell.chat_lines.size() > 0 and String(_shell.chat_lines[0]["text"]) == "hello realm"), "her line comes back on the town channel")
+	chat.send("/w NOBODYHERE hi")
+	_check(await _until(func() -> bool: return _shell.top() != null and _shell.top().toast_until > _shell.top().time and _shell.top().toast_bad), "a whisper to no one is refused and shown")
+	await _shot("07a_chat")
+	await _press("close")
+	await _press("party")
+	await _frames(3)
+	_check(_shell.panel_of("PartyPanel") != null and _shell.party.is_empty() and _shell.top().has_hit("invite"), "the party panel opens, empty, with an invite box")
+	await _shot("07b_party")
+	await _press("close")
+	await _press("guild")
+	var gp: GuildPanel = _shell.panel_of("GuildPanel") as GuildPanel
+	_check(gp != null and _shell.guild.is_empty(), "the guild panel opens with no guild")
+	gp.text = "PALE COURT"
+	await _press("create")
+	_check(await _until(func() -> bool: return not _shell.guild.is_empty()), "she founds a guild")
+	_check(String(_shell.guild.get("name", "")) == "PALE COURT" and int(_shell.guild["my_rank"]) == 0, "she is its leader")
+	gp.text = "who has a lantern"
+	await _press("send")
+	_check(await _until(func() -> bool: return not _shell.guild.is_empty() and _shell.guild["board"].size() == 1), "her post is on the board")
+	await _shot("07c_guild")
+	await _press("close")
+	_shell.reset_social()
+	_check(_shell.guild.is_empty() and _shell.chat_lines.is_empty(), "leaving clears the social state")
+	await _shell.refresh_social()
+	_check(not _shell.guild.is_empty(), "and the gateway still has her guild")
 	# Stand her at the bank: the room is the server's, so the stations are about where she is; walk west-north-west.
 	await _shot("07_town")
 	for spot in [["plaza", TownMap.CENTRE + Vector2(0, 60)], ["bank", TownMap.station("bank")["at"] + Vector2(0, 30)], ["trainer", TownMap.station("trainer")["at"] + Vector2(0, 30)], ["smith", TownMap.station("smith")["at"] + Vector2(0, 40)], ["gates", TownMap.station("gate")["at"] + Vector2(0, -30)]]:

@@ -65,7 +65,8 @@ fn serve(gw: Arc<Gateway>, stream: TcpStream) {
     let (out, rx) = channel::<Vec<u8>>();
     let writer = std::thread::spawn(move || {
         for f in rx {
-            if write_all(&mut wr, &f).is_err() {
+            // An empty frame is the moderators' "end this connection" (social::modtools::end_sessions).
+            if f.is_empty() || write_all(&mut wr, &f).is_err() {
                 break;
             }
         }

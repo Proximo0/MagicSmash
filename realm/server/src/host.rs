@@ -379,6 +379,14 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                     }
                 }
                 HostCmd::Kick(hero) => {
+                    // A ticket not yet used is handed back too (a ban must not wait out its 30 s).
+                    pending.retain(|_, (e, _)| {
+                        let go = e.hero == hero;
+                        if go {
+                            send_msg(HostMsg::Unused { hero: e.hero, ticket: e.ticket });
+                        }
+                        !go
+                    });
                     if let Some((&id, _)) = tallies.iter().find(|(_, t)| t.hero == hero) {
                         leaves.push(id);
                         for c in clients.values_mut().filter(|c| c.id == Some(id)) {
