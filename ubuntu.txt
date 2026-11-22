@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-22T11:45Z commit=0129fd8 took=8407s
-JOB realm PASS REALM ok tests=360 bench 300x8000 tick_ms=5.66/7.61 follower=ok 8 tower_tick_ms=5.60/7.67 tower_follower=ok 3 | STORE ok tests=42 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=26.1  | REALM_CLIENT ok gallery_sprites=34 field_test_checks=125 shell_test_checks=102 shell_shots=35 shots: zoom 1/2/4 monsters
-JOB world FAIL hero 111: store 2574546, reported 605113 hero 134: store 2097912, reported 196574 WORLD FAILED days=7.00 secs=7201 heroes=200 cycles=1337 outings=1337 vault_runs=147 vault_joins=130 queued=4491 queue_max=59 admitted=4441 copies_opened=2 merges=0 moved=0 moved_bots=0 peak_copies=7 peak_heroes=152 tid
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-154521 schema=3 items=0 stacks=0 ledger=148 digest=cbf29ce484222325 on 2026-11-22 release=v1->v2->v1 downgrade=refused
+STATION machine=ubuntu time=2026-11-22T14:09Z commit=aa49416 took=8498s
+JOB realm PASS REALM ok tests=394 bench 300x8000 tick_ms=5.76/7.85 follower=ok 8 tower_tick_ms=5.76/8.23 tower_follower=ok 3 | STORE ok tests=42 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=26.3  | REALM_CLIENT ok gallery_sprites=34 field_test_checks=125 shell_test_checks=102 shell_shots=35 shots: zoom 1/2/4 monsters
+JOB world FAIL hero 15: store 1586082, reported 1056682 hero 57: store 784945, reported 2719 WORLD FAILED days=7.00 secs=7202 heroes=200 cycles=1343 outings=1343 vault_runs=151 vault_joins=139 queued=4489 queue_max=76 admitted=4447 copies_opened=2 merges=0 moved=0 moved_bots=0 peak_copies=7 peak_heroes=151 tides=2
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-180904 schema=3 items=0 stacks=0 ledger=148 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
 STATION FAIL jobs=3 failed=1 skipped=0
