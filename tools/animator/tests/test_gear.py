@@ -257,6 +257,53 @@ class TestGearPictures(GearBase):
             self.assertEqual(j["anchor"], list(g["anchor"]))
 
 
+class TestBowQuiver(GearBase):
+    """An upright bow in the near hand and a quiver on the back: accepted on every build at 56 and
+    112 px (R20-R25, G12-G15; the bow neither crosses a shin nor the face)."""
+    BUILDS = ("human", "elf", "orc", "dwarf")
+
+    def test_bow_and_quiver_accepted_at_both_sizes(self):
+        tmp = tempfile.mkdtemp(prefix="anim_bow_")
+        try:
+            src = os.path.join(tmp, "in")
+            for b in self.BUILDS:
+                spec.write_example(src, "ARCH_" + b, b, (("bow", "bow"), ("quiver", "quiver")))
+            acc, rej = batch.run(src, os.path.join(tmp, "out"), skf=False, log=lambda *_: None)
+            self.assertEqual(rej, [])
+            self.assertEqual(sorted(c for c, _ in acc), sorted("ARCH_" + b for b in self.BUILDS))
+            for b in self.BUILDS:
+                for sub in ("", "h112"):
+                    self.assertTrue(os.path.exists(os.path.join(tmp, "out", "accepted", "ARCH_" + b, sub,
+                                                                "ARCH_" + b + "_walk8_r.png")))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_guides_exist_for_every_class_weapon(self):
+        self.assertTrue({"one_hand_weapon", "two_hand_weapon", "staff", "shield", "bow", "quiver"}
+                        <= set(spec.GEAR_GUIDES))
+        self.assertEqual(spec.GEAR_GUIDES["bow"]["json"]["slot"], "near_hand")
+        self.assertFalse(spec.GEAR_GUIDES["bow"]["json"]["in_front"])
+        self.assertEqual(spec.GEAR_GUIDES["quiver"]["json"]["slot"], "back")
+
+    def test_a_hairline_bow_breaks_up_at_56_px(self):
+        """Failing example: a limb drawn 13 px thin falls apart when shrunk (R24 loose pieces)."""
+        png = spec.write_example(os.path.join(self.dir, "thin"), "THIN", "dwarf", (("quiver", "quiver"),))
+        im = spec.example_gear("bow")
+        a = np.array(im)
+        x0, y0, x1, y1 = spec.GEAR_GUIDES["bow"]["box"]
+        thin = Image.new("RGBA", im.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(thin)
+        pts = [(x1 - 6 - (1 - (2 * k / 40 - 1) ** 2) * 34, y0 + 8 + k / 40 * (y1 - y0 - 16)) for k in range(41)]
+        d.line(pts, fill=(16, 14, 14, 255), width=13)
+        d.rectangle([46, 202, 82, 246], fill=(16, 14, 14, 255))
+        thin.save(os.path.join(self.dir, "thin", "THIN_gear", "bow.png"))
+        with open(os.path.join(self.dir, "thin", "THIN_gear", "bow.json"), "w") as f:
+            json.dump(spec.GEAR_GUIDES["bow"]["json"], f)
+        ch = Character.from_still(png, png[:-4] + ".json")
+        fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
+        self.assertIn("R24", {checks.rule_id(o) for o in checks.run_all(fr, ctx)})
+
+
 class TestGearBatch(unittest.TestCase):
     """The worked example and the split HR6.1 through the whole batch at 56 and 112 px."""
 

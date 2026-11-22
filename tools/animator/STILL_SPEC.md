@@ -27,7 +27,7 @@ Prompt, as it stands, then the look:
 ```
 python3 -m tools.animator spec --gear --out DIR
 ```
-writes, for `shield`, `one_hand_weapon`, `two_hand_weapon`, `staff` and `cape`:
+writes, for `shield`, `one_hand_weapon`, `two_hand_weapon`, `staff`, `bow`, `quiver` and `cape`:
 `gear_<kind>_guide.png` (black picture; cyan box = where to draw, yellow cross in a red ring =
 the anchor, green arrow = up) and `gear_<kind>.json` (the JSON for a gear drawn on that guide).
 Prompt, as it stands, then the look:
@@ -44,6 +44,8 @@ The guide's sentence (also in `gear_<kind>.json` under `note`):
 | one_hand_weapon | 160 x 384, box 30,16-130,368 | 80,316 (middle of the grip) | "a hammer / sword / axe / mace standing upright, head or point at the top, grip at the bottom" | near_hand, 0.34, 110 |
 | two_hand_weapon | 192 x 448, box 26,12-166,436 | 96,330 (the leading hand, a quarter up the haft) | "a greatsword / great axe / maul standing upright, head or point at the top" | near_hand, 0.62, 115 |
 | staff | 128 x 448, box 34,8-94,440 | 64,330 (a quarter up) | "a staff / spear standing upright, head at the top, shaft as thick as marked" | near_hand, 0.90, 112 |
+| bow | 128 x 448, box 24,8-104,440 | 64,256 (the grip, a little below the middle) | "an unstrung recurve bow or longbow seen side-on, standing upright, one smooth curved limb, at least as thick as the marked width" | near_hand, 0.40, 112, in_front false |
+| quiver | 128 x 320, box 28,16-100,304 | 64,130 (the strap, where it pins to the spine) | "a quiver seen from the side, standing upright, wider at the top with a few arrow feathers poking out of the top" | back, 0.30, at [0.5, 0.10] |
 | cape | 224 x 384, box 24,16-200,368 | 176,28 (top front corner, on the shoulder) | "a cape seen from the side, hanging flat and straight down" | cape, 0.52 |
 
 **Files to push for a character `<id>`** (a folder of these is what `batch` reads):
@@ -88,6 +90,18 @@ PAL_gear/hammer.json  {"slot": "near_hand", "anchor": [80, 316], "up": [0, -1], 
                        "angle": 110, "in_front": false}
 python3 -m tools.animator batch <folder> --out out/<name>
 ```
+Class gear, one guide each: novice dirk = `one_hand_weapon`; knight greatsword = `two_hand_weapon`;
+mage staff and priest candle staff = `staff`; paladin = `shield` + `one_hand_weapon` (hammer);
+archer = `bow` + `quiver`. The archer's JSON (`spec --example` takes any pair of kinds, tested on
+every build at 56 and 112 px):
+```
+ARCH_gear/bow.json     {"slot": "near_hand", "anchor": [64, 256], "up": [0, -1], "size": 0.40,
+                        "angle": 112, "in_front": false}
+ARCH_gear/quiver.json  {"slot": "back", "anchor": [64, 130], "up": [0, -1], "size": 0.30, "at": [0.5, 0.10]}
+```
+Keep the bow limb thick (the guide marks the width): a hairline limb breaks into loose pieces at
+56 px and the still is refused by R24. The bow is short (0.40) so its lower tip stays above the
+shins (R25).
 `python3 -m tools.animator spec --example --out DIR` writes exactly this with a mannequin and a
 flat synthetic shield and hammer (`samples/stills_gear/PAL_SYN*`); it passes every rule at 56
 and 112 px. `samples/stills_gear/HR6.1_SPLIT*` is the accepted paladin HR6.1 with its shield and

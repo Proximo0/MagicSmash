@@ -321,6 +321,19 @@ GEAR_GUIDES = {
                        "angle": 112, "in_front": False},
               "words": "a staff or spear standing upright, head at the top, at least as thick as the "
                        "marked shaft width; the anchor is the grip, a quarter of the way up"},
+    # the bow is carried, not drawn: unstrung, gripped at its middle, held upright; the lower limb
+    # ends above the knees (R25)
+    "bow": {"size": (128, 448), "box": (24, 8, 104, 440), "anchor": (64, 256),
+            "json": {"slot": "near_hand", "anchor": [64, 256], "up": [0, -1], "size": 0.40,
+                     "angle": 112, "in_front": False},
+            "words": "an unstrung recurve bow or longbow seen side-on, standing upright, one smooth curved "
+                     "limb, at least as thick as the marked width (thin limbs break up at 56 px); the anchor is the "
+                     "grip, a little below the middle of the bow"},
+    "quiver": {"size": (128, 320), "box": (28, 16, 100, 304), "anchor": (64, 130),
+               "json": {"slot": "back", "anchor": [64, 130], "up": [0, -1], "size": 0.30, "at": [0.5, 0.10]},
+               "words": "a quiver seen from the side, standing upright, wider at the top with a few arrow "
+                        "feathers poking out of the top; the anchor is the middle of the strap, where it "
+                        "pins to the spine"},
     "cape": {"size": (224, 384), "box": (24, 16, 200, 368), "anchor": (176, 28),
              "json": {"slot": "cape", "anchor": [176, 28], "up": [0, -1], "size": 0.52},
              "words": "a cape seen from the side, hanging flat and straight down from the shoulder; the "
@@ -342,9 +355,11 @@ def gear_guide(kind):
     d.ellipse([ax - 7, ay - 7, ax + 7, ay + 7], outline=(255, 0, 0), width=2)
     d.line([(x1 - 10, y0 + 46), (x1 - 10, y0 + 10)], fill=(0, 255, 0), width=2)       # up arrow
     d.polygon([(x1 - 10, y0 + 4), (x1 - 16, y0 + 16), (x1 - 4, y0 + 16)], fill=(0, 255, 0))
-    if kind == "staff":                                                              # shaft width
-        d.line([(ax - 7, y1 - 30), (ax - 7, y1 - 6)], fill=(90, 90, 90), width=1)
-        d.line([(ax + 7, y1 - 30), (ax + 7, y1 - 6)], fill=(90, 90, 90), width=1)
+    if kind in ("staff", "bow"):                                                     # shaft / limb width
+        h = 7 if kind == "staff" else 15
+        x = ax if kind == "staff" else x1 - 6
+        d.line([(x - h, y1 - 30), (x - h, y1 - 6)], fill=(90, 90, 90), width=1)
+        d.line([(x + h, y1 - 30), (x + h, y1 - 6)], fill=(90, 90, 90), width=1)
     return im
 
 
@@ -365,7 +380,7 @@ def write_gear(out_dir):
 
 def example_gear(kind):
     """A flat synthetic gear picture drawn on its guide (RGBA): shield, one_hand_weapon (a
-    hammer), staff or cape.  For the tests and the worked example in STILL_SPEC.md."""
+    hammer), staff, bow, quiver or cape.  For the tests and the worked example in STILL_SPEC.md."""
     g = GEAR_GUIDES[kind]
     im = Image.new("RGBA", g["size"], (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
@@ -390,6 +405,25 @@ def example_gear(kind):
         d.rectangle([ax - 5, y0 + 30, ax + 5, y1 - 4], fill=(122, 84, 48, 255))
         d.ellipse([ax - 24, y0, ax + 24, y0 + 48], fill=ink)
         d.ellipse([ax - 18, y0 + 6, ax + 18, y0 + 42], fill=(90, 190, 220, 255))
+    elif kind == "bow":
+        wood, hi = (122, 84, 48, 255), (170, 124, 76, 255)
+        for col, w in ((ink, 30), (wood, 20), (hi, 5)):
+            pts = []
+            for k in range(41):
+                t = k / 40
+                y = y0 + 8 + t * (y1 - y0 - 16)
+                x = x1 - 6 - (1 - (2 * t - 1) ** 2) * 34           # the belly of the bow is at the grip
+                pts.append((x if col is not hi else x - 1, y))
+            d.line(pts, fill=col, width=w, joint="curve")
+        d.rectangle([ax - 18, ay - 26, ax + 18, ay + 26], fill=ink)         # grip wrap
+        d.rectangle([ax - 14, ay - 22, ax + 14, ay + 22], fill=(70, 50, 36, 255))
+    elif kind == "quiver":
+        for i, (dx, c) in enumerate(((-12, (200, 60, 50, 255)), (0, (230, 230, 220, 255)), (12, (200, 60, 50, 255)))):
+            d.rectangle([ax + dx - 5, y0, ax + dx + 5, y0 + 40], fill=ink)
+            d.rectangle([ax + dx - 3, y0 + 2, ax + dx + 3, y0 + 40], fill=c)
+        d.polygon([(x0 + 6, y0 + 36), (x1 - 6, y0 + 36), (x1 - 18, y1), (x0 + 18, y1)], fill=ink)
+        d.polygon([(x0 + 12, y0 + 42), (x1 - 12, y0 + 42), (x1 - 24, y1 - 8), (x0 + 24, y1 - 8)], fill=(104, 66, 40, 255))
+        d.rectangle([x0 + 8, y0 + 100, x1 - 8, y0 + 114], fill=(190, 150, 60, 255))
     elif kind == "cape":
         pts = [(ax, ay - 8), (ax - 60, ay), (x0, y1), (x0 + 110, y1), (ax, ay + 60)]
         d.polygon(pts, fill=(120, 30, 40, 255))
