@@ -1,3 +1,3 @@
-STATION machine=laptop time=2026-11-22T06:50Z commit=66474ff took=1010s
-JOB deep PASS fuzz seed=869577 STORE fuzz ok seed=869577 ops=50000 kills=200 (stmt=68 progress=39 commit=33 aftercommit=28 beforecommit=32) children=20 | bench field=5 seed=869577 BENCH 1000x20000 threads=2 ticks=600 wall=5.6s kills=166300 spawns=186300 deaths=9 recycled=0 hash=80b09f8ac5baa623 | soak seed=869577 SOAK ok secs=909 cycles=472 heroes=40 outings=472 banked=469 left_gate=0 left_waystone=418 timeouts=3 coin=4912314 xp=56
+STATION machine=laptop time=2026-11-22T07:07Z commit=66474ff took=1004s
+JOB deep PASS fuzz seed=425594 STORE fuzz ok seed=425594 ops=50000 kills=200 (stmt=59 progress=34 commit=27 aftercommit=33 beforecommit=47) children=20 | bench field=5 seed=425594 BENCH 1000x20000 threads=2 ticks=600 wall=6.0s kills=148311 spawns=168311 deaths=8 recycled=0 hash=7662de4a2d98dc57 | soak seed=425594 SOAK ok secs=901 cycles=497 heroes=40 outings=497 banked=493 left_gate=0 left_waystone=449 timeouts=0 coin=6791453 xp=73
 STATION PASS deep pass
