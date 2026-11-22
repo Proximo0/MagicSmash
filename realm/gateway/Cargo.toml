@@ -24,6 +24,10 @@ path = "src/world_bin.rs"
 name = "realm-economy"
 path = "src/economy_bin.rs"
 
+[[bin]]
+name = "realm-lanplay"
+path = "src/lanplay_bin.rs"
+
 [features]
 # `--insecure-dev` for bots (accept any gateway certificate). Dev builds only; never in a release build.
 dev-insecure = []

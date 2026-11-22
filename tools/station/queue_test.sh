@@ -128,6 +128,15 @@ Q alpha cancel "$idz" >/dev/null
 ( cd "$T/gamma" && STATION_NAME=gamma bash tools/station/station.sh --no-push world >"$T/w3" 2>&1 )
 check "two merges that landed while busy are tested once, at the newest main" '[ "$(grep -c "^STATION machine=" "$T/w3")" = 1 ] && grep -q "commit=$(git -C "$T/seed" rev-parse --short=7 HEAD) " "$T/w3"'
 
+echo "== the LAN rehearsal jobs (stubs here; tools/station/lan_test.sh runs the real pair)"
+check "lanhost.sh and lanplay.sh answer with a stub line and exist as queue shell scripts" '[ "$(bash "$REPO/tools/station/jobs/lanhost.sh" secs=30)" = "PASS lanhost stub secs=30" ] && [ "$(bash "$REPO/tools/station/jobs/lanplay.sh" secs=30 bots=3)" = "PASS lanplay stub secs=30 bots=3" ]'
+idl=$(Q alpha add kind=shell args="script=lanhost secs=1800" needs=alpha | tail -1)
+Q alpha step >"$T/o" 2>&1
+check "the queue runs lanhost as a shell job" 'rd station-results work/$idl/alpha.txt | grep -q " PASS id=$idl kind=shell .*lanhost stub secs=1800"'
+if [ -x "$REPO/realm/target/release/realm-lanplay" ] && [ -x "$REPO/realm/target/release/realm-gateway" ]; then
+  STATION_QUEUE_STUB= bash "$REPO/tools/station/lan_test.sh" >"$T/lan.out" 2>&1; check "the local host and player pair (lan_test.sh) prints LAN ok" 'tail -1 "$T/lan.out" | grep -q "^LAN ok"'
+else echo "  skip the real LAN pair: build realm first (cargo build --release -p realm-gateway); run tools/station/lan_test.sh"; fi
+
 echo "== the real station loop: queue job first, deep only when the queue is empty"
 if command -v setsid >/dev/null 2>&1; then
   Q alpha list | awk '$1 ~ /^[0-9]/ { print $1 }' | while read -r i; do Q alpha cancel "$i" >/dev/null; done

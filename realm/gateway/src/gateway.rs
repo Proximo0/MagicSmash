@@ -173,6 +173,9 @@ pub struct Gateway {
     threads: Mutex<Vec<JoinHandle<()>>>,
     next_conn: AtomicU64,
     ticket_rng: AtomicU64,
+    /// Logins accepted and field tickets issued since start (for the LAN rehearsal's host report; not game state).
+    pub logins: AtomicU64,
+    pub tickets_issued: AtomicU64,
     /// Parties, guilds, friends, chat channels and the moderators' hooks (job T1).
     pub social: crate::social::Social,
     /// Houses and the shared places (job H1).
@@ -266,6 +269,8 @@ impl Gateway {
             stop: AtomicBool::new(false),
             threads: Mutex::new(Vec::new()),
             next_conn: AtomicU64::new(1),
+            logins: AtomicU64::new(0),
+            tickets_issued: AtomicU64::new(0),
             ticket_rng: AtomicU64::new(IdGen::new().boot | 1),
             social: crate::social::Social::default(),
             homes: crate::homes::Homes::default(),
@@ -567,6 +572,7 @@ impl Gateway {
         }
         s.account = Some(account);
         self.world.sessions.lock().unwrap().insert(s.conn, s.out.clone());
+        self.logins.fetch_add(1, Ordering::Relaxed);
         Ok(Resp::Login { account })
     }
 
@@ -705,6 +711,7 @@ impl Gateway {
         // Job R3b: the field tags her with her guild as she joins (what an altar war reads).
         e.guild = self.social.guild_of_account(account);
         let _ = slot.handle.cmds.send(HostCmd::Admit(e));
+        self.tickets_issued.fetch_add(1, Ordering::Relaxed);
         Some((slot.handle.addr.port(), slot.copy, ticket, key))
     }
 

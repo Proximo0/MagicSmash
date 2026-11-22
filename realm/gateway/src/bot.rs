@@ -52,6 +52,9 @@ pub struct Outcome {
     pub moves: u32,
     /// Of those, the moves whose Moved push brought a key unlike the one she had (each admission has its own).
     pub fresh_keys: u32,
+    /// Datagrams the client could not use and ticks whose state hash differed (summed over her copies).
+    pub bad_datagrams: u64,
+    pub hash_bad: u64,
 }
 
 fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
@@ -210,6 +213,8 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, ke
         }
         if let Some((p, new_key)) = go {
             let _ = sock.send(&c.bye());
+            out.bad_datagrams += c.stats.bad_datagrams;
+            out.hash_bad += c.stats.hash_bad;
             sock = open(p)?;
             // The new copy admits her with a fresh key (from the Moved push, over TLS).
             fresh_keys += (new_key != key_now) as u32;
@@ -228,6 +233,8 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, ke
         let _ = sock.send(&c.bye());
     }
     drop(sock);
+    out.bad_datagrams += c.stats.bad_datagrams;
+    out.hash_bad += c.stats.hash_bad;
     out.moves = moves;
     out.fresh_keys = fresh_keys;
     result?;
