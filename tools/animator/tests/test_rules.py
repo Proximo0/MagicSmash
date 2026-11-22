@@ -24,7 +24,7 @@ HERE = os.path.join(ROOT, "tools", "animator")
 STILLS = os.path.join(HERE, "samples", "stills")
 GOOD = "HR4.2"       # a still that passes every rule (HR6.1 was the example until the owner saw
                      # its third arm: it now fails G8)
-OWNER_RULES = {"R1", "R4", "R5", "R6", "R17", "G8", "G9"}   # third leg, crooked elbow, backwards foot,
+OWNER_RULES = {"R1", "R4", "R5", "R6", "R17", "R19", "G8", "G9", "G10", "G11"}   # third leg, crooked elbow, backwards foot,
                                                             # heel, third arm (output and input), short boot
 
 
@@ -48,8 +48,9 @@ def read_rulebook():
 def test_classes():
     import test_rules
     import test_arms_feet
+    import test_intake
     out = {}
-    for mod in (test_animator, test_rules, test_arms_feet):
+    for mod in (test_animator, test_rules, test_arms_feet, test_intake):
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             if issubclass(obj, unittest.TestCase):
                 out[name] = obj

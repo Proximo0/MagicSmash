@@ -25,6 +25,7 @@ from PIL import Image
 from . import checks
 from .cut import cut_still, load_still
 from .foot import behind_back_edge, fit_foot, reseat
+from .imgops import shift
 from .motion import MOTIONS, Gait, fit_walk, walk
 from .rig import Rig, screen_angle, SIDES
 
@@ -44,8 +45,14 @@ HEEL_TOL = 0.8       # game px the posed heel may swing behind the shin's back e
 STRIDE_QUANT = 8     # game px: stride per cycle is a multiple of this, so at 8 (and 4)
                      # frames the stance foot moves a whole number of px per frame
 
+SEAT_MAX = 1.5       # game px at 56 px body height: how far a planted foot's pixels may be moved
+                     # to stand on the ground row (render)
 GEAR_LONG = 0.30     # x body height: held gear reaching this far past the wrist is "long" ...
 GEAR_ARM = 0.40      # ... and that arm swings only this much (a staff is carried steady)
+
+BODY_SIZES = (56, 112)   # game px body height of a human hero: every still is baked at both
+NATIVE_SS = 3            # supersample when the parts are flat blocks of the native grid: a turned
+                         # block is re-sampled 3 x 3 and the mode taken, nothing is mixed
 
 AUTO_DRAW_ORDER = ["far_upper", "far_fore", "far_thigh", "far_shin", "far_foot", "cape",
                    "torso", "near_thigh", "near_shin", "near_foot", "robe",
@@ -72,6 +79,13 @@ class Character:
     """A cut character.  Character(png, joints_json) = legacy hand joints on a 4-frame strip;
     Character.from_still(png, layout_json) = full-size still fitted by fit.py (no shapes)."""
 
+    # geometry of the baked canvas; from_still() scales it with the body height
+    body_h, ss = BODY_H, SS
+    canvas = (CANVAS_W, CANVAS_H)
+    foot_y, pelvis_x = FOOT_Y, PELVIS_X
+    native = False            # parts are flat blocks of a native grid (see from_still)
+    grid = None
+
     def __init__(self, still_path=None, joints_path=None):
         self.auto = False
         self.fit = None
@@ -96,31 +110,61 @@ class Character:
         self.step_px = float(self.rig.j["heel"][0] - far["heel"][0]) if "heel" in far else None
 
     @classmethod
-    def from_still(cls, png, layout_json, fitted=None):
+    def from_still(cls, png, layout_json, fitted=None, body_h=BODY_H, native=True):
+        """body_h: game px of a REF_BH still (56 or 112); the canvas scales with it.
+        native: rebuild every cut part from flat blocks of the still's native grid before it is
+        posed (intake.detect_grid; when the still has no rigid grid, the blocks are the output
+        pixels of this size, anchored on the pelvis column and the ground line), so an unturned
+        part comes out as one output pixel per block and a turned one moves whole blocks."""
         from .autocut import cut_auto
         from .fit import fit_still
+        from .intake import detect_grid, snap_to_grid
         ch = cls()
         ch.auto = True
         img, data, masks = fitted or fit_still(png, layout_json)
-        data = dict(data)
+        data = json.loads(json.dumps(data, default=float))
         data["draw_order"] = AUTO_DRAW_ORDER
+        # the far limbs hang a whole number of 56 px game pixels behind the near ones, so both
+        # feet meet the pixel grid alike (a far foot 0.3 px off jittered 2 px at 112 px)
+        q = REF_BH / BODY_H
+        for key in ("far_hip_offset", "far_shoulder_offset"):
+            if key in data and not data.get("robe"):
+                v = data[key][0]
+                data[key] = [round(v / q) * q if abs(v) >= q / 2 else (-q if v < 0 else q), data[key][1]]
         ch.fit = data["fit"]
         ch.rig = Rig(data)
         ch.still, ch.frames, ch.frame_index = img, [img], 0
         ch.masks = masks
         ch.parts, ch.labels, ch.info = cut_auto(img, ch.rig, masks)
         ch.palette = ch.info["palette"]
-        ch.k = BODY_H / REF_BH
-        ch.rig.data["heel_tol_px"] = HEEL_TOL / ch.k
+        m = body_h / BODY_H
+        ch.body_h = body_h
+        ch.canvas = (int(round(CANVAS_W * m)), int(round(CANVAS_H * m)))
+        ch.foot_y, ch.pelvis_x = int(round(FOOT_Y * m)), int(round(PELVIS_X * m))
+        ch.k = body_h / REF_BH
+        if native:
+            g = detect_grid(img)
+            if g["found"]:
+                cell, origin = g["cell"], g["phase"]
+            else:                 # no rigid grid: one block per output pixel of this size
+                cell = (1.0 / ch.k, 1.0 / ch.k)
+                origin = (float(ch.rig.j["pelvis"][0]), float(ch.rig.ground_y))
+            for p in ch.parts.values():
+                p.img = snap_to_grid(p.img, cell, origin)
+            ch.native, ch.ss = True, NATIVE_SS
+            ch.grid = dict(g, used_cell=[float(cell[0]), float(cell[1])])
+        # the walk is the same at every size: the ankle's plantarflexion limit is set in still
+        # px from the 56 px scale the rules are written for (checks.TOL_PX)
+        ch.rig.data["heel_tol_px"] = HEEL_TOL / (BODY_H / REF_BH)
         ch.name = ch.rig.name
         ch.step_px = float(data["stride_still"])
         return ch
 
     def to_game(self, P):
-        return (np.asarray(P, float) - [self.rig.j["pelvis"][0], self.rig.ground_y]) * self.k + [PELVIS_X, FOOT_Y]
+        return (np.asarray(P, float) - [self.rig.j["pelvis"][0], self.rig.ground_y]) * self.k + [self.pelvis_x, self.foot_y]
 
     def from_game(self, G):
-        return (np.asarray(G, float) - [PELVIS_X, FOOT_Y]) / self.k + [self.rig.j["pelvis"][0], self.rig.ground_y]
+        return (np.asarray(G, float) - [self.pelvis_x, self.foot_y]) / self.k + [self.rig.j["pelvis"][0], self.rig.ground_y]
 
     def order(self):
         out = []
@@ -135,7 +179,8 @@ class Character:
         """The walk retargeted to this still's stride, quantized to STRIDE_QUANT game px."""
         if not self.step_px or self.step_px <= 0:
             return walk()
-        q = STRIDE_QUANT / self.k                 # still px per quantum
+        q = STRIDE_QUANT * (self.body_h / BODY_H) / self.k    # still px per quantum (the same
+                                                              # stride at every baked size)
         stride = 2 * self.step_px
         target = max(q, round(stride * 0.95 / q) * q)
         arm = GEAR_ARM if self.info.get("gear_reach", 0) > GEAR_LONG else 1.0
@@ -153,11 +198,15 @@ def _bbox_map(ch, piv_src, piv_posed, delta, img):
     return ch.to_game(piv_posed) + dc * ch.k
 
 
-def render(ch, J, order=None, cloth=None, phase=0.0):
-    """J: posed joints in still px (Rig.fk names). Returns (rgba HxWx4, label HxW, names)."""
+def render(ch, J, order=None, cloth=None, phase=0.0, contact=None):
+    """J: posed joints in still px (Rig.fk names). Returns (rgba HxWx4, label HxW, names).
+    contact: {"near": bool, "far": bool}; a planted foot's pixels are seated on the ground row
+    (moved whole sub-pixel rows, at most SEAT_MAX): the rig rocks on the heel and toe points of
+    the sole line, a drawn boot has a rounded heel and a sprung toe that end a little above it."""
     rig, k = ch.rig, ch.k
+    SS = ch.ss
     order = order or ch.order()
-    H4, W4 = CANVAS_H * SS, CANVAS_W * SS
+    H4, W4 = ch.canvas[1] * SS, ch.canvas[0] * SS
     rgba = np.zeros((H4, W4, 4), np.uint8)
     lab = np.zeros((H4, W4), np.int16)
     names = ["bg"] + order
@@ -191,6 +240,8 @@ def render(ch, J, order=None, cloth=None, phase=0.0):
         x1 = min(W4, int(math.ceil((dg[:, 0].max() + pad) * SS)) + 1)
         y0 = max(0, int(math.floor(dg[:, 1].min() * SS)) - 1)
         y1 = min(H4, int(math.ceil(dg[:, 1].max() * SS)) + 1)
+        seat_lim = int(round(SEAT_MAX * ch.body_h / BODY_H * SS)) if name.endswith("_foot") else 0
+        y1 = min(H4, y1 + seat_lim)
         if x1 <= x0 or y1 <= y0:
             continue
         qy, qx = np.mgrid[y0:y1, x0:x1]
@@ -228,6 +279,12 @@ def render(ch, J, order=None, cloth=None, phase=0.0):
             kn, an = ch.to_game(J[side + ".knee"]), ch.to_game(J[side + ".ankle"])
             Pq = np.stack([(qx + 0.5) / SS, (qy + 0.5) / SS], -1)
             hit &= behind_back_edge(Pq, kn, an, rig.data["foot_fit"]["back"] * k) <= 0
+        if seat_lim and contact and contact.get(side) and hit.any():
+            low = int(np.flatnonzero(hit.any(1))[-1]) + y0
+            down = ch.foot_y * SS - 1 - low
+            if down and abs(down) <= seat_lim:
+                hit = shift(hit, -down, 0, False)
+                src = shift(src, -down, 0, 0)
         sub = rgba[y0:y1, x0:x1]
         sub[hit] = src[hit]
         lab[y0:y1, x0:x1][hit] = li
@@ -239,7 +296,10 @@ def _luma(c):
     return (r * 3 + g * 4 + b * 2) / 9.0
 
 
-def reduce(rgba, lab):
+def reduce(rgba, lab, SS=SS, native=False):
+    """native: the sub-pixels are flat native blocks, so the plain mode is the picture; only
+    the silhouette keeps its outline rule (a third of the block), no bonus for dark detail."""
+    detail_bonus, outline_min = (1.0, 0.3) if native else (DETAIL_BONUS, OUTLINE_MIN)
     H4, W4 = lab.shape
     H, W = H4 // SS, W4 // SS
     N = SS * SS
@@ -263,12 +323,12 @@ def reduce(rgba, lab):
     mean = (lum * valid).sum(1) / np.maximum(valid.sum(1), 1)
     share = cnt / N
     detail = valid & (lum < mean[:, None] - DETAIL_DELTA) & (share >= DETAIL_MIN)
-    votes = np.where(valid, cnt * np.where(detail, DETAIL_BONUS, 1.0), -1.0)
+    votes = np.where(valid, cnt * np.where(detail, detail_bonus, 1.0), -1.0)
     best = np.argmax(votes, 1)
     # silhouette pixels keep an outline colour
     onp = np.pad(on, 1)
     edge = ~(onp[:-2, 1:-1] & onp[2:, 1:-1] & onp[1:-1, :-2] & onp[1:-1, 2:])[ys, xs]
-    outl = valid & (lum < OUTLINE_LUMA) & (share >= OUTLINE_MIN)
+    outl = valid & (lum < OUTLINE_LUMA) & (share >= outline_min)
     ov = np.where(outl, cnt, -1.0)
     has = outl.any(1) & edge
     best = np.where(has, np.argmax(ov, 1), best)
@@ -320,8 +380,8 @@ def bake_motion(ch, motion, n=None, gait=None):
         p = i / n
         pose, contact = gait.pose(p)
         J = ch.rig.fk(pose)
-        rgba4, lab4, names = render(ch, J, cloth=cloth, phase=p)
-        rgba, lab = reduce(rgba4, lab4)
+        rgba4, lab4, names = render(ch, J, cloth=cloth, phase=p, contact=contact)
+        rgba, lab = reduce(rgba4, lab4, ch.ss, ch.native)
         Jg = {k: ch.to_game(v) for k, v in J.items()}
         meta = {"phase": p, "joints": Jg, "contact": contact,
                 "draw_order": names[1:], "labels": names,
@@ -357,13 +417,15 @@ def context(ch, motion, gait, n):
         "lengths": {b: L * k for b, _, _, L in ch.rig.bone_pairs()},
         "bones": [(b, a, c) for b, a, c, _ in ch.rig.bone_pairs()],
         "rest_lean": ch.rig.rest["lean"],
-        "ground": FOOT_Y, "facing": 1,
+        "ground": ch.foot_y, "facing": 1,
         "speed": gait.stride * k,                  # game px per cycle
         "travels": motion.travels,
         "stance": dict(motion.stance),
         "foot_len": float(np.hypot(*ch.rig.foot_local["toe"])) * k,
         "foot_px": float(ch.parts["near_foot"].mask.sum()) * k * k,
         "leg_width": 2 * ch.info["radius"]["shin"] * k,
+        "fore_r": ch.info["radius"]["fore"] * k,
+        "size_x": ch.body_h / BODY_H,
         "shin_back": ff.get("back", ch.info["radius"]["shin"]) * k,
         "shin_front": ff.get("front", ch.info["radius"]["shin"]) * k,
         "palette": ch.palette,
@@ -415,8 +477,10 @@ def bake_all(ch, counts=(4, 8)):
 
 def write_outputs(ch, baked, out_dir):
     os.makedirs(out_dir, exist_ok=True)
-    meta_out = {"name": ch.name, "still_frame": ch.frame_index, "canvas": [CANVAS_W, CANVAS_H],
-                "foot_y": FOOT_Y, "scale": ch.k, "motions": {}}
+    meta_out = {"name": ch.name, "still_frame": ch.frame_index, "canvas": list(ch.canvas),
+                "foot_y": ch.foot_y, "body_height_px": ch.body_h, "scale": ch.k, "motions": {}}
+    if ch.grid is not None:
+        meta_out["native_grid"] = ch.grid
     if ch.fit is not None:
         meta_out["fit"] = ch.fit
     for n, (frames, ctx, fails) in baked.items():

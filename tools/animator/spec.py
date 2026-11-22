@@ -27,7 +27,7 @@ STEP = 0.26               # heel to heel, x BH: the walk's stride is fitted to t
 
 # per build: body height in px on the canvas, joint heights (x BH above the ground), bone
 # lengths, foot length and limb half-widths (x BH).  The foot is 0.29-0.31 of the leg (hip to
-# ankle) for human, elf and orc and 0.48 for the dwarf (full-size boots under short legs); in
+# ankle) for human, elf and orc and 0.58 for the dwarf (full-size boots under short legs); in
 # every build it is longer than the shin is wide by a clear margin, which is what rule R6 needs.  Humans from Drillis & Contini 1966 segment lengths,
 # rounded to the chunky proportions of the game's sprites (head 0.19 BH); elf = longer legs,
 # smaller head, thinner limbs; dwarf = big head, long trunk, short thick legs; orc = human
@@ -41,9 +41,16 @@ BUILDS = {
             "upper": 0.165, "fore": 0.150, "hand": 0.055,
             "r_thigh": 0.042, "r_shin": 0.030, "r_arm": 0.028, "r_fore": 0.025,
             "chest": (0.070, 0.070), "head": (0.075, 0.085)},
-    "dwarf": {"foot": 0.150, "bh": 310, "neck": 0.74, "shoulder": 0.685, "pelvis": 0.40, "hip": 0.38, "ankle": 0.065,
+    # dwarf: 6 of 6 stills drawn on the first layout (foot 0.150, shin half-width 0.048, hip 0.38)
+    # were refused by G9, boot shorter than the shin is wide: the image model draws shins about
+    # 1.4 x as thick and boots about 0.8 x as long as asked.  The layout now asks for a boot of
+    # 0.200 BH under a slimmer shin (0.040) on a slightly longer leg (hip 0.41), so the toe is
+    # 0.120 BH ahead of the shin's front edge on the layout (0.054 before) and the boot still
+    # passes G9 when the model thickens the shin and shortens the boot by those factors
+    # (tests/test_intake.py::TestBoots).
+    "dwarf": {"foot": 0.200, "bh": 310, "neck": 0.74, "shoulder": 0.685, "pelvis": 0.43, "hip": 0.41, "ankle": 0.065,
               "upper": 0.165, "fore": 0.140, "hand": 0.060,
-              "r_thigh": 0.062, "r_shin": 0.048, "r_arm": 0.042, "r_fore": 0.038,
+              "r_thigh": 0.058, "r_shin": 0.040, "r_arm": 0.042, "r_fore": 0.038,
               "chest": (0.115, 0.115), "head": (0.110, 0.130)},
     "orc": {"foot": 0.135, "bh": 420, "neck": 0.81, "shoulder": 0.755, "pelvis": 0.46, "hip": 0.44, "ankle": 0.058,
             "upper": 0.175, "fore": 0.155, "hand": 0.060,
@@ -133,6 +140,7 @@ def layout(build):
         "joints": {k: J[k] for k in keys},
         "extra_joints": {k: J[k] for k in ("head_top", "near_hand_tip", "near_heel", "far_heel")},
         "fractions_of_body_height": fractions(build),
+        "foot": foot_numbers(build),
         "half_widths_px": {k[2:]: round(b[k] * b["bh"], 1) for k in ("r_thigh", "r_shin", "r_arm", "r_fore")},
         "far_arm": "hidden",
         "note": "drawn from tools/animator/spec.py: joints are known, not detected (STILL_SPEC.md)",
@@ -221,6 +229,20 @@ def reference(build):
     _capsule(d, J["near_elbow"], J["near_wrist"], b["r_fore"] * bh, sleeve)
     _capsule(d, J["near_wrist"], J["near_hand_tip"], b["r_fore"] * bh * 0.95, skin)
     return im
+
+
+def foot_numbers(build):
+    """What the layout asks of the boot, for STILL_SPEC.md and the tests: foot length and shin
+    width (x BH and px), foot / leg (hip to ankle), and how far the toe is ahead of the shin's
+    front edge (x BH and px).  G9 needs the boot at least 0.24 of the leg and longer than the
+    shin is wide."""
+    b = BUILDS[build]
+    leg = b["hip"] - b["ankle"]
+    ahead = b["foot"] - 2 * b["r_shin"]
+    return {"foot": b["foot"], "foot_px": round(b["foot"] * b["bh"], 1),
+            "shin_width": round(2 * b["r_shin"], 3), "shin_width_px": round(2 * b["r_shin"] * b["bh"], 1),
+            "foot_per_leg": round(b["foot"] / leg, 2), "foot_per_shin_width": round(b["foot"] / (2 * b["r_shin"]), 2),
+            "toe_ahead": round(ahead, 3), "toe_ahead_px": round(ahead * b["bh"], 1)}
 
 
 def arm_gap(build):

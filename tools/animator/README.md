@@ -9,6 +9,7 @@ python3 -m tools.animator bake samples/HR6.1_1.png --joints samples/HR6.1_1.json
 python3 -m tools.animator all            # every samples/*.json + out/contact.png
 python3 -m tools.animator auto samples/HR6.1_1.png   # estimated joints JSON
 python3 -m tools.animator batch samples/stills --out out/batch   # fit + gate + bake all 24 stills
+python3 -m tools.animator batch samples/stills_spec --out out/spec_batch   # the stills drawn on spec
 python3 -m tools.animator spec --build all --out out/spec        # pose picture + joints per build
 python3 -m unittest discover tools/animator/tests                # from the repo root
 cd tools/animator/tests && python3 -m unittest discover -s . -p "test_*.py"
@@ -169,6 +170,62 @@ the same rule (two-handed crossbow; a hand on the shield).
 - R6 no longer rejects anything: HR1.2 and HR2.2 pass with the new foot model.
 - Timing: about 0.9 s mean and 2.5 s max per character on one core.
 
+## Stills drawn on spec, 22 Nov: intake, native grid, two sizes (`intake.py`)
+`samples/stills_spec/` (HR6.1, HR6.2, HR6.4: 384x448, drawn on the pose layouts, magenta keyed
+out). The gate accepted all three and the baked strips were bad. What was wrong and what changed:
+- **Magenta fringe** (G10, R19). The key left a 1 px rim of half-keyed magenta (826-973 px per
+  still) that showed as purple in every frame. `intake.clean_key` (called by `fit.load_single`)
+  gives every fringe pixel within 3 px of the background the nearest inside colour, alpha stays
+  hard. Key colour left after that refuses the still (G10); R19 checks every baked frame.
+- **Gear on the near side** (G11). `intake.rimmed_blobs`: the still cut to 16 colours; for each
+  lit colour and its shades, closed by 2 px, every patch of the body it walls in completely
+  (at least 0.006 BH^2) is a gear blob. More than 25 % of it ahead of the trunk axis in the arm
+  rows = refused. HR6.2: 0.88; HR6.1 (shield on the back): 0.00. Only rimmed gear is seen.
+- **Arm over the torso** (G8). Two faults: the hand's colour was read at the blob's point
+  furthest from the shoulder (the hammer's head on HR6.4, so no hand was found at all), and one
+  blob had to be half a hand. Now, on a still with a spec layout, wrist, elbow and hand come
+  from the layout (`arm_from_layout`), and all hand-coloured area over the body is summed
+  (`arm_overlap`): 0.15 of a hand refuses. HR6.1 0.00, HR6.2 0.00, HR6.4 2.62.
+- **Why the bakes were muddy.** (1) 56 px is a 7:1 reduction of a still whose flat patches are
+  3-4 px across (`intake.texel_size`): about three by three of them per game pixel. (2) the
+  reduction gave dark colours a bonus (x2.5 at 12 % of a block) to save 1 px outlines; on
+  these stills every outline is 2-3 px, so most blocks went to their outline colour. (3) every
+  part was resampled from full resolution in every frame, so detail fell differently each time.
+- **Native grid.** `intake.detect_grid` lays a comb on the colour steps of rows and columns:
+  real pixel art enlarged by a whole factor scores 1.4-1.7 (HR3.1: 6.0 px blocks, 64 native px
+  tall); every other still, the three on spec included, scores 1.0-1.25 = no rigid grid (the
+  image model's blocks do not sit on one grid). With a grid, the cut parts are rebuilt from its
+  blocks; without one, from blocks the size of one output pixel of the baked size (6.96 still px
+  at 56, 3.48 at 112), anchored on the pelvis column and the ground line
+  (`intake.snap_to_grid`: block mode colour, half-covered = opaque, a dark line or silhouette
+  outline of a third of the block wins it). Parts are then posed as whole blocks (3x3
+  supersample, plain mode, no dark bonus): an unturned part is one output pixel per block.
+  Palette stays the still's 48 colours (R15).
+- **Two sizes.** `bake.BODY_SIZES = (56, 112)`: canvas 96x80 and 192x160, the same walk. Outputs
+  `accepted/<id>/` (56) and `accepted/<id>/h112/`; `contact.png` shows 56 px x4 above 112 px x2.
+  Pixel tolerances of the R rules are pixels of the 56 px sprite (2 px at 112, `checks._tol`).
+  112 px carries these stills (face, shield emblem, hammer, hands readable; one output pixel
+  is about one flat patch of the still). 56 px does not: the silhouette and the colours read,
+  but the face is 5-6 px, the emblem is a blot and hand and hammer merge. 56 px needs art drawn
+  for 56 px (a real 64 px grid like HR3.1's), not a reduction of this.
+- **Feet.** The ankle is put on the shin's own centre line (the run at the boot's top pulled it
+  18 px forward on HR6.1); the sole line runs half-way between the hull edge and the heel
+  corner-toe chord (a heel block with a sprung toe hung in the air at heel strike); the foot is
+  measured on the front leg's own piece only; a planted foot's pixels are seated on the ground
+  row (at most 1.5 px at 56); far limbs hang a whole game pixel behind the near ones.
+- **Cut.** Leg-outline scraps below the hips go to the nearest leg (they stayed behind as a
+  loose line), arm-side scraps of the torso go to the arm (they streaked the fill under the
+  arm), the far hand's copy ends at the hand tip (no stub of the near hand's weapon).
+- **Dwarf layout**: boot 0.200 BH, shin width 0.080, hip 0.41 (`spec.foot_numbers`).
+
+Batch results, 22 Nov, both sizes:
+- `samples/stills_spec`: accepted HR6.1; refused HR6.2 (G11 shield on the near side), HR6.4 (G8
+  fist over the body).
+- `samples/stills`: accepted HR2.2 HR3.1 HR4.2 HR5.1; HR1.2 (accepted before) is now refused by
+  the tightened G8 (0.60 of a hand of skin colour on the body). By eye HR4.2 is clean; HR2.2 has
+  a loose thin line at the hip in two frames; HR3.1 is very dark with red specks at the feet;
+  HR5.1's hand and chain are smeared. None of these four was drawn on spec.
+
 ## Limits (what it cannot cut well)
 - Long robes and skirts (HR3.2 wizard, the elves' loin cloth): kept rigid with the torso, so
   only the boots move under them; looks stiff next to hand animation.
@@ -177,7 +234,11 @@ the same rule (two-handed crossbow; a hand on the shield).
 - Stills whose two arms are both prominent (3/4 view) need `far_shoulder_offset`, and the
   far arm is always a darkened copy of the near one: skin becomes a dark red-brown sleeve
   (palette snap), which reads as a sleeve rather than a shadowed bare arm.
-- At 56 px the source is shrunk ~2.2:1; faces and thin straps lose detail.
+- At 56 px a full-size still is shrunk 7:1; faces, emblems and thin straps are lost (see above).
+- G11 sees only gear with a closed rim of one lit colour; G8 and R17 are colour tests.
+- The fit still snaps a spec still's legs to the picture (hip within 1.5 % BH of the layout);
+  the image model draws limbs up to 1.4 x as thick as the layout and a tunic over the hips, so
+  the thigh takes some tunic with it when it swings.
 - Polygons (`far_poly`, `torso_keep`, gear) are hand work per still (5-10 min each); the
   art runner's exported joints (samples/stills/, not yet present) will need arm points fitted
   to the drawn arm before cutting.

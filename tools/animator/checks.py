@@ -9,8 +9,16 @@ import numpy as np
 from .foot import BEHIND_MAX_PX, ahead_of_front_edge, behind_back_edge
 from .rig import JOINT_LIMITS, joint_angles, SIDES
 
-TOL_PX = 1.0       # brief: 1 px at game size
+TOL_PX = 1.0       # brief: 1 px at game size, i.e. one pixel of the 56 px sprite (the size the
+                   # rules were written for).  A sprite baked at 112 px shows the same still twice
+                   # as big, so the same length is 2 of its pixels: every pixel tolerance is
+                   # TOL_PX x ctx["size_x"] (1 at 56 px, 2 at 112 px).  A walk that passes at 56 px
+                   # passes at 112 px with exactly the same geometry, and never with a worse one.
 TOL_DEG = 0.5      # angles are recomputed from float joints; this only absorbs float noise
+
+
+def _tol(ctx):
+    return TOL_PX * float(ctx.get("size_x", 1))
 
 
 def _J(meta):
@@ -23,7 +31,7 @@ def bone_lengths(frames, ctx):
         J = _J(f["meta"])
         for b, a, c in ctx["bones"]:
             d = float(np.hypot(*(J[c] - J[a])))
-            if abs(d - ctx["lengths"][b]) > TOL_PX:
+            if abs(d - ctx["lengths"][b]) > _tol(ctx):
                 out.append(f"frame {i}: bone_length: {b} is {d:.1f}px, rig {ctx['lengths'][b]:.1f}px")
     return out
 
@@ -59,18 +67,18 @@ def stance_foot(frames, ctx):
             a, b = frames[i]["meta"], frames[(i + 1) % n]["meta"]
             if a["contact"][s]:
                 x0, y0 = _anchor(_J(a), s, fl)
-                if abs(y0 - g) > TOL_PX:
+                if abs(y0 - g) > _tol(ctx):
                     what = "sinks below" if y0 > g else "floats above"
                     out.append(f"frame {i}: stance_ground: {s} foot {what} the ground line by {abs(y0 - g):.1f}px")
                 if b["contact"][s] and _same_step(ctx, s, a["phase"], i + 1 == n):
                     x1, _ = _anchor(_J(b), s, fl)
-                    if abs((x1 - x0) - step) > TOL_PX:
+                    if abs((x1 - x0) - step) > _tol(ctx):
                         out.append(f"frame {i}: foot_slide: {s} foot moved {x1 - x0:+.1f}px, body speed needs {step:+.1f}px")
     for i, f in enumerate(frames):
         J = _J(f["meta"])
         for s in SIDES:
             low = max(J[s + ".heel"][1], J[s + ".toe"][1])
-            if low > g + TOL_PX:
+            if low > g + _tol(ctx):
                 out.append(f"frame {i}: foot_sink: {s} foot {low - g:.1f}px below the ground line")
     return out
 
@@ -112,7 +120,7 @@ def heel_flush(frames, ctx):
             kn, an = J[s + ".knee"], J[s + ".ankle"]
             hb = float(behind_back_edge(J[s + ".heel"], kn, an, back, ctx["facing"]))
             ta = float(ahead_of_front_edge(J[s + ".toe"], kn, an, front, ctx["facing"]))
-            if hb > TOL_PX or ta <= 0:
+            if hb > _tol(ctx) or ta <= 0:
                 out.append(f"frame {i}: heel_flush: {s} rig heel {hb:+.1f}px behind the shin's back "
                            f"edge, toe {ta:+.1f}px ahead of its front edge")
                 continue
@@ -125,7 +133,7 @@ def heel_flush(frames, ctx):
             beh = behind_back_edge(P, kn, an, back, ctx["facing"]) > 0
             if beh.any():
                 w = np.bincount(ys[beh]).max()
-                if w > BEHIND_MAX_PX:
+                if w > BEHIND_MAX_PX * ctx.get("size_x", 1):
                     out.append(f"frame {i}: heel_flush: {s} foot sticks out {w}px behind the shin's back edge")
             if ahead_of_front_edge(P, kn, an, front, ctx["facing"]).max() <= 0:
                 out.append(f"frame {i}: heel_flush: {s} foot does not reach ahead of the shin")
@@ -193,6 +201,19 @@ def two_legs(frames, ctx):
             row = leg[y] | bridge[y]
             row = row | (np.roll(row, 1) & np.roll(row, -1))   # 1-px slits do not split a leg
             runs = [r for r in _runs(row, 1) if leg[y, r[0]:r[1] + 1].sum() >= lw]
+            # the raised toe of a long boot at heel strike is cut off from its own shin in the
+            # rows above the instep: a run made only of one leg's foot pixels, in a row where
+            # that leg has another run, is that leg's toe and not another leg
+            for side in SIDES:
+                if side + "_foot" not in names:
+                    continue
+                fi = names.index(side + "_foot")
+                own = [k for k, n in enumerate(names) if n.startswith(side + "_") and
+                       n.split("_")[1] in ("thigh", "shin", "foot")]
+                toe = [r for r in runs if (lab[y, r[0]:r[1] + 1][leg[y, r[0]:r[1] + 1]] == fi).all()]
+                rest = [r for r in runs if r not in toe and np.isin(lab[y, r[0]:r[1] + 1], own).any()]
+                if toe and rest:
+                    runs = [r for r in runs if r not in toe]
             if len(runs) > 2:
                 out.append(f"frame {i}: two_legs: row {y} has {len(runs)} leg-wide runs (a third leg?)")
                 break
@@ -220,7 +241,7 @@ def cycle_closes(frames, ctx):
         return ["frame -: cycle_closes: no closing frame"]
     J0, Jc = _J(frames[0]["meta"]), _J(c)
     worst = max(float(np.hypot(*(J0[k] - Jc[k]))) for k in J0)
-    if worst > TOL_PX:
+    if worst > _tol(ctx):
         out.append(f"frame {len(frames) - 1}: cycle_closes: last frame does not lead into frame 0 "
                    f"(joint off by {worst:.1f}px)")
     if c["contact"] != frames[0]["meta"]["contact"]:
@@ -264,6 +285,17 @@ def palette(frames, ctx):
     return out
 
 
+def key_colour(frames, ctx):
+    """R19: no pixel of the background key's colour (magenta, intake.key_mask) in any frame."""
+    from .intake import key_mask
+    out = []
+    for i, f in enumerate(frames):
+        n = int(key_mask(f["rgba"]).sum())
+        if n:
+            out.append(f"frame {i}: key_colour: {n} px of the background key's colour (magenta fringe)")
+    return out
+
+
 def foot_jitter(frames, ctx):
     """The shrunk stance foot jitters at most 1 px frame to frame: between consecutive stance
     frames of the same footfall, the baked foot's ground end (heel end while the heel is down,
@@ -282,7 +314,9 @@ def foot_jitter(frames, ctx):
             return None
         J = _J(f["meta"])
         heel, toe = J[s + ".heel"], J[s + ".toe"]
-        low = ys >= ys.max() - 1
+        # the ground end is read from the same slice of the boot at every baked size: its
+        # bottom 2 rows at 56 px, 4 rows at 112 px (the tolerance stays 1 px at any size)
+        low = ys >= ys.max() - (2 * int(round(ctx.get("size_x", 1))) - 1)
         if heel[1] >= toe[1] - 0.5:
             return "heel", float(xs[low].min()) - float(heel[0]), int(ys.max())
         return "toe", float(xs[low].max() + 1) - float(toe[0]), int(ys.max())
@@ -300,7 +334,7 @@ def foot_jitter(frames, ctx):
             for k, p in ((i, pa), ((i + 1) % n, pb)):
                 if not (g - 2 <= p[2] <= g):
                     out.append(f"frame {k}: foot_jitter: {s} stance foot's lowest row {p[2]}, ground row {g - 1}")
-            if pa[0] == pb[0] and abs(pb[1] - pa[1]) > TOL_PX + 1e-6:
+            if pa[0] == pb[0] and abs(pb[1] - pa[1]) > _tol(ctx) + 1e-6:
                 out.append(f"frame {i}: foot_jitter: {s} stance foot jumps {pb[1] - pa[1]:+.1f}px "
                            f"against its footprint")
     return sorted(set(out), key=out.index)
@@ -319,7 +353,7 @@ def two_arms(frames, ctx):
         J = _J(f["meta"])
         for s in SIDES:
             d = float(np.hypot(*(J[s + ".wrist"] - J[s + ".elbow"])))
-            if abs(d - ctx["lengths"][s + ".fore"]) > TOL_PX:
+            if abs(d - ctx["lengths"][s + ".fore"]) > _tol(ctx):
                 out.append(f"frame {i}: two_arms: {s} hand is not on its forearm ({d:.1f}px)")
     return out
 
@@ -427,13 +461,20 @@ def arm_count(frames, ctx):
                            f"on a forearm (a third hand or arm painted on the body)")
         n_hands = 0
         for s, li in fore.items():
+            on_bone = 0
             for sz, cy, cx in _blobs(hand & (lab == li)):
                 if sz < min_px:
                     continue
-                n_hands += 1
                 seg = _seg_d(np.array([cx + 0.5, cy + 0.5]), J[s + ".elbow"], J[s + ".hand_tip"])
                 if seg > reach:
                     out.append(f"frame {i}: arm_count: {s} hand is {seg:.1f}px off the end of its forearm")
+                # skin along one forearm's own bone is that one arm (a bare forearm and its hand
+                # parted by a wristband are two blobs); a blob beside the bone is another hand
+                if seg <= ctx.get("fore_r", 0.0) + 0.5:
+                    on_bone = 1
+                else:
+                    n_hands += 1
+            n_hands += on_bone
         if n_hands > 2:
             out.append(f"frame {i}: arm_count: {n_hands} hand-sized blobs on the forearms (at most two hands)")
     return out
@@ -514,7 +555,7 @@ def arm_swing(frames, ctx):
 
 
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
-         rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms]
+         rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour]
 
 
 def run_all(frames, ctx):
@@ -529,7 +570,7 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_direction": "R5", "heel_flush": "R6", "foot_slide": "R7", "stance_ground": "R8",
             "foot_sink": "R8", "bone_length": "R9", "joint_limit": "R10", "draw_order": "R11",
             "rigid_part": "R12", "cycle_closes": "R13", "mirror_timing": "R14", "palette": "R15",
-            "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18"}
+            "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19"}
 
 
 def rule_id(failure):

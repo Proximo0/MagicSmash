@@ -181,6 +181,34 @@ def cut_auto(still, rig, masks):
                 if k != biggest and sz < 0.15 * cs[biggest]:
                     lab[cl == k] = code["torso"]
 
+    # scraps of the body cut off by the near arm (a trinket in the hand, the outline of a
+    # sleeve ahead of the coat) belong to the arm: left on the torso they stretch its row hull
+    # past the arm, and the hole under the arm is then filled with their colour in streaks
+    tm = lab == code["torso"]
+    if tm.any():
+        cl, cs = components(tm)
+        biggest = max(cs, key=cs.get)
+        arm_near = {n: dilate(lab == code[n], 2) for n in NEAR_ARM}
+        for k, sz in cs.items():
+            if k == biggest or sz > (0.06 * BH) ** 2:
+                continue
+            m = cl == k
+            touch = {n: int((m & arm_near[n]).sum()) for n in NEAR_ARM}
+            n_ = max(touch, key=touch.get)
+            if touch[n_]:
+                lab[m] = code[n_]
+
+    # trousers: what is left below the hips and does not hang from the torso is not a flap of
+    # cloth but a scrap of a leg's outline outside its capsule: it goes to the nearest leg
+    # (as a "robe" it stayed behind while the leg walked away: a loose black line in the frames)
+    if not robe_mode and (lab == code["robe"]).any():
+        cl, cs = components(lab == code["robe"])
+        hang = dilate(lab == code["torso"], 2)
+        for k in cs:
+            m = cl == k
+            if not (m & hang).any():
+                lab[m] = np.array([code[n] for n in lnames])[lbest[m]]
+
     # scraps cut off the body by the erased far hand (a sliver of its outline behind the
     # back) go with it
     if far_hand.any():
@@ -278,6 +306,10 @@ def cut_auto(still, rig, masks):
         gear_reach = float(np.hypot(gx + 0.5 - j["wrist"][0], gy + 0.5 - j["wrist"][1]).max()) / BH
     arm_only = {"near_upper": arm_n["near_upper"] <= 1.25,
                 "near_fore": arm_n["near_fore"] <= 1.25}
+    # ... and nothing past the hand's tip: the stub of a shaft sticking out of the fist would
+    # give the far hand a small weapon of its own
+    t_hand = seg_dist(P, j["wrist"], j["hand_tip"])[1]
+    arm_only["near_fore"] &= t_hand <= 1.0
     # held gear: area of the forearm part outside the arm itself (a shield is wide, not long)
     gear_area = float((fm & ~arm_only["near_fore"]).sum()) / (BH * BH)
     # the far arm.  Hidden in the still: a shaded copy of the near arm.  Visible in the still

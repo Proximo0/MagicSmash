@@ -26,6 +26,9 @@ def _out(p):
         return p
     if os.path.isdir(os.path.dirname(os.path.normpath(p)) or ".") and os.path.basename(os.getcwd()) == "animator":
         return os.path.abspath(p)
+    ab = os.path.abspath(p)
+    if ab.startswith(HERE + os.sep):       # already a path into tools/animator (from the repo root)
+        return ab
     return os.path.join(HERE, p)
 
 

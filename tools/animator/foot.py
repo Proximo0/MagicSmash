@@ -31,6 +31,7 @@ SOLE_BAND = 2.5             # px above the sole line that always count as sole
 SOLE_PITCH = (-25.0, 60.0)  # deg, toe up +: a drawn sole lies in this range (the stills draw the
                             # front foot up to ~45 deg toe-up at heel strike; a steeper edge
                             # running down-forward is the back of the leg, not a sole)
+END_SHARE = 0.2             # the heel end and the toe end of a foot: this share of its length
 BEHIND_MAX_PX = 1           # checks: foot pixels behind the shin's back edge, per row, game px
 
 
@@ -114,9 +115,32 @@ def fit_foot(leg_mask, knee, ankle, shin_r):
     d = np.array([-e[1], e[0]])             # sole normal, pointing down
     if d[1] < 0:
         d = -d
+    # a boot with a heel block and a sprung toe: the hull's longest edge runs from the block's
+    # front corner to the toe and passes UNDER the block's rear corner, so the heel point lay
+    # below the drawn heel and the boot hung in the air at heel strike; the chord from the
+    # block's rear corner to the toe leaves the block's front corner hanging under the ground
+    # when the foot is flat.  The sole is the line half-way between the two, through the toe's
+    # contact point: the heel's rear corner is as far above it as the block's front is below.
+    pe, pd = foot @ e, foot @ d
+    span = float(pe.max() - pe.min())
+    toe_contact = None
+    if span > 6:
+        hm = pe <= pe.min() + END_SHARE * span
+        tm = pe >= pe.max() - END_SHARE * span
+        ph = foot[hm][np.argmax(pd[hm])]
+        pt = foot[tm][np.argmax(pd[tm])]
+        v = pt - ph
+        if v[0] > 0.3 * span:
+            pitch2 = -math.degrees(math.atan2(v[1], v[0]))
+            if SOLE_PITCH[0] <= pitch2 <= SOLE_PITCH[1]:
+                e = e + v / float(np.hypot(*v))
+                e = e / float(np.hypot(*e))
+                d = np.array([-e[1], e[0]])
+                toe_contact = pt
     if abs(float(u @ d)) < 0.3:             # shin lying along the sole: not a standing leg
         return None
-    sole = float((foot @ d).max()) + 0.5    # the sole line: P.d = sole
+    # the sole line P.d = sole passes through the toe's contact point
+    sole = float(toe_contact @ d) + 0.5 if toe_contact is not None else float((foot @ d).max()) + 0.5
     h0 = sole - float(ankle @ d)            # the tracked ankle may sit low in the boot
     band = max(0.6 * h0, 2 * SOLE_BAND)
     for _ in range(2):                      # length from the low pixels, ankle height from it

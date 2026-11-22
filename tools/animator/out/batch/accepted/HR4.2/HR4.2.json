@@ -6,39 +6,65 @@
   80
  ],
  "foot_y": 74,
+ "body_height_px": 56,
  "scale": 0.14358974358974358,
  "motions": {
   "walk4": {
    "frames": 4,
-   "speed_px_per_cycle": 40.0,
-   "gain": 1.109,
+   "speed_px_per_cycle": 32.0,
+   "gain": 1.0,
    "ms_per_frame": 250,
    "checks": "ok"
   },
   "walk8": {
    "frames": 8,
-   "speed_px_per_cycle": 40.0,
-   "gain": 1.109,
+   "speed_px_per_cycle": 32.0,
+   "gain": 1.0,
    "ms_per_frame": 125,
    "checks": "ok"
   }
+ },
+ "native_grid": {
+  "found": false,
+  "cell": [
+   7.600000000000004,
+   4.160000000000001
+  ],
+  "phase": [
+   5.25,
+   1.5
+  ],
+  "score": [
+   1.24,
+   1.11
+  ],
+  "texel": 3.0,
+  "used_cell": [
+   6.964285714285714,
+   6.964285714285714
+  ]
  },
  "fit": {
   "id": "HR4.2",
   "flags": [],
   "penalties": {},
+  "on_spec": false,
+  "key_px": 0,
+  "key_at": [],
   "layout_scale": 1.003,
   "robe": false,
-  "back_reach": 0.032,
+  "ankle_moved_px": -17.1,
+  "arm_from_layout": false,
+  "back_reach": 0.031,
   "inner_hand": false,
-  "arm_colour_cost": 0.065,
+  "arm_colour_cost": 0.062,
   "hands": [
    {
     "at": [
      76.6,
-     214.5
+     214.6
     ],
-    "area": 2.65,
+    "area": 2.48,
     "zone": "back",
     "w": 6,
     "h": 17,
@@ -46,6 +72,8 @@
     "reach": 1.03
    }
   ],
+  "arm_overlap": 0,
+  "gear_blobs": [],
   "layout_swapped": {
    "legs": true,
    "arms": false
@@ -53,14 +81,14 @@
   "moved_px": {
    "head_top": 29.2,
    "neck": 15.2,
-   "pelvis": 7.0,
-   "shoulder": 10.3,
-   "elbow": 14.0,
-   "wrist": 7.3,
-   "hip": 3.8,
-   "knee": 5.2,
-   "ankle": 24.6,
-   "toe": 30.3,
+   "pelvis": 10.4,
+   "shoulder": 9.8,
+   "elbow": 13.9,
+   "wrist": 6.3,
+   "hip": 13.4,
+   "knee": 4.1,
+   "ankle": 20.8,
+   "toe": 29.5,
    "far_knee": 12.5,
    "far_ankle": 26.1
   },

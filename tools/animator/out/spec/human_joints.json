@@ -184,6 +184,16 @@
    0.452
   ]
  },
+ "foot": {
+  "foot": 0.12,
+  "foot_px": 46.8,
+  "shin_width": 0.072,
+  "shin_width_px": 28.1,
+  "foot_per_leg": 0.3,
+  "foot_per_shin_width": 1.67,
+  "toe_ahead": 0.048,
+  "toe_ahead_px": 18.7
+ },
  "half_widths_px": {
   "thigh": 19.5,
   "shin": 14.0,

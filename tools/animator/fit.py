@@ -43,6 +43,7 @@ from PIL import Image
 from .colour import to_oklab
 from .foot import fit_foot
 from .imgops import components, dilate, runs, seg_dist
+from .intake import GEAR_FRONT_MAX, clean_key, gear_census, key_mask
 from .rig import ik2
 
 ALPHA_T = 128
@@ -70,6 +71,10 @@ HAND_CHROMA = (0.45, 1.9)  # shaded (HR1.1: far hand redder and darker, near one
 HAND_L = (-0.10, 0.35)     # hue, chroma ratio and lightness each get their own window
 HAND_GREY = 0.03           # OKLab chroma under which the hand is grey (glove, gauntlet)
 HAND_AREA = (0.50, 20.0)   # x the front hand's lit area (bigger and not limb-shaped: clothing)
+ARM_BLOB_MIN = 0.05        # x the front hand's lit area: smaller specks of its colour are not counted
+ARM_OVERLAP_MAX = 0.15     # G8: hand-coloured area drawn over the body, x the front hand's lit area,
+                           # from which the still is refused (v1 needed one blob of 0.50: a fist half
+                           # hidden behind a shield passed)
 HAND_SIZE = (0.02, 0.12)   # x body height: a hand blob's width and height
 HAND_FILL = 0.4            # a fist fills at least this much of its bounding box
 HAND_REACH = (0.55, 1.3)   # x arm length from the shoulder
@@ -79,13 +84,16 @@ OUTLINE_DARK = 70          # brightest channel of an outline pixel
 EDGE = 0.03                # x body height: a blob this close to the silhouette's edge is clear of the body
 
 
-def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, arm_len):
+def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, arm_len, hand_at=None):
     """Every other hand (or bare forearm) of the still besides the front hand: list of dicts
     with centre, area (x the front hand's lit area), size and zone (`back` = behind the torso's
     back line, `front` = ahead of its front line, `inside` = drawn over the body).  A hand is a
     compact blob of the front hand's colour (shading allowed: HAND_AB, HAND_L), hand-sized, at
     arm's reach from the shoulder; a bare forearm is a longer blob of that colour, arm-wide.
-    `exclude` = the near arm's own pixels."""
+    `exclude` = the near arm's own pixels.  `hand_at` = where the hand is when the layout says so
+    (a still on spec); otherwise the blob's point furthest from the shoulder, which is the tip
+    of a held weapon when there is one (HR6.4 on spec: the hammer's grey was taken for the
+    hand's colour and the green fist on the shield was not seen)."""
     if not hand_blob.any():
         return []
     H, W = body.shape
@@ -93,6 +101,8 @@ def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, ar
     by_, bx_ = np.where(hand_blob)
     dd_ = np.hypot(bx_ + 0.5 - shoulder[0], by_ + 0.5 - shoulder[1])
     tip = np.array([bx_[np.argmax(dd_)] + 0.5, by_[np.argmax(dd_)] + 0.5])
+    if hand_at is not None:
+        tip = np.asarray(hand_at, float)
     hb = hand_blob & (np.hypot(xx + 0.5 - tip[0], yy + 0.5 - tip[1]) < 0.045 * BH)
     if hb.sum() < 6:
         return []
@@ -122,7 +132,7 @@ def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, ar
         return out
     cl, cs = components(zone)
     for kk, sz in sorted(cs.items(), key=lambda kv: -kv[1]):
-        if sz < HAND_AREA[0] * tip_area:
+        if sz < ARM_BLOB_MIN * tip_area:
             break
         m = cl == kk
         ys, xs = np.where(m)
@@ -150,10 +160,11 @@ def hand_census(lab_img, body, exclude, hand_blob, shoulder, sh_y, hip_y, BH, ar
 
 
 def load_single(path):
+    """The still with hard alpha and the background key's fringe cleaned (intake.clean_key)."""
     a = np.array(Image.open(path).convert("RGBA"))
     a[a[..., 3] < ALPHA_T] = 0
     a[a[..., 3] >= ALPHA_T, 3] = 255
-    return a
+    return clean_key(a)[0]
 
 
 def _bbox_top(mask):
@@ -334,6 +345,11 @@ def fit_still(png, layout_json):
     H, W = img.shape[:2]
     A = img[..., 3] > 0
     report = {"id": lay.get("id", os.path.basename(png)), "flags": [], "penalties": {}}
+    on_spec = "build" in lay          # written by `spec`: the still was drawn on our pose layout
+    report["on_spec"] = on_spec
+    km = key_mask(img)
+    report["key_px"] = int(km.sum())
+    report["key_at"] = [[int(x), int(y)] for y, x in zip(*np.where(km))][:8]
     lab, sizes = components(A)
     main = max(sizes, key=sizes.get)
     body = lab == main
@@ -432,6 +448,9 @@ def fit_still(png, layout_json):
     if not robe:
         hip_y = max(hip_y, merge_y - 0.6 * leg_w)
     fit = {}
+    # how far the hip may be moved off the layout's column: a still on spec was drawn on it (a
+    # tunic over the thighs gives the leg's axis nothing to hold on to, HR6.1: 20 px off)
+    hx_w = 0.015 if on_spec else 0.05
     for name, lj in (("front", "front"), ("back", "back")):
         t = tracks[name]
         if len(t) < 4:
@@ -448,12 +467,24 @@ def fit_still(png, layout_json):
             ay = ground - 0.07 * BH
         ai = int(np.argmin(np.abs(t[:, 0] - ay)))
         ankle = np.array([(t[ai, 1] + t[ai, 2] + 1) / 2, ay])
+        # the run at the top of the foot already widens into the instep, which pulled the ankle
+        # forward (HR6.1 on spec: 18 px, and the shin's "back edge" 34 px behind its axis): the
+        # ankle lies on the shin's own centre line, carried down from the shin's rows
+        srow = (t[:, 0] < ay - 0.03 * BH) & (t[:, 0] > ay - 0.20 * BH) & (w <= 1.25 * shin_w)
+        ankle_run = ankle.copy()                     # G2 compares the legs on this point
+        if name == "front" and srow.sum() >= 8:      # (the back leg is only erased)
+            cx_ = (t[srow, 1] + t[srow, 2] + 1) / 2
+            ca, cb = np.polyfit(t[srow, 0] + 0.5, cx_, 1)
+            ax_ = float(ca * ay + cb)
+            if abs(ax_ - ankle[0]) <= 0.6 * shin_w:  # a wild line (few shin rows) is not used
+                report["ankle_moved_px"] = round(ax_ - float(ankle[0]), 1)
+                ankle[0] = ax_
         sel = (t[:, 0] < ay - 0.01 * BH)
         pts = np.stack([(t[sel, 1] + t[sel, 2] + 1) / 2, t[sel, 0] + 0.5], 1)
         hx0 = R[lj + "_hip"][0]
         hip, knee, rms = _fit_knee(pts, hip_y, hx0, ankle, R[lj + "_knee"], BH,
-                                   np.arange(-0.05 * BH, 0.05 * BH + 0.1, 0.01 * BH))
-        fit[name] = {"hip": hip, "knee": knee, "ankle": ankle, "rms": rms, "n": int(len(pts)),
+                                   np.arange(-hx_w * BH, hx_w * BH + 0.1, 0.005 * BH))
+        fit[name] = {"hip": hip, "knee": knee, "ankle": ankle, "ankle_run": ankle_run, "rms": rms, "n": int(len(pts)),
                      "shin_w": shin_w, "track": t}
         if len(pts) < 0.08 * BH:
             pen["axis_" + name] = 0.15 if not robe else 0.05
@@ -479,6 +510,15 @@ def fit_still(png, layout_json):
     front_mask[: int(F["knee"][1])] = False
     xmid = (F["ankle"][0] + B["ankle"][0]) / 2
     front_mask[:, : int(xmid)] = False
+    # only the front leg's own piece: the toe of a long back boot can reach past the middle
+    # between the ankles (dwarf layout) and would be measured as part of the front boot
+    if front_mask.any():
+        fl_, fs_ = components(front_mask)
+        ay_, ax_ = int(np.clip(F["ankle"][1], 0, H - 1)), int(np.clip(F["ankle"][0], 0, W - 1))
+        near_ank = fl_[max(0, ay_ - 4):ay_ + 5, max(0, ax_ - 4):ax_ + 5]
+        ids = near_ank[near_ank > 0]
+        if len(ids):
+            front_mask = fl_ == np.bincount(ids).argmax()
     ff = fit_foot(front_mask, F["knee"], F["ankle"], F["shin_w"] / 2)
     if ff is None:
         pen["foot"] = 0.3
@@ -559,6 +599,16 @@ def fit_still(png, layout_json):
         pen["arm"] = 0.25
         report["flags"].append("front hand not found, layout arm used")
         wrist = R["front_wrist"]
+    # a still drawn on the pose layout (STILL_SPEC.md): the near arm is where the layout put
+    # it, so the wrist and elbow are known and not searched (a held hammer's head is further
+    # from the shoulder than the hand and used to be taken for it)
+    spec_arm = False
+    if on_spec and hand_blob.any():
+        lw = R["front_wrist"]
+        if (hand_blob & (np.hypot(xx + 0.5 - lw[0], yy + 0.5 - lw[1]) < 0.05 * BH)).sum() >= 6:
+            wrist = lw.copy()
+            spec_arm = True
+    report["arm_from_layout"] = spec_arm
     # (b) a second hand of the same colour inside the torso band (a hand on the belt): then
     # the arm drawn over the body is the near arm, and the protruding hand is the far one
     lab_img = to_oklab(img[..., :3].astype(float))
@@ -663,9 +713,13 @@ def fit_still(png, layout_json):
         pen["arm_short"] = 0.15
         report["flags"].append("hand very close to the shoulder")
     elbow, wr2 = ik2(shoulder, wrist, Lu, Lf, forward=-1.0)
+    if spec_arm:
+        elbow, wr2 = R["front_elbow"].copy(), wrist
+        shoulder = R["front_shoulder"].copy()
+        Lu, Lf = float(np.hypot(*(elbow - shoulder))), float(np.hypot(*(wr2 - elbow)))
     # (a) elbow by colour: the drawn arm has the colour of the sleeve (or skin) where it
     # leaves the torso / near the hand; search elbows around the IK one
-    if hand_blob.any():
+    if hand_blob.any() and not spec_arm:
         root = hand_blob & (np.hypot(xx + 0.5 - wrist[0], yy + 0.5 - wrist[1]) < 0.10 * BH) & \
             (np.hypot(xx + 0.5 - wrist[0], yy + 0.5 - wrist[1]) > 0.03 * BH)
         if root.sum() >= 6:
@@ -680,9 +734,12 @@ def fit_still(png, layout_json):
     r_arm = 1.5 * 0.045 * BH
     own_arm = (seg_dist(Pg_, shoulder, elbow)[0] < r_arm) | (seg_dist(Pg_, elbow, hand_tip)[0] < r_arm)
     census = hand_census(lab_img, body, hand_blob | (own_arm & body), hand_blob, shoulder, sh_y,
-                         hip_y, BH, Lu + Lf)
+                         hip_y, BH, Lu + Lf, hand_at=(wr2 + hand_tip) / 2 if spec_arm else None)
     # a blob beside one at the back edge is the same hand; what is left inside is an arm
     # drawn over the body
+    # blobs under HAND_AREA of a hand are only counted as overlap (G8), never cut as a far hand
+    small = [c for c in census if c["area"] < HAND_AREA[0]]
+    census = [c for c in census if c["area"] >= HAND_AREA[0]]
     back_any = np.zeros_like(body)
     for c in census:
         if c["zone"] == "back":
@@ -693,7 +750,11 @@ def fit_still(png, layout_json):
             if c["zone"] == "inside" and (c["mask"] & near_back).any():
                 c["zone"] = "back"
                 back_any |= c["mask"]
-    report["hands"] = [{k: v for k, v in c.items() if k != "mask"} for c in census]
+    near_back = dilate(back_any, max(2, int(0.025 * BH))) if back_any.any() else back_any
+    small = [c for c in small if c["zone"] == "inside" and not (c["mask"] & near_back).any()]
+    report["hands"] = [{k: v for k, v in c.items() if k != "mask"} for c in census + small]
+    # G8 score: hand-coloured area over the body, x the front hand's own lit area
+    report["arm_overlap"] = round(sum(c["area"] for c in census + small if c["zone"] == "inside"), 2)
     dark = img[..., :3].max(-1) < OUTLINE_DARK
     census_back = back_any | (dilate(back_any, 3) & body & dark & ~own_arm) if back_any.any() else back_any
     # back hand (to erase): a compact blob behind the back line, at arm's reach below the
@@ -715,6 +776,8 @@ def fit_still(png, layout_json):
             if compact and 0.6 * reach <= dd <= 1.15 * reach and ys2.min() > sh_y + 0.12 * BH:
                 far_blob |= m
                 break
+    # ---- gear blobs (G11): rimmed shapes and how much of each lies over the torso front
+    report["gear_blobs"] = gear_census(img, body, BH, axis, sh_y, hip_y + 0.08 * BH)
     # ---- radii
     radius = {"thigh": max(0.55 * leg_w, 0.03 * BH), "shin": max(F["shin_w"] / 2, 0.025 * BH),
               "foot": max(0.4 * F["shin_w"], 0.02 * BH), "upper": 0.045 * BH, "fore": 0.042 * BH}
@@ -766,7 +829,7 @@ def fit_still(png, layout_json):
         "torso_lines": {"front": round(f20, 2), "back": round(b20, 2)},
         "robe": bool(robe), "merge_y": int(merge_y),
         "stride_still": round(float(ff["heel"][0] - (btoe[0] - ff["length"])), 2),
-        "track_ankle": rnd(F["ankle"]),
+        "track_ankle": rnd(F.get("ankle_run", F["ankle"])),
         "fit": report,
     }
     if far_blob.any():
@@ -863,16 +926,34 @@ def gate_still(data):
         flex = (-min(-SWING_ANKLE[0], plantar_limit(ffit["back"], ah, tol)), STANCE_DORSI_MAX)
         for t in foot_faults(ffit["length"], leg, ffit["back"], ffit["front"], ah, flex):
             out.append(("G9: foot_length: " + t, ["heel", "toe"]))
+    # G10 nothing of the background key's colour is left (intake.clean_key removes the rim; a
+    # patch it could not remove is unkeyed background)
+    if rep.get("key_px", 0) > 0:
+        out.append(("G10: key_colour: %d pixel%s of the background key's colour (magenta) left in the "
+                    "still after cleaning its rim: the background is not keyed out there"
+                    % (rep["key_px"], "" if rep["key_px"] == 1 else "s"),
+                    [tuple(p) for p in rep.get("key_at", [])]))
+    # G11 a shield (any rimmed gear blob) over the torso's front or the near arm hides the arm
+    for g in rep.get("gear_blobs", []):
+        if g["front"] > GEAR_FRONT_MAX:
+            out.append(("G11: gear_on_near_side: a rimmed gear blob (a shield?) of %.3f body heights "
+                        "squared at %d,%d lies %.0f %% ahead of the trunk axis (limit %.0f %%): it "
+                        "covers the torso's front and the near arm; a shield belongs on the back, "
+                        "wholly behind the torso" % (g["area"], g["at"][0], g["at"][1],
+                                                     100 * g["front"], 100 * GEAR_FRONT_MAX),
+                        [tuple(g["at"])]))
     # G8 every arm in the still belongs to exactly one arm part: a hand or bare forearm drawn
     # over the body cannot be cut from the torso and would stay painted on it (a third arm)
     inside = [h for h in rep.get("hands", []) if h["zone"] == "inside"]
-    if inside:
+    overlap = sum(h["area"] for h in inside)
+    if inside and overlap >= ARM_OVERLAP_MAX:
         h = max(inside, key=lambda c: c["area"])
         out.append(("G8: arm_on_body: a %s is drawn over the body at %d,%d (%d blob%s of the hand's "
-                    "colour): it cannot be cut from the torso and would stay painted on while the "
-                    "arms swing; draw the near arm clear of the torso and the far arm hidden or "
-                    "clear behind the back" % (h["kind"], h["at"][0], h["at"][1], len(inside),
-                                               "" if len(inside) == 1 else "s"),
+                    "colour, %.2f of a hand in all, limit %.2f): it cannot be cut from the torso and "
+                    "would stay painted on while the arms swing; draw the near arm clear of the "
+                    "torso and the far arm hidden or clear behind the back"
+                    % (h["kind"], h["at"][0], h["at"][1], len(inside), "" if len(inside) == 1 else "s",
+                       overlap, ARM_OVERLAP_MAX),
                     [tuple(c["at"]) for c in inside]))
     return out
 
