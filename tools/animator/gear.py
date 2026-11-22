@@ -56,6 +56,106 @@ DEFAULT_ANGLE = {"near_hand": 110.0, "far_hand": 110.0, "back": 0.0, "cape": 0.0
 DEFAULT_AT = {"back": (0.50, 0.10), "cape": (0.93, 0.07)}
 
 
+LONG_GUIDES = ("staff", "two_hand_weapon", "bow")
+GRIP_GUIDES = ("one_hand_weapon", "two_hand_weapon", "staff", "bow")
+GRIP_TAPER = 0.45        # a sword's point: the last rows are this narrow against the shaft
+GRIP_FRAC = {"one_hand_weapon": 0.15, "staff": 0.33, "bow": 0.50}   # anchor, from the grip end (x length)
+
+
+def _width_profile(mask):
+    ys = np.flatnonzero(mask.any(1))
+    y0, y1 = int(ys[0]), int(ys[-1])
+    return y0, y1, mask[y0:y1 + 1].sum(1).astype(float)
+
+
+def grip_end(img, guide):
+    """Which end of an upright gear picture (up = (0, -1)) is the grip: ("top" | "bottom" | None,
+    kind, guard_row).  Swords (two_hand_weapon, or any picture with one tapering end): the end that
+    does not taper to a point; the grip is the short side of the crossguard.  Heads (hammer, axe,
+    mace, dirk, staff ornament, spear): the head is the widest row, the grip is the end away from it."""
+    mask = img[..., 3] > 0
+    if not mask.any():
+        return None, "empty", None
+    y0, y1, w = _width_profile(mask)
+    n = len(w)
+    k = max(2, int(0.04 * n))
+    core = float(np.median(w[w > 0]))
+    top_r, bot_r = float(w[:k].mean()) / core, float(w[-k:].mean()) / core
+    guard = y0 + int(np.argmax(w))
+    if guide in ("two_hand_weapon", "one_hand_weapon"):
+        if top_r <= GRIP_TAPER < bot_r:
+            return "bottom", "sword", guard           # the top is the point
+        if bot_r <= GRIP_TAPER < top_r:
+            return "top", "sword", guard              # the bottom is the point
+    if guide == "bow":
+        return None, "bow", guard
+    head_top = (guard - y0) < (y1 - guard)
+    if abs((guard - y0) - (y1 - guard)) < 0.1 * n:
+        return None, "head", guard
+    return ("bottom" if head_top else "top"), "head", guard
+
+
+def orient_grip(img, anchor, up, guide, keep=False):
+    """The anchor must sit on the handle.  A picture drawn the other way up than the guide (a
+    greatsword point-down, the hilt at the top) is turned 180 deg and its anchor put on the handle;
+    an anchor on the wrong half of a picture that is the right way up is moved onto the handle.
+    Returns (img, anchor, record) with record = {"status": ok | turned | anchor moved | undecided |
+    wrong (kept), "grip_end", "kind", "anchor_before", "anchor"}."""
+    rec = {"status": "ok", "anchor_before": [float(anchor[0]), float(anchor[1])]}
+    if abs(float(up[0])) > 1e-6 or float(up[1]) > -0.999:
+        rec["status"] = "n/a (picture not upright)"
+        rec["anchor"] = rec["anchor_before"]
+        return img, anchor, rec
+    end, kind, guard = grip_end(img, guide)
+    rec.update(grip_end=end, kind=kind)
+    mask = img[..., 3] > 0
+    y0, y1, w = _width_profile(mask)
+    mid = (y0 + y1) / 2.0
+    if end is None:
+        rec["status"] = "undecided"
+        rec["anchor"] = rec["anchor_before"]
+        return img, anchor, rec
+    on_grip_half = (anchor[1] > mid) if end == "bottom" else (anchor[1] < mid)
+    if on_grip_half and kind != "sword":
+        # a staff is carried a third of the way up (pass 8: the carry pose)
+        frac = (y1 + 1 - anchor[1]) / (y1 - y0 + 1)
+        if guide != "staff" or abs(frac - GRIP_FRAC["staff"]) <= 0.04 or keep or end != "bottom":
+            rec["anchor"] = rec["anchor_before"]
+            return img, anchor, rec
+    if kind == "sword":
+        # the hand sits on the handle: half-way between the pommel and the crossguard
+        pom = y0 if end == "top" else y1
+        ay = (pom + guard) / 2.0 + 0.5
+        sword_ok = on_grip_half and abs(anchor[1] - ay) <= 0.2 * (y1 - y0 + 1) and \
+            ((anchor[1] < guard) if end == "top" else (anchor[1] > guard))
+        if sword_ok:
+            rec["anchor"] = rec["anchor_before"]
+            return img, anchor, rec
+    if keep:
+        rec["status"] = "wrong (kept)"
+        rec["anchor"] = rec["anchor_before"]
+        return img, anchor, rec
+    turned = end == "top"
+    if turned:
+        img = np.ascontiguousarray(img[::-1, ::-1])
+        mask = img[..., 3] > 0
+        y0, y1, w = _width_profile(mask)
+        guard = y0 + int(np.argmax(w)) if kind == "head" else (img.shape[0] - 1 - guard)
+        end = "bottom"
+    if kind == "sword":
+        ay = (y1 + guard) / 2.0 + 0.5
+    else:
+        ay = y1 + 1 - GRIP_FRAC.get(guide, 0.25) * (y1 - y0 + 1)
+    row = mask[int(ay)]
+    xs = np.flatnonzero(row)
+    ax = float(xs.mean() + 0.5) if len(xs) else float(anchor[0])
+    rec["status"] = "turned 180 deg, anchor on the handle" if turned else "anchor moved onto the handle"
+    new = np.array([ax, ay], float)
+    rec["anchor"] = [round(float(new[0]), 1), round(float(new[1]), 1)]
+    rec["grip_end"] = "bottom"
+    return img, new, rec
+
+
 class Gear:
     def __init__(self, name, img, spec):
         self.name = name
@@ -73,7 +173,15 @@ class Gear:
         up = np.array(spec.get("up", [0, -1]), float)
         n = float(np.hypot(*up))
         self.up = up / n if n > 0 else np.array([0.0, -1.0])
+        self.orient = {"status": "n/a"}
+        if self.slot in ("near_hand", "far_hand") and spec.get("guide") in GRIP_GUIDES:
+            self.img, self.anchor, self.orient = orient_grip(self.img, self.anchor, self.up, spec["guide"],
+                                                             keep=spec.get("orient") == "keep")
+            self.mask = self.img[..., 3] > 0
         self.size = float(spec.get("size", 0))
+        # long hand gear (staff, greatsword, bow) is CARRIED upright (motion.CARRY_*)
+        self.long = spec.get("guide") in LONG_GUIDES or (spec.get("guide") is None and self.size >= 0.5
+                                                         and self.slot in ("near_hand", "far_hand"))
         self.in_front = bool(spec.get("in_front", False))
         self.angle = float(spec.get("angle", DEFAULT_ANGLE.get(self.slot, 0.0)))
         self.at = tuple(spec.get("at", DEFAULT_AT.get(self.slot, (0.5, 0.1))))
@@ -185,6 +293,15 @@ def gate_gear(gears):
             bad.append("the picture is empty")
         for b in bad:
             out.append(("G14: gear_picture: %s: %s" % (g.name, b), []))
+        # G17: the hand grips the handle, not the blade or head end (checked on the picture as it
+        # stands after the automatic turn, so only a picture whose orientation was kept fails)
+        if g.slot in ("near_hand", "far_hand") and g.mask.any() and \
+                getattr(g, "spec", {}).get("guide") in GRIP_GUIDES:
+            _, _, rec = orient_grip(g.img, g.anchor, g.up, g.spec["guide"], keep=True)
+            if rec["status"].startswith("wrong"):
+                out.append(("G17: grip_end: %s: the hand grips the %s end (%s): the anchor must sit on the "
+                            "handle, on the short side of the crossguard of a sword and away from the head "
+                            "of a hammer, axe or staff" % (g.name, "blade/head", rec.get("kind")), []))
     return out
 
 
@@ -302,3 +419,146 @@ def export(ch, out_dir):
                              parent={"back": "torso", "cape": "torso", "near_hand": "near_fore",
                                      "far_hand": "far_fore"}.get(g.slot))
     return recs
+
+
+# ---------------------------------------------------------------------------------------------
+# Clear by construction (pass 7): a hand-held gear's angle (and, if needed, a size cap) is SOLVED
+# per character over every walk phase, at every baked size, so that its sprite touches no shin,
+# foot or head pixel of the body (R23, R25) with a clear pixel to spare.
+
+SOLVE_SPAN = 32.0        # deg: the solved angle stays this close to the guide's angle
+SOLVE_STEP = 2.0         # deg
+SOLVE_CAPS = (1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7)   # size caps tried, x the guide's size
+SOLVE_PHASES = 16        # phases baked: covers the 4 and 8 frame walks
+SOLVE_UPRIGHT = 15.0     # deg: a long gear (carry pose) stays this close to straight up in every phase
+SOLVE_LEAN = 4.0         # deg: ... leaning this far forward on average
+SOLVE_HOLD = (-25.0, 55.0)   # deg: the gear's head points between this far behind and ahead of
+                             # straight up (carried upright or sloped forward, never dragged)
+
+
+def _dilate(m, n):
+    out = m.copy()
+    for _ in range(n):
+        o = out.copy()
+        o[1:] |= out[:-1]
+        o[:-1] |= out[1:]
+        o[:, 1:] |= out[:, :-1]
+        o[:, :-1] |= out[:, 1:]
+        out = o
+    return out
+
+
+def _solve_frames(ch):
+    """Per phase of a bare-body bake: (J, legs mask, head mask) of a character."""
+    from .bake import bake_motion
+    from .motion import Gait
+    motion = ch.walk_motion()
+    gait = Gait(ch.rig, motion)
+    frames, _ = bake_motion(ch, motion, SOLVE_PHASES, gait=gait)
+    out = []
+    for f in frames:
+        names = f["meta"]["labels"]
+        body = f["body"]["label"]
+        low = np.isin(body, [names.index(n) for n in names if n.endswith("_shin") or n.endswith("_foot")])
+        head = body > 0
+        # the face and beard: every body pixel above the shoulder row (R23 itself stops at the neck
+        # joint's row; a beard hangs below it and a flame touching it looks like a fault)
+        head[int(np.floor(f["meta"]["joints"]["near.shoulder"][1])) + 1:] = False
+        out.append((ch.rig.fk(f["meta"]["pose"]), low, head))
+    return out
+
+
+def _clear(ch, g, data, margin, head_margin=None):
+    for J, low, head in data:
+        pin, phi = place(ch, g, J)
+        spr, (ox, oy) = g.sprite(scale_of(ch, g), phi)
+        G = ch.to_game(pin)
+        x0, y0 = int(math.floor(G[0])) + ox, int(math.floor(G[1])) + oy
+        H, W = low.shape
+        h, w = spr.shape[:2]
+        cx0, cy0, cx1, cy1 = max(x0, 0), max(y0, 0), min(x0 + w, W), min(y0 + h, H)
+        if cx1 <= cx0 or cy1 <= cy0:
+            continue
+        a = spr[cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0, 3] > 0
+        hm = margin if head_margin is None else head_margin
+        for m, k in ((low, margin), (head, hm)):
+            mm = _dilate(m, k) if k else m
+            if (mm[cy0:cy1, cx0:cx1] & a).any():
+                return False
+    return True
+
+
+def _tilts(ch, g, data):
+    """The gear's head direction per phase, deg ahead of straight up."""
+    out = []
+    for J, _, _ in data:
+        t = _turn(_unit(J[g.slot[:-5] + ".wrist"] - J[g.slot[:-5] + ".elbow"]), g.angle)
+        out.append(math.degrees(math.atan2(t[0], -t[1])))
+    return out
+
+
+def _carried(ch, g, data):
+    """The gear's head points inside the hold range in every phase: a long gear within
+    SOLVE_UPRIGHT deg of straight up (the carry pose), short gear between SOLVE_HOLD."""
+    lo, hi = (-SOLVE_UPRIGHT, SOLVE_UPRIGHT) if g.long else SOLVE_HOLD
+    return all(lo <= f <= hi for f in _tilts(ch, g, data))
+
+
+def solve_gear(chs, log=None):
+    """Solve angle and size cap of every hand gear of the characters `chs` (one per baked size,
+    sharing their Gear objects).  Sets g.angle and g.size, records g.solved = {"angle", "size",
+    "guide_angle", "guide_size", "cap", "clear_px", "tilt", "orientation", "status"} and returns
+    {label: solved}.  Long gear (carry pose: motion.CARRY_*) is held within SOLVE_UPRIGHT deg of
+    upright with 2 px of clearance where it can, short gear near the guide's angle."""
+    chs = list(chs)
+    out = {}
+    hand = [g for g in chs[0].gear if g.slot in ("near_hand", "far_hand")]
+    if not hand:
+        return out
+    datas = [(ch, _solve_frames(ch)) for ch in sorted(chs, key=lambda c: -c.body_h)]
+    for g in hand:
+        a0, s0 = g.angle, g.size
+        n = int(SOLVE_SPAN // SOLVE_STEP)
+        if g.long:        # angles that carry it upright and slightly forward, the likeliest first
+            f0 = float(np.mean([np.mean(_tilts(ch, g, d)) for ch, d in datas]))
+            tgt = a0 + (SOLVE_LEAN - f0)
+            cands = sorted((tgt + i * SOLVE_STEP for i in range(-n, n + 1)), key=lambda a: (abs(a - tgt), a))
+            # (clear px of legs, clear px of face and beard, caps): the face first, a flame an
+            # inch from the nose is a fault even when no pixel touches
+            sched = [((2, 2), [c for c in SOLVE_CAPS if c >= 0.8]), ((1, 2), SOLVE_CAPS), ((0, 2), SOLVE_CAPS),
+                     ((1, 1), SOLVE_CAPS), ((0, 1), SOLVE_CAPS), ((0, 0), SOLVE_CAPS)]
+        else:
+            cands = sorted((a0 + i * SOLVE_STEP for i in range(-n, n + 1)), key=lambda a: (abs(a - a0), a))
+            sched = None
+        best = None
+        if sched:
+            plan = [(m, c) for m, caps in sched for c in caps]
+        else:
+            plan = [((m, m), c) for c in SOLVE_CAPS for m in (1, 0)]
+        for margin, cap in plan:
+            g.size = s0 * cap
+            for a in cands:
+                g.angle = a
+                if all(_carried(ch, g, d) and _clear(ch, g, d, margin[0] * max(1, round(ch.body_h / 56)),
+                                                     margin[1] * max(1, round(ch.body_h / 56)))
+                       for ch, d in datas):
+                    best = (a, cap, margin)
+                    break
+            if best:
+                break
+        if best:
+            g.angle, g.size = best[0], s0 * best[1]
+            st = "solved" if min(best[2]) >= (2 if g.long else 1) else \
+                "solved (clear %d px of legs, %d of face)" % best[2]
+            rec = {"angle": best[0], "size": round(g.size, 4), "cap": best[1], "clear_px": best[2][0],
+                   "clear_face_px": best[2][1]}
+        else:
+            g.angle, g.size = a0, s0
+            rec = {"angle": a0, "size": s0, "cap": 1.0, "clear_px": 0}
+            st = "unsolved"
+        tl = [t for ch, d in datas for t in _tilts(ch, g, d)]
+        rec.update(guide_angle=a0, guide_size=s0, status=st, long=bool(g.long),
+                   tilt_deg=[round(min(tl), 1), round(max(tl), 1)], orientation=dict(g.orient))
+        g.solved = rec
+        out[g.label] = rec
+    return out

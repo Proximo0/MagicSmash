@@ -48,9 +48,10 @@ STRIDE_QUANT = 8     # game px: stride per cycle is a multiple of this, so at 8 
 
 SEAT_MAX = 1.5       # game px at 56 px body height: how far a planted foot's pixels may be moved
                      # to stand on the ground row (render)
-BACK_SLOTS = ("back", "cape", "far_hand")   # gear that should hide the far hand (R26)
+BACK_SLOTS = ("back", "cape", "far_hand", "near_hand")   # gear that should hide the far hand (R26)
 FAR_HAND_CLEAR = 0.01  # x body height: the far hand ends this far above the hip line
 GEAR_LONG = 0.30     # x body height: held gear reaching this far past the wrist is "long" ...
+CARRY_BOB = 0.15     # pass 8: arm swing of the carry pose (long hand gear), x the walk's
 GEAR_ARM = 0.40      # ... and that arm swings only this much (a staff is carried steady)
 
 BODY_SIZES = (56, 112)   # game px body height of a human hero: every still is baked at both
@@ -198,7 +199,12 @@ class Character:
         stride = 2 * self.step_px
         target = max(q, round(stride * 0.95 / q) * q)
         arm = GEAR_ARM if self.info.get("gear_reach", 0) > GEAR_LONG else 1.0
-        return fit_walk(self.rig, target / 2.0 / 0.95, exact=target, quantum=q, arm=arm)
+        carry = any(g.slot == "near_hand" and g.long for g in self.gear)
+        if carry:                  # long gear: the carry pose, arm swing a small bob
+            arm = CARRY_BOB
+        m = fit_walk(self.rig, target / 2.0 / 0.95, exact=target, quantum=q, arm=arm)
+        m.carry = carry
+        return m
 
 
 def _bbox_map(ch, piv_src, piv_posed, delta, img):
@@ -384,17 +390,114 @@ def cleanup(out, l):
     return res, rl
 
 
+def hide_far_behind_torso(rgba, lab, names):
+    """One treatment of the far arm for every character (pass 7, fault C): it shows only where it
+    swings out FORWARD of the torso, an arm joined to the body, shaded.  Its pixels behind the
+    torso's back edge (row by row, checks.far_edge) are not drawn: that is the arm hidden by the
+    body, and nothing of it is left to hang as a grey flap behind the back hip or as a sliver
+    along the back with the torso's outline missing.  A piece of the far arm left touching
+    neither the torso, the robe nor the near arm is hidden too (a detached arm)."""
+    from .imgops import components
+    if "torso" not in names:
+        return rgba, lab
+    far = np.isin(lab, [names.index(n) for n in ("far_upper", "far_fore") if n in names])
+    tm = lab == names.index("torso")
+    if not far.any() or not tm.any():
+        return rgba, lab
+    H, W = lab.shape
+    hide = far & (np.arange(W)[None, :] < checks.far_edge(tm)[:, None])
+    rgba[hide] = 0
+    lab[hide] = 0
+    far &= ~hide
+    if far.any():
+        host = np.isin(lab, [names.index(n) for n in ("torso", "robe", "near_upper", "near_fore")
+                             if n in names])
+        touch = host.copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                touch |= np.roll(np.roll(host, dy, 0), dx, 1)
+        cl, sizes = components(far)
+        for k in sizes:
+            if not (touch & (cl == k)).any():
+                rgba[cl == k] = 0
+                lab[cl == k] = 0
+    return rgba, lab
+
+
+SPECK_MAX = 4              # px: a piece of the body this small and apart from the figure is dust
+
+
+def drop_specks(rgba, lab, size=SPECK_MAX):
+    """Pieces of the baked body of at most `size` px that touch nothing else (a hem's outline pixels
+    the cloth left behind) are erased; a cleanup that only caught single pixels left 2-4 px
+    crumbs (R24).  The biggest piece is never touched."""
+    from .imgops import components
+    cl, sizes = components(rgba[..., 3] > 0)
+    if len(sizes) <= 1:
+        return rgba, lab
+    main = max(sizes, key=sizes.get)
+    for k, n in sizes.items():
+        if k != main and n <= size:
+            rgba[cl == k] = 0
+            lab[cl == k] = 0
+    return rgba, lab
+
+
+FAR_REFINE_PHASES = 16     # phases whose far forearm is measured on the pixels
+FAR_REFINE_STEP = 5.0      # deg of elbow flexion added per round
+FAR_REFINE_ROUNDS = 30
+
+
+def refine_far_tuck(ch, gait, cloth):
+    """Pixel-exact R27: render the walk's phases with the gear laid over, find the far forearm's
+    pixels that show below the far hip's row and fold that phase's far elbow FAR_REFINE_STEP more,
+    until none shows.  Neighbouring samples of the profile are lifted to the mean of their sides
+    so the arm does not jerk.  Returns the rounds used."""
+    from .gear import composite
+    tol = checks.TOL_PX * ch.body_h / BODY_H
+    m = len(gait.far_tucks)
+    step = m // FAR_REFINE_PHASES
+    for rnd in range(FAR_REFINE_ROUNDS):
+        hit = []
+        for i in range(FAR_REFINE_PHASES):
+            p = i / FAR_REFINE_PHASES
+            pose, contact = gait.pose(p)
+            J = ch.rig.fk(pose)
+            rgba4, lab4, names = render(ch, J, cloth=cloth, phase=p, contact=contact)
+            rgba, lab = reduce(rgba4, lab4, ch.ss, ch.native)
+            rgba, lab, names, _ = composite(ch, rgba, lab, names, J, cloth, p)
+            ys, _ = np.where(lab == names.index("far_fore")) if "far_fore" in names else ([], [])
+            row = float(ch.to_game(J["far.hip"])[1]) + 0.5 * tol
+            if len(ys) and ys.max() > row:
+                hit.append(i)
+        if not hit:
+            return rnd
+        for i in hit:
+            gait.far_tucks[i * step] += FAR_REFINE_STEP
+        for i in hit:
+            for d in range(1, step):
+                for j in (i * step - d, i * step + d):
+                    gait.far_tucks[j % m] = max(gait.far_tucks[j % m],
+                                                gait.far_tucks[i * step] * (1 - d / step))
+    return FAR_REFINE_ROUNDS
+
+
 def bake_motion(ch, motion, n=None, gait=None):
     n = n or motion.frames
     gait = gait or Gait(ch.rig, motion)
-    if any(g.slot in BACK_SLOTS for g in ch.gear) and not hasattr(gait, "_tucked"):
-        gait.solve_far_tuck(margin=-FAR_HAND_CLEAR * ch.rig.body_height)    # R26
-        gait._tucked = True
+    far_cover = any(g.slot in BACK_SLOTS for g in ch.gear)
     cloth = None
     if any(getattr(p, "kind", "rigid") != "rigid" for p in ch.parts.values()) or \
             any(g.slot == "cape" for g in ch.gear):
         from .cloth import ClothSim
         cloth = ClothSim(ch, gait)
+    if far_cover and not hasattr(gait, "_tucked"):
+        # R27: first from the joints (the wrist and the hand tip a forearm's thickness above the
+        # hip line), then on the pixels: any phase whose far forearm still shows under the hip
+        # line is folded 5 deg more until none does (refine_far_tuck)
+        gait.solve_far_tuck(margin=-(FAR_HAND_CLEAR * ch.rig.body_height + ch.info["radius"]["fore"]))
+        gait._tucked = True
+        refine_far_tuck(ch, gait, cloth)
     frames = []
     for i in range(n + 1):           # frame n is the closing frame (phase 1.0), not output
         p = i / n
@@ -402,6 +505,8 @@ def bake_motion(ch, motion, n=None, gait=None):
         J = ch.rig.fk(pose)
         rgba4, lab4, names = render(ch, J, cloth=cloth, phase=p, contact=contact)
         rgba, lab = reduce(rgba4, lab4, ch.ss, ch.native)
+        rgba, lab = hide_far_behind_torso(rgba, lab, names)
+        rgba, lab = drop_specks(rgba, lab)
         Jg = {k: ch.to_game(v) for k, v in J.items()}
         meta = {"phase": p, "joints": Jg, "contact": contact,
                 "draw_order": names[1:], "labels": names,
@@ -432,6 +537,26 @@ def _has_colours(img, cols):
     keys = np.asarray(cols, np.int64)
     keys = keys[:, 0] * 65536 + keys[:, 1] * 256 + keys[:, 2]
     return bool((np.isin(code, keys) & (img[..., 3] > 0)).any())
+
+
+def _sleeve_colours(ch):
+    """The near upper arm's main colours (each at least 10 % of its pixels) that are not near any
+    main colour of the torso (each at least 3 % of it): the sleeve's own (R28)."""
+    def main(img, share):
+        m = img[..., 3] > 0
+        if not m.any():
+            return np.zeros((0, 3))
+        c, k = np.unique(img[m][:, :3], axis=0, return_counts=True)
+        return c[k >= share * k.sum()].astype(float)
+    if "near_upper" not in ch.parts or "torso" not in ch.parts:
+        return []
+    sl, to = main(ch.parts["near_upper"].img, 0.10), main(ch.parts["torso"].img, 0.03)
+    keep = [tuple(int(v) for v in c) for c in sl
+            if not len(to) or float(np.sqrt(((to - c) ** 2).sum(1)).min()) > SLEEVE_NEAR]
+    return keep
+
+
+SLEEVE_NEAR = 18.0       # RGB distance: a colour this close to one of the torso's is not the sleeve's
 
 
 def context(ch, motion, gait, n):
@@ -473,6 +598,7 @@ def context(ch, motion, gait, n):
         + [g.label for g in ch.gear],
         "gear": {g.label: g for g in ch.gear},
         "skin": ch.info.get("skin"),
+        "sleeve_colours": _sleeve_colours(ch),
         "skinless_legs": [nm for nm in ("near_thigh", "near_shin", "near_foot", "far_thigh", "far_shin", "far_foot")
                           if nm in ch.parts and ch.info.get("skin") is not None and len(ch.info["skin"])
                           and not _has_colours(ch.parts[nm].img, ch.info["skin"])],

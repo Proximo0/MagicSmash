@@ -240,6 +240,7 @@ class TestGearPictures(GearBase):
             self.assertEqual(gate_still(fitted[1]), [], build)
             ch = Character.from_still(png, png[:-4] + ".json", fitted=fitted)
             self.assertEqual(gear.gate_gear(ch.gear), [], build)
+            gear.solve_gear([ch])           # the carry pose and the solved angle (pass 8)
             fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
             self.assertEqual(checks.run_all(fr, ctx), [], build)
 

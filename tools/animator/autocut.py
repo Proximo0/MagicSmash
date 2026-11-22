@@ -56,6 +56,9 @@ def _row_hull(mask):
     return out
 
 
+FAR_ARM_TO_ARM = True      # pass 8: the drawn far arm's sleeve behind the back is the arm's, not the cape's
+
+
 def cut_auto(still, rig, masks):
     data = rig.data
     j = rig.j
@@ -154,6 +157,17 @@ def cut_auto(still, rig, masks):
     if far_hand.any():
         far_hand = far_hand | (dilate(far_hand, 3) & A)
     take(far_hand, "far_erased")
+    # the stretch of the drawn far arm between its shoulder and its hand, where it lies behind the
+    # back line, is the arm's too (pass 8: HR4.2's grey sleeve went into the "cape" cut, swung as
+    # cloth and showed as a wedge behind the shoulder and a ribbon down the back)
+    if far_hand.any() and FAR_ARM_TO_ARM:
+        hy, hx = np.where(far_hand)
+        sh = j["shoulder"] + np.asarray(data.get("far_shoulder_offset", [0.0, 0.0]), float)
+        hc = np.array([hx.mean() + 0.5, hy.mean() + 0.5])
+        d_arm, _ = seg_dist(P, sh, hc)
+        behind = (xx + 0.5 < axis_x(yy + 0.5) - data["torso_lines"]["back"] - CAPE_MARGIN * BH)
+        take(A & behind & (d_arm <= 1.5 * max(R["upper"], R["fore"])) & (P[..., 1] <= hip_y + 0.1 * BH),
+             "far_erased")
     # 3. legs
     below = P[..., 1] > hip_y
     leg_rows = (P[..., 1] >= merge_y - 0.01 * BH) if robe_mode else below
