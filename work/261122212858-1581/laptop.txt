@@ -1,0 +1,1 @@
+2026-11-22T22:53:42Z INFO id=261122212858-1581 kind=shell secs=3 nolock set: display=never sleep=never hibernate=never lid=nothing screensaver-lock=off away-signin=never dynamic-lock=off autostart=yes; NOT set: wake-signin(admin: powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE CONSOLELOCK 0)
