@@ -1,0 +1,28 @@
+{
+ "HR1.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR1.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR2.1": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR2.2": {
+  "status": "accepted",
+  "rules": []
+ }
+}
