@@ -116,11 +116,27 @@ if command -v setsid >/dev/null 2>&1; then
   idw=$(Q alpha add kind=soak args="secs=5 seeds=42" needs=alpha priority=9 | tail -1)
   ( cd "$T/alpha" && git checkout -q main && git pull -q origin main )
   ( cd "$T/seed" && printf 'alpha: idle queue deep\nbeta: idle queue deep\n' >tools/station/roles.txt )
-  ( cd "$T/alpha" && STATION_NAME=alpha STATION_POLL=1 STATION_DEEP_GAP=1 setsid bash tools/station/station.sh --watch idle >"$T/station.log" 2>&1 & echo $! >"$T/station.pid" )
+  ( cd "$T/alpha" && STATION_NAME=alpha STATION_POLL=1 STATION_DEEP_GAP=1 setsid bash -c 'echo $$ >"$1"; exec bash tools/station/station.sh --watch idle' _ "$T/station.pid" >"$T/station.log" 2>&1 & )
   for _ in $(seq 1 40); do rd station-results alpha-deep.txt | grep -q 'JOB deep PASS stub' && break; sleep 1; done
   kill -- -"$(cat "$T/station.pid")" 2>/dev/null; sleep 1
   check "the station ran the queued job (result on the results branch)" 'rd station-results work/$idw/alpha.txt | grep -q " PASS id=$idw kind=soak"'
   check "then, queue empty, it fell back to deep" 'rd station-results alpha-deep.txt | grep -q "JOB deep PASS stub"'
 else echo "  skip the station-loop test: no setsid here"; fi
+
+echo "== a re-exec leaves one heartbeat loop, and the loop ends with its station"
+if command -v setsid >/dev/null 2>&1; then
+  hb="$T/hb.log"; : >"$hb"
+  ( cd "$T/alpha" && git checkout -q main && git pull -q origin main )
+  ( cd "$T/alpha" && STATION_NAME=alpha STATION_POLL=1 STATION_DEEP_GAP=1 STATION_HEARTBEAT_SECS=1 STATION_HEARTBEAT_LOG="$hb" setsid bash -c 'echo $$ >"$1"; exec bash tools/station/station.sh --watch idle' _ "$T/hb.pid" >"$T/hb_station.log" 2>&1 & )
+  for _ in $(seq 1 20); do [ -s "$hb" ] && [ -s "$T/hb.pid" ] && break; sleep 1; done
+  first=$(awk '{ print $1; exit }' "$hb")
+  ( cd "$T/seed" && echo "# re-exec" >>tools/station/roles.txt && git -c user.name=t -c user.email=t@t commit -qam reexec && git push -q origin HEAD:main )  # a merge that changes the script's inputs
+  for _ in $(seq 1 40); do grep -qv "^$first " "$hb" && break; sleep 1; done
+  sleep 3; : >"$hb"; sleep 4
+  check "after a re-exec exactly one heartbeat loop runs, the new one" '[ -n "$first" ] && [ "$(awk "{ print \$1 }" "$hb" | sort -u | wc -l)" = 1 ] && ! grep -q "^$first " "$hb"'
+  kill -9 "$(cat "$T/hb.pid")" 2>/dev/null; sleep 3; : >"$hb"; sleep 3
+  check "the heartbeat loop ends by itself when its station process is gone" '[ ! -s "$hb" ]'
+  kill -- -"$(cat "$T/hb.pid")" 2>/dev/null; sleep 1
+else echo "  skip the heartbeat test: no setsid here"; fi
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi
