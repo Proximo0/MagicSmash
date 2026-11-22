@@ -1,0 +1,52 @@
+{
+ "HR1.2": {
+  "body_tries": 1,
+  "status": "rejected",
+  "rules": [
+   "R28"
+  ],
+  "missing_gear_guide": null
+ },
+ "HR2.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR3.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR4.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR5.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR6.2": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR3.4": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR5.4": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ }
+}
