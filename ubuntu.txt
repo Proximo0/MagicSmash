@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-22T18:39Z commit=0898a1a took=2215s
-JOB realm FAIL REALM ok tests=420 bench 300x8000 tick_ms=6.65/9.84 follower=ok 8 tower_tick_ms=6.68/9.28 tower_follower=ok 3 | STORE ok tests=53 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=26.8  | realm/check_client.sh: relay: FOLLOW_TEST FAILED server=127.0.0.1:7792 ticks=401 hash_checks passed=20 failed=0 join_kb=220 in_kb_s=2.0 out_kb_s=0.38 sim_ms=6.29 stall_ms_max=325 mispredicts=7/285 problems="predicted hero 1
-JOB world PASS world secs=600 WORLD ok days=7.00 secs=602 heroes=200 cycles=1590 outings=1590 vault_runs=46 vault_joins=45 queued=1489 queue_max=113 admitted=1439 copies_opened=7 merges=4 moved=27 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2658 won=0 bosses=701 killed=0 world_bosses=37 chests=0 news=532
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-223912 schema=3 items=0 stacks=0 ledger=154 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
-STATION FAIL jobs=3 failed=1 skipped=0
+STATION machine=ubuntu time=2026-11-22T19:28Z commit=dc613a0 took=2538s
+JOB realm PASS REALM ok tests=420 bench 300x8000 tick_ms=6.62/9.40 follower=ok 8 tower_tick_ms=6.53/10.46 tower_follower=ok 3 | STORE ok tests=53 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=26.5  | REALM_CLIENT ok gallery_sprites=34 field_test_checks=125 shell_test_checks=102 shell_shots=35 shots: zoom 1/2/4 monsters
+JOB world PASS world secs=600 WORLD ok days=7.00 secs=601 heroes=200 cycles=1604 outings=1604 vault_runs=48 vault_joins=47 queued=1485 queue_max=139 admitted=1448 copies_opened=7 merges=4 moved=34 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2549 won=0 bosses=673 killed=0 world_bosses=36 chests=0 news=532
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261122-232851 schema=3 items=0 stacks=0 ledger=146 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
+STATION PASS jobs=3 failed=0 skipped=0
