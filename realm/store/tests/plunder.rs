@@ -92,21 +92,36 @@ fn a_full_bag_sends_the_plunder_to_the_winners_mail() {
 }
 
 #[test]
-fn self_found_and_trade_locked_heroes_refuse_and_the_ledger_says_so() {
+fn self_found_trade_locked_or_deleted_winners_refuse_and_the_haul_goes_back_to_her() {
 	let mut w = world("plunder-refused");
 	let m = w.t.m();
 	let lone = w.t.s.hero_create(m, w.b, "Lone", 0, 0, 0, true).unwrap();
+	// A self-found winner: everything goes back to the victim, her bag.
 	let m = w.t.m();
-	assert!(w.t.s.plunder(m, w.victim, lone, vec![spec(1)], vec![(StackKind::material(1), 3)], 9).unwrap().is_empty());
+	let got = w.t.s.plunder(m, w.victim, lone, vec![spec(1)], vec![(StackKind::material(1), 3)], 9).unwrap();
+	assert_eq!(got.iter().map(|g| (g.1.kind, g.1.owner)).collect::<Vec<_>>(), [(PlaceKind::Bag, w.victim)]);
+	assert_eq!(w.t.s.stack(Owner::bag(w.victim), StackKind::material(1)).unwrap(), 3);
+	// A self-found victim keeps hers.
 	let m = w.t.m();
-	assert!(w.t.s.plunder(m, lone, w.victim, vec![spec(1)], vec![], 0).unwrap().is_empty());
+	let got = w.t.s.plunder(m, lone, w.victim, vec![spec(1)], vec![], 0).unwrap();
+	assert_eq!((got[0].1.kind, got[0].1.owner), (PlaceKind::Bag, lone));
+	assert_eq!(w.t.s.item(got[0].0).unwrap().unwrap().origin_hero, Some(lone));
+	// A trade-locked winner.
 	let m = w.t.m();
 	w.t.s.apply_flags(m, vec![FlagChange { account: w.b, flags: flags::TRADE_LOCKED, drops_percent: 100, banned_until: None }], "test").unwrap();
 	let m = w.t.m();
-	assert!(w.t.s.plunder(m, w.victim, w.winner, vec![spec(1)], vec![], 0).unwrap().is_empty());
-	assert!(w.t.s.items_at(PlaceKind::Bag, lone).unwrap().is_empty() && w.t.s.items_at(PlaceKind::Bag, w.winner).unwrap().is_empty());
+	assert_eq!(w.t.s.plunder(m, w.victim, w.winner, vec![spec(1)], vec![], 0).unwrap()[0].1.owner, w.victim);
+	// A deleted winner.
+	let m = w.t.m();
+	let gone = w.t.s.hero_create(m, w.a, "Gone", 0, 0, 0, false).unwrap();
+	let m = w.t.m();
+	w.t.s.hero_delete(m, gone).unwrap();
+	let m = w.t.m();
+	assert_eq!(w.t.s.plunder(m, w.victim, gone, vec![spec(1)], vec![], 0).unwrap()[0].1.owner, w.victim);
+	assert!(w.t.s.items_at(PlaceKind::Bag, w.winner).unwrap().is_empty() && w.t.s.items_at(PlaceKind::Bag, gone).unwrap().is_empty());
+	assert_eq!(w.t.s.items_at(PlaceKind::Bag, w.victim).unwrap().len(), 3);
 	let rows = ledger(&w.t.path, "op = 'PLUNDER'");
-	assert_eq!(rows.len(), 3);
+	assert_eq!(rows.len(), 4);
 	assert!(rows.iter().all(|r| r.5 == "refused"));
 	let m = w.t.m();
 	assert!(matches!(w.t.s.plunder(m, w.victim, w.victim, vec![], vec![], 1), Err(Error::Invalid(_))), "not herself");
@@ -114,11 +129,73 @@ fn self_found_and_trade_locked_heroes_refuse_and_the_ledger_says_so() {
 }
 
 #[test]
+fn a_bound_item_is_never_plundered_and_stays_with_her() {
+	let mut w = world("plunder-bound");
+	let m = w.t.m();
+	let bound = ItemSpec { bound: true, ..spec(2) };
+	let got = w.t.s.plunder(m, w.victim, w.winner, vec![bound, spec(3)], vec![], 0).unwrap();
+	assert_eq!(got.iter().map(|g| g.1.owner).collect::<Vec<_>>(), [w.victim, w.winner]);
+	assert!(w.t.s.item(got[0].0).unwrap().unwrap().spec.bound);
+	w.t.ok();
+}
+
+#[test]
+fn a_full_bag_and_mail_on_both_sides_lose_nothing() {
+	// Her mail is only a waypoint and mail has no limit (`MAIL_SLOTS` is u32::MAX): with his bag full and both
+	// mails holding things, every item still lands, in his mail.
+	let mut w = world("plunder-mails");
+	for _ in 0..40 {
+		w.t.mint_bag(w.winner, 1);
+	}
+	for h in [w.victim, w.winner] {
+		for _ in 0..30 {
+			let m = w.t.m();
+			w.t.s.mint(m, Dest::any(PlaceKind::Mail, h), spec(1), "drop").unwrap();
+		}
+	}
+	let m = w.t.m();
+	let got = w.t.s.plunder(m, w.victim, w.winner, (1..=5).map(spec).collect(), vec![(StackKind::rune(0, 3), 2)], 0).unwrap();
+	assert_eq!(got.len(), 5);
+	assert!(got.iter().all(|g| g.1.kind == PlaceKind::Mail && g.1.owner == w.winner));
+	assert_eq!(w.t.s.items_at(PlaceKind::Mail, w.victim).unwrap().len(), 30, "nothing left at the waypoint");
+	assert_eq!(w.t.s.stack(Owner { kind: PlaceKind::Mail, id: w.winner }, StackKind::rune(0, 3)).unwrap(), 2);
+	w.t.ok();
+}
+
+#[test]
+fn plundered_coin_banked_by_the_winner_is_traced_and_clawed_back_from_the_victim() {
+	let mut w = world("plunder-coin");
+	let m = w.t.m();
+	let d = OutingDelta { coin: 30, plundered: vec![(w.victim, 250)], ..Default::default() };
+	w.t.s.apply_outing(m, w.winner, d.clone()).unwrap();
+	assert_eq!(w.t.s.stack(Owner::bag(w.winner), StackKind::COIN).unwrap(), 280);
+	// Applied again: once.
+	w.t.s.apply_outing(m, w.winner, d).unwrap();
+	assert_eq!(w.t.s.stack(Owner::bag(w.winner), StackKind::COIN).unwrap(), 280);
+	// Minted for her, sent to him: her trace, her forward trace and her clawback plan reach it; his trace counts
+	// only his own 30.
+	let coin = |tr: &Trace| tr.stacks.iter().find(|s| s.kind == StackKind::COIN).map_or(0, |s| s.minted);
+	assert_eq!((coin(&w.t.s.trace(w.a).unwrap()), coin(&w.t.s.trace(w.b).unwrap())), (250, 30));
+	let hops = w.t.s.trace_forward(w.a, 1).unwrap();
+	assert!(hops.iter().any(|h| h.to == Party::Account(w.b) && h.stack == Some(StackKind::COIN) && h.count == 250), "{hops:?}");
+	let plan = w.t.s.clawback_plan(w.a, 0).unwrap();
+	assert_eq!(plan.stacks, vec![(Owner::bag(w.winner), StackKind::COIN, 250)]);
+	// A self-found winner banks it as his own haul, as before.
+	let m = w.t.m();
+	let lone = w.t.s.hero_create(m, w.b, "Lone", 0, 0, 0, true).unwrap();
+	let m = w.t.m();
+	w.t.s.apply_outing(m, lone, OutingDelta { plundered: vec![(w.victim, 40)], ..Default::default() }).unwrap();
+	assert_eq!(w.t.s.stack(Owner::bag(lone), StackKind::COIN).unwrap(), 40);
+	assert_eq!(coin(&w.t.s.trace(w.a).unwrap()), 250);
+	w.t.ok();
+}
+
+#[test]
 fn a_crash_inside_a_plunder_leaves_all_or_nothing() {
-	// The crash fuzz's stream has plunders (3% of its operations): killed at every site of the store's
+	// The crash fuzz's stream with plunders (3% of its operations, and plundered coin in some outings): killed at every site of the store's
 	// transactions, the reopened store verifies and every acknowledged plunder is there whole.
 	let dir = scratch().join(format!("fuzz-plunder-{}", std::process::id()));
-	let r = parent(&FuzzConfig { seed: 31_337, ops: 4000, kills: 16, dir: dir.clone(), exe: env!("CARGO_BIN_EXE_realm-store").into(), verbose: false });
+	let r = parent(&FuzzConfig { seed: 31_337, ops: 4000, kills: 16, dir: dir.clone(), exe: env!("CARGO_BIN_EXE_realm-store").into(), verbose: false, plunder: true });
 	let _ = std::fs::remove_dir_all(&dir);
 	assert!(r.problems.is_empty(), "{:?}", r.problems);
 	assert!(r.kills * 10 >= 16 * 9, "{} kills", r.kills);

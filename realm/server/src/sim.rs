@@ -136,7 +136,9 @@ impl Sim {
         for (j, &id) in all.iter().zip(&ids) {
             rec.joins.push(Join { id, sheet: j.sheet.clone(), outing: j.outing.clone(), x: j.x, y: j.y, guild: j.guild });
         }
-        let n = self.next_wars.len().min(realm_core::pvp::WARS_MAX);
+        // The PvP block's count is a u16: the guilded joins and the wars together stay within it (the rest wait).
+        let guilded = rec.joins.iter().filter(|j| j.guild != 0).count();
+        let n = self.next_wars.len().min(realm_core::pvp::WARS_MAX).min((u16::MAX as usize).saturating_sub(guilded));
         rec.wars = self.next_wars.drain(..n).collect();
         let slots = self.field.players().len().max(ids.iter().map(|&i| i as usize + 1).max().unwrap_or(0));
         let mut want = vec![0u16; slots];

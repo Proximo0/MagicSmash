@@ -380,6 +380,9 @@ pub struct OutingDelta {
 	pub potions_used: Vec<(StackKind, u64)>,
 	/// (field, waystone) the hero last claimed
 	pub waystone: Option<(u8, i32)>,
+	/// Job R3b: banked coin she took from other heroes' hauls (victim, coin), banked as theirs: a CREDIT minted for
+	/// the victim and a TRANSFER to her bag, so the victim's trace and clawback reach it. Not part of `coin`.
+	pub plundered: Vec<(HeroId, u64)>,
 }
 
 /// One side of a trade: items and stacks leaving this hero's bag for the other's.
@@ -418,10 +421,10 @@ pub enum Cmd {
 	Outing { hero: HeroId, delta: OutingDelta },
 	/// A plundered fall (rules section 14, the server only): what hero `from`'s haul lost goes to hero `to`, who
 	/// downed her. The haul was never in the store, so each item is minted for her (she stays its origin) and moved
-	/// to the winner's bag (her mail when the bag is full); each stack is credited to her and transferred the same
-	/// way. `coin` moved in the field (the core's plunder) and is banked with the winner's outing: the PLUNDER row
-	/// records it. A self-found hero on either side, or a trade-locked account, refuses: the haul is lost as any
-	/// fall loses it, and the PLUNDER row says so.
+	/// to the winner's bag (his mail when the bag is full); each stack is credited to her and transferred the same
+	/// way. `coin` is only recorded on the PLUNDER row: it is in the winner's haul and moves when he banks it
+	/// (`OutingDelta::plundered`). Nothing is lost: bound items, and everything when the winner may not take it
+	/// (deleted, self-found on either side, a trade lock), stay with her (her bag, her mail when full).
 	Plunder { from: HeroId, to: HeroId, items: Vec<ItemSpec>, stacks: Vec<(StackKind, u64)>, coin: u64 },
 	Trade { a: TradeSide, b: TradeSide },
 	GrantEntitlement { account: AccountId, kind: EntitlementKind, count: u32, purchase: String },

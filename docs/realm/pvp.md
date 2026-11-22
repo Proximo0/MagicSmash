@@ -113,6 +113,8 @@ heroes, so a field of unmarked heroes does no extra work.
   - Declare, decline, call off and duel challenges share a burst limit of **5 a minute per account**
     (`PVP_BURST`, `SLOW_DOWN`).
   - Only the declared-on guild accepts. Either guild may call a war off until it is being fought.
+  - An accept is refused when the field's tide already has `WARS_MAX` (32) accepted wars: a field copy could not
+    arm a 33rd (job R3b).
   - A war unanswered when its tide starts is off (`WarOff`). An accepted war with no `war_result` one minute after
     its tide ends (`WAR_RESULT_GRACE_TICKS`) is ended as a draw (`wend`, winner 0), so guilds are not locked out.
   - Kept in the social log (`wdecl`, `wacc`, `woff`, `wend`).
@@ -136,8 +138,12 @@ heroes, so a field of unmarked heroes does no extra work.
   the war (merged into another copy), what it held until then, sent before `Closed`.
   - The war's result is the **sum over its copies**, and more held wins. Members of one guild may be spread over
     several copies, so a single copy's END is not the war's.
-  - It goes to `Social::war_result` when every armed copy has reported or is gone (`Closed`, `Lost`), or 20 s after
-    the tide ends (`WAR_FINISH_GRACE_TICKS`) with what came in. That is inside social's one-minute draw grace.
+  - It goes to `Social::war_result` when every armed copy has reported or is gone (`Closed`, `Lost`) and a report
+    completes the set, or 20 s after the tide ends (`WAR_FINISH_GRACE_TICKS`) with what came in. That is inside
+    social's one-minute draw grace.
+  - A copy that dies (`Lost`) counts as done but never settles a war by itself. The copy the world reopens during
+    the tide is armed again and fights on.
+  - Settled wars are remembered (not re-armed) until 40 s after their tide's end.
   - The bridge is in memory: after a gateway restart, wars are re-armed from social, and what the old copies held
     is gone with them.
 - **Copies merge only between tides** (the copies planner). A merge during a war is still covered: the closing
@@ -149,21 +155,33 @@ heroes, so a field of unmarked heroes does no extra work.
 - **Host.** The core sends `Plunder{hero, by, coin}` right after her `Fallen`. The host's tally keeps a `Plundered`
   record: which fall of the flush it was, and the hero and ticket of `by`. It keeps one only when `by` is still in
   the field (as the core reads it) and has a ticket. It goes out in her flush (`Flush.plunders`).
-- **Gateway** (`Gateway::apply`). Each fall halves her haul (`Haul::fall`) as before. What a plundered fall took goes
-  to `by` in **one store transaction**, `Cmd::Plunder{from, to, items, stacks, coin}`:
-  - a `PLUNDER` row: her account to his, with the coin as its count and the hero ids in its data;
-  - for each item, a `MINT` for her (into her mail, as a waypoint inside the transaction), so she stays its origin
+- **Gateway** (`Gateway::apply`). Each fall halves her haul (`Haul::fall`) as before. Bound items a plundered fall
+  picks go back into her haul: they are never plundered. The rest goes to `by` in **one store transaction**,
+  `Cmd::Plunder{from, to, items, stacks, coin}`:
+  - a `PLUNDER` row: her account to his, with the hero ids in its data and the fall's coin as its count, for the
+    record only;
+  - for each item, a `MINT` for her (into her mail, a waypoint inside the transaction), so she stays its origin
     hero and account. Then a `MOVE` to his bag, or to his mail when the bag is full;
   - for each material or other stack, a `CREDIT` to her (minted) and a `TRANSFER` to him, his mail when full.
+  - Mail has no limit (`MAIL_SLOTS` is `u32::MAX`), so neither side's full bag or mail can make it fail.
   - The botter tools therefore count the plunder as hers (`trace`): `trace_forward` follows it to him, and
-    `clawback_plan` finds it with him. Nothing is destroyed: his mail has no limit.
-- **The coin** is moved by the core into his haul and banked with his outing (`haul`). The `PLUNDER` row records it
-  but does not credit it again.
-- **Refused:** a self-found hero on either side, or a trade-locked account. The items are lost as any fall loses
-  them, and the `PLUNDER` row says `refused`.
+    `clawback_plan` finds it with him.
+- **The coin.** The core moves it into his haul, where it can still be lost or plundered again. The host keeps it as
+  a debt of his to her (`Tally.debts`). When he banks, his banked coin pays his debts first, oldest first:
+  `Flush.plunder_coin` holds (victim, coin) and is not part of `Flush.coin`. His outing banks that part as
+  hers (`OutingDelta::plundered`): a minted `CREDIT` to her, then a `TRANSFER` to his bag, in the same
+  transaction as his outing. Her trace, forward trace and clawback plan reach it. When the two may not trade, or she
+  is deleted, it is banked as his own haul.
+- **Nothing is lost.** In the store, a bound item stays with her. Everything stays with her when he may not take it
+  (self-found on either side, a trade lock, he is deleted): it goes into her bag, or her mail when full, and the
+  `PLUNDER` row says `refused`. If the store still refuses the plunder, the gateway banks the haul back to her
+  (`give_back`, attempt 7 of the same request id).
 - **Once.** Request id `plunder_id(ticket, seq, fall, attempt)`: her ticket, bit 63, the flush and the fall. A
-  flush applied twice moves nothing twice. The transaction is atomic: the crash fuzz has plunders in its stream
-  (3%), and every kill leaves all or nothing.
+  flush applied twice moves nothing twice.
+- **Atomic.** The crash fuzz with plunders (`FuzzConfig.plunder`, on in `check.sh` and the CLI) has plunders in 3%
+  of its operations and plundered coin in some outings. Every kill leaves all or nothing. `--no-plunder` and
+  `tests/fuzz_seeds.rs` run the stream of before, so those seeds still find the empty-parcel bug: shown by removing
+  `end_if_empty`, which makes all four fail.
 
 ## Duels
 
@@ -239,7 +257,8 @@ The rite answers `MARK_FOR_GOOD` to a realm-marked hero. The flag is in the stat
 | `same_hash_with_hunters_and_a_war_on_1_to_4_threads_and_a_follower`: THE MOON MARSH and THE TOWER, 200 heroes, 600 ticks | Hashes equal every 50 ticks on 1, 2, 3 and 4 threads and on a follower loaded from bytes at tick 200. The existing `hash_gate` still passes. |
 | R3b `server/tests/wars.rs`: a war armed by record on two copies of THE HERMIT'S PEAKS, guilded joins before and during it, a follower | The follower's hash equals the host's every tick through the war's begin and end. Both copies begin and end it; guild 1 alone at the altars wins copy a's held ticks. A copy opened mid-tide begins the war in the arming tick, and a moved hero keeps her guild. |
 | R3b `gateway world::wars` tests: real hosts on a manual realm clock | A war accepted in social is armed on both copies and begins in both. A third copy opened during it begins it, then closes into the first (a merge) and reports. At the tide's end the sum reaches social once. Held ticks are summed over copies, and a copy counts once. |
-| R3b `store/tests/plunder.rs`, `gateway::plunder_tests`, `host::tests` | Items and stacks move once with both ledger sides, the victim stays the origin, and a full bag goes to mail. Self-found and trade-locked heroes are refused. A crash fuzz with plunders (seed 31337, 16 kills) verifies clean. Through the applier, half the haul's items go to the plunderer, and a repeated flush moves nothing more. |
+| R3b `store/tests/plunder.rs`, `gateway::plunder_tests`, `host::tests` | Items and stacks move once with both ledger sides, the victim stays the origin, and full bags and mails on both sides lose nothing. Refused plunders (self-found, trade-locked, deleted winner) and bound items stay with the victim. Plundered coin banked by the winner is in the victim's trace, forward trace and clawback plan. A crash fuzz with plunders (seed 31337, 16 kills) verifies clean. Through the applier, the unbound lost items go to the plunderer, a repeated flush moves nothing more, and his banked debt goes in as her coin. |
+| R3b `gateway world::wars` tests, more | When a field's only copy dies mid-war, nothing is settled: the reopened copy begins the war and its end settles it. Social refuses the 33rd war of a tide. |
 
 Bench, tick in ms (CPU with 4 cores, load average about 0.6):
 

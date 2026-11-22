@@ -39,7 +39,8 @@ What goes between a player and the realm, every number chosen and why. Code: `re
   `ENTRY_SCATTER_PX` 30. Each hero has tallies fed from core events (coin, xp, potions, kills).
 - Job R3b: `Entry.guild` (her guild at admit), `HostCmd::War(WarArm)` (arm a war with the next record),
   `HostMsg::War{host, war, held, over}` (a copy's held altar ticks at the war's end, or when it stops during the
-  war), and `Flush.plunders` (which falls of the flush were plunders, and by whom). See `pvp.md`.
+  war), `Flush.plunders` (which falls of the flush were plunders, and by whom) and `Flush.plunder_coin` (the part of
+  her banked coin that was plundered, as (victim, coin), not in `coin`). See `pvp.md`.
 - Result flush: when a hero leaves (gate, waystone), falls, is kicked, disconnects or the host stops, and every
   `XP_FLUSH_TICKS` 200 (10 s) for xp, the host sends a `Flush{ticket, seq, coin, xp, potions, banked, fell, left}` to the
   gateway. The applier applies it with request id `ticket<<64 | seq | attempt<<40`, so a retry is idempotent. Why the 10 s xp

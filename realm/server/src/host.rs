@@ -196,6 +196,10 @@ pub struct Flush {
     /// Job R3b: which of this flush's falls (`fell`, counted from 0) were plunders, and by whom: the gateway moves
     /// what each of those falls took from her haul to that hero.
     pub plunders: Vec<Plundered>,
+    /// Job R3b: the part of `coin` (banked) that she took from other heroes' hauls, as (victim, coin), first taken
+    /// first banked. Not part of `coin`: the gateway banks it as the victim's coin moved to her, so the victim's
+    /// trace and clawback reach it.
+    pub plunder_coin: Vec<(u64, u64)>,
 }
 
 /// One plundered fall: the hero who downed her (his gateway number and ticket, he was in the field) and the coin the
@@ -489,6 +493,8 @@ struct Tally {
     fell: u32,
     lost: u64,
     plunders: Vec<Plundered>,
+    /// Coin plundered into her haul and not yet banked: (victim, coin), oldest first.
+    debts: VecDeque<(u64, u64)>,
     banked: bool,
     urgent: bool,
     gate: bool,
@@ -503,6 +509,18 @@ impl Tally {
     /// Takes what she has earned as a flush.
     fn take(&mut self, tick: u32, left: Option<Leave>) -> Flush {
         self.seq += 1;
+        // Banked coin pays her plunder debts first (oldest first): that part is the victims' coin.
+        let mut plunder_coin = Vec::new();
+        while self.coin > 0 {
+            let Some(d) = self.debts.front_mut() else { break };
+            let n = d.1.min(self.coin);
+            plunder_coin.push((d.0, n));
+            self.coin -= n;
+            d.1 -= n;
+            if d.1 == 0 {
+                self.debts.pop_front();
+            }
+        }
         let f = Flush {
             hero: self.hero,
             ticket: self.ticket,
@@ -517,6 +535,7 @@ impl Tally {
             left,
             mark: (self.mark_dirty || left.is_some()).then(|| (self.marked, if self.struck == realm_core::tables::NEVER { self.struck } else { tick.saturating_sub(self.struck) })),
             plunders: std::mem::take(&mut self.plunders),
+            plunder_coin,
         };
         self.mark_dirty = false;
         self.banked = false;
@@ -905,7 +924,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             if let Some((hero, ticket)) = j.who {
                 let belt_ids = sim.field.players().get(id as usize).map_or([realm_core::tables::P_NONE; 3], |h| h.belt.map(|b| b.0));
                 let (marked, struck) = sim.field.players().get(id as usize).map_or((false, realm_core::tables::NEVER), |h| (h.marked, h.last_struck));
-                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
+                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
                 if let Some(d) = &j.drive {
                     drivers.insert(id, Driver::new(id, d, tick, vault_row.is_some()));
                 }
@@ -1245,9 +1264,17 @@ fn collect(field: &Field, tallies: &mut HashMap<u16, Tally>, clients: &mut HashM
             Event::Plunder { hero, by, coin } => {
                 let present = field.players().get(by as usize).is_some_and(|h| h.present);
                 let winner = tallies.get(&by).filter(|_| present).map(|w| (w.hero, w.ticket));
+                let mut victim = None;
                 if let (Some((by_hero, by_ticket)), Some(t)) = (winner, tallies.get_mut(&hero)) {
                     if t.fell > 0 && by_hero != t.hero {
                         t.plunders.push(Plundered { fall: t.fell - 1, by_hero, by_ticket, coin: coin as u64 });
+                        victim = Some(t.hero);
+                    }
+                }
+                // The coin is in his haul now; when he banks it, it is banked as hers moved to him.
+                if let (Some(v), Some(w)) = (victim, tallies.get_mut(&by)) {
+                    if coin > 0 {
+                        w.debts.push_back((v, coin as u64));
                     }
                 }
             }
@@ -1438,7 +1465,7 @@ mod tests {
         let (hx, hy) = f.terrain().heart;
         let id = f.join(&Sheet::bench(0, 0, 1), &Outing::new(), hx, hy);
         let mut tallies = HashMap::new();
-        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
+        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
         let mut counts = HostCounts::default();
         let mut got = Vec::new();
         for _ in 0..20_000 {
@@ -1490,7 +1517,7 @@ mod tests {
         let b = f.join(&sheet, &marked, x + 20 * SUB, y);
         f.hero_mut(b).coin = 500;
         f.hero_mut(b).health = 1;
-        let tally = |hero: u64, ticket: u64| Tally { hero, ticket, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: true, struck: realm_core::tables::NEVER, mark_dirty: false };
+        let tally = |hero: u64, ticket: u64| Tally { hero, ticket, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: true, struck: realm_core::tables::NEVER, mark_dirty: false };
         let mut tallies = HashMap::new();
         tallies.insert(a, tally(10, 100));
         tallies.insert(b, tally(20, 200));
@@ -1521,6 +1548,15 @@ mod tests {
         assert_eq!(fl.plunders, vec![Plundered { fall: 0, by_hero: 10, by_ticket: 100, coin: 250 }]);
         let again = tallies.get_mut(&b).unwrap().take(f.tick(), None);
         assert!(again.plunders.is_empty(), "sent once");
-        assert!(tallies.get_mut(&a).unwrap().take(f.tick(), None).plunders.is_empty(), "the plunderer's own flush names none");
+        // The coin is in his haul; when he banks, the first 250 of it are hers moved to him.
+        let w = tallies.get_mut(&a).unwrap();
+        w.coin = 300;
+        let wf = w.take(f.tick(), None);
+        assert!(wf.plunders.is_empty(), "the plunderer's own flush names no fall");
+        assert_eq!((wf.coin, wf.plunder_coin.clone()), (50, vec![(20, 250)]));
+        let w = tallies.get_mut(&a).unwrap();
+        w.coin = 70;
+        let wf = w.take(f.tick(), None);
+        assert_eq!((wf.coin, wf.plunder_coin), (70, vec![]), "paid once");
     }
 }

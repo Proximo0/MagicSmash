@@ -7,9 +7,9 @@
 //!   since the tide is running the core begins the war there at once.
 //! - The result (applier thread): every armed copy reports its held altar ticks (`HostMsg::War`): at the tide's end,
 //!   or when it stops during the war (a copy merged into another). The war's result is the sum over its copies; it
-//!   goes to `Social::war_result` when every armed copy has reported or is gone, or `WAR_FINISH_GRACE_TICKS` after
-//!   the tide's end with what has come in (a copy that never saw the war, say armed as its tide ended, reports
-//!   nothing).
+//!   goes to `Social::war_result` when every armed copy has reported or is gone and the last report came in, or
+//!   `WAR_FINISH_GRACE_TICKS` after the tide's end with what has come in. A copy that dies reports nothing and
+//!   settles nothing: the copy reopened in its place is armed again while the tide runs.
 
 use crate::gateway::Gateway;
 use realm_core::pvp::WAR_DRAW;
@@ -41,8 +41,9 @@ pub struct WarTally {
 #[derive(Debug, Default)]
 pub struct Wars {
     pub tallies: HashMap<u64, WarTally>,
-    /// Wars settled here (social is told once).
-    pub settled: HashSet<u64>,
+    /// Wars settled here (social is told once), with the realm clock after which the entry is dropped (their tide is
+    /// long over, so social no longer lists them).
+    pub settled: HashMap<u64, u64>,
 }
 
 /// The index of the tide of `field` that is running at `now` or comes next.
@@ -77,7 +78,7 @@ impl Gateway {
             let hosts = self.hosts.lock().unwrap();
             let mut w = self.world.wars.lock().unwrap();
             for (id, a, b) in wars {
-                if w.settled.contains(&id) {
+                if w.settled.contains_key(&id) {
                     continue;
                 }
                 let t = w.tallies.entry(id).or_insert_with(|| WarTally { field, tide, ..WarTally::default() });
@@ -90,7 +91,8 @@ impl Gateway {
             }
         }
         let due: Vec<u64> = {
-            let w = self.world.wars.lock().unwrap();
+            let mut w = self.world.wars.lock().unwrap();
+            w.settled.retain(|_, until| *until > now);
             w.tallies.iter().filter(|(_, t)| tide_start(t.field, t.tide) + TIDE_LEN as u64 + WAR_FINISH_GRACE_TICKS <= now).map(|(id, _)| *id).collect()
         };
         for id in due {
@@ -102,7 +104,7 @@ impl Gateway {
     pub(crate) fn on_war(&self, host: u32, war: u64, held: [u32; 2], _over: bool) {
         let ready = {
             let mut w = self.world.wars.lock().unwrap();
-            if w.settled.contains(&war) {
+            if w.settled.contains_key(&war) {
                 return;
             }
             let t = w.tallies.entry(war).or_default();
@@ -119,24 +121,13 @@ impl Gateway {
         }
     }
 
-    /// A copy has closed or died: it reports nothing more, so the wars waiting on it may be settled.
+    /// A copy has closed or died: it reports nothing more. It counts as done, but a copy going never settles a war by
+    /// itself (a copy that dies mid-war reported nothing): the war is settled by the reports of the copies still
+    /// fighting it (a copy reopened during the tide is armed again by `arm_wars`), or by the grace timer.
     pub(crate) fn wars_host_gone(&self, host: u32) {
-        let now = self.world.clock.now();
-        let ready: Vec<u64> = {
-            let mut w = self.world.wars.lock().unwrap();
-            w.tallies
-                .iter_mut()
-                .filter(|(_, t)| t.hosts.contains(&host))
-                .filter_map(|(id, t)| {
-                    t.done.insert(host);
-                    // Only a war whose tide has begun is settled by a copy going: one armed for a later tide waits
-                    // for the copies that will fight it.
-                    (t.done.is_superset(&t.hosts) && tide_start(t.field, t.tide) <= now).then_some(*id)
-                })
-                .collect()
-        };
-        for id in ready {
-            self.settle_war(id);
+        let mut w = self.world.wars.lock().unwrap();
+        for t in w.tallies.values_mut().filter(|t| t.hosts.contains(&host)) {
+            t.done.insert(host);
         }
     }
 
@@ -145,7 +136,8 @@ impl Gateway {
         let t = {
             let mut w = self.world.wars.lock().unwrap();
             let Some(t) = w.tallies.remove(&war) else { return };
-            w.settled.insert(war);
+            let until = tide_start(t.field, t.tide) + TIDE_LEN as u64 + 2 * WAR_FINISH_GRACE_TICKS;
+            w.settled.insert(war, until.max(self.world.clock.now() + WAR_FINISH_GRACE_TICKS));
             t
         };
         let held = [t.held[0].min(u32::MAX as u64) as u32, t.held[1].min(u32::MAX as u64) as u32];
@@ -220,11 +212,85 @@ mod tests {
         clock.set(start + TIDE_LEN as u64 + 2);
         until("the result reaches social", || gw.social.wars_for(field, 0).is_empty());
         until("both copies ended it", || counts(&gw, h1).wars_ended == 1 && counts(&gw, h2).wars_ended == 1);
-        assert!(gw.world.wars.lock().unwrap().settled.contains(&WAR) && gw.war_tally(WAR).is_none());
+        assert!(gw.world.wars.lock().unwrap().settled.contains_key(&WAR) && gw.war_tally(WAR).is_none());
         gw.shutdown();
         for s in ["", "-wal", "-shm"] {
             let _ = std::fs::remove_file(format!("{}{s}", db.display()));
         }
+    }
+
+    /// A field's only copy dies during the war: the war is not settled 0:0 by its loss; the copy the world reopens
+    /// is armed and begins the war at once, and its end settles the war.
+    #[test]
+    fn a_copy_that_dies_mid_war_settles_nothing_and_its_reopened_copy_fights_on() {
+        let db = std::env::temp_dir().join(format!("realm-wars-dead-{}.db", std::process::id()));
+        for s in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+        }
+        let clock = RealmClock::manual(0);
+        let mut cfg = Config { dev_login: true, secret: 5, ..Config::default() };
+        cfg.world.clock = Some(clock.clone());
+        cfg.world.monsters = 200;
+        cfg.world.tick_us = 5_000;
+        let gw = Gateway::start(Arc::new(SqliteStore::open(&db).unwrap()), cfg);
+        let field = 1u8;
+        let (_, h1) = gw.open_copy(field, 0).unwrap();
+        const WAR: u64 = 43;
+        {
+            let mut g = gw.social.inner.lock().unwrap();
+            g.commit("wdecl", &[&WAR.to_string(), "7", "8", &field.to_string(), "0"]);
+            g.commit("wacc", &[&WAR.to_string()]);
+        }
+        let start = tide_start(field, 0);
+        clock.set(start + 5);
+        until("the war begins", || counts(&gw, h1).wars_begun == 1);
+        let copy = gw.hosts.lock().unwrap().iter().find(|h| h.id == h1).unwrap().copy;
+        assert!(gw.abort_copy(field, copy));
+        let h2 = {
+            let mut h2 = None;
+            until("a new copy begins the war", || {
+                h2 = gw.hosts.lock().unwrap().iter().find(|h| h.field == field && h.id != h1).map(|h| h.id);
+                h2.is_some_and(|h| counts(&gw, h).wars_begun == 1)
+            });
+            h2.unwrap()
+        };
+        until("the dead copy is counted done", || gw.war_tally(WAR).is_some_and(|t| t.done.contains(&h1) && t.hosts.contains(&h2)));
+        assert_eq!(gw.social.wars_for(field, 0), vec![(WAR, 7, 8)], "its loss settled nothing");
+        clock.set(start + TIDE_LEN as u64 + 2);
+        until("the reopened copy's end settles it", || gw.social.wars_for(field, 0).is_empty());
+        gw.shutdown();
+        for s in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+        }
+    }
+
+    /// Social refuses at acceptance what a field copy would refuse (more than `WARS_MAX` wars in a tide), so no
+    /// accepted war is left to end as a grace draw.
+    #[test]
+    fn social_accepts_no_more_wars_in_a_tide_than_a_field_holds() {
+        let db = std::env::temp_dir().join(format!("realm-wars-cap-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let gw = Gateway::start(Arc::new(SqliteStore::open(&db).unwrap()), Config { dev_login: true, secret: 5, ..Config::default() });
+        let field = 0u8;
+        let tide = crate::social::pvp::next_war_tide(field, gw.world.clock.now());
+        {
+            let mut g = gw.social.inner.lock().unwrap();
+            g.commit("gnew", &["900", "Ash", "1", "0"]);
+            g.commit("gnew", &["901", "Pale", "2", "0"]);
+            for k in 0..realm_core::pvp::WARS_MAX as u64 {
+                g.commit("wdecl", &[&(100 + k).to_string(), &(1_000 + 2 * k).to_string(), &(1_001 + 2 * k).to_string(), &field.to_string(), &tide.to_string()]);
+                g.commit("wacc", &[&(100 + k).to_string()]);
+            }
+            g.commit("wdecl", &["500", "900", "901", &field.to_string(), &tide.to_string()]);
+        }
+        let me = crate::social::Me { hero: 2, account: 2, name: "Pale".into() };
+        match gw.social.war_answer(&gw, &me, 500, true) {
+            Err(crate::proto::Resp::Err { code, msg }) => assert_eq!((code, msg.as_str()), (crate::proto::code::REFUSED, "too many wars in that tide")),
+            r => panic!("the 33rd war of a tide is refused: {r:?}"),
+        }
+        assert_eq!(gw.social.wars_for(field, tide).len(), realm_core::pvp::WARS_MAX);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
     }
 
     #[test]

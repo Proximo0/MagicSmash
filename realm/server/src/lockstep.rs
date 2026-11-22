@@ -103,8 +103,9 @@ impl TickRec {
         }
         // Flags: bit 0 a hash follows, bit 1 a clock follows, bit 2 the PvP block follows.
         let guilds = self.joins.iter().filter(|j| j.guild != 0).count();
-        // Joins are counted in a u16 and `Sim` arms at most `WARS_MAX` wars a tick, so the count fits.
+        // `Sim::tick` keeps guilded joins and wars within a u16 together; a record past it is a bug, never sent cut.
         let pvp = guilds + self.wars.len();
+        assert!(pvp <= u16::MAX as usize, "a PvP block of {pvp} entries");
         w.push(self.hash.is_some() as u8 | (self.clock.is_some() as u8) << 1 | ((pvp > 0) as u8) << 2);
         if let Some(h) = self.hash {
             put_u64(w, h);

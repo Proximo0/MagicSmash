@@ -9,7 +9,7 @@ use realm_store::fuzz::{FuzzConfig, parent};
 
 fn run(seed: u64, ops: u64, kills: u64) {
 	let dir = common::scratch().join(format!("fuzz-seed-{seed}-{}", std::process::id()));
-	let r = parent(&FuzzConfig { seed, ops, kills, dir: dir.clone(), exe: env!("CARGO_BIN_EXE_realm-store").into(), verbose: false });
+	let r = parent(&FuzzConfig { seed, ops, kills, dir: dir.clone(), exe: env!("CARGO_BIN_EXE_realm-store").into(), verbose: false, plunder: false });
 	let _ = std::fs::remove_dir_all(&dir);
 	assert!(r.problems.is_empty(), "fuzz seed {seed} ops={ops} kills={kills}: {:?}", r.problems);
 	// How many armed kill points a run reaches depends on how often this SQLite version calls its progress and

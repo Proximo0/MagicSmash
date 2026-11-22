@@ -1216,6 +1216,13 @@ fn outing(t: &mut Tx, hero: HeroId, d: &OutingDelta) -> Result<Reply> {
 		};
 		t.credit_row(&to, party, *k, *n, true, "haul")?;
 	}
+	for &(victim, n) in &d.plundered {
+		i64_of(n, "coin")?;
+		if n == 0 {
+			return Err(inv("plundered coin must be above zero"));
+		}
+		plundered_coin(t, victim, hero, party, n)?;
+	}
 	let mut minted = Vec::with_capacity(d.items.len());
 	for sp in &d.items {
 		Tx::check_spec(sp)?;
@@ -1256,81 +1263,149 @@ fn outing(t: &mut Tx, hero: HeroId, d: &OutingDelta) -> Result<Reply> {
 	Ok(Reply::Items(minted))
 }
 
-/// A plundered fall (`Cmd::Plunder`). Both sides have ledger lines: the PLUNDER row (victim's account to the
-/// winner's, the coin as its count), then for each item a MINT for the victim (in her mail, so she stays its origin
-/// and her account's trace counts it as hers) and a MOVE to the winner; for each stack a CREDIT to the victim's mail
-/// and a TRANSFER to the winner. The victim's mail is only a waypoint inside this one transaction.
+/// Coin a hero banks that she took in a plunder (`OutingDelta::plundered`): a CREDIT minted for the victim (in her
+/// mail, a waypoint inside the transaction) and a TRANSFER to the winner's bag, so the victim's trace, forward trace
+/// and clawback plan reach it. When the two may not trade (self-found, a trade lock, the victim deleted) it is banked
+/// as the winner's own haul, as before job R3b.
+fn plundered_coin(t: &mut Tx, victim: HeroId, hero: HeroId, party: Party, n: u64) -> Result<()> {
+	let bag = Owner::bag(hero);
+	let vh = t.hero_row(victim).ok().filter(|v| v.deleted_at.is_none() && victim != hero);
+	let ok = match &vh {
+		Some(v) => !t.is_self_found(victim)? && !t.is_self_found(hero)? && t.check_flow(Party::Account(v.account), party).is_ok(),
+		None => false,
+	};
+	let Some(v) = vh.filter(|_| ok) else {
+		t.stack_add(&bag, StackKind::COIN, n)?;
+		return t.credit_row(&bag, party, StackKind::COIN, n, true, "haul");
+	};
+	let vp = Party::Account(v.account);
+	let way = Owner { kind: PlaceKind::Mail, id: victim };
+	t.stack_add(&way, StackKind::COIN, n)?;
+	t.credit_row(&way, vp, StackKind::COIN, n, true, "plunder")?;
+	t.stack_sub(&way, StackKind::COIN, n)?;
+	t.stack_add(&bag, StackKind::COIN, n)?;
+	t.ledger(Row {
+		op: "TRANSFER",
+		stack: Some(StackKind::COIN),
+		from: Some(owner_cols(&way)),
+		from_acct: Some(v.account),
+		to: Some(owner_cols(&bag)),
+		to_acct: acct_of(party),
+		count: n,
+		reason: "plunder",
+		..Default::default()
+	})?;
+	Ok(())
+}
+
+/// Puts one item or stack of a plundered haul down: minted for the victim (she stays its origin hero and account;
+/// her mail is the waypoint when it goes on to the winner), then moved to the winner's bag, his mail when the bag is
+/// full. With no winner it stays with her: her bag, her mail when full. Mail has no limit, so nothing is dropped.
+fn plunder_item(t: &mut Tx, from: HeroId, fp: Party, win: Option<(HeroId, Party)>, sp: &ItemSpec) -> Result<(ItemId, Place)> {
+	let Some((to, _)) = win else {
+		let (p, pp) = match t.resolve(&Dest::bag(from), sp, false) {
+			Ok(x) => x,
+			Err(Error::Full(_)) => t.resolve(&Dest::any(PlaceKind::Mail, from), sp, false)?,
+			Err(e) => return Err(e),
+		};
+		let id = t.mint_at(&p, pp, sp, "haul")?;
+		return Ok((id, p));
+	};
+	let (p, _) = t.resolve(&Dest::any(PlaceKind::Mail, from), sp, false)?;
+	let id = t.mint_at(&p, fp, sp, "plunder")?;
+	let it = t.load_item(id)?;
+	let (dest, dp) = match t.resolve(&Dest::bag(to), sp, false) {
+		Ok(x) => x,
+		Err(Error::Full(_)) => t.resolve(&Dest::any(PlaceKind::Mail, to), sp, false)?,
+		Err(e) => return Err(e),
+	};
+	t.set_place(id, &dest)?;
+	t.move_row("MOVE", &it, fp, &dest, dp)?;
+	Ok((id, dest))
+}
+
+fn plunder_stack(t: &mut Tx, from: HeroId, fp: Party, win: Option<(HeroId, Party)>, k: StackKind, n: u64) -> Result<()> {
+	let spill = |t: &mut Tx, h: HeroId| -> Result<Owner> {
+		let bag = Owner::bag(h);
+		match t.stack_add(&bag, k, n) {
+			Ok(_) => Ok(bag),
+			Err(Error::Full(_)) => {
+				let mail = Owner { kind: PlaceKind::Mail, id: h };
+				t.stack_add(&mail, k, n)?;
+				Ok(mail)
+			}
+			Err(e) => Err(e),
+		}
+	};
+	let Some((to, tp)) = win else {
+		let o = spill(t, from)?;
+		return t.credit_row(&o, fp, k, n, true, "haul");
+	};
+	let way = Owner { kind: PlaceKind::Mail, id: from };
+	t.stack_add(&way, k, n)?;
+	t.credit_row(&way, fp, k, n, true, "plunder")?;
+	t.stack_sub(&way, k, n)?;
+	let dest = spill(t, to)?;
+	t.ledger(Row {
+		op: "TRANSFER",
+		stack: Some(k),
+		from: Some(owner_cols(&way)),
+		from_acct: acct_of(fp),
+		to: Some(owner_cols(&dest)),
+		to_acct: acct_of(tp),
+		count: n,
+		reason: "plunder",
+		..Default::default()
+	})?;
+	Ok(())
+}
+
+/// A plundered fall (`Cmd::Plunder`), one transaction with ledger lines on both sides: the PLUNDER row (victim's
+/// account to the winner's; `coin` is only recorded: the coin is in the winner's haul and moves when he banks it,
+/// `OutingDelta::plundered`), then each item and stack minted for the victim and moved to the winner
+/// (`plunder_item`, `plunder_stack`). Nothing is ever lost: a bound item, and everything when the winner may not take
+/// it (deleted, self-found on either side, a trade lock), stays with the victim (her bag, or her mail).
 fn plunder(t: &mut Tx, from: HeroId, to: HeroId, items: &[ItemSpec], stacks: &[(StackKind, u64)], coin: u64) -> Result<Reply> {
 	if from == to {
 		return Err(inv("a hero cannot plunder herself"));
 	}
 	i64_of(coin, "coin")?;
 	let hf = t.live_hero(from)?;
-	let ht = t.live_hero(to)?;
-	let (fp, tp) = (Party::Account(hf.account), Party::Account(ht.account));
+	let fp = Party::Account(hf.account);
 	for sp in items {
 		Tx::check_spec(sp)?;
 	}
 	for (k, n) in stacks {
 		Tx::check_kind(*k, *n)?;
 	}
+	let ht = t.hero_row(to).ok().filter(|h| h.deleted_at.is_none());
 	// The self-found rule (she gives nothing to another hero, and holds only what was minted for her) and a
 	// trade lock (no value moves between a locked account and another) hold for a plunder too.
-	let refused = t.is_self_found(from)? || t.is_self_found(to)? || t.check_flow(fp, tp).is_err();
+	let win = match &ht {
+		Some(h) if !t.is_self_found(from)? && !t.is_self_found(to)? && t.check_flow(fp, Party::Account(h.account)).is_ok() => {
+			Some((to, Party::Account(h.account)))
+		}
+		_ => None,
+	};
+	let bound = items.iter().filter(|sp| sp.bound).count();
 	t.ledger(Row {
 		op: "PLUNDER",
 		from_acct: Some(hf.account),
-		to_acct: Some(ht.account),
+		to_acct: ht.as_ref().map(|h| h.account),
 		count: coin,
-		reason: if refused { "refused" } else { "plunder" },
-		data: format!("hero {from} -> hero {to} items {} stacks {} coin {coin}", items.len(), stacks.len()),
+		reason: if win.is_some() { "plunder" } else { "refused" },
+		data: format!("hero {from} -> hero {to} items {} bound {bound} stacks {} coin {coin}", items.len(), stacks.len()),
 		..Default::default()
 	})?;
-	if refused {
-		return Ok(Reply::Items(Vec::new()));
-	}
-	let way = Owner { kind: PlaceKind::Mail, id: from };
-	let mut moved = Vec::with_capacity(items.len());
+	let mut placed = Vec::with_capacity(items.len());
 	for sp in items {
-		let (p, _) = t.resolve(&Dest::any(PlaceKind::Mail, from), sp, false)?;
-		let id = t.mint_at(&p, fp, sp, "plunder")?;
-		let it = t.load_item(id)?;
-		let (dest, dp) = match t.resolve(&Dest::bag(to), sp, false) {
-			Ok(x) => x,
-			Err(Error::Full(_)) => t.resolve(&Dest::any(PlaceKind::Mail, to), sp, false)?,
-			Err(e) => return Err(e),
-		};
-		t.set_place(id, &dest)?;
-		t.move_row("MOVE", &it, fp, &dest, dp)?;
-		moved.push((id, dest));
+		// A bound item is never plundered: it stays with her.
+		placed.push(plunder_item(t, from, fp, if sp.bound { None } else { win }, sp)?);
 	}
 	for (k, n) in stacks {
-		t.stack_add(&way, *k, *n)?;
-		t.credit_row(&way, fp, *k, *n, true, "plunder")?;
-		t.stack_sub(&way, *k, *n)?;
-		let bag = Owner::bag(to);
-		let dest = match t.stack_add(&bag, *k, *n) {
-			Ok(_) => bag,
-			Err(Error::Full(_)) => {
-				let mail = Owner { kind: PlaceKind::Mail, id: to };
-				t.stack_add(&mail, *k, *n)?;
-				mail
-			}
-			Err(e) => return Err(e),
-		};
-		t.ledger(Row {
-			op: "TRANSFER",
-			stack: Some(*k),
-			from: Some(owner_cols(&way)),
-			from_acct: Some(hf.account),
-			to: Some(owner_cols(&dest)),
-			to_acct: Some(ht.account),
-			count: *n,
-			reason: "plunder",
-			..Default::default()
-		})?;
+		plunder_stack(t, from, fp, win, *k, *n)?;
 	}
-	Ok(Reply::Items(moved))
+	Ok(Reply::Items(placed))
 }
 
 fn trade(t: &mut Tx, a: &TradeSide, b: &TradeSide) -> Result<Reply> {

@@ -145,7 +145,15 @@ impl Enc {
 				match delta.waystone {
 					Some((f, w)) => self.w("S").u(f as u64).i(w as i64),
 					None => self.w("N"),
+				};
+				// Job R3b: written only when there is some, so every older outing encodes (and hashes) as before.
+				if !delta.plundered.is_empty() {
+					self.w("P").u(delta.plundered.len() as u64);
+					for (h, n) in &delta.plundered {
+						self.i(*h).u(*n);
+					}
 				}
+				self
 			}
 			Cmd::Plunder { from, to, items, stacks, coin } => {
 				self.i(*from).i(*to).u(items.len() as u64);
@@ -466,7 +474,15 @@ impl<'a> Dec<'a> {
 					"N" => None,
 					_ => return Err(bad("opt")),
 				};
-				Cmd::Outing { hero, delta: OutingDelta { coin, xp, levels, items, stacks, potions_used, waystone } }
+				let mut plundered = Vec::new();
+				if self.it.clone().next() == Some("P") {
+					self.word()?;
+					let n = self.count()?;
+					for _ in 0..n {
+						plundered.push((self.i()?, self.u()?));
+					}
+				}
+				Cmd::Outing { hero, delta: OutingDelta { coin, xp, levels, items, stacks, potions_used, waystone, plundered } }
 			}
 			"plunder" => {
 				let from = self.i()?;

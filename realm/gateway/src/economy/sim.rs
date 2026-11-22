@@ -278,6 +278,7 @@ impl Sim {
                 stacks,
                 potions_used: if used > 0 { vec![(StackKind::potion(0), used)] } else { vec![] },
                 waystone: None,
+                plundered: Vec::new(),
             };
             let m = self.eco.meta(now);
             reqs.push(Request { id: m.id, actor: 0, now, cmd: Cmd::Outing { hero: b.hero, delta } });
