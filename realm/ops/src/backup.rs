@@ -121,10 +121,22 @@ pub fn prune(dir: &Path, keep: usize, daily_keep: usize) -> usize {
     gone
 }
 
+/// What a restore did: the restored stats digest, and a line for each side file it could not take from the backup.
+#[derive(Clone, Debug, Default)]
+pub struct Restored {
+    pub digest: u64,
+    /// Plain words for the operator: a side the backup lacks (a backup older than that side's backing up), whose
+    /// live file was set aside rather than kept.
+    pub notes: Vec<String>,
+}
+
 /// Restores `from` (a backup file) over `db`: verifies it first, sets the current store and its WAL files aside as
-/// `<db>.before-restore-<stamp>` (never deleted: undoing a bad restore is a rename), copies the backup and its side
-/// files in, and verifies the result. The gateway must be stopped. Returns the restored stats digest.
-pub fn restore(from: &Path, db: &Path, at_ms: i64) -> Result<u64, String> {
+/// `<db>.before-restore-<stamp>` (never deleted: undoing a bad restore is a rename), copies the backup in, and
+/// verifies the result. The side files end exactly as the backup has them: each live one is set aside the same way
+/// (`<db>.before-restore-<stamp>.<ext>`), then the backup's copied in; a side the backup lacks is not left live
+/// (houses the restored store never paid for, an epoch it never ran on) and is named in `notes`. The gateway must
+/// be stopped.
+pub fn restore(from: &Path, db: &Path, at_ms: i64) -> Result<Restored, String> {
     let (_, want, _) = check(from)?;
     let aside = stamp(at_ms);
     for suffix in ["", "-wal", "-shm"] {
@@ -138,14 +150,29 @@ pub fn restore(from: &Path, db: &Path, at_ms: i64) -> Result<u64, String> {
     if got != want {
         return Err(format!("restored digest {got:x} differs from the backup's {want:x}"));
     }
-    let fname = from.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let aside_db = PathBuf::from(format!("{}.before-restore-{aside}", db.display()));
+    let mut notes = Vec::new();
     for ext in SIDES {
-        let s = from.with_file_name(format!("{fname}.{ext}"));
-        if s.exists() {
-            let _ = std::fs::copy(&s, side(db, ext));
+        let (theirs, live) = (side(from, ext), side(db, ext));
+        let had = live.exists();
+        if had {
+            let to = side(&aside_db, ext);
+            std::fs::rename(&live, &to).map_err(|e| format!("set aside {}: {e}", live.display()))?;
+            if !theirs.exists() {
+                let what = match ext {
+                    crate::sides::HOMES => " (a backup from before houses were backed up: every house is unowned now)",
+                    crate::sides::EPOCH => " (the realm clock starts a new epoch: the tides move)",
+                    crate::sides::SECRET => " (a new tickets key is made at the next start)",
+                    _ => "",
+                };
+                notes.push(format!("the backup has no .{ext}: the live one is set aside as {}{what}", to.display()));
+            }
+        }
+        if theirs.exists() {
+            std::fs::copy(&theirs, &live).map_err(|e| format!("copy {}: {e}", theirs.display()))?;
         }
     }
-    Ok(got)
+    Ok(Restored { digest: got, notes })
 }
 
 /// The drill: restore the newest backup in `dir` to a scratch file (not the live store), verify it, and compare it
@@ -158,7 +185,7 @@ pub fn drill(dir: &Path, scratch: &Path, at_ms: i64) -> Result<String, String> {
     for suffix in ["", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{suffix}", target.display()));
     }
-    let digest = restore(newest, &target, at_ms)?;
+    let digest = restore(newest, &target, at_ms)?.digest;
     let (rep, _, schema) = check(&target)?;
     let (y, m, d, ..) = civil(at_ms);
     Ok(format!("drill ok backup={s} schema={schema} items={} stacks={} ledger={} digest={digest:016x} on {y:04}-{m:02}-{d:02}", rep.items, rep.stacks, rep.ledger_rows))
@@ -218,6 +245,60 @@ mod tests {
         assert_eq!(gone, 24 - 6);
         assert!(left[0].ends_with("000001"), "the first backup of day 2 stays: {left:?}");
         assert!(!dir.join(format!("{}.secret", name(&stamp(t0 + 1000)))).exists(), "side files go with their backup");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn scratch(name: &str) -> (PathBuf, PathBuf, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("realm-ops-restore-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("data")).unwrap();
+        let db = dir.join("data/realm.db");
+        realm_store::SqliteStore::open(&db).unwrap().close();
+        (dir.clone(), db, dir.join("backups"))
+    }
+
+    fn read(p: &Path) -> Option<String> {
+        std::fs::read_to_string(p).ok()
+    }
+
+    #[test]
+    fn a_restore_sets_every_side_file_to_the_backups_and_keeps_the_live_ones_aside() {
+        use crate::sides::{EPOCH, HOMES, SOCIAL};
+        let (dir, db, backups) = scratch("exact");
+        let t0 = 1_700_000_000_000;
+        std::fs::write(side(&db, HOMES), "plot\t1\t7\tAnn\t0\t0\t0\tA\t1\n").unwrap();
+        std::fs::write(side(&db, EPOCH), "100\n").unwrap();
+        let made = backup_now(&db, &backups, 3, 0, t0).unwrap();
+        // After the backup: a house changes hands, the social log starts (the backup has none).
+        std::fs::write(side(&db, HOMES), "plot\t1\t8\tBo\t0\t0\t0\tB\t2\n").unwrap();
+        std::fs::write(side(&db, SOCIAL), "later\n").unwrap();
+        let r = restore(&made.file, &db, t0 + 1000).unwrap();
+        assert_eq!(read(&side(&db, HOMES)).as_deref(), Some("plot\t1\t7\tAnn\t0\t0\t0\tA\t1\n"), "the backup's houses");
+        assert_eq!(read(&side(&db, EPOCH)).as_deref(), Some("100\n"));
+        assert!(!side(&db, SOCIAL).exists(), "a side the backup lacks is not left live");
+        let aside = PathBuf::from(format!("{}.before-restore-{}", db.display(), stamp(t0 + 1000)));
+        assert!(aside.exists(), "the store set aside");
+        assert_eq!(read(&side(&aside, HOMES)).as_deref(), Some("plot\t1\t8\tBo\t0\t0\t0\tB\t2\n"), "the replaced live file kept beside it");
+        assert_eq!(read(&side(&aside, SOCIAL)).as_deref(), Some("later\n"));
+        assert_eq!(r.notes.len(), 1, "{:?}", r.notes);
+        assert!(r.notes[0].contains(".social"), "{:?}", r.notes);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_backup_from_before_homes_were_kept_sets_the_live_houses_aside_and_says_so() {
+        use crate::sides::HOMES;
+        let (dir, db, backups) = scratch("old");
+        let t0 = 1_700_000_000_000;
+        let made = backup_now(&db, &backups, 3, 0, t0).unwrap();
+        // The live realm has houses; the backup (as one made before this change) has no .homes.
+        std::fs::write(side(&db, HOMES), "plot\t1\t7\tAnn\t0\t0\t0\tA\t1\n").unwrap();
+        assert!(!side(&made.file, HOMES).exists());
+        let r = restore(&made.file, &db, t0 + 1000).unwrap();
+        assert!(!side(&db, HOMES).exists(), "no house the restored store never paid for");
+        let aside = PathBuf::from(format!("{}.before-restore-{}", db.display(), stamp(t0 + 1000)));
+        assert!(side(&aside, HOMES).exists(), "moved aside, not deleted");
+        assert!(r.notes.iter().any(|n| n.contains("no .homes") && n.contains("every house is unowned")), "{:?}", r.notes);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

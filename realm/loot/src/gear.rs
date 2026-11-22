@@ -93,22 +93,29 @@ pub fn socket_points(kind: StackKind) -> Option<(u8, u16)> {
 		StackClass::Rune => {
 			let stat = (kind.0 - 2000) / 10;
 			let grade = (kind.0 - 2000) % 10;
-			Some((stat as u8, RUNE_POINTS[grade as usize - 1]))
+			Some((stat as u8, *RUNE_POINTS.get((grade as usize).checked_sub(1)?)?))
 		}
 		StackClass::Card => card_rule(kind.0 - 5000).map(|r| (r.stat, r.points)),
 		_ => None,
 	}
 }
 
-/// An item's points per stat in hundredths: its lines raised 3% a plus, and what sits in its sockets.
+/// An item's points per stat in hundredths: its lines raised 3% a plus, and what sits in its sockets. Total over
+/// anything a stored row may hold: a line or socket on a stat past the six adds nothing, a plus counts at most
+/// `PLUS_MAX`, a socketed kind that is no rune or known card adds nothing (`socket_points`).
 pub fn item_hundredths(spec: &ItemSpec, socketed: &[Option<StackKind>]) -> [u32; 6] {
 	let mut out = [0u32; 6];
+	let plus = spec.plus.min(PLUS_MAX) as u32;
 	for (stat, pts) in &spec.lines {
-		out[*stat as usize] += *pts as u32 * (100 + PLUS_PCT * spec.plus as u32);
+		if let Some(o) = out.get_mut(*stat as usize) {
+			*o = o.saturating_add(*pts as u32 * (100 + PLUS_PCT * plus));
+		}
 	}
 	for k in socketed.iter().flatten() {
 		if let Some((stat, pts)) = socket_points(*k) {
-			out[stat as usize] += pts as u32 * 100;
+			if let Some(o) = out.get_mut(stat as usize) {
+				*o = o.saturating_add(pts as u32 * 100);
+			}
 		}
 	}
 	out
@@ -120,8 +127,8 @@ pub fn gear_stats(worn: &[(ItemSpec, Vec<Option<StackKind>>)]) -> [u16; 6] {
 	for (spec, soc) in worn {
 		let one = item_hundredths(spec, soc);
 		for s in 0..6 {
-			h[s] += one[s];
+			h[s] = h[s].saturating_add(one[s]);
 		}
 	}
-	h.map(|v| ((v + 50) / 100).min(u16::MAX as u32) as u16)
+	h.map(|v| (v.saturating_add(50) / 100).min(u16::MAX as u32) as u16)
 }

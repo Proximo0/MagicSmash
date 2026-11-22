@@ -90,7 +90,9 @@ pub fn rehearse(dir: &Path, now_ms: i64) -> Result<String, String> {
         let _ = std::fs::remove_file(side(&db, ext));
     }
     ensure(backup::check(&db).is_err(), "the wrecked file should fail its check")?;
-    let got = backup::restore(&newest, &db, now_ms + 10 * 3_600_000)?;
+    let restored = backup::restore(&newest, &db, now_ms + 10 * 3_600_000)?;
+    ensure(restored.notes.is_empty(), &format!("the backup has every side file: {:?}", restored.notes))?;
+    let got = restored.digest;
     ensure(got == want, "restored digest equals the backup's")?;
     let (_, again, _) = backup::check(&db)?;
     ensure(again == want, "the live store verifies after restore")?;

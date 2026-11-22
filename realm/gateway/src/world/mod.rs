@@ -33,14 +33,11 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use wire::{BoardField, WReq, WResp, NEWS_FIELD_BOSS, NEWS_WORLD_BOSS};
 
 /// How often the world thread steps (ms): a queue moves and a copy opens within a quarter second.
 pub const WORLD_STEP_MS: u64 = 250;
-/// A host that ended without saying it closed is taken for dead after this long (its last messages are applied
-/// first).
-pub const DEAD_GRACE: Duration = Duration::from_secs(1);
 /// The class trial (rules section 3 and 10): a vault for one hero, needs no key, from class level 10.
 pub const TRIAL_VAULT: u8 = 5;
 
@@ -132,8 +129,10 @@ struct State {
     announced: HashSet<(u8, u8, u64)>,
     /// Hosts that said they closed.
     closed: HashSet<u32>,
-    /// Hosts seen ended without a close, and since when.
-    ended: HashMap<u32, Instant>,
+    /// Hosts seen ended without a close yet: the reaper's question is queued behind their messages (`HostMsg::Reap`).
+    reaping: HashSet<u32>,
+    /// Hosts the applier has answered for (it reached the question, after all of the host's messages).
+    reaped: HashSet<u32>,
     /// The fields this realm runs (it keeps a copy of each open), and how each was first opened (a new copy is
     /// made the same way: the same seed, so the same map).
     fields: Vec<u8>,
@@ -627,25 +626,29 @@ impl Gateway {
         self.news();
     }
 
-    /// Hosts that ended: a closed one is removed; one that died without closing loses its outings (after the
-    /// applier has had time for its last messages); a vault nobody entered refunds its key.
+    /// Hosts that ended: a closed one is removed; one that died without closing loses its outings; a vault nobody
+    /// entered refunds its key. Whether an ended host closed is decided in message order, never by wall time: a host
+    /// sends everything (its `Closed` last) before it is marked ended, so the reaper's `HostMsg::Reap`, queued after
+    /// it sees the mark, reaches the applier after all of them (`on_reap`), however far behind the applier is.
     fn reap_hosts(&self) {
         let ended: Vec<(u32, bool)> = {
             let hosts = self.hosts.lock().unwrap();
             let st = self.world.state.lock().unwrap();
-            hosts.iter().filter(|h| h.handle.status.ended.load(Ordering::Relaxed)).map(|h| (h.id, st.closed.contains(&h.id))).collect()
+            hosts.iter().filter(|h| h.handle.status.ended.load(Ordering::Acquire)).map(|h| (h.id, st.closed.contains(&h.id))).collect()
         };
         for (id, clean) in ended {
-            if !clean {
-                let first = *self.world.state.lock().unwrap().ended.entry(id).or_insert_with(Instant::now);
-                if first.elapsed() < DEAD_GRACE {
+            {
+                let mut st = self.world.state.lock().unwrap();
+                let asked = st.reaping.contains(&id);
+                if asked && !st.reaped.contains(&id) {
+                    // The question is queued: its answer (on the applier) reads `closed`, so nothing is cleared yet.
                     continue;
                 }
-                if self.world.state.lock().unwrap().closed.contains(&id) {
-                    // It closed after all (its message was late).
-                } else {
-                    self.host_lost(id);
-                    self.world.count(|s| s.hosts_lost += 1);
+                if !clean && !asked {
+                    st.reaping.insert(id);
+                    drop(st);
+                    let _ = self.msgs.send(realm_server::host::HostMsg::Reap { host: id });
+                    continue;
                 }
             }
             let slot = {
@@ -655,7 +658,8 @@ impl Gateway {
             {
                 let mut st = self.world.state.lock().unwrap();
                 st.closed.remove(&id);
-                st.ended.remove(&id);
+                st.reaping.remove(&id);
+                st.reaped.remove(&id);
             }
             if let Some(mut s) = slot {
                 s.handle.reap();
@@ -675,6 +679,18 @@ impl Gateway {
                 }
             }
         }
+    }
+
+    /// The applier reached the reaper's question about an ended host, so every message that host sent is applied:
+    /// without its `Closed` it died (a crash, `HostCmd::Abort`), and its outings are given up here, in order.
+    pub(crate) fn on_reap(&self, host: u32) {
+        let clean = self.world.state.lock().unwrap().closed.contains(&host);
+        if !clean {
+            self.lose_host(host);
+            self.wars_host_gone(host);
+            self.world.count(|s| s.hosts_lost += 1);
+        }
+        self.world.state.lock().unwrap().reaped.insert(host);
     }
 
     fn step_field(&self, field: u8, now_ms: u64) {
@@ -884,6 +900,39 @@ mod tests {
         assert_eq!((told.unwrap(), have), (Some(120), 120), "what she was told is what the store has");
         assert_eq!(gw.ticket_count(), 0);
         drop(l);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
+    }
+
+    /// A copy that closes cleanly is never taken for a dead one, however far behind the applier is: its Closed is
+    /// in the applier's queue, ahead of the reaper's question (a Windows runner's store fell over a second behind,
+    /// and clean merges were counted as lost hosts and their tickets dropped).
+    #[test]
+    fn a_clean_close_behind_a_slow_applier_is_not_a_lost_host() {
+        let db = std::env::temp_dir().join(format!("realm-slow-applier-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
+        let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+        gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        // The applier stalls 2.5 s on the next message, which is the copy's Closed.
+        gw.applier_pause_ms.store(2_500, Ordering::Relaxed);
+        let id = {
+            let mut hosts = gw.hosts.lock().unwrap();
+            let h = hosts.iter_mut().find(|h| h.vault.is_none()).unwrap();
+            h.stopping = true;
+            h.handle.cmds.send(HostCmd::Stop).unwrap();
+            h.id
+        };
+        // (The world opens a fresh copy of the field once it has none: only this one must go.)
+        let gone = || !gw.hosts.lock().unwrap().iter().any(|h| h.id == id);
+        let t = std::time::Instant::now();
+        while !gone() && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(gone(), "the closed copy is reaped");
+        let s = gw.world.stats();
+        assert_eq!((s.hosts_lost, s.tickets_lost), (0, 0), "a clean close is not a lost host");
         gw.shutdown();
         let _ = std::fs::remove_file(&db);
     }

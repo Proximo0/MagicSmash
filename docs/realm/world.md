@@ -110,8 +110,12 @@ realm of hundreds of bots then costs no follower simulations, which is what lets
 
 ## A host that dies
 
-A host whose thread ends without `Closed` (a crash; `HostCmd::Abort` in tests) is taken for dead after
-`DEAD_GRACE` = **1 s** (its last messages are applied first). Its tickets are dropped: banked coin, XP and kept
+A host whose thread ends without `Closed` (a crash; `HostCmd::Abort` in tests) is taken for dead in message order,
+never by wall time: a host sends everything (`Closed` last) before it is marked ended, and the world's question
+(`HostMsg::Reap`) queues behind those messages, so the applier answers it only after the host's last flush and its
+`Closed`, if any, however far behind the store is (a 1 s wall-clock grace once counted clean merges on a slow Windows
+runner as dead hosts and dropped their tickets; `world::tests::a_clean_close_behind_a_slow_applier_is_not_a_lost_host`).
+Its tickets are dropped: banked coin, XP and kept
 drops are already in the store; the haul is lost, as when the whole server is killed (W1's rule). The planner opens
 a new copy at once when the field has none.
 

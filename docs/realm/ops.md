@@ -21,10 +21,14 @@ systemd) reads `ops.conf`, starts `releases/<current>/realm-gateway` with the ma
 it when it dies (1 s, doubling to 30 s, reset after a minute of life) and raises `host-death`. `running` holds its pid;
 `stop` and `restart` are files the CLI drops, so every launcher works the same way. On either, the supervisor asks the
 gateway to stop by dropping `gateway.stop` in the host folder (std has no graceful signal; the gateway watches the file
-beside its `--ops-conf`, or `--stop-file=PATH`): it banks every hero in a field with her whole haul and her class XP
+beside its `--ops-conf`, or `--stop-file=PATH`, and with neither watches nothing; a request left from before is cleared
+when it starts): it banks every hero in a field with her whole haul and her class XP
 (`Leave::Shutdown`, as `Gateway::shutdown`), ends its hosts and exits 0, logging `realm_stopping` and `realm_stopped`.
 A gateway still running after 20 s (`supervise::STOP_GRACE`) is killed (`gateway_stop_forced`). `realm-ops stop` returns
-once the supervisor has ended (at most 25 s; realm.service's `TimeoutStopSec` is 40). A kill (SIGKILL, a crash, a forced
+once the supervisor has ended (at most 25 s; realm.service's `TimeoutStopSec` is 40), and exits non-zero saying so when
+the gateway had to be killed (the supervisor leaves `stopped` = `clean` or `forced` in the host folder). Measured: 1,000
+host-played heroes in a field are banked and stopped in about 0.5 s (`gateway/tests/world.rs`
+`a_stop_banks_every_hero_in_the_fields_in_time`), so the grace is a constant, not a setting. A kill (SIGKILL, a crash, a forced
 stop) still loses only the unbanked hauls: everything banked is already in the store (`gateway/tests/kill.rs`, both tests).
 `install-task.ps1` registers a logon task so Curtis's PC brings the realm back after a reboot.
 
@@ -58,7 +62,10 @@ Kept: the newest `backup_keep` (48 = two days hourly) plus the first backup of e
 The first backup after a start is due by the clock's own schedule (a restart does not skip an interval), at least a minute in.
 `realm-ops restore [file]` (realm stopped: refused while `running` exists) verifies the backup, moves the live store and
 its WAL aside as `realm.db.before-restore-STAMP` (never deleted: undoing a restore is a rename), copies the backup in and
-verifies the digest of items and stacks equals the backup's. `realm-ops drill` restores the newest backup to a scratch
+verifies the digest of items and stacks equals the backup's. The side files end exactly as the backup has them: each
+live one is moved aside as `realm.db.before-restore-STAMP.<ext>`, then the backup's is copied in; one the backup lacks
+is not left live and the restore says so (`NOTE the backup has no .homes ...`: a backup made before houses were backed
+up restores with every house unowned, the old registry kept aside). `realm-ops drill` restores the newest backup to a scratch
 file and verifies it while the realm runs; `drill.sh`/`drill.ps1` are for cron or Task Scheduler (weekly).
 A store one schema behind this build (a pre-switch backup) cannot use the newest-tables verify: it gets SQLite's
 `quick_check`, and the older release's own `realm-store verify` is the full check (`backup::check`).

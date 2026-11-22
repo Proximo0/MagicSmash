@@ -20,6 +20,10 @@ use std::time::{Duration, Instant};
 /// little longer than this for the supervisor (systemd's `TimeoutStopSec` in realm.service is above both).
 pub const STOP_GRACE: Duration = Duration::from_secs(20);
 
+/// The supervisor's last word on a requested stop, in the host folder: `clean` (the gateway banked its fields and
+/// exited) or `forced` (killed after `STOP_GRACE`: heroes in fields lost their unbanked hauls).
+pub const STOPPED: &str = "stopped";
+
 /// Asks the gateway to stop and waits up to `grace` for it to exit; kills it after that. True: it stopped by itself.
 pub fn stop_child(root: &Path, child: &mut Child, grace: Duration) -> bool {
     let ask = root.join(crate::runtime::GATEWAY_STOP);
@@ -91,6 +95,8 @@ pub fn run(root: &Path) -> i32 {
             Err(e) => {
                 alarms.raise("host-death", &format!("cannot start the gateway: {e}"), time::now_ms());
                 if wait_or_stop(&stop, Duration::from_secs(backoff)) {
+                    // No gateway was running: the stop killed nothing.
+                    let _ = std::fs::write(root.join(STOPPED), "clean\n");
                     break 'outer 1;
                 }
                 backoff = (backoff * 2).min(30);
@@ -102,8 +108,10 @@ pub fn run(root: &Path) -> i32 {
         loop {
             std::thread::sleep(Duration::from_millis(250));
             if stop.exists() {
-                stop_child(root, &mut child, STOP_GRACE);
-                log::info("gateway_stopped", &[("why", "stop requested".into())]);
+                let clean = stop_child(root, &mut child, STOP_GRACE);
+                // `realm-ops stop` reads this once `running` is gone, and fails on a forced stop.
+                let _ = std::fs::write(root.join(STOPPED), if clean { "clean\n" } else { "forced\n" });
+                log::info("gateway_stopped", &[("why", "stop requested".into()), ("clean", clean.to_string())]);
                 break 'outer 0;
             }
             if restart.exists() {
@@ -120,6 +128,8 @@ pub fn run(root: &Path) -> i32 {
                     backoff = 1;
                 }
                 if wait_or_stop(&stop, Duration::from_secs(backoff)) {
+                    // No gateway was running: the stop killed nothing.
+                    let _ = std::fs::write(root.join(STOPPED), "clean\n");
                     break 'outer 0;
                 }
                 backoff = (backoff * 2).min(30);

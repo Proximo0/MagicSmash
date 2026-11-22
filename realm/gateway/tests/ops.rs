@@ -231,7 +231,7 @@ fn a_backup_and_restore_keep_the_plot_registry_and_the_clock_epoch() {
     for s in ["", "-wal", "-shm", ".homes", ".epoch"] {
         let _ = std::fs::remove_file(format!("{}{s}", db.display()));
     }
-    realm_ops::backup::restore(&made.file, &db, now + 1000).unwrap();
+    assert!(realm_ops::backup::restore(&made.file, &db, now + 1000).unwrap().notes.is_empty());
     assert_eq!(Registry::open(&side(&db, HOMES)).unwrap().plot_of(42, now), Some(0), "she still owns her house");
     let after = realm_server::realm_clock::clock_from_epoch(&side(&db, EPOCH), 1).now();
     assert!(after >= before && after - before < 20 * 60, "the realm clock runs on from the same epoch ({before} then {after})");

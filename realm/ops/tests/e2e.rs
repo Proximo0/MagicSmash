@@ -216,5 +216,20 @@ fn the_supervisor_keeps_the_gateway_up_and_alarms_when_it_dies() {
     let st = sup.wait().unwrap();
     assert!(st.success(), "the supervisor ends on stop");
     assert!(!host.join("running").exists());
+
+    // A gateway that does not stop when asked is killed after the grace, and the stop says so and fails.
+    std::fs::write(&gw, format!("#!/bin/sh\necho start >> {0}/starts.txt\nexec sleep 120\n", host.display())).unwrap();
+    let mut sup = Command::new(env!("CARGO_BIN_EXE_realm-ops")).args(["run", &format!("--root={}", host.display())]).spawn().unwrap();
+    let t0 = std::time::Instant::now();
+    while starts() < 3 && t0.elapsed().as_secs() < 20 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert_eq!(starts(), 3);
+    let t = std::time::Instant::now();
+    let (good, said) = ops(&host, &["stop"]);
+    assert!(!good && said.contains("was killed"), "a forced stop fails and says why: {said}");
+    assert!(t.elapsed() >= realm_ops::supervise::STOP_GRACE, "killed only after the grace");
+    assert!(sup.wait().unwrap().success());
+    assert!(!host.join("running").exists());
     let _ = std::fs::remove_dir_all(&d);
 }

@@ -103,6 +103,18 @@ fn main() {
         (None, None, false) => die("no TLS certificate: give --tls-cert=PEM --tls-key=PEM, or --dev-cert for local play, or --plain (or --dev-login) to run unencrypted"),
         _ => die("give --tls-cert and --tls-key together, or --dev-cert alone"),
     };
+    // The stop request: `--stop-file`, or `gateway.stop` beside the ops.conf. One left from before this start (a
+    // gateway killed mid-stop, then started again) is cleared now, first of all, so only a new request stops us.
+    if stop_file.is_none() {
+        if let Some(p) = &ops_conf {
+            let p = std::path::Path::new(p);
+            let root = p.parent().filter(|d| !d.as_os_str().is_empty()).map_or_else(|| std::path::PathBuf::from("."), |d| d.to_path_buf());
+            stop_file = Some(root.join(realm_ops::runtime::GATEWAY_STOP));
+        }
+    }
+    if let Some(f) = &stop_file {
+        let _ = std::fs::remove_file(f);
+    }
     let store = Arc::new(SqliteStore::open(&db).unwrap_or_else(|e| die(&format!("open {db}: {e}"))));
     let secret = secret.unwrap_or_else(|| load_secret(&side(std::path::Path::new(&db), sides::SECRET)));
     let first_kills = Some(side(std::path::Path::new(&db), sides::BOSSKILLS));
@@ -127,9 +139,6 @@ fn main() {
         let p = std::path::PathBuf::from(p);
         let conf = realm_ops::config::Conf::load(&p).unwrap_or_else(|e| die(&e));
         let root = p.parent().filter(|d| !d.as_os_str().is_empty()).map_or_else(|| std::path::PathBuf::from("."), |d| d.to_path_buf());
-        if stop_file.is_none() {
-            stop_file = Some(root.join(realm_ops::runtime::GATEWAY_STOP));
-        }
         let g = gw.clone();
         let probe: realm_ops::runtime::ProbeFn = Arc::new(move || {
             let fields = g.host_loads();
@@ -156,8 +165,7 @@ fn main() {
     println!("LISTEN tcp={} udp={} tls={}", listener.addr, udp.join(","), if tls.is_some() { "on" } else { "off" });
     use std::io::Write;
     let _ = std::io::stdout().flush();
-    // A request already there (sent while the fields were being built) is honoured at once; the supervisor clears
-    // a stale one before it starts the gateway.
+    // A request made while the fields were being built is honoured at once.
     // Sample the heroes in fields while waiting, so the end line can say the peak (the LAN rehearsal reads it).
     let end = (secs > 0).then(|| std::time::Instant::now() + Duration::from_secs(secs));
     let mut peak = 0u32;

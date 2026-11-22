@@ -41,7 +41,9 @@ fn held(store: &SqliteStore, hero: i64) -> (u64, u64) {
 #[test]
 fn a_server_killed_mid_outing_loses_nothing_banked() {
     let db = std::env::temp_dir().join(format!("realm-kill-{}.db", std::process::id()));
-    let files = |db: &std::path::Path| ["", ".secret", ".bosskills", "-wal", "-shm", ".dev-cert.pem", ".dev-key.pem", ".dev-cert.names"].map(|e| format!("{}{e}", db.display()));
+    let files = |db: &std::path::Path| {
+        ["", ".secret", ".bosskills", ".homes", ".epoch", ".social", "-wal", "-shm", ".dev-cert.pem", ".dev-key.pem", ".dev-cert.names"].map(|e| format!("{}{e}", db.display()))
+    };
     for f in files(&db) {
         let _ = std::fs::remove_file(f);
     }
@@ -179,10 +181,10 @@ fn a_server_asked_to_stop_banks_every_haul_and_exits() {
     let store = SqliteStore::open(&db).unwrap();
     let after = held(&store, hero);
     assert!(after.0 > before.0 && after.1 > before.1, "the haul and class XP of the stopped outing are banked: {before:?} -> {after:?}");
-    if let Ok(o) = &outcome {
-        assert_eq!(o.left, 4, "she left by the shutdown: {o:?}");
-        assert_eq!(after.0, before.0 + o.coin, "all of her haul's coin, none lost: {o:?}");
-    }
+    // Her client must have been told how the outing ended: a session that broke instead is a failure too.
+    let o = outcome.unwrap_or_else(|e| panic!("her session did not see the outing end: {e}"));
+    assert_eq!(o.left, 4, "she left by the shutdown: {o:?}");
+    assert_eq!(after.0, before.0 + o.coin, "all of her haul's coin, none lost: {o:?}");
     assert!(store.verify().unwrap().problems.is_empty());
     drop(store);
     // A restarted realm loads what she had at the stop.
@@ -200,4 +202,47 @@ fn a_server_asked_to_stop_banks_every_haul_and_exits() {
     let _ = again.kill();
     let _ = again.wait();
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A stop request left from before (a gateway killed mid-stop, then started by hand) does not stop the next start:
+/// the gateway clears it when it starts, and only a new one stops it.
+#[test]
+fn a_leftover_stop_request_does_not_stop_a_fresh_start() {
+    let dir = std::env::temp_dir().join(format!("realm-stale-stop-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut conf = realm_ops::config::template();
+    conf.push_str(&format!("\nmetrics_port = 0\nadmin_port = 0\nbackup_every_mins = 0\nlog_dir = {0}/logs\ndb = {0}/realm.db\nbackup_dir = {0}/backups\n", dir.display()));
+    std::fs::write(dir.join("ops.conf"), conf).unwrap();
+    let ask = dir.join(realm_ops::runtime::GATEWAY_STOP);
+    std::fs::write(&ask, "").unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_realm-gateway"))
+        .args([&format!("--db={}/realm.db", dir.display()), "--dev-login", "--bind=127.0.0.1", "--port=0", "--field-port=0", "--fields=0", "--monsters=100", &format!("--ops-conf={}/ops.conf", dir.display())])
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut out = BufReader::new(child.stdout.take().unwrap());
+    let mut line = String::new();
+    while !line.starts_with("LISTEN") {
+        line.clear();
+        if out.read_line(&mut line).unwrap() == 0 {
+            break;
+        }
+    }
+    std::thread::spawn(move || for _ in out.lines() {});
+    std::thread::sleep(Duration::from_secs(1));
+    let alive = child.try_wait().unwrap().is_none();
+    if alive {
+        std::fs::write(&ask, "").unwrap();
+    }
+    let t = std::time::Instant::now();
+    while child.try_wait().unwrap().is_none() && t.elapsed() < Duration::from_secs(20) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let stopped = child.try_wait().unwrap().is_some_and(|s| s.success());
+    let _ = child.kill();
+    let _ = child.wait();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(alive, "a stale stop request stopped the fresh gateway at once");
+    assert!(stopped, "a new request stops it");
 }
