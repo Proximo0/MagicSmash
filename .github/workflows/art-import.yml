@@ -1,0 +1,50 @@
+name: art-import
+
+# Art reaches the game with no person in the loop: every push to art-raw is imported into realm/client/art by
+# tools/art/import.py and offered as the PR "Art import from art-raw" (branch art-import); the PR runs the normal checks.
+on:
+  push:
+    branches: [art-raw]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: art-import
+  cancel-in-progress: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy pillow scipy
+      - name: Fetch art-raw
+        run: |
+          git fetch origin art-raw:refs/remotes/origin/art-raw
+          git worktree add "$RUNNER_TEMP/art-raw" origin/art-raw
+      - name: Import
+        run: python3 tools/art/import.py "$RUNNER_TEMP/art-raw" --commit "$(git rev-parse --short origin/art-raw)"
+      - name: Push art-import
+        run: |
+          if [ -z "$(git status --porcelain realm/client/art)" ]; then
+            echo "nothing changed"; exit 0
+          fi
+          git config user.name "art-import"
+          git config user.email "art-import@users.noreply.github.com"
+          git checkout -B art-import
+          git add realm/client/art
+          git commit -m "Art import from art-raw $(git rev-parse --short origin/art-raw)"
+          git push --force origin art-import
+          # A PR opened with GITHUB_TOKEN would not run the required checks, so the lead thread opens the
+          # PR from the art-import branch (its hourly check) and auto-merge lands it once every check passes.

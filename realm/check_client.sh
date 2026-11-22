@@ -54,6 +54,16 @@ if ! import && ! import; then
 	fail "godot --import"
 fi
 
+# The art gallery: every picture in client/art at game size over each field'"'"'s ground colour, with a 56 px ruler,
+# in the shots folder (art_gallery.png, its row names in art_gallery.txt).
+gallery_dir="${SHOTS_DIR:-$work/shots}"
+mkdir -p "$gallery_dir"
+gallery=$(timeout 120 "$GODOT" --headless --path client -s res://tests/art_gallery.gd -- --out="$gallery_dir/art_gallery.png" 2>&1 | grep -m1 "^ART_GALLERY")
+if [[ "$gallery" != "ART_GALLERY ok"* ]]; then
+	echo "${gallery:-ART_GALLERY printed nothing}"
+	fail "art gallery"
+fi
+
 field=$(timeout 120 "$GODOT" --headless --path client -s res://tests/field_test.gd 2>&1 | grep -m1 "^FIELD_TEST")
 if [[ "$field" != "FIELD_TEST ok"* ]]; then
 	echo "${field:-FIELD_TEST printed nothing}"
@@ -129,4 +139,4 @@ fi
 # The relay reports every 10 s: its last line covers the whole test (to the server / to the clients).
 d_hash=$(line direct | grep -Eo "passed=[0-9]+ failed=[0-9]+")
 r_hash=$(line relay | grep -Eo "passed=[0-9]+ failed=[0-9]+")
-echo "REALM_CLIENT ok $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') $(echo "$shell_line" | grep -Eo "checks=[0-9]+" | sed 's/checks/shell_test_checks/') $(echo "$shell_line" | grep -Eo "shots=[0-9]+" | sed 's/shots/shell_shots/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"
+echo "REALM_CLIENT ok $(echo "$gallery" | grep -Eo "sprites=[0-9]+" | sed 's/sprites/gallery_sprites/') $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') $(echo "$shell_line" | grep -Eo "checks=[0-9]+" | sed 's/checks/shell_test_checks/') $(echo "$shell_line" | grep -Eo "shots=[0-9]+" | sed 's/shots/shell_shots/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"
