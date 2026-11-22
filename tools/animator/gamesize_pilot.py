@@ -81,11 +81,14 @@ def table(rows, cols):
 
 
 def measure_rows(sets, prop):
-    """sets: {label: (FrameSet, known)} -> table rows of 'mean %' (limbs: all pairs / same-step pairs)."""
+    """sets: {label: (FrameSet, known)} -> table rows: mean % of the part's pixels that change
+    (new frames: 'all pairs / same-variant pairs' for anything that turns, swaps cloth or carries)."""
     res = {k: gs.measure(fs, known=kn) for k, (fs, kn) in sets.items()}
-    parts = [("head", "head"), ("torso", "torso"), ("prop", prop), ("near_upper", "near_upper"),
-             ("near_fore", "near_fore"), ("near_thigh", "near_thigh"), ("near_shin", "near_shin"),
-             ("near_foot", "near_foot"), ("far_thigh", "far_thigh"), ("far_foot", "far_foot")]
+    parts = [("head", "head"), ("torso", "torso"), ("prop", prop), ("cloth(robe)", "robe"),
+             ("near_upper", "near_upper"), ("near_fore", "near_fore"), ("far_upper", "far_upper"),
+             ("far_fore", "far_fore"), ("near_thigh", "near_thigh"), ("near_shin", "near_shin"),
+             ("near_foot", "near_foot"), ("far_thigh", "far_thigh"), ("far_shin", "far_shin"),
+             ("far_foot", "far_foot")]
     rows = []
     for title, nm in parts:
         vals = []
@@ -93,9 +96,11 @@ def measure_rows(sets, prop):
             r = res[k].get(nm)
             if r is None:
                 vals.append("-")
-            elif kn and title not in ("head", "torso"):
-                s = r["same"]
-                vals.append("%.0f / %s" % (r["all"][0], "%.0f" % s[0] if s else "-"))
+            elif r["all"][0] != r["all"][0]:
+                vals.append("hidden")
+            elif kn and title not in ("head", "torso", "prop"):
+                s_ = r["same"]
+                vals.append("%.0f / %s" % (r["all"][0], "%.0f" % s_[0] if s_ else "-"))
             else:
                 vals.append("%.1f" % r["all"][0])
         rows.append((title, vals))
@@ -129,11 +134,11 @@ def crop_of(sets):
 
 
 def contact_sheet(old, new, path):
-    """Rows: old 56 (4x), old 112 (2x), A 56, A 112, B 56 (2:1 of B112), B 112 (all shown at the same size)."""
+    """Rows: old 56 (4x), old 112 (2x), A 56 (comparison), B 56 (2:1 of the 112 master, 4x), B 112 (2x)."""
     box = crop_of([old[56], old[112], new["A56"], new["B112"]])
     rows = []
     for fs, lab in ((old[56], "OLD pipeline 56"), (old[112], "OLD pipeline 112"),
-                    (new["A56"], "NEW A: 56 master"), (new["A112"], "NEW A: 112 = 2x nearest of 56"),
+                    (new["A56"], "variant A (comparison): 56 master"),
                     (new["B56"], "NEW B: 56 = 2:1 of the 112 master"), (new["B112"], "NEW B: 112 master (even offsets)")):
         s = 56.0 / fs.master
         x0, x1, y0, y1 = [int(round(v / s)) for v in box]
@@ -161,9 +166,9 @@ def gif(fs, path, scale):
 
 
 def client_strip(fs, path, picks=(0, 2, 4, 6)):
-    """The strip field_art.gd loads: <name>_walk.png, 4 equal frames side by side, each W x H texture px,
-    drawn bottom-centred on the hero's feet (frame centre = pelvis column, last row = ground row),
-    facing right, 2 texture px per world px.  Transparent background."""
+    """The strip field_art.gd loads: <name>_walk.png, N equal frames side by side (the client reads 4:
+    WALK_FRAMES), each W x H texture px, drawn bottom-centred on the hero's feet (frame centre = pelvis
+    column, last row = ground row), facing right, 2 texture px per world px.  Transparent background."""
     fr = [fs.frames[i]["idx"] for i in picks]
     m = np.any([f >= 0 for f in fr], 0)
     ys, xs = np.nonzero(m)
@@ -173,8 +178,7 @@ def client_strip(fs, path, picks=(0, 2, 4, 6)):
     h = fs.foot_y - top
     strip = np.zeros((h, w * len(fr), 4), np.uint8)
     for n, i in enumerate(picks):
-        rgba = fs.rgba(i)
-        strip[:, n * w:(n + 1) * w] = rgba[top:fs.foot_y, fs.pel_x - half:fs.pel_x + half]
+        strip[:, n * w:(n + 1) * w] = fs.rgba(i)[top:fs.foot_y, fs.pel_x - half:fs.pel_x + half]
     Image.fromarray(strip).save(path)
     return w, h
 
@@ -182,7 +186,7 @@ def client_strip(fs, path, picks=(0, 2, 4, 6)):
 def run(out_dir=OUT):
     from .gamesize import bake_hero
     os.makedirs(out_dir, exist_ok=True)
-    for sub in ("client", "client_B56"):
+    for sub in ("client", "client_8frame"):
         os.makedirs(os.path.join(out_dir, sub), exist_ok=True)
     report = []
     for (hid, (cname, what)) in HEROES.items():
@@ -191,22 +195,32 @@ def run(out_dir=OUT):
         res = bake_hero(png, js)
         old, osec = old_frames(png, js)
         prop = _prop(res["A56"])
+        sec = res["seconds"]
         report.append("== %s  (%s, %s)  new bake %.1f s (fit %.1f, 56 master+2x %.1f, 112 master+2:1 %.1f); old bake %.1f s; palette %d colours"
-                      % (hid, cname, what, res["seconds"]["total"], res["seconds"]["fit"], res["seconds"]["master56_and_2x"],
-                         res["seconds"]["master112_and_2to1"], osec, len(res["A56"].palette)))
-        bobs = [f["bob"] for f in res["A56"].frames]
-        report.append("   A56 bob per frame %s  B112 bob %s" % (bobs, [f["bob"] for f in res["B112"].frames]))
+                      % (hid, cname, what, sec["total"], sec["fit"], sec["master56_and_2x"], sec["master112_and_2to1"],
+                         osec, len(res["A56"].palette)))
+        for key in ("A56", "B112", "B56"):
+            fs = res[key]
+            bobs = [int(f["bob"]) for f in fs.frames]
+            ok, worst = gs.prop_clear_of_face(fs)
+            report.append("   %s: torso bob peak-to-peak %d px; leg lift/drop vs torso max %d px; joint holes in %d of %d (frame, joint) cases; "
+                          "prop_clear_of_face %s (worst %.1f%% of head px)"
+                          % (key, max(bobs) - min(bobs), max(abs(int(f["leg_dy"]) - int(f["bob"])) for f in fs.frames),
+                             gs.count_hole_frames(fs), len(fs.frames) * 4, "ok" if ok else "FAIL", 100 * worst))
+        for ge, cfg in res["heroB"].carry.items():
+            report.append("   carry of %s: one angle for all 8 frames, %+.2f deg from the drawn carry, grip shift %d px (112 master)"
+                          % (ge, res["heroB"].carry_dphi[ge], cfg[1]))
         for size in (56, 112):
             sets = {"old": (old[size], False), "new A": (res["A%d" % size], True), "new B": (res["B%d" % size], True)}
             rows, _ = measure_rows(sets, prop)
-            report.append("   %d px: mean %% of a part's pixels changing frame to frame (limbs: all pairs / same-step pairs)" % size)
+            report.append("   %d px: mean %% of a part's pixels changing frame to frame (new: all pairs / same-variant pairs)" % size)
             report.append("\n".join("   " + l for l in table(rows, list(sets)).split("\n")))
         contact_sheet(old, res, os.path.join(out_dir, "%s_%s_contact.png" % (hid, cname)))
-        for key, sc in (("A56", 4), ("A112", 2), ("B56", 4), ("B112", 2)):
+        for key, sc in (("B56", 4), ("B112", 2)):
             gif(res[key], os.path.join(out_dir, "%s_%s_%s.gif" % (hid, cname, key)), sc)
-        w, h = client_strip(res["A56"], os.path.join(out_dir, "client", "hero_%s_walk.png" % cname))
-        w2, h2 = client_strip(res["B56"], os.path.join(out_dir, "client_B56", "hero_%s_walk.png" % cname))
-        report.append("   client strip A: %dx%d (4 frames of %dx%d); B: %dx%d" % (4 * w, h, w, h, 4 * w2, h2))
+        w, h = client_strip(res["B56"], os.path.join(out_dir, "client", "hero_%s_walk.png" % cname))
+        w8, h8 = client_strip(res["B56"], os.path.join(out_dir, "client_8frame", "hero_%s_walk.png" % cname), tuple(range(8)))
+        report.append("   client strips (B, 56 px): 4 frames %dx%d (%dx%d each); 8 frames %dx%d" % (4 * w, h, w, h, 8 * w8, h8))
     txt = "\n".join(report)
     with open(os.path.join(out_dir, "measurements.txt"), "w") as f:
         f.write(txt + "\n")

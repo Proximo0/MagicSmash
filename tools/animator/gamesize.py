@@ -32,8 +32,8 @@ import numpy as np
 from .bake import AUTO_DRAW_ORDER, REF_BH
 from .rig import screen_angle, wrap180
 
-STEP = 22.5            # degrees between the rotations a limb may take
-MAX_STEP = 4           # +-90 degrees
+STEP = 11.25           # degrees between the rotations a limb may take
+MAX_STEP = 8           # +-90 degrees
 PALETTE_N = 24
 BASE_CANVAS = (96, 80)  # at 56 px (the old canvas); the pelvis column and the ground row below
 BASE_FOOT, BASE_PELVIS = 74, 46
@@ -208,11 +208,166 @@ def rot2(v, deg):
     return np.array([c * v[0] - s * v[1], s * v[0] + c * v[1]])
 
 
+# ------------------------------------------------------------------ outline, joints, holes
+def fill_disc(arr, c, r, dark, near=2.0):
+    """Close holes (-1) within r of c with the commonest non-outline colour among the opaque pixels
+    within `near` px (any colour when only outline is there): a rounded joint cap with no dark ring."""
+    h, w = arr.shape
+    ys, xs = np.mgrid[0:h, 0:w]
+    hole = (np.hypot(xs + 0.5 - c[0], ys + 0.5 - c[1]) <= r) & (arr < 0)
+    if not hole.any():
+        return arr
+    out = arr.copy()
+    K = len(dark)
+    for y, x in np.argwhere(hole):
+        win = arr[max(0, int(y - near)):int(y + near) + 1, max(0, int(x - near)):int(x + near) + 1]
+        win = win[win >= 0]
+        if len(win) == 0:
+            continue
+        lit = win[~dark[win]]
+        out[y, x] = np.bincount(lit if len(lit) else win, minlength=K).argmax()
+    return out
+
+
+def tidy_sprite(sp, min_px=4):
+    """Fill 1 px slits and pinholes inside a sprite (colour of the left / upper neighbour) and drop
+    loose bits of fewer than min_px pixels, so a turned part is one clean shape."""
+    a = sp.copy()
+    for _ in range(2):
+        p = np.pad(a, 1, constant_values=-1)
+        lr = (a < 0) & (p[1:-1, :-2] >= 0) & (p[1:-1, 2:] >= 0)
+        a = np.where(lr, p[1:-1, :-2], a)
+        p = np.pad(a, 1, constant_values=-1)
+        ud = (a < 0) & (p[:-2, 1:-1] >= 0) & (p[2:, 1:-1] >= 0)
+        a = np.where(ud, p[:-2, 1:-1], a)
+    op = a >= 0
+    seen = np.zeros(op.shape, bool)
+    for y, x in np.argwhere(op):
+        if seen[y, x]:
+            continue
+        comp, todo = [(y, x)], [(y, x)]
+        seen[y, x] = True
+        while todo:
+            cy, cx = todo.pop()
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                q = (cy + dy, cx + dx)
+                if 0 <= q[0] < op.shape[0] and 0 <= q[1] < op.shape[1] and op[q] and not seen[q]:
+                    seen[q] = True
+                    todo.append(q)
+                    comp.append(q)
+        if len(comp) < min_px:
+            for q in comp:
+                a[q] = -1
+    return a
+
+
+def _ring(op):
+    p = np.pad(op, 1, constant_values=False)
+    inner = p[:-2, 1:-1] & p[2:, 1:-1] & p[1:-1, :-2] & p[1:-1, 2:]
+    return op & ~inner
+
+
+def clean_outline(idxs, dark, K):
+    """Despeckle on the reduced parts BEFORE they are cut into sprites.  Per side (near parts,
+    far parts): the silhouette ring of the parts' union.  When most of the ring is outline colour
+    the whole ring becomes one continuous 1 px outline in the commonest outline colour; otherwise
+    the ring has no outline and its dark dots are replaced by the colour next to them."""
+    for far in (False, True):
+        names = [n for n in idxs if n.startswith("far_") == far]
+        if not names:
+            continue
+        union = np.zeros(idxs[names[0]].shape, bool)
+        for n in names:
+            union |= idxs[n] >= 0
+        ring = _ring(union)
+        cols = np.concatenate([idxs[n][ring & (idxs[n] >= 0)] for n in names]).astype(int)
+        if len(cols) == 0:
+            continue
+        isd = dark[cols]
+        if isd.mean() >= 0.5:
+            oc = int(np.bincount(cols[isd], minlength=K).argmax())
+            for n in names:
+                m = ring & (idxs[n] >= 0)
+                idxs[n][m] = oc
+        else:
+            for n in names:
+                a = idxs[n]
+                for y, x in np.argwhere(ring & (a >= 0) & dark[np.clip(a, 0, K - 1)]):
+                    win = a[max(0, y - 1):y + 2, max(0, x - 1):x + 2].ravel()
+                    win = win[(win >= 0) & ~dark[np.clip(win, 0, K - 1)]]
+                    if len(win):
+                        a[y, x] = np.bincount(win, minlength=K).argmax()
+    return idxs
+
+
+def _placed(sp, org, shape):
+    m = np.zeros(shape, bool)
+    h, w = sp.shape
+    x0, y0 = int(org[0]), int(org[1])
+    xa, ya, xb, yb = max(x0, 0), max(y0, 0), min(x0 + w, shape[1]), min(y0 + h, shape[0])
+    if xb > xa and yb > ya:
+        m[ya:yb, xa:xb] = sp[ya - y0:yb - y0, xa - x0:xb - x0] >= 0
+    return m
+
+
+def joint_holes(parent, child, joint, rr):
+    """Background pixels that show between two parts at their joint: a 1 px slit (opaque on both
+    sides, left-right or up-down) within rr of the joint, plus 1 when the two parts are not even
+    4-connected.  parent/child: bool masks of the placed sprites."""
+    U = parent | child
+    p = np.pad(U, 1, constant_values=False)
+    slit = ~U & ((p[1:-1, :-2] & p[1:-1, 2:]) | (p[:-2, 1:-1] & p[2:, 1:-1]))
+    ys, xs = np.mgrid[0:U.shape[0], 0:U.shape[1]]
+    near = (np.abs(xs + 0.5 - joint[0]) <= rr) & (np.abs(ys + 0.5 - joint[1]) <= rr)
+    n = int((slit & near).sum())
+    pts = np.argwhere(U)
+    if len(pts):
+        seen = {tuple(pts[0])}
+        todo = [tuple(pts[0])]
+        while todo:
+            y, x = todo.pop()
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                q = (y + dy, x + dx)
+                if 0 <= q[0] < U.shape[0] and 0 <= q[1] < U.shape[1] and U[q] and q not in seen:
+                    seen.add(q)
+                    todo.append(q)
+        if len(seen) < len(pts):
+            n += 1
+    return n
+
+
+def prop_clear_of_face(frame_set, limit=0.02):
+    """Gate: the prop's pixels inside the head's bounding box, as a share of the head's pixels,
+    must be <= limit (2%) in every frame.  Returns (ok, worst share)."""
+    worst = 0.0
+    for f in frame_set.frames:
+        if f.get("prop") is None:
+            continue
+        x0, y0, m = f["prop"]
+        hx0, hy0, hx1, hy1 = f["head_box"]
+        sub = m[max(0, hy0 - y0):max(0, hy1 - y0), max(0, hx0 - x0):max(0, hx1 - x0)]
+        # the prop's pixels that fall inside the box
+        inside = 0
+        ys, xs = np.nonzero(m)
+        gx, gy = xs + x0, ys + y0
+        inside = int(((gx >= hx0) & (gx < hx1) & (gy >= hy0) & (gy < hy1)).sum())
+        worst = max(worst, inside / max(f["head_n"], 1))
+    return worst <= limit, worst
+
+
+def count_hole_frames(frame_set):
+    """Number of (frame, leg, joint) cases with a hole between thigh and shin or shin and foot."""
+    return sum(1 for f in frame_set.frames for v in f.get("holes", {}).values() if v > 0)
+
+
 # ------------------------------------------------------------------ the hero
+CLOTH = ("robe", "cape")
+
+
 class Hero:
     """Everything a bake needs for one master size: grid, palette, sprites, rig, poses."""
 
-    def __init__(self, png, joints, master=56, even=False, fitted=None, gears=None, chars=None):
+    def __init__(self, png, joints, master=56, even=False, fitted=None, gears=None):
         from .bake import Character
         from .fit import fit_still
         from .gear import load_gear
@@ -237,12 +392,12 @@ class Hero:
                          self.pel_x, self.foot_y)
         self._palette_and_parts()
         self._poses()
+        self._choose_carry()
 
     # -- 1 + 2: one reduction, one palette, small sprites
     def _palette_and_parts(self):
         ch, g, rig = self.ch, self.grid, self.rig
         srcs = [(p.img, self.k ** 2) for p in ch.parts.values()]
-        # the still itself is the union of the near parts; far parts are darker copies
         from .gear import scale_of
         for ge in self.gears:
             srcs.append((ge.img, scale_of(ch, ge) ** 2))
@@ -250,14 +405,11 @@ class Hero:
         pal = self.palette
         self.K = len(pal)
         self.dark = _luma(pal) < DARK_LUMA
-        # a reference reduction of the whole near body: gaps between sprites are closed against it
         near_all = np.zeros(ch.still.shape[:2], bool)
         for nm, p in ch.parts.items():
             if not nm.startswith("far_"):
                 near_all |= p.mask
-        full = {}
-        for nm, p in ch.parts.items():
-            full[nm] = g.reduce(to_index(p.img, pal), self.K, self.dark)
+        full = {nm: g.reduce(to_index(p.img, pal), self.K, self.dark) for nm, p in ch.parts.items()}
         ref_cov = g.reduce(np.where(near_all, 0, -1).astype(np.int16), 1, np.zeros(1, bool))[1]
         owned = np.zeros(self.canvas[::-1], bool)
         best = np.zeros(self.canvas[::-1])
@@ -271,70 +423,100 @@ class Hero:
             owner = np.where(better, nm, owner)
         gaps = (ref_cov >= COVER) & ~owned
         self.gap_blocks = int(gaps.sum())
-        self.sprites = {}
-        self.pivot = {}
-        neck_row = int(math.ceil(g.G(rig.j["neck"])[1]))
+        idxs = {}
         for nm, (dom, cov) in full.items():
             keep = cov >= COVER
-            if nm in owner and not nm.startswith("far_"):
+            if not nm.startswith("far_"):
                 keep |= gaps & (owner == nm)
-            idx = np.where(keep, dom, -1).astype(np.int16)
+            idxs[nm] = np.where(keep, dom, -1).astype(np.int16)
+        clean_outline(idxs, self.dark, self.K)          # despeckle BEFORE cutting the sprites
+        self.sprites, self.pivot = {}, {}
+        neck_row = int(math.ceil(g.G(rig.j["neck"])[1]))
+        for nm, idx in idxs.items():
             if nm == "torso":
-                head = idx.copy()
+                head, torso = idx.copy(), idx.copy()
                 head[neck_row:] = -1
-                torso = idx.copy()
                 torso[:neck_row] = -1
-                self.sprites["head"] = self._crop(head)
-                self.sprites["torso"] = self._crop(torso)
+                self.sprites["head"] = trim(head, 0, 0, self.even)
+                self.sprites["torso"] = trim(torso, 0, 0, self.even)
             else:
-                self.sprites[nm] = self._crop(idx)
+                self.sprites[nm] = trim(idx, 0, 0, self.even)
+        self.cloth = [n for n, p in ch.parts.items() if getattr(p, "kind", "rigid") in CLOTH]
         self.body_parts = [n for n in self.sprites if n not in LIMBS]
-        # pivots (integer, canvas coords) of the limb parts
         for nm in LIMBS:
             if nm in ch.parts:
-                p = ch.parts[nm]
-                self.pivot[nm] = tuple(int(rnd(v, self.q)) for v in g.G(rig.j[p.pivot]))
+                self.pivot[nm] = tuple(int(rnd(v, self.q)) for v in g.G(rig.j[ch.parts[nm].pivot]))
         self._rot = {}
-
-    def _crop(self, idx):
-        sp, ox, oy = trim(idx, 0, 0, self.even)
-        return sp, ox, oy       # origin in canvas coordinates
+        self._cloth = {}
 
     def variant(self, nm, step):
-        """The sprite of limb `nm` turned by `step` steps: (idx, ox, oy) with the origin
-        relative to the part's integer pivot.  Computed once."""
+        """The sprite of limb `nm` turned by `step` steps of STEP degrees: (idx, ox, oy), origin
+        relative to the part's integer pivot.  Computed once; the two ends of the bone get a
+        rounded joint cap (fill_disc) so neighbouring parts always overlap."""
         key = (nm, step)
         if key not in self._rot:
             full = np.full(self.canvas[::-1], -1, np.int16)
             sp, ox, oy = self.sprites[nm]
             full[oy:oy + sp.shape[0], ox:ox + sp.shape[1]] = sp
-            out, rx, ry = rotate_idx(full, self.pivot[nm], step * STEP, self.K, self.dark)
-            if step == 0:
-                out, rx, ry = sp, ox - self.pivot[nm][0], oy - self.pivot[nm][1]
-            else:
-                out, rx, ry = trim(out, rx, ry, self.even)
+            piv = self.pivot[nm]
+            out, rx, ry = rotate_idx(full, piv, step * STEP, self.K, self.dark)
+            bone = nm.split("_")[1]
+            rad = self.ch.info["radius"].get(bone)
+            if rad and bone in CHILD:
+                r = 0.9 * rad * self.k
+                a, b = CHILD[bone]
+                vec = (self.rig.j[b] - self.rig.j[a]) * self.k
+                for pt in ((0.0, 0.0), tuple(rot2(vec, step * STEP))):
+                    out = fill_disc(out, (pt[0] - rx, pt[1] - ry), r, self.dark)
+            out = tidy_sprite(out)
+            out, rx, ry = trim(out, rx, ry, self.even)
             self._rot[key] = (out, rx, ry)
         return self._rot[key]
 
+    def cloth_variant(self, nm, state):
+        """Two states of a skirt / robe / cape: state 1 has the bottom rows shifted back by 2 px at
+        112 (1 px at 56).  Both made once."""
+        key = (nm, state)
+        if key not in self._cloth:
+            sp, ox, oy = self.sprites[nm]
+            if state == 0:
+                self._cloth[key] = (sp, ox, oy)
+            else:
+                sh = int(2 * self.m)
+                h, w = sp.shape
+                out = np.full((h, w + sh), -1, np.int16)
+                r0 = int(h * 0.55)
+                r0 -= r0 % 2
+                out[:r0, sh:] = sp[:r0]
+                out[r0:, :w] = sp[r0:]
+                self._cloth[key] = (out, ox - sh, oy)
+        return self._cloth[key]
+
     # -- poses: the old walk's angles, quantised
     def _poses(self):
-        from .motion import Gait
-        from .bake import BACK_SLOTS
+        from .motion import Gait, fit_walk, walk
+        from .bake import BODY_H, STRIDE_QUANT
         ch, rig = self.ch, self.rig
         motion = ch.walk_motion()
         gait = Gait(rig, motion)
-        if any(ge.slot in BACK_SLOTS for ge in self.gears):
-            from . import bake as _b
-            gait.solve_far_tuck(margin=-(_b.FAR_HAND_CLEAR * rig.body_height + ch.info["radius"]["fore"]))
         self.Jrest = rig.fk(rig.rest_pose())
-        self.J = []
+        # the far arm swings freely (opposite the near leg) even when the near hand carries a prop
+        if not ch.step_px or ch.step_px <= 0:
+            free = walk()
+        else:
+            q = STRIDE_QUANT * (ch.body_h / BODY_H) / ch.k
+            target = max(q, round(2 * ch.step_px * 0.95 / q) * q)
+            free = fit_walk(rig, target / 2.0 / 0.95, exact=target, quantum=q, arm=1.0)
+        gait2 = Gait(rig, free)
+        self.J, self.J2 = [], []
         for i in range(NFRAMES):
-            pose, contact = gait.pose(i / NFRAMES)
-            self.J.append(rig.fk(pose))
-        self.hand_local = None
+            self.J.append(rig.fk(gait.pose(i / NFRAMES)[0]))
+            self.J2.append(rig.fk(gait2.pose(i / NFRAMES)[0]))
+        ph = np.array([J["pelvis"][1] for J in self.J])
+        self.bob_up = np.zeros(NFRAMES, bool)
+        self.bob_up[np.argsort(ph, kind="stable")[:NFRAMES // 2]] = True    # highest half of the cycle
 
     def step_of(self, J, nm):
-        side = nm[:3] if nm[:3] in ("far",) else "near"
         side = "far" if nm.startswith("far_") else "near"
         a, b = {"upper": ("shoulder", "elbow"), "fore": ("elbow", "wrist"), "thigh": ("hip", "knee"),
                 "shin": ("knee", "ankle"), "foot": ("heel", "toe")}[nm.split("_")[1]]
@@ -342,83 +524,134 @@ class Hero:
         d = screen_angle(J[side + "." + b] - J[side + "." + a]) - screen_angle(rb - ra)
         return int(max(-MAX_STEP, min(MAX_STEP, round(wrap180(d) / STEP))))
 
-    # -- 3 + 4: one frame
-    def frame(self, i):
-        from .gear import hand_local, hand_point, place, scale_of
+    # -- one frame, body and limbs (the prop is added by `props`)
+    def base_frame(self, i):
         ch, rig, q, g = self.ch, self.rig, self.q, self.grid
-        J, Jr, k = self.J[i], self.Jrest, self.k
-        steps = {nm: self.step_of(J, nm) for nm in LIMBS if nm in ch.parts}
-        target, origin = {}, {}
+        Jr, k = self.Jrest, self.k
+        steps, target, origin, T = {}, {}, {}, {}
+        for nm in LIMBS:
+            if nm in ch.parts:
+                steps[nm] = self.step_of(self.J2[i] if nm.startswith("far_") and nm.endswith(("upper", "fore"))
+                                         else self.J[i], nm)
         for side in ("near", "far"):
-            sh = g.G(Jr[side + ".shoulder"])
-            hp = g.G(Jr[side + ".hip"])
-            chain = [("upper", sh, "shoulder", "elbow"), ("fore", None, "elbow", "wrist"),
-                     ("thigh", hp, "hip", "knee"), ("shin", None, "knee", "ankle"), ("foot", None, "ankle", None)]
             pos = {}
-            for bone, start, ja, jb in chain:
+            for bone, start, ja, jb in (("upper", g.G(Jr[side + ".shoulder"]), "shoulder", "elbow"),
+                                        ("fore", None, "elbow", "wrist"),
+                                        ("thigh", g.G(Jr[side + ".hip"]), "hip", "knee"),
+                                        ("shin", None, "knee", "ankle"), ("foot", None, "ankle", None)):
                 nm = side + "_" + bone
                 if nm not in steps:
                     continue
-                if start is None:
-                    start = pos[ja]
-                pos[ja] = start
-                target[nm] = start
-                if jb is not None and bone != "foot":
-                    vec = (Jr[side + "." + jb] - Jr[side + "." + ja]) * k
-                    pos[jb] = start + rot2(vec, steps[nm] * STEP)
-        # whole-pixel origins (before the bob)
-        pivrel = {}
+                st = pos[ja] if start is None else start
+                pos[ja] = st
+                target[nm] = st
+                if jb is not None:
+                    pos[jb] = st + rot2((Jr[side + "." + jb] - Jr[side + "." + ja]) * k, steps[nm] * STEP)
+        bob = self.base_dy - (int(self.m) if self.bob_up[i] else 0)   # the torso's only move: 2 px at 112, 1 at 56
         for nm in steps:
             sp, rx, ry = self.variant(nm, steps[nm])
-            T = np.array([rnd(target[nm][0], q), rnd(target[nm][1], q)])
-            origin[nm] = np.array([T[0] + rx, T[1] + ry])
-            if nm.startswith("near_") and nm.endswith("_fore"):
-                pivrel[nm] = T
-        # the bob puts the lowest sole on the ground row
+            t = np.array([rnd(target[nm][0], q), rnd(target[nm][1], q)])
+            T[nm] = t
+            origin[nm] = np.array([t[0] + rx, t[1] + ry])
+        # a child part that does not join its parent (a slit or a gap at the joint) is moved one grid step
+        H_, W_ = self.canvas[::-1]
+        for side in ("near", "far"):
+            for a_, b_ in (("thigh", "shin"), ("shin", "foot"), ("upper", "fore")):
+                pa, pb = side + "_" + a_, side + "_" + b_
+                if pa not in steps or pb not in steps:
+                    continue
+                ma = _placed(self.variant(pa, steps[pa])[0], origin[pa], (H_, W_))
+                spb = self.variant(pb, steps[pb])[0]
+                rr = 1.1 * self.ch.info["radius"].get(b_, 5.0) * self.k + 2
+                best = None
+                for dx, dy in ((0, 0), (0, q), (0, -q), (q, 0), (-q, 0), (q, q), (-q, q), (q, -q), (-q, -q)):
+                    mb = _placed(spb, origin[pb] + [dx, dy], (H_, W_))
+                    n = joint_holes(ma, mb, T[pb] + [dx, dy], rr)
+                    if best is None or n < best[0]:
+                        best = (n, dx, dy)
+                    if n == 0:
+                        break
+                origin[pb] = origin[pb] + [best[1], best[2]]
+                T[pb] = T[pb] + [best[1], best[2]]
+        # arms ride on the torso; the legs are lowered or raised (floor to the grid) until the lowest sole
+        # stands on the ground row
         low = -10 ** 9
         for nm in ("near_foot", "far_foot"):
             if nm in steps:
-                sp, rx, ry = self.variant(nm, steps[nm])
+                sp = self.variant(nm, steps[nm])[0]
                 rows = np.nonzero((sp >= 0).any(1))[0]
                 if len(rows):
                     low = max(low, origin[nm][1] + rows[-1])
-        gap = self.foot_y - 1 - low
-        bob = (gap - gap % q) if low > -10 ** 8 else 0   # never below the ground row
-        body_off = {}
+        gap = self.foot_y - 1 - low if low > -10 ** 8 else 0
+        leg_dy = gap - gap % q
+        for nm in steps:
+            dy = leg_dy if nm.split("_")[1] in ("thigh", "shin", "foot") else bob
+            origin[nm] = origin[nm] + [0, dy]
+            T[nm] = T[nm] + [0, dy]
         for nm in self.body_parts:
             sp, ox, oy = self.sprites[nm]
-            body_off[nm] = np.array([ox, oy])
-        for nm in list(origin):
-            origin[nm] = origin[nm] + [0, bob]
-        for nm in body_off:
-            origin[nm] = body_off[nm] + [0, bob]
-        # props
-        props = {}
+            if nm in self.cloth:
+                sp, ox, oy = self.cloth_variant(nm, (i // 4) % 2)
+            origin[nm] = np.array([ox, oy + bob])
+        return {"steps": steps, "origin": origin, "T": T, "bob": bob, "leg_dy": leg_dy}
+
+    # -- the prop: one sprite, one carry angle for the whole walk
+    def _choose_carry(self):
+        """Pick the carry angle (and a small forward grip offset) with the least change from the drawn
+        carry for which the prop stays clear of the head's bounding box in all 8 frames."""
+        self.base_dy = 0
+        self.fd = [self.base_frame(i) for i in range(NFRAMES)]
+        # one constant drop of the whole figure (the median leg lift), so legs sit in the hips at rest
+        med = float(np.median([f["leg_dy"] for f in self.fd]))
+        self.base_dy = rnd(med, self.q)
+        self.fd = [self.base_frame(i) for i in range(NFRAMES)]
+        self.carry = {}
+        self.carry_dphi = {}
+        self.carry_overlap = {}
         for ge in self.gears:
-            sc = scale_of(ch, ge)
-            if ge.slot == "near_hand":
-                _, phi0 = place(ch, ge, self.Jrest)
-                _, phi = place(ch, ge, J)
-                c = int(max(-1, min(1, round(wrap180(phi - phi0) / STEP))))
-                sp, (ox, oy) = ge.sprite(sc, phi0 + c * STEP, int(ch.body_h / 56.0))
-                s_ = steps["near_fore"]
-                hl = hand_local(rig)
-                pin0 = hand_point(Jr["near.elbow"], Jr["near.wrist"], hl)
-                v0 = (pin0 - Jr["near.elbow"]) * k
-                P = pivrel["near_fore"] + np.floor(rot2(v0, s_ * STEP) + 0.0).astype(int)
-                org = P + [ox, oy] + [0, bob]
-                if self.even:
-                    org = np.array([rnd(org[0], 2), rnd(org[1], 2)])
-                props["gear:" + ge.name] = (self._gear_idx(sp), org, c)
-            elif ge.slot in RIGID_PROPS or ge.slot == "cape":
-                pin, phi = place(ch, ge, self.Jrest, None, 0.0)
-                sp, (ox, oy) = ge.sprite(sc, phi, 0)
-                P = np.floor(g.G(pin)).astype(int)
-                org = P + [ox, oy] + [0, bob]
-                if self.even:
-                    org = np.array([rnd(org[0], 2), rnd(org[1], 2)])
-                props["gear:" + ge.name] = (self._gear_idx(sp), org, 0)
-        return steps, origin, props, bob
+            if ge.slot != "near_hand":
+                continue
+            from .gear import place
+            _, phi0 = place(self.ch, ge, self.Jrest)
+            cands = []
+            for dphi in (0, 11.25, -11.25, 22.5, -22.5, 33.75, -33.75, 45, -45, 56.25, -56.25, 67.5, -67.5):
+                for gx in (0, 1, 2):
+                    cands.append((abs(dphi) + 8.0 * gx, dphi, gx))
+            cands.sort()
+            best = None
+            for cost, dphi, gx in cands:
+                cfg = (phi0 + dphi, gx * int(self.m))
+                ov = max(self._face_overlap(ge, cfg, i) for i in range(NFRAMES))
+                if best is None or ov < best[0] - 1e-9:
+                    best = (ov, cfg, dphi)
+                if ov <= 0.0:
+                    break
+            self.carry[ge.name] = best[1]
+            self.carry_dphi[ge.name] = best[2]
+            self.carry_overlap[ge.name] = best[0]
+
+    def _prop_org(self, ge, cfg, i):
+        from .gear import hand_local, hand_point, scale_of
+        fd, rig, Jr, k = self.fd[i], self.rig, self.Jrest, self.k
+        phi, gx = cfg
+        sp, (ox, oy) = ge.sprite(scale_of(self.ch, ge), phi, int(self.ch.body_h / 56.0))
+        pin0 = hand_point(Jr["near.elbow"], Jr["near.wrist"], hand_local(rig))
+        v0 = (pin0 - Jr["near.elbow"]) * k
+        P = fd["T"]["near_fore"] + np.floor(rot2(v0, fd["steps"]["near_fore"] * STEP)).astype(int)
+        org = P + [ox + gx, oy]
+        if self.even:
+            org = np.array([rnd(org[0], 2), rnd(org[1], 2)])
+        return sp, org
+
+    def _face_overlap(self, ge, cfg, i):
+        sp, org = self._prop_org(ge, cfg, i)
+        hsp, hx, hy = self.sprites["head"]
+        h0 = self.fd[i]["origin"]["head"]
+        n = int((hsp >= 0).sum())
+        ys, xs = np.nonzero(sp[..., 3] > 0)
+        gx, gy = xs + org[0], ys + org[1]
+        inside = ((gx >= h0[0]) & (gx < h0[0] + hsp.shape[1]) & (gy >= h0[1]) & (gy < h0[1] + hsp.shape[0])).sum()
+        return inside / max(n, 1)
 
     def _gear_idx(self, rgba):
         return to_index(rgba, self.palette)
@@ -431,7 +664,6 @@ class Hero:
                 out += ["torso", "head"]
             else:
                 out.append(n)
-        # gear: back/cape slots behind the torso, hand gear behind the near forearm
         for ge in self.gears:
             lab = "gear:" + ge.name
             if ge.slot in ("back", "cape"):
@@ -445,33 +677,78 @@ class Hero:
                     out.insert(out.index("near_fore") if "near_fore" in out else len(out), lab)
         return out
 
+    def props(self, i):
+        from .gear import place, scale_of
+        out = {}
+        fd = self.fd[i]
+        for ge in self.gears:
+            lab = "gear:" + ge.name
+            if ge.slot == "near_hand":
+                sp, org = self._prop_org(ge, self.carry[ge.name], i)
+                out[lab] = (self._gear_idx(sp), org, ("carry", 0))
+            elif ge.slot in RIGID_PROPS:
+                pin, phi = place(self.ch, ge, self.Jrest, None, 0.0)
+                sp, (ox, oy) = ge.sprite(scale_of(self.ch, ge), phi, 0)
+                P = np.floor(self.grid.G(pin)).astype(int)
+                org = P + [ox, oy] + [0, fd["bob"]]
+                if self.even:
+                    org = np.array([rnd(org[0], 2), rnd(org[1], 2)])
+                out[lab] = (self._gear_idx(sp), org, ("rigid", 0))
+        return out
+
     def bake(self):
-        """8 frames at the master size: list of dicts (idx, label, origin, step, ...) + names."""
+        """8 frames at the master size: list of dicts (idx, label, offsets ...) + names."""
         order = self.draw_order()
         names = ["bg"] + order
+        W, H = self.canvas
         frames = []
         for i in range(NFRAMES):
-            steps, origin, props, bob = self.frame(i)
-            W, H = self.canvas
+            fd = self.fd[i]
+            props = self.props(i)
             idx = np.full((H, W), -1, np.int16)
             lab = np.zeros((H, W), np.int16)
             offs, variant = {}, {}
+            pm = None
             for li, nm in enumerate(order, 1):
                 if nm in props:
-                    sp, org, c = props[nm]
-                    variant[nm] = ("carry", c)
-                elif nm in steps:
-                    sp = self.variant(nm, steps[nm])[0]
-                    org = origin[nm]
-                    variant[nm] = ("step", steps[nm])
+                    sp, org, var = props[nm]
+                    variant[nm] = var
+                    if nm.startswith("gear:") and nm != "gear:shield" and pm is None:
+                        pm = (int(org[0]), int(org[1]), sp >= 0)
+                elif nm in fd["steps"]:
+                    sp = self.variant(nm, fd["steps"][nm])[0]
+                    org = fd["origin"][nm]
+                    variant[nm] = ("step", fd["steps"][nm])
+                elif nm in self.cloth:
+                    st = (i // 4) % 2
+                    sp = self.cloth_variant(nm, st)[0]
+                    org = fd["origin"][nm]
+                    variant[nm] = ("cloth", st)
                 else:
                     sp = self.sprites[nm][0]
-                    org = origin[nm]
+                    org = fd["origin"][nm]
                     variant[nm] = ("rigid", 0)
                 offs[nm] = (int(org[0]), int(org[1]))
                 _paste(idx, lab, sp, org, li)
-            frames.append({"idx": idx, "label": lab, "offset": offs, "variant": variant, "bob": bob})
+            hs = self.sprites["head"][0]
+            ho = fd["origin"]["head"]
+            holes = {}
+            for side in ("near", "far"):
+                for a, b in (("thigh", "shin"), ("shin", "foot")):
+                    pa, pb = side + "_" + a, side + "_" + b
+                    if pa in fd["steps"] and pb in fd["steps"]:
+                        ma = _placed(self.variant(pa, fd["steps"][pa])[0], fd["origin"][pa], (H, W))
+                        mb = _placed(self.variant(pb, fd["steps"][pb])[0], fd["origin"][pb], (H, W))
+                        r = 1.1 * self.ch.info["radius"].get(b, 5.0) * self.k
+                        holes[pa + "/" + pb] = joint_holes(ma, mb, fd["T"][pb], r + 2)
+            frames.append({"idx": idx, "label": lab, "offset": offs, "variant": variant, "bob": fd["bob"],
+                           "leg_dy": fd["leg_dy"], "holes": holes, "prop": pm,
+                           "head_box": (int(ho[0]), int(ho[1]), int(ho[0]) + hs.shape[1], int(ho[1]) + hs.shape[0]),
+                           "head_n": int((hs >= 0).sum())})
         return FrameSet(frames, names, self.palette, self.master, self.foot_y, self.pel_x)
+
+
+CHILD = {"upper": ("shoulder", "elbow"), "thigh": ("hip", "knee"), "shin": ("knee", "ankle")}
 
 
 def _paste(idx, lab, sp, org, li):
@@ -485,6 +762,15 @@ def _paste(idx, lab, sp, org, li):
     m = s >= 0
     idx[ya:yb, xa:xb][m] = s[m]
     lab[ya:yb, xa:xb][m] = li
+
+
+def _half_prop(p):
+    x0, y0, m = p
+    if x0 % 2 or y0 % 2:
+        raise ValueError("2:1 needs an even prop origin")
+    h, w = m.shape
+    m = np.pad(m, ((0, h % 2), (0, w % 2)))
+    return x0 // 2, y0 // 2, m.reshape(m.shape[0] // 2, 2, m.shape[1] // 2, 2).any((1, 3))
 
 
 # ------------------------------------------------------------------ frame sets and the two sizes
@@ -502,14 +788,17 @@ class FrameSet:
         for f in self.frames:
             out.append({"idx": f["idx"].repeat(2, 0).repeat(2, 1), "label": f["label"].repeat(2, 0).repeat(2, 1),
                         "offset": {n: (2 * x, 2 * y) for n, (x, y) in f["offset"].items()},
-                        "variant": f["variant"], "bob": 2 * f["bob"]})
+                        "variant": f["variant"], "bob": 2 * f["bob"], "leg_dy": 2 * f["leg_dy"], "holes": f.get("holes", {}),
+                        "head_box": tuple(2 * v for v in f["head_box"]), "head_n": 4 * f["head_n"],
+                        "prop": None if f["prop"] is None else (2 * f["prop"][0], 2 * f["prop"][1],
+                                                                f["prop"][2].repeat(2, 0).repeat(2, 1))})
         return FrameSet(out, self.names, self.palette, self.master * 2, self.foot_y * 2, self.pel_x * 2)
 
     def down2(self):
         """2:1 dominant colour: the 56 px frames of a 112 px master.  Only when every part origin
         (and the bob) is even, so a part lands on the same pixels in every frame."""
         for f in self.frames:
-            if any(x % 2 or y % 2 for x, y in f["offset"].values()) or f["bob"] % 2:
+            if any(x % 2 or y % 2 for x, y in f["offset"].values()) or f["bob"] % 2 or f["leg_dy"] % 2:
                 raise ValueError("2:1 needs even part origins")
         K = len(self.palette)
         dark = _luma(self.palette) < DARK_LUMA
@@ -530,7 +819,9 @@ class FrameSet:
             label = np.where(idx >= 0, lc.argmax(-1), 0).astype(np.int16)
             out.append({"idx": idx, "label": label,
                         "offset": {n: (x // 2, y // 2) for n, (x, y) in f["offset"].items()},
-                        "variant": f["variant"], "bob": f["bob"] // 2})
+                        "variant": f["variant"], "bob": f["bob"] // 2, "leg_dy": f["leg_dy"] // 2, "holes": f.get("holes", {}),
+                        "head_box": tuple(v // 2 for v in f["head_box"]), "head_n": f["head_n"] // 4,
+                        "prop": None if f["prop"] is None else _half_prop(f["prop"])})
         return FrameSet(out, self.names, self.palette, self.master // 2, self.foot_y // 2, self.pel_x // 2)
 
 
@@ -585,6 +876,9 @@ def measure(fs, known=True, head_row=None):
     out = {}
     for nm in fs.names[1:]:
         allv, samev = [], []
+        if sum(int(reg[i][nm].sum()) for i in range(n)) < 6 * n:
+            out[nm] = {"all": (float("nan"), float("nan")), "same": None, "n_same": 0}
+            continue
         for i in range(n):
             j = (i + 1) % n
             ma, mb = reg[i][nm], reg[j][nm]

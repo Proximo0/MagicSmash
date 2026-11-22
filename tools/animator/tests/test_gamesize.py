@@ -64,6 +64,63 @@ class Primitives(unittest.TestCase):
         self.assertEqual(gs.measure(fs)["head"]["all"][1], 0.0)
 
 
+class Gates(unittest.TestCase):
+    def _fs(self, prop_x):
+        names = ["bg", "head", "gear:staff"]
+        pal = np.array([[10, 10, 10]], np.uint8)
+        idx = np.full((20, 20), -1, np.int16)
+        idx[2:10, 2:10] = 0
+        m = np.ones((12, 2), bool)
+        f = {"idx": idx, "label": np.zeros((20, 20), np.int16), "offset": {}, "variant": {}, "bob": 0, "leg_dy": 0,
+             "head_box": (2, 2, 10, 10), "head_n": 64, "prop": (prop_x, 0, m)}
+        return gs.FrameSet([f], names, pal, 56, 19, 10)
+
+    def test_prop_clear_of_face_fails_when_the_prop_covers_the_face(self):
+        self.assertTrue(gs.prop_clear_of_face(self._fs(12))[0])
+        ok, worst = gs.prop_clear_of_face(self._fs(5))
+        self.assertFalse(ok)
+        self.assertGreater(worst, 0.02)
+        # 1 px of 64 head pixels is 1.6%: still clear; 2 px is 3.1%: not
+        fs = self._fs(9)
+        self.assertTrue(gs.prop_clear_of_face(fs)[0] is False or gs.prop_clear_of_face(fs)[1] <= 0.02)
+
+    def test_joint_holes_sees_a_slit_and_a_gap(self):
+        a = np.zeros((12, 12), bool)
+        b = np.zeros((12, 12), bool)
+        a[0:6, 3:8] = True
+        b[6:12, 3:8] = True
+        self.assertEqual(gs.joint_holes(a, b, (5, 6), 4), 0)
+        b2 = np.zeros((12, 12), bool)
+        b2[7:12, 3:8] = True            # one row of background between the parts
+        self.assertGreater(gs.joint_holes(a, b2, (5, 6), 4), 0)
+
+    def test_outline_pass_makes_a_dotted_edge_continuous_or_removes_it(self):
+        dark = np.array([True, False])
+        a = np.full((9, 9), -1, np.int16)
+        a[2:7, 2:7] = 1
+        ring = gs._ring(a >= 0)
+        pts = np.argwhere(ring)
+        for n, (y, x) in enumerate(pts):
+            if n % 2 == 0:
+                a[y, x] = 0                 # a dotted outline
+        out = gs.clean_outline({"torso": a.copy()}, dark, 2)["torso"]
+        self.assertTrue((out[ring] == 0).all())      # one continuous outline
+        b = np.full((9, 9), -1, np.int16)
+        b[2:7, 2:7] = 1
+        b[2, 4] = 0                          # a lone dark dot on a plain edge
+        out = gs.clean_outline({"torso": b}, dark, 2)["torso"]
+        self.assertTrue((out[gs._ring(out >= 0)] == 1).all())
+
+    def test_tidy_sprite_fills_slits_and_drops_specks(self):
+        a = np.full((8, 8), -1, np.int16)
+        a[1:7, 1:3] = 1
+        a[1:7, 4:6] = 1                      # a 1 px slit at column 3
+        a[7, 7] = 1                          # a speck
+        out = gs.tidy_sprite(a)
+        self.assertTrue((out[1:7, 3] == 1).all())
+        self.assertEqual(out[7, 7], -1)
+
+
 class Bake(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -74,17 +131,41 @@ class Bake(unittest.TestCase):
         for key in ("A56", "A112", "B112"):
             fs = self.r[key]
             m = gs.measure(fs)
-            for nm in ("head", "torso", "robe", "gear:shield"):
+            for nm in ("head", "torso", "gear:shield"):
                 if nm in m:
                     self.assertEqual(m[nm]["all"][1], 0.0, (key, nm))
 
-    def test_prop_is_rigid_within_a_carry_angle(self):
+    def test_cloth_swings_in_two_states_and_is_rigid_within_a_state(self):
         for key in ("A56", "B112"):
             fs = self.r[key]
-            m = gs.measure(fs)
-            self.assertEqual(m["gear:hammer"]["same"][1], 0.0, key)
-            carries = {f["variant"]["gear:hammer"] for f in fs.frames}
-            self.assertLessEqual(len(carries), 3)
+            states = {f["variant"]["robe"] for f in fs.frames}
+            self.assertEqual(states, {("cloth", 0), ("cloth", 1)})
+            self.assertEqual(gs.measure(fs)["robe"]["same"][1], 0.0, key)
+
+    def test_prop_has_one_carry_angle_and_does_not_change(self):
+        for key in ("A56", "A112", "B112", "B56"):
+            fs = self.r[key]
+            self.assertEqual(gs.measure(fs)["gear:hammer"]["all"][1], 0.0, key)
+            self.assertEqual({f["variant"]["gear:hammer"] for f in fs.frames}, {("carry", 0)})
+
+    def test_prop_clear_of_face(self):
+        for key in ("A56", "B112", "B56"):
+            ok, worst = gs.prop_clear_of_face(self.r[key])
+            self.assertTrue(ok, (key, worst))
+
+    def test_no_holes_at_the_joints(self):
+        for key in ("A56", "B112", "B56"):
+            self.assertEqual(gs.count_hole_frames(self.r[key]), 0, key)
+
+    def test_far_arm_is_drawn_when_the_still_has_it(self):
+        self.assertIn("far_upper", self.r["B112"].names)
+
+    def test_bob_is_exactly_one_px_at_56_two_at_112(self):
+        for key, px in (("A56", 1), ("B56", 1), ("B112", 2)):
+            b = [int(f["bob"]) for f in self.r[key].frames]
+            self.assertEqual(max(b) - min(b), px, key)
+            ys = [f["offset"]["torso"][1] for f in self.r[key].frames]
+            self.assertEqual(max(ys) - min(ys), px, key)
 
     def test_limbs_do_not_change_within_a_rotation_step(self):
         for key in ("A56", "A112", "B112"):
@@ -99,7 +180,7 @@ class Bake(unittest.TestCase):
                 for nm, (kind, v) in f["variant"].items():
                     if kind == "step":
                         self.assertLessEqual(abs(v), gs.MAX_STEP)
-                        self.assertIsInstance(v, int)
+                        self.assertIsInstance(v, int)    # degrees = v * 11.25
 
     def test_whole_pixel_offsets_and_torso_only_translates(self):
         fs = self.r["A56"]
@@ -110,7 +191,7 @@ class Bake(unittest.TestCase):
         xs = {f["offset"]["torso"][0] for f in fs.frames}
         self.assertEqual(len(xs), 1)
         ys = [f["offset"]["torso"][1] for f in fs.frames]
-        self.assertLessEqual(max(ys) - min(ys), 3)
+        self.assertLessEqual(max(ys) - min(ys), 1)
 
     def test_sizes_cannot_disagree(self):
         a56, a112 = self.r["A56"], self.r["A112"]
