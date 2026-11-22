@@ -517,11 +517,12 @@ pub fn encode_resp(p: &Resp) -> Option<(u8, Vec<u8>)> {
             }
             R_TOWN
         }
-        Resp::Ticket { host, port, ticket, field, copy } => {
+        Resp::Ticket { host, port, ticket, field, copy, key } => {
             put_str(&mut w, host);
             put_u16(&mut w, *port);
             put_u64(&mut w, *ticket);
             w.extend_from_slice(&[*field, *copy]);
+            w.extend_from_slice(key);
             R_TICKET
         }
         Resp::Inventory(i) => {
@@ -590,7 +591,7 @@ pub fn decode_resp(t: u8, b: &[u8]) -> Option<Resp> {
             let n = r.count16()?;
             Resp::Town { room, me, size, members: (0..n).map(|_| Member::read(&mut r)).collect::<Option<Vec<_>>>()? }
         }
-        R_TICKET => Resp::Ticket { host: read_str(&mut r)?, port: r.u16()?, ticket: r.u64()?, field: r.u8()?, copy: r.u8()? },
+        R_TICKET => Resp::Ticket { host: read_str(&mut r)?, port: r.u16()?, ticket: r.u64()?, field: r.u8()?, copy: r.u8()?, key: r.bytes(16)?.try_into().ok()? },
         R_INVENTORY => Resp::Inventory(Inventory::read(&mut r)?),
         R_PONG => Resp::Pong,
         R_SMITH => Resp::Smith { item: r.u64()? as i64, plus: r.u8()?, success: r.flag()?, amount: r.u64()? },
@@ -658,7 +659,7 @@ pub(super) fn examples() -> (Vec<Req>, Vec<Resp>) {
         Resp::Heroes(vec![hero]),
         Resp::HeroCreated(11),
         Resp::Town { room: 2, me: 3, size: 4096, members: vec![Member { id: 3, name: "Mira".into(), class: 2, race: 1, level: 12, look: 9 }] },
-        Resp::Ticket { host: String::new(), port: 7801, ticket: 0xDEAD_BEEF_1234, field: 1, copy: 0 },
+        Resp::Ticket { host: String::new(), port: 7801, ticket: 0xDEAD_BEEF_1234, field: 1, copy: 0, key: [7; 16] },
         Resp::Inventory(inv),
         Resp::Pong,
         Resp::Smith { item: 5, plus: 3, success: true, amount: 120 },

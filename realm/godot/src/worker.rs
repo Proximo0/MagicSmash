@@ -27,7 +27,6 @@ const READS_PER_PASS: usize = 4096;
 const IDLE: Duration = Duration::from_millis(1);
 /// The counters are refreshed this often.
 const COUNTERS_EVERY: Duration = Duration::from_millis(100);
-const MSG_BYE: u8 = 0x03;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Num {
@@ -277,7 +276,8 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
         }
     }
     *lock(&shared.counters) = counters(&client, &rates);
-    let _ = sock.send(&[MSG_BYE]);
+    // Sealed with the session token on a ticketed field, so the host believes it.
+    let _ = sock.send(&client.bye());
 }
 
 #[cfg(test)]
@@ -300,7 +300,7 @@ mod tests {
         drop(w);
         let mut got_bye = false;
         while let Ok(n) = server.recv(&mut b) {
-            got_bye |= n == 1 && b[0] == MSG_BYE;
+            got_bye |= n == 1 && b[0] == realm_server::MSG_BYE;
             if got_bye {
                 break;
             }

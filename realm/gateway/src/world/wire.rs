@@ -59,8 +59,8 @@ pub enum WResp {
     /// The realm (or the field) is full: her place in the queue, of how many. Pushed again as it changes; the
     /// ticket comes as a `Resp::Ticket` push.
     Queued { hero: i64, field: u8, place: u32, of: u32 },
-    /// A vault ticket: the vault's code (for the party), where its host is, the ticket.
-    Vault { code: u64, vault: u8, seals: u8, host: String, port: u16, ticket: u64 },
+    /// A vault ticket: the vault's code (for the party), where its host is, the ticket and its secret key.
+    Vault { code: u64, vault: u8, seals: u8, host: String, port: u16, ticket: u64, key: [u8; 16] },
     /// Her copy was closed into another: send HELLO with the same ticket to this port (rules section 11).
     Moved { hero: i64, field: u8, copy: u8, host: String, port: u16, ticket: u64 },
     /// Announced to the realm: a field boss rises (`NEWS_FIELD_BOSS`, ten minutes before) or the world boss rides
@@ -146,13 +146,14 @@ impl WResp {
                 put_u32(w, *place);
                 put_u32(w, *of);
             }
-            WResp::Vault { code, vault, seals, host, port, ticket } => {
+            WResp::Vault { code, vault, seals, host, port, ticket, key } => {
                 w.push(WR_VAULT);
                 put_u64(w, *code);
                 w.extend_from_slice(&[*vault, *seals]);
                 put_str(w, host);
                 put_u16(w, *port);
                 put_u64(w, *ticket);
+                w.extend_from_slice(key);
             }
             WResp::Moved { hero, field, copy, host, port, ticket } => {
                 w.push(WR_MOVED);
@@ -184,7 +185,7 @@ impl WResp {
                 WResp::Board { clock, fields, world_field, world_in, queue, copies, vaults: r.u32()? }
             }
             WR_QUEUED => WResp::Queued { hero: r.u64()? as i64, field: r.u8()?, place: r.u32()?, of: r.u32()? },
-            WR_VAULT => WResp::Vault { code: r.u64()?, vault: r.u8()?, seals: r.u8()?, host: read_str(r)?, port: r.u16()?, ticket: r.u64()? },
+            WR_VAULT => WResp::Vault { code: r.u64()?, vault: r.u8()?, seals: r.u8()?, host: read_str(r)?, port: r.u16()?, ticket: r.u64()?, key: r.bytes(16)?.try_into().ok()? },
             WR_MOVED => WResp::Moved { hero: r.u64()? as i64, field: r.u8()?, copy: r.u8()?, host: read_str(r)?, port: r.u16()?, ticket: r.u64()? },
             WR_NEWS => WResp::News { kind: r.u8()?, field: r.u8()?, boss: r.u8()?, in_ticks: r.u32()? },
             _ => return None,
@@ -224,7 +225,7 @@ mod tests {
                 vaults: 3,
             },
             WResp::Queued { hero: 3, field: 1, place: 4, of: 9 },
-            WResp::Vault { code: 99, vault: 1, seals: 8, host: "h".into(), port: 7801, ticket: 5 },
+            WResp::Vault { code: 99, vault: 1, seals: 8, host: "h".into(), port: 7801, ticket: 5, key: [3; 16] },
             WResp::Moved { hero: 3, field: 0, copy: 1, host: String::new(), port: 7802, ticket: 6 },
             WResp::News { kind: NEWS_WORLD_BOSS, field: 5, boss: 7, in_ticks: 36_000 },
         ];

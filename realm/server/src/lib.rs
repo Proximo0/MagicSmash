@@ -28,6 +28,12 @@ pub const WIRE_SKILL: u8 = realm_core::IN_SKILL1 as u8;
 pub const MSG_HELLO: u8 = 0x01;
 pub const MSG_INPUT: u8 = 0x02;
 pub const MSG_BYE: u8 = 0x03;
+/// A ticketed player's INPUT: `0x04, u64 session token, <the INPUT after its message byte>`.
+pub const MSG_SEALED_INPUT: u8 = 0x04;
+/// A ticketed player's BYE: `0x05, u64 session token`.
+pub const MSG_SEALED_BYE: u8 = 0x05;
+/// The secret a field ticket carries (`docs/realm/wire.md`, "Transport security"): 128 random bits from the gateway.
+pub type TicketKey = [u8; 16];
 pub const MSG_WELCOME: u8 = 0x81;
 pub const MSG_SNAPSHOT: u8 = 0x82;
 /// Protocol A version 1 snapshot (deltas): the core job's extension.
@@ -114,25 +120,59 @@ impl<'a> Rd<'a> {
     }
 }
 
-/// HELLO: `0x01, u32 proto, u8 class, u8 race, u64 ticket`. A field host that was given a gateway wants a
-/// ticket (from `FIELD_TICKET`) and ignores class and race; a crowd-test server has no tickets and joins a
-/// bench hero of that class (0..4 is KNIGHT to PALADIN) and race.
+/// HELLO: `0x01, u32 proto, u8 class, u8 race, u64 ticket, [16 bytes ticket key]`. A field host that was given a
+/// gateway wants a ticket (from `FIELD_TICKET`) and its key, and ignores class and race; a crowd-test server has no
+/// tickets and joins a bench hero of that class (0..4 is KNIGHT to PALADIN) and race.
 pub fn hello(proto: u32, class: u8, race: u8) -> Vec<u8> {
-    hello_ticket(proto, class, race, 0)
+    hello_ticket(proto, class, race, 0, None)
 }
 
-pub fn hello_ticket(proto: u32, class: u8, race: u8, ticket: u64) -> Vec<u8> {
+pub fn hello_ticket(proto: u32, class: u8, race: u8, ticket: u64, key: Option<&TicketKey>) -> Vec<u8> {
     let mut w = vec![MSG_HELLO];
     put_u32(&mut w, proto);
     w.push(class);
     w.push(race);
     put_u64(&mut w, ticket);
+    if let Some(k) = key {
+        w.extend_from_slice(k);
+    }
     w
 }
 
-/// A parsed HELLO (`ticket` 0 when the client sent none).
-pub fn parse_hello(r: &mut Rd) -> Option<(u32, u8, u8, u64)> {
-    Some((r.u32()?, r.u8()?, r.u8()?, r.u64().unwrap_or(0)))
+/// A parsed HELLO (`ticket` 0 and `key` None when the client sent none).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Hello {
+    pub proto: u32,
+    pub class: u8,
+    pub race: u8,
+    pub ticket: u64,
+    pub key: Option<TicketKey>,
+}
+
+pub fn parse_hello(r: &mut Rd) -> Option<Hello> {
+    let (proto, class, race) = (r.u32()?, r.u8()?, r.u8()?);
+    let ticket = r.u64().unwrap_or(0);
+    let key = r.bytes(16).map(|b| b.try_into().unwrap_or([0; 16]));
+    Some(Hello { proto, class, race, ticket, key })
+}
+
+/// Compares two ticket keys in time that does not depend on where they differ.
+pub fn key_eq(a: &TicketKey, b: &TicketKey) -> bool {
+    a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y)) == 0
+}
+
+/// Seals a client's INPUT or BYE with its session token (`MSG_SEALED_INPUT`, `MSG_SEALED_BYE`).
+pub fn seal(token: u64, msg: &[u8]) -> Vec<u8> {
+    let (t, rest) = match msg.first() {
+        Some(&MSG_INPUT) => (MSG_SEALED_INPUT, &msg[1..]),
+        Some(&MSG_BYE) => (MSG_SEALED_BYE, &msg[1..]),
+        _ => return msg.to_vec(),
+    };
+    let mut w = Vec::with_capacity(msg.len() + 8);
+    w.push(t);
+    put_u64(&mut w, token);
+    w.extend_from_slice(rest);
+    w
 }
 
 /// INPUT: `0x02, u32 ticks applied, u8 byte 0, u8 zoom, u8 byte 1` (rules section 1: direction and skills,
@@ -192,13 +232,15 @@ pub fn parse_input(r: &mut Rd) -> Option<InputMsg> {
     Some(InputMsg { ack, word, zoom, seq_words })
 }
 
-/// WELCOME: `0x81, u32 player id, u32 tick, u16 tick hz, u32 field width px, u32 field height px`.
-pub fn welcome(id: u32, tick: u32) -> Vec<u8> {
+/// WELCOME: `0x81, u32 player id, u32 tick, u16 tick hz, u32 field width px, u32 field height px, u64 session
+/// token`. The token (0 on a crowd-test server) seals the player's later INPUT and BYE (`seal`).
+pub fn welcome(id: u32, tick: u32, token: u64) -> Vec<u8> {
     let mut w = vec![MSG_WELCOME];
     put_u32(&mut w, id);
     put_u32(&mut w, tick);
     put_u16(&mut w, realm_core::TICK_HZ as u16);
     put_u32(&mut w, realm_core::FIELD_PX as u32);
     put_u32(&mut w, realm_core::FIELD_PX as u32);
+    put_u64(&mut w, token);
     w
 }

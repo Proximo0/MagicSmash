@@ -7,7 +7,7 @@
 
 use crate::lockstep::{take_seq_head, Assembler, Lockstep, TickRec, INPUT_REPEAT};
 use crate::predict::Predictor;
-use crate::{hello_ticket, input, input_seq, input_word, Rd, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
+use crate::{hello_ticket, input, input_seq, input_word, seal, Rd, TicketKey, MSG_BYE, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
 use realm_core::{Field, Player};
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -35,6 +35,9 @@ pub struct LockstepClient {
     class: u8,
     race: u8,
     ticket: u64,
+    /// The ticket's key (sent in HELLO) and the session token the WELCOME gave (seals INPUT and BYE).
+    key: Option<TicketKey>,
+    token: u64,
     threads: usize,
     welcomed: bool,
     hero: Option<u16>,
@@ -60,6 +63,8 @@ impl LockstepClient {
             class,
             race,
             ticket: 0,
+            key: None,
+            token: 0,
             threads: threads.max(1),
             welcomed: false,
             hero: None,
@@ -75,16 +80,30 @@ impl LockstepClient {
         }
     }
 
-    /// A lockstep player of a hero the gateway named: `ticket` is what `FIELD_TICKET` returned. The field host
-    /// takes her sheet and outing from the store, so no class or race goes with it.
-    pub fn with_ticket(ticket: u64, threads: usize) -> LockstepClient {
+    /// A lockstep player of a hero the gateway named: `ticket` and `key` are what `FIELD_TICKET` returned. The
+    /// field host takes her sheet and outing from the store, so no class or race goes with it.
+    pub fn with_ticket(ticket: u64, key: TicketKey, threads: usize) -> LockstepClient {
         let mut c = LockstepClient::new(PROTO_BP, 0, 0, threads);
         c.ticket = ticket;
+        c.key = Some(key);
         c
     }
 
     pub fn hello(&self) -> Vec<u8> {
-        hello_ticket(self.proto, self.class, self.race, self.ticket)
+        hello_ticket(self.proto, self.class, self.race, self.ticket, self.key.as_ref())
+    }
+
+    /// The BYE to send when leaving (sealed with the session token for a ticketed player).
+    pub fn bye(&self) -> Vec<u8> {
+        self.sealed(vec![MSG_BYE])
+    }
+
+    fn sealed(&self, msg: Vec<u8>) -> Vec<u8> {
+        if self.key.is_some() {
+            seal(self.token, &msg)
+        } else {
+            msg
+        }
     }
 
     /// True once the server has answered the HELLO.
@@ -135,7 +154,14 @@ impl LockstepClient {
     }
 
     fn take_welcome(&mut self, b: &[u8]) -> Option<()> {
-        let id = Rd::new(b).u32()?;
+        let mut r = Rd::new(b);
+        let id = r.u32()?;
+        // id, tick, hz, width, height, then the session token.
+        if r.bytes(14).is_some() {
+            if let Some(t) = r.u64() {
+                self.token = t;
+            }
+        }
         self.welcomed = true;
         if self.proto == PROTO_BP && id != u32::MAX {
             self.hero = Some(id as u16);
@@ -251,10 +277,11 @@ impl LockstepClient {
             let seq = self.pred.push(word, |x, y, w| walker.map_or((x, y), |(f, id)| f.walk(id, x, y, w)));
             self.recent.push_front(word);
             self.recent.truncate(INPUT_REPEAT + 1);
-            input_seq(ack, seq, self.recent.make_contiguous())
+            let d = input_seq(ack, seq, self.recent.make_contiguous());
+            self.sealed(d)
         } else {
             let _ = input_word;
-            input(ack, 0, 1)
+            self.sealed(input(ack, 0, 1))
         }
     }
 }
@@ -317,7 +344,7 @@ mod tests {
             m.tick(Vec::new(), &want(t));
         }
         let mut c = LockstepClient::new(PROTO_B, 0, 0, 1);
-        c.receive(&welcome(u32::MAX, 30));
+        c.receive(&welcome(u32::MAX, 30, 0));
         assert!(c.welcomed() && c.hero().is_none());
         for p in state_parts(30, &m.ls.state_bytes(&m.field)) {
             c.receive(&p);
@@ -346,7 +373,7 @@ mod tests {
         let mut m = Mini::new(0);
         m.tick(vec![Join::bench(0, 1, 2, 1, FIELD / 2, FIELD / 2)], &[]);
         let mut c = LockstepClient::new(PROTO_BP, 1, 2, 1);
-        c.receive(&welcome(0, 1));
+        c.receive(&welcome(0, 1, 0));
         assert_eq!(c.hero(), Some(0));
         for p in state_parts(1, &m.ls.state_bytes(&m.field)) {
             c.receive(&p);

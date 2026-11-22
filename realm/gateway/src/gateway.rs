@@ -84,6 +84,10 @@ pub(crate) struct Ticket {
     /// Moved from a closing copy and not yet in the new one: her last flush number and the haul's coin she carries,
     /// banked (as a disconnect) if she never arrives.
     pub(crate) moved: Option<(u32, u64)>,
+    /// The ticket's secret and its field session token (`realm_server::host::Entry`): random, kept so a move to
+    /// another copy admits her with the same ones.
+    pub(crate) key: [u8; 16],
+    pub(crate) token: u64,
 }
 
 /// A vault's host: its row, seals, the code its party enters with, and who paid its key.
@@ -651,7 +655,7 @@ impl Gateway {
     /// Issues a ticket to host `host_id` for a hero who is free (checked by the caller under `locs`): she is
     /// placed in the field, the host is told to admit her. None if the host is gone or she was placed meanwhile.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64)> {
+    pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64, [u8; 16])> {
         let h = self.store.hero(hero).ok().flatten()?;
         let mut outing = Outing::new();
         // Job R3: her BLOOD MARK and its ten-minute wait come with her from the last outing.
@@ -664,6 +668,8 @@ impl Gateway {
                 break t;
             }
         };
+        // The ticket number is an id (the store's request ids); the key is the secret (`docs/realm/wire.md`).
+        let (key, token) = (crate::tls::random_key(), crate::tls::random_u64());
         let hosts = self.hosts.lock().unwrap();
         let slot = hosts.iter().find(|x| x.id == host_id && !x.stopping && x.closing.is_none())?;
         {
@@ -680,12 +686,13 @@ impl Gateway {
         self.social.party_set_copy(hero, field, slot.copy, now_ms());
         self.tickets.lock().unwrap().insert(
             ticket,
-            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None },
+            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key, token },
         );
         let mut e = Entry::new(ticket, hero as u64, sheet, outing);
         e.drive = drive;
+        (e.key, e.token) = (key, token);
         let _ = slot.handle.cmds.send(HostCmd::Admit(e));
-        Some((slot.handle.addr.port(), slot.copy, ticket))
+        Some((slot.handle.addr.port(), slot.copy, ticket, key))
     }
 
     /// The deck cards the hero may use: the novice twelve, one more at each even class level to 24 (the store's

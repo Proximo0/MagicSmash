@@ -239,8 +239,9 @@ pub enum Resp {
     HeroCreated(i64),
     /// The room, your member id, the room's members, the town's size in px.
     Town { room: u32, me: u16, size: u16, members: Vec<Member> },
-    /// Where the field host is (`host` empty: the gateway's own address), its UDP port and your ticket.
-    Ticket { host: String, port: u16, ticket: u64, field: u8, copy: u8 },
+    /// Where the field host is (`host` empty: the gateway's own address), its UDP port, your ticket and its
+    /// secret `key` (your HELLO must carry it; it only ever travels over the gateway's TLS).
+    Ticket { host: String, port: u16, ticket: u64, field: u8, copy: u8, key: [u8; 16] },
     Inventory(Inventory),
     Pong,
     /// A smith's result: the item now (0 when none), its `+`, whether the step worked, and what it cost or gave:

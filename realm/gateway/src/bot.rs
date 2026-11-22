@@ -9,7 +9,6 @@ use realm_core::{Field, IN_DIR, IN_INTERACT, SUB};
 use realm_server::bots::{dir_toward, Bot};
 use realm_server::client::LockstepClient;
 use realm_server::lockstep::INPUT_QUEUE_MAX;
-use realm_server::MSG_BYE;
 use std::net::UdpSocket;
 use std::time::{Duration, Instant};
 
@@ -60,7 +59,7 @@ fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
 
 /// Plays one outing with a ticket the gateway gave. `gw` is the same connection that asked for the ticket (its
 /// Outing pushes are read here).
-pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, opts: &PlayOpts) -> Result<Outcome, String> {
+pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, key: [u8; 16], opts: &PlayOpts) -> Result<Outcome, String> {
     let host = if host.is_empty() { gw.peer_ip.clone() } else { host.to_string() };
     let open = |port: u16| -> Result<UdpSocket, String> {
         let sock = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
@@ -69,7 +68,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         Ok(sock)
     };
     let mut sock = open(port)?;
-    let mut c = LockstepClient::with_ticket(ticket, 1);
+    let mut c = LockstepClient::with_ticket(ticket, key, 1);
     let mut moves = 0u32;
     let mut out = Outcome { left: 255, ..Outcome::default() };
     let mut bot: Option<Bot> = None;
@@ -208,9 +207,9 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
             }
         }
         if let Some(p) = go {
-            let _ = sock.send(&[MSG_BYE]);
+            let _ = sock.send(&c.bye());
             sock = open(p)?;
-            c = LockstepClient::with_ticket(ticket, 1);
+            c = LockstepClient::with_ticket(ticket, key, 1);
             seen_at = Instant::now();
             out.joined = false;
             bot = None;
@@ -221,7 +220,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
     };
     let abrupt = opts.drop_after_bank && out.joined;
     if !abrupt {
-        let _ = sock.send(&[MSG_BYE]);
+        let _ = sock.send(&c.bye());
     }
     drop(sock);
     out.moves = moves;

@@ -28,10 +28,11 @@ fn main() {
             "--seed" => o.seed = num(v),
             "--progress" => o.progress_secs = num(v),
             "--fast" => o.fast = true,
+            "--tls" => o.tls = true,
             "--fight-secs" => play.fight_ticks = num(v) as u32 * 20,
             "--max-secs" => play.max_ticks = num(v) as u32 * 20,
             "--help" | "-h" => {
-                println!("realm-soak [--bots=8] [--secs=60] [--fields=0,1,2] [--monsters=1500] [--threads=1] [--db=PATH] [--seed=1] [--progress=60] [--fast] [--fight-secs=20] [--max-secs=240]");
+                println!("realm-soak [--bots=8] [--secs=60] [--fields=0,1,2] [--monsters=1500] [--threads=1] [--db=PATH] [--seed=1] [--progress=60] [--fast] [--fight-secs=20] [--max-secs=240] [--tls (the gateway and the bots over TLS)]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),

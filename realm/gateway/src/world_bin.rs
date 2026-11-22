@@ -37,8 +37,9 @@ fn main() {
             "--seed" => o.seed = num(v) as u64,
             "--db" => o.db = Some(v.into()),
             "--progress" => o.progress_secs = num(v) as u64,
+            "--tls" => o.tls = true,
             "--help" | "-h" => {
-                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS]");
+                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS] [--tls]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),

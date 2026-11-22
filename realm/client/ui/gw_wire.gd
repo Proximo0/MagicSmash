@@ -622,6 +622,8 @@ static func decode(t: int, body: PackedByteArray) -> Dictionary:
 			d["ticket"] = b.get_64()
 			d["field"] = b.get_u8()
 			d["copy"] = b.get_u8()
+			# The ticket's secret: the field HELLO proves the ticket with it (docs/realm/wire.md).
+			d["key"] = b.get_data(16)[1] as PackedByteArray
 		R_INVENTORY:
 			var items: Array[Dictionary] = []
 			for i in b.get_u32():

@@ -74,8 +74,10 @@ if [[ "$field" != "FIELD_TEST ok"* ]]; then
 fi
 
 # The shell against a real gateway (dev login and a starter kit for a new hero): every screen once, with a
-# screenshot of each when there is somewhere to draw.
-./target/release/realm-gateway --db="$work/shell.db" --dev-login --dev-grant --port=0 --field-port=0 --fields=0 --monsters=300 >"$work/gateway.log" 2>&1 &
+# screenshot of each when there is somewhere to draw. Over TLS: the gateway makes a dev certificate beside its
+# store and the (debug) client trusts exactly that file (docs/realm/wire.md, "Transport security"); bound to
+# 127.0.0.1, the name the client checks against the certificate.
+./target/release/realm-gateway --db="$work/shell.db" --dev-cert --dev-login --dev-grant --bind=127.0.0.1 --port=0 --field-port=0 --fields=0 --monsters=300 >"$work/gateway.log" 2>&1 &
 pids+=($!)
 for _ in $(seq 1 50); do grep -q LISTEN "$work/gateway.log" && break; sleep 0.2; done
 gw_addr=$(grep -m1 -o "tcp=[^ ]*" "$work/gateway.log" | cut -d= -f2)
@@ -84,9 +86,9 @@ shell_runner=()
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then shell_runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
 shell_shots="${SHELL_SHOTS_DIR:-$work/shell_shots}"
 if [ -n "${DISPLAY:-}" ] || [ ${#shell_runner[@]} -gt 0 ]; then
-	shell_line=$(timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --shots="$shell_shots" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+	shell_line=$(timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" --shots="$shell_shots" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
 else
-	shell_line=$(timeout 240 "$GODOT" --headless --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+	shell_line=$(timeout 240 "$GODOT" --headless --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
 fi
 if [[ "$shell_line" != *"SHELL_TEST ok"* ]]; then
 	echo "${shell_line:-SHELL_TEST printed nothing}"

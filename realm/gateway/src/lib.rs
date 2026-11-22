@@ -12,5 +12,6 @@ pub mod loot;
 pub mod proto;
 pub mod sheet;
 pub mod social;
+pub mod tls;
 pub mod town;
 pub mod world;
