@@ -65,6 +65,7 @@ def frame_consistency(img, n):
 
 
 # ---------- prompts for Klein (natural language; queue_sd sd_prompt with weights stripped) ----------
+PAUSE_WALKS = ROOT / "PAUSE_WALKS"   # exists: walk/action sheets are skipped (kept in the queue), single pictures go on
 LEGS = "Exactly two legs, both feet pointing the walking direction, side view. "
 NEEDS_HAND = ROOT / "needs_hand.txt"   # pictures that failed every try (anatomy or other checks): not accepted, fix by hand
 
@@ -119,6 +120,7 @@ def redo_layouts(eids):
 
 def phase_a(q):
     need = [e for e in q if e.get("kind") in ("walk", "action") and not (LAYOUTS / f"{e['id']}.png").exists()]
+    if PAUSE_WALKS.exists(): need = []
     if not need: return
     R.log(f"phase A: {len(need)} pose layouts to make (SDXL)")
     LAYOUTS.mkdir(exist_ok=True)
@@ -159,6 +161,7 @@ def phase_b(q, count=4, push_every=20):
     except Exception: prior = {}
     for e in todo:
         if R.STOP.exists(): R.log("STOP file found, stopping"); break
+        if e.get("kind") in ("walk", "action") and PAUSE_WALKS.exists(): continue  # per-frame walk/action art paused
         eid, kind = e["id"], e.get("kind"); t0 = time.time(); ok_all = True
         painted = e.get("style") == "painted"; keyed = kind != "tile" and not painted
         layout = None
