@@ -13,7 +13,7 @@ use std::time::Duration;
 
 fn spawn(db: &std::path::Path) -> (Child, String) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_realm-gateway"))
-        .args([&format!("--db={}", db.display()), "--dev-login", "--port=0", "--field-port=0", "--fields=0", "--monsters=1500", "--seed=5"])
+        .args([&format!("--db={}", db.display()), "--dev-login", "--bind=127.0.0.1", "--public-host=127.0.0.1", "--port=0", "--field-port=0", "--fields=0", "--monsters=1500", "--seed=5"])
         .stdout(Stdio::piped())
         .spawn()
         .expect("spawn realm-gateway");
