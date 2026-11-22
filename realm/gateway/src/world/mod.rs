@@ -936,4 +936,55 @@ mod tests {
         gw.shutdown();
         let _ = std::fs::remove_file(&db);
     }
+
+    /// Every Outing push carries her outing's totals so far, not what that flush added: a hero who banks twice on
+    /// the way and is then stopped is told 100, 150, then 180, and 180 is in her bag (a stop test that summed the
+    /// pushes counted 430 on a slow box where the crowd took a minute to get in).
+    #[test]
+    fn each_outing_push_is_the_total_so_far_and_the_last_is_her_bag() {
+        let db = std::env::temp_dir().join(format!("realm-push-totals-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
+        let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+        gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
+        let mut c = GatewayClient::connect_plain(&l.addr.to_string()).unwrap();
+        assert!(matches!(c.login("totals").unwrap(), Resp::Login { .. }));
+        let hero = match c.call(Req::CreateHero { name: "Totals".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
+            Resp::HeroCreated(id) => id,
+            r => panic!("{r:?}"),
+        };
+        let d = OutingDelta { xp: crate::sheet::xp_to_reach(12), levels: 11, waystone: Some((0, 0)), ..OutingDelta::default() };
+        store.apply_outing(Meta::system(0x7074 << 64 | hero as u128, 1), hero, d).unwrap();
+        let ticket = match c.call(Req::FieldTicket { hero, field: 0 }).unwrap() {
+            Resp::Ticket { ticket, .. } => ticket,
+            r => panic!("{r:?}"),
+        };
+        let flush = |seq: u32, coin: u64, left: Option<Leave>| Flush { hero: hero as u64, ticket, seq, coin, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left, mark: None, plunders: Vec::new(), plunder_coin: Vec::new() };
+        // Two banks at a waystone on the way, then the stop banks the rest of her haul.
+        gw.msgs.send(HostMsg::Flush(flush(1, 100, None))).unwrap();
+        gw.msgs.send(HostMsg::Flush(flush(2, 50, None))).unwrap();
+        gw.msgs.send(HostMsg::Flush(flush(3, 30, Some(Leave::Shutdown)))).unwrap();
+        let mut told = Vec::new();
+        loop {
+            let p = c.wait_push(Duration::from_secs(10), |r| match r {
+                Resp::Outing { coin, left, .. } => Some((*coin, *left)),
+                _ => None,
+            });
+            let (coin, left) = p.unwrap().expect("an Outing push");
+            told.push(coin);
+            if left != 255 {
+                assert_eq!(left, 4);
+                break;
+            }
+        }
+        let bag = store.stacks(Owner::bag(hero)).unwrap().iter().find(|s| s.0 == StackKind::COIN).map_or(0, |s| s.1);
+        assert_eq!(told, vec![100, 150, 180], "each push is her outing's total so far");
+        assert_eq!(bag, *told.last().unwrap(), "the last push is what is in her bag");
+        assert_ne!(told.iter().sum::<u64>(), bag, "summing the pushes over-counts (the stop test's old mistake)");
+        drop(l);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
+    }
 }
