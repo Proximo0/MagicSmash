@@ -8,13 +8,7 @@ name: realm
 on:
   push:
     branches: [main]
-    paths:
-      - "realm/**"
-      - ".github/workflows/realm.yml"
   pull_request:
-    paths:
-      - "realm/**"
-      - ".github/workflows/realm.yml"
 
 permissions:
   contents: read
@@ -26,14 +20,27 @@ env:
   # The determinism probe: the same bench on every platform must end on the same hash.
   BENCH: --bench --bots=300 --monsters=8000 --rally=0.3 --threads=2 --ticks=200 --warmup=40 --report=100
 
+concurrency:
+  group: realm-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - id: ver
+        shell: bash
+        run: echo "v=$(git describe --always --dirty)" >> "$GITHUB_OUTPUT"
       - name: Rust ${{ env.RUST_TOOLCHAIN }}
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            realm
+            realm/godot
+            realm/store
       - name: realm/check.sh
         run: realm/check.sh
       - name: Native module
@@ -49,7 +56,7 @@ jobs:
         run: ./target/release/realm-server $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-linux.txt && cat ../hash-linux.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: realm-godot-linux
+          name: realm-godot-linux-${{ steps.ver.outputs.v }}
           path: realm/godot/target/release/librealm_godot.so
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -58,15 +65,24 @@ jobs:
           path: hash-linux.txt
 
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 30
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - id: ver
+        shell: bash
+        run: echo "v=$(git describe --always --dirty)" >> "$GITHUB_OUTPUT"
       - name: Rust ${{ env.RUST_TOOLCHAIN }}
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            realm
+            realm/godot
+            realm/store
       - name: Server and load test
         working-directory: realm
         run: |
@@ -87,10 +103,10 @@ jobs:
       - name: Gather the server package
         run: |
           mkdir -p realm-server-windows
-          cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/store/target/release/realm-store.exe realm/run_server.bat realm-server-windows/
+          cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/target/release/realm-gateway.exe realm/store/target/release/realm-store.exe realm/run_server.bat realm-server-windows/
       - uses: actions/upload-artifact@v4
         with:
-          name: realm-server-windows
+          name: realm-server-windows-${{ steps.ver.outputs.v }}
           path: realm-server-windows
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -103,6 +119,26 @@ jobs:
           name: hash-windows
           path: hash-windows.txt
 
+  client:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GODOT_VERSION: "4.7.2"
+      GODOT: godot
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            realm
+            realm/godot
+            realm/store
+      - uses: ./.github/actions/setup-godot
+      - name: realm/check_client.sh
+        run: xvfb-run -a realm/check_client.sh
+
   client-windows:
     needs: [windows]
     runs-on: ubuntu-24.04
@@ -111,6 +147,9 @@ jobs:
       GODOT_VERSION: "4.7.2"
     steps:
       - uses: actions/checkout@v4
+      - id: ver
+        shell: bash
+        run: echo "v=$(git describe --always --dirty)" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           name: realm-godot-windows
@@ -127,14 +166,16 @@ jobs:
       - name: Import and export the client
         run: |
           # The first import of a fresh clone does its work and then aborts while quitting: the second is clean.
-          godot --headless --path realm/client --import || godot --headless --path realm/client --import
+          godot --headless --path realm/client --import || true
+          godot --headless --path realm/client --import
+          test -f realm/client/.godot/extension_list.cfg
           mkdir -p build/realm-client
           godot --headless --path realm/client --export-release "Windows Desktop" ../../build/realm-client/HordeAndHearth.exe
           cp realm/client/bin/realm_godot.dll build/realm-client/
           ls -l build/realm-client
       - uses: actions/upload-artifact@v4
         with:
-          name: realm-client-windows
+          name: realm-client-windows-${{ steps.ver.outputs.v }}
           path: build/realm-client
           if-no-files-found: error
 

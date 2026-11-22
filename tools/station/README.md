@@ -21,7 +21,7 @@ the day they are wanted. A job is skipped for a merge that changed nothing it te
 jobs test everything except `realm/`, `docs/`, `.github/` and the stations), so the stations do no work for docs or art.
 
 `realm` needs Rust on the station (`cargo` on PATH, from rustup; on Windows also the Visual Studio C++ build tools,
-which the store's bundled SQLite needs). A station without it reports `JOB realm SKIP cargo is not installed`.
+which the store's bundled SQLite needs). A station without it reports `JOB realm FAIL cargo is not installed` (a failure, not a pass). `deep` between merges also runs a time-boxed soak (STATION_DEEP_SOAK_SECS, default 900); a deep FAIL appends to `<machine>-failures.txt` on the results branch, and a machine with no cargo sleeps 10 minutes and publishes nothing. A report older than 6 hours is STALE.
 
 ## Set up a station
 1. Git with a shell (Linux: any; Windows: full Git for Windows, whose Git Bash runs these scripts) and Godot 4.7.2;

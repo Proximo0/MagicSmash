@@ -3,11 +3,12 @@
 # THE FOOL'S ROAD, and a 100 tick one on THE TOWER (walls, spitters, zones).
 # Quiet: failures only, then one summary line.
 set -u
+command -v sccache >/dev/null 2>&1 && export RUSTC_WRAPPER=sccache
 cd "$(dirname "$0")"
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 
-if ! cargo build --release -j2 >"$log" 2>&1; then
+if ! cargo build --release -j"${CARGO_BUILD_JOBS:-2}" >"$log" 2>&1; then
 	grep -A6 -E "^(error|warning)" "$log" | head -20
 	echo "REALM failed: cargo build"
 	exit 1
@@ -17,7 +18,7 @@ if grep -q "^warning" "$log"; then
 	echo "REALM failed: build warnings"
 	exit 1
 fi
-if ! cargo test --release -j2 -q >"$log" 2>&1; then
+if ! cargo test --release -j"${CARGO_BUILD_JOBS:-2}" -q >"$log" 2>&1; then
 	grep -E "panicked|FAILED|error(\[|:)" "$log" | head -20
 	echo "REALM failed: cargo test"
 	exit 1
