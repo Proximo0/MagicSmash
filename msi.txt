@@ -1,3 +1,3 @@
-STATION machine=msi time=2026-11-22T12:13Z commit=5a19576 took=441s
-JOB realm PASS REALM ok tests=282 bench 300x8000 tick_ms=5.03/18.86 follower=ok 8 tower_tick_ms=8.99/28.09 tower_follower=ok 3 | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=6.1 
-STATION PASS jobs=1 failed=0 skipped=0
+STATION machine=msi time=2026-11-22T13:31Z commit=f56e0b2 took=1097s
+JOB realm FAIL realm/check.sh: test result: FAILED. 21 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.12s error: test failed, to rerun pass `-p realm-core --test pvp` REALM failed: cargo test  | STORE ok tests=46 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=6.1 
+STATION FAIL jobs=1 failed=1 skipped=0
