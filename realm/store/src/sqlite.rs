@@ -369,6 +369,9 @@ impl Store for SqliteStore {
 	fn account(&self, id: AccountId) -> Result<Option<Account>> {
 		self.with_read(|c| read::account(c, id))
 	}
+	fn accounts_flagged(&self, mask: u64) -> Result<Vec<Account>> {
+		self.with_read(|c| read::accounts_flagged(c, mask))
+	}
 	fn hero(&self, id: HeroId) -> Result<Option<Hero>> {
 		self.with_read(|c| read::hero(c, id))
 	}

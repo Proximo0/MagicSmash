@@ -88,6 +88,8 @@ pub mod code {
     pub const SLOW_DOWN: u16 = 14;
     pub const INTERNAL: u16 = 15;
     pub const NO_FIELD: u16 = 16;
+    /// Silenced by a moderator or by the flood limit (job T1).
+    pub const MUTED: u16 = 17;
 }
 
 pub fn put_str(w: &mut Vec<u8>, s: &str) {
@@ -173,6 +175,8 @@ pub enum Req {
     /// A merchant buys an item from her bag for coin.
     Sell { hero: i64, item: i64 },
     Econ(crate::economy::wire::EReq),
+    /// Parties, guilds, friends, chat channels, reports (job T1; tags 0x40..0x5F, `social::wire`).
+    Social(crate::social::SReq),
     Ping,
 }
 
@@ -322,6 +326,11 @@ impl Req {
                 w.extend_from_slice(&[*stat, *grade]);
                 T_FUSE
             }
+            Req::Social(q) => {
+                let (t, b) = q.encode();
+                w = b;
+                t
+            }
             Req::Cards { hero } => {
                 put_u64(&mut w, *hero as u64);
                 T_CARDS
@@ -396,6 +405,7 @@ impl Req {
             T_SELL => Req::Sell { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_ECON => Req::Econ(crate::economy::wire::EReq::read(&mut r)?),
             T_PING => Req::Ping,
+            crate::social::T_SOC_FIRST..=crate::social::T_SOC_LAST => return crate::social::SReq::decode(t, b).map(Req::Social),
             _ => return None,
         };
         (r.left() == 0).then_some(req)
@@ -624,7 +634,11 @@ pub enum Resp {
     Cards(Vec<u16>),
     /// An economy reply (`economy::wire`).
     Econ(crate::economy::wire::EResp),
+    /// A social reply (job T1, tag 0x90).
+    Social(crate::social::SResp),
     // pushes
+    /// A social push (job T1, tag 0xB0): chat in the channels, invitations, roster changes.
+    SocialPush(crate::social::SPush),
     Snapshot(TownSnapshot),
     Chat { from: u16, name: String, text: String },
     Arrive(Member),
@@ -704,6 +718,14 @@ impl Resp {
                 e.put(&mut w);
                 P_ECON
             }
+            Resp::Social(s) => {
+                w = s.encode();
+                crate::social::R_SOCIAL
+            }
+            Resp::SocialPush(p) => {
+                w = p.encode();
+                crate::social::P_SOCIAL
+            }
             Resp::Snapshot(s) => {
                 s.put(&mut w);
                 P_TOWN_SNAPSHOT
@@ -761,6 +783,8 @@ impl Resp {
             }
             R_ECON => Resp::Econ(crate::economy::wire::EResp::read(&mut r)?),
             P_ECON => Resp::EconPush(crate::economy::wire::EResp::read(&mut r)?),
+            crate::social::R_SOCIAL => return crate::social::SResp::decode(b).map(Resp::Social),
+            crate::social::P_SOCIAL => return crate::social::SPush::decode(b).map(Resp::SocialPush),
             P_TOWN_SNAPSHOT => Resp::Snapshot(TownSnapshot::read(&mut r)?),
             P_TOWN_CHAT => Resp::Chat { from: r.u16()?, name: read_str(&mut r)?, text: read_str(&mut r)? },
             P_TOWN_ARRIVE => Resp::Arrive(Member::read(&mut r)?),
@@ -852,6 +876,7 @@ mod tests {
             Req::Cards { hero: 4 },
             Req::Buy { hero: 4, kind: 100, n: 3 },
             Req::Sell { hero: 4, item: 9 },
+            Req::Social(crate::social::SReq::Talk { hero: 4, chan: 1, to: String::new(), text: "hi".into() }),
             Req::Ping,
         ];
         for q in reqs {
@@ -881,6 +906,8 @@ mod tests {
             Resp::Pong,
             Resp::Smith { item: 5, plus: 3, success: true, amount: 120 },
             Resp::Cards(vec![0, 1, 12, 25]),
+            Resp::Social(crate::social::SResp::Reported(3)),
+            Resp::SocialPush(crate::social::SPush::Notice { text: "n".into() }),
             Resp::Snapshot(TownSnapshot { tick: 77, at: vec![(1, 100, 200, 3), (2, 4000, 5, 0)] }),
             Resp::Chat { from: 1, name: "Bo".into(), text: "hi".into() },
             Resp::Arrive(Member { id: 4, name: "Zed".into(), class: 1, race: 0, level: 3, look: 0 }),

@@ -240,6 +240,10 @@ func _hud() -> void:
 	button("bag", Rect2(UiKit.W - 250, 10, 76, 30), "BAG", true, false, 13)
 	button("settings", Rect2(UiKit.W - 170, 10, 76, 30), "MENU", true, false, 13)
 	button("leave", Rect2(UiKit.W - 90, 10, 80, 30), "HEROES", true, false, 13)
+	# Living together (job T1): the party, the guild and the channels past say.
+	button("party", Rect2(UiKit.W - 250, 44, 76, 26), "PARTY" + (" %d" % shell.party["members"].size() if not shell.party.is_empty() else ""), true, false, 12)
+	button("guild", Rect2(UiKit.W - 170, 44, 76, 26), "GUILD", true, false, 12)
+	button("social", Rect2(UiKit.W - 90, 44, 80, 26), "CHAT" + (" *" if not shell.invites.is_empty() else ""), true, false, 12)
 	if not _prompt.is_empty():
 		var s: String = "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(_prompt["name"])]
 		var w: float = UiKit.text_width(s, 18) + 30.0
@@ -301,12 +305,23 @@ func on_press(id: String) -> void:
 			open_sheet()
 		"bag":
 			open_bag()
+		"party":
+			_open_social("PartyPanel", PartyPanel)
+		"guild":
+			_open_social("GuildPanel", GuildPanel)
+		"social":
+			_open_social("ChatPanel", ChatPanel)
 		"settings":
 			shell.open_panel(SettingsPanel.new())
 		"leave":
 			shell.leave_town()
 		"chatbox":
 			typing = true
+
+
+func _open_social(cls_name: String, cls: GDScript) -> void:
+	if shell.panel_of(cls_name) == null:
+		shell.open_panel(cls.new())
 
 
 func open_sheet() -> void:

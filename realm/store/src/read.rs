@@ -70,6 +70,19 @@ pub fn hero(c: &Connection, id: HeroId) -> Result<Option<Hero>> {
 }
 
 /// The live hero holding a name (names are unique without regard to case). A deleted hero is not found.
+/// Accounts with any of the flag bits in `mask` set, by id (the moderators' ban wave).
+pub fn accounts_flagged(c: &Connection, mask: u64) -> Result<Vec<Account>> {
+	let mut st = c.prepare_cached("SELECT id FROM accounts WHERE flags & ?1 != 0 ORDER BY id")?;
+	let ids = st.query_map([mask as i64], |r| r.get::<_, i64>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+	let mut out = Vec::new();
+	for id in ids {
+		if let Some(a) = account(c, id)? {
+			out.push(a);
+		}
+	}
+	Ok(out)
+}
+
 pub fn hero_by_name(c: &Connection, name: &str) -> Result<Option<Hero>> {
 	let key = name.to_ascii_lowercase();
 	Ok(c.prepare_cached(&format!("SELECT {HERO_COLS} FROM heroes WHERE name_key = ?1 AND name_held = 1 AND deleted_at IS NULL"))?

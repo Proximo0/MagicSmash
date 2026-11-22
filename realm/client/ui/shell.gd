@@ -12,6 +12,8 @@ signal screen_changed(name: String)
 signal field_started(field: int)
 signal field_ended(outing: Dictionary)
 signal data_changed
+## The social state changed (a chat line, a party or guild update, an invitation): panels repaint by themselves.
+signal social_changed
 
 const SHELL_SIZE: Vector2i = Vector2i(960, 540)
 const FIELD_SIZE: Vector2i = Vector2i(480, 270)
@@ -33,6 +35,17 @@ var inv: Dictionary = {"items": [], "stacks": []}
 var cards: Array[int] = []
 var town: Dictionary = {}
 var last_outing: Dictionary = {}
+## Living together (job T1): kept up to date by the social pushes whether or not a panel is open.
+const CHAT_KEEP: int = 120
+var chat_lines: Array[Dictionary] = []
+var party: Dictionary = {}
+var guild: Dictionary = {}
+var friends: Array[Dictionary] = []
+var ignores: Array[Dictionary] = []
+## Invitations waiting: {"kind": "party" | "guild" | "friend", "id": inviter hero / guild / account, "name": who, "what": text}.
+var invites: Array[Dictionary] = []
+## A field the party's leader called us to (-1: none).
+var field_call: int = -1
 
 var base: UiScreen = null
 var panels: Array[UiScreen] = []
@@ -172,6 +185,10 @@ static func error_text(r: Dictionary) -> String:
 			return "LOGIN IS OFF ON THIS SERVER"
 		GwWire.E_NO_FIELD:
 			return "THAT FIELD IS CLOSED"
+		GwWire.E_MUTED:
+			return "YOU ARE SILENCED"
+		GwWire.E_SLOW_DOWN:
+			return "SLOW DOWN"
 	return m if not m.is_empty() else "SOMETHING WENT WRONG"
 
 
@@ -295,6 +312,7 @@ func enter_town() -> String:
 		return error_text(r)
 	town = r
 	await refresh_inventory()
+	await refresh_social()
 	var s := TownScreen.new()
 	show_base(s, "town")
 	return ""
@@ -304,12 +322,14 @@ func enter_town() -> String:
 func leave_town() -> void:
 	await link.call_req(GwWire.plain(GwWire.T_LEAVE_TOWN))
 	town = {}
+	reset_social()
 	await refresh_heroes()
 	show_base(HeroListScreen.new(), "hero_list")
 
 
 func logout() -> void:
 	link.close()
+	reset_social()
 	account = 0
 	heroes.clear()
 	hero = {}
@@ -321,8 +341,96 @@ func _on_push(msg: Dictionary) -> void:
 	if t == GwWire.P_OUTING:
 		_on_outing(msg)
 		return
+	if t == GwWire.P_SOCIAL:
+		_on_social(msg)
+		return
 	if base is TownScreen:
 		(base as TownScreen).on_push(msg)
+
+
+# ---- living together
+
+func reset_social() -> void:
+	chat_lines.clear()
+	party = {}
+	guild = {}
+	friends.clear()
+	ignores.clear()
+	invites.clear()
+	field_call = -1
+	social_changed.emit()
+
+
+## Reads her party, guild, friends and requests again.
+func refresh_social() -> void:
+	var h: int = hero_id()
+	var p: Dictionary = await link.call_req(GwWire.soc_hero(GwWire.T_SOC_PARTY_INFO, h))
+	if int(p["t"]) == GwWire.R_SOCIAL and int(p.get("k", -1)) == 0:
+		party = p["party"]
+	var g: Dictionary = await link.call_req(GwWire.soc_hero(GwWire.T_SOC_GUILD_INFO, h))
+	if int(g["t"]) == GwWire.R_SOCIAL and int(g.get("k", -1)) == 1:
+		guild = g["guild"]
+	var l: Dictionary = await link.call_req(GwWire.soc_hero(GwWire.T_SOC_LISTS, h))
+	if int(l["t"]) == GwWire.R_SOCIAL and int(l.get("k", -1)) == 4:
+		friends = l["friends"]
+		ignores = l["ignores"]
+		invites = invites.filter(func(i: Dictionary) -> bool: return String(i["kind"]) != "friend")
+		for q in l["pending"]:
+			invites.append({"kind": "friend", "id": int(q["account"]), "name": String(q["name"]), "what": "FRIEND REQUEST"})
+	social_changed.emit()
+
+
+func _add_invite(kind: String, id: int, name: String, what: String) -> void:
+	invites = invites.filter(func(i: Dictionary) -> bool: return not (String(i["kind"]) == kind and int(i["id"]) == id))
+	invites.append({"kind": kind, "id": id, "name": name, "what": what})
+
+
+func remove_invite(kind: String, id: int) -> void:
+	invites = invites.filter(func(i: Dictionary) -> bool: return not (String(i["kind"]) == kind and int(i["id"]) == id))
+	social_changed.emit()
+
+
+func _on_social(m: Dictionary) -> void:
+	match int(m.get("k", -1)):
+		0:
+			chat_lines.append({"chan": int(m["chan"]), "from": String(m["from"]), "to": String(m["to"]), "text": String(m["text"])})
+			if chat_lines.size() > CHAT_KEEP:
+				chat_lines.pop_front()
+		1:
+			_add_invite("party", int(m["inviter"]), String(m["name"]), "INVITES YOU TO A PARTY")
+		2:
+			party = m["party"]
+		3:
+			field_call = int(m["field"])
+			var t: UiScreen = top()
+			if t != null:
+				t.say("YOUR PARTY GOES TO " + GameNames.FIELDS[clampi(field_call, 0, GameNames.FIELDS.size() - 1)])
+		4:
+			_add_invite("guild", int(m["guild"]), String(m["from"]), "INVITES YOU TO " + String(m["guild_name"]))
+		5:
+			refresh_social()
+			return
+		6:
+			_add_invite("friend", int(m["from"]), String(m["name"]), "FRIEND REQUEST")
+		7:
+			for f in friends:
+				if int(f["account"]) == int(m["account"]):
+					f["online"] = bool(m["online"])
+					f["place"] = int(m["place"])
+			if not friends.any(func(f: Dictionary) -> bool: return int(f["account"]) == int(m["account"])):
+				friends.append({"account": int(m["account"]), "name": String(m["name"]), "online": bool(m["online"]), "place": int(m["place"])})
+		8:
+			var t2: UiScreen = top()
+			if t2 != null:
+				t2.say(String(m["text"]).to_upper(), true)
+	social_changed.emit()
+
+
+## A social request: errors are shown, then what she sees of the social state is read again.
+func social(req: Array, ok_text: String = "") -> Dictionary:
+	var r: Dictionary = await act(req, ok_text)
+	await refresh_social()
+	return r
 
 
 func _on_lost(_why: String) -> void:

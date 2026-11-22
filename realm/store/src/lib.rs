@@ -53,6 +53,8 @@ pub trait Store: Send + Sync {
 
 	// ---- reads ----
 	fn account(&self, id: AccountId) -> Result<Option<Account>>;
+	/// Accounts with any of the `flags::*` bits in `mask` set, by id (the moderators' ban wave by flag).
+	fn accounts_flagged(&self, mask: u64) -> Result<Vec<Account>>;
 	fn hero(&self, id: HeroId) -> Result<Option<Hero>>;
 	fn heroes(&self, account: AccountId, include_deleted: bool) -> Result<Vec<Hero>>;
 	/// The live hero with this name (case does not matter), for mail and whispers.
