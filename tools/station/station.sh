@@ -174,20 +174,22 @@ job_ops() {  # one line: realm-ops rehearse on this machine's own disk
   if [[ "$line" == "OPS ok "* ]]; then echo "JOB ops PASS ${line:7:300}"; return 0; fi
   echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
-job_economy() {  # one line: realm-economy's summary, a longer run than the test; recorded, never a failure of the merge
+job_economy() {  # one line: realm-economy's summary; recorded, never a failure of the merge. Kept to minutes (the 4000-bot 180-day
+  # run took two hours a merge and kept the station from the work queue; that long run is the queue's `economy` job now)
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB economy FAIL cargo is not installed on this station"; return 1; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout 7000 target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-4000}" --days="${STATION_ECONOMY_DAYS:-180}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout "${STATION_ECONOMY_TIMEOUT:-900}" target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-1000}" --days="${STATION_ECONOMY_DAYS:-30}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-economy.db*
   if [[ "$line" == "ECONOMY ok "* ]]; then echo "JOB economy INFO seed=$seed ${line:8:260}"; else echo "JOB economy INFO seed=$seed $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
-job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md); recorded, never a failure of the merge
+job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md); recorded, never a failure of the merge. Kept to
+  # minutes: its old limit was a day per merge; the full careers run is the queue's `balance` job now
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB balance SKIP cargo is not installed on this station"; return 0; }
   local out line
-  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-86000}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-2}" 20 "${STATION_BALANCE_FAST:-1}" 200 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-900}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-1}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
   if [[ "$line" == "BALANCE "* ]]; then echo "JOB balance INFO ${line:8:260}"; else echo "JOB balance INFO $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
