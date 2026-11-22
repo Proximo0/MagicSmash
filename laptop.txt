@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-22T05:51Z commit=3d8feff took=648s
-JOB realm PASS REALM ok tests=282 bench 300x8000 tick_ms=4.75/6.33 follower=ok 8 tower_tick_ms=4.77/6.15 tower_follower=ok 3 | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=5.2 
-JOB frames INFO zooms=16 mean_ms=42.37 p99_ms=78.43 monsters_drawn=14193 renderer="AMD RadeonT 610M"
+STATION machine=laptop time=2026-11-22T06:04Z commit=66474ff took=641s
+JOB realm PASS REALM ok tests=282 bench 300x8000 tick_ms=4.94/7.53 follower=ok 8 tower_tick_ms=4.76/8.47 tower_follower=ok 3 | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=5.3 
+JOB frames INFO zooms=16 mean_ms=42.28 p99_ms=72.61 monsters_drawn=14017 renderer="AMD RadeonT 610M"
 STATION PASS jobs=2 failed=0 skipped=0
