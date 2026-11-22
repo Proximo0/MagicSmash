@@ -1,1 +1,1 @@
-2026-11-22 04:35:24 RUNNING pid=1052 last=TL5.1 490 ids left, 3.5s/picture
+2026-11-22 04:51:59 RUNNING pid=1052 last=HS3.5 470 ids left, 7.5s/picture
