@@ -1,0 +1,26 @@
+ram_total_mb=16088
+ram_free_mb=8420
+page_mb=14684
+page_used_mb=3787
+page_peak_mb=9603
+commit_limit_mb=30773
+commit_free_mb=16105
+cores=24
+disk_free_gb=C:39,D:310
+--- top programs by memory (MB)
+   2150  14x claude
+    809  24x chrome
+    745  91x svchost
+    569   1x MsMpEng
+    321  10x ace
+    178   1x explorer
+     83   6x msedgewebview2
+     81   1x powershell
+     76   8x bash
+     69   2x tailscaled
+     66   1x Secure System
+     62   1x dwm
+     62   7x RuntimeBroker
+     49   2x WmiPrvSE
+     47   7x conhost
+gpu=NVIDIA GeForce RTX 5050 Laptop GPU, 8151, 354
