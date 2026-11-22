@@ -1,0 +1,1 @@
+# Ids (HR1.1) or game names (hero_human_knight) that tools/art/import.py must never overwrite: art Curtis hand-approves.
