@@ -276,7 +276,7 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
         }
     }
     *lock(&shared.counters) = counters(&client, &rates);
-    // Sealed with the session token on a ticketed field, so the host believes it.
+    // Sealed with the ticket's key on a ticketed field (a MAC and a counter), so the host believes it.
     let _ = sock.send(&client.bye());
 }
 

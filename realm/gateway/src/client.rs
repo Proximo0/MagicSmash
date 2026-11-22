@@ -20,13 +20,18 @@ pub struct GatewayClient {
 }
 
 impl GatewayClient {
-    /// Plain TCP (a `--plain` or `--dev-login` gateway, the tests).
+    /// TLS, the gateway's certificate checked against the public roots and the name in `addr`: the default.
     pub fn connect(addr: &str) -> std::io::Result<GatewayClient> {
+        GatewayClient::connect_with(addr, Some(&crate::tls::client_config_public()))
+    }
+
+    /// Plain TCP, only for a `--plain`/`--dev-login` gateway (the in-process tests).
+    pub fn connect_plain(addr: &str) -> std::io::Result<GatewayClient> {
         GatewayClient::connect_with(addr, None)
     }
 
-    /// TLS when `tls` is given (`tls::ClientTls::config`): the handshake runs here, so a refused certificate is
-    /// this call's error.
+    /// TLS when `tls` is given (`tls::ClientTls::config`), plain TCP for None: the handshake runs here, so a refused
+    /// certificate is this call's error.
     pub fn connect_with(addr: &str, tls: Option<&Arc<ClientConfig>>) -> std::io::Result<GatewayClient> {
         let stream = ClientStream::connect(addr, tls)?;
         let peer_ip = stream.tcp().peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();

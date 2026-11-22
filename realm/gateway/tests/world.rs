@@ -53,7 +53,7 @@ fn quick(copies: CopyRules) -> WorldConfig {
 }
 
 fn login(r: &Realm, name: &str) -> GatewayClient {
-    let mut c = GatewayClient::connect(&r.addr).unwrap();
+    let mut c = GatewayClient::connect_plain(&r.addr).unwrap();
     assert!(matches!(c.login(name).unwrap(), Resp::Login { .. }));
     c
 }
@@ -140,6 +140,7 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     let play = PlayOpts { fight_ticks: 2_000, max_ticks: 24_000, ..PlayOpts::default() };
     let out = play_field(&mut p, &host, port, ticket, key, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
     assert_eq!(out.moves, 1, "{out:?}");
+    assert_eq!(out.fresh_keys, 1, "the new copy admitted her with a fresh key, sent over TLS: {out:?}");
     assert!(out.left == 0 || out.left == 1, "she left by the gate or a waystone after the move: {out:?}");
     assert_eq!(coin(&r, hp), out.coin, "what was reported banked is in her bag");
     let s = r.gw.world.stats();

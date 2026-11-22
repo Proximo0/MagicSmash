@@ -60,8 +60,8 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
             vaults: 3,
         },
         WResp::Queued { hero: 3, field: 1, place: 4, of: 9 },
-        WResp::Vault { code: 99, vault: 1, seals: 8, host: "h".into(), port: 7801, ticket: 5, key: [3; 16] },
-        WResp::Moved { hero: 3, field: 0, copy: 1, host: String::new(), port: 7802, ticket: 6 },
+        WResp::Vault { code: 99, vault: 1, seals: 8, host: "h".into(), port: 7801, ticket: 5, key: realm_server::TicketKey([3; 16]) },
+        WResp::Moved { hero: 3, field: 0, copy: 1, host: String::new(), port: 7802, ticket: 6, key: realm_server::TicketKey([4; 16]) },
         WResp::News { kind: NEWS_WORLD_BOSS, field: 5, boss: 7, in_ticks: 36_000 },
     ];
     let mut out: Vec<Resp> = resps.iter().cloned().map(Resp::World).collect();

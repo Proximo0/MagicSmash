@@ -7,7 +7,8 @@ extends Node
 ## A reply is a Dictionary with "t" (GwWire.R_*); R_ERR has "code" and "msg"; a lost connection or a reply that
 ## never comes (REPLY_TIMEOUT_S) answers R_LOST with "msg".
 ## Transport (docs/realm/wire.md, "Transport security"): TLS (StreamPeerTLS over the StreamPeerTCP), the gateway's
-## certificate checked against the system's trusted roots and the name connected to. Only a dev build
+## certificate checked against Godot's trusted roots (TLSOptions.client() with no chain: the engine's CA bundle, or
+## the project's network/tls/certificate_bundle_override) and the name connected to. Only a dev build
 ## (OS.is_debug_build) may trust one certificate file instead (`dev_cert`, the gateway's DB.dev-cert.pem) or speak
 ## plain TCP (`plain`, for a --dev-login gateway); a release build ignores both. A failed handshake is an error
 ## (`last_error`), never a retry in clear text.
@@ -34,7 +35,7 @@ var _tcp: StreamPeerTCP = StreamPeerTCP.new()
 ## What frames are read from and written to: the TLS peer over `_tcp`, or `_tcp` itself when plain.
 var _peer: StreamPeer = null
 var _tls: StreamPeerTLS = null
-## Dev builds only: speak plain TCP / trust this PEM certificate instead of the system's roots.
+## Dev builds only: speak plain TCP / trust this PEM certificate instead of the trusted roots.
 var plain: bool = false
 var dev_cert: String = ""
 ## Why the last `open` failed, for the shell to show ("" when it could not even reach the address).
@@ -90,6 +91,8 @@ func open(h: String, p: int) -> bool:
 		_tcp.disconnect_from_host()
 		return false
 	while true:
+		# The TCP peer is polled too, so a reset shows as an error here instead of a stall.
+		_tcp.poll()
 		_tls.poll()
 		var st: int = _tls.get_status()
 		if st == StreamPeerTLS.STATUS_CONNECTED:
@@ -167,10 +170,9 @@ func _process(delta: float) -> void:
 	_now += delta
 	if not connected:
 		return
+	_tcp.poll()
 	if _tls != null:
 		_tls.poll()
-	else:
-		_tcp.poll()
 	if not _up():
 		connected = false
 		_fail_all("the gateway closed the connection")

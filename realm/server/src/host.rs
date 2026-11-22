@@ -107,16 +107,15 @@ pub struct Entry {
     pub arrive: Option<u8>,
     /// The host plays her itself (`driver.rs`): she joins at once, no HELLO.
     pub drive: Option<Drive>,
-    /// The ticket's secret (random, from the gateway over TLS): her HELLO must carry it. A ticket whose key is all
+    /// The ticket's secret (random for each admission, from the gateway over TLS): her HELLO must prove it (it is
+    /// never sent), her INPUT and BYE are tagged with it. A ticket whose key is all
     /// zeros joins nobody by HELLO.
     pub key: TicketKey,
-    /// The session token her WELCOME hands her; her later INPUT and BYE carry it (`MSG_SEALED_INPUT`).
-    pub token: u64,
 }
 
 impl Entry {
     pub fn new(ticket: u64, hero: u64, sheet: Sheet, outing: Outing) -> Entry {
-        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None, key: [0; 16], token: 0 }
+        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None, key: TicketKey::default() }
     }
 }
 
@@ -274,8 +273,8 @@ pub struct HostStatus {
     pub members: Mutex<Vec<u64>>,
     pub pending: AtomicU32,
     pub counts: Mutex<HostCounts>,
-    /// Datagrams dropped as unproven: a HELLO without its ticket's key, an INPUT or BYE from an address that has
-    /// not joined or without its session token, a follower on a ticketed field.
+    /// Datagrams dropped as unproven: a HELLO without proof of its ticket's key, an INPUT or BYE from an address
+    /// that has not joined, with a wrong tag or a stale counter, a follower on a ticketed field.
     pub refused: AtomicU64,
 }
 
@@ -442,10 +441,11 @@ struct Client {
     bytes: u64,
     view_mon: u32,
     view_ply: u32,
-    /// A ticketed player: the token her INPUT and BYE must carry, and the key her HELLO proved (a repeated HELLO
+    /// A ticketed player: the key her HELLO proved, its nonce, and her last INPUT or BYE counter (a repeated HELLO
     /// must prove it again). 0 and None on a crowd-test server.
-    token: u64,
     key: Option<TicketKey>,
+    nonce: u64,
+    counter: u32,
 }
 
 /// What a ticketed hero has earned and not yet sent.
@@ -703,16 +703,17 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             match r.u8() {
                 Some(MSG_HELLO) if stopping.is_none() => {
                     hellos += 1;
-                    let Some(Hello { proto, class, race, ticket, key }) = parse_hello(&mut r) else { continue };
+                    let Some(hello) = parse_hello(&mut r) else { continue };
+                    let Hello { proto, class, race, ticket, proof } = hello;
                     if let Some(c) = clients.get(&from) {
-                        // A repeated HELLO: the WELCOME was lost. A ticketed one must carry the same key again.
-                        let same = match (&c.key, &key) {
-                            (None, _) => true,
-                            (Some(a), Some(b)) => key_eq(a, b),
-                            (Some(_), None) => false,
+                        // A repeated HELLO: the WELCOME was lost. A ticketed one must prove the key again, with the
+                        // same nonce (a HELLO seen on the wire and replayed from here only repeats the WELCOME).
+                        let same = match &c.key {
+                            None => true,
+                            Some(k) => hello_proves(k, &hello) && proof.is_some_and(|p| p.0 == c.nonce),
                         };
                         if let (Some(id), true) = (c.id, same) {
-                            if sock.send_to(&welcome(id as u32, sim.field.tick(), c.token), from).is_err() {
+                            if sock.send_to(&welcome(id as u32, sim.field.tick(), c.key.as_ref().map(|k| (k, c.nonce))), from).is_err() {
                                 send_errors += 1;
                             }
                         }
@@ -721,12 +722,12 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                     let mut who: Option<(u64, u64)> = None;
                     let mut req: Option<JoinReq> = None;
                     let (mut seq, mut moved_in) = (0u32, false);
-                    let (mut token, mut proved) = (0u64, None);
+                    let mut proved: Option<(TicketKey, u64)> = None;
                     if proto != PROTO_B {
                         if opts.require_tickets {
-                            // The ticket names her; only its key lets her in. A wrong key leaves the ticket waiting,
-                            // so a stranger who guessed a ticket number cannot burn it either.
-                            let ok = pending.get(&ticket).is_some_and(|(e, _)| e.key != [0; 16] && key.is_some_and(|k| key_eq(&k, &e.key)));
+                            // The ticket names her; only proof of its key lets her in. A wrong proof leaves the ticket
+                            // waiting, so a stranger who guessed a ticket number cannot burn it either.
+                            let ok = pending.get(&ticket).is_some_and(|(e, _)| hello_proves(&e.key, &hello));
                             if !ok {
                                 refused += 1;
                                 continue;
@@ -736,8 +737,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                             who = Some((e.hero, e.ticket));
                             seq = e.seq;
                             moved_in = e.arrive.is_some();
-                            token = e.token;
-                            proved = Some(e.key);
+                            proved = proof.map(|p| (e.key, p.0));
                             req = Some(JoinReq { sheet: e.sheet, outing: e.outing, x, y });
                         } else {
                             let rr = realm_core::rng_next(&mut rng);
@@ -769,25 +769,33 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                         bytes: 0,
                         view_mon: 0,
                         view_ply: 0,
-                        token,
-                        key: proved,
+                        key: proved.map(|p| p.0),
+                        nonce: proved.map_or(0, |p| p.1),
+                        counter: 0,
                     };
                     if let Some(rq) = req {
                         joins.push(sim_join::Req { addr: Some(from), req: rq, who, seq, drive: None, moved_in });
                     }
                     clients.insert(from, c);
                 }
-                // A ticketed field takes a player's INPUT and BYE only sealed with her session token, from the
-                // address that proved her ticket; a crowd-test server takes them bare too.
+                // A ticketed field takes a player's INPUT and BYE only sealed with her key (a right tag and a
+                // counter above the last), from the address that proved her ticket; a crowd-test server takes them
+                // bare too.
                 Some(t @ (MSG_INPUT | MSG_SEALED_INPUT | MSG_BYE | MSG_SEALED_BYE)) => {
-                    let sealed = matches!(t, MSG_SEALED_INPUT | MSG_SEALED_BYE);
-                    let token = if sealed { r.u64() } else { None };
                     let Some(c) = clients.get_mut(&from) else {
                         refused += 1;
                         continue;
                     };
-                    let ok = if sealed { token == Some(c.token) } else { !opts.require_tickets && c.key.is_none() };
-                    if !ok {
+                    let sealed = matches!(t, MSG_SEALED_INPUT | MSG_SEALED_BYE);
+                    if sealed {
+                        let opened = c.key.as_ref().and_then(|k| unseal(k, &msg)).filter(|(n, _)| *n > c.counter);
+                        let Some((n, body)) = opened else {
+                            refused += 1;
+                            continue;
+                        };
+                        c.counter = n;
+                        r = Rd::new(body);
+                    } else if opts.require_tickets || c.key.is_some() {
                         refused += 1;
                         continue;
                     }
@@ -856,7 +864,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         for (j, id) in joins.iter().zip(ids) {
             if let Some(c) = j.addr.and_then(|a| clients.get_mut(&a)) {
                 c.id = Some(id);
-                if sock.send_to(&welcome(id as u32, tick, c.token), j.addr.unwrap_or(([0, 0, 0, 0], 0).into())).is_err() {
+                if sock.send_to(&welcome(id as u32, tick, c.key.as_ref().map(|k| (k, c.nonce))), j.addr.unwrap_or(([0, 0, 0, 0], 0).into())).is_err() {
                     send_errors += 1;
                 }
             }
@@ -953,7 +961,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                         c.state_next = 0;
                         c.resend = Resend::default();
                         let id = c.id.map_or(u32::MAX, |i| i as u32);
-                        if sock.send_to(&welcome(id, tick, c.token), addr).is_err() {
+                        if sock.send_to(&welcome(id, tick, c.key.as_ref().map(|k| (k, c.nonce))), addr).is_err() {
                             send_errors += 1;
                         }
                     }

@@ -10,21 +10,71 @@
 //! queue in one thread would need a read timeout to look at the queue, which costs latency or CPU on every
 //! connection; the peek costs neither.
 
-use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
-use rustls::crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider};
+use rustls::crypto::CryptoProvider;
 use rustls::pki_types::pem::PemObject;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime};
-use rustls::{ClientConfig, ClientConnection, DigitallySignedStruct, RootCertStore, ServerConfig, ServerConnection, SignatureScheme, StreamOwned};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
+use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerConfig, ServerConnection, StreamOwned};
 use std::io::{self, ErrorKind, Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub use rustls;
 
-/// A TLS handshake (either side) that takes longer than this is given up.
+/// A TLS handshake (either side) that takes longer than this in total is given up, however it drips.
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// What one TLS write takes at a time: below rustls's 64 KiB cap on unsent data, so a large frame is sent in pieces
+/// (each written to the socket before the next) instead of failing.
+const WRITE_CHUNK: usize = 16 * 1024;
+
+/// Runs a rustls handshake on a blocking socket to a total deadline (`HANDSHAKE_TIMEOUT`): each read waits only
+/// for what is left, so a peer that drips a byte at a time is cut off on time. An alert rustls queues on a failure
+/// is sent before the error. (Not `complete_io`, which loops inside one call.)
+macro_rules! handshake {
+    ($c:expr, $s:expr) => {{
+        let c = $c;
+        let s: &mut TcpStream = $s;
+        let end = Instant::now() + HANDSHAKE_TIMEOUT;
+        let r: io::Result<()> = loop {
+            if let Err(e) = (|| -> io::Result<()> {
+                while c.wants_write() {
+                    c.write_tls(s)?;
+                }
+                Ok(())
+            })() {
+                break Err(e);
+            }
+            if !c.is_handshaking() {
+                break Ok(());
+            }
+            let left = end.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                break Err(io::Error::new(ErrorKind::TimedOut, "the handshake took too long"));
+            }
+            s.set_read_timeout(Some(left))?;
+            s.set_write_timeout(Some(left))?;
+            match c.read_tls(s) {
+                Ok(0) => break Err(io::Error::new(ErrorKind::UnexpectedEof, "closed during the handshake")),
+                Ok(_) => {}
+                Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => break Err(io::Error::new(ErrorKind::TimedOut, "the handshake took too long")),
+                Err(e) => break Err(e),
+            }
+            if let Err(e) = c.process_new_packets() {
+                while c.wants_write() {
+                    if c.write_tls(s).is_err() {
+                        break;
+                    }
+                }
+                break Err(io::Error::new(ErrorKind::InvalidData, e));
+            }
+        };
+        let _ = s.set_read_timeout(None);
+        let _ = s.set_write_timeout(None);
+        r
+    }};
+}
 
 fn provider() -> Arc<CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())
@@ -36,25 +86,13 @@ pub fn fill_random(b: &mut [u8]) {
     provider().secure_random.fill(b).expect("the system's secure random source failed");
 }
 
-/// 128 random bits: a field ticket's key.
-pub fn random_key() -> [u8; 16] {
+/// 128 random bits: a field ticket's key (fresh for every admission).
+pub fn random_key() -> realm_server::TicketKey {
     let mut k = [0u8; 16];
     while k == [0; 16] {
         fill_random(&mut k);
     }
-    k
-}
-
-/// A random non-zero u64: a field session's token.
-pub fn random_u64() -> u64 {
-    let mut b = [0u8; 8];
-    loop {
-        fill_random(&mut b);
-        let v = u64::from_le_bytes(b);
-        if v != 0 {
-            return v;
-        }
-    }
+    realm_server::TicketKey(k)
 }
 
 fn bad(e: impl std::fmt::Display) -> String {
@@ -125,20 +163,29 @@ pub fn loopback_pair() -> Result<(ServerTls, Arc<ClientConfig>), String> {
 }
 
 /// `--dev-cert`: the pair beside the store (`DB.dev-cert.pem`, `DB.dev-key.pem`), made once and kept, so a client
-/// told to trust it (`--ca=DB.dev-cert.pem`) goes on trusting it after a restart. Never commit them.
+/// told to trust it (`--ca=DB.dev-cert.pem`) goes on trusting it after a restart; made again when the names it must
+/// carry changed (a new `--public-host`; they are kept in `DB.dev-cert.names`). Never commit them.
 pub fn dev_cert_files(db: &str, public_host: &str) -> Result<(PathBuf, PathBuf), String> {
     let cert = PathBuf::from(format!("{db}.dev-cert.pem"));
     let key = PathBuf::from(format!("{db}.dev-key.pem"));
-    if cert.exists() && key.exists() {
+    let names_file = PathBuf::from(format!("{db}.dev-cert.names"));
+    let names = dev_names(public_host);
+    let want = names.join(" ");
+    let same = std::fs::read_to_string(&names_file).is_ok_and(|t| t.trim() == want);
+    if cert.exists() && key.exists() && same {
+        // Its mode is put right even if someone loosened it.
+        set_private(&key).map_err(|e| format!("{}: {e}", key.display()))?;
         return Ok((cert, key));
     }
-    let d = make_cert(&dev_names(public_host), (2026, 1, 1), (2036, 1, 1))?;
+    let d = make_cert(&names, (2026, 1, 1), (2036, 1, 1))?;
     write_private(&key, d.key_pem.as_bytes()).map_err(|e| format!("{}: {e}", key.display()))?;
     std::fs::write(&cert, d.cert_pem).map_err(|e| format!("{}: {e}", cert.display()))?;
+    std::fs::write(&names_file, format!("{want}\n")).map_err(|e| format!("{}: {e}", names_file.display()))?;
     Ok((cert, key))
 }
 
-fn write_private(path: &Path, b: &[u8]) -> io::Result<()> {
+/// Writes a secret: only its owner may read it (mode 0600 on Unix, also when the file was there before).
+pub fn write_private(path: &Path, b: &[u8]) -> io::Result<()> {
     let mut o = std::fs::OpenOptions::new();
     o.write(true).create(true).truncate(true);
     #[cfg(unix)]
@@ -146,29 +193,56 @@ fn write_private(path: &Path, b: &[u8]) -> io::Result<()> {
         use std::os::unix::fs::OpenOptionsExt;
         o.mode(0o600);
     }
-    o.open(path)?.write_all(b)
+    let mut f = o.open(path)?;
+    // `mode` only applies to a file it creates.
+    set_private(path)?;
+    f.write_all(b)?;
+    f.sync_all()
 }
 
-/// True when the first bytes waiting on `s` open a TLS handshake (a handshake record, `0x16 0x03`); false for
-/// anything else (a plain-text client's frame). Waits at most `wait` (None: as long as it takes) for two bytes.
-pub fn looks_like_tls(s: &TcpStream, wait: Option<Duration>) -> io::Result<bool> {
-    s.set_read_timeout(wait)?;
-    let mut b = [0u8; 2];
-    let end = wait.map(|w| std::time::Instant::now() + w);
-    loop {
-        let n = s.peek(&mut b)?;
-        if n == 0 {
-            return Err(io::Error::new(ErrorKind::UnexpectedEof, "closed before a byte"));
-        }
-        if n >= 2 || b[0] != 0x16 {
-            s.set_read_timeout(None)?;
-            return Ok(b[0] == 0x16 && b[1] == 0x03);
-        }
-        if end.is_some_and(|e| std::time::Instant::now() > e) {
-            return Err(io::Error::new(ErrorKind::TimedOut, "no handshake"));
-        }
-        std::thread::sleep(Duration::from_millis(5));
+fn set_private(path: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     }
+    let _ = path;
+    Ok(())
+}
+
+/// True when the first bytes waiting on `s` are a TLS ClientHello record; false for a plain-text client's frame.
+/// Waits at most `HANDSHAKE_TIMEOUT` in all. A first byte other than 0x16 is plain at once. After `0x16 0x03` (a
+/// frame of at least 790 bytes would start so too) it looks at 11 bytes: record type 0x16, version 0x03 0x01..0x03,
+/// handshake type 0x01 (ClientHello) at byte 5 and its version major 0x03 at byte 9. A plain frame passes that only
+/// when it is 66 326 or 197 398 bytes long, tagged 1, with a body starting 0x03: plain text is for dev only.
+pub fn looks_like_tls(s: &TcpStream) -> io::Result<bool> {
+    let end = Instant::now() + HANDSHAKE_TIMEOUT;
+    let mut b = [0u8; 11];
+    let r = loop {
+        let left = end.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            break Err(io::Error::new(ErrorKind::TimedOut, "no first bytes"));
+        }
+        s.set_read_timeout(Some(left))?;
+        let n = match s.peek(&mut b) {
+            Ok(n) => n,
+            Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => continue,
+            Err(e) => break Err(e),
+        };
+        if n == 0 {
+            break Err(io::Error::new(ErrorKind::UnexpectedEof, "closed before a byte"));
+        }
+        if b[0] != 0x16 || (n >= 2 && b[1] != 0x03) {
+            break Ok(false);
+        }
+        if n >= b.len() {
+            break Ok((1..=3).contains(&b[2]) && b[5] == 0x01 && b[9] == 0x03);
+        }
+        // Too few bytes yet: wait a little (peek returns at once while any byte is there).
+        std::thread::sleep(Duration::from_millis(5));
+    };
+    let _ = s.set_read_timeout(None);
+    r
 }
 
 enum Inner {
@@ -188,29 +262,33 @@ impl Duplex {
         Ok(Duplex { raw: s.try_clone()?, inner: Mutex::new(Inner::Plain(s)) })
     }
 
-    /// Runs the server handshake (at most `HANDSHAKE_TIMEOUT`); an error names what rustls refused.
+    /// Runs the server handshake (at most `HANDSHAKE_TIMEOUT` in all); an error names what rustls refused.
     pub fn tls(mut s: TcpStream, cfg: &ServerTls) -> io::Result<Duplex> {
         let mut c = ServerConnection::new(cfg.clone()).map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
-        s.set_read_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        s.set_write_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        while c.is_handshaking() {
-            c.complete_io(&mut s)?;
-        }
-        while c.wants_write() {
-            c.write_tls(&mut s)?;
-        }
-        s.set_read_timeout(None)?;
-        s.set_write_timeout(None)?;
+        handshake!(&mut c, &mut s)?;
         Ok(Duplex { raw: s.try_clone()?, inner: Mutex::new(Inner::Tls(Box::new(c), s)) })
     }
 
-    /// Sends `b` whole (encrypted when TLS).
+    /// Sends `b` whole (encrypted when TLS, `WRITE_CHUNK` at a time, each piece on the socket before the next).
     pub fn write_all(&self, b: &[u8]) -> io::Result<()> {
         let mut g = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         match &mut *g {
             Inner::Plain(s) => s.write_all(b),
             Inner::Tls(c, s) => {
-                c.writer().write_all(b)?;
+                for piece in b.chunks(WRITE_CHUNK) {
+                    let mut at = 0;
+                    while at < piece.len() {
+                        let n = c.writer().write(&piece[at..])?;
+                        at += n;
+                        if c.wants_write() {
+                            while c.wants_write() {
+                                c.write_tls(s)?;
+                            }
+                        } else if n == 0 {
+                            return Err(io::Error::new(ErrorKind::WriteZero, "TLS took no bytes"));
+                        }
+                    }
+                }
                 while c.wants_write() {
                     c.write_tls(s)?;
                 }
@@ -282,41 +360,39 @@ impl Read for DuplexReader<'_> {
 
 // ---- client side
 
-/// The client's choice: `--tls` (trust the public roots, `webpki-roots`), `--ca=PATH` (trust that PEM, e.g. the
-/// gateway's dev certificate; implies `--tls`), `--insecure-dev` (accept any certificate; implies `--tls`; only
-/// for a dev gateway, and it says so loudly). None of them: plain TCP.
+/// The client's choice. By default TLS, the certificate checked against the public roots (`webpki-roots`) and the
+/// name connected to. `--ca=PEM`: trust exactly that file instead (a dev certificate, a private CA). `--plain`: plain
+/// TCP, for a `--plain`/`--dev-login` gateway only. `--insecure-dev` (any certificate) exists only in a build with
+/// the `dev-insecure` feature, which release builds do not enable.
 #[derive(Clone, Debug, Default)]
 pub struct ClientTls {
-    pub tls: bool,
+    pub plain: bool,
     pub ca: Option<PathBuf>,
+    #[cfg(any(test, feature = "dev-insecure"))]
     pub insecure_dev: bool,
 }
 
 impl ClientTls {
-    /// Takes `--tls`, `--ca=PATH`, `--insecure-dev`; false for any other flag.
+    /// Takes `--plain`, `--ca=PEM` (and `--insecure-dev` with the feature); false for any other flag.
     pub fn flag(&mut self, k: &str, v: &str) -> bool {
         match k {
-            "--tls" => self.tls = true,
-            "--ca" => {
-                self.tls = true;
-                self.ca = Some(PathBuf::from(v));
-            }
-            "--insecure-dev" => {
-                self.tls = true;
-                self.insecure_dev = true;
-            }
+            "--plain" => self.plain = true,
+            "--ca" => self.ca = Some(PathBuf::from(v)),
+            #[cfg(any(test, feature = "dev-insecure"))]
+            "--insecure-dev" => self.insecure_dev = true,
             _ => return false,
         }
         true
     }
 
-    pub const HELP: &'static str = "[--tls] [--ca=PEM] [--insecure-dev]";
+    pub const HELP: &'static str = "[--ca=PEM] [--plain]";
 
-    /// The rustls configuration, or None for plain TCP.
+    /// The rustls configuration, or None for plain TCP (only with `--plain`).
     pub fn config(&self) -> Result<Option<Arc<ClientConfig>>, String> {
-        if !self.tls {
+        if self.plain {
             return Ok(None);
         }
+        #[cfg(any(test, feature = "dev-insecure"))]
         if self.insecure_dev {
             eprintln!("WARNING: --insecure-dev: the gateway's certificate is NOT checked; anyone on the path can read this connection. Dev gateways only.");
             return Ok(Some(insecure_config()));
@@ -358,29 +434,43 @@ pub fn client_config_ca_pem(pem: &[u8]) -> Result<Arc<ClientConfig>, String> {
     Ok(with_roots(roots))
 }
 
-/// `--insecure-dev`: any certificate is taken, but the server must still prove it holds the key of the one it
-/// shows (the handshake signature is checked), so the connection is encrypted, just not to a known party.
-pub fn insecure_config() -> Arc<ClientConfig> {
-    let mut cfg = (*with_roots(RootCertStore::empty())).clone();
-    cfg.dangerous().set_certificate_verifier(Arc::new(AnyCert(provider())));
-    Arc::new(cfg)
-}
+#[cfg(any(test, feature = "dev-insecure"))]
+pub use insecure::insecure_config;
 
-#[derive(Debug)]
-struct AnyCert(Arc<CryptoProvider>);
+#[cfg(any(test, feature = "dev-insecure"))]
+mod insecure {
+    use super::{provider, with_roots};
+    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+    use rustls::crypto::{verify_tls12_signature, verify_tls13_signature, CryptoProvider};
+    use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+    use rustls::{ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme};
+    use std::sync::Arc;
 
-impl ServerCertVerifier for AnyCert {
-    fn verify_server_cert(&self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>], _: &ServerName<'_>, _: &[u8], _: UnixTime) -> Result<ServerCertVerified, rustls::Error> {
-        Ok(ServerCertVerified::assertion())
+    /// `--insecure-dev`: any certificate is taken, but the server must still prove it holds the key of the one it
+    /// shows (the handshake signature is checked), so the connection is encrypted, just not to a known party. Only in
+    /// tests and `dev-insecure` builds.
+    pub fn insecure_config() -> Arc<ClientConfig> {
+        let mut cfg = (*with_roots(RootCertStore::empty())).clone();
+        cfg.dangerous().set_certificate_verifier(Arc::new(AnyCert(provider())));
+        Arc::new(cfg)
     }
-    fn verify_tls12_signature(&self, m: &[u8], c: &CertificateDer<'_>, d: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, rustls::Error> {
-        verify_tls12_signature(m, c, d, &self.0.signature_verification_algorithms)
-    }
-    fn verify_tls13_signature(&self, m: &[u8], c: &CertificateDer<'_>, d: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, rustls::Error> {
-        verify_tls13_signature(m, c, d, &self.0.signature_verification_algorithms)
-    }
-    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        self.0.signature_verification_algorithms.supported_schemes()
+
+    #[derive(Debug)]
+    struct AnyCert(Arc<CryptoProvider>);
+
+    impl ServerCertVerifier for AnyCert {
+        fn verify_server_cert(&self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>], _: &ServerName<'_>, _: &[u8], _: UnixTime) -> Result<ServerCertVerified, rustls::Error> {
+            Ok(ServerCertVerified::assertion())
+        }
+        fn verify_tls12_signature(&self, m: &[u8], c: &CertificateDer<'_>, d: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, rustls::Error> {
+            verify_tls12_signature(m, c, d, &self.0.signature_verification_algorithms)
+        }
+        fn verify_tls13_signature(&self, m: &[u8], c: &CertificateDer<'_>, d: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, rustls::Error> {
+            verify_tls13_signature(m, c, d, &self.0.signature_verification_algorithms)
+        }
+        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+            self.0.signature_verification_algorithms.supported_schemes()
+        }
     }
 }
 
@@ -406,14 +496,9 @@ impl ClientStream {
         let name = ServerName::try_from(host_of(addr).to_string()).map_err(|e| io::Error::new(ErrorKind::InvalidInput, format!("server name {}: {e}", host_of(addr))))?;
         let mut c = ClientConnection::new(cfg.clone(), name).map_err(|e| io::Error::new(ErrorKind::InvalidData, e))?;
         let mut s = s;
-        s.set_read_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        s.set_write_timeout(Some(HANDSHAKE_TIMEOUT))?;
-        while c.is_handshaking() {
-            if let Err(e) = c.complete_io(&mut s) {
-                return Err(io::Error::new(e.kind(), format!("TLS handshake with {addr} failed: {e}")));
-            }
+        if let Err(e) = handshake!(&mut c, &mut s) {
+            return Err(io::Error::new(e.kind(), format!("TLS handshake with {addr} failed: {e}")));
         }
-        s.set_write_timeout(None)?;
         Ok(ClientStream::Tls(Box::new(StreamOwned::new(c, s))))
     }
 
@@ -446,5 +531,30 @@ impl Write for ClientStream {
             ClientStream::Plain(s) => s.flush(),
             ClientStream::Tls(t) => t.flush(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn insecure_dev_takes_an_unknown_certificate_and_still_encrypts() {
+        let d = make_cert(&["somewhere.else"], (2026, 1, 1), (2036, 1, 1)).unwrap();
+        let server = server_config_pem(d.cert_pem.as_bytes(), d.key_pem.as_bytes()).unwrap();
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap().to_string();
+        let t = std::thread::spawn(move || {
+            let (s, _) = l.accept().unwrap();
+            Duplex::tls(s, &server).unwrap().write_all(b"hello").unwrap();
+        });
+        let mut t2 = ClientTls::default();
+        assert!(t2.flag("--insecure-dev", ""));
+        let mut c = ClientStream::connect(&addr, t2.config().unwrap().as_ref()).unwrap();
+        assert!(matches!(c, ClientStream::Tls(_)));
+        let mut b = [0u8; 5];
+        c.read_exact(&mut b).unwrap();
+        assert_eq!(&b, b"hello");
+        t.join().unwrap();
     }
 }

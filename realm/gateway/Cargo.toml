@@ -23,6 +23,10 @@ path = "src/world_bin.rs"
 name = "realm-economy"
 path = "src/economy_bin.rs"
 
+[features]
+# `--insecure-dev` for bots (accept any gateway certificate). Dev builds only; never in a release build.
+dev-insecure = []
+
 [dependencies]
 realm-core = { path = "../core" }
 realm-server = { path = "../server" }

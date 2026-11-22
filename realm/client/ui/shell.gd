@@ -5,7 +5,7 @@ extends Node
 ## One Shell owns the gateway connection (GwLink), what the screens share (account, heroes, the chosen hero, her
 ## inventory and cards, the town's roster) and the stack of screens: one base screen and the panels over it.
 ##   godot --path realm/client [-- --gateway=host:port] [--dev=NAME] [--dev-cert=PEM | --plain]
-## The gateway connection is TLS, checked against the system's trusted roots; a dev build (only) may trust one
+## The gateway connection is TLS, checked against Godot's trusted roots; a dev build (only) may trust one
 ## certificate file instead (--dev-cert, e.g. the gateway's DB.dev-cert.pem) or speak plain TCP (--plain, for a
 ## --dev-login gateway). See GwLink.
 ## The field is the RealmClient scene node added while a hero is out; the shell's canvas is 960 x 540, the field's

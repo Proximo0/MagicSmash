@@ -80,7 +80,7 @@ impl RealmLink {
     #[func]
     fn connect_with_ticket(&mut self, host: GString, port: i32, ticket_high: i64, ticket_low: i64, key: PackedByteArray) -> bool {
         let ticket = ((ticket_high as u64 & 0xFFFF_FFFF) << 32) | (ticket_low as u64 & 0xFFFF_FFFF);
-        let Ok(key) = <[u8; 16]>::try_from(key.to_vec().as_slice()) else {
+        let Ok(key) = <[u8; 16]>::try_from(key.to_vec().as_slice()).map(realm_server::TicketKey) else {
             godot_error!("RealmLink: a field ticket's key is 16 bytes");
             return false;
         };

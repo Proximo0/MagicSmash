@@ -79,24 +79,25 @@ pub fn listen_tls(gw: Arc<Gateway>, addr: &str, tls: Option<ServerTls>) -> std::
 
 /// The connection as a `Duplex`: plain, or after the TLS handshake. A plain-text client at a TLS gateway gets one
 /// plain frame saying so (an error reply to its first request) and is closed; a failed handshake is closed; a
-/// TLS client at a plain gateway is closed.
+/// TLS client at a plain gateway is closed. Either way the first bytes must come within `HANDSHAKE_TIMEOUT` (a plain
+/// gateway is for dev only; `tls::looks_like_tls` says what it can mistake).
 fn open(stream: TcpStream, tls: Option<&ServerTls>) -> Option<Duplex> {
     let _ = stream.set_nodelay(true);
     let _ = stream.set_nonblocking(false);
     let Some(cfg) = tls else {
         // A TLS client at a plain gateway is closed at once, so it fails its handshake instead of waiting.
-        return match crate::tls::looks_like_tls(&stream, None) {
+        return match crate::tls::looks_like_tls(&stream) {
             Ok(false) => Duplex::plain(stream).ok(),
             _ => None,
         };
     };
-    match crate::tls::looks_like_tls(&stream, Some(crate::tls::HANDSHAKE_TIMEOUT)) {
+    match crate::tls::looks_like_tls(&stream) {
         Ok(true) => Duplex::tls(stream, cfg).ok(),
         Ok(false) => {
             let mut s = stream;
             let _ = s.set_read_timeout(Some(crate::tls::HANDSHAKE_TIMEOUT));
             let tag = read_frame(&mut s).ok().flatten().map_or(0, |f| f.1);
-            let msg = "this gateway speaks TLS only: connect with TLS (bots: --tls, --ca=PEM)".to_string();
+            let msg = "this gateway speaks TLS only: connect with TLS".to_string();
             let _ = write_all(&mut s, &resp_frame(tag, &Resp::Err { code: code::REFUSED, msg }));
             let _ = s.shutdown(std::net::Shutdown::Both);
             None

@@ -13,7 +13,8 @@ fn die(msg: &str) -> ! {
 }
 
 fn main() {
-    let mut o = SoakOpts { progress_secs: 60, ..SoakOpts::default() };
+    // TLS by default, as a real gateway (an in-memory dev pair the bots trust); `--plain` to compare.
+    let mut o = SoakOpts { progress_secs: 60, tls: true, ..SoakOpts::default() };
     let mut play = PlayOpts::default();
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
@@ -29,10 +30,11 @@ fn main() {
             "--progress" => o.progress_secs = num(v),
             "--fast" => o.fast = true,
             "--tls" => o.tls = true,
+            "--plain" => o.tls = false,
             "--fight-secs" => play.fight_ticks = num(v) as u32 * 20,
             "--max-secs" => play.max_ticks = num(v) as u32 * 20,
             "--help" | "-h" => {
-                println!("realm-soak [--bots=8] [--secs=60] [--fields=0,1,2] [--monsters=1500] [--threads=1] [--db=PATH] [--seed=1] [--progress=60] [--fast] [--fight-secs=20] [--max-secs=240] [--tls (the gateway and the bots over TLS)]");
+                println!("realm-soak [--bots=8] [--secs=60] [--fields=0,1,2] [--monsters=1500] [--threads=1] [--db=PATH] [--seed=1] [--progress=60] [--fast] [--fight-secs=20] [--max-secs=240] [--plain (the gateway and the bots without TLS; TLS is the default)]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),

@@ -41,7 +41,7 @@ fn held(store: &SqliteStore, hero: i64) -> (u64, u64) {
 #[test]
 fn a_server_killed_mid_outing_loses_nothing_banked() {
     let db = std::env::temp_dir().join(format!("realm-kill-{}.db", std::process::id()));
-    let files = |db: &std::path::Path| ["", ".secret", ".bosskills", "-wal", "-shm", ".dev-cert.pem", ".dev-key.pem"].map(|e| format!("{}{e}", db.display()));
+    let files = |db: &std::path::Path| ["", ".secret", ".bosskills", "-wal", "-shm", ".dev-cert.pem", ".dev-key.pem", ".dev-cert.names"].map(|e| format!("{}{e}", db.display()));
     for f in files(&db) {
         let _ = std::fs::remove_file(f);
     }

@@ -87,7 +87,7 @@ fn main() {
         (Some(c), Some(k), false) => Some(realm_gateway::tls::server_config(std::path::Path::new(c), std::path::Path::new(k)).unwrap_or_else(|e| die(&format!("TLS: {e}")))),
         (None, None, true) => {
             let (c, k) = realm_gateway::tls::dev_cert_files(&db, &public_host).unwrap_or_else(|e| die(&format!("--dev-cert: {e}")));
-            eprintln!("realm-gateway: TLS with the dev certificate {} (clients: --ca={} or --insecure-dev)", c.display(), c.display());
+            eprintln!("realm-gateway: TLS with the dev certificate {} (clients trust it with --ca={})", c.display(), c.display());
             Some(realm_gateway::tls::server_config(&c, &k).unwrap_or_else(|e| die(&format!("TLS: {e}"))))
         }
         (None, None, false) if dev || plain => {

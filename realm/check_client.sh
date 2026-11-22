@@ -9,6 +9,20 @@
 # zoom 1, 2 and 4 (screenshots in SHOTS_DIR, default a temp dir; the shell's screens in SHELL_SHOTS_DIR).
 # Quiet: failures, then one summary line.
 # Ports: SERVER_PORT (7791) and RELAY_PORT (7792). GODOT picks the Godot binary (default godot).
+#
+# TLS PATH, NOT YET RUN ON ANY MACHINE (written where Godot was not installed): the first station run proves it.
+# It counts as proven only when ALL of these hold in one run:
+#   1. "$work/gateway.log" has "realm-gateway: TLS with the dev certificate" and the LISTEN line ends "tls=on"
+#      (this script fails with "the gateway is not on TLS" otherwise).
+#   2. SHELL_TEST ok, in particular its checks "a ticket hands her to the field client", "the field client joined
+#      with the ticket and ran 40 ticks" and "walking out of the gate ends the outing": the login can only pass over
+#      TLS (a TLS gateway answers plain text with REFUSED), the join only with the ticket key's HELLO proof and an
+#      authenticated WELCOME, and the walk out only with sealed INPUTs (StreamPeerTLS, TLSOptions.client with the
+#      --dev-cert file, RealmLink.connect_with_ticket with the 16-byte key).
+#   3. No "secure connection ... refused", "certificate is not for" or "cannot read the dev certificate" in the
+#      output (GwLink.last_error, shown as the login screen's error).
+# If 2 fails with "the gateway's certificate is not for 127.0.0.1", Godot's mbedtls did not match the dev
+# certificate's IP name: run the shell with --gateway=localhost:PORT and report it.
 set -u
 command -v sccache >/dev/null 2>&1 && export RUSTC_WRAPPER=sccache
 cd "$(dirname "$0")"
@@ -82,6 +96,7 @@ pids+=($!)
 for _ in $(seq 1 50); do grep -q LISTEN "$work/gateway.log" && break; sleep 0.2; done
 gw_addr=$(grep -m1 -o "tcp=[^ ]*" "$work/gateway.log" | cut -d= -f2)
 [ -n "$gw_addr" ] || fail "the gateway did not start"
+grep -q "tls=on" "$work/gateway.log" || fail "the gateway is not on TLS"
 shell_runner=()
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then shell_runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
 shell_shots="${SHELL_SHOTS_DIR:-$work/shell_shots}"

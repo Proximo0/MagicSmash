@@ -241,7 +241,7 @@ pub enum Resp {
     Town { room: u32, me: u16, size: u16, members: Vec<Member> },
     /// Where the field host is (`host` empty: the gateway's own address), its UDP port, your ticket and its
     /// secret `key` (your HELLO must carry it; it only ever travels over the gateway's TLS).
-    Ticket { host: String, port: u16, ticket: u64, field: u8, copy: u8, key: [u8; 16] },
+    Ticket { host: String, port: u16, ticket: u64, field: u8, copy: u8, key: realm_server::TicketKey },
     Inventory(Inventory),
     Pong,
     /// A smith's result: the item now (0 when none), its `+`, whether the step worked, and what it cost or gave:

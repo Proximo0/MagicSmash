@@ -1,7 +1,8 @@
 //! Transport security (`docs/realm/wire.md`, "Transport security"): the gateway's TLS (the right certificate
 //! works; a wrong, an expired one and a plain-text client are refused with a clear error), a whole login, town and
-//! field ticket over TLS, and the field socket's proof of a ticket (a HELLO without the ticket's key, a replayed
-//! HELLO from another address, and INPUT or BYE without the session token are all dropped).
+//! field ticket over TLS, a frame near FRAME_MAX over TLS, the handshake's total deadline, a plain gateway's first
+//! bytes, the secrets on disk, and the field socket's proof of a ticket (a HELLO without proof of the key, a replayed
+//! HELLO from another address, INPUT or BYE with a wrong tag or a replayed counter are all dropped).
 
 use realm_gateway::client::GatewayClient;
 use realm_gateway::gateway::{Config, Gateway};
@@ -77,12 +78,15 @@ fn the_right_certificate_is_taken_and_wrong_expired_or_plain_ones_are_refused() 
     let e = err_of(GatewayClient::connect_with(&w.addr, right.config().unwrap().as_ref()));
     assert!(e.contains("TLS handshake") && e.contains("invalid peer certificate: BadSignature"), "{e}");
     let _ = std::fs::remove_file(&pem);
-    // The public roots (plain `--tls`) do not know a dev certificate either.
-    let e = err_of(GatewayClient::connect_with(&w.addr, Some(&tls::client_config_public())));
-    assert!(e.contains("UnknownIssuer"), "{e}");
-    // `--insecure-dev` takes any certificate (and still encrypts); never the default.
-    let mut c = GatewayClient::connect_with(&w.addr, Some(&tls::insecure_config())).unwrap();
-    assert!(matches!(c.login("bob").unwrap(), Resp::Login { .. }));
+    // The default client is TLS against the public roots, which do not know a dev certificate: refused, never a
+    // plain fall back. Plain text only when asked (`--plain`); `--insecure-dev` does not exist in this build.
+    let e = err_of(GatewayClient::connect(&w.addr));
+    assert!(e.contains("TLS handshake") && e.contains("UnknownIssuer"), "{e}");
+    assert!(ClientTls::default().config().unwrap().is_some(), "TLS by default");
+    let mut plain = ClientTls::default();
+    assert!(plain.flag("--plain", ""));
+    assert!(plain.config().unwrap().is_none());
+    assert!(!ClientTls::default().flag("--insecure-dev", ""), "no --insecure-dev without the dev-insecure feature");
 
     // A trusted certificate for another name: refused.
     let other = tls::make_cert(&["realm.example"], (2026, 1, 1), (2036, 1, 1)).unwrap();
@@ -91,7 +95,7 @@ fn the_right_certificate_is_taken_and_wrong_expired_or_plain_ones_are_refused() 
     assert!(e.contains("TLS handshake") && e.contains("not valid for name"), "{e}");
 
     // A plain-text client at a TLS gateway gets one clear error and the door.
-    let mut p = GatewayClient::connect(&w.addr).unwrap();
+    let mut p = GatewayClient::connect_plain(&w.addr).unwrap();
     match p.login("eve").unwrap() {
         Resp::Err { code, msg } => assert!(code == code::REFUSED && msg.contains("TLS only"), "{code} {msg}"),
         r => panic!("plain text was served: {r:?}"),
@@ -115,9 +119,9 @@ fn the_right_certificate_is_taken_and_wrong_expired_or_plain_ones_are_refused() 
 fn garbage_and_a_stalled_handshake_do_not_hold_the_gateway() {
     let (server, client) = pair((2026, 1, 1), (2036, 1, 1));
     let w = world("garbage", Some(server));
-    // A handshake record of nonsense is closed; a client that opens and says nothing is no bother to others.
+    // A ClientHello record of nonsense is closed; a client that opens and says nothing is no bother to others.
     let mut g = TcpStream::connect(&w.addr).unwrap();
-    g.write_all(&[0x16, 0x03, 0x01, 0x00, 0x05, 1, 2, 3, 4, 5]).unwrap();
+    g.write_all(&[0x16, 0x03, 0x01, 0x00, 0x08, 0x01, 0, 0, 4, 0x03, 0x03, 9, 9]).unwrap();
     g.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let mut b = [0u8; 64];
     let n = g.read(&mut b).unwrap_or(0);
@@ -189,13 +193,14 @@ fn login_town_and_a_field_over_tls_and_the_field_takes_only_proven_packets() {
     let chat = c.call(Req::Chat { text: "over tls".into() }).unwrap();
     assert!(matches!(chat, Resp::Ok), "{chat:?}");
     let Resp::Ticket { host, port, ticket, key, .. } = c.call(Req::FieldTicket { hero: h, field: 0 }).unwrap() else { panic!("no ticket") };
-    assert!(host.is_empty() && port > 0 && ticket != 0 && key != [0; 16]);
+    assert!(host.is_empty() && port > 0 && ticket != 0 && !key.is_zero());
+    assert!(!format!("{:?}", Resp::Ticket { host: String::new(), port, ticket, field: 0, copy: 0, key }).contains(&format!("{:?}", key.0)), "Debug shows no key");
 
     // A stranger who knows the ticket number but not its key: no WELCOME, and the ticket is not spent.
     let eve = udp(port);
     let mut wrong = key;
-    wrong[0] ^= 1;
-    let _ = eve.send(&realm_server::hello_ticket(realm_server::PROTO_BP, 0, 0, ticket, Some(&wrong)));
+    wrong.0[0] ^= 1;
+    let _ = eve.send(&realm_server::hello_ticket(realm_server::PROTO_BP, 0, 0, ticket, Some((&wrong, 5))));
     let _ = eve.send(&realm_server::hello_ticket(realm_server::PROTO_BP, 0, 0, ticket, None));
     // Nor does a follower get the state stream of a ticketed field.
     let _ = eve.send(&realm_server::hello(realm_server::PROTO_B, 0, 0));
@@ -205,7 +210,8 @@ fn login_town_and_a_field_over_tls_and_the_field_takes_only_proven_packets() {
     let sock = udp(port);
     let mut lc = LockstepClient::with_ticket(ticket, key, 1);
     assert!(run(&sock, &mut lc, 20, |_| Vec::new(), |lc| lc.hero_player().is_some()), "she joined with the key");
-    let first = realm_server::hello_ticket(realm_server::PROTO_BP, 0, 0, ticket, Some(&key));
+    let first = lc.hello();
+    assert!(!first.windows(16).any(|w| w == key.0), "the key itself never crosses UDP");
 
     // Her first packet replayed from another address: dropped (the ticket is spent, and bound to her address).
     let mallory = udp(port);
@@ -214,17 +220,20 @@ fn login_town_and_a_field_over_tls_and_the_field_takes_only_proven_packets() {
     }
     assert_eq!(heard(&mallory, 400), 0, "a replayed HELLO from another address is dropped");
 
-    // Forged inputs that would walk her: bare ones, ones sealed with a wrong token, from her own address and from
-    // another one, and a BYE of each kind. She stands still and stays.
+    // Forged inputs that would walk her: bare ones, ones sealed with a wrong key (any counter), ones with a right
+    // tag but a counter she already used (a replay of her own datagram), from her own address and from another
+    // one, and a BYE of each kind. She stands still and stays.
     let at = lc.hero_player().map(|p| (p.x, p.y)).unwrap();
-    let walk = |lc: &LockstepClient, token: u64| -> Vec<Vec<u8>> {
+    let walk = |lc: &LockstepClient| -> Vec<Vec<u8>> {
         let seq = 1_000_000 + lc.tick();
         let words = [3u16, 3, 3, 3];
-        vec![realm_server::input_seq(lc.tick(), seq, &words), realm_server::seal(token, &realm_server::input_seq(lc.tick(), seq, &words)), vec![realm_server::MSG_BYE], realm_server::seal(token, &[realm_server::MSG_BYE])]
+        let i = realm_server::input_seq(lc.tick(), seq, &words);
+        let bye = [realm_server::MSG_BYE];
+        vec![i.clone(), realm_server::seal(&wrong, 4_000_000_000, &i), realm_server::seal(&key, 1, &i), bye.to_vec(), realm_server::seal(&wrong, 4_000_000_000, &bye), realm_server::seal(&key, 2, &bye)]
     };
     let ticks0 = lc.tick();
-    run(&sock, &mut lc, 2, |lc| walk(lc, 0x1234_5678), |_| false);
-    for d in walk(&lc, 0x1234_5678) {
+    run(&sock, &mut lc, 2, walk, |_| false);
+    for d in walk(&lc) {
         let _ = mallory.send(&d);
     }
     run(&sock, &mut lc, 1, |_| Vec::new(), |_| false);
@@ -237,4 +246,122 @@ fn login_town_and_a_field_over_tls_and_the_field_takes_only_proven_packets() {
     let _ = sock.send(&lc.bye());
     let done = c.wait_push(Duration::from_secs(10), |r| matches!(r, Resp::Outing { hero, .. } if *hero == h).then_some(())).unwrap();
     assert!(done.is_some(), "her sealed BYE took her out");
+}
+
+#[test]
+fn a_frame_near_frame_max_crosses_tls_both_ways() {
+    // rustls keeps at most 64 KiB unsent: a 900 KiB frame must go in pieces.
+    let (server, client) = pair((2026, 1, 1), (2036, 1, 1));
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = l.local_addr().unwrap().to_string();
+    let big: Vec<u8> = (0..900 * 1024).map(|i| (i * 7 % 251) as u8).collect();
+    let sent = big.clone();
+    let t = std::thread::spawn(move || {
+        let (s, _) = l.accept().unwrap();
+        assert!(tls::looks_like_tls(&s).unwrap());
+        let d = tls::Duplex::tls(s, &server).unwrap();
+        d.write_all(&sent).unwrap();
+        let mut back = vec![0u8; sent.len()];
+        d.reader().read_exact(&mut back).unwrap();
+        back == sent
+    });
+    let mut c = tls::ClientStream::connect(&addr, Some(&client)).unwrap();
+    let mut got = vec![0u8; big.len()];
+    c.read_exact(&mut got).unwrap();
+    assert!(got == big, "the server's 900 KiB arrived whole");
+    c.write_all(&big).unwrap();
+    c.flush().unwrap();
+    assert!(t.join().unwrap(), "and the client's came back whole");
+}
+
+#[test]
+fn a_handshake_that_drips_is_cut_off_at_the_total_deadline() {
+    let (server, _) = pair((2026, 1, 1), (2036, 1, 1));
+    let w = world("drip", Some(server));
+    let mut g = TcpStream::connect(&w.addr).unwrap();
+    // A ClientHello header promising 16 KiB, then a byte every 400 ms: each read is quick, the whole is not.
+    g.write_all(&[0x16, 0x03, 0x01, 0x40, 0x00, 0x01, 0x00, 0x3f, 0xfc, 0x03, 0x03]).unwrap();
+    g.set_read_timeout(Some(Duration::from_millis(400))).unwrap();
+    let t0 = Instant::now();
+    let mut b = [0u8; 64];
+    let closed = loop {
+        if t0.elapsed() > Duration::from_secs(16) {
+            break false;
+        }
+        if g.write_all(&[7]).is_err() {
+            break true;
+        }
+        match g.read(&mut b) {
+            Ok(0) => break true,
+            Ok(_) => {}
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+            Err(_) => break true,
+        }
+    };
+    let took = t0.elapsed();
+    assert!(closed && took >= Duration::from_secs(9) && took < Duration::from_secs(13), "closed after {took:?}");
+}
+
+#[test]
+fn a_plain_gateway_bounds_its_wait_and_serves_a_frame_that_starts_like_tls() {
+    let w = world("plainfirst", None);
+    // A lone 0x16 and silence: closed by the deadline, not peeked at forever.
+    let mut g = TcpStream::connect(&w.addr).unwrap();
+    g.write_all(&[0x16]).unwrap();
+    g.set_read_timeout(Some(Duration::from_secs(14))).unwrap();
+    let t0 = Instant::now();
+    let mut b = [0u8; 16];
+    let n = g.read(&mut b);
+    assert!(matches!(n, Ok(0)) || matches!(&n, Err(e) if e.kind() != std::io::ErrorKind::WouldBlock && e.kind() != std::io::ErrorKind::TimedOut), "{n:?}");
+    assert!(t0.elapsed() < Duration::from_secs(13), "closed by the deadline, after {:?}", t0.elapsed());
+    // A plain frame of 790 bytes starts 0x16 0x03 0x00 0x00: a request, answered, not taken for a ClientHello.
+    let mut f = TcpStream::connect(&w.addr).unwrap();
+    let body = vec![0u8; 790 - 5];
+    f.write_all(&frame(0x7E, 1, &body)).unwrap();
+    f.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let reply = read_frame(&mut f).unwrap().expect("a reply");
+    assert_eq!(reply.1, 1, "the reply to tag 1");
+}
+
+#[test]
+fn secrets_on_disk_are_random_private_and_kept() {
+    let dir = std::env::temp_dir().join(format!("realm-tls-secrets-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // DB.secret: 32 random bytes from the OS, 0600, read back the same; an old 16-digit file still reads as before.
+    let p = dir.join("a.db.secret");
+    let v = realm_gateway::gateway::load_secret(&p);
+    let text = std::fs::read_to_string(&p).unwrap();
+    assert_eq!(text.trim().len(), 64, "32 bytes in hex: {text:?}");
+    assert_eq!(realm_gateway::gateway::load_secret(&p), v);
+    let q = dir.join("b.db.secret");
+    std::fs::write(&q, "00000000deadbeef\n").unwrap();
+    assert_eq!(realm_gateway::gateway::load_secret(&q), 0xdead_beef);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&p), 0o600, "DB.secret is the owner's only");
+        // write_private tightens a file that was there before, loose.
+        let k = dir.join("loose.pem");
+        std::fs::write(&k, "x").unwrap();
+        std::fs::set_permissions(&k, std::fs::Permissions::from_mode(0o644)).unwrap();
+        tls::write_private(&k, b"secret").unwrap();
+        assert_eq!(mode(&k), 0o600);
+    }
+    // The dev pair is kept while its names hold, and made again for a new --public-host.
+    let db = dir.join("c.db").to_string_lossy().to_string();
+    let (cert, _) = tls::dev_cert_files(&db, "").unwrap();
+    let first = std::fs::read_to_string(&cert).unwrap();
+    tls::dev_cert_files(&db, "").unwrap();
+    assert_eq!(std::fs::read_to_string(&cert).unwrap(), first, "kept");
+    let (cert, key) = tls::dev_cert_files(&db, "realm.example").unwrap();
+    let second = std::fs::read_to_string(&cert).unwrap();
+    assert_ne!(second, first, "a new --public-host makes a new certificate");
+    // It names the new host: a client that trusts it may connect by that name (checked by rustls below).
+    let server = tls::server_config(&cert, &key).unwrap();
+    let w = world("devnames", Some(server));
+    let ca = tls::client_config_ca_pem(second.as_bytes()).unwrap();
+    assert!(GatewayClient::connect_with(&w.addr, Some(&ca)).is_ok(), "loopback is still named");
+    let _ = std::fs::remove_dir_all(&dir);
 }

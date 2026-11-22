@@ -60,13 +60,13 @@ fn err_code(r: &Resp) -> Option<u16> {
 fn kill_switches_close_login_freeze_trade_and_market_and_stop_a_field() {
     let _t = TURN.lock().unwrap_or_else(|e| e.into_inner());
     let w = world("kill");
-    let mut ann = GatewayClient::connect(&w.addr).unwrap();
+    let mut ann = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(matches!(ann.login("ann").unwrap(), Resp::Login { .. }));
     let Resp::HeroCreated(hero) = ann.call(Req::CreateHero { name: "Annie".into(), race: 1, class: 1, look: 0, self_found: false }).unwrap() else { panic!() };
 
     // Login: closed for new logins, not for the one already in; reopened by revive.
     assert!(console(&w, "kill login").contains("login killed"));
-    let mut bob = GatewayClient::connect(&w.addr).unwrap();
+    let mut bob = GatewayClient::connect_plain(&w.addr).unwrap();
     assert_eq!(err_code(&bob.login("bob").unwrap()), Some(code::DISABLED));
     assert!(matches!(ann.call(Req::ListHeroes).unwrap(), Resp::Heroes(_)), "a logged-in player is not thrown out");
     assert!(console(&w, "switches").contains("login closed"));
@@ -100,21 +100,21 @@ fn flood_limits_close_the_socket_on_too_many_connections_and_too_many_requests()
     let w = world("flood");
     flood::configure(flood::Limits { conn_per_ip: 3, conn_rate: 100, pkt_rate: 20, udp_rate: 0, window_ms: 1000, ban_ms: 600, exempt: vec![] });
     let refused0 = metrics::REG.conn_refused.load(std::sync::atomic::Ordering::Relaxed);
-    let mut held: Vec<GatewayClient> = (0..3).map(|_| GatewayClient::connect(&w.addr).unwrap()).collect();
+    let mut held: Vec<GatewayClient> = (0..3).map(|_| GatewayClient::connect_plain(&w.addr).unwrap()).collect();
     for c in &mut held {
         assert!(matches!(c.call(Req::Ping).unwrap(), Resp::Pong));
     }
     // The fourth is accepted by the OS and closed at once: its first call fails.
-    let mut fourth = GatewayClient::connect(&w.addr).unwrap();
+    let mut fourth = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(fourth.call(Req::Ping).is_err(), "a fourth connection from one address is closed");
     assert!(metrics::REG.conn_refused.load(std::sync::atomic::Ordering::Relaxed) > refused0);
     // The address is now banned for 600 ms: even after the others leave, it is refused...
     drop(held);
-    let mut again = GatewayClient::connect(&w.addr).unwrap();
+    let mut again = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(again.call(Req::Ping).is_err(), "inside the ban");
     // ...and then admitted again; a request flood closes the connection and bans again.
     std::thread::sleep(Duration::from_millis(900));
-    let mut c = GatewayClient::connect(&w.addr).unwrap();
+    let mut c = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(matches!(c.call(Req::Ping).unwrap(), Resp::Pong));
     let dropped0 = metrics::REG.frames_dropped.load(std::sync::atomic::Ordering::Relaxed);
     let mut closed = false;
@@ -129,7 +129,7 @@ fn flood_limits_close_the_socket_on_too_many_connections_and_too_many_requests()
     // Limits off again: the realm is open as before.
     flood::configure(flood::Limits::default());
     std::thread::sleep(Duration::from_millis(50));
-    let mut d = GatewayClient::connect(&w.addr).unwrap();
+    let mut d = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(matches!(d.call(Req::Ping).unwrap(), Resp::Pong));
 }
 
@@ -137,7 +137,7 @@ fn flood_limits_close_the_socket_on_too_many_connections_and_too_many_requests()
 fn the_metrics_endpoint_reports_players_fields_ticks_and_store_writes() {
     let _t = TURN.lock().unwrap_or_else(|e| e.into_inner());
     let w = world("metrics");
-    let mut ann = GatewayClient::connect(&w.addr).unwrap();
+    let mut ann = GatewayClient::connect_plain(&w.addr).unwrap();
     assert!(matches!(ann.login("ann").unwrap(), Resp::Login { .. }));
     let Resp::HeroCreated(_) = ann.call(Req::CreateHero { name: "Annie".into(), race: 1, class: 1, look: 0, self_found: false }).unwrap() else { panic!() };
     std::thread::sleep(Duration::from_millis(600));

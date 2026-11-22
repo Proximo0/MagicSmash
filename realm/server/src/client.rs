@@ -7,7 +7,7 @@
 
 use crate::lockstep::{take_seq_head, Assembler, Lockstep, TickRec, INPUT_REPEAT};
 use crate::predict::Predictor;
-use crate::{hello_ticket, input, input_seq, input_word, seal, Rd, TicketKey, MSG_BYE, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
+use crate::{hello_ticket, input, input_seq, input_word, seal, welcome_mac, Rd, TicketKey, MSG_BYE, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
 use realm_core::{Field, Player};
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -35,9 +35,11 @@ pub struct LockstepClient {
     class: u8,
     race: u8,
     ticket: u64,
-    /// The ticket's key (sent in HELLO) and the session token the WELCOME gave (seals INPUT and BYE).
+    /// A ticketed player: the ticket's key (never sent: it keys the HELLO's proof, the WELCOME's check and every
+    /// INPUT's and BYE's tag), this session's nonce, and the last counter sealed.
     key: Option<TicketKey>,
-    token: u64,
+    nonce: u64,
+    counter: u32,
     threads: usize,
     welcomed: bool,
     hero: Option<u16>,
@@ -64,7 +66,8 @@ impl LockstepClient {
             race,
             ticket: 0,
             key: None,
-            token: 0,
+            nonce: 0,
+            counter: 0,
             threads: threads.max(1),
             welcomed: false,
             hero: None,
@@ -86,23 +89,29 @@ impl LockstepClient {
         let mut c = LockstepClient::new(PROTO_BP, 0, 0, threads);
         c.ticket = ticket;
         c.key = Some(key);
+        // Any value this key has not proved before will do (the key is new for each admission); the clock makes it
+        // differ between two clients given the same key by mistake.
+        let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64);
+        c.nonce = key.tag(&[b"N", &t.to_le_bytes()]);
         c
     }
 
     pub fn hello(&self) -> Vec<u8> {
-        hello_ticket(self.proto, self.class, self.race, self.ticket, self.key.as_ref())
+        hello_ticket(self.proto, self.class, self.race, self.ticket, self.key.as_ref().map(|k| (k, self.nonce)))
     }
 
-    /// The BYE to send when leaving (sealed with the session token for a ticketed player).
-    pub fn bye(&self) -> Vec<u8> {
+    /// The BYE to send when leaving (sealed for a ticketed player).
+    pub fn bye(&mut self) -> Vec<u8> {
         self.sealed(vec![MSG_BYE])
     }
 
-    fn sealed(&self, msg: Vec<u8>) -> Vec<u8> {
-        if self.key.is_some() {
-            seal(self.token, &msg)
-        } else {
-            msg
+    fn sealed(&mut self, msg: Vec<u8>) -> Vec<u8> {
+        match self.key {
+            Some(k) => {
+                self.counter += 1;
+                seal(&k, self.counter, &msg)
+            }
+            None => msg,
         }
     }
 
@@ -156,10 +165,12 @@ impl LockstepClient {
     fn take_welcome(&mut self, b: &[u8]) -> Option<()> {
         let mut r = Rd::new(b);
         let id = r.u32()?;
-        // id, tick, hz, width, height, then the session token.
-        if r.bytes(14).is_some() {
-            if let Some(t) = r.u64() {
-                self.token = t;
+        let tick = r.u32()?;
+        // hz, width, height, then (to a ticketed player) the MAC over her nonce: without it, nothing changes.
+        if let Some(k) = &self.key {
+            r.bytes(10)?;
+            if r.u64()? != welcome_mac(k, self.nonce, id, tick) {
+                return None;
             }
         }
         self.welcomed = true;
@@ -293,6 +304,37 @@ mod tests {
     use crate::{welcome, PROTO_B};
     use realm_core::{Config, FIELD};
 
+    #[test]
+    fn a_ticketed_client_proves_its_key_without_sending_it_and_believes_only_a_welcome_with_it() {
+        let key = TicketKey([9; 16]);
+        let mut other = key;
+        other.0[15] ^= 0x80;
+        let mut c = LockstepClient::with_ticket(77, key, 1);
+        let hello = c.hello();
+        assert!(!hello.windows(16).any(|w| w == key.0), "the key is not in the HELLO");
+        let h = crate::parse_hello(&mut Rd::new(&hello[1..])).unwrap();
+        assert!(crate::hello_proves(&key, &h) && !crate::hello_proves(&other, &h) && !crate::hello_proves(&TicketKey::default(), &h));
+        let nonce = h.proof.unwrap().0;
+        // A blind WELCOME (none, a wrong key, another nonce) changes nothing; hers does.
+        for spoof in [welcome(3, 10, None), welcome(3, 10, Some((&other, nonce))), welcome(3, 10, Some((&key, nonce ^ 1)))] {
+            c.receive(&spoof);
+            assert!(!c.welcomed() && c.hero().is_none());
+        }
+        c.receive(&welcome(3, 10, Some((&key, nonce))));
+        assert!(c.welcomed() && c.hero() == Some(3));
+        // Her INPUTs and BYE are sealed, counters rising; a changed byte or another key fails to open.
+        let a = c.input_word(1);
+        let b = c.bye();
+        let (na, body) = crate::unseal(&key, &a).unwrap();
+        assert_eq!(crate::parse_input(&mut Rd::new(body)).map(|m| m.word), Some(1));
+        let (nb, _) = crate::unseal(&key, &b).unwrap();
+        assert!(nb > na);
+        assert!(crate::unseal(&other, &a).is_none());
+        let mut t = a.clone();
+        t[6] ^= 1;
+        assert!(crate::unseal(&key, &t).is_none());
+    }
+
     /// A server in miniature: a field, the lockstep inputs, and every encoded record.
     struct Mini {
         field: Field,
@@ -344,7 +386,7 @@ mod tests {
             m.tick(Vec::new(), &want(t));
         }
         let mut c = LockstepClient::new(PROTO_B, 0, 0, 1);
-        c.receive(&welcome(u32::MAX, 30, 0));
+        c.receive(&welcome(u32::MAX, 30, None));
         assert!(c.welcomed() && c.hero().is_none());
         for p in state_parts(30, &m.ls.state_bytes(&m.field)) {
             c.receive(&p);
@@ -373,7 +415,7 @@ mod tests {
         let mut m = Mini::new(0);
         m.tick(vec![Join::bench(0, 1, 2, 1, FIELD / 2, FIELD / 2)], &[]);
         let mut c = LockstepClient::new(PROTO_BP, 1, 2, 1);
-        c.receive(&welcome(0, 1, 0));
+        c.receive(&welcome(0, 1, None));
         assert_eq!(c.hero(), Some(0));
         for p in state_parts(1, &m.ls.state_bytes(&m.field)) {
             c.receive(&p);
