@@ -1,0 +1,18 @@
+{
+ "slot": "back",
+ "anchor": [
+  64,
+  130
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.3,
+ "at": [
+  0.5,
+  0.1
+ ],
+ "guide": "quiver",
+ "note": "a quiver seen from the side, standing upright, wider at the top with a few arrow feathers poking out of the top; the anchor is the middle of the strap, where it pins to the spine"
+}

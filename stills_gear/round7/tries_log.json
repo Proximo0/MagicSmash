@@ -1,0 +1,1471 @@
+{
+ "gear_shield": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 11.4
+  }
+ ],
+ "gear_hammer": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.0
+  }
+ ],
+ "HR6.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR6.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R24"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR6.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.4
+  }
+ ],
+ "HR6.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.6
+  }
+ ],
+ "gear_dirk": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 7.2
+  }
+ ],
+ "gear_greatsword": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 9.5
+  }
+ ],
+ "gear_mage_staff": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 4.3
+  }
+ ],
+ "gear_candle_staff": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 4.4
+  }
+ ],
+ "HR1.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR1.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.3
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G2",
+    "G11",
+    "G12"
+   ],
+   "fit": 0.7,
+   "fixes_in_prompt": [],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G2",
+    "G12"
+   ],
+   "gen_s": 12.6
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G2",
+    "G12"
+   ],
+   "gen_s": 12.7
+  }
+ ],
+ "HR1.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR1.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR2.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR2.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.9
+  }
+ ],
+ "HR2.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.5
+  }
+ ],
+ "HR2.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR3.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  }
+ ],
+ "HR3.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR3.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.1
+  }
+ ],
+ "HR3.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR4.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.0
+  }
+ ],
+ "HR4.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR4.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1"
+   ],
+   "gen_s": 12.1
+  }
+ ],
+ "HR4.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  }
+ ],
+ "HR5.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.3
+  }
+ ],
+ "HR5.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR5.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR5.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  }
+ ],
+ "gear_bow": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.5
+  }
+ ],
+ "gear_quiver": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 3.3
+  }
+ ],
+ "gear_tower_shield": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 8.4
+  }
+ ],
+ "gear_broadsword": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.1
+  }
+ ],
+ "gear_axe": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.1
+  }
+ ],
+ "HR7.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR7.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR7.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R24"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR7.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.9
+  }
+ ],
+ "HR8.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.25,
+   "fixes_in_prompt": [],
+   "gen_s": 11.8
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G7"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G5"
+   ],
+   "gen_s": 11.7
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G5"
+   ],
+   "gen_s": 11.7
+  }
+ ],
+ "HR8.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.8
+  }
+ ],
+ "HR8.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.2
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.5
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G9"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.6
+  },
+  {
+   "t": 5,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.7
+  }
+ ],
+ "HR8.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.6
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 12.5
+  }
+ ],
+ "gear_orb_staff": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G14"
+   ],
+   "gen_s": 7.0
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "gen_s": 4.3
+  }
+ ],
+ "gear_wand": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 4.9
+  }
+ ],
+ "HR9.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.5
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 11.6
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12",
+    "G8"
+   ],
+   "gen_s": 11.6
+  }
+ ],
+ "HR9.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.6
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 11.6
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G12"
+   ],
+   "gen_s": 11.7
+  }
+ ],
+ "HR9.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 0.9,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 11.8
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G12"
+   ],
+   "fit": 0.95,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 11.9
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G12"
+   ],
+   "gen_s": 12.1
+  },
+  {
+   "t": 5,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G12"
+   ],
+   "gen_s": 12.3
+  }
+ ],
+ "HR9.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  }
+ ],
+ "HR10.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R6"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.8
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G10",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G10",
+    "G12"
+   ],
+   "gen_s": 12.7
+  }
+ ],
+ "HR10.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 0.82,
+   "fixes_in_prompt": [],
+   "gen_s": 12.4
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.5
+  }
+ ],
+ "HR10.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.5
+  }
+ ],
+ "HR10.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.3
+  }
+ ],
+ "gear_horn_bow": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G14"
+   ],
+   "gen_s": 4.7
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G14"
+   ],
+   "gen_s": 4.6
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "gen_s": 4.6
+  }
+ ],
+ "HR11.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.8
+  }
+ ],
+ "HR11.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16",
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.9
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.1
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.1
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.3
+  }
+ ],
+ "HR11.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G4",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.3,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G15",
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G4",
+    "G5"
+   ],
+   "gen_s": 11.7
+  },
+  {
+   "t": 3,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G4",
+    "G5",
+    "G15"
+   ],
+   "gen_s": 11.8
+  }
+ ],
+ "HR11.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.8
+  }
+ ],
+ "HR12.1": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.1
+  }
+ ],
+ "HR12.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.1
+  }
+ ],
+ "HR12.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5"
+   ],
+   "fit": 0.05,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G5"
+   ],
+   "gen_s": 12.5
+  }
+ ],
+ "HR12.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.4
+  }
+ ],
+ "gear_brand": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 5.1
+  }
+ ],
+ "HR13.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.6
+  }
+ ],
+ "HR13.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5",
+    "G9",
+    "G16"
+   ],
+   "fit": 0.25,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G5"
+   ],
+   "gen_s": 11.7
+  }
+ ],
+ "HR13.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.1
+  }
+ ],
+ "HR13.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16",
+    "G18",
+    "G19"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.2
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.3
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G16",
+    "G18",
+    "G19"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 13.5
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G10",
+    "G16",
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12",
+    "G8"
+   ],
+   "gen_s": 13.5
+  },
+  {
+   "t": 5,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12",
+    "G8",
+    "G10"
+   ],
+   "gen_s": 13.6
+  }
+ ],
+ "HR14.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  }
+ ],
+ "HR14.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  }
+ ],
+ "HR14.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G15",
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G15"
+   ],
+   "gen_s": 12.2
+  }
+ ],
+ "HR14.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  }
+ ],
+ "gear_cross_shield": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 10.7
+  }
+ ],
+ "gear_mace": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 5.0
+  }
+ ],
+ "gear_great_hammer": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 10.0
+  }
+ ],
+ "HR15.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.5
+  }
+ ],
+ "HR15.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR15.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G8",
+    "G9"
+   ],
+   "fit": 0.3,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G8"
+   ],
+   "gen_s": 11.6
+  }
+ ],
+ "HR15.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.4
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G11",
+    "G12"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G16",
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 13.8
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G12"
+   ],
+   "gen_s": 13.8
+  }
+ ],
+ "HR16.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.3
+  }
+ ],
+ "HR16.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 11.8
+  }
+ ],
+ "HR16.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R24"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  }
+ ],
+ "HR16.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16",
+    "G18"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.9
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G19"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.4
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G19"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.5
+  },
+  {
+   "t": 4,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 14.7
+  }
+ ],
+ "gear_offhand_axe": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 5.0
+  }
+ ],
+ "gear_crossbow": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 7.2
+  }
+ ],
+ "gear_halo": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 2.4
+  }
+ ],
+ "gear_book": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 3.6
+  }
+ ]
+}

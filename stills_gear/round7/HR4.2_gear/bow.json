@@ -1,0 +1,16 @@
+{
+ "slot": "near_hand",
+ "anchor": [
+  64,
+  256
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.4,
+ "angle": 112,
+ "in_front": false,
+ "guide": "bow",
+ "note": "an unstrung recurve bow or longbow seen side-on, standing upright, one smooth curved limb, at least as thick as the marked width (thin limbs break up at 56 px); the anchor is the grip, a little below the middle of the bow"
+}

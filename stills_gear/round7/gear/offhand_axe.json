@@ -1,0 +1,16 @@
+{
+ "slot": "far_hand",
+ "anchor": [
+  80,
+  316
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.3,
+ "angle": 110,
+ "in_front": true,
+ "guide": "offhand_weapon",
+ "note": "an off-hand axe, sword or dagger standing upright, head or point at the top, grip at the bottom; the anchor is the middle of the grip. In the game it shows in front of the body at hip height; only the weapon shows, the far arm stays hidden"
+}

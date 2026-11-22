@@ -1,0 +1,19 @@
+{
+ "slot": "head",
+ "anchor": [
+  128,
+  48
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.06,
+ "angle": 0,
+ "at": [
+  0.0,
+  0.02
+ ],
+ "guide": "halo",
+ "note": "a halo: a flat glowing ring seen from the side as an ellipse, wider than tall, at least as thick as the marked width; the anchor is the middle of the ring. It is drawn behind the head, its lower edge hidden by the head, and bobs with it"
+}
