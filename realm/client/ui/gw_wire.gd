@@ -8,9 +8,9 @@ extends RefCounted
 # Who owns which type byte: the server's one table, realm/gateway/src/proto/ranges.rs (mirror it here when it changes).
 #   module   job  requests      replies     pushes
 #   core     W1   0x01..0x32    0x80..0x8A  0xA0..0xA7   (this file)
-#   economy  E1   0x33..0x3F    0x8B        0xA8
+#   economy  E1   0x33..0x3F    0x8B        0xA8         (econ_wire.gd)
 #   social   T1   0x40..0x5F    0x90        0xB0         (this file, T_SOC_*)
-#   world    W2   0x60..0x6F    0x91        0xB1
+#   world    W2   0x60..0x6F    0x91        0xB1         (world_wire.gd)
 #   homes    H1   0x70..0x73    0x8C        0xA9         (homes/home_wire.gd)
 #   pvp      R3   0x74..0x77    0x8D        0xAA         (reserved)
 #   steam    P1   0x78..0x7B    0x8E        0xAB         (reserved)
@@ -30,6 +30,7 @@ const T_FIELD_TICKET := 0x0B
 const T_INVENTORY := 0x0C
 const T_BANK_DEPOSIT := 0x0D
 const T_BANK_WITHDRAW := 0x0E
+const T_MAIL_TAKE := 0x10
 const T_SPEND_POINT := 0x11
 const T_SET_DECK := 0x12
 const T_SET_BELT := 0x13
@@ -302,6 +303,14 @@ static func fuse(hero: int, stat: int, grade: int) -> Array:
 	b.put_u8(stat)
 	b.put_u8(grade)
 	return [T_FUSE, b.data_array]
+
+
+## Takes an item (item != 0) or a count of a stack from her mail shelf into her bag.
+static func mail_take(hero: int, item: int, stack_kind: int, count: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_thing(b, item, stack_kind, count)
+	return [T_MAIL_TAKE, b.data_array]
 
 
 static func buy(hero: int, kind: int, n: int) -> Array:
@@ -649,6 +658,10 @@ static func decode(t: int, body: PackedByteArray) -> Dictionary:
 			_social_reply(b, d)
 		HomeWire.R_HOME, HomeWire.P_HOME:
 			HomeWire.decode_body(b, d)
+		EconWire.R_ECON, EconWire.P_ECON:
+			EconWire.decode_body(b, d)
+		WorldWire.R_WORLD, WorldWire.P_WORLD:
+			WorldWire.decode_body(b, d)
 		P_SOCIAL:
 			_social_push(b, d)
 		P_TOWN_SNAPSHOT:

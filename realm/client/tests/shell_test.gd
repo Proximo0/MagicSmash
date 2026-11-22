@@ -63,19 +63,22 @@ func _shot(name: String) -> void:
 	_shots += 1
 
 
-## Presses a button of the top screen by id (waits a few frames for it to be drawn first).
-func _press(id: String) -> bool:
+## Presses a button of the top screen by id (waits a few frames for it to be drawn first). `sh` is the shell whose
+## screen is pressed (the second player's, for the trade and the post), the main one by default.
+func _press(id: String, sh: Shell = null) -> bool:
+	var sc: Shell = sh if sh != null else _shell
 	# One frame first: a button's enabled state is as of the last draw.
 	await process_frame
 	for i in 200:
-		var t: UiScreen = _shell.top()
-		if t is PanelBase and (t as PanelBase).busy:
+		var t: UiScreen = sc.top()
+		if t != null and t.get("busy") == true:
 			await process_frame
 			continue
 		if t != null and t.has_hit(id):
 			return t.press(id)
 		await process_frame
-	_check(false, "button %s is on the screen %s" % [id, _shell.base_name])
+	var top: UiScreen = sc.top()
+	_check(false, "button %s is on the screen %s (top: %s, busy %s, has: %s)" % [id, sc.base_name, top.get_script().get_global_name() if top != null else "none", str(top.get("busy")) if top != null else "-", ",".join(top.hit_ids()) if top != null else ""])
 	return false
 
 
@@ -280,6 +283,7 @@ func _run() -> void:
 	await _press("bankit:%d" % int(_shell.items_at(GameNames.PLACE_BANK)[0]["id"]))
 	await _press("move")
 	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BANK).is_empty() and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "and she can take it out again: " + _shell.top().toast_text)
+	await _bank_tabs(bank, common)
 	await _press("close")
 	await _frames(2)
 
@@ -350,6 +354,7 @@ func _run() -> void:
 	_check(await _until(func() -> bool: return _shell.place == [HomeMap.PLAZA, 0] and _shell.base is TownScreen), "and back to the plaza")
 	town = _shell.base as TownScreen
 	await _frames(3)
+	await _economy()
 
 	# Smith.
 	await town.open_station("smith")
@@ -484,6 +489,307 @@ func _run() -> void:
 	await _press("leave")
 	_check(await _until(func() -> bool: return _shell.base_name == "hero_list"), "she can go back to the hero list")
 	_finish()
+
+
+
+# ---- the bank's tabs, the market, the post, the trade table and the world board (screens built from Controls)
+
+## A bag item of a rarity (the dev kit gives one of each of the first three).
+func _bag_of(sh: Shell, rarity: int) -> Dictionary:
+	for it in sh.items_at(GameNames.PLACE_BAG):
+		if int(it["rarity"]) == rarity:
+			return it
+	return {}
+
+
+## True when a control inside `panel` holds the keyboard focus (so the screen can be worked without a mouse).
+func _focused_in(panel: Control) -> bool:
+	var f: Control = panel.get_viewport().gui_get_focus_owner()
+	return f != null and panel.is_ancestor_of(f)
+
+
+func _bank_tabs(bank: BankPanel, item: Dictionary) -> void:
+	_check(_focused_in(bank), "the bank has keyboard focus on a control")
+	_check(bank.tab_bar.tab_count == 2, "the bank shows two tabs (the first and the one the dev kit gave)")
+	await _press("tab:1")
+	_check(bank.tab == 1, "tab two is chosen")
+	await _press("bagit:%d" % int(item["id"]))
+	await _press("move")
+	_check(await _until(func() -> bool: var b: Array[Dictionary] = _shell.items_at(GameNames.PLACE_BANK); return b.size() == 1 and int(b[0]["tab"]) == 1), "an item goes into tab 2: " + bank.toast_text)
+	_check(await _until(func() -> bool: return bank.tab_bar.tab_count == 3), "a third tab is offered after it")
+	await _press("tab:0")
+	_check(bank.bank_items.item_count == 0, "tab 1 does not list it")
+	await _press("tab:1")
+	_check(bank.bank_items.item_count == 1, "tab 2 lists it")
+	await _frames(2)
+	await _shot("28_bank_tabs")
+	await _press("tab:2")
+	var other: Dictionary = _bag_of(_shell, 1)
+	await _press("bagit:%d" % int(other["id"]))
+	await _press("move")
+	_check(await _until(func() -> bool: return bank.toast_text.contains("NOT YET YOURS")), "a tab she does not own is refused in words: " + bank.toast_text)
+	_check(_shell.items_at(GameNames.PLACE_BANK).size() == 1, "nothing moved into it")
+	await _press("tab:1")
+	await _press("bankit:%d" % int(item["id"]))
+	await _press("move")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BANK).is_empty() and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "and she takes it out of tab 2 again")
+
+
+## A second player in the same town (hidden: only the first shell draws).
+func _mate() -> Shell:
+	var m := Shell.new()
+	m.set_gateway(_gateway)
+	root.add_child(m)
+	await _frames(2)
+	m.layer.visible = false
+	var err: String = await m.login("SHELLMATE")
+	if err.is_empty():
+		err = await m.create_hero("MATEHERO", 1, 1, 0)
+	if err.is_empty():
+		err = await m.enter_town()
+	if not err.is_empty():
+		print("  mate: ", err)
+		return null
+	await _frames(3)
+	return m
+
+
+func _economy() -> void:
+	var town: TownScreen = _shell.base as TownScreen
+	var mate: Shell = await _mate()
+	_check(mate != null and mate.hero_id() != 0 and mate.base is TownScreen, "a second hero stands in the same town")
+	if mate == null:
+		return
+	var mname: String = String(mate.hero["name"])
+	var pname: String = String(_shell.hero["name"])
+	var mtown: TownScreen = mate.base as TownScreen
+
+	# The market: she lists the common item; the mate buys it, lists it again; she buys it back.
+	await town.open_station("market")
+	await _frames(3)
+	var mk: MarketPanel = _shell.panel_of("MarketPanel") as MarketPanel
+	_check(mk != null, "the market opens at its station")
+	_check(_focused_in(mk), "the market has keyboard focus on a control")
+	var common: Dictionary = _bag_of(_shell, 0)
+	var cid: int = int(common["id"])
+	await _press("tab:1")
+	var coin_a: int = _shell.coin()
+	await _press("sellit:%d" % cid)
+	mk.price_box.value = 40
+	await _frames(2)
+	await _shot("29_market_sell")
+	await _press("list")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 2), "the listed item left her bag: " + mk.toast_text)
+	var fee: int = coin_a - _shell.coin()
+	_check(fee >= 1 and fee < 40 and mk.sell_note.text.contains("FEE"), "the house took a fee, and the screen says so (%d)" % fee)
+	await _press("tab:2")
+	_check(await _until(func() -> bool: return mk.mine.size() == 1 and mk.mine_tree.get_root().get_child_count() == 1), "MINE shows her one listing")
+	await _frames(2)
+	await _shot("30_market_mine")
+	await _press("tab:0")
+	_check(await _until(func() -> bool: return mk.listings.size() == 1 and bool(mk.listings[0]["mine"])), "BROWSE shows it marked as hers")
+	await _press("row:%d" % int(mk.listings[0]["id"]))
+	_check(mk.buy_btn.disabled, "she may not buy her own listing")
+
+	await mtown.open_station("market")
+	await _frames(3)
+	var mm: MarketPanel = mate.panel_of("MarketPanel") as MarketPanel
+	_check(mm != null and await _until(func() -> bool: return mm.listings.size() == 1), "the mate sees the listing")
+	var mcoin: int = mate.coin()
+	await _press("row:%d" % int(mm.listings[0]["id"]), mate)
+	await _press("buy", mate)
+	_check(await _until(func() -> bool: return mate.coin() == mcoin - 40 and mate.items_at(GameNames.PLACE_BAG).size() == 4), "the mate paid 40 and holds the item: " + mm.toast_text)
+	_check(await _until(func() -> bool: return _shell.coin() == coin_a - fee + 37), "she is paid 37, the tax of 3 is the house's (%d)" % _shell.coin())
+	_check(_shell.top().toast_text.begins_with("YOUR LISTING SOLD") or mk.toast_text.begins_with("YOUR LISTING SOLD"), "she is told it sold: " + mk.toast_text)
+	await _press("tab:1", mate)
+	await _press("sellit:%d" % cid, mate)
+	mm.price_box.value = 30
+	await _press("list", mate)
+	_check(await _until(func() -> bool: return mate.items_at(GameNames.PLACE_BAG).size() == 3), "the mate lists it again")
+	await _press("close", mate)
+	await _press("search")
+	_check(await _until(func() -> bool: return mk.listings.size() == 1 and String(mk.listings[0]["seller"]) == mname), "she finds the mate's listing")
+	await _frames(2)
+	await _shot("31_market_browse")
+	var coin_b: int = _shell.coin()
+	await _press("row:%d" % int(mk.listings[0]["id"]))
+	await _press("buy")
+	_check(await _until(func() -> bool: return _shell.coin() == coin_b - 30 and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "she buys it back for 30")
+	# A thing taken down goes to the shelf at the post.
+	var unc: Dictionary = _bag_of(_shell, 1)
+	await _press("tab:1")
+	await _press("sellit:%d" % int(unc["id"]))
+	mk.price_box.value = 25
+	await _press("list")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 2), "she lists the uncommon one")
+	mk.mine.clear()
+	await _press("tab:2")
+	_check(await _until(func() -> bool: return mk.mine.size() == 1), "MINE shows it")
+	await _press("mine:%d" % int(mk.mine[0]["id"]))
+	await _press("cancel")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_MAIL).size() == 1), "taking it down sends it to her shelf at the post")
+	# A price the server refuses is said in words.
+	await _press("tab:1")
+	await _press("sellit:%d" % int(_bag_of(_shell, 0)["id"]))
+	mk.price_box.value = 90000000
+	await _press("list")
+	_check(await _until(func() -> bool: return mk.toast_text.contains("MORE THAN THE MARKET ALLOWS")), "a price over the cap is refused in words: " + mk.toast_text)
+	await _press("close")
+
+	# The post: she takes the shelf, writes, the mate reads, pays cash on delivery, refuses; she recalls one.
+	await town.open_station("post")
+	await _frames(3)
+	var po: PostPanel = _shell.panel_of("PostPanel") as PostPanel
+	_check(po != null and _focused_in(po), "the post opens with keyboard focus on a control")
+	await _press("tab:3")
+	await _frames(2)
+	await _shot("32_post_shelf")
+	await _press("shelfit:%d" % int(unc["id"]))
+	await _press("shelf_take")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 3 and _shell.items_at(GameNames.PLACE_MAIL).is_empty()), "she takes the taken-down thing back into her bag")
+	await _press("tab:1")
+	po.to_edit.text = mname
+	po.text_edit.text = "Take the key. The crypt did not want me."
+	var rare: Dictionary = _bag_of(_shell, 2)
+	await _press("att:%d" % int(rare["id"]))
+	await _frames(2)
+	await _shot("33_post_write")
+	await _press("send")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 2 and po.write_note.text.begins_with("SENT")), "the letter goes with its rare item: " + po.toast_text)
+	await mtown.open_station("post")
+	await _frames(3)
+	var mp: PostPanel = mate.panel_of("PostPanel") as PostPanel
+	_check(mp != null and await _until(func() -> bool: return mp.inbox.size() == 1), "the mate's inbox holds the letter")
+	await _press("in:%d" % int(mp.inbox[0]["id"]), mate)
+	_check(mp.in_text.text.contains(pname.to_upper()) and mp.in_text.text.contains("The crypt"), "the mate reads who it is from and what it says")
+	await _press("take", mate)
+	_check(await _until(func() -> bool: return mate.items_at(GameNames.PLACE_BAG).size() == 4 and mp.inbox.is_empty()), "the mate takes the item out of the letter: " + mp.toast_text)
+	await _press("tab:1", mate)
+	mp.to_edit.text = pname
+	mp.text_edit.text = "Then buy it back."
+	mp.cod_box.value = 10
+	await _press("att:%d" % int(rare["id"]), mate)
+	await _press("send", mate)
+	_check(await _until(func() -> bool: return mate.items_at(GameNames.PLACE_BAG).size() == 3), "the mate sends it back asking 10 coin")
+	await _press("close", mate)
+	await _press("tab:0")
+	_check(await _until(func() -> bool: return po.inbox.size() == 1), "her inbox holds the answer")
+	await _press("in:%d" % int(po.inbox[0]["id"]))
+	_check(po.in_text.text.contains("YOU PAY 10 COIN") and po.take_btn.text.contains("PAY 10"), "it says what opening it costs")
+	await _frames(2)
+	await _shot("34_post_inbox")
+	var coin_c: int = _shell.coin()
+	await _press("take")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 3 and _shell.coin() == coin_c - 10), "she pays 10 and has the item back")
+	# A letter refused comes back; a letter recalled too.
+	await _press("tab:1")
+	po.to_edit.text = mname
+	po.text_edit.text = "A gift."
+	await _press("att:%d" % int(_bag_of(_shell, 0)["id"]))
+	await _press("send")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 2), "she posts a gift")
+	await mtown.open_station("post")
+	await _frames(3)
+	mp = mate.panel_of("PostPanel") as PostPanel
+	_check(await _until(func() -> bool: return mp.inbox.size() == 1), "the gift reaches the mate")
+	await _press("in:%d" % int(mp.inbox[0]["id"]), mate)
+	await _press("refuse", mate)
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_MAIL).size() == 1), "the mate refuses it and it comes back to her shelf")
+	await _press("close", mate)
+	await _press("tab:3")
+	await _press("shelfit:%d" % int(_shell.items_at(GameNames.PLACE_MAIL)[0]["id"]))
+	await _press("shelf_take")
+	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 3), "she takes it from the shelf")
+	await _press("tab:1")
+	po.to_edit.text = mname
+	po.text_edit.text = "A little coin."
+	po.coin_box.value = 5
+	await _press("send")
+	_check(await _until(func() -> bool: return po.write_note.text.begins_with("SENT")), "a letter of coin goes")
+	await _press("tab:2")
+	_check(await _until(func() -> bool: return po.outbox.size() == 1), "SENT lists it")
+	await _press("out:%d" % int(po.outbox[0]["id"]))
+	await _press("recall")
+	_check(await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_MAIL, GameNames.KIND_COIN) == 5), "she recalls it: the coin waits on her shelf")
+	await _press("tab:3")
+	await _press("shelfstk:%d" % GameNames.KIND_COIN)
+	await _press("shelf_take")
+	_check(await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_MAIL, GameNames.KIND_COIN) == 0), "and takes it")
+	await _press("tab:1")
+	po.to_edit.text = "NOBODYNAMEDTHIS"
+	po.text_edit.text = "x"
+	po.coin_box.value = 1
+	await _press("send")
+	_check(await _until(func() -> bool: return po.toast_text.contains("NO HERO NAMED")), "a letter to nobody is refused in words: " + po.toast_text)
+	await _press("close")
+
+	# The trade table: she invites the mate, who is shown the invitation and sits; each lays things down; both confirm.
+	await town.open_station("trade")
+	await _frames(3)
+	var tp: TradePanel = _shell.panel_of("TradePanel") as TradePanel
+	_check(tp != null and _focused_in(tp), "the trade table opens with keyboard focus on a control")
+	tp.name_edit.text = mname
+	await _press("invite")
+	_check(await _until(func() -> bool: return _shell.trade.get("state", -1) == EconWire.TS_INVITED), "the invitation goes out: " + tp.toast_text)
+	_check(await _until(func() -> bool: return mate.panel_of("TradePanel") != null and not mate.trade_invite.is_empty()), "the mate is shown the invitation at once")
+	var mt: TradePanel = mate.panel_of("TradePanel") as TradePanel
+	_check(mt.status.text.contains(pname.to_upper()), "it names who asks")
+	await _press("accept", mate)
+	_check(await _until(func() -> bool: return _shell.trade.get("state", -1) == EconWire.TS_OPEN and mate.trade.get("state", -1) == EconWire.TS_OPEN), "both sit at an open table")
+	var gave: Dictionary = _bag_of(_shell, 0)
+	var got: Dictionary = _bag_of(mate, 0)
+	var coin_d: int = _shell.coin()
+	var mcoin_d: int = mate.coin()
+	await _press("bag:%d" % int(gave["id"]))
+	tp.coin_box.value = 10
+	await _press("offer")
+	_check(await _until(func() -> bool: return (mate.trade.get("their_items", []) as Array).size() == 1), "her offer shows on the mate's side of the table")
+	await _press("bag:%d" % int(got["id"]), mate)
+	mt.coin_box.value = 25
+	await _press("offer", mate)
+	_check(await _until(func() -> bool: return (_shell.trade.get("their_items", []) as Array).size() == 1 and (_shell.trade.get("their_stacks", []) as Array).size() == 1), "and the mate's on hers")
+	await _frames(2)
+	await _shot("36_trade_table")
+	# The server hears no confirm in the first 1.5 s after a change: say so in words.
+	await _press("confirm")
+	_check(await _until(func() -> bool: return tp.toast_text.contains("A MOMENT AGO")), "a confirm too soon is refused in words: " + tp.toast_text)
+	await create_timer(1.8).timeout
+	await _press("confirm")
+	_check(await _until(func() -> bool: return bool(_shell.trade.get("my_ok", false))), "she confirms the offers she sees")
+	await _press("confirm", mate)
+	_check(await _until(func() -> bool: return _shell.trade.get("state", -1) == EconWire.TS_DONE and mate.trade.get("state", -1) == EconWire.TS_DONE, 15.0), "the trade is done on both sides: " + mt.toast_text)
+	_check(await _until(func() -> bool: return _shell.coin() == coin_d + 25 - 10 and mate.coin() == mcoin_d - 25 + 10), "the coin crossed over, 25 to her and 10 to him")
+	_check(await _until(func() -> bool: return not _shell.item_by_id(int(got["id"])).is_empty() and _shell.item_by_id(int(gave["id"])).is_empty()), "she holds his item and not hers")
+	_check(tp.status.text.begins_with("THE TRADE IS DONE"), "the table says it is done")
+	await _press("close", mate)
+	await _press("close")
+	# A trade called off leaves everything where it was.
+	await town.open_station("trade")
+	await _frames(3)
+	tp = _shell.panel_of("TradePanel") as TradePanel
+	tp.name_edit.text = "NOBODYNAMEDTHIS"
+	await _press("invite")
+	_check(await _until(func() -> bool: return tp.toast_text.contains("NO HERO NAMED")), "inviting no one is refused in words: " + tp.toast_text)
+	await _press("close")
+
+	# The world board.
+	await town.open_station("board")
+	await _frames(3)
+	var bp: BoardPanel = _shell.panel_of("BoardPanel") as BoardPanel
+	_check(bp != null and await _until(func() -> bool: return not bp.board.is_empty()), "the world board reads the realm's board")
+	_check(bp.tree.get_root().get_child_count() == 6 and bp.world_label.text.begins_with("THE PALE RIDER RIDES IN"), "six fields and the world boss's ride: " + bp.world_label.text)
+	_check(_focused_in(bp), "the board has keyboard focus on a control")
+	await _frames(2)
+	await _shot("37_world_board")
+	# Esc and the controller's B are the same action: it closes the board.
+	var cancel := InputEventAction.new()
+	cancel.action = "ui_cancel"
+	cancel.pressed = true
+	Input.parse_input_event(cancel)
+	_check(await _until(func() -> bool: return _shell.panel_of("BoardPanel") == null, 3.0), "the cancel action closes the board")
+	mate.link.close()
+	mate.queue_free()
+	await _frames(2)
 
 
 func _key(code: int) -> InputEventKey:

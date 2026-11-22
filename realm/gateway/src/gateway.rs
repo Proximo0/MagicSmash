@@ -430,7 +430,7 @@ impl Gateway {
                     self.player(account, Cmd::HeroSave { hero: id, progress: p })?;
                 }
                 if self.cfg.dev_grant && self.cfg.dev_login {
-                    self.dev_kit(id);
+                    self.dev_kit(account, id);
                 }
                 Ok(Resp::HeroCreated(id))
             }
@@ -762,7 +762,9 @@ impl Gateway {
 
     /// The `--dev-grant` kit: 3,500 coin (500, and 3,000 for the homes), 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
     /// uncommon and a common item of level 1 from The Fool's Road.
-    fn dev_kit(&self, hero: i64) {
+    fn dev_kit(&self, account: i64, hero: i64) {
+        // One extra bank tab (granted once per account), so the bank screen's tabs can be tried.
+        let _ = self.server(Cmd::GrantEntitlement { account, kind: EntitlementKind::BankTab, count: 1, purchase: format!("dev-bank-tab-{account}") });
         let mut rng = realm_loot::rng::Rng::new(hero as u64 ^ 0xD3F_0001);
         let bag = Owner::bag(hero);
         for (kind, count) in [(StackKind::COIN, 500u64), (StackKind::material(0), 30), (StackKind::rune(0, 1), 4), (StackKind::potion(0), 2)] {

@@ -17,6 +17,8 @@ signal field_ended(outing: Dictionary)
 signal data_changed
 ## The social state changed (a chat line, a party or guild update, an invitation): panels repaint by themselves.
 signal social_changed
+## The hand-to-hand trade changed (a reply or a push): the trade table repaints by itself.
+signal trade_changed
 
 const SHELL_SIZE: Vector2i = Vector2i(960, 540)
 const FIELD_SIZE: Vector2i = Vector2i(480, 270)
@@ -54,6 +56,9 @@ var friends: Array[Dictionary] = []
 var ignores: Array[Dictionary] = []
 ## Invitations waiting: {"kind": "party" | "guild" | "friend", "id": inviter hero / guild / account, "name": who, "what": text}.
 var invites: Array[Dictionary] = []
+## The trade she is in (the server's TRADE view; {} when none) and an invitation to one that waits for her answer.
+var trade: Dictionary = {}
+var trade_invite: Dictionary = {}
 ## A field the party's leader called us to (-1: none).
 var field_call: int = -1
 
@@ -192,7 +197,15 @@ static func error_text(r: Dictionary) -> String:
 		GwWire.E_BAD_NAME:
 			return "A NAME IS 3 TO 16 LETTERS, DIGITS, ' AND -, FIRST A LETTER"
 		GwWire.E_FULL:
+			if m.contains("NOT OPEN"):
+				return "THAT BANK TAB IS NOT YET YOURS"
 			return "NO ROOM: " + m
+		GwWire.E_REFUSED:
+			return "THE REALM FORBIDS IT: A SELF-FOUND OR LOCKED HERO MAY NOT TRADE"
+		GwWire.E_NOT_YOURS:
+			return "THAT IS NOT YOURS TO GIVE"
+		GwWire.E_BAD_REQUEST, GwWire.E_MISSING, GwWire.E_INVALID:
+			return m if not m.is_empty() else "THE REQUEST WAS REFUSED"
 		GwWire.E_INSUFFICIENT:
 			return "YOU CANNOT AFFORD IT"
 		GwWire.E_BUSY:
@@ -398,8 +411,70 @@ func _on_push(msg: Dictionary) -> void:
 	if t == HomeWire.P_HOME:
 		_on_home(msg)
 		return
+	if t == EconWire.P_ECON:
+		_on_econ(msg)
+		return
+	if t == WorldWire.P_WORLD:
+		_on_world(msg)
+		return
 	if base is TownScreen:
 		(base as TownScreen).on_push(msg)
+
+
+# ---- the economy and the world (pushes)
+
+## Records the trade the server shows her ({} clears it). A finished trade moved things: read them again.
+func set_trade(v: Dictionary) -> void:
+	trade = v
+	if not v.is_empty() and not trade_invite.is_empty() and int(trade_invite["session"]) == int(v["session"]):
+		trade_invite = {}
+	trade_changed.emit()
+	if not v.is_empty() and int(v["state"]) == EconWire.TS_DONE:
+		await refresh_all()
+
+
+func _on_econ(m: Dictionary) -> void:
+	var t: UiScreen = top()
+	match int(m.get("k", -1)):
+		EconWire.K_TRADE:
+			set_trade(m)
+		EconWire.K_NOTICE:
+			match int(m["nkind"]):
+				EconWire.N_INVITED:
+					trade_invite = {"session": int(m["a"]), "name": String(m["text"])}
+					trade_changed.emit()
+					if t != null:
+						t.say("%s ASKS YOU TO THE TRADE TABLE" % String(m["text"]).to_upper())
+					if base is TownScreen and t == base and panel_of("TradePanel") == null:
+						open_panel(TradePanel.new())
+				EconWire.N_SOLD:
+					if t != null:
+						t.say("YOUR LISTING SOLD: %s COIN IN YOUR HAND" % GameNames.commas(int(m["b"])))
+					refresh_inventory()
+				EconWire.N_EXPIRED:
+					if t != null:
+						t.say("A LISTING RAN OUT: IT WAITS ON YOUR SHELF AT THE POST")
+					refresh_inventory()
+				EconWire.N_LETTER:
+					if t != null:
+						t.say("A LETTER FROM %s" % String(m["text"]).to_upper())
+				EconWire.N_LETTER_RETURNED:
+					if t != null:
+						t.say("A LETTER OF YOURS CAME BACK")
+					refresh_inventory()
+
+
+func _on_world(m: Dictionary) -> void:
+	var t: UiScreen = top()
+	if t == null or int(m.get("k", -1)) != WorldWire.K_NEWS:
+		return
+	var f: int = int(m["field"])
+	var fname: String = GameNames.FIELDS[f] if f < GameNames.FIELDS.size() else "THE FIELDS"
+	var mins: int = int(m["in_ticks"]) / (20 * 60)
+	if int(m["nkind"]) == 2:
+		t.say("THE PALE RIDER RIDES IN %s IN %d MINUTES" % [fname, mins])
+	else:
+		t.say("A BOSS RISES IN %s IN %d MINUTES" % [fname, mins])
 
 
 # ---- homes
@@ -426,6 +501,8 @@ func reset_social() -> void:
 	friends.clear()
 	ignores.clear()
 	invites.clear()
+	trade = {}
+	trade_invite = {}
 	field_call = -1
 	social_changed.emit()
 
