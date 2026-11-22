@@ -21507,5 +21507,1199 @@
 "notes": " missing ['black water', 'pale moon', 'leaning steeple']"
 }
 ]
+},
+"BG1.4": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.123,
+"traits": {
+"snowy peaks": 0.3346,
+"cliff monastery": 0.0323,
+"rope bridge": 0.0008
+},
+"notes": " missing ['cliff monastery', 'rope bridge']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.128,
+"traits": {
+"snowy peaks": 0.3259,
+"cliff monastery": 0.0526,
+"rope bridge": 0.0053
+},
+"notes": " missing ['cliff monastery', 'rope bridge']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.043,
+"traits": {
+"snowy peaks": 0.1009,
+"cliff monastery": 0.018,
+"rope bridge": 0.0102
+},
+"notes": " missing ['cliff monastery', 'rope bridge']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.024,
+"traits": {
+"snowy peaks": 0.0418,
+"cliff monastery": 0.0226,
+"rope bridge": 0.0075
+},
+"notes": " missing ['snowy peaks', 'cliff monastery', 'rope bridge']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.13,
+"traits": {
+"snowy peaks": 0.3576,
+"cliff monastery": 0.0311,
+"rope bridge": 0.0
+},
+"notes": " missing ['cliff monastery', 'rope bridge']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.037,
+"traits": {
+"snowy peaks": 0.0869,
+"cliff monastery": 0.0218,
+"rope bridge": 0.0038
+},
+"notes": " missing ['snowy peaks', 'cliff monastery', 'rope bridge']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.083,
+"traits": {
+"snowy peaks": 0.2082,
+"cliff monastery": 0.0412,
+"rope bridge": 0.0001
+},
+"notes": " missing ['cliff monastery', 'rope bridge']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.18,
+"traits": {
+"snowy peaks": 0.3942,
+"cliff monastery": 0.1451,
+"rope bridge": 0.0001
+},
+"notes": " missing ['rope bridge']"
+}
+]
+},
+"BG1.5": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.173,
+"traits": {
+"ruined library": 0.5195,
+"candelabra": 0.0,
+"spiral stairs": 0.0006
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.056,
+"traits": {
+"ruined library": 0.1678,
+"candelabra": 0.0,
+"spiral stairs": 0.0001
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.295,
+"traits": {
+"ruined library": 0.8856,
+"candelabra": 0.0001,
+"spiral stairs": 0.0
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.138,
+"traits": {
+"ruined library": 0.413,
+"candelabra": 0.0,
+"spiral stairs": 0.0001
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.057,
+"traits": {
+"ruined library": 0.1722,
+"candelabra": 0.0,
+"spiral stairs": 0.0003
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.273,
+"traits": {
+"ruined library": 0.8199,
+"candelabra": 0.0,
+"spiral stairs": 0.0
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.237,
+"traits": {
+"ruined library": 0.7122,
+"candelabra": 0.0,
+"spiral stairs": 0.0001
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.182,
+"traits": {
+"ruined library": 0.5467,
+"candelabra": 0.0,
+"spiral stairs": 0.0
+},
+"notes": " missing ['candelabra', 'spiral stairs']"
+}
+]
+},
+"BG1.6": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"ash plain": 0.0003,
+"orange cracks": 0.0006,
+"empty throne": 0.0018
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.204,
+"traits": {
+"ash plain": 0.0041,
+"orange cracks": 0.0196,
+"empty throne": 0.5889
+},
+"notes": " missing ['ash plain', 'orange cracks']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"ash plain": 0.0001,
+"orange cracks": 0.0007,
+"empty throne": 0.0005
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"ash plain": 0.0002,
+"orange cracks": 0.0005,
+"empty throne": 0.0
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"ash plain": 0.0004,
+"orange cracks": 0.0004,
+"empty throne": 0.0017
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.005,
+"traits": {
+"ash plain": 0.0003,
+"orange cracks": 0.0013,
+"empty throne": 0.0126
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.006,
+"traits": {
+"ash plain": 0.0009,
+"orange cracks": 0.0014,
+"empty throne": 0.0154
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.005,
+"traits": {
+"ash plain": 0.0017,
+"orange cracks": 0.0086,
+"empty throne": 0.0042
+},
+"notes": " missing ['ash plain', 'orange cracks', 'empty throne']"
+}
+]
+},
+"BG1.7": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"walled town": 0.0032,
+"lamp post": 0.0,
+"warm tavern light": 0.0012
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"walled town": 0.0024,
+"lamp post": 0.0,
+"warm tavern light": 0.003
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.003,
+"traits": {
+"walled town": 0.0046,
+"lamp post": 0.0001,
+"warm tavern light": 0.0034
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.011,
+"traits": {
+"walled town": 0.0021,
+"lamp post": 0.0001,
+"warm tavern light": 0.03
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.005,
+"traits": {
+"walled town": 0.0034,
+"lamp post": 0.0,
+"warm tavern light": 0.0123
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.009,
+"traits": {
+"walled town": 0.0042,
+"lamp post": 0.0001,
+"warm tavern light": 0.0213
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"walled town": 0.0029,
+"lamp post": 0.0,
+"warm tavern light": 0.0025
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"walled town": 0.0019,
+"lamp post": 0.0002,
+"warm tavern light": 0.011
+},
+"notes": " missing ['walled town', 'lamp post', 'warm tavern light']"
+}
+]
+},
+"PT1.1": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0004,
+"ledger": 0.0003,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0,
+"ledger": 0.0,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0002,
+"ledger": 0.0007,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0001,
+"ledger": 0.0001,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0002,
+"ledger": 0.0001,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0001,
+"ledger": 0.0001,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0002,
+"ledger": 0.0003,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"pale thin man": 0.0002,
+"ledger": 0.0001,
+"keys": 0.0
+},
+"notes": " missing ['pale thin man', 'ledger', 'keys']"
+}
+]
+},
+"PT1.2": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.014,
+"traits": {
+"woman smith": 0.0012,
+"leather apron": 0.0359,
+"burn scars": 0.0052
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.027,
+"traits": {
+"woman smith": 0.0047,
+"leather apron": 0.0601,
+"burn scars": 0.0168
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.016,
+"traits": {
+"woman smith": 0.0012,
+"leather apron": 0.045,
+"burn scars": 0.003
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.048,
+"traits": {
+"woman smith": 0.0004,
+"leather apron": 0.1339,
+"burn scars": 0.0107
+},
+"notes": " missing ['woman smith', 'burn scars']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.024,
+"traits": {
+"woman smith": 0.0023,
+"leather apron": 0.0507,
+"burn scars": 0.0176
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.063,
+"traits": {
+"woman smith": 0.0006,
+"leather apron": 0.1848,
+"burn scars": 0.0039
+},
+"notes": " missing ['woman smith', 'burn scars']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.006,
+"traits": {
+"woman smith": 0.0001,
+"leather apron": 0.0177,
+"burn scars": 0.0002
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.02,
+"traits": {
+"woman smith": 0.0004,
+"leather apron": 0.0542,
+"burn scars": 0.0052
+},
+"notes": " missing ['woman smith', 'leather apron', 'burn scars']"
+}
+]
+},
+"PT1.3": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"green hood": 0.0019,
+"brass scales": 0.0022
+},
+"notes": " missing ['green hood', 'brass scales']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.019,
+"traits": {
+"green hood": 0.0084,
+"brass scales": 0.03
+},
+"notes": " missing ['green hood', 'brass scales']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.004,
+"traits": {
+"green hood": 0.0064,
+"brass scales": 0.0025
+},
+"notes": " missing ['green hood', 'brass scales']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.019,
+"traits": {
+"green hood": 0.0307,
+"brass scales": 0.0074
+},
+"notes": " missing ['green hood', 'brass scales']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.003,
+"traits": {
+"green hood": 0.0062,
+"brass scales": 0.0004
+},
+"notes": " missing ['green hood', 'brass scales']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"green hood": 0.0027,
+"brass scales": 0.004
+},
+"notes": " missing ['green hood', 'brass scales']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.007,
+"traits": {
+"green hood": 0.0056,
+"brass scales": 0.0079
+},
+"notes": " missing ['green hood', 'brass scales']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"green hood": 0.0017,
+"brass scales": 0.0019
+},
+"notes": " missing ['green hood', 'brass scales']"
+}
+]
+},
+"PT1.4": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"beaked mask": 0.0044,
+"vials": 0.0
+},
+"notes": " missing ['beaked mask', 'vials']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"beaked mask": 0.0026,
+"vials": 0.0003
+},
+"notes": " missing ['beaked mask', 'vials']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"beaked mask": 0.0003,
+"vials": 0.0
+},
+"notes": " missing ['beaked mask', 'vials']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"beaked mask": 0.0021,
+"vials": 0.0001
+},
+"notes": " missing ['beaked mask', 'vials']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.005,
+"traits": {
+"beaked mask": 0.0108,
+"vials": 0.0001
+},
+"notes": " missing ['beaked mask', 'vials']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"beaked mask": 0.0004,
+"vials": 0.0
+},
+"notes": " missing ['beaked mask', 'vials']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"beaked mask": 0.0035,
+"vials": 0.0
+},
+"notes": " missing ['beaked mask', 'vials']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"beaked mask": 0.006,
+"vials": 0.0001
+},
+"notes": " missing ['beaked mask', 'vials']"
+}
+]
+},
+"PT1.5": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.003,
+"traits": {
+"eye patch": 0.0001,
+"grey beard": 0.0063
+},
+"notes": " missing ['eye patch', 'grey beard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"eye patch": 0.0012,
+"grey beard": 0.0025
+},
+"notes": " missing ['eye patch', 'grey beard']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"eye patch": 0.0,
+"grey beard": 0.0029
+},
+"notes": " missing ['eye patch', 'grey beard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"eye patch": 0.0,
+"grey beard": 0.0035
+},
+"notes": " missing ['eye patch', 'grey beard']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"eye patch": 0.0,
+"grey beard": 0.0017
+},
+"notes": " missing ['eye patch', 'grey beard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"eye patch": 0.0004,
+"grey beard": 0.0049
+},
+"notes": " missing ['eye patch', 'grey beard']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"eye patch": 0.0,
+"grey beard": 0.0009
+},
+"notes": " missing ['eye patch', 'grey beard']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"eye patch": 0.0003,
+"grey beard": 0.0066
+},
+"notes": " missing ['eye patch', 'grey beard']"
+}
+]
+},
+"PT1.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.418,
+"traits": {
+"veil": 0.0002,
+"tarot cards": 0.8355
+},
+"notes": " missing ['veil']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.082,
+"traits": {
+"veil": 0.0002,
+"tarot cards": 0.1634
+},
+"notes": " missing ['veil']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.068,
+"traits": {
+"veil": 0.0001,
+"tarot cards": 0.1366
+},
+"notes": " missing ['veil']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.147,
+"traits": {
+"veil": 0.0004,
+"tarot cards": 0.2942
+},
+"notes": " missing ['veil']"
+}
+]
+},
+"PT1.7": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"big beard": 0.0003,
+"pewter mug": 0.0001
+},
+"notes": " missing ['big beard', 'pewter mug']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"big beard": 0.0001,
+"pewter mug": 0.0001
+},
+"notes": " missing ['big beard', 'pewter mug']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"big beard": 0.0001,
+"pewter mug": 0.0
+},
+"notes": " missing ['big beard', 'pewter mug']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"big beard": 0.0004,
+"pewter mug": 0.0004
+},
+"notes": " missing ['big beard', 'pewter mug']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"big beard": 0.0007,
+"pewter mug": 0.0003
+},
+"notes": " missing ['big beard', 'pewter mug']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"big beard": 0.0018,
+"pewter mug": 0.0001
+},
+"notes": " missing ['big beard', 'pewter mug']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"big beard": 0.0002,
+"pewter mug": 0.0008
+},
+"notes": " missing ['big beard', 'pewter mug']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.003,
+"traits": {
+"big beard": 0.0024,
+"pewter mug": 0.003
+},
+"notes": " missing ['big beard', 'pewter mug']"
+}
+]
+},
+"PT1.8": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.003,
+"great book": 0.0001
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.001,
+"great book": 0.0012
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.001,
+"great book": 0.0002
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.0,
+"great book": 0.0002
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.061,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.1813,
+"great book": 0.0022
+},
+"notes": " missing ['shaved crown', 'great book']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.0044,
+"great book": 0.0003
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.0001,
+"great book": 0.0006
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.018,
+"traits": {
+"shaved crown": 0.0,
+"quill": 0.0522,
+"great book": 0.0004
+},
+"notes": " missing ['shaved crown', 'quill', 'great book']"
+}
+]
+},
+"PT1.9": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.011,
+"traits": {
+"tall hat": 0.0326,
+"handbell": 0.0,
+"gaunt face": 0.0001
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"tall hat": 0.0047,
+"handbell": 0.0,
+"gaunt face": 0.0
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"tall hat": 0.0054,
+"handbell": 0.0,
+"gaunt face": 0.0001
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"tall hat": 0.0112,
+"handbell": 0.0,
+"gaunt face": 0.0001
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.007,
+"traits": {
+"tall hat": 0.0196,
+"handbell": 0.0,
+"gaunt face": 0.0001
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"tall hat": 0.0033,
+"handbell": 0.0,
+"gaunt face": 0.0
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.003,
+"traits": {
+"tall hat": 0.0099,
+"handbell": 0.0,
+"gaunt face": 0.0
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"tall hat": 0.006,
+"handbell": 0.0,
+"gaunt face": 0.0
+},
+"notes": " missing ['tall hat', 'handbell', 'gaunt face']"
+}
+]
 }
 }
