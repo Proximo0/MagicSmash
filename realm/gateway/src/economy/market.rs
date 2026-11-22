@@ -49,6 +49,9 @@ impl Economy {
                 if it.place.kind != PlaceKind::Bag || it.place.owner != hero {
                     return Err(Error::NotYours(format!("item {i} is not in her bag")).into());
                 }
+                if crate::homes::catalogue::is_plaque(it.spec.base) {
+                    return bad("a plaque is kept, not listed");
+                }
                 if price > item_price_cap(&it.spec) {
                     return bad("that price is more than the market allows for such an item");
                 }

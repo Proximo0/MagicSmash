@@ -21,18 +21,18 @@ const STATIONS: Array[Dictionary] = [
 	{"id": "gate", "name": "THE FIELD GATES", "at": Vector2(2048, 2780), "size": Vector2(240, 80), "col": Color(0.2, 0.2, 0.26), "what": "the six fields"}]
 
 
-static func station(id: String) -> Dictionary:
-	for s in STATIONS:
+static func station(id: String, list: Array = STATIONS) -> Dictionary:
+	for s in list:
 		if s["id"] == id:
 			return s
 	return {}
 
 
 ## The station within `px` of a point, nearest first, or {}.
-static func near(p: Vector2, px: float) -> Dictionary:
+static func near(p: Vector2, px: float, list: Array = STATIONS) -> Dictionary:
 	var best: Dictionary = {}
 	var bd: float = px
-	for s in STATIONS:
+	for s in list:
 		var d: float = p.distance_to(s["at"])
 		if d <= bd:
 			bd = d

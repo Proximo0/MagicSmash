@@ -34,6 +34,13 @@ var hero: Dictionary = {}
 var inv: Dictionary = {"items": [], "stacks": []}
 var cards: Array[int] = []
 var town: Dictionary = {}
+## Homes and the shared places (job H1): where she is as [kind, arg] (HomeMap: [0, 0] the plaza), the plots of the
+## street she stands in, and her campfire rest ({} until asked).
+var place: Array = [0, 0]
+var street_plots: Array[Dictionary] = []
+var rest: Dictionary = {}
+## The house she stands in (the gateway's House reply: owner, rule, items by cell, guestbook), {} elsewhere.
+var house: Dictionary = {}
 var last_outing: Dictionary = {}
 ## Living together (job T1): kept up to date by the social pushes whether or not a panel is open.
 const CHAT_KEEP: int = 120
@@ -311,11 +318,43 @@ func enter_town() -> String:
 	if int(r["t"]) != GwWire.R_TOWN:
 		return error_text(r)
 	town = r
+	place = [0, 0]
+	street_plots = []
+	rest = {}
+	house = {}
 	await refresh_inventory()
 	await refresh_social()
 	var s := TownScreen.new()
 	show_base(s, "town")
 	return ""
+
+
+## Walks her to another place (a door, the places list): the gateway moves her to that place's room and the town
+## screen is drawn again for it. Returns "" or the problem (shown on the screen too).
+func go_place(kind: int, arg: int) -> String:
+	var r: Dictionary = await act(HomeWire.go(hero_id(), kind, arg))
+	if int(r["t"]) != GwWire.R_TOWN:
+		return error_text(r)
+	town = r
+	place = [kind, arg]
+	street_plots = []
+	house = {}
+	if kind == HomeMap.HOUSE:
+		await refresh_house()
+	if kind == HomeMap.STREET:
+		var s: Dictionary = await link.call_req(HomeWire.with_u32(HomeWire.Q_STREET, hero_id(), arg))
+		if int(s["t"]) == HomeWire.R_HOME and int(s.get("k", -1)) == HomeWire.K_STREET:
+			street_plots = s["plots"]
+	show_base(TownScreen.new(), "town")
+	return ""
+
+
+## Reads the house she stands in again (after a placement, a rule, a guestbook line).
+func refresh_house() -> void:
+	var h: Dictionary = await link.call_req(HomeWire.hero_only(HomeWire.Q_HOUSE, hero_id()))
+	if int(h["t"]) == HomeWire.R_HOME and int(h.get("k", -1)) == HomeWire.K_HOUSE:
+		house = h
+	data_changed.emit()
 
 
 ## Leaves the town room (the gateway frees the hero) and returns to the hero list.
@@ -344,8 +383,26 @@ func _on_push(msg: Dictionary) -> void:
 	if t == GwWire.P_SOCIAL:
 		_on_social(msg)
 		return
+	if t == HomeWire.P_HOME:
+		_on_home(msg)
+		return
 	if base is TownScreen:
 		(base as TownScreen).on_push(msg)
+
+
+# ---- homes
+
+func _on_home(m: Dictionary) -> void:
+	if int(m.get("k", -1)) != HomeWire.K_NOTICE:
+		return
+	var t: UiScreen = top()
+	if t == null:
+		return
+	match int(m["nkind"]):
+		0:
+			t.say("%s CAME INTO YOUR HOUSE" % String(m["text"]).to_upper())
+		1:
+			t.say("%s SIGNED YOUR GUESTBOOK" % String(m["text"]).to_upper())
 
 
 # ---- living together

@@ -772,6 +772,12 @@ impl Gateway {
         self.hosts.lock().unwrap().iter().map(|h| (h.id, h.field, h.copy, h.vault.is_some(), h.handle.status.members.lock().unwrap().clone())).collect()
     }
 
+    /// The realm clock as each running field copy last stepped it (vaults keep their own clock; a host that has
+    /// ended is not listed).
+    pub fn field_clocks(&self) -> Vec<u64> {
+        self.hosts.lock().unwrap().iter().filter(|h| h.vault.is_none() && !h.handle.status.ended.load(Ordering::Relaxed)).map(|h| h.handle.status.clock.load(Ordering::Relaxed)).collect()
+    }
+
     /// Every host's counts of tides, bosses and rewards, summed (a merged copy's are lost with it).
     pub fn world_counts(&self) -> realm_server::host::HostCounts {
         let mut c = self.world.state.lock().unwrap().retired.clone();

@@ -634,6 +634,8 @@ static func decode(t: int, body: PackedByteArray) -> Dictionary:
 			d["cards"] = cards
 		R_SOCIAL:
 			_social_reply(b, d)
+		HomeWire.R_HOME, HomeWire.P_HOME:
+			HomeWire.decode_body(b, d)
 		P_SOCIAL:
 			_social_push(b, d)
 		P_TOWN_SNAPSHOT:
