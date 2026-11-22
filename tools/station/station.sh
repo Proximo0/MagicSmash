@@ -200,27 +200,65 @@ job_world() {  # one line: realm-world's summary
   echo "JOB world FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
+# Deep steps must not make a merge wait: pending_merge says a commit has landed on main that changes something one of this
+# station's jobs tests (STATION_MAIN_REF overrides origin/main for a dry run); step_run runs a command in the background,
+# polls that every STATION_DEEP_POLL seconds (default 60) and kills the command when it is true (returns 99).
+pending_merge() {
+  local ref="${STATION_MAIN_REF:-origin/main}" head base changed j
+  git fetch -q origin main 2>/dev/null
+  head=$(git rev-parse -q --verify "$ref") || return 1
+  base=$(cat "$STATE" 2>/dev/null)
+  [ "$head" = "$base" ] && return 1
+  [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null) || return 0
+  for j in "${jobs[@]}"; do touched "$j" <<<"$changed" && return 0; done
+  return 1
+}
+step_run() {  # $1 = output file, rest = command; the command's status, or 99 when a merge landed and it was killed
+  local f="$1" pid last=$SECONDS rc; shift
+  "$@" >"$f" 2>&1 & pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    if [ $((SECONDS - last)) -ge "${STATION_DEEP_POLL:-60}" ]; then
+      last=$SECONDS
+      if pending_merge; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99; fi
+    fi
+  done
+  wait "$pid"; return $?
+}
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
+  # Returns 0 pass, 1 fail, 2 skipped (no cargo), 3 interrupted: a merge landed, the rest of the pass was abandoned (not a failure).
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
-  local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir
+  local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir rc
   dir="${TMPDIR:-/tmp}/station-deep-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   ( cd realm && cargo build --release -j2 -q ) >/dev/null 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >/dev/null 2>&1 \
     || { echo "JOB deep FAIL build"; return 1; }
-  if out=$(timeout 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz" 2>&1); then
-    detail+=" | fuzz seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
+  interrupted() { rm -rf "$dir"; echo "JOB deep INTERRUPTED a merge landed (seed=$seed)"; return 3; }
+  pending_merge && { interrupted; return 3; }
+  step_run "$dir/fuzz.out" timeout 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz"; rc=$?
+  [ $rc = 99 ] && { interrupted; return 3; }
+  out=$(cat "$dir/fuzz.out")
+  if [ $rc = 0 ]; then detail+=" | fuzz seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
   else bad=$((bad + 1)); detail+=" | fuzz seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
-  if out=$(timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300 2>&1); then
-    detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
+  pending_merge && { interrupted; return 3; }
+  step_run "$dir/bench.out" timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300; rc=$?
+  [ $rc = 99 ] && { interrupted; return 3; }
+  out=$(cat "$dir/bench.out")
+  if [ $rc = 0 ]; then detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
   else bad=$((bad + 1)); detail+=" | bench field=$field seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
   local ssecs="${STATION_DEEP_SOAK_SECS:-900}"  # a time-boxed soak with a fresh seed (0 = none); the per-merge soak job is gone from roles.txt
   if [ "$ssecs" -gt 0 ]; then
-    out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((ssecs + 600)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$ssecs" --seed=$seed --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$dir/soak.db" 2>&1)
+    pending_merge && { interrupted; return 3; }
+    ( cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak ) >"$dir/soakbuild.out" 2>&1
+    step_run "$dir/soak.out" timeout $((ssecs + 600)) realm/target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$ssecs" --seed=$seed --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$dir/soak.db"; rc=$?
+    [ $rc = 99 ] && { interrupted; return 3; }
+    out=$(cat "$dir/soak.out")
     if [[ "$(tail -1 <<<"$out")" == "SOAK ok "* ]]; then detail+=" | soak seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
     else bad=$((bad + 1)); detail+=" | soak seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
   fi
   local stamp="${TMPDIR:-/tmp}/station-ops-last-$MACHINE"  # the nightly operations rehearsal: backup and restore, at most once in 20 hours
   if [ ! -f "$stamp" ] || [ -n "$(find "$stamp" -mmin +1200 2>/dev/null)" ]; then
+    pending_merge && { interrupted; return 3; }
     if out=$(job_ops 2>&1); then detail+=" | ${out:4:200}"; else bad=$((bad + 1)); detail+=" | ${out:4:200}"; fi
     touch "$stamp"
   fi
@@ -321,18 +359,32 @@ if [ "$watch" = 1 ]; then
     ( while true; do publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null; sleep 1800; done ) &
     trap 'kill $! 2>/dev/null' EXIT
   fi
+  after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
   while true; do
     run_once; rc=$?
     [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
+    if [ $rc != 3 ]; then after_merge=1; fi  # a merge was just tested: the next deep pass is published
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
       t0=$SECONDS; body=$(job_deep); drc=$?
-      if [ $drc = 2 ]; then sleep 600; continue; fi  # no cargo: a broken machine must not flood the results branch
+      now=$(date +%s)
+      if [ $drc = 3 ]; then deep_cut=$((deep_cut + 1)); echo "station: deep pass interrupted, a merge landed"; continue; fi
+      hourly=0; [ $((now - last_pub)) -ge 3600 ] && hourly=1
+      if [ $drc = 2 ]; then  # no cargo: SKIP, a broken machine sleeps and tells the branch at most hourly
+        if [ "$push" = 1 ] && [ $hourly = 1 ]; then
+          publish "STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=0s"$'\n'"$body"$'\n'"STATION SKIP deep pass" "$MACHINE-deep.txt" && last_pub=$now || true
+        fi
+        sleep "$POLL"; continue
+      fi
+      deep_n=$((deep_n + 1)); deep_seeds="$(printf %s "${deep_seeds:+$deep_seeds,}$(grep -o 'seed=[0-9]*' <<<"$body" | head -1 | cut -d= -f2)" | tail -c 120)"
       v=$([ $drc = 0 ] && echo PASS || echo FAIL)
-      rep="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=$((SECONDS - t0))s"$'\n'"$body"$'\n'"STATION $v deep pass"
+      rep="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=$((SECONDS - t0))s"$'\n'"$body"$'\n'"STATION $v deep pass passes=$deep_n interrupted=$deep_cut seeds=$deep_seeds"
       if [ "$push" = 1 ]; then
-        publish "$rep" "$MACHINE-deep.txt" || true
+        if [ $drc != 0 ] || [ $after_merge = 1 ] || [ $hourly = 1 ]; then
+          publish "$rep" "$MACHINE-deep.txt" && { last_pub=$now; after_merge=0; deep_n=0; deep_cut=0; deep_seeds=""; } || true
+        fi
         if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:400}" "$MACHINE-failures.txt" || true; fi
       else echo "$rep"; fi
+      if [ $drc = 0 ]; then sleep "${STATION_DEEP_GAP:-10}"; else sleep "$POLL"; fi
       continue
     fi
     sleep "$POLL"
