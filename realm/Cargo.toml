@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["core", "server", "loadtest"]
+members = ["core", "server", "loadtest", "loot"]
 # The Godot module has its own workspace (it is the one crate with a crates.io dependency).
-exclude = ["godot"]
+exclude = ["godot", "store"]
 
 [workspace.package]
 edition = "2024"

@@ -1,0 +1,15 @@
+[package]
+name = "realm-loot"
+edition.workspace = true
+version.workspace = true
+description = "Horde & Hearth loot on the server: drop tables, rolls, gear, runes, cards, pages, materials and the smith."
+
+[lib]
+name = "realm_loot"
+
+[dependencies]
+realm-core = { path = "../core" }
+realm-store = { path = "../store" }
+
+[dev-dependencies]
+rusqlite = { version = "=0.37.0", features = ["bundled"] }
