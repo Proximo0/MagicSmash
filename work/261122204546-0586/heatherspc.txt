@@ -1,0 +1,1 @@
+2026-11-22T22:45:03Z INFO id=261122204546-0586 kind=shell secs=7 sysinfo ram=8013MB free=3922MB page=512MB page_used=103MB cores=4 disk_free_gb=C:91 gpu=[none-or-not-nvidia] top3=[claude:853 svchost:766 Memory:419]
