@@ -268,3 +268,73 @@ picture. Near arm, near leg and foot are cut on those bones; the far leg is eras
 as a shaded copy; the far arm is a shaded copy when hidden, its own pixels when drawn behind
 the back. The free arms are turned to hanging and swing +/-20 deg opposite to the legs; the
 foot is seated with its heel on the shin's back edge.
+
+## Monsters
+
+A monster is one still of the whole creature plus a joints JSON; the tool cuts it into parts on the skeleton of its body
+plan and bakes a looped move cycle. The 42 kinds, their plan, move style and size are in `monsters.md`
+(data: `monsters.json`); the rules are M1-M12 in `RULES.md`. Heroes are not affected.
+
+**Files** (a folder of these is what `monsters` reads): `<kind>.png` the still, 512 x 512, background keyed out (or flat
+pure magenta: the intake keys it out), the creature facing right, whole in the picture with 4 px of background all round and
+at least 160 px long; `<kind>.json` the joints (below). The file name is free (`plague_rat.png`); the JSON's `"kind"` (the table's spelling, e.g.
+`"plague rat"`) gives the size and speed.
+```
+python3 -m tools.animator spec --monster biped|quadruped|crawler|flyer|floater|construct|all --out DIR
+python3 -m tools.animator monsters <folder> --out DIR        accepted/<kind>/, needs_attention/<kind>.txt (+ png)
+python3 -m tools.animator spec --monster-example --out DIR   one synthetic creature per plan, baked and accepted
+```
+`spec --monster` writes, per layout (`biped`, `quadruped`, `crawler_skitter`, `crawler_undulate`, `crawler_squash`,
+`flyer_flap`, `flyer_orbit`, `floater`, `construct`): `<layout>_pose.png` (the control picture: bones and joint names),
+`<layout>_joints.json` (copy beside the still as `<kind>.json`, set `"kind"`, move every joint onto the drawing),
+`<layout>_reference.png` (a mannequin that passes) and `<layout>_prompt.txt` (the prompt below, filled in).
+
+**Joints JSON**
+```
+{"format": "monster", "plan": "quadruped", "style": "trot", "kind": "hound", "ground_y": 471,
+ "size_px": 64, "speed": 70,                        optional: the table gives both for a kind
+ "radius": {"front_near_l": 30},                    optional: half width of a part, px of the still (default: the layout's)
+ "joints": {"rump": [165, 235], "chest": [320, 235], ...}}      x right, y down, px of the still
+```
+`ground_y` is the row edge under the soles (first row below the creature's lowest foot). Joint names per layout are in the
+generated `_joints.json`; a part owns the pixels nearest to its bones (distance minus `radius`), so a joint belongs in the
+middle of its limb and a hip or shoulder well inside the body.
+
+**Step 1 prompt** (same words as for heroes, then the plan's sentence and the look):
+> "Pixel-art game monster, full body, strict side view facing right, on a flat pure magenta background. The creature only:
+> `<plan sentence>`. `<separation sentence>`. The whole creature inside the frame with empty space all round it. One connected
+> figure, no loose pieces: no ground, no shadow. Dark outline around every form." + the look: build, colours, materials.
+
+| plan | sentence (what to draw) | separation (what must not touch) | what the tool does |
+|---|---|---|---|
+| biped (19) | a hunched two-legged creature: heavy torso leaning forward, head low and forward with a clear eye, long arms hanging to the knees, two legs, a foot with toes pointing right on each | both arms hang clear of the torso with background between hand and body; the far arm and far leg drawn a little behind and not touching the near ones; legs apart; feet flat on one ground line | 12 parts; legs two-bone IK on a gait (stance foot back exactly at the body's travel), flat feet, arms swing against the legs, body bobs twice a cycle, head nods |
+| quadruped (4) | four-legged animal: body, head with a clear eye, tail, four legs with the far legs slightly apart from the near | four legs visible, near and far leg of each end standing apart; tail clear of the legs; head clear of the front legs | 12 parts; trot: diagonal pairs, tail wags in two segments, head nods; `scurry` shorter faster steps |
+| crawler (5) | `skitter`: spider, round body, small head with an eye, eight thin legs bent up at the knee; `undulate`: a worm of five round segments, eye at the right, no legs; `squash`: one soft dome-shaped blob with one eye, no limbs | spider: near legs fan out and do not cross, far legs behind and shifted; worm: segments show as bulges; blob: one solid mass, flat base | spider: 8 legs, alternate tetrapod gait, planted; worm: a wave runs down the segments (rotation about the seams); blob: hop with squash and stretch about the base, sx x sy = 1 |
+| flyer (6) | `flap`: a body, head with eye and beak, a tail, two wings raised up and back, the far wing shifted forward; `orbit`: a glowing core with one eye and three separate pieces around it | wings are two separate shapes clear of the head; the three orbit pieces float apart from the core and each other | flap: two-segment wings with a lag, body bobs against the stroke; orbit: pieces circle the core on an ellipse (in front, then behind), core bobs |
+| floater (4) | rounded head and body in one piece with one eye, a ragged hem tapering below in three steps | one solid tapering piece (the tool cuts the hem in three) | body bobs and sways, the three hem segments lag the sway and trail |
+| construct (4) | a rigid object on the ground: one solid body and one smaller part on top (lid, mast, hilt), no limbs, no head | the top part rests on the body with a visible seam; flat base on the ground line | `hop`: whole-body hop with a tilt, the top part opens a crack; `rock`: rocks about its base, base kept on the ground |
+
+**Per plan, the recipe**
+- Draw on the pose picture of the layout; put each joint in the middle of its limb; keep `ground_y` at the soles. Limbs
+  must be thick enough to survive the 56 px size: a leg, arm or wing is at least 1.5 px wide there, which for a 30 px
+  creature is about 5 % of its length (the rat's and the spider's legs must be drawn thick: give the width in `radius`).
+- The eye: a dark pupil ringed by a light ring (the white of the eye), 10 to 15 % of the head at most. Skipped under 48 px.
+- Quadrupeds and spiders: legs stand apart on one ground line; the near leg of a pair is in front of the far one. Bipeds: only
+  two legs and two arms are drawn; gear, clothes and weapons are part of the body and arms (the walk does not move them).
+- Orbit flyers: exactly three separate pieces (the `orbit0..2` joints), none touching the core.
+
+**What the gate will refuse** (needs_attention, nothing baked): M12 a JSON that is not `monster`, has an unknown plan or
+style, misses a joint or places one outside the picture, or a creature facing left; M10 joints that do not lie on the
+drawing (80 % of every bone), a creature touching the picture's edge or under 160 px, limbs too thin for 56 px; M11 a leg
+on the ground that has no foot joint (a fifth leg), a foot joint with no leg under it, loose pieces, key-colour pixels left.
+**After baking, the checks refuse**: M1 limb count, M2 detached part, M3 part off the canvas, M4 loop not closed, M5 a foot that
+slides or floats, M6 area jumps, M7 key colour, M8 no readable eye, M9 wrong size.
+
+**Cycle and numbers.** 8 frames, also 4 (frame k of 4 is frame 2k of 8), at the kind's size at 112 px and half of it at 56
+px. The first frame of a walk is the first of the cycle; the frame after the last equals the first. Meta
+(`<kind>.meta.json`): `stride_px` (travel of the body in one cycle), `travel_per_frame`, `cycles_per_s` = speed / stride (play
+the cycle at that rate and the feet do not slide on the ground; sprites are 1:1 with world pixels at 112), `anchor` (x of the
+feet, y of the ground row, in frame pixels). Frames are cropped to the union of all frames of both cycles, all one size.
+**Known limits**: far limbs that the still hides behind the body are cut as only their visible sliver; a crack of 1 px can
+open where a turning part leaves its neighbour (the root of each limb is kept in its parent to hide it); colours are the
+still's, resampled by area at the scale and never blended with the background.

@@ -8,6 +8,11 @@
   python3 -m tools.animator spec --gear --out DIR     gear layout guides (box, anchor, up) + JSON
                                    for shield, one-hand weapon, two-hand weapon, staff, cape
   python3 -m tools.animator spec --example --out DIR  the worked example: synthetic body + gear
+  python3 -m tools.animator spec --monster biped|quadruped|crawler|flyer|floater|construct|all --out DIR
+                                   pose picture, joints JSON, reference mannequin and prompt per monster layout
+  python3 -m tools.animator spec --monster-example --out DIR   synthetic creatures for every plan, baked and gated
+  python3 -m tools.animator monsters <folder> --out DIR   bake and gate <kind>.png + <kind>.json (monsters.md, M1-M12)
+  python3 -m tools.animator monsters --table          print monsters.md from monsters.json
 Relative paths that do not exist from the current directory are taken from tools/animator/.
 """
 import argparse
@@ -65,7 +70,31 @@ def main(argv=None):
     sp.add_argument("--gear", action="store_true", help="write the gear layout guides instead")
     sp.add_argument("--example", action="store_true",
                     help="write the worked example (synthetic body + shield + hammer) into --out")
+    sp.add_argument("--monster", choices=["biped", "quadruped", "crawler", "flyer", "floater", "construct", "all"],
+                    help="write the monster pose layouts of a body plan instead")
+    sp.add_argument("--monster-example", action="store_true",
+                    help="write, bake and gate one synthetic creature per plan into --out")
+    mn = sub.add_parser("monsters")
+    mn.add_argument("stills", nargs="?")
+    mn.add_argument("--out", default="out/monsters")
+    mn.add_argument("--table", action="store_true")
     args = ap.parse_args(argv)
+    if args.cmd == "monsters":
+        from . import monster, monster_example
+        if args.table:
+            print(monster.table_md())
+            return 0
+        acc, rej = monster_example.run_folder(_in(args.stills), _out(args.out))
+        return 1 if rej else 0
+    if args.cmd == "spec" and (args.monster or args.monster_example):
+        from . import monster_example
+        if args.monster:
+            for k, p in monster_example.write_spec(args.monster, _out(args.out)).items():
+                print(f"monster {k}: {p}_pose.png _joints.json _reference.png _prompt.txt")
+            return 0
+        acc, rej = monster_example.write_examples(_out(args.out))
+        print("examples accepted:", ", ".join(acc), "| refused:", ", ".join(rej) or "none")
+        return 1 if rej else 0
     if args.cmd == "spec":
         from . import spec
         if args.gear:
