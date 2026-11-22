@@ -15,7 +15,7 @@ const USAGE: &str = "usage: realm-store <command>
   restore <file> <db>              verify the backup, copy it over <db> (store stopped), verify
   stats <db>                       counts and a digest of items and stacks
   trace <db> <account> [depth]     what an account minted, where it went, onward to depth
-  fuzz [--seed=N] [--ops=N] [--kills=N] [--dir=D] [-v]
+  fuzz [--seed=N] [--ops=N] [--kills=N] [--dir=D] [--no-plunder] [-v]
                                    crash fuzz in child processes; exit 1 on any problem
   bench [--dir=D] [--secs=N] [--threads=N] [--window=MS]
                                    outing deltas and item moves a second, alone and with a backup running";
@@ -125,6 +125,7 @@ fn main() {
 				dir: flag(&args, "dir").map(PathBuf::from).unwrap_or_else(|| scratch().join("fuzz")),
 				exe: std::env::current_exe().unwrap(),
 				verbose: args.iter().any(|a| a == "-v"),
+				plunder: !args.iter().any(|a| a == "--no-plunder"),
 			};
 			let r = fuzz::parent(&cfg);
 			for p in &r.problems {

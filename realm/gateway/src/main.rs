@@ -148,9 +148,18 @@ fn main() {
     use std::io::Write;
     let _ = std::io::stdout().flush();
     if secs > 0 {
-        std::thread::sleep(Duration::from_secs(secs));
+        // Sample the heroes in fields while waiting, so the end line can say the peak (the LAN rehearsal reads it).
+        let end = std::time::Instant::now() + Duration::from_secs(secs);
+        let mut peak = 0u32;
+        while std::time::Instant::now() < end {
+            std::thread::sleep(Duration::from_millis(250).min(end - std::time::Instant::now()));
+            peak = peak.max(gw.host_loads().iter().map(|l| l.2).sum());
+        }
         drop(listener);
         gw.shutdown();
+        use std::sync::atomic::Ordering::Relaxed;
+        println!("STATS logins={} tickets={} peak_in_fields={peak}", gw.logins.load(Relaxed), gw.tickets_issued.load(Relaxed));
+        let _ = std::io::stdout().flush();
     } else {
         loop {
             std::thread::sleep(Duration::from_secs(3600));

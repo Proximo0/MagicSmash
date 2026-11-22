@@ -9,6 +9,7 @@
 //! from a host (a moved hero, a reward, a close) arrives on the applier thread, in order with that host's flushes.
 
 pub mod copies;
+pub mod wars;
 pub mod week;
 pub mod wire;
 /// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
@@ -150,6 +151,8 @@ pub struct World {
     /// Every logged-in connection, for news.
     pub(crate) sessions: Mutex<HashMap<u64, Sender<Vec<u8>>>>,
     pub(crate) stopping: AtomicBool,
+    /// Guild wars armed on the field copies and their summed results (job R3b, `wars.rs`).
+    pub(crate) wars: Mutex<wars::Wars>,
 }
 
 /// A copy's roll key seed: copies of a field share the field's seed, so the host's id is mixed in.
@@ -170,6 +173,8 @@ fn add_counts(c: &mut realm_server::host::HostCounts, k: &realm_server::host::Ho
     c.moved_in += k.moved_in;
     c.moved_out += k.moved_out;
     c.recalled += k.recalled;
+    c.wars_begun += k.wars_begun;
+    c.wars_ended += k.wars_ended;
 }
 
 impl World {
@@ -186,6 +191,7 @@ impl World {
             next_host: AtomicU32::new(1),
             sessions: Mutex::new(HashMap::new()),
             stopping: AtomicBool::new(false),
+            wars: Mutex::new(wars::Wars::default()),
         }
     }
 
@@ -540,6 +546,9 @@ impl Gateway {
                 t.key
             })
         };
+        // Job R3b: she keeps her guild tag in the copy she is moved to.
+        let account = self.tickets.lock().unwrap().get(&ticket).map(|t| t.account);
+        let guild = account.map_or(0, |a| self.social.guild_of_account(a));
         let dest = {
             let hosts = self.hosts.lock().unwrap();
             let into = hosts.iter().find(|h| h.id == from).and_then(|h| h.closing);
@@ -549,13 +558,14 @@ impl Gateway {
                 e.arrive = Some(transfer.ring);
                 e.drive = driven;
                 e.key = key;
+                e.guild = guild;
                 let _ = h.handle.cmds.send(HostCmd::Admit(e));
                 (h.id, h.field, h.copy, h.handle.addr.port())
             })
         };
         let Some((id, field, copy, port)) = dest else {
             // Nowhere to go: she is banked as if the host had stopped.
-            self.apply(Flush { hero, ticket, seq: seq + 1, coin: transfer.outing.coin as u64, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Shutdown), mark: None });
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: transfer.outing.coin as u64, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Shutdown), mark: None, plunders: Vec::new(), plunder_coin: Vec::new() });
             self.world.count(|s| s.moved_banked += 1);
             return;
         };
@@ -608,9 +618,11 @@ impl Gateway {
         self.reap_hosts();
         let fields = self.world.state.lock().unwrap().fields.clone();
         let now = now_ms().max(0) as u64;
-        for f in fields {
+        for &f in &fields {
             self.step_field(f, now);
         }
+        // Job R3b: wars armed on every copy before their tide (and on a copy that opens during one).
+        self.arm_wars(&fields);
         self.admit_queue();
         self.news();
     }
@@ -861,7 +873,7 @@ mod tests {
         };
         let host = gw.tickets.lock().unwrap()[&ticket].host;
         // She banked 120 coin and her host died: the flush is still queued when the gateway gives the host up.
-        let f = Flush { hero: hero as u64, ticket, seq: 1, coin: 120, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None, mark: None };
+        let f = Flush { hero: hero as u64, ticket, seq: 1, coin: 120, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None, mark: None, plunders: Vec::new(), plunder_coin: Vec::new() };
         gw.msgs.send(HostMsg::Flush(f)).unwrap();
         gw.host_lost(host);
         let told = c.wait_push(Duration::from_secs(10), |r| match r {

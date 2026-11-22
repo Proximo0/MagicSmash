@@ -173,6 +173,9 @@ pub struct Gateway {
     threads: Mutex<Vec<JoinHandle<()>>>,
     next_conn: AtomicU64,
     ticket_rng: AtomicU64,
+    /// Logins accepted and field tickets issued since start (for the LAN rehearsal's host report; not game state).
+    pub logins: AtomicU64,
+    pub tickets_issued: AtomicU64,
     /// Parties, guilds, friends, chat channels and the moderators' hooks (job T1).
     pub social: crate::social::Social,
     /// Houses and the shared places (job H1).
@@ -266,6 +269,8 @@ impl Gateway {
             stop: AtomicBool::new(false),
             threads: Mutex::new(Vec::new()),
             next_conn: AtomicU64::new(1),
+            logins: AtomicU64::new(0),
+            tickets_issued: AtomicU64::new(0),
             ticket_rng: AtomicU64::new(IdGen::new().boot | 1),
             social: crate::social::Social::default(),
             homes: crate::homes::Homes::default(),
@@ -567,6 +572,7 @@ impl Gateway {
         }
         s.account = Some(account);
         self.world.sessions.lock().unwrap().insert(s.conn, s.out.clone());
+        self.logins.fetch_add(1, Ordering::Relaxed);
         Ok(Resp::Login { account })
     }
 
@@ -702,7 +708,10 @@ impl Gateway {
         let mut e = Entry::new(ticket, hero as u64, sheet, outing);
         e.drive = drive;
         e.key = key;
+        // Job R3b: the field tags her with her guild as she joins (what an altar war reads).
+        e.guild = self.social.guild_of_account(account);
         let _ = slot.handle.cmds.send(HostCmd::Admit(e));
+        self.tickets_issued.fetch_add(1, Ordering::Relaxed);
         Some((slot.handle.addr.port(), slot.copy, ticket, key))
     }
 
@@ -868,8 +877,15 @@ impl Gateway {
                 }
                 Ok(HostMsg::Moved { host, hero, ticket, seq, transfer, driven }) => self.on_moved(host, hero, ticket, seq, transfer, driven),
                 Ok(HostMsg::Reward(b)) => self.on_reward(b),
-                Ok(HostMsg::Closed { host }) => self.world.closed(host),
-                Ok(HostMsg::Lost { host }) => self.lose_host(host),
+                Ok(HostMsg::Closed { host }) => {
+                    self.world.closed(host);
+                    self.wars_host_gone(host);
+                }
+                Ok(HostMsg::Lost { host }) => {
+                    self.lose_host(host);
+                    self.wars_host_gone(host);
+                }
+                Ok(HostMsg::War { host, war, held, over }) => self.on_war(host, war, held, over),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     if self.stop.load(Ordering::Relaxed) {
                         break;
@@ -891,13 +907,23 @@ impl Gateway {
         let info = self.tickets.lock().unwrap().get(&f.ticket).map(|t| (t.account, t.field));
         let Some((_account, field)) = info else { return };
         let mut done: Option<(u64, u64, u16, u32)> = None;
+        // Job R3b: what each plundered fall took from her haul, for the hero who downed her.
+        let mut spoils: Vec<(realm_server::host::Plundered, Haul)> = Vec::new();
         // The haul: halved by each fall (and by a disconnect), banked when the flush says it is safe.
         let haul = {
             let mut loot = self.loot.lock().unwrap();
             let tl = loot.entry(f.ticket).or_default();
             let mut rng = fall_rng(self.cfg.secret, f.ticket, f.seq);
-            for _ in 0..f.fell + (f.left == Some(Leave::Disconnect)) as u32 {
-                tl.haul.fall(&mut rng);
+            for k in 0..f.fell + (f.left == Some(Leave::Disconnect)) as u32 {
+                let mut lost = tl.haul.fall(&mut rng);
+                if let Some(p) = f.plunders.iter().find(|p| p.fall == k) {
+                    // A bound item is never plundered: it stays in her haul.
+                    for sp in lost.items.iter().filter(|sp| sp.bound) {
+                        tl.haul.add_item(sp.clone());
+                    }
+                    lost.items.retain(|sp| !sp.bound);
+                    spoils.push((*p, lost));
+                }
             }
             let h = if f.banked { std::mem::take(&mut tl.haul) } else { Haul::new() };
             if f.left.is_some() {
@@ -905,6 +931,9 @@ impl Gateway {
             }
             h
         };
+        // Job R3b: banked coin she plundered goes in as the victims' coin moved to her.
+        let plundered: Vec<(HeroId, u64)> = f.plunder_coin.iter().filter(|p| p.1 > 0).map(|&(v, n)| (v as i64, n)).collect();
+        let plundered_sum: u64 = plundered.iter().map(|p| p.1).sum();
         match self.store.hero(hero) {
             Ok(Some(h)) => {
                 // A hero rested at a campfire (job H1) banks a few percent more class XP while the rest lasts.
@@ -916,12 +945,12 @@ impl Gateway {
                     f.potions.iter().enumerate().filter(|(_, n)| **n > 0).map(|(p, n)| (StackKind::potion(p as u32), *n as u64)).collect();
                 let waystone = f.waystone.filter(|&w| w != NO_WAYSTONE).map(|w| (field, w as i32));
                 for attempt in 0..8u128 {
-                    let delta = haul.clone().into_delta(OutingDelta { coin: f.coin, xp: f_xp, levels, items: Vec::new(), stacks: Vec::new(), potions_used: potions.clone(), waystone });
+                    let delta = haul.clone().into_delta(OutingDelta { coin: f.coin, xp: f_xp, levels, items: Vec::new(), stacks: Vec::new(), potions_used: potions.clone(), waystone, plundered: plundered.clone() });
                     let id = ((f.ticket as u128) << 64) | f.seq as u128 | (attempt << 40);
                     let m = Meta::new(id, 0, now_ms());
                     match self.store.apply_outing(m, hero, delta) {
                         Ok(_) => {
-                            done = Some((f.coin, f_xp, levels, potions.iter().map(|p| p.1 as u32).sum()));
+                            done = Some((f.coin + plundered_sum, f_xp, levels, potions.iter().map(|p| p.1 as u32).sum()));
                             break;
                         }
                         // She drank what she no longer has (the bag changed during the outing): apply the rest.
@@ -941,6 +970,9 @@ impl Gateway {
             }
             Ok(None) => eprintln!("realm-gateway: outing of unknown hero {hero}"),
             Err(e) => eprintln!("realm-gateway: outing of hero {hero}: {e}"),
+        }
+        for (p, lost) in spoils {
+            self.plunder(hero, f.ticket, f.seq, p, lost);
         }
         let mut out = None;
         {
@@ -972,6 +1004,50 @@ impl Gateway {
         if let (Some(tx), Some((coin, xp, levels, potions))) = (tx, out) {
             let left = f.left.map_or(255, Leave::code);
             let _ = tx.send(resp_frame(0, &Resp::Outing { hero, coin, xp, levels, potions, left }));
+        }
+    }
+
+    /// A plundered fall (job R3b): what the fall took from her haul goes to the hero who downed her, in one store
+    /// transaction (`Cmd::Plunder`: ledger lines on both sides, she stays each item's origin, his full bag spills to
+    /// his mail). The request id is made of her ticket, the flush and the fall, so a flush applied twice moves
+    /// nothing twice (the repeat is refused as `RequestMismatch` or answered as before). A fall that took nothing and
+    /// paid no coin needs no record. Nothing is lost: if the store refuses the plunder for any other reason, what the
+    /// fall took goes back to her, banked as her haul (`give_back`).
+    fn plunder(&self, hero: i64, ticket: u64, seq: u32, p: realm_server::host::Plundered, lost: Haul) {
+        if lost.is_empty() && p.coin == 0 {
+            return;
+        }
+        let stacks: Vec<(StackKind, u64)> = lost.stacks.iter().map(|(k, v)| (StackKind(*k), *v)).collect();
+        for attempt in 0..PLUNDER_TRIES {
+            let m = Meta::new(plunder_id(ticket, seq, p.fall, attempt), 0, now_ms());
+            match self.store.plunder(m, hero, p.by_hero as i64, lost.items.clone(), stacks.clone(), p.coin) {
+                Ok(_) | Err(Error::RequestMismatch) => return,
+                Err(Error::Db(_)) => std::thread::sleep(Duration::from_millis(50)),
+                Err(e) => {
+                    eprintln!("realm-gateway: plunder of hero {hero} by hero {} refused ({e}): it goes back to her", p.by_hero);
+                    break;
+                }
+            }
+        }
+        self.give_back(hero, ticket, seq, p.fall, lost);
+    }
+
+    /// What a plundered fall took, banked back to her as her haul (her bag, her mail when full), with its own request
+    /// id (attempt `PLUNDER_TRIES`), so it too is applied once.
+    fn give_back(&self, hero: i64, ticket: u64, seq: u32, fall: u32, lost: Haul) {
+        if lost.is_empty() {
+            return;
+        }
+        for _ in 0..8 {
+            let m = Meta::new(plunder_id(ticket, seq, fall, PLUNDER_TRIES), 0, now_ms());
+            match self.store.apply_outing(m, hero, lost.clone().into_delta(OutingDelta::default())) {
+                Ok(_) | Err(Error::RequestMismatch) => return,
+                Err(Error::Db(_)) => std::thread::sleep(Duration::from_millis(50)),
+                Err(e) => {
+                    eprintln!("realm-gateway: plunder of hero {hero} could not go back to her: {e}");
+                    return;
+                }
+            }
         }
     }
 
@@ -1074,7 +1150,7 @@ impl Gateway {
         let moved = self.tickets.lock().unwrap().get(&ticket).and_then(|t| t.moved);
         if let Some((seq, coin)) = moved {
             let lost = coin / 2;
-            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect), mark: None });
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect), mark: None, plunders: Vec::new(), plunder_coin: Vec::new() });
             self.world.count(|s| s.moved_lost += 1);
             return;
         }
@@ -1132,6 +1208,16 @@ impl Gateway {
     }
 }
 
+/// Tries of a plunder (attempts 0..7 of `plunder_id`); attempt 7 is the give-back.
+pub const PLUNDER_TRIES: u8 = 7;
+
+/// The store request id of a plundered fall: the victim's ticket, bit 63 (no flush id, which holds a seq and an attempt
+/// in bits 0..43, nor a delivery id, bit 31 and a count, sets it), the attempt in bits 56..59, the flush's number in
+/// bits 16..47 and the fall in bits 0..15.
+pub fn plunder_id(ticket: u64, seq: u32, fall: u32, attempt: u8) -> u128 {
+    ((ticket as u128) << 64) | 1u128 << 63 | ((attempt as u128 & 0x7) << 56) | ((seq as u128) << 16) | (fall as u128 & 0xFFFF)
+}
+
 /// The Outing push's code for a hero whose field host died.
 pub const LEFT_LOST: u8 = 6;
 /// The Outing push's code for a ticket that was never used (she never entered).
@@ -1153,4 +1239,93 @@ pub fn sell_price(spec: &ItemSpec) -> u64 {
 
 pub fn belt_potion(kind: u32) -> u8 {
     if kind >= 100 && kind < 106 { (kind - 100) as u8 } else { P_NONE }
+}
+
+#[cfg(test)]
+mod plunder_tests {
+    use super::*;
+    use realm_server::host::Plundered;
+
+    fn spec(level: u16) -> ItemSpec {
+        ItemSpec { base: 3, gear_slot: 1, item_level: level, rarity: 1, lines: vec![(0, 2)], sockets: 0, plus: 0, bound: false }
+    }
+
+    /// Job R3b: a plundered fall's items and materials go to the hero who downed her, through the applier, once;
+    /// bound items stay in her haul; the coin moves when he banks it, as hers.
+    #[test]
+    fn a_plundered_fall_moves_the_lost_haul_to_the_plunderer_once() {
+        let db = std::env::temp_dir().join(format!("realm-plunder-{}.db", std::process::id()));
+        for s in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+        }
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
+        let acct = |n: &str| store.account_by_dev_name(Meta::system(gw.ids.next(), 1), n).unwrap();
+        let (va, wa) = (acct("prey"), acct("hunter"));
+        let victim = store.hero_create(Meta::system(gw.ids.next(), 1), va, "Prey", 0, 1, 0, false).unwrap();
+        let winner = store.hero_create(Meta::system(gw.ids.next(), 1), wa, "Hunter", 0, 1, 0, false).unwrap();
+        let (vt, wt) = (0x1111u64, 0x2222u64);
+        let (tx, _rx) = channel();
+        for (t, h, a) in [(vt, victim, va), (wt, winner, wa)] {
+            gw.tickets.lock().unwrap().insert(t, Ticket { hero: h, account: a, field: 0, coin: 0, xp: 0, levels: 0, potions: 0, host: 1, conn: 0, driven: false, moved: None, key: Default::default() });
+            gw.locs.lock().unwrap().insert(h, Loc::Field { ticket: t, out: tx.clone() });
+        }
+        {
+            let mut loot = gw.loot.lock().unwrap();
+            let tl = loot.entry(vt).or_default();
+            for l in 1..=6 {
+                tl.haul.add_item(spec(l));
+            }
+            // Bound: never plundered, whatever the fall picks.
+            for l in 7..=8 {
+                tl.haul.add_item(ItemSpec { bound: true, ..spec(l) });
+            }
+            tl.haul.add_stack(StackKind::material(1), 10);
+        }
+        let p = Plundered { fall: 0, by_hero: winner as u64, by_ticket: wt, coin: 40 };
+        let f = Flush { hero: victim as u64, ticket: vt, seq: 1, coin: 0, lost_coin: 40, xp: 0, potions: [0; 6], waystone: None, fell: 1, banked: false, left: None, mark: None, plunders: vec![p], plunder_coin: Vec::new() };
+        gw.apply(f.clone());
+        let got = store.items_at(PlaceKind::Bag, winner).unwrap();
+        assert!(!got.is_empty() && got.iter().all(|i| !i.spec.bound), "no bound item: {got:?}");
+        assert_eq!(gw.loot.lock().unwrap()[&vt].haul.items.iter().filter(|i| i.bound).count(), 2, "her bound items stay");
+        assert_eq!(got.len() + gw.loot.lock().unwrap()[&vt].haul.items.len(), 8, "nothing lost");
+        assert!(got.iter().all(|i| i.origin_hero == Some(victim) && i.origin_account == va), "she stays the origin");
+        assert_eq!(store.stack(Owner::bag(winner), StackKind::material(1)).unwrap(), 5);
+        let n = got.len();
+        // The same flush applied again moves nothing more (the plunder's request id is the flush's and the fall's).
+        gw.apply(f);
+        assert_eq!(store.items_at(PlaceKind::Bag, winner).unwrap().len(), n);
+        // He banks 100 coin, 40 of it hers: banked as her coin moved to him, which her clawback plan reaches.
+        let wf = Flush { hero: winner as u64, ticket: wt, seq: 1, coin: 60, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None, mark: None, plunders: vec![], plunder_coin: vec![(victim as u64, 40)] };
+        gw.apply(wf);
+        assert_eq!(store.stack(Owner::bag(winner), StackKind::COIN).unwrap(), 100);
+        assert_eq!(gw.tickets.lock().unwrap()[&wt].coin, 100, "she is told all she banked");
+        assert_eq!(store.clawback_plan(va, 0).unwrap().stacks.iter().filter(|s| s.1 == StackKind::COIN).map(|s| s.2).sum::<u64>(), 40);
+        assert_eq!(store.stack(Owner::bag(winner), StackKind::material(1)).unwrap(), 5);
+        assert!(store.verify().unwrap().ok());
+        gw.shutdown();
+        for s in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+        }
+    }
+
+    #[test]
+    fn plunder_ids_share_no_request_id_with_flushes_or_deliveries() {
+        let t = 0xABCD_EF01_2345u64;
+        for seq in [0u32, 1, 77, u32::MAX] {
+            for fall in [0u32, 3, 65_535] {
+                for attempt in 0..8u8 {
+                    let p = plunder_id(t, seq, fall, attempt);
+                    assert_eq!(p >> 64, t as u128);
+                    assert!(p & (1 << 63) != 0);
+                    for a in 0..8u128 {
+                        assert_ne!(p, ((t as u128) << 64) | seq as u128 | (a << 40));
+                    }
+                    assert_ne!(p, delivery_id(t, seq));
+                }
+            }
+        }
+        assert_ne!(plunder_id(t, 1, 0, 0), plunder_id(t, 1, 1, 0));
+        assert_ne!(plunder_id(t, 1, 0, 0), plunder_id(t, 2, 0, 0));
+    }
 }

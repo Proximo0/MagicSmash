@@ -436,6 +436,7 @@ fn outing_delta() {
 		stacks: vec![(StackKind::material(1), 40), (StackKind::key(2), 1), (StackKind::rune(1, 1), 1)],
 		potions_used: vec![(StackKind::potion(0), 3)],
 		waystone: Some((1, 4)),
+		plundered: Vec::new(),
 	};
 	let m = t.m();
 	let got = t.s.apply_outing(m, h, d.clone()).unwrap();
