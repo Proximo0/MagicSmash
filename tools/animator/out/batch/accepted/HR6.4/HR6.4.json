@@ -1,0 +1,58 @@
+{
+ "name": "HR6.4",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.77,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.77,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "fit": {
+  "id": "HR6.4",
+  "flags": [],
+  "penalties": {},
+  "layout_scale": 1.002,
+  "robe": false,
+  "back_reach": 0.062,
+  "inner_hand": false,
+  "arm_colour_cost": 0.108,
+  "layout_swapped": {
+   "legs": true,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 29.1,
+   "neck": 16.6,
+   "pelvis": 21.9,
+   "shoulder": 25.9,
+   "elbow": 27.8,
+   "wrist": 22.7,
+   "hip": 25.8,
+   "knee": 20.7,
+   "ankle": 25.2,
+   "toe": 5.7,
+   "far_knee": 4.1,
+   "far_ankle": 42.3
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 415.0,
+  "leg_width": 53.5
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "name": "HR4.1",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.972,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.972,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "fit": {
+  "id": "HR4.1",
+  "flags": [
+   "back hand found at 52,191 (erased)"
+  ],
+  "penalties": {},
+  "layout_scale": 1.003,
+  "robe": false,
+  "back_reach": 0.107,
+  "inner_hand": false,
+  "arm_colour_cost": 0.079,
+  "layout_swapped": {
+   "legs": false,
+   "arms": true
+  },
+  "moved_px": {
+   "head_top": 26.3,
+   "neck": 15.3,
+   "pelvis": 18.9,
+   "shoulder": 18.2,
+   "elbow": 11.4,
+   "wrist": 6.6,
+   "hip": 21.8,
+   "knee": 13.7,
+   "ankle": 38.3,
+   "toe": 40.5,
+   "far_knee": 7.3,
+   "far_ankle": 42.8
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 382.0,
+  "leg_width": 47.0
+ }
+}

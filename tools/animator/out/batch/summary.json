@@ -1,0 +1,765 @@
+{
+ "HR1.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 25.7,
+   "neck": 12.7,
+   "pelvis": 15.0,
+   "shoulder": 11.2,
+   "elbow": 11.2,
+   "wrist": 11.9,
+   "hip": 7.6,
+   "knee": 8.1,
+   "ankle": 22.3,
+   "toe": 26.6,
+   "far_knee": 5.0,
+   "far_ankle": 37.5
+  },
+  "flags": [
+   "back hand found at 36,206 (erased)"
+  ],
+  "gear_cut": 0.0,
+  "gain": 1.9,
+  "speed_px_per_cycle": 56.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.28
+ },
+ "HR1.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 27.6,
+   "neck": 16.0,
+   "pelvis": 8.4,
+   "shoulder": 10.5,
+   "elbow": 29.6,
+   "wrist": 2.8,
+   "hip": 4.1,
+   "knee": 6.9,
+   "ankle": 18.6,
+   "toe": 22.0,
+   "far_knee": 15.8,
+   "far_ankle": 29.6
+  },
+  "flags": [],
+  "gear_cut": 0.78,
+  "gain": 1.95,
+  "speed_px_per_cycle": 56.0,
+  "status": "rejected",
+  "rules": [
+   "R6"
+  ],
+  "failures": [
+   "frame 2: heel_flush: far foot does not reach ahead of the shin",
+   "frame 4: heel_flush: far foot does not reach ahead of the shin"
+  ],
+  "seconds": 1.37
+ },
+ "HR1.3": {
+  "fit_score": 0.8,
+  "moved_px": {
+   "head_top": 22.0,
+   "neck": 3.3,
+   "pelvis": 6.0,
+   "shoulder": 9.8,
+   "elbow": 21.9,
+   "wrist": 9.1,
+   "hip": 16.7,
+   "knee": 5.4,
+   "ankle": 24.2,
+   "toe": 23.5,
+   "far_knee": 2.9,
+   "far_ankle": 49.5
+  },
+  "flags": [
+   "possible arm drawn over the body (hand-coloured blob at 89,191): it would stay painted on the torso",
+   "moved > 12% BH: far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G6"
+  ],
+  "failures": [
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+  ],
+  "seconds": 0.26
+ },
+ "HR1.4": {
+  "fit_score": 0.9,
+  "moved_px": {
+   "head_top": 29.0,
+   "neck": 3.9,
+   "pelvis": 14.4,
+   "shoulder": 14.8,
+   "elbow": 9.5,
+   "wrist": 22.4,
+   "hip": 4.1,
+   "knee": 12.3,
+   "ankle": 28.5,
+   "toe": 52.9,
+   "far_knee": 3.6,
+   "far_ankle": 47.4
+  },
+  "flags": [
+   "moved > 12% BH: toe"
+  ],
+  "gear_cut": 0.81,
+  "gain": 1.57,
+  "speed_px_per_cycle": 56.0,
+  "status": "rejected",
+  "rules": [
+   "R6"
+  ],
+  "failures": [
+   "frame 0: heel_flush: near rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel +1.8px behind the shin's back edge, toe -0.4px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
+   "frame 0: heel_flush: near rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel +1.7px behind the shin's back edge, toe -0.2px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel +2.2px behind the shin's back edge, toe -1.3px ahead of its front edge",
+   "frame 2: heel_flush: near rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 4: heel_flush: far rig heel +2.0px behind the shin's back edge, toe -0.8px ahead of its front edge",
+   "frame 5: heel_flush: near rig heel +2.2px behind the shin's back edge, toe -1.3px ahead of its front edge",
+   "frame 5: heel_flush: far rig heel +1.7px behind the shin's back edge, toe -0.2px ahead of its front edge",
+   "frame 6: heel_flush: near rig heel +1.8px behind the shin's back edge, toe -0.4px ahead of its front edge",
+   "frame 6: heel_flush: far rig heel +1.1px behind the shin's back edge, toe +0.3px ahead of its front edge",
+   "frame 7: heel_flush: near rig heel +1.7px behind the shin's back edge, toe -0.3px ahead of its front edge"
+  ],
+  "seconds": 1.59
+ },
+ "HR2.1": {
+  "fit_score": 0.9,
+  "moved_px": {
+   "head_top": 25.6,
+   "neck": 10.2,
+   "pelvis": 7.9,
+   "shoulder": 8.3,
+   "elbow": 55.6,
+   "wrist": 14.7,
+   "hip": 7.5,
+   "knee": 9.4,
+   "ankle": 41.6,
+   "toe": 50.4,
+   "far_knee": 14.6,
+   "far_ankle": 33.8
+  },
+  "flags": [
+   "ground plate erased (1887 px)",
+   "back hand found at 65,195 (erased)",
+   "moved > 12% BH: toe"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G4"
+  ],
+  "failures": [
+   "G4: feet_facing: back foot points backwards"
+  ],
+  "seconds": 0.58
+ },
+ "HR2.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 52.6,
+   "neck": 11.5,
+   "pelvis": 6.9,
+   "shoulder": 17.5,
+   "elbow": 20.8,
+   "wrist": 15.7,
+   "hip": 8.0,
+   "knee": 7.9,
+   "ankle": 21.3,
+   "toe": 27.6,
+   "far_knee": 9.9,
+   "far_ankle": 29.7
+  },
+  "flags": [
+   "back hand found at 57,189 (erased)"
+  ],
+  "gear_cut": 0.0,
+  "gain": 1.46,
+  "speed_px_per_cycle": 48.0,
+  "status": "rejected",
+  "rules": [
+   "R6"
+  ],
+  "failures": [
+   "frame 0: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 1: heel_flush: near foot does not reach ahead of the shin",
+   "frame 1: heel_flush: far rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
+   "frame 3: heel_flush: far foot does not reach ahead of the shin",
+   "frame 0: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 1: heel_flush: near foot does not reach ahead of the shin",
+   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -0.9px ahead of its front edge",
+   "frame 2: heel_flush: near foot does not reach ahead of the shin",
+   "frame 2: heel_flush: far rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 4: heel_flush: far rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 5: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -0.9px ahead of its front edge",
+   "frame 5: heel_flush: far foot does not reach ahead of the shin",
+   "frame 6: heel_flush: near rig heel -0.7px behind the shin's back edge, toe -0.5px ahead of its front edge",
+   "frame 6: heel_flush: far foot does not reach ahead of the shin",
+   "frame 7: heel_flush: near rig heel -0.9px behind the shin's back edge, toe -0.3px ahead of its front edge",
+   "frame 7: heel_flush: far foot does not reach ahead of the shin"
+  ],
+  "seconds": 1.68
+ },
+ "HR2.3": {
+  "fit_score": 0.9,
+  "moved_px": {
+   "head_top": 21.4,
+   "neck": 5.3,
+   "pelvis": 5.9,
+   "shoulder": 6.7,
+   "elbow": 30.8,
+   "wrist": 12.7,
+   "hip": 12.8,
+   "knee": 8.0,
+   "ankle": 24.8,
+   "toe": 5.7,
+   "far_knee": 3.6,
+   "far_ankle": 47.2
+  },
+  "flags": [
+   "moved > 12% BH: far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G2"
+  ],
+  "failures": [
+   "G2: proportions: front shin 45px vs back shin 28px"
+  ],
+  "seconds": 0.45
+ },
+ "HR2.4": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 27.9,
+   "neck": 7.9,
+   "pelvis": 14.9,
+   "shoulder": 18.4,
+   "elbow": 50.4,
+   "wrist": 19.3,
+   "hip": 26.8,
+   "knee": 12.3,
+   "ankle": 18.6,
+   "toe": 26.9,
+   "far_knee": 8.0,
+   "far_ankle": 36.9
+  },
+  "flags": [],
+  "gear_cut": 0.52,
+  "gain": 1.92,
+  "speed_px_per_cycle": 56.0,
+  "status": "rejected",
+  "rules": [
+   "R6"
+  ],
+  "failures": [
+   "frame 0: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 0: heel_flush: far rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 2: heel_flush: near rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
+   "frame 0: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 0: heel_flush: far rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel -1.3px behind the shin's back edge, toe -4.4px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 2: heel_flush: near rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel -1.9px behind the shin's back edge, toe -4.0px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 4: heel_flush: near rig heel -2.6px behind the shin's back edge, toe -3.6px ahead of its front edge",
+   "frame 4: heel_flush: far rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 5: heel_flush: near rig heel -0.4px behind the shin's back edge, toe -5.6px ahead of its front edge",
+   "frame 5: heel_flush: far rig heel -1.3px behind the shin's back edge, toe -4.5px ahead of its front edge",
+   "frame 6: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 6: heel_flush: far rig heel -1.2px behind the shin's back edge, toe -4.6px ahead of its front edge",
+   "frame 7: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -5.4px ahead of its front edge",
+   "frame 7: heel_flush: far rig heel -1.9px behind the shin's back edge, toe -4.0px ahead of its front edge"
+  ],
+  "seconds": 1.61
+ },
+ "HR3.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 28.1,
+   "neck": 14.1,
+   "pelvis": 21.1,
+   "shoulder": 12.5,
+   "elbow": 28.4,
+   "wrist": 8.7,
+   "hip": 27.6,
+   "knee": 13.7,
+   "ankle": 32.0,
+   "toe": 44.3,
+   "far_knee": 7.0,
+   "far_ankle": 42.3
+  },
+  "flags": [],
+  "gear_cut": 0.0,
+  "gain": 1.19,
+  "speed_px_per_cycle": 40.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.69
+ },
+ "HR3.2": {
+  "fit_score": 0.2,
+  "moved_px": {
+   "head_top": 28.5,
+   "neck": 7.0,
+   "pelvis": 7.7,
+   "shoulder": 8.3,
+   "elbow": 19.3,
+   "wrist": 12.7,
+   "hip": 8.1,
+   "knee": 26.5,
+   "ankle": 121.7,
+   "toe": 35.9,
+   "far_knee": 39.5,
+   "far_ankle": 115.3
+  },
+  "flags": [
+   "two feet not found at the ground",
+   "moved > 12% BH: ankle, far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G1",
+   "G2",
+   "G5"
+  ],
+  "failures": [
+   "G1: limb_count: two separate legs not found in the silhouette",
+   "G2: proportions: front shin 47px vs back shin 26px",
+   "G5: fit_score: 0.20 < 0.7 (two feet not found at the ground | moved > 12% BH: ankle, far_ankle)"
+  ],
+  "seconds": 0.3
+ },
+ "HR3.3": {
+  "fit_score": 0.4,
+  "moved_px": {
+   "head_top": 11.3,
+   "neck": 7.5,
+   "pelvis": 8.3,
+   "shoulder": 6.7,
+   "elbow": 47.9,
+   "wrist": 19.4,
+   "hip": 0.6,
+   "knee": 0.8,
+   "ankle": 32.5,
+   "toe": 30.2,
+   "far_knee": 77.8,
+   "far_ankle": 170.3
+  },
+  "flags": [
+   "ground plate erased (4253 px)",
+   "leg axis not found",
+   "moved > 12% BH: far_knee, far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G1",
+   "G5"
+  ],
+  "failures": [
+   "G1: limb_count: two separate legs not found in the silhouette",
+   "G5: fit_score: 0.40 < 0.7 (ground plate erased (4253 px) | leg axis not found | moved > 12% BH: far_knee, far_ankle)"
+  ],
+  "seconds": 0.53
+ },
+ "HR3.4": {
+  "fit_score": 0.56,
+  "moved_px": {
+   "head_top": 32.1,
+   "neck": 11.9,
+   "pelvis": 24.0,
+   "shoulder": 15.5,
+   "elbow": 75.6,
+   "wrist": 5.9,
+   "hip": 23.5,
+   "knee": 31.6,
+   "ankle": 69.8,
+   "toe": 61.5,
+   "far_knee": 18.9,
+   "far_ankle": 38.8
+  },
+  "flags": [
+   "back hand found at 61,250 (erased)",
+   "moved > 12% BH: ankle, toe"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G5"
+  ],
+  "failures": [
+   "G5: fit_score: 0.56 < 0.7 (back hand found at 61,250 (erased) | moved > 12% BH: ankle, toe)"
+  ],
+  "seconds": 1.29
+ },
+ "HR4.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 26.3,
+   "neck": 15.3,
+   "pelvis": 18.9,
+   "shoulder": 18.2,
+   "elbow": 11.4,
+   "wrist": 6.6,
+   "hip": 21.8,
+   "knee": 13.7,
+   "ankle": 38.3,
+   "toe": 40.5,
+   "far_knee": 7.3,
+   "far_ankle": 42.8
+  },
+  "flags": [
+   "back hand found at 52,191 (erased)"
+  ],
+  "gear_cut": 1.35,
+  "gain": 1.97,
+  "speed_px_per_cycle": 56.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.66
+ },
+ "HR4.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 29.2,
+   "neck": 15.2,
+   "pelvis": 7.0,
+   "shoulder": 10.3,
+   "elbow": 14.0,
+   "wrist": 7.3,
+   "hip": 3.8,
+   "knee": 5.2,
+   "ankle": 23.0,
+   "toe": 27.6,
+   "far_knee": 12.5,
+   "far_ankle": 26.1
+  },
+  "flags": [],
+  "gear_cut": 0.0,
+  "gain": 1.97,
+  "speed_px_per_cycle": 56.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.62
+ },
+ "HR4.3": {
+  "fit_score": 0.65,
+  "moved_px": {
+   "head_top": 22.3,
+   "neck": 0.3,
+   "pelvis": 4.6,
+   "shoulder": 7.8,
+   "elbow": 13.5,
+   "wrist": 0.5,
+   "hip": 17.0,
+   "knee": 6.2,
+   "ankle": 27.4,
+   "toe": 18.9,
+   "far_knee": 3.8,
+   "far_ankle": 42.3
+  },
+  "flags": [
+   "ground plate erased (3243 px)",
+   "front hand not found, layout arm used",
+   "moved > 12% BH: far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G1",
+   "G5"
+  ],
+  "failures": [
+   "G1: limb_count: no hand found outside the torso",
+   "G5: fit_score: 0.65 < 0.7 (ground plate erased (3243 px) | front hand not found, layout arm used | moved > 12% BH: far_ankle)"
+  ],
+  "seconds": 0.19
+ },
+ "HR4.4": {
+  "fit_score": 0.9,
+  "moved_px": {
+   "head_top": 59.0,
+   "neck": 18.3,
+   "pelvis": 12.8,
+   "shoulder": 16.5,
+   "elbow": 52.0,
+   "wrist": 5.6,
+   "hip": 23.2,
+   "knee": 1.9,
+   "ankle": 21.9,
+   "toe": 30.1,
+   "far_knee": 10.0,
+   "far_ankle": 33.9
+  },
+  "flags": [
+   "possible arm drawn over the body (hand-coloured blob at 118,232): it would stay painted on the torso"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G6"
+  ],
+  "failures": [
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+  ],
+  "seconds": 0.99
+ },
+ "HR5.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 28.2,
+   "neck": 8.2,
+   "pelvis": 20.0,
+   "shoulder": 8.2,
+   "elbow": 46.1,
+   "wrist": 3.5,
+   "hip": 18.7,
+   "knee": 6.7,
+   "ankle": 36.6,
+   "toe": 44.2,
+   "far_knee": 22.2,
+   "far_ankle": 26.5
+  },
+  "flags": [],
+  "gear_cut": 1.67,
+  "gain": 2.0,
+  "speed_px_per_cycle": 56.0,
+  "status": "rejected",
+  "rules": [
+   "R1"
+  ],
+  "failures": [
+   "frame 0: two_legs: row 66 has 3 leg-wide runs (a third leg?)",
+   "frame 0: two_legs: row 66 has 3 leg-wide runs (a third leg?)"
+  ],
+  "seconds": 1.34
+ },
+ "HR5.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 43.6,
+   "neck": 10.4,
+   "pelvis": 8.3,
+   "shoulder": 9.1,
+   "elbow": 24.8,
+   "wrist": 3.4,
+   "hip": 9.4,
+   "knee": 3.5,
+   "ankle": 13.0,
+   "toe": 35.0,
+   "far_knee": 11.5,
+   "far_ankle": 29.4
+  },
+  "flags": [],
+  "gear_cut": 0.4,
+  "gain": 1.69,
+  "speed_px_per_cycle": 48.0,
+  "status": "rejected",
+  "rules": [
+   "R6"
+  ],
+  "failures": [
+   "frame 0: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 0: heel_flush: far rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 2: heel_flush: near rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
+   "frame 0: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 0: heel_flush: far rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
+   "frame 1: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.3px ahead of its front edge",
+   "frame 1: heel_flush: far rig heel -0.3px behind the shin's back edge, toe -3.1px ahead of its front edge",
+   "frame 2: heel_flush: near rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
+   "frame 2: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 3: heel_flush: near rig heel -1.3px behind the shin's back edge, toe -2.0px ahead of its front edge",
+   "frame 3: heel_flush: far rig heel -0.6px behind the shin's back edge, toe -2.8px ahead of its front edge",
+   "frame 4: heel_flush: near rig heel -1.8px behind the shin's back edge, toe -1.7px ahead of its front edge",
+   "frame 4: heel_flush: far rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 5: heel_flush: near rig heel -0.3px behind the shin's back edge, toe -3.1px ahead of its front edge",
+   "frame 5: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.3px ahead of its front edge",
+   "frame 6: heel_flush: near rig heel -0.5px behind the shin's back edge, toe -2.9px ahead of its front edge",
+   "frame 6: heel_flush: far rig heel -1.0px behind the shin's back edge, toe -2.4px ahead of its front edge",
+   "frame 7: heel_flush: near rig heel -0.6px behind the shin's back edge, toe -2.8px ahead of its front edge",
+   "frame 7: heel_flush: far rig heel -1.3px behind the shin's back edge, toe -2.0px ahead of its front edge"
+  ],
+  "seconds": 1.3
+ },
+ "HR5.3": {
+  "fit_score": 0.6,
+  "moved_px": {
+   "head_top": 95.5,
+   "neck": 102.1,
+   "pelvis": 36.3,
+   "shoulder": 104.9,
+   "elbow": 91.7,
+   "wrist": 61.4,
+   "hip": 41.4,
+   "knee": 32.7,
+   "ankle": 58.5,
+   "toe": 64.3,
+   "far_knee": 10.6,
+   "far_ankle": 46.1
+  },
+  "flags": [
+   "detached piece(s) 5700 px kept as gear",
+   "moved > 12% BH: neck, hip, ankle, toe, far_ankle"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G2",
+   "G5"
+  ],
+  "failures": [
+   "G2: proportions: front shin 33px vs back shin 46px",
+   "G5: fit_score: 0.60 < 0.7 (detached piece(s) 5700 px kept as gear | moved > 12% BH: neck, hip, ankle, toe, far_ankle)"
+  ],
+  "seconds": 0.55
+ },
+ "HR5.4": {
+  "fit_score": 0.9,
+  "moved_px": {
+   "head_top": 36.4,
+   "neck": 17.7,
+   "pelvis": 10.6,
+   "shoulder": 25.8,
+   "elbow": 18.6,
+   "wrist": 11.7,
+   "hip": 8.9,
+   "knee": 6.8,
+   "ankle": 22.4,
+   "toe": 32.9,
+   "far_knee": 1.4,
+   "far_ankle": 38.9
+  },
+  "flags": [
+   "possible arm drawn over the body (hand-coloured blob at 87,270): it would stay painted on the torso"
+  ],
+  "status": "rejected",
+  "rules": [
+   "G6"
+  ],
+  "failures": [
+   "G6: two_arms: a hand-coloured blob on the body looks like an arm drawn over the torso; it would stay painted on while the cut arm swings"
+  ],
+  "seconds": 0.74
+ },
+ "HR6.1": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 33.2,
+   "neck": 15.7,
+   "pelvis": 12.2,
+   "shoulder": 23.3,
+   "elbow": 30.8,
+   "wrist": 21.8,
+   "hip": 0.6,
+   "knee": 15.1,
+   "ankle": 33.5,
+   "toe": 12.1,
+   "far_knee": 12.0,
+   "far_ankle": 46.5
+  },
+  "flags": [],
+  "gear_cut": 0.8,
+  "gain": 1.3,
+  "speed_px_per_cycle": 48.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.62
+ },
+ "HR6.2": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 29.6,
+   "neck": 15.4,
+   "pelvis": 17.8,
+   "shoulder": 11.7,
+   "elbow": 50.0,
+   "wrist": 9.0,
+   "hip": 20.1,
+   "knee": 0.5,
+   "ankle": 26.6,
+   "toe": 26.1,
+   "far_knee": 14.5,
+   "far_ankle": 28.7
+  },
+  "flags": [],
+  "gear_cut": 2.06,
+  "status": "rejected",
+  "rules": [
+   "G7"
+  ],
+  "failures": [
+   "G7: gear_cut: the forearm's seam with the body runs 2.1 radii through drawn colour (> 1.7): held gear (a shield?) would be cut in two"
+  ],
+  "seconds": 0.78
+ },
+ "HR6.3": {
+  "fit_score": 0.85,
+  "moved_px": {
+   "head_top": 24.1,
+   "neck": 13.0,
+   "pelvis": 17.5,
+   "shoulder": 17.0,
+   "elbow": 17.5,
+   "wrist": 57.5,
+   "hip": 16.2,
+   "knee": 1.6,
+   "ankle": 30.1,
+   "toe": 11.6,
+   "far_knee": 19.7,
+   "far_ankle": 75.3
+  },
+  "flags": [
+   "ground plate erased (1241 px)",
+   "moved > 12% BH: far_ankle"
+  ],
+  "gear_cut": 0.36,
+  "gain": 1.04,
+  "speed_px_per_cycle": 32.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 1.85
+ },
+ "HR6.4": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 29.1,
+   "neck": 16.6,
+   "pelvis": 21.9,
+   "shoulder": 25.9,
+   "elbow": 27.8,
+   "wrist": 22.7,
+   "hip": 25.8,
+   "knee": 20.7,
+   "ankle": 25.2,
+   "toe": 5.7,
+   "far_knee": 4.1,
+   "far_ankle": 42.3
+  },
+  "flags": [],
+  "gear_cut": 0.78,
+  "gain": 1.77,
+  "speed_px_per_cycle": 56.0,
+  "status": "accepted",
+  "rules": [],
+  "seconds": 2.21
+ }
+}

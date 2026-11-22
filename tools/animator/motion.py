@@ -112,6 +112,10 @@ WALK_LEGS = [
     (95, 28.0, 10.0, 1.0),
 ]
 WALK_TOE_OFF = 0.62   # stance = 62 % of the cycle (Perry: 60-62 %)
+ARM_REST_BLEND = 0.5          # arm swing centre: half the still's drawn angle, half the table's
+HEEL_STRIKE_PITCH = 20.0      # deg: toe-up at heel strike at most (Perry: ~20-25 deg)
+STANCE_DORSI_MAX = 26.0       # deg: a planted foot rises on its toe before the ankle passes this
+SWING_ANKLE = (-20.0, 22.0)   # deg: ankle range of a swinging foot (Perry: -15 .. +5, cartoon slack)
 
 # Arm swing opposite the legs (Murray, Sepic & Barnard, "Patterns of sagittal rotation of
 # the upper limbs in walking", Phys Ther 47:272, 1967): the near arm is furthest back at near
@@ -126,16 +130,90 @@ WALK_ARMS = {
 WALK_EXTRA = {"lean": ([0, 0.25, 0.5, 0.75], [2.5, 1.5, 2.5, 1.5])}
 
 
-def walk():
-    ch, st = _sym(WALK_LEGS, WALK_ARMS, WALK_EXTRA, WALK_TOE_OFF)
-    return Motion("walk", ch, st, travels=True, frames=8,
-                  source="Winter 2009; Perry & Burnfield 2010; Murray et al. 1967")
+# Stride retargeting (owner: "the stride reads short and stiff").  The published table is a
+# 1.3-1.4 m adult stride; the stills are drawn with a cartoon stride of ~0.55-0.6 body heights
+# per step.  `walk(gain)` scales the thigh swing about THIGH_C, lifts the swing knee by
+# KNEE_LIFT per unit of extra gain and widens the arm swing; `fit_walk` picks the gain whose
+# solved stride equals the still's own heel-to-heel step x 2 x STRIDE_MATCH.
+THIGH_C = 8.0         # deg: centre of the table's thigh swing (-10 .. +30)
+KNEE_LIFT = 0.30      # swing-knee flexion x (1 + KNEE_LIFT (gain - 1)) above 20 deg
+ARM_SWING = 17.0      # deg: shoulder swing amplitude at gain 1 (Murray 1967, brisk)
+ARM_MAX = 30.0        # deg: arm swing amplitude cap
+GAIN_MAX = 2.0
+STRIDE_MATCH = 0.95   # a touch under the drawn step, so frame 0 never overshoots the still
+
+
+def walk(gain=1.0, arm=1.0):
+    g = float(gain)
+    legs = []
+    for ph, th, kn, an in WALK_LEGS:
+        th2 = THIGH_C + g * (th - THIGH_C)
+        kn2 = kn if kn <= 20 else 20 + (kn - 20) * (1 + KNEE_LIFT * (g - 1))
+        legs.append((ph, th2, kn2, an))
+    amp = min(ARM_SWING * (1 + 0.6 * (g - 1)), ARM_MAX) * arm
+    arms = {
+        "upper": (_arm_k, [2 - amp * math.cos(2 * math.pi * (k - 0.02)) for k in _arm_k]),
+        "elbow": (_arm_k, [12 + arm * (25 + 8 * (g - 1)) * (1 - math.cos(2 * math.pi * (k - 0.02))) / 2
+                           for k in _arm_k]),
+    }
+    extra = {"lean": ([0, 0.25, 0.5, 0.75], [2.5, 1.0, 2.5, 1.0])}
+    ch, st = _sym(legs, arms, extra, WALK_TOE_OFF)
+    m = Motion("walk", ch, st, travels=True, frames=8,
+               source="Winter 2009; Perry & Burnfield 2010; Murray et al. 1967")
+    m.gain = g
+    m.arm = arm
+    return m
+
+
+def fit_walk(rig, step_px, exact=None, quantum=None, arm=1.0):
+    """The walk whose stride (still px per cycle) matches 2 x step_px x STRIDE_MATCH (or
+    `exact`); the returned motion carries the exact stride so the planted foot moves a whole
+    number of game px per frame."""
+    target = float(exact) if exact else 2.0 * step_px * STRIDE_MATCH
+    m = _fit_gain(rig, target, arm)
+    # a long stride must not overextend the trailing hip: step the gain (and the stride)
+    # down until a sampled cycle stays inside the hip and knee limits
+    from .rig import joint_angles, JOINT_LIMITS
+    lo_hip = JOINT_LIMITS["hip"][0] + 2.0
+    for _ in range(12):
+        m.stride_exact = target
+        gt = Gait(rig, m)
+        worst = 0.0
+        for i in range(16):
+            J = rig.fk(gt.pose(i / 16)[0])
+            a = joint_angles(J, rig.rest["lean"])
+            worst = min(worst, a["near.hip"] - lo_hip, a["far.hip"] - lo_hip)
+        if worst >= 0 or m.gain <= 1.0:
+            break
+        target = max(quantum, target - quantum) if quantum else target * 0.94
+        m = _fit_gain(rig, target, arm)
+    m.stride_exact = target
+    return m
+
+
+def _fit_gain(rig, target, arm=1.0):
+    lo, hi = 1.0, GAIN_MAX
+    if Gait(rig, walk(lo, arm)).stride >= target:
+        return walk(lo, arm)
+    if Gait(rig, walk(hi, arm)).stride <= target:
+        return walk(hi, arm)
+    for _ in range(10):
+        mid = (lo + hi) / 2
+        if Gait(rig, walk(mid, arm)).stride < target:
+            lo = mid
+        else:
+            hi = mid
+    return walk((lo + hi) / 2, arm)
 
 
 MOTIONS = {"walk": walk}
 
 
 # ---------------------------------------------------------------------------------- solver
+def wrap(a):
+    return (a + 180.0) % 360.0 - 180.0
+
+
 def _smooth(x0, x1, x):
     if x1 <= x0:
         return 1.0 if x >= x1 else 0.0
@@ -174,6 +252,8 @@ class Gait:
                 h2, t2 = rig.foot_points(a2, self._fk_pitch(s, st + du))
                 est.append((heel[0] + self.flen - t2[0]) / du)
         self.stride = float(np.mean(est)) if est else 0.0   # still px per cycle
+        if getattr(motion, "stride_exact", None) and motion.travels:
+            self.stride = float(motion.stride_exact)
         if not motion.travels:
             for s in SIDES:  # stand on the table's foot placement
                 hp = self._hip_xy(s, 0.0, 0.0)
@@ -221,7 +301,7 @@ class Gait:
         pf = self._fk_pitch(s, p)
         w1 = 1.0 - _smooth(0.13 * du, 0.29 * du, q)
         w2 = _smooth(0.62 * du, 0.78 * du, q)
-        return w1 * max(pf, 0.0) + w2 * min(pf, 0.0)
+        return w1 * min(max(pf, 0.0), HEEL_STRIKE_PITCH) + w2 * min(pf, 0.0)
 
     def _stance_foot(self, s, p):
         """heel, toe, ankle of a planted foot at phase p."""
@@ -325,13 +405,52 @@ class Gait:
                 if low > self.ground:   # swing foot never goes through the floor
                     ankle = ankle - np.array([0.0, low - self.ground])
             knee, end = ik2(hip, ankle, self.L1, self.L2, forward=1.0)
+            # keep the ankle inside its range: a long stride makes the trailing foot rise on
+            # its toe earlier (forefoot rocker about the fixed toe); a swing foot is turned
+            # about the ankle into the swing range
+            for _ in range(4):
+                shin_a = limb_angle(end - knee)
+                ank = pitch - shin_a
+                if on and ank > STANCE_DORSI_MAX:
+                    heel0, toe0 = rig.foot_points(ankle, pitch)
+                    pitch = shin_a + STANCE_DORSI_MAX
+                    if pitch < 0:      # heel up: turn about the toe, which stays planted
+                        heel2 = toe0 - rot(rig.foot_local["toe"], -pitch)
+                    else:              # still toe up: turn about the heel
+                        heel2 = heel0
+                    ankle = rig.ankle_from_foot(heel2, pitch)
+                    knee, end = ik2(hip, ankle, self.L1, self.L2, forward=1.0)
+                elif not on and not (SWING_ANKLE[0] <= ank <= SWING_ANKLE[1]):
+                    pitch = shin_a + min(max(ank, SWING_ANKLE[0]), SWING_ANKLE[1])
+                    break
+                else:
+                    break
             thigh = limb_angle(knee - hip)
             shin = limb_angle(end - knee)
-            upper = self.m.get(s + ".upper", p)
-            fore = upper + self.m.get(s + ".elbow", p)
+            upper, fore = self.arm_angles(s, p)
             pose[s] = {"thigh": thigh, "shin": shin, "pitch": pitch, "upper": upper, "fore": fore}
             contact[s] = bool(on)
         return pose, contact
+
+    def arm_angles(self, s, p):
+        """Arm retargeting: the swing (table minus its cycle mean) is added around a centre
+        that blends the table's centre with the still's own upper-arm angle (ARM_REST_BLEND,
+        or all of it when the hand holds long gear: m.arm < 1), and the elbow keeps the
+        still's own flexion plus the table's variation.  So a drawn forearm holding a staff
+        upright stays upright instead of being turned to the table's absolute angle."""
+        if not hasattr(self, "_arm_mean"):
+            ks = [i / 32 for i in range(32)]
+            self._arm_mean = {c: float(np.mean([self.m.get("near." + c, k) for k in ks]))
+                              for c in ("upper", "elbow")}
+        r = self.rig.rest
+        blend = 1.0 if getattr(self.m, "arm", 1.0) < 1.0 else ARM_REST_BLEND
+        rest_up = min(max(r["upper"], -40.0), 60.0)
+        rest_el = min(max(wrap(r["fore"] - r["upper"]), 0.0), 130.0)
+        centre = blend * rest_up + (1 - blend) * self._arm_mean["upper"]
+        upper = centre + self.m.get(s + ".upper", p) - self._arm_mean["upper"]
+        el = rest_el + self.m.get(s + ".elbow", p) - self._arm_mean["elbow"]
+        el = min(max(el, 1.0), 145.0)
+        return upper, upper + el
 
     def _stance_rel(self, s, p):
         ankle, _ = self._stance_foot(s, p)

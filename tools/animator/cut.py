@@ -171,6 +171,7 @@ class Part:
         self.pivot = pivot        # joint name in the rig the part turns about
         self.bone = bone          # (joint_a, joint_b): the part turns with this bone
         self.attach = attach
+        self.kind = "rigid"       # "cape" / "robe" for cloth parts (autocut)
 
     @property
     def mask(self):

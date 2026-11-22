@@ -2,6 +2,7 @@
   python3 -m tools.animator bake samples/HR6.1_1.png --joints samples/HR6.1_1.json --out out/
   python3 -m tools.animator all [--out out/]          bake every sample with a JSON + contact sheet
   python3 -m tools.animator auto samples/HR6.1_1.png  print estimated joints JSON
+  python3 -m tools.animator batch samples/stills --out out/batch   fit + gate + bake all stills
 Relative paths that do not exist from the current directory are taken from tools/animator/.
 """
 import argparse
@@ -46,7 +47,15 @@ def main(argv=None):
     a.add_argument("--out", default="out/")
     au = sub.add_parser("auto")
     au.add_argument("still")
+    bt = sub.add_parser("batch")
+    bt.add_argument("stills", nargs="?", default="samples/stills")
+    bt.add_argument("--out", default="out/batch")
+    bt.add_argument("--no-skf", action="store_true")
     args = ap.parse_args(argv)
+    if args.cmd == "batch":
+        from .batch import run
+        acc, rej = run(_in(args.stills), _out(args.out), skf=not args.no_skf)
+        return 1 if rej else 0
     if args.cmd == "auto":
         from .cut import auto_joints, load_still
         still, _, _ = load_still(_in(args.still))

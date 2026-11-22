@@ -1,0 +1,58 @@
+{
+ "name": "HR4.2",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.969,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 56.0,
+   "gain": 1.969,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "fit": {
+  "id": "HR4.2",
+  "flags": [],
+  "penalties": {},
+  "layout_scale": 1.003,
+  "robe": false,
+  "back_reach": 0.032,
+  "inner_hand": false,
+  "arm_colour_cost": 0.065,
+  "layout_swapped": {
+   "legs": true,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 29.2,
+   "neck": 15.2,
+   "pelvis": 7.0,
+   "shoulder": 10.3,
+   "elbow": 14.0,
+   "wrist": 7.3,
+   "hip": 3.8,
+   "knee": 5.2,
+   "ankle": 23.0,
+   "toe": 27.6,
+   "far_knee": 12.5,
+   "far_ankle": 26.1
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 381.0,
+  "leg_width": 36.5
+ }
+}

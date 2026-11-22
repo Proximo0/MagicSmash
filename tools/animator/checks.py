@@ -6,6 +6,7 @@ labels, digests.  ctx (from bake.context) has lengths, limits, ground, speed, ..
 """
 import numpy as np
 
+from .foot import BEHIND_MAX_PX, ahead_of_front_edge, behind_back_edge
 from .rig import JOINT_LIMITS, joint_angles, SIDES
 
 TOL_PX = 1.0       # brief: 1 px at game size
@@ -92,6 +93,42 @@ def feet_facing(frames, ctx):
             dx = (J[s + ".toe"][0] - J[s + ".heel"][0]) * ctx["facing"]
             if dx <= 0:
                 out.append(f"frame {i}: foot_direction: {s} foot points backwards (toe {dx:+.1f}px from heel)")
+    return out
+
+
+def heel_flush(frames, ctx):
+    """The heel is the bottom of the shin's back edge (owner, 22 Nov): for each foot in each
+    frame, foot pixels behind the shin's back edge line (extended down to the ground) are at
+    most BEHIND_MAX_PX wide in any row, and the foot reaches ahead of the shin's front edge.
+    Measured on the baked pixels (label map) and on the posed rig (heel within 1 px of the
+    back line, toe ahead of the front line)."""
+    out = []
+    back, front = ctx["shin_back"], ctx["shin_front"]
+    for i, f in enumerate(frames):
+        J = _J(f["meta"])
+        names = f["meta"]["labels"]
+        lab = f["label"]
+        for s in SIDES:
+            kn, an = J[s + ".knee"], J[s + ".ankle"]
+            hb = float(behind_back_edge(J[s + ".heel"], kn, an, back, ctx["facing"]))
+            ta = float(ahead_of_front_edge(J[s + ".toe"], kn, an, front, ctx["facing"]))
+            if hb > TOL_PX or ta <= 0:
+                out.append(f"frame {i}: heel_flush: {s} rig heel {hb:+.1f}px behind the shin's back "
+                           f"edge, toe {ta:+.1f}px ahead of its front edge")
+                continue
+            if s + "_foot" not in names:
+                continue
+            ys, xs = np.where(lab == names.index(s + "_foot"))
+            if len(ys) < max(3, 0.5 * ctx.get("foot_px", 0)):
+                continue   # mostly hidden behind the other leg
+            P = np.stack([xs + 0.5, ys + 0.5], 1)
+            beh = behind_back_edge(P, kn, an, back, ctx["facing"]) > 0
+            if beh.any():
+                w = np.bincount(ys[beh]).max()
+                if w > BEHIND_MAX_PX:
+                    out.append(f"frame {i}: heel_flush: {s} foot sticks out {w}px behind the shin's back edge")
+            if ahead_of_front_edge(P, kn, an, front, ctx["facing"]).max() <= 0:
+                out.append(f"frame {i}: heel_flush: {s} foot does not reach ahead of the shin")
     return out
 
 
@@ -188,6 +225,11 @@ def cycle_closes(frames, ctx):
                    f"(joint off by {worst:.1f}px)")
     if c["contact"] != frames[0]["meta"]["contact"]:
         out.append(f"frame {len(frames) - 1}: cycle_closes: foot contacts differ at the loop point")
+    cr = ctx.get("closing_rgba")
+    if cr is not None and not np.array_equal(cr, frames[0]["rgba"]):
+        diff = int((cr != frames[0]["rgba"]).any(-1).sum())
+        out.append(f"frame {len(frames) - 1}: cycle_closes: the frame after the last differs from "
+                   f"frame 0 in {diff} pixels (cloth or parts do not loop)")
     return out
 
 
@@ -222,8 +264,68 @@ def palette(frames, ctx):
     return out
 
 
-RULES = [bone_lengths, joint_limits, stance_foot, feet_facing, draw_order, two_legs,
-         rigid_parts, cycle_closes, mirror_timing, palette]
+def foot_jitter(frames, ctx):
+    """The shrunk stance foot jitters at most 1 px frame to frame: between consecutive stance
+    frames of the same footfall, the baked foot's ground end (heel end while the heel is down,
+    toe end once it rises) keeps its offset to the float footprint within TOL_PX, and its
+    lowest row stays on the ground row (FOOT_Y - 1, 1 px slack)."""
+    out = []
+    n = len(frames)
+    g = ctx["ground"]
+
+    def anchor(f, s):
+        names = f["meta"]["labels"]
+        if s + "_foot" not in names:
+            return None
+        ys, xs = np.where(f["label"] == names.index(s + "_foot"))
+        if len(ys) < max(3, 0.5 * ctx.get("foot_px", 0)):
+            return None
+        J = _J(f["meta"])
+        heel, toe = J[s + ".heel"], J[s + ".toe"]
+        low = ys >= ys.max() - 1
+        if heel[1] >= toe[1] - 0.5:
+            return "heel", float(xs[low].min()) - float(heel[0]), int(ys.max())
+        return "toe", float(xs[low].max() + 1) - float(toe[0]), int(ys.max())
+
+    for s in SIDES:
+        for i in range(n):
+            a, b = frames[i], frames[(i + 1) % n]
+            if not (a["meta"]["contact"][s] and b["meta"]["contact"][s]):
+                continue
+            if not _same_step(ctx, s, a["meta"]["phase"], i + 1 == n):
+                continue
+            pa, pb = anchor(a, s), anchor(b, s)
+            if pa is None or pb is None:
+                continue
+            for k, p in ((i, pa), ((i + 1) % n, pb)):
+                if not (g - 2 <= p[2] <= g):
+                    out.append(f"frame {k}: foot_jitter: {s} stance foot's lowest row {p[2]}, ground row {g - 1}")
+            if pa[0] == pb[0] and abs(pb[1] - pa[1]) > TOL_PX + 1e-6:
+                out.append(f"frame {i}: foot_jitter: {s} stance foot jumps {pb[1] - pa[1]:+.1f}px "
+                           f"against its footprint")
+    return sorted(set(out), key=out.index)
+
+
+def two_arms(frames, ctx):
+    """Exactly two arms: one near and one far upper arm + forearm in every frame, each
+    forearm hanging off its own upper arm (the hand is where the elbow and forearm put it)."""
+    out = []
+    for i, f in enumerate(frames):
+        order = f["meta"]["draw_order"]
+        ups = [n for n in order if n.endswith("_upper")]
+        fos = [n for n in order if n.endswith("_fore")]
+        if sorted(ups) != ["far_upper", "near_upper"] or sorted(fos) != ["far_fore", "near_fore"]:
+            out.append(f"frame {i}: two_arms: arm parts {ups + fos}, need one near and one far arm")
+        J = _J(f["meta"])
+        for s in SIDES:
+            d = float(np.hypot(*(J[s + ".wrist"] - J[s + ".elbow"])))
+            if abs(d - ctx["lengths"][s + ".fore"]) > TOL_PX:
+                out.append(f"frame {i}: two_arms: {s} hand is not on its forearm ({d:.1f}px)")
+    return out
+
+
+RULES = [bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
+         rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms]
 
 
 def run_all(frames, ctx):
@@ -231,3 +333,21 @@ def run_all(frames, ctx):
     for r in RULES:
         out += r(frames, ctx)
     return out
+
+
+# RULES.md numbers of the rule words used in failure messages ("frame i: <word>: ...")
+RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint_limit:elbow": "R4",
+            "foot_direction": "R5", "heel_flush": "R6", "foot_slide": "R7", "stance_ground": "R8",
+            "foot_sink": "R8", "bone_length": "R9", "joint_limit": "R10", "draw_order": "R11",
+            "rigid_part": "R12", "cycle_closes": "R13", "mirror_timing": "R14", "palette": "R15",
+            "foot_jitter": "R16"}
+
+
+def rule_id(failure):
+    """RULES.md number of a failure string."""
+    parts = [p.strip() for p in failure.split(":")]
+    word = parts[1] if len(parts) > 1 else ""
+    if word == "joint_limit" and len(parts) > 2:
+        j = parts[2].split()[0].split(".")[-1]
+        return RULE_IDS.get("joint_limit:" + j, "R10")
+    return RULE_IDS.get(word, "R?")

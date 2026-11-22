@@ -23,7 +23,7 @@ class Base(unittest.TestCase):
     def setUpClass(cls):
         cls.png, cls.js, cls.tmp = make_files()
         cls.ch = Character(cls.png, cls.js)
-        cls.frames, cls.ctx = bake_motion(cls.ch, walk(), 8)
+        cls.frames, cls.ctx = bake_motion(cls.ch, cls.ch.walk_motion(), 8)
 
     def fresh(self):
         return copy.deepcopy(self.frames), copy.deepcopy(self.ctx)
@@ -173,6 +173,27 @@ class TestBrokenInputs(Base):
         J["far.heel"], J["far.toe"] = J["far.toe"], J["far.heel"]
         self.rule_fails(checks.feet_facing, fr, ctx, "backwards")
 
+    def test_foot_shifted_backwards_rig(self):
+        fr, ctx = self.fresh()
+        J = fr[2]["meta"]["joints"]
+        for k in ("heel", "toe"):
+            J["near." + k] = np.array(J["near." + k]) - [ctx["foot_len"] * 0.6, 0]
+        self.rule_fails(checks.heel_flush, fr, ctx, "behind the shin")
+
+    def test_foot_shifted_backwards_pixels(self):
+        fr, ctx = self.fresh()
+        f = fr[0]
+        names = f["meta"]["labels"]
+        li = names.index("near_foot")
+        m = f["label"] == li
+        self.assertTrue(m.any())
+        sh = 4
+        moved = np.zeros_like(m)
+        moved[:, :-sh] = m[:, sh:]
+        f["rgba"][moved] = f["rgba"][np.roll(moved, sh, 1)]
+        f["label"][moved] = li
+        self.rule_fails(checks.heel_flush, fr, ctx, "sticks out")
+
     def test_cycle_not_closed(self):
         fr, ctx = self.fresh()
         ctx["closing"]["joints"]["near.knee"] = np.array(ctx["closing"]["joints"]["near.knee"]) + [5.0, 0]
@@ -189,15 +210,72 @@ class TestBrokenInputs(Base):
         fr[0]["rgba"][ys[0], xs[0], :3] = (1, 254, 3)
         self.rule_fails(checks.palette, fr, ctx, "palette")
 
+    def test_elbow_bent_backwards(self):
+        fr, ctx = self.fresh()
+        J = fr[3]["meta"]["joints"]
+        e = np.array(J["near.elbow"], float)
+        up = e - np.array(J["near.shoulder"], float)
+        a = math.radians(60)                   # forearm folded 60 deg behind the upper arm
+        r = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+        J["near.wrist"] = e + r @ (up / np.hypot(*up)) * ctx["lengths"]["near.fore"]
+        out = [o for o in checks.joint_limits(fr, ctx) if "near.elbow" in o]
+        self.assertTrue(out, "elbow bent backwards must fail joint_limits")
+        self.assertTrue(all(checks.rule_id(o) == "R4" for o in out), out)
+
+    def test_hip_overextended(self):
+        fr, ctx = self.fresh()
+        J = fr[3]["meta"]["joints"]
+        h = np.array(J["near.hip"], float)
+        a = math.radians(70)                   # swing the whole leg 70 deg backwards
+        r = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+        for k in ("knee", "ankle", "heel", "toe"):
+            J["near." + k] = h + r @ (np.array(J["near." + k], float) - h)
+        out = [o for o in checks.joint_limits(fr, ctx) if "near.hip" in o]
+        self.assertTrue(out, "hip overextended must fail joint_limits")
+        self.assertEqual(checks.rule_id(out[0]), "R10")
+
+    def test_third_arm(self):
+        fr, ctx = self.fresh()
+        fr[2]["meta"]["draw_order"].append("extra_upper")
+        self.rule_fails(checks.two_arms, fr, ctx, "two_arms")
+
+    def test_hand_off_forearm(self):
+        fr, ctx = self.fresh()
+        fr[2]["meta"]["joints"]["far.wrist"] = np.array(fr[2]["meta"]["joints"]["far.wrist"]) + [0, 5.0]
+        self.rule_fails(checks.two_arms, fr, ctx, "not on its forearm")
+
+    def test_foot_jitter(self):
+        fr, ctx = self.fresh()
+        self.assertEqual(checks.foot_jitter(fr, ctx), [])
+        n = len(fr)
+        i = next(i for i in range(n - 1) if fr[i]["meta"]["contact"]["near"]
+                 and fr[i + 1]["meta"]["contact"]["near"])
+        f = fr[i + 1]
+        li = f["meta"]["labels"].index("near_foot")
+        m = f["label"] == li
+        f["label"][m] = 0
+        f["label"][np.roll(m, 3, 1)] = li            # the baked foot jumps 3 px forward
+        self.rule_fails(checks.foot_jitter, fr, ctx, "jumps")
+
+    def test_rule_ids(self):
+        self.assertEqual(checks.rule_id("frame 1: two_legs: third leg"), "R1")
+        self.assertEqual(checks.rule_id("frame 1: joint_limit: far.knee -9 deg"), "R3")
+        self.assertEqual(checks.rule_id("frame 1: joint_limit: near.ankle 40 deg"), "R10")
+
 
 class TestSamples(unittest.TestCase):
     def test_paladins_pass(self):
-        for name in ("HR6.1_1", "HR6.2_1"):
-            png, js = os.path.join(SAMPLES, name + ".png"), os.path.join(SAMPLES, name + ".json")
-            ch = Character(png, js)
-            for n in (4, 8):
-                fr, ctx = bake_motion(ch, walk(), n)
-                self.assertEqual(checks.run_all(fr, ctx), [], f"{name} walk{n}")
+        from tools.animator.bake import bake_all
+        from tools.animator.fit import fit_still, gate_still
+        from tools.animator.autocut import gate_cut
+        for name in ("HR6.1", "HR6.4"):     # HR6.2 is rejected at the input (G7, sliced shield)
+            png = os.path.join(SAMPLES, "stills", name + ".png")
+            fitted = fit_still(png, png[:-4] + ".json")
+            self.assertEqual(gate_still(fitted[1]), [], name)
+            ch = Character.from_still(png, png[:-4] + ".json", fitted=fitted)
+            self.assertEqual(gate_cut(ch.info), [], name)
+            for n, (fr, ctx, fails) in bake_all(ch, (4, 8)).items():
+                self.assertEqual(fails, [], f"{name} walk{n}")
 
     def test_auto_joints_close_to_hand_joints(self):
         errs = []

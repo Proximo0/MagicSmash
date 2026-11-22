@@ -8,7 +8,8 @@ size, and every frame goes through a body-physics gate.
 python3 -m tools.animator bake samples/HR6.1_1.png --joints samples/HR6.1_1.json --out out/
 python3 -m tools.animator all            # every samples/*.json + out/contact.png
 python3 -m tools.animator auto samples/HR6.1_1.png   # estimated joints JSON
-python3 -m unittest discover tools/animator/tests
+python3 -m tools.animator batch samples/stills --out out/batch   # fit + gate + bake all 24 stills
+cd tools/animator/tests && python3 -m unittest discover -s . -p "test_*.py"
 ```
 Relative paths are resolved against `tools/animator/` when they do not exist from the cwd.
 
@@ -93,6 +94,47 @@ shoulder 8, toe 9, elbow 9, hip 10; worst 38 px (arms on HR6.2). Only a starting
 fine for feet and head, unreliable for hips and arms. Production joints should come
 from the pose layout.
 
+## Batch, fit, gates (stills in samples/stills/)
+- `fit.py`: the layout joints are a prior only. Snapped to the picture: plates/shadows removed
+  (thin dark rows under the feet), ground = lowest opaque rows, head top and neck from the
+  silhouette, legs tracked up from the feet along the medial axis (knee by least squares),
+  torso front/back lines from the silhouette's reach, front hand = blob past the front line.
+  No hand-drawn shapes. `data["fit"]` holds moved_px per joint, flags and a score (0..1).
+- `autocut.py`: parts are labelled from capsules around the fitted bones; cape = behind the
+  back line below the neck; robe = below the hip and not leg. Far limbs are copies darkened
+  in OKLab (L x0.75, chroma x0.9) and snapped to the still's 48-colour palette.
+- Cloth (`cloth.py`): steady-state damped pendulum per harmonic (1.6 swings/cycle, zeta 0.35),
+  so it never needs warm-up and the cycle closes exactly. Cape: 3 deg drag + 5 deg sway about
+  its top anchor. Robe: each row sheared between the hindmost and foremost leg (0 at the hip,
+  full at knee height), hem lag 0.6.
+- Stride: thigh swing gain fitted to the still's own step (x0.95), quantized to 8 game px per
+  cycle so the stance foot moves whole pixels; knee lift 0.30, arm swing 17 deg (x0.4 when
+  holding long gear), heel-strike pitch <= 20 deg, stance dorsiflexion <= 26 deg.
+- Downscale: 6x supersample, per-block mode with a bonus for dark detail (outlines, eyes),
+  palette locked; R16 checks the stance foot moves <= 1 px against its footprint.
+- Foot (owner rule R6): the heel is the bottom of the shin's back edge. The foot is clipped
+  so nothing sticks out more than 1 px behind that line, and the toe must reach ahead.
+- **Rulebook `RULES.md`**: every rule (R1-R16 on baked frames, G1-G7 on the input) with its
+  check function and a failing-example test; `tests/test_rules.py::TestRulebook` fails if
+  one is missing or an owner rule (third leg, crooked elbow, backwards foot, heel) loses its
+  mark. A still failing a G rule is never animated: `out/batch/needs_attention/<id>.png`
+  shows the fitted skeleton with failed joints ringed. Any failed rule -> nothing in
+  `accepted/`, and `batch` exits 1.
+- `skf.py` writes `<id>.skf` (zip: armature.json, atlas0.png, readme.md). **Unverified against
+  the SkelForm editor**: rot units, y axis, Vec2 form, version string, element names and the
+  texture anchor are guesses, named constants at the top of skf.py. The robe shear is
+  exported rigid. Open one in the editor (v0.9) once and flip the constants.
+
+Batch result (22 Nov): 7 accepted (HR1.1 HR3.1 HR4.1 HR4.2 HR6.1 HR6.3 HR6.4), 17 rejected:
+- R6: HR1.2, HR1.4, HR2.2, HR2.4, HR5.2. Short boots drawn on steep shins, so the toe never
+  passes the shin's front line. HR2.4 also has a sword along the leg that widens the shin.
+- G1 or G5 (fit failed): HR3.2, HR3.3, HR3.4, HR4.3, HR5.3. Wide robes or dwarves with legs
+  hidden; HR5.3's layout is badly scaled.
+- G6, arm drawn over the body: HR1.3, HR4.4, HR5.4.
+- G4: HR2.1 (back foot). G2: HR2.3. R1, third leg-wide run at row 66: HR5.1.
+- G7, shield sliced between forearm and torso: HR6.2.
+- Timing: about 1.1 s mean and 2.3 s max per character on one core.
+
 ## Limits (what it cannot cut well)
 - Long robes and skirts (HR3.2 wizard, the elves' loin cloth): kept rigid with the torso, so
   only the boots move under them; looks stiff next to hand animation.
@@ -109,6 +151,8 @@ from the pose layout.
   the reduction is not itself checked.
 
 ## Next
+Cut held gear (strapped shields) as its own part instead of rejecting (G7); a foot model for
+short boots on steep shins (R6 rejects); robes under G5; verify the .skf in the editor.
 Monster rigs (quadruped, floater, blob), four directions (front/back need a different cut),
 layout-supplied joints on the MSI, arm-point fitting for the art runner's joint files,
 packing `*_parts/` into SkelForm `.skf`.
