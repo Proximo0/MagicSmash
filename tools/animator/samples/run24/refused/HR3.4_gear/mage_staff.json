@@ -1,0 +1,16 @@
+{
+ "slot": "near_hand",
+ "anchor": [
+  64,
+  330
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.9,
+ "angle": 112,
+ "in_front": false,
+ "guide": "staff",
+ "note": "a staff or spear standing upright, head at the top, at least as thick as the marked shaft width; the anchor is the grip, a quarter of the way up"
+}

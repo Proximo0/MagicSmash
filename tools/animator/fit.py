@@ -169,7 +169,14 @@ LEG_SKIN_SHIN = 0.5        # share of the shin, from the knee down, that counts 
 LEG_SKIN_MAX = 0.25        # G15: share of the lit leg pixels that may have the hand's colour
 
 
-def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top_y):
+LEG_SKIN_SHIN_FULL = 0.9   # G16: share of each shin (knee to ankle) that counts: bare shins under shorts
+FAR_BLOB_MAX = 1.5         # x the near hand blob: a bigger 'far hand' behind the back of a body still is clothes
+LEG_SKIN_DE = 22.0         # G16: Lab distance to the hand's colour that still counts as skin
+LEG_SKIN_SHIN_MAX = 0.25   # G16: share of a shin that may have the hand's colour
+
+
+def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top_y,
+             shin_t=LEG_SKIN_SHIN, thighs=True, tight=None):
     """Share of the pixels of the thighs and the upper LEG_SKIN_SHIN of the shins (boot shafts
     and leg wraps are below that) that have the front hand's colour, by the same colour test as the hand census
     (hue within HAND_HUE, chroma and lightness windows).  None when there is no hand."""
@@ -197,11 +204,13 @@ def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top
     else:
         same = np.hypot(*(lab_img - ref)[..., 1:].transpose(2, 0, 1)) < HAND_GREY
     same &= (dl > HAND_L[0]) & (dl < HAND_L[1])
+    if tight is not None:          # G16: within this Lab distance of the hand's own colour
+        same &= np.sqrt(((lab_img - ref) ** 2).sum(-1)) < tight
     P = np.stack([xx + 0.5, yy + 0.5], -1).astype(float)
     legs = np.zeros_like(body)
     for i, (a, b) in enumerate(bones):      # thigh, shin, thigh, shin
         d, t = seg_dist(P, np.asarray(a, float), np.asarray(b, float))
-        legs |= (d <= r) & (t >= 0) & ((t <= LEG_SKIN_SHIN) | (i % 2 == 0))
+        legs |= (d <= r) & (t >= 0) & ((t <= shin_t) if i % 2 else thighs)
     legs &= body & (yy >= top_y)
     n = int(legs.sum())
     return round(float((legs & same).sum()) / n, 3) if n else None
@@ -872,6 +881,19 @@ def fit_still(png, layout_json):
                                   [(F["hip"] * [1, 0] + [0, hip_y], F["knee"]), (F["knee"], ff["ankle"]),
                                    (B["hip"] * [1, 0] + [0, hip_y], B["knee"]), (B["knee"], B["ankle"])],
                                   max(F["shin_w"] / 2, 0.025 * BH), hip_y + LEG_SKIN_TOP * BH)
+    # ---- G16: a bare NEAR shin (shorts, a short robe: the lower leg is skin) reads as a bare leg, and its
+    # shaded copy for the far leg cannot keep the skin's shade in the palette (HR3.2: one pale
+    # pink leg, one grey): the share of EACH shin, knee to ankle, that has the hand's colour
+    shin_sk = []
+    # the NEAR leg only: the far leg is a shaded copy of it (HR6.3's drawn back calf is bare but
+    # the cut never uses it; its near leg is a tall boot)
+    for hip_, knee_, ank_ in ((F["hip"] * [1, 0] + [0, hip_y], F["knee"], ff["ankle"]),):
+        v_ = leg_skin(lab_img, img, body, hand_blob, (wr2 + hand_tip) / 2 if spec_arm else None,
+                      shoulder, BH, [(hip_, knee_), (knee_, ank_)], max(F["shin_w"] / 2, 0.025 * BH),
+                      hip_y + LEG_SKIN_TOP * BH, shin_t=LEG_SKIN_SHIN_FULL, thighs=False, tight=LEG_SKIN_DE)
+        if v_ is not None:
+            shin_sk.append(v_)
+    report["shin_skin"] = max(shin_sk) if shin_sk else None
     # ---- radii
     radius = {"thigh": max(0.55 * leg_w, 0.03 * BH), "shin": max(F["shin_w"] / 2, 0.025 * BH),
               "foot": max(0.4 * F["shin_w"], 0.02 * BH), "upper": 0.045 * BH, "fore": 0.042 * BH}
@@ -927,6 +949,14 @@ def fit_still(png, layout_json):
         "hand_centre": rnd(hand_c),
         "fit": report,
     }
+    if body_only and far_blob.any() and float(far_blob.sum()) > FAR_BLOB_MAX * max(float(hand_blob.sum()), 1.0):
+        # pass 7: a hand-coloured blob behind the back of a bare body still that is bigger than
+        # FAR_BLOB_MAX x the near arm's own is clothes, not a far arm (HR6.2's white tunic skirt:
+        # 2.6 x; HR4.2's real far arm: 0.66 x).  Cut out as "the real far arm" it took the skirt off
+        # the torso (a gap at the hips) and swung as an arm, its forearm 4220 px against the near's
+        # 1589.  The far arm is then the shaded copy of the near one.
+        report["far_blob_dropped"] = int(far_blob.sum())
+        far_blob = np.zeros_like(far_blob)
     if far_blob.any():
         # make the far hand solid: close gaps and holes up to 7 % of the body height across (the
         # shaded middle of a hand, the line between hand and cuff), never onto the near arm
@@ -1065,6 +1095,13 @@ def gate_still(data):
         out.append(("G15: bare_legs: %.0f %% of the legs have the hand's (skin) colour (limit %.0f %%): "
                     "the hand vanishes against the thigh; trousers or greaves in a colour different "
                     "from the skin" % (100 * rep["leg_skin"], 100 * LEG_SKIN_MAX), ["hip", "knee"]))
+    # G16 no bare near shin: the near leg's shin (knee to ankle) is at most 25 % the hand's colour
+    if rep.get("shin_skin") is not None and rep["shin_skin"] > LEG_SKIN_SHIN_MAX:
+        out.append(("G16: bare_shin: %.0f %% of the near shin has the hand's (skin) colour (limit %.0f %%): "
+                    "a bare lower leg under shorts or a short robe; the far leg's shaded copy cannot "
+                    "keep a skin shade in the palette and comes out grey beside the pale near leg; "
+                    "greaves, boots or long trousers in a colour different from the skin"
+                    % (100 * rep["shin_skin"], 100 * LEG_SKIN_SHIN_MAX), ["knee", "ankle"]))
     # G8 every arm in the still belongs to exactly one arm part: a hand or bare forearm drawn
     # over the body cannot be cut from the torso and would stay painted on it (a third arm)
     inside = [h for h in rep.get("hands", []) if h["zone"] == "inside"]

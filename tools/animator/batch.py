@@ -102,6 +102,10 @@ def run(still_dir, out_dir, counts=(4, 8), skf=True, log=print, sizes=BODY_SIZES
         if not gate:
             for bh in sizes:
                 chs[bh] = Character.from_still(png, png[:-4] + ".json", fitted=(img, data, masks), body_h=bh, gear=gears)
+            from .gear import solve_gear
+            solved = solve_gear(list(chs.values()))
+            if solved:
+                rec["gear_solved"] = solved
             ch = chs[sizes[0]]
             gate = gate_cut(ch.info)
             rec["gear_cut"] = round(ch.info["gear_cut"], 2)

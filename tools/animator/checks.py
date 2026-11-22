@@ -655,7 +655,7 @@ def leg_skin_colour(frames, ctx):
     return out
 
 
-FAR_HAND_SLOTS = ("back", "cape", "far_hand")
+FAR_HAND_SLOTS = ("back", "cape", "far_hand", "near_hand")
 
 
 def far_hand_hidden(frames, ctx):
@@ -754,10 +754,98 @@ def arm_swing(frames, ctx):
     return out
 
 
+def far_arm_flap(frames, ctx):
+    """R28: the far arm is one treatment for every character: an arm joined to the body that
+    shows only where it swings out forward of the torso, or nothing.  Failures per frame: (a) a
+    far arm pixel behind the torso's back edge, row by row (a row the near arm covers takes the
+    edge of the row above): the grey flap behind the back hip, the sleeve sliver along the back;
+    (b) a visible piece of the far arm that touches neither the torso, the robe nor the near arm
+    (a detached arm); (d) cape in the sleeve's colour; (c) a gap in the torso: a background pixel between the torso's own first
+    pixel of a row and the pelvis's column, from the neck's row to the pelvis's (a hole the
+    arm's cut left in the back; the armpit wedge in front is the drawing's)."""
+    from .imgops import components
+    out = []
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        if "torso" not in names:
+            continue
+        lab = f["label"]
+        tm = lab == names.index("torso")
+        if not tm.any():
+            continue
+        H, W = lab.shape
+        rows = np.flatnonzero(tm.any(1))
+        edge = far_edge(tm)
+        far = np.isin(lab, [names.index(n) for n in ("far_upper", "far_fore") if n in names])
+        if far.any():
+            behind = far & (np.arange(W)[None, :] < edge[:, None])
+            if behind.any():
+                ys, xs = np.where(behind)
+                out.append(f"frame {i}: far_arm_flap: {int(behind.sum())} px of the far arm behind the "
+                           f"torso's back edge, at {int(xs.mean())},{int(ys.mean())} (a flap behind the back)")
+            cl, sizes = components(far)
+            host = np.isin(lab, [names.index(n) for n in ("torso", "robe", "near_upper", "near_fore")
+                                 if n in names])
+            touch = host.copy()
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    touch |= np.roll(np.roll(host, dy, 0), dx, 1)
+            for k, n in sizes.items():
+                if not (touch & (cl == k)).any():
+                    ys, xs = np.where(cl == k)
+                    out.append(f"frame {i}: far_arm_flap: a piece of {n} px of the far arm touches no "
+                               f"torso or near arm pixel (detached arm), at {int(xs.mean())},{int(ys.mean())}")
+        sl = ctx.get("sleeve_colours") or []
+        if sl and "cape" in names:     # (d) the arm's sleeve cut into the cape (HR4.2)
+            ys, xs = np.where(lab == names.index("cape"))
+            if len(ys):
+                px = f["rgba"][ys, xs, :3].astype(float)
+                d = np.min([np.sqrt(((px - np.array(c, float)) ** 2).sum(1)) for c in sl], 0)
+                hit = d <= 14.0
+                if hit.sum() >= 3:
+                    out.append(f"frame {i}: far_arm_flap: {int(hit.sum())} px of cape in the sleeve's colour, "
+                               f"at {int(xs[hit][0])},{int(ys[hit][0])} (the arm was cut into the cloth: a "
+                               "wedge behind the shoulder, a ribbon down the back)")
+        J = f["meta"]["joints"]
+        y0, y1 = int(np.ceil(J["neck"][1])) + 2, int(np.floor(J["pelvis"][1]))
+        gap, at = 0, None
+        for y in rows:
+            y = int(y)
+            if not y0 <= y <= y1:
+                continue
+            xs_ = np.flatnonzero(tm[y])
+            hi = min(int(xs_[-1]), int(J["pelvis"][0]))        # the back half of the trunk only
+            seg = lab[y, xs_[0]:max(hi, int(xs_[0])) + 1] == 0
+            if seg.any():
+                gap += int(seg.sum())
+                at = at or (int(xs_[0]) + int(np.flatnonzero(seg)[0]), y)
+        if gap:
+            out.append(f"frame {i}: far_arm_flap: {gap} px of background inside the torso's rows "
+                       f"(a gap in the torso), first at {at[0]},{at[1]}")
+    return out
+
+
+def far_edge(tm):
+    """Per row, the torso's back edge (first torso pixel).  Rows above and below the torso take
+    the nearest torso row's edge; rows inside its span without torso pixels (the near arm covers
+    them) take the row above's."""
+    H, W = tm.shape
+    rows = np.flatnonzero(tm.any(1))
+    edge = np.full(H, W, int)
+    for y in rows:
+        edge[y] = int(np.flatnonzero(tm[y])[0])
+    edge[:rows[0]] = edge[rows[0]]
+    edge[rows[-1] + 1:] = edge[rows[-1]]
+    for y in range(1, H):
+        if edge[y] == W:
+            edge[y] = edge[y - 1]
+    return edge
+
+
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
          rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour,
          gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs, leg_skin_colour,
-         far_hand_hidden]
+         far_hand_hidden, far_arm_flap]
 
 
 def run_all(frames, ctx):
@@ -775,7 +863,7 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19",
             "gear_rigid": "R20", "gear_grip": "R21", "gear_back": "R22", "gear_head": "R23",
             "loose_blob": "R24", "gear_legs": "R25", "leg_skin": "R26",
-            "far_hand_visible": "R27"}
+            "far_hand_visible": "R27", "far_arm_flap": "R28"}
 
 
 def rule_id(failure):
