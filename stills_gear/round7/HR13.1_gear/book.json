@@ -1,0 +1,16 @@
+{
+ "slot": "near_hand",
+ "anchor": [
+  96,
+  112
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.13,
+ "angle": 0,
+ "in_front": true,
+ "guide": "book",
+ "note": "a closed book seen from the side with its spine to the left, standing upright; the anchor is the middle of the cover, under the fingers. In the game it is held against the chest, the forearm bent up"
+}

@@ -193,5 +193,72 @@
  "HR12.4": {
   "status": "accepted",
   "rules": []
+ },
+ "HR13.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR13.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR13.3": {
+  "status": "rejected",
+  "rules": [
+   "R23",
+   "R29"
+  ]
+ },
+ "HR13.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR14.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR14.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR14.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR14.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR15.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR15.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR15.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR15.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR16.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR16.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR16.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR16.4": {
+  "status": "accepted",
+  "rules": []
  }
 }
