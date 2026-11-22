@@ -169,7 +169,7 @@ job_soak() {  # one line: realm-soak's summary
 }
 job_world() {  # one line: realm-world's summary
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-  command -v cargo >/dev/null 2>&1 || { echo "JOB world SKIP cargo is not installed on this station"; return 0; }
+  command -v cargo >/dev/null 2>&1 || { echo "JOB world FAIL cargo is not installed on this station"; return 1; }
   local secs="${STATION_WORLD_SECS:-7200}" out line
   out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=60000 --realm-cap=150 --vault-max=8 --outing-ticks=6000 --db="${TMPDIR:-/tmp}/station-world.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-world.db*
