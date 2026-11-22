@@ -224,7 +224,10 @@ fn vaults_take_a_key_a_party_by_code_and_close_cleanly() {
     let hf = hero(&mut fr, "Friend", 2);
     level_up(&r, hf, 20);
     assert!(matches!(fr.call(Req::World(WReq::VaultJoin { hero: hf, code: code ^ 2, drive_ticks: 1 })).unwrap(), Resp::Err { code: code::MISSING, .. }));
-    assert!(matches!(fr.call(Req::World(WReq::VaultJoin { hero: hf, code, drive_ticks: 1 })).unwrap(), Resp::World(WResp::Vault { .. })));
+    match fr.call(Req::World(WReq::VaultJoin { hero: hf, code, drive_ticks: 1 })).unwrap() {
+        Resp::World(WResp::Vault { .. }) => {}
+        r => panic!("the friend's join by code: {r:?}"),
+    }
     // The run ends (won or lost) and the vault banks them and closes: both pushed `left` 5.
     for (c, h) in [(&mut lead, hl), (&mut fr, hf)] {
         let left = c.wait_push(Duration::from_secs(120), |p| match p {
