@@ -45,6 +45,7 @@ LIMBS = ("near_upper", "near_fore", "near_thigh", "near_shin", "near_foot",
          "far_upper", "far_fore", "far_thigh", "far_shin", "far_foot")
 RIGID_PROPS = ("back", "cape", "head")
 NFRAMES = 8
+NB = 8                 # bins along a leg segment for its width and colour profile
 
 
 # ------------------------------------------------------------------ palette
@@ -360,6 +361,70 @@ def count_hole_frames(frame_set):
     return sum(1 for f in frame_set.frames for v in f.get("holes", {}).values() if v > 0)
 
 
+def enclosed_holes(mask):
+    """Background pixels fully enclosed by `mask` (not reachable from the border): a hole inside a leg."""
+    p = np.pad(~mask, 1, constant_values=True)
+    reach = np.zeros_like(p)
+    reach[0, :] = reach[-1, :] = reach[:, 0] = reach[:, -1] = True
+    reach &= p
+    while True:
+        n = reach.copy()
+        n[1:, :] |= reach[:-1, :]
+        n[:-1, :] |= reach[1:, :]
+        n[:, 1:] |= reach[:, :-1]
+        n[:, :-1] |= reach[:, 1:]
+        n &= p
+        if (n == reach).all():
+            break
+        reach = n
+    return int((p & ~reach).sum())
+
+
+def leg_gates(fs, tol_deg=4.0, width_tol=0.12):
+    """Gates on the drawn legs of a master FrameSet.  Returns {name: number of failing cases}:
+      leg_width: a segment's area per unit length differs by more than width_tol between frames
+                 (the width profile is the still's and fixed; this checks the raster);
+      leg_hole: background pixels enclosed by a leg;
+      knee_backwards: the shin turned the wrong way past the thigh by more than tol_deg;
+      planted_sole: a planted foot whose lowest pixel is not on the ground row;
+      two_feet: one foot not visible although it is not fully behind the other."""
+    bad = {"leg_width": 0, "leg_hole": 0, "knee_backwards": 0, "planted_sole": 0, "two_feet": 0}
+    for side in ("near", "far"):
+        for seg in (0, 1):
+            a = np.array([f["legs"][side]["area"][seg] for f in fs.frames])
+            bad["leg_width"] += int((np.abs(a - a.mean()) > width_tol * a.mean()).sum())
+    for f in fs.frames:
+        for side in ("near", "far"):
+            lg = f["legs"][side]
+            bad["leg_hole"] += int(f["holes"][side] > 0)
+            bad["knee_backwards"] += int(lg["flex"] < -tol_deg)
+            if lg["planted"] and lg["sole"] != fs.foot_y - 1:
+                bad["planted_sole"] += 1
+        fn, ff = f["feet"].get("near"), f["feet"].get("far")
+        if fn is not None and ff is not None:
+            lab = f["label"]
+            li = {n: k for k, n in enumerate(fs.names)}
+            seen_far = int((lab == li["far_foot"]).sum()) > 0
+            hidden = bool((ff & ~fn).sum() == 0)
+            if not seen_far and not hidden:
+                bad["two_feet"] += 1
+    return bad
+
+
+def no_skin_below_belt(fs):
+    """Gate: far-arm pixels in a skin colour below the belt row (a hand on the legs).  Returns the count."""
+    li = {n: k for k, n in enumerate(fs.names)}
+    n = 0
+    for f in fs.frames:
+        for nm in ("far_upper", "far_fore"):
+            if nm not in li:
+                continue
+            ys, xs = np.nonzero(f["label"] == li[nm])
+            n += int((ys > f["belt"]).sum()) if False else int(
+                sum(1 for y, x in zip(ys, xs) if y > f["belt"] and int(f["idx"][y, x]) in fs.skin))
+    return n
+
+
 # ------------------------------------------------------------------ the hero
 CLOTH = ("robe", "cape")
 
@@ -448,6 +513,17 @@ class Hero:
                 self.pivot[nm] = tuple(int(rnd(v, self.q)) for v in g.G(rig.j[ch.parts[nm].pivot]))
         self._rot = {}
         self._cloth = {}
+        self._leg_look()
+        ff = self.variant("far_fore", 0)[0] if "far_fore" in self.sprites else None
+        self.skin = set()
+        if ff is not None and (ff >= 0).any():
+            rows = np.nonzero((ff >= 0).any(1))[0]
+            low = ff[rows[int(len(rows) * 0.7):]]
+            cols, cnt = np.unique(low[low >= 0], return_counts=True)
+            self.skin = {int(c) for c in cols if not self.dark[c] and self.palette[c][0] > self.palette[c][2]
+                         and self.palette[c][1] >= 70 and self.palette[c][0] >= 150}
+            if not self.skin and len(cols):
+                self.skin = {int(cols[np.argmax(cnt)])}
 
     def variant(self, nm, step):
         """The sprite of limb `nm` turned by `step` steps of STEP degrees: (idx, ox, oy), origin
@@ -508,9 +584,11 @@ class Hero:
             target = max(q, round(2 * ch.step_px * 0.95 / q) * q)
             free = fit_walk(rig, target / 2.0 / 0.95, exact=target, quantum=q, arm=1.0)
         gait2 = Gait(rig, free)
-        self.J, self.J2 = [], []
+        self.J, self.J2, self.contact = [], [], []
         for i in range(NFRAMES):
-            self.J.append(rig.fk(gait.pose(i / NFRAMES)[0]))
+            pose, contact = gait.pose(i / NFRAMES)
+            self.contact.append(contact)
+            self.J.append(rig.fk(pose))
             self.J2.append(rig.fk(gait2.pose(i / NFRAMES)[0]))
         ph = np.array([J["pelvis"][1] for J in self.J])
         self.bob_up = np.zeros(NFRAMES, bool)
@@ -524,86 +602,243 @@ class Hero:
         d = screen_angle(J[side + "." + b] - J[side + "." + a]) - screen_angle(rb - ra)
         return int(max(-MAX_STEP, min(MAX_STEP, round(wrap180(d) / STEP))))
 
-    # -- one frame, body and limbs (the prop is added by `props`)
+    # -- legs are DRAWN: tapered capsules + knee disc, coloured from the still; boots are 3-angle sprites
+    def _leg_look(self):
+        ch, rig, k, pal = self.ch, self.rig, self.k, self.palette
+        K = self.K
+        pidx = {nm: to_index(ch.parts[nm].img, pal) for nm in ch.parts if nm.endswith(("thigh", "shin"))}
+        allc = np.concatenate([to_index(p.img, pal)[p.mask] for nm, p in ch.parts.items() if not nm.startswith("far_")])
+        dk = allc[self.dark[allc]]
+        self.outline = int(np.bincount(dk, minlength=K).argmax()) if len(dk) else int(np.argmin(_luma(pal)))
+        self.look = {}
+        for side in ("near", "far"):
+            for seg, (a, b) in (("thigh", ("hip", "knee")), ("shin", ("knee", "ankle"))):
+                nm = side + "_" + seg
+                m = pidx[nm]
+                ys, xs = np.nonzero(m >= 0)
+                A, B = rig.j[a], rig.j[b]
+                d = B - A
+                L = float(np.hypot(*d))
+                u = d / L
+                t = ((xs + 0.5 - A[0]) * u[0] + (ys + 0.5 - A[1]) * u[1]) / L
+                ok = (t >= 0) & (t < 1)
+                bi = np.floor(t * NB).astype(int)
+                cols = m[ys, xs]
+                w = np.bincount(bi[ok], minlength=NB) / (L / NB) * k
+                w = np.convolve(np.pad(w, 1, mode="edge"), [0.25, 0.5, 0.25], "valid")
+                w = np.maximum(w, 3.0 * self.m)
+                cp = []
+                for b_ in range(NB):
+                    c = cols[ok & (bi == b_)]
+                    lit = c[~self.dark[c]] if len(c) else c
+                    c = lit if len(lit) else c
+                    cp.append(int(np.bincount(c, minlength=K).argmax()) if len(c) else -1)
+                for b_ in range(NB):
+                    if cp[b_] < 0:
+                        cp[b_] = next((cp[j] for j in sorted(range(NB), key=lambda j: abs(j - b_)) if cp[j] >= 0), 0)
+                self.look[nm] = {"w": w, "c": np.array(cp), "L": L}
+        for seg in ("thigh", "shin"):
+            nr, fr = self.look["near_" + seg], self.look["far_" + seg]
+            fr["c"] = np.array([self._shade(c) if c == n else c for c, n in zip(fr["c"], nr["c"])])
+        for lk in self.look.values():
+            lk["s"] = np.array([self._shade(c) for c in lk["c"]])
+
+    def _shade(self, c):
+        """The palette colour nearest to 0.72 x colour c (one shade darker), never c itself."""
+        pal = self.palette.astype(float)
+        want = pal[c] * 0.72
+        d = ((pal - want) ** 2 * np.array([3, 4, 2])).sum(1)
+        d[c] = 1e18
+        return int(np.argmin(d))
+
+    def _capsule(self, p0, p1, lk, hip_row=None):
+        W, H = self.canvas
+        w, cp, sp = lk["w"], lk["c"], lk["s"]
+        pad = int(w.max() / 2) + 3
+        x0, x1 = max(0, int(min(p0[0], p1[0])) - pad), min(W, int(max(p0[0], p1[0])) + pad + 1)
+        y0, y1 = max(0, int(min(p0[1], p1[1])) - pad), min(H, int(max(p0[1], p1[1])) + pad + 1)
+        ys, xs = np.mgrid[y0:y1, x0:x1]
+        cx, cy = xs + 0.5, ys + 0.5
+        dx, dy = float(p1[0] - p0[0]), float(p1[1] - p0[1])
+        L = max(math.hypot(dx, dy), 1e-6)
+        t = np.clip(((cx - p0[0]) * dx + (cy - p0[1]) * dy) / (L * L), 0, 1)
+        qx, qy = cx - p0[0] - t * dx, cy - p0[1] - t * dy
+        h = np.interp(t, (np.arange(NB) + 0.5) / NB, w) / 2
+        inside = np.hypot(qx, qy) <= h
+        if hip_row is not None:
+            inside &= cy >= hip_row
+        bi = np.clip((t * NB).astype(int), 0, NB - 1)
+        nx, ny = -dy / L, dx / L
+        if nx * -1.0 + ny * 0.5 < 0:
+            nx, ny = -nx, -ny
+        s = (qx * nx + qy * ny) / np.maximum(h, 1e-6)
+        col = np.where(s > 0.35, sp[bi], cp[bi]).astype(np.int16)
+        full = np.zeros((H, W), bool)
+        colf = np.full((H, W), -1, np.int16)
+        full[y0:y1, x0:x1] = inside
+        colf[y0:y1, x0:x1] = col
+        return full, colf, L
+
+    def _disc(self, c, r, colour):
+        W, H = self.canvas
+        ys, xs = np.mgrid[0:H, 0:W]
+        m = np.hypot(xs + 0.5 - c[0], ys + 0.5 - c[1]) <= r
+        return m, np.full((H, W), colour, np.int16)
+
+    def draw_leg(self, side, hip, knee, ankle):
+        """One leg as pixels: (colour HxW, owner HxW: 0 none, 1 thigh, 2 shin, area/length of each segment).
+        Widths, colours and bands are the still's, the same in every frame; one 1 px outline round the union."""
+        W, H = self.canvas
+        th, sh = self.look[side + "_thigh"], self.look[side + "_shin"]
+        mt, ct, Lt = self._capsule(hip, knee, th, hip_row=hip[1])
+        ms, cs, Ls = self._capsule(knee, ankle, sh)
+        mk, ck = self._disc(knee, max(th["w"][-1], sh["w"][0]) / 2, int(th["c"][-1]))
+        ma, ca = self._disc(ankle, sh["w"][-1] / 2, int(sh["c"][-1]))
+        area = (float(mt.sum()) / max(Lt, 1.0), float(ms.sum()) / max(Ls, 1.0))
+        own = np.zeros((H, W), np.int8)
+        col = np.full((H, W), -1, np.int16)
+        for m, c, o in ((mt, ct, 1), (ms, cs, 2), (mk, ck, 2), (ma, ca, 2)):
+            own[m] = o
+            col[m] = c[m]
+        ring = _ring(own > 0)
+        ring[:int(hip[1]) + 1] = False
+        col[ring] = self.outline
+        return col, own, area
+
+    def _arm_chain(self, steps, side):
+        g, Jr, k, q = self.grid, self.Jrest, self.k, self.q
+        sh = g.G(Jr[side + ".shoulder"])
+        out, pos = {}, {"shoulder": sh}
+        for bone, ja, jb in (("upper", "shoulder", "elbow"), ("fore", "elbow", "wrist")):
+            nm = side + "_" + bone
+            if nm not in steps:
+                continue
+            sp, rx, ry = self.variant(nm, steps[nm])
+            t = np.array([rnd(pos[ja][0], q), rnd(pos[ja][1], q)])
+            out[nm] = (t, np.array([t[0] + rx, t[1] + ry]))
+            pos[jb] = pos[ja] + rot2((Jr[side + "." + jb] - Jr[side + "." + ja]) * self.k, steps[nm] * STEP)
+        return out
+
+    def _foot_step(self, J, side, planted):
+        if planted:
+            return 0
+        d = wrap180(screen_angle(J[side + ".toe"] - J[side + ".heel"]) - screen_angle(self.rig.j["toe"] - self.rig.j["heel"]))
+        return 0 if abs(d) < STEP else (2 if d > 0 else -2)
+
+    def _ankle_ground_y(self, side):
+        """Ankle row that puts a flat foot's sole on the ground row."""
+        sp, rx, ry = self.variant(side + "_foot", 0)
+        rows = np.nonzero((sp >= 0).any(1))[0]
+        return self.foot_y - 1 - ry - int(rows[-1])
+
+    def _legs_at(self, i, base):
+        """The two legs for frame i with the torso shifted by `base` + bob: hip (snapped), ankle (the gait's
+        ankle relative to the hip; a planted foot's sole on the ground row), knee (2-bone IK, knee forward)."""
+        from .rig import ik2
+        g, rig, k, q = self.grid, self.rig, self.k, self.q
+        J, Jr = self.J[i], self.Jrest
+        bob = base - (int(self.m) if self.bob_up[i] else 0)
+        out = {}
+        for side in ("near", "far"):
+            hip = g.G(Jr[side + ".hip"]) + [0, bob]
+            hip = np.array([rnd(hip[0], q), rnd(hip[1], q)], float)
+            rel = (J[side + ".ankle"] - J[side + ".hip"]) * k
+            planted = bool(self.contact[i][side])
+            fs_ = self._foot_step(J, side, planted)
+            ank = hip + rel
+            gy = self._ankle_ground_y(side)
+            ank[1] = gy if planted else min(ank[1], gy)
+            ank = np.array([rnd(ank[0], q), rnd(ank[1], q)], float)
+            l1, l2 = rig.lengths["thigh"] * k, rig.lengths["shin"] * k
+            knee, end = ik2(hip, ank, l1, l2, 1.0)
+            reach = float(np.hypot(*(ank - hip))) - (l1 + l2)
+            knee = np.array([rnd(knee[0], q), rnd(knee[1], q)], float)
+            for _ in range(4):          # snapping must never turn the knee backwards: push it forward a grid step
+                b1, b2 = knee - hip, ank - knee
+                flex = math.degrees(math.atan2(b1[0] * b2[1] - b1[1] * b2[0], b1 @ b2))
+                if flex >= -3.0:
+                    break
+                knee = knee + [q, 0]
+            out[side] = {"hip": hip, "knee": knee, "ankle": ank, "planted": planted, "foot_step": fs_,
+                         "short": max(0.0, reach)}
+        return out, bob
+
+    def _pick_base(self):
+        """The highest whole-figure height (smallest drop) at which every planted foot reaches the ground."""
+        for base in range(-6 * int(self.m), 9 * int(self.m) + 1, self.q):
+            if all(l["short"] <= 0.5 for i in range(NFRAMES) for l in self._legs_at(i, base)[0].values()
+                   if l["planted"]):
+                return base
+        return 0
+
+    # -- one frame, body, arms, legs (the prop is added by `props`)
     def base_frame(self, i):
         ch, rig, q, g = self.ch, self.rig, self.q, self.grid
-        Jr, k = self.Jrest, self.k
-        steps, target, origin, T = {}, {}, {}, {}
-        for nm in LIMBS:
+        steps, origin, T = {}, {}, {}
+        for nm in ("near_upper", "near_fore", "far_upper", "far_fore"):
             if nm in ch.parts:
-                steps[nm] = self.step_of(self.J2[i] if nm.startswith("far_") and nm.endswith(("upper", "fore"))
-                                         else self.J[i], nm)
+                steps[nm] = self.step_of(self.J2[i] if nm.startswith("far_") else self.J[i], nm)
+        legs, bob = self._legs_at(i, self.base_dy)
+        belt = int(round(g.G(self.Jrest["pelvis"])[1])) + bob       # the belt row
+        # the far hand never hangs below the belt (no skin on the legs): the nearest far-arm pose to the gait's
+        # (|dupper| + |dfore| steps) whose hand ends above the belt row
+        hide_far = False
+        if "far_fore" in ch.parts and self.skin:
+            hide_far = True
+            u0, f0 = steps["far_upper"], steps["far_fore"]
+            cands = sorted(((abs(u - u0) + abs(f - f0), u, f) for u in range(-2, 7) for f in range(0, MAX_STEP + 1)))
+            for _, u, f in cands:
+                trial = dict(steps, far_upper=u, far_fore=f)
+                sp = self.variant("far_fore", f)[0]
+                org = self._arm_chain(trial, "far")["far_fore"][1]
+                rows = np.nonzero(np.isin(sp, list(self.skin)).any(1))[0]
+                if len(rows) == 0 or org[1] + bob + rows[-1] <= belt - q:
+                    steps["far_upper"], steps["far_fore"] = u, f
+                    hide_far = False
+                    break
         for side in ("near", "far"):
-            pos = {}
-            for bone, start, ja, jb in (("upper", g.G(Jr[side + ".shoulder"]), "shoulder", "elbow"),
-                                        ("fore", None, "elbow", "wrist"),
-                                        ("thigh", g.G(Jr[side + ".hip"]), "hip", "knee"),
-                                        ("shin", None, "knee", "ankle"), ("foot", None, "ankle", None)):
-                nm = side + "_" + bone
-                if nm not in steps:
-                    continue
-                st = pos[ja] if start is None else start
-                pos[ja] = st
-                target[nm] = st
-                if jb is not None:
-                    pos[jb] = st + rot2((Jr[side + "." + jb] - Jr[side + "." + ja]) * k, steps[nm] * STEP)
-        bob = self.base_dy - (int(self.m) if self.bob_up[i] else 0)   # the torso's only move: 2 px at 112, 1 at 56
-        for nm in steps:
-            sp, rx, ry = self.variant(nm, steps[nm])
-            t = np.array([rnd(target[nm][0], q), rnd(target[nm][1], q)])
-            T[nm] = t
-            origin[nm] = np.array([t[0] + rx, t[1] + ry])
-        # a child part that does not join its parent (a slit or a gap at the joint) is moved one grid step
+            for nm, (t, o) in self._arm_chain(steps, side).items():
+                T[nm] = t + [0, bob]
+                origin[nm] = o + [0, bob]
         H_, W_ = self.canvas[::-1]
         for side in ("near", "far"):
-            for a_, b_ in (("thigh", "shin"), ("shin", "foot"), ("upper", "fore")):
-                pa, pb = side + "_" + a_, side + "_" + b_
-                if pa not in steps or pb not in steps:
-                    continue
-                ma = _placed(self.variant(pa, steps[pa])[0], origin[pa], (H_, W_))
-                spb = self.variant(pb, steps[pb])[0]
-                rr = 1.1 * self.ch.info["radius"].get(b_, 5.0) * self.k + 2
-                best = None
-                for dx, dy in ((0, 0), (0, q), (0, -q), (q, 0), (-q, 0), (q, q), (-q, q), (q, -q), (-q, -q)):
-                    mb = _placed(spb, origin[pb] + [dx, dy], (H_, W_))
-                    n = joint_holes(ma, mb, T[pb] + [dx, dy], rr)
-                    if best is None or n < best[0]:
-                        best = (n, dx, dy)
-                    if n == 0:
-                        break
-                origin[pb] = origin[pb] + [best[1], best[2]]
-                T[pb] = T[pb] + [best[1], best[2]]
-        # arms ride on the torso; the legs are lowered or raised (floor to the grid) until the lowest sole
-        # stands on the ground row
-        low = -10 ** 9
-        for nm in ("near_foot", "far_foot"):
-            if nm in steps:
-                sp = self.variant(nm, steps[nm])[0]
-                rows = np.nonzero((sp >= 0).any(1))[0]
-                if len(rows):
-                    low = max(low, origin[nm][1] + rows[-1])
-        gap = self.foot_y - 1 - low if low > -10 ** 8 else 0
-        leg_dy = gap - gap % q
-        for nm in steps:
-            dy = leg_dy if nm.split("_")[1] in ("thigh", "shin", "foot") else bob
-            origin[nm] = origin[nm] + [0, dy]
-            T[nm] = T[nm] + [0, dy]
+            pa, pb = side + "_upper", side + "_fore"
+            if pa not in steps or pb not in steps:
+                continue
+            ma = _placed(self.variant(pa, steps[pa])[0], origin[pa], (H_, W_))
+            spb = self.variant(pb, steps[pb])[0]
+            rr = 1.1 * self.ch.info["radius"].get("fore", 5.0) * self.k + 2
+            best = None
+            for dx, dy in ((0, 0), (0, q), (0, -q), (q, 0), (-q, 0), (q, q), (-q, q), (q, -q), (-q, -q)):
+                mb = _placed(spb, origin[pb] + [dx, dy], (H_, W_))
+                n = joint_holes(ma, mb, T[pb] + [dx, dy], rr)
+                if best is None or n < best[0]:
+                    best = (n, dx, dy)
+                if n == 0:
+                    break
+            origin[pb] = origin[pb] + [best[1], best[2]]
+            T[pb] = T[pb] + [best[1], best[2]]
+        # feet: rigid sprites at the ankle, at most 3 angles
+        for side in ("near", "far"):
+            lg = legs[side]
+            nm = side + "_foot"
+            steps[nm] = lg["foot_step"]
+            sp, rx, ry = self.variant(nm, lg["foot_step"])
+            origin[nm] = np.array([lg["ankle"][0] + rx, lg["ankle"][1] + ry])
         for nm in self.body_parts:
+            if nm.endswith(("thigh", "shin", "foot")):
+                continue
             sp, ox, oy = self.sprites[nm]
             if nm in self.cloth:
                 sp, ox, oy = self.cloth_variant(nm, (i // 4) % 2)
             origin[nm] = np.array([ox, oy + bob])
-        return {"steps": steps, "origin": origin, "T": T, "bob": bob, "leg_dy": leg_dy}
+        return {"steps": steps, "origin": origin, "T": T, "bob": bob, "leg_dy": 0, "legs": legs, "belt": belt, "hide_far": hide_far}
 
     # -- the prop: one sprite, one carry angle for the whole walk
     def _choose_carry(self):
         """Pick the carry angle (and a small forward grip offset) with the least change from the drawn
         carry for which the prop stays clear of the head's bounding box in all 8 frames."""
-        self.base_dy = 0
-        self.fd = [self.base_frame(i) for i in range(NFRAMES)]
-        # one constant drop of the whole figure (the median leg lift), so legs sit in the hips at rest
-        med = float(np.median([f["leg_dy"] for f in self.fd]))
-        self.base_dy = rnd(med, self.q)
+        self.base_dy = self._pick_base()
         self.fd = [self.base_frame(i) for i in range(NFRAMES)]
         self.carry = {}
         self.carry_dphi = {}
@@ -705,20 +940,39 @@ class Hero:
         for i in range(NFRAMES):
             fd = self.fd[i]
             props = self.props(i)
+            legpx = {s_: self.draw_leg(s_, fd["legs"][s_]["hip"], fd["legs"][s_]["knee"], fd["legs"][s_]["ankle"])
+                     for s_ in ("near", "far")}
             idx = np.full((H, W), -1, np.int16)
             lab = np.zeros((H, W), np.int16)
             offs, variant = {}, {}
             pm = None
+            feet = {}
             for li, nm in enumerate(order, 1):
+                side = "far" if nm.startswith("far_") else "near"
                 if nm in props:
                     sp, org, var = props[nm]
                     variant[nm] = var
                     if nm.startswith("gear:") and nm != "gear:shield" and pm is None:
                         pm = (int(org[0]), int(org[1]), sp >= 0)
+                elif nm.endswith(("_thigh", "_shin")) and nm in self.look:
+                    lg = fd["legs"][side]
+                    col, own, area = legpx[side]
+                    m = own == (1 if nm.endswith("thigh") else 2)
+                    idx[m] = col[m]
+                    lab[m] = li
+                    a, b = (lg["hip"], lg["knee"]) if nm.endswith("thigh") else (lg["knee"], lg["ankle"])
+                    offs[nm] = (int(a[0]), int(a[1]))
+                    variant[nm] = ("drawn", (int(b[0] - a[0]), int(b[1] - a[1])))
+                    continue
                 elif nm in fd["steps"]:
                     sp = self.variant(nm, fd["steps"][nm])[0]
                     org = fd["origin"][nm]
                     variant[nm] = ("step", fd["steps"][nm])
+                    if fd["hide_far"] and nm in ("far_upper", "far_fore"):
+                        offs[nm] = (int(org[0]), int(org[1]))        # the far arm would put a hand below the belt
+                        continue
+                    if nm.endswith("_foot"):
+                        feet[side] = _placed(sp, org, (H, W))
                 elif nm in self.cloth:
                     st = (i // 4) % 2
                     sp = self.cloth_variant(nm, st)[0]
@@ -732,20 +986,24 @@ class Hero:
                 _paste(idx, lab, sp, org, li)
             hs = self.sprites["head"][0]
             ho = fd["origin"]["head"]
-            holes = {}
+            holes, legs = {}, {}
             for side in ("near", "far"):
-                for a, b in (("thigh", "shin"), ("shin", "foot")):
-                    pa, pb = side + "_" + a, side + "_" + b
-                    if pa in fd["steps"] and pb in fd["steps"]:
-                        ma = _placed(self.variant(pa, fd["steps"][pa])[0], fd["origin"][pa], (H, W))
-                        mb = _placed(self.variant(pb, fd["steps"][pb])[0], fd["origin"][pb], (H, W))
-                        r = 1.1 * self.ch.info["radius"].get(b, 5.0) * self.k
-                        holes[pa + "/" + pb] = joint_holes(ma, mb, fd["T"][pb], r + 2)
+                col, own, area = legpx[side]
+                lg = fd["legs"][side]
+                holes[side] = enclosed_holes((own > 0) | feet[side]) if side in feet else enclosed_holes(own > 0)
+                a, b, c = lg["hip"], lg["knee"], lg["ankle"]
+                cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+                ang = math.degrees(math.atan2(cross, (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1])))
+                rows = np.nonzero(feet[side].any(1))[0] if side in feet else []
+                legs[side] = {"planted": lg["planted"], "flex": ang, "area": area, "hip": tuple(a), "knee": tuple(b),
+                              "ankle": tuple(c), "sole": int(rows[-1]) if len(rows) else -1}
             frames.append({"idx": idx, "label": lab, "offset": offs, "variant": variant, "bob": fd["bob"],
-                           "leg_dy": fd["leg_dy"], "holes": holes, "prop": pm,
+                           "leg_dy": 0, "holes": holes, "prop": pm, "legs": legs, "feet": feet, "belt": fd["belt"],
                            "head_box": (int(ho[0]), int(ho[1]), int(ho[0]) + hs.shape[1], int(ho[1]) + hs.shape[0]),
                            "head_n": int((hs >= 0).sum())})
-        return FrameSet(frames, names, self.palette, self.master, self.foot_y, self.pel_x)
+        fs = FrameSet(frames, names, self.palette, self.master, self.foot_y, self.pel_x)
+        fs.skin = set(self.skin)
+        return fs
 
 
 CHILD = {"upper": ("shoulder", "elbow"), "thigh": ("hip", "knee"), "shin": ("knee", "ankle")}
@@ -778,6 +1036,7 @@ class FrameSet:
     def __init__(self, frames, names, palette, master, foot_y, pel_x):
         self.frames, self.names, self.palette = frames, names, palette
         self.master, self.foot_y, self.pel_x = master, foot_y, pel_x
+        self.skin = set()
 
     def rgba(self, i):
         return to_rgba(self.frames[i]["idx"], self.palette)
@@ -788,11 +1047,13 @@ class FrameSet:
         for f in self.frames:
             out.append({"idx": f["idx"].repeat(2, 0).repeat(2, 1), "label": f["label"].repeat(2, 0).repeat(2, 1),
                         "offset": {n: (2 * x, 2 * y) for n, (x, y) in f["offset"].items()},
-                        "variant": f["variant"], "bob": 2 * f["bob"], "leg_dy": 2 * f["leg_dy"], "holes": f.get("holes", {}),
+                        "variant": f["variant"], "bob": 2 * f["bob"], "leg_dy": 2 * f["leg_dy"], "holes": f.get("holes", {}), "belt": 2 * f["belt"],
                         "head_box": tuple(2 * v for v in f["head_box"]), "head_n": 4 * f["head_n"],
                         "prop": None if f["prop"] is None else (2 * f["prop"][0], 2 * f["prop"][1],
                                                                 f["prop"][2].repeat(2, 0).repeat(2, 1))})
-        return FrameSet(out, self.names, self.palette, self.master * 2, self.foot_y * 2, self.pel_x * 2)
+        r = FrameSet(out, self.names, self.palette, self.master * 2, self.foot_y * 2, self.pel_x * 2)
+        r.skin = self.skin
+        return r
 
     def down2(self):
         """2:1 dominant colour: the 56 px frames of a 112 px master.  Only when every part origin
@@ -819,10 +1080,12 @@ class FrameSet:
             label = np.where(idx >= 0, lc.argmax(-1), 0).astype(np.int16)
             out.append({"idx": idx, "label": label,
                         "offset": {n: (x // 2, y // 2) for n, (x, y) in f["offset"].items()},
-                        "variant": f["variant"], "bob": f["bob"] // 2, "leg_dy": f["leg_dy"] // 2, "holes": f.get("holes", {}),
+                        "variant": f["variant"], "bob": f["bob"] // 2, "leg_dy": f["leg_dy"] // 2, "holes": f.get("holes", {}), "belt": f["belt"] // 2,
                         "head_box": tuple(v // 2 for v in f["head_box"]), "head_n": f["head_n"] // 4,
                         "prop": None if f["prop"] is None else _half_prop(f["prop"])})
-        return FrameSet(out, self.names, self.palette, self.master // 2, self.foot_y // 2, self.pel_x // 2)
+        r = FrameSet(out, self.names, self.palette, self.master // 2, self.foot_y // 2, self.pel_x // 2)
+        r.skin = self.skin
+        return r
 
 
 # ------------------------------------------------------------------ measurement on rendered frames

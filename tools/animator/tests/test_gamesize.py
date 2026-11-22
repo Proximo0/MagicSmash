@@ -64,6 +64,10 @@ class Primitives(unittest.TestCase):
         self.assertEqual(gs.measure(fs)["head"]["all"][1], 0.0)
 
 
+def fs_y(fs):
+    return fs.foot_y - 1
+
+
 class Gates(unittest.TestCase):
     def _fs(self, prop_x):
         names = ["bg", "head", "gear:staff"]
@@ -156,6 +160,50 @@ class Bake(unittest.TestCase):
     def test_no_holes_at_the_joints(self):
         for key in ("A56", "B112", "B56"):
             self.assertEqual(gs.count_hole_frames(self.r[key]), 0, key)
+
+    def test_leg_gates_pass_on_the_bake(self):
+        for key in ("A56", "B112"):
+            self.assertEqual(sum(gs.leg_gates(self.r[key]).values()), 0, (key, gs.leg_gates(self.r[key])))
+            self.assertEqual(gs.no_skin_below_belt(self.r[key]), 0, key)
+
+    def test_feet_use_at_most_three_angles_and_planted_feet_are_flat(self):
+        for key in ("A56", "B112"):
+            fs = self.r[key]
+            for f in fs.frames:
+                for side in ("near", "far"):
+                    kind, v = f["variant"][side + "_foot"]
+                    self.assertIn(v, (-2, 0, 2))
+                    if f["legs"][side]["planted"]:
+                        self.assertEqual(v, 0)
+
+    def test_leg_gates_catch_faults(self):
+        import copy as cp
+        base = self.r["B112"]
+
+        def broken(edit):
+            fs = cp.copy(base)
+            fs.frames = [cp.deepcopy(f) for f in base.frames]
+            edit(fs.frames)
+            return gs.leg_gates(fs)
+        self.assertGreater(broken(lambda fr: fr[0]["legs"]["near"].update(flex=-30.0))["knee_backwards"], 0)
+        self.assertGreater(broken(lambda fr: fr[0]["legs"]["near"].update(planted=True, sole=fs_y(base) - 3))["planted_sole"], 0)
+        self.assertGreater(broken(lambda fr: fr[2]["legs"]["far"].update(area=(99.0, 99.0)))["leg_width"], 0)
+        self.assertGreater(broken(lambda fr: fr[1]["holes"].update(near=2))["leg_hole"], 0)
+
+        def lose_far_foot(fr):
+            li = {n: k for k, n in enumerate(base.names)}["far_foot"]
+            fr[0]["label"][fr[0]["label"] == li] = 0
+            fr[0]["feet"]["far"] = np.zeros_like(fr[0]["feet"]["far"])
+            fr[0]["feet"]["far"][5:8, 5:8] = True
+            fr[0]["feet"]["near"] = np.zeros_like(fr[0]["feet"]["far"])
+        self.assertGreater(broken(lose_far_foot)["two_feet"], 0)
+
+    def test_enclosed_holes(self):
+        m = np.zeros((8, 8), bool)
+        m[1:7, 1:7] = True
+        self.assertEqual(gs.enclosed_holes(m), 0)
+        m[3, 3] = False
+        self.assertEqual(gs.enclosed_holes(m), 1)
 
     def test_far_arm_is_drawn_when_the_still_has_it(self):
         self.assertIn("far_upper", self.r["B112"].names)

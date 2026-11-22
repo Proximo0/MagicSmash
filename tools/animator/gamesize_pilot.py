@@ -134,12 +134,11 @@ def crop_of(sets):
 
 
 def contact_sheet(old, new, path):
-    """Rows: old 56 (4x), old 112 (2x), A 56 (comparison), B 56 (2:1 of the 112 master, 4x), B 112 (2x)."""
-    box = crop_of([old[56], old[112], new["A56"], new["B112"]])
+    """Rows: old 56 (4x), B 56 (2:1 of the 112 master, 4x), B 112 (2x)."""
+    box = crop_of([old[56], new["B112"]])
     rows = []
-    for fs, lab in ((old[56], "OLD pipeline 56"), (old[112], "OLD pipeline 112"),
-                    (new["A56"], "variant A (comparison): 56 master"),
-                    (new["B56"], "NEW B: 56 = 2:1 of the 112 master"), (new["B112"], "NEW B: 112 master (even offsets)")):
+    for fs, lab in ((old[56], "OLD pipeline 56"), (new["B56"], "NEW B: 56 = 2:1 of the 112 master"),
+                    (new["B112"], "NEW B: 112 master (even offsets)")):
         s = 56.0 / fs.master
         x0, x1, y0, y1 = [int(round(v / s)) for v in box]
         rows.append(sheet_row(fs, (x0, x1, y0, y1), 4 if fs.master == 56 else 2, lab))
@@ -199,14 +198,13 @@ def run(out_dir=OUT):
         report.append("== %s  (%s, %s)  new bake %.1f s (fit %.1f, 56 master+2x %.1f, 112 master+2:1 %.1f); old bake %.1f s; palette %d colours"
                       % (hid, cname, what, sec["total"], sec["fit"], sec["master56_and_2x"], sec["master112_and_2to1"],
                          osec, len(res["A56"].palette)))
-        for key in ("A56", "B112", "B56"):
+        for key in ("A56", "B112"):
             fs = res[key]
             bobs = [int(f["bob"]) for f in fs.frames]
             ok, worst = gs.prop_clear_of_face(fs)
-            report.append("   %s: torso bob peak-to-peak %d px; leg lift/drop vs torso max %d px; joint holes in %d of %d (frame, joint) cases; "
-                          "prop_clear_of_face %s (worst %.1f%% of head px)"
-                          % (key, max(bobs) - min(bobs), max(abs(int(f["leg_dy"]) - int(f["bob"])) for f in fs.frames),
-                             gs.count_hole_frames(fs), len(fs.frames) * 4, "ok" if ok else "FAIL", 100 * worst))
+            report.append("   %s: torso bob %d px; prop_clear_of_face %s (%.1f%%); leg gates (failing cases) %s; skin px below belt %d"
+                          % (key, max(bobs) - min(bobs), "ok" if ok else "FAIL", 100 * worst, gs.leg_gates(fs),
+                             gs.no_skin_below_belt(fs)))
         for ge, cfg in res["heroB"].carry.items():
             report.append("   carry of %s: one angle for all 8 frames, %+.2f deg from the drawn carry, grip shift %d px (112 master)"
                           % (ge, res["heroB"].carry_dphi[ge], cfg[1]))
