@@ -1,0 +1,1 @@
+2026-11-22T23:06:46Z INFO id=261122212854-6311 kind=shell secs=1 nolock set: screen-lock=off blank=never sleep=never autostart=yes; NOT set: sleep-targets(sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target)
