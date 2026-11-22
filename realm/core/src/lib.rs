@@ -419,9 +419,7 @@ impl Field {
         if let Some(p) = self.heroes.get_mut(id as usize) {
             *p = Hero::default();
         }
-        if let Some(g) = self.pvp.guild.get_mut(id as usize) {
-            *g = 0;
-        }
+        self.forget_slot(id);
     }
 
     pub fn step<I: Copy + Into<u16>>(&mut self, inputs: &[I]) {
@@ -442,6 +440,7 @@ impl Field {
         self.pvp_begin();
         self.compute_mods();
         self.phase_heroes(&words);
+        self.pvp_settle();
         mark(Phase::Input);
         self.phase_flow();
         mark(Phase::Flow);

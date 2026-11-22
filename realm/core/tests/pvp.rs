@@ -769,3 +769,102 @@ fn bench_1000_heroes_half_marked_among_20000_monsters_inside_the_budget() {
         assert!(blows > 1_000, "the marked fight: {blows} blows");
     }
 }
+
+// ---- review fixes (R3 review)
+
+#[test]
+fn a_reused_slot_inherits_no_kill_credit_and_no_zones() {
+    // A downs B, A leaves, unmarked C joins into A's slot, B falls: nobody is paid, C least of all.
+    let (mut f, a, b) = pair(3, KNIGHT, 30, &marked(), &marked());
+    f.hero_mut(b).coin = 500;
+    f.hero_mut(b).health = 1;
+    guard(&mut f, a);
+    run_until(&mut f, &[], 200, |f| f.events().iter().any(|e| matches!(e, Event::Slain { .. })).then_some(())).expect("downed by a blow");
+    assert_eq!(f.downed_by(b), a);
+    f.leave(a);
+    assert_eq!(f.downed_by(b), NOBODY, "the leaver's credit goes with her");
+    let (x, y) = open_spot(&f);
+    let c = f.join(&bare(KNIGHT, 30), &Outing::new(), x + px(1_500), y);
+    assert_eq!(c, a, "the slot is reused");
+    let (_, plunder) = run_until(&mut f, &[], DOWNED_TICKS as u32 + 5, |f| {
+        (count(f, FALLEN) > 0).then(|| f.events().iter().find_map(|e| if let Event::Plunder { by, coin, .. } = *e { Some((by, coin)) } else { None }))
+    })
+    .expect("she falls");
+    assert_eq!(plunder, None);
+    assert_eq!(f.heroes()[c as usize].coin, 0);
+
+    // A marked priest leaves her CONSECRATE on a marked hero; a marked newcomer in her slot, far away, must not
+    // strike through it.
+    let mut f = quiet(3);
+    let (x, y) = open_spot(&f);
+    let p = f.join(&bare(PRIEST, 30), &marked(), x, y);
+    let d = f.join(&bare(KNIGHT, 30), &marked(), x + px(30), y);
+    guard(&mut f, d);
+    f.hero_mut(d).marked = false; // not struck by the priest's weapon while she casts
+    f.step(&[IN_SKILL2, 0]);
+    assert!(f.zones().iter().any(|z| z.owner == p), "her zone is down");
+    f.hero_mut(d).marked = true;
+    f.leave(p);
+    assert!(f.zones().iter().all(|z| z.owner != p), "the leaver's zones are hers no longer");
+    let n = f.join(&bare(KNIGHT, 30), &marked(), x + px(1_500), y);
+    assert_eq!(n, p);
+    for _ in 0..200 {
+        f.step::<u16>(&[]);
+        assert!(struck(&f).iter().all(|s| s.1 != n), "a newcomer struck through a dead hero's zone");
+    }
+    assert_eq!(f.heroes()[n as usize].last_struck, NEVER);
+}
+
+#[test]
+fn a_raised_hero_or_one_downed_by_a_monster_has_no_downer() {
+    // B is downed by A, raised by R, and monsters stand on her: whenever she is up, or down without a hero's blow
+    // in that tick, nobody holds credit for her.
+    for seed in 0..6u64 {
+        let (mut f, a, b) = pair(3, KNIGHT, 30, &marked(), &marked());
+        f.hero_mut(b).health = 1;
+        f.hero_mut(b).coin = 400;
+        guard(&mut f, a);
+        run_until(&mut f, &[], 200, |f| f.events().iter().any(|e| matches!(e, Event::Slain { .. })).then_some(())).expect("downed by a blow");
+        let (bx, by_) = (f.heroes()[b as usize].x, f.heroes()[b as usize].y);
+        {
+            let h = f.hero_mut(a);
+            h.x = bx + px(600);
+            h.y = by_;
+            h.marked = false;
+        }
+        let r = f.join(&bare(PRIEST, 30), &marked(), bx + px(10), by_);
+        guard(&mut f, r);
+        for k in 0..(4 + seed as i32) {
+            let m = mon(&mut f, 0, 60, bx + px(8 + k), by_ + px(k - 2));
+            f.monsters_mut().hp[m as usize] = 1_000_000;
+        }
+        for t in 0..600 {
+            f.step::<u16>(&[]);
+            let slain_now: Vec<u16> = f.events().iter().filter_map(|e| if let Event::Slain { hero, .. } = *e { Some(hero) } else { None }).collect();
+            for (i, h) in f.heroes().iter().enumerate() {
+                let i = i as u16;
+                if !h.present || h.downed == 0 {
+                    assert_eq!(f.downed_by(i), NOBODY, "seed {seed} tick {t}: {i} is up but credited");
+                } else if f.events().iter().any(|e| matches!(*e, Event::Down { hero } if hero == i)) && !slain_now.contains(&i) {
+                    assert_eq!(f.downed_by(i), NOBODY, "seed {seed} tick {t}: {i} downed by a monster but credited");
+                }
+            }
+            assert!(!f.events().iter().any(|e| matches!(e, Event::Plunder { by, .. } if *by == a)), "seed {seed}: a stale credit paid");
+        }
+    }
+}
+
+#[test]
+fn wars_are_capped_so_the_state_bytes_hold_them() {
+    let mut f = quiet(2);
+    let mut armed = 0;
+    for k in 0..300u64 {
+        if f.declare_war(k, 1_000 + 2 * k, 1_001 + 2 * k, 0) {
+            armed += 1;
+        }
+    }
+    assert_eq!(armed, WARS_MAX, "at most {WARS_MAX} wars armed in a field");
+    let g = Field::from_bytes(&f.to_bytes(), 1).expect("the wars survive the bytes");
+    assert_eq!(g.wars().len(), WARS_MAX);
+    assert_eq!(g.hash(), f.hash());
+}

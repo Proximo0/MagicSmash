@@ -29,12 +29,18 @@ impl Drop for World {
 }
 
 fn world(name: &str) -> World {
+    world_with(name, None)
+}
+
+fn world_with(name: &str, clock: Option<realm_server::realm_clock::RealmClock>) -> World {
     let db = std::env::temp_dir().join(format!("realm-pvp-{}-{name}.db", std::process::id()));
     for s in ["", ".social", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{s}", db.display()));
     }
     let store = Arc::new(SqliteStore::open(&db).unwrap());
-    let gw = Gateway::start(store, Config { dev_login: true, secret: 5, ..Config::default() });
+    let mut cfg = Config { dev_login: true, secret: 5, ..Config::default() };
+    cfg.world.clock = clock;
+    let gw = Gateway::start(store, cfg);
     gw.social.persist(std::path::Path::new(&format!("{}.social", db.display()))).unwrap();
     let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
     World { gw, addr: l.addr.to_string(), _l: l, db }
@@ -214,30 +220,101 @@ fn a_duellist_who_leaves_forfeits() {
 
 #[test]
 fn the_mark_and_its_wait_are_kept_between_outings_and_restarts() {
+    // The wait runs down only in a field: the book keeps the ticks left, and town or a logout does not count.
     let w = world("marks");
     let s = &w.gw.social;
-    let now = 1_000_000i64;
     let mut o = Outing::new();
-    s.outing_mark(7, now, &mut o);
+    s.outing_mark(7, &mut o);
     assert_eq!((o.marked, o.struck_ago), (false, NEVER), "nothing in the book: unmarked");
     // She left the field marked, having struck a hero 100 ticks (5 s) before.
-    s.note_mark(7, true, 100, now);
+    s.note_mark(7, true, 100);
+    std::thread::sleep(Duration::from_millis(1_100));
     let mut o = Outing::new();
-    s.outing_mark(7, now + 10_000, &mut o);
-    assert_eq!((o.marked, o.struck_ago), (true, 100 + 200), "ten seconds later the wait has run 300 ticks");
-    // Ten minutes after the strike, the wait is over (but she is still marked).
-    let mut o = Outing::new();
-    s.outing_mark(7, now + 600_000, &mut o);
-    assert_eq!((o.marked, o.struck_ago), (true, NEVER));
-    // Kept through a restart.
+    s.outing_mark(7, &mut o);
+    assert_eq!((o.marked, o.struck_ago), (true, 100), "a second in town is not counted");
+    // Kept through a restart, still not counting the time away.
     let again = realm_gateway::social::Social::default();
     again.persist(std::path::Path::new(&format!("{}.social", w.db.display()))).unwrap();
     let mut o = Outing::new();
-    again.outing_mark(7, now + 10_000, &mut o);
-    assert_eq!((o.marked, o.struck_ago), (true, 300));
-    // Put down.
-    s.note_mark(7, false, NEVER, now + 700_000);
+    again.outing_mark(7, &mut o);
+    assert_eq!((o.marked, o.struck_ago), (true, 100));
+    // The next outing ran the wait out in the field: she leaves with it done.
+    s.note_mark(7, true, realm_core::pvp::MARK_WAIT_TICKS);
     let mut o = Outing::new();
-    s.outing_mark(7, now + 700_000, &mut o);
+    s.outing_mark(7, &mut o);
+    assert_eq!((o.marked, o.struck_ago), (true, NEVER));
+    // Put down.
+    s.note_mark(7, false, NEVER);
+    let mut o = Outing::new();
+    s.outing_mark(7, &mut o);
     assert_eq!((o.marked, o.struck_ago), (false, NEVER));
+}
+
+#[test]
+fn fought_wars_end_at_the_gateway_as_draws_when_no_result_comes() {
+    let clock = realm_server::realm_clock::RealmClock::manual(0);
+    let w = world_with("warsend", Some(clock.clone()));
+    let (mut ann, mut bob) = (player(&w, "ann", "Annie"), player(&w, "bob", "Bobby"));
+    let (ha, hb) = (ann.hero, bob.hero);
+    guild(&mut ann, "Ash Wardens");
+    guild(&mut bob, "Pale Court");
+    let mut wars = Vec::new();
+    for field in 0..3u8 {
+        let Resp::Social(SResp::WarDeclared(v)) = soc(&mut ann, SReq::WarDeclare { hero: ha, foe: "Pale Court".into(), field }) else { panic!() };
+        ok(soc(&mut bob, SReq::WarAnswer { hero: hb, war: v.id, accept: true }));
+        wars.push(v);
+    }
+    assert_eq!(code_of(soc(&mut ann, SReq::WarDeclare { hero: ha, foe: "Pale Court".into(), field: 3 })), code::REFUSED, "three waiting");
+    // Every tide is over and no field reported: the wars end as draws and the guild may declare again.
+    let end = wars.iter().map(|v| tide_start(v.field, v.tide) + realm_core::tables::TIDE_LEN as u64).max().unwrap();
+    clock.set(end + realm_gateway::social::pvp::WAR_RESULT_GRACE_TICKS + 1);
+    let Resp::Social(SResp::Wars(list)) = soc(&mut ann, SReq::WarList { hero: ha }) else { panic!() };
+    assert!(list.is_empty(), "{list:?}");
+    for v in &wars {
+        let r = push_of(&mut bob, |p| if let SPush::WarResult { war, winner, .. } = p { (*war == v.id).then_some(*winner) } else { None });
+        assert_eq!(r, Some(0), "war {} ends as a draw", v.id);
+    }
+    assert!(matches!(soc(&mut ann, SReq::WarDeclare { hero: ha, foe: "Pale Court".into(), field: 3 }), Resp::Social(SResp::WarDeclared(_))));
+}
+
+#[test]
+fn a_third_guild_cannot_fill_a_victims_wars_and_floods_are_slowed() {
+    let w = world("flood");
+    let (mut ann, mut bob, mut cat, mut dan) = (player(&w, "ann", "Annie"), player(&w, "bob", "Bobby"), player(&w, "cat", "Catty"), player(&w, "dan", "Danny"));
+    let (ha, hb, hc, hd) = (ann.hero, bob.hero, cat.hero, dan.hero);
+    guild(&mut ann, "Ash Wardens");
+    guild(&mut bob, "Pale Court");
+    guild(&mut cat, "Grey Hands");
+    guild(&mut dan, "Lantern Men");
+    // Cat's guild declares three wars on Bob's; Bob's guild may still declare its own three.
+    let mut on_bob = Vec::new();
+    for field in 0..3u8 {
+        let Resp::Social(SResp::WarDeclared(v)) = soc(&mut cat, SReq::WarDeclare { hero: hc, foe: "Pale Court".into(), field }) else { panic!() };
+        on_bob.push(v);
+    }
+    for field in 0..3u8 {
+        assert!(matches!(soc(&mut bob, SReq::WarDeclare { hero: hb, foe: "Ash Wardens".into(), field }), Resp::Social(SResp::WarDeclared(_))), "field {field}");
+    }
+    // A declaration waiting on Bob does not block another guild's for the same tide; only one may be accepted.
+    let Resp::Social(SResp::WarDeclared(dv)) = soc(&mut dan, SReq::WarDeclare { hero: hd, foe: "Pale Court".into(), field: 0 }) else { panic!() };
+    ok(soc(&mut bob, SReq::WarAnswer { hero: hb, war: on_bob[0].id, accept: true }));
+    assert_eq!(code_of(soc(&mut bob, SReq::WarAnswer { hero: hb, war: dv.id, accept: true })), code::REFUSED, "already at war in that tide");
+    // Challenges: a burst, then slow down.
+    for _ in 0..realm_gateway::social::pvp::PVP_BURST {
+        ok(soc(&mut ann, SReq::Duel { hero: ha, op: duel_op::CHALLENGE, name: "Danny".into() }));
+    }
+    assert_eq!(code_of(soc(&mut ann, SReq::Duel { hero: ha, op: duel_op::CHALLENGE, name: "Danny".into() })), code::SLOW_DOWN);
+}
+
+#[test]
+fn the_yard_holds_a_capped_number_of_duels() {
+    let w = world("yardcap");
+    w.gw.social.set_duel_cap(1);
+    let (mut ann, mut bob, mut cat, mut dan) = (player(&w, "ann", "Annie"), player(&w, "bob", "Bobby"), player(&w, "cat", "Catty"), player(&w, "dan", "Danny"));
+    let (ha, hb, hc, hd) = (ann.hero, bob.hero, cat.hero, dan.hero);
+    ok(soc(&mut ann, SReq::Duel { hero: ha, op: duel_op::CHALLENGE, name: "Bobby".into() }));
+    ok(soc(&mut bob, SReq::Duel { hero: hb, op: duel_op::ACCEPT, name: "Annie".into() }));
+    ok(soc(&mut cat, SReq::Duel { hero: hc, op: duel_op::CHALLENGE, name: "Danny".into() }));
+    assert_eq!(code_of(soc(&mut dan, SReq::Duel { hero: hd, op: duel_op::ACCEPT, name: "Catty".into() })), code::BUSY, "the yard is full");
+    assert!(!w.gw.social.in_duel(hc));
 }

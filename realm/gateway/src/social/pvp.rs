@@ -5,11 +5,15 @@
 //! `docs/realm/pvp.md` has every number and why.
 //!
 //! Wars are kept through the social log like guilds (`wdecl`, `wacc`, `woff`, `wend`); the mark book too (`mark`).
-//! Duels and challenges live in memory: a restart ends them with no result.
+//! Duels and challenges live in memory: a restart ends them with no result. Yards are stepped outside the social
+//! lock, and their number is capped.
+//!
+//! The mark book keeps the ticks of the ten-minute wait that are left: the wait runs down only in a field, so time
+//! in town or logged out does not count.
 
 use super::*;
 use realm_core::pvp::{DUEL_DRAW, DUEL_WON, MARK_WAIT_TICKS};
-use realm_core::tables::{FIELDS, NEVER};
+use realm_core::tables::{FIELDS, NEVER, TIDE_LEN};
 use realm_core::{tide_start, Config, Event, Field, Outing, TICK_HZ};
 
 /// A war is for the field's first tide that starts at least this long after the declaration (realm ticks: 2 min),
@@ -25,6 +29,13 @@ pub const DUEL_OFFER_MS: i64 = 30_000;
 pub const DUEL_TICKS_PER_STEP: u32 = realm_core::TICK_HZ / crate::town::STEP_HZ;
 /// Monsters a yard's pool holds (none are born).
 pub const YARD_POOL: u32 = 16;
+/// Duels running at once at most (each yard is about 1 MB of maps; 64 cost well under a millisecond a step).
+pub const DUELS_MAX: usize = 64;
+/// War declarations, declines and duel challenges an account may make in `PVP_WINDOW_MS`.
+pub const PVP_BURST: usize = 5;
+pub const PVP_WINDOW_MS: i64 = 60_000;
+/// An accepted war whose tide ended this long ago with no result from a field ends as a draw (realm ticks: 1 min).
+pub const WAR_RESULT_GRACE_TICKS: u64 = 60 * TICK_HZ as u64;
 
 /// A declared war.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,13 +82,38 @@ impl Inner {
         }
     }
 
-    /// Wars whose tide has begun without an answer are off (their guilds are told).
+    /// Wars whose tide has begun without an answer are off; accepted wars whose tide ended a minute ago with no
+    /// field's result end as draws. Their guilds are told.
     fn prune_wars(&mut self, now: u64) {
         let stale: Vec<(u64, [u64; 2])> = self.wars.values().filter(|w| !w.accepted && tide_start(w.field, w.tide) <= now).map(|w| (w.id, w.guilds)).collect();
         for (id, guilds) in stale {
             self.commit("woff", &[&id.to_string()]);
             self.tell_guilds(guilds, &SPush::WarOff { war: id });
         }
+        let over = |w: &WarRec| tide_start(w.field, w.tide) + TIDE_LEN as u64 + WAR_RESULT_GRACE_TICKS <= now;
+        let done: Vec<(u64, [u64; 2])> = self.wars.values().filter(|w| w.accepted && over(w)).map(|w| (w.id, w.guilds)).collect();
+        for (id, guilds) in done {
+            self.commit("wend", &[&id.to_string(), "0", "0", "0"]);
+            self.tell_guilds(guilds, &SPush::WarResult { war: id, winner: 0, held: [0, 0] });
+        }
+    }
+
+    /// The burst limit of war declarations, declines and challenges: `PVP_BURST` a minute an account.
+    fn pvp_slow(&mut self, account: i64, now: i64) -> R<()> {
+        let q = self.pvp_acts.entry(account).or_default();
+        while q.front().is_some_and(|&t| t + PVP_WINDOW_MS <= now) {
+            q.pop_front();
+        }
+        if q.len() >= PVP_BURST {
+            return Err(fail(code::SLOW_DOWN, "slow down"));
+        }
+        q.push_back(now);
+        Ok(())
+    }
+
+    /// A guild already fights in that tide of that field (an accepted war).
+    fn at_war(&self, guild: u64, field: u8, tide: u32, but: u64) -> bool {
+        self.wars.values().any(|w| w.id != but && w.accepted && w.field == field && w.tide == tide && w.guilds.contains(&guild))
     }
 
     /// Her guild and rank, if she may speak for it in a war.
@@ -107,8 +143,7 @@ impl Inner {
                 self.wars.remove(&n(0));
             }
             "mark" => {
-                let at = f.get(2).and_then(|s| s.parse::<i64>().ok()).unwrap_or(i64::MIN);
-                self.marks.insert(n(0) as i64, (n(1) != 0, at));
+                self.marks.insert(n(0) as i64, (n(1) != 0, n(2) as u32));
             }
             _ => {}
         }
@@ -124,19 +159,20 @@ impl Social {
         let mut g = self.inner.lock().unwrap();
         g.prune_wars(now);
         let mine = g.war_officer(me)?;
+        g.pvp_slow(me.account, now_ms())?;
         let want = foe.trim().to_lowercase();
         let theirs = g.guilds.values().find(|x| x.name.to_lowercase() == want).map(|x| x.id).ok_or_else(|| fail(code::MISSING, "no guild by that name"))?;
         if theirs == mine {
             return Err(bad("a guild cannot war on itself"));
         }
         let tide = next_war_tide(field, now);
-        for k in [mine, theirs] {
-            if g.wars.values().filter(|w| w.guilds.contains(&k)).count() >= WARS_PER_GUILD {
-                return Err(fail(code::REFUSED, "too many wars waiting"));
-            }
-            if g.wars.values().any(|w| w.field == field && w.tide == tide && w.guilds.contains(&k)) {
-                return Err(fail(code::REFUSED, "already at war in that tide"));
-            }
+        // The waiting count is the declarer's own (another guild's declarations never fill hers); a declaration
+        // waiting on a guild does not stop others: only an accepted war takes a guild's tide.
+        if g.wars.values().filter(|w| w.guilds[0] == mine).count() >= WARS_PER_GUILD {
+            return Err(fail(code::REFUSED, "too many wars waiting"));
+        }
+        if g.wars.values().any(|w| w.field == field && w.tide == tide && w.guilds[0] == mine) || g.at_war(mine, field, tide, 0) || g.at_war(theirs, field, tide, 0) {
+            return Err(fail(code::REFUSED, "already at war in that tide"));
         }
         let id = g.next_war;
         g.commit("wdecl", &[&id.to_string(), &mine.to_string(), &theirs.to_string(), &field.to_string(), &tide.to_string()]);
@@ -161,6 +197,9 @@ impl Social {
             if w.accepted {
                 return Err(bad("already accepted"));
             }
+            if g.at_war(w.guilds[0], w.field, w.tide, war) || g.at_war(w.guilds[1], w.field, w.tide, war) {
+                return Err(fail(code::REFUSED, "already at war in that tide"));
+            }
             g.commit("wacc", &[&war.to_string()]);
             let view = g.war_view(&g.wars[&war]);
             g.tell_guilds(w.guilds, &SPush::War(view));
@@ -168,6 +207,7 @@ impl Social {
             if w.accepted && tide_start(w.field, w.tide) <= now {
                 return Err(fail(code::REFUSED, "the war is being fought"));
             }
+            g.pvp_slow(me.account, now_ms())?;
             g.commit("woff", &[&war.to_string()]);
             g.tell_guilds(w.guilds, &SPush::WarOff { war });
         }
@@ -226,6 +266,7 @@ impl Social {
                 if g.ignores(other.account, me.account) {
                     return Err(fail(code::REFUSED, "she is not taking challenges"));
                 }
+                g.pvp_slow(me.account, now)?;
                 g.duel_offers.insert((other.id, me.hero), now + DUEL_OFFER_MS);
                 g.send(other.id, SPush::DuelChallenge { from: me.hero, name: me.name.clone() });
                 Ok(Resp::Ok)
@@ -256,6 +297,10 @@ impl Social {
                 if g.in_duel.contains_key(&me.hero) || g.in_duel.contains_key(&other.id) {
                     return Err(fail(code::BUSY, "already in a duel"));
                 }
+                let cap = if g.duel_cap == 0 { DUELS_MAX } else { g.duel_cap };
+                if g.in_duel.len() / 2 >= cap {
+                    return Err(fail(code::BUSY, "the yard is full"));
+                }
                 let id = g.next_duel.max(1);
                 g.next_duel = id + 1;
                 let run = open_duel(id, [other.id, me.hero], [other.name.clone(), me.name.clone()], [&sa, &sb], seed);
@@ -272,25 +317,34 @@ impl Social {
     /// A duellist's town direction (0..8) steers her in the yard; her weapon fires by itself.
     pub fn duel_input(&self, hero: i64, dir: u8) {
         let mut g = self.inner.lock().unwrap();
-        let Some(&id) = g.in_duel.get(&hero) else { return };
-        if let Some(d) = g.duels.get_mut(&id) {
-            let k = (d.heroes[1] == hero) as usize;
-            d.input[k] = dir.min(8) as u16;
+        if g.in_duel.contains_key(&hero) {
+            g.duel_inputs.insert(hero, dir.min(8) as u16);
         }
     }
 
+    /// Running duels at most (0: `DUELS_MAX`).
+    pub fn set_duel_cap(&self, n: usize) {
+        self.inner.lock().unwrap().duel_cap = n;
+    }
+
     /// One town step of every duel: `DUEL_TICKS_PER_STEP` core ticks, then the ends (a down, three minutes, or a
-    /// duellist gone: she forfeits). Returns the results of this step as (duel, winner, loser, draw).
+    /// duellist gone: she forfeits). The yards are taken out of the lock while they step, so chat and the rest of
+    /// social never wait on them. Returns the results of this step as (duel, winner, loser, draw).
     pub fn run_duels(&self) -> Vec<(u64, i64, i64, bool)> {
-        let mut g = self.inner.lock().unwrap();
-        let mut done = Vec::new();
-        let ids: Vec<u64> = g.duels.keys().copied().collect();
-        for id in ids {
-            let gone: Vec<bool> = {
-                let d = &g.duels[&id];
-                d.heroes.iter().map(|h| !g.online.get(h).is_some_and(|p| p.place == PLACE_TOWN)).collect()
-            };
-            let d = g.duels.get_mut(&id).unwrap();
+        let mut runs: Vec<(DuelRun, [bool; 2], [u16; 2])> = {
+            let mut g = self.inner.lock().unwrap();
+            let duels = std::mem::take(&mut g.duels);
+            duels
+                .into_values()
+                .map(|d| {
+                    let gone = d.heroes.map(|h| !g.online.get(&h).is_some_and(|p| p.place == PLACE_TOWN));
+                    let input = d.heroes.map(|h| g.duel_inputs.get(&h).copied().unwrap_or(0));
+                    (d, gone, input)
+                })
+                .collect()
+        };
+        let mut ends: Vec<Option<(i64, i64, bool)>> = Vec::with_capacity(runs.len());
+        for (d, gone, input) in runs.iter_mut() {
             let mut end = match (gone[0], gone[1]) {
                 (true, true) => Some((d.heroes[0], d.heroes[1], true)),
                 (true, false) => Some((d.heroes[1], d.heroes[0], false)),
@@ -303,7 +357,7 @@ impl Social {
                 }
                 let mut inputs = vec![0u16; d.field.heroes().len()];
                 for k in 0..2 {
-                    inputs[d.ids[k] as usize] = d.input[k];
+                    inputs[d.ids[k] as usize] = input[k];
                 }
                 d.field.step(&inputs);
                 for e in d.field.events() {
@@ -315,14 +369,25 @@ impl Social {
                     }
                 }
             }
-            if let Some((w, l, draw)) = end {
-                let d = g.duels.remove(&id).unwrap();
-                for h in d.heroes {
-                    g.in_duel.remove(&h);
-                    g.send(h, SPush::DuelResult { duel: id, winner: w, loser: l, draw });
+            ends.push(end);
+        }
+        let mut g = self.inner.lock().unwrap();
+        let mut done = Vec::new();
+        for ((d, _, _), end) in runs.into_iter().zip(ends) {
+            match end {
+                Some((w, l, draw)) => {
+                    let id = d.id;
+                    for h in d.heroes {
+                        g.in_duel.remove(&h);
+                        g.duel_inputs.remove(&h);
+                        g.send(h, SPush::DuelResult { duel: id, winner: w, loser: l, draw });
+                    }
+                    g.commit("duel", &[&id.to_string(), &w.to_string(), &l.to_string(), &(draw as u8).to_string()]);
+                    done.push((id, w, l, draw));
                 }
-                g.commit("duel", &[&id.to_string(), &w.to_string(), &l.to_string(), &(draw as u8).to_string()]);
-                done.push((id, w, l, draw));
+                None => {
+                    g.duels.insert(d.id, d);
+                }
             }
         }
         done
@@ -334,28 +399,24 @@ impl Social {
 
     // ---- the mark's book
 
-    /// What a field reports of her mark as she leaves it: carried, with her last strike `struck_ago` ticks before
-    /// `now` (ms), into her next outing.
-    pub fn note_mark(&self, hero: i64, marked: bool, struck_ago: u32, now: i64) {
-        let at = if struck_ago == NEVER { i64::MIN } else { now - struck_ago as i64 * 1000 / TICK_HZ as i64 };
+    /// What a field reports of her mark as she leaves it (and at each flush): marked or not, and the ticks since
+    /// her last strike on a hero, counted in the field. The book keeps the ticks of the wait left.
+    pub fn note_mark(&self, hero: i64, marked: bool, struck_ago: u32) {
+        let left = if struck_ago == NEVER || struck_ago >= MARK_WAIT_TICKS { 0 } else { MARK_WAIT_TICKS - struck_ago };
         let mut g = self.inner.lock().unwrap();
-        if g.marks.get(&hero) == Some(&(marked, at)) || (!marked && at == i64::MIN && !g.marks.contains_key(&hero)) {
+        if g.marks.get(&hero) == Some(&(marked, left)) || (!marked && left == 0 && !g.marks.contains_key(&hero)) {
             return;
         }
-        g.commit("mark", &[&hero.to_string(), &(marked as u8).to_string(), &at.to_string()]);
+        g.commit("mark", &[&hero.to_string(), &(marked as u8).to_string(), &left.to_string()]);
     }
 
-    /// Fills her outing's mark and last strike from the book (unmarked, never struck, if it has nothing).
-    pub fn outing_mark(&self, hero: i64, now: i64, o: &mut Outing) {
+    /// Fills her outing's mark and last strike from the book (unmarked, never struck, if it has nothing). The wait
+    /// left is what it was as she left the field.
+    pub fn outing_mark(&self, hero: i64, o: &mut Outing) {
         let g = self.inner.lock().unwrap();
-        let Some(&(marked, at)) = g.marks.get(&hero) else { return };
+        let Some(&(marked, left)) = g.marks.get(&hero) else { return };
         o.marked = marked;
-        o.struck_ago = if at == i64::MIN {
-            NEVER
-        } else {
-            let ticks = (now - at).max(0) * TICK_HZ as i64 / 1000;
-            if ticks >= MARK_WAIT_TICKS as i64 { NEVER } else { ticks as u32 }
-        };
+        o.struck_ago = if left == 0 { NEVER } else { MARK_WAIT_TICKS - left.min(MARK_WAIT_TICKS) };
     }
 }
 

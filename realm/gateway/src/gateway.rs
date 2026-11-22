@@ -655,7 +655,7 @@ impl Gateway {
         let h = self.store.hero(hero).ok().flatten()?;
         let mut outing = Outing::new();
         // Job R3: her BLOOD MARK and its ten-minute wait come with her from the last outing.
-        self.social.outing_mark(hero, now_ms(), &mut outing);
+        self.social.outing_mark(hero, &mut outing);
         let way = h.progress.waystones.get(field as usize).copied().unwrap_or(-1);
         outing.waystone = if way >= 0 { way as u8 } else { NO_WAYSTONE };
         let ticket = loop {
@@ -868,7 +868,7 @@ impl Gateway {
         let hero = f.hero as i64;
         // Job R3: her mark and its wait, for her next outing.
         if let Some((marked, struck_ago)) = f.mark {
-            self.social.note_mark(hero, marked, struck_ago, now_ms());
+            self.social.note_mark(hero, marked, struck_ago);
         }
         let info = self.tickets.lock().unwrap().get(&f.ticket).map(|t| (t.account, t.field));
         let Some((_account, field)) = info else { return };

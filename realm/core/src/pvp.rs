@@ -60,6 +60,8 @@ pub const YARD_MONSTERS: u32 = 16;
 pub const YARD: u8 = 254;
 /// No hero.
 pub const NOBODY: u16 = u16::MAX;
+/// Wars armed in one field at most (the state block counts them in a byte): 64 guilds fighting at once in one copy.
+pub const WARS_MAX: usize = 32;
 
 /// `Event::Mark` states.
 pub const MARK_TAKEN: u8 = 1;
@@ -133,7 +135,7 @@ impl Pvp {
     pub(crate) fn downer_of(&self, i: usize) -> u16 {
         self.downer.get(i).copied().unwrap_or(NOBODY)
     }
-    fn set_downer(&mut self, i: usize, by: u16) {
+    pub(crate) fn set_downer(&mut self, i: usize, by: u16) {
         if self.downer.len() <= i {
             self.downer.resize(i + 1, NOBODY);
         }
@@ -191,10 +193,10 @@ impl Field {
         self.pvp.guild_of(id as usize)
     }
     /// Declares war `id` between two guilds for this field's tide `tide`. It starts with that tide (or now, if that
-    /// tide is running) and ends with it. False if the guilds are the same, either is 0, or either is already at war
-    /// in that tide.
+    /// tide is running) and ends with it. False if the guilds are the same, either is 0, either is already at war
+    /// in that tide, or `WARS_MAX` wars are armed.
     pub fn declare_war(&mut self, id: u64, a: u64, b: u64, tide: u32) -> bool {
-        if a == 0 || b == 0 || a == b || self.pvp.wars.iter().any(|w| w.tide == tide && (w.guilds.contains(&a) || w.guilds.contains(&b))) {
+        if a == 0 || b == 0 || a == b || self.pvp.wars.len() >= WARS_MAX || self.pvp.wars.iter().any(|w| w.tide == tide && (w.guilds.contains(&a) || w.guilds.contains(&b))) {
             return false;
         }
         let on = self.tide && self.realm.tide_index == tide;
@@ -385,6 +387,39 @@ impl Field {
                 d.started = self.tick;
                 self.events.push(Event::Duel { state: DUEL_BEGIN, winner: d.heroes[0], loser: d.heroes[1] });
             }
+        }
+    }
+
+    /// A hero who is up was downed by nobody (after the raises of the hero phase, and at the start of a tick).
+    pub(crate) fn pvp_settle(&mut self) {
+        for (i, d) in self.pvp.downer.iter_mut().enumerate() {
+            if *d != NOBODY && !self.heroes.get(i).is_some_and(|h| h.present && h.downed > 0) {
+                *d = NOBODY;
+            }
+        }
+    }
+
+    /// Her slot is empty now (`leave`, or she left by the gate or a waystone): her tag and credit go, nobody's
+    /// down is credited to the slot, and her drops and zones are nobody's (they still land on monsters, never on
+    /// heroes, and credit nobody), so a hero who joins into the slot inherits nothing.
+    pub(crate) fn forget_slot(&mut self, id: u16) {
+        let i = id as usize;
+        if let Some(g) = self.pvp.guild.get_mut(i) {
+            *g = 0;
+        }
+        for d in self.pvp.downer.iter_mut() {
+            if *d == id {
+                *d = NOBODY;
+            }
+        }
+        if let Some(d) = self.pvp.downer.get_mut(i) {
+            *d = NOBODY;
+        }
+        for d in self.drops.iter_mut().filter(|d| d.hero == id) {
+            d.hero = NOBODY;
+        }
+        for z in self.zones.iter_mut().filter(|z| z.owner == id) {
+            z.owner = NOBODY;
         }
     }
 

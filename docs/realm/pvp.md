@@ -82,7 +82,12 @@ heroes, so a field of unmarked heroes does no extra work.
   - `Flush.mark` holds her mark and the ticks since her last strike. It is sent when either changes and always on
     leaving.
   - The gateway writes it to the mark book (`Social::note_mark`, kept through the social log as `mark` lines).
-  - The next ticket's outing reads it back (`Social::outing_mark`). The wait runs on in town, by the wall clock.
+  - The book stores the **ticks of wait left** (10 min less `struck_ago`), not a time. The next ticket's outing
+    reads it back (`Social::outing_mark`). The wait runs down **only while she is in a field**: time in town or
+    logged out does not count.
+- **Kill credit is cleared.** The downer is wiped when she rises, when a non-hero blow downs her, and when a hero
+  leaves: `Field::forget_slot` clears every downer that names the leaver, her drops' claim and her zones, so a hero
+  who reuses the slot inherits none of them.
 - **Fixed on the way:** `Field::join` read a carried `struck_ago` that was longer than the field's age as a strike at
   tick 0, so a fresh copy saw an old strike as a new one. A strike older than 10 minutes now reads as none.
 
@@ -91,7 +96,7 @@ heroes, so a field of unmarked heroes does no extra work.
 - **In the core:**
   - `Field::set_guild(id, guild)` tags a hero as she joins.
   - `Field::declare_war(id, guild a, guild b, tide)` arms a war for a tide index of this field. It is refused if
-    either guild already fights in that tide.
+    either guild already fights in that tide, or when 32 wars are armed (`WARS_MAX`), so the count fits its byte.
   - The war goes on with the tide (`War{BEGIN}`) and ends with it, won early or lost (`War{END, winner, held}`).
 - **Held altar time:** every tick, each lit or held altar with members of one side within its 150 px circle and none
   of the other adds one tick to that side. More ticks wins, and equal is a draw (`WAR_DRAW`). Held altars count too,
@@ -100,9 +105,14 @@ heroes, so a field of unmarked heroes does no extra work.
   - Declare, accept, list and call off, by the leader or an officer only (rank 0 or 1).
   - A war is for the field's first tide that starts at least **2 minutes** after the declaration
     (`WAR_LEAD_TICKS`), so the other guild has time to answer and gather.
-  - At most **3** wars waiting per guild (`WARS_PER_GUILD`), against spam, and one war per guild per field tide.
+  - At most **3** wars waiting per guild, counted on the declaring side only (`WARS_PER_GUILD`), so a third guild
+    cannot fill a victim's quota. One accepted war per guild per field tide: a declaration or an accept is refused
+    when either guild already has one.
+  - Declare, decline, call off and duel challenges share a burst limit of **5 a minute per account**
+    (`PVP_BURST`, `SLOW_DOWN`).
   - Only the declared-on guild accepts. Either guild may call a war off until it is being fought.
-  - A war unanswered when its tide starts is off (`WarOff`).
+  - A war unanswered when its tide starts is off (`WarOff`). An accepted war with no `war_result` one minute after
+    its tide ends (`WAR_RESULT_GRACE_TICKS`) is ended as a draw (`wend`, winner 0), so guilds are not locked out.
   - Kept in the social log (`wdecl`, `wacc`, `woff`, `wend`).
   - `Social::wars_for(field, tide)` and `guild_of_account` are what a field copy needs. `Social::war_result` takes
     the core's END: both guilds hear `WarResult`, and a second copy's report is ignored.
@@ -121,7 +131,9 @@ heroes, so a field of unmarked heroes does no extra work.
     ignoring player refuses challenges.
   - On accept, the gateway builds a yard with both heroes' real sheets, starts it, and pushes `DuelStart` (foe,
     seed) to both.
-  - The town ticker steps every yard **2 core ticks per town step** (10 Hz town, 20 Hz core). Town input (direction)
+  - At most **64** duels run at once (`DUELS_MAX`); an accept beyond that answers BUSY.
+  - The town ticker steps every yard **2 core ticks per town step** (10 Hz town, 20 Hz core), outside the social
+    lock: the yards are taken out, stepped, and put back. Town input (direction)
     steers, and weapons fire on their own.
   - A duellist who leaves town forfeits.
   - Both get `DuelResult`, and a `duel` line goes to the log as a record.
@@ -181,12 +193,12 @@ Bench, tick in ms (CPU with 4 cores, load average about 0.6):
 
 | Field | mean | p99 | blows | downs by heroes |
 |---|---|---|---|---|
-| THE FOOL'S ROAD | 4.42 | 5.86 | 401,335 | 4,106 |
-| THE HANGED WOOD | 5.61 | 9.31 | 371,098 | 4,010 |
-| THE MOON MARSH | 5.19 | 8.42 | 366,352 | 4,092 |
-| THE HERMIT'S PEAKS | 5.59 | 8.63 | 672,943 | 3,706 |
-| THE TOWER | 4.55 | 6.75 | 667,908 | 2,743 |
-| THE WORLD'S EDGE | 5.80 | 11.23 | 788,841 | 2,043 |
+| THE FOOL'S ROAD | 4.86 | 8.13 | 401,335 | 4,106 |
+| THE HANGED WOOD | 5.21 | 8.86 | 371,098 | 4,010 |
+| THE MOON MARSH | 4.99 | 8.69 | 366,352 | 4,092 |
+| THE HERMIT'S PEAKS | 5.68 | 9.25 | 672,943 | 3,706 |
+| THE TOWER | 5.01 | 9.28 | 667,908 | 2,743 |
+| THE WORLD'S EDGE | 6.19 | 13.17 | 788,841 | 2,043 |
 
 Every field is well inside the 50 ms budget, and within about 1 ms of R2's crowd bench without PvP.
 
@@ -206,7 +218,4 @@ Every field is well inside the 50 ms budget, and within about 1 ms of R2's crowd
    - A real yard view needs either a host per duel or yard snapshots in the town push.
    - The town has no yard zone yet (`wire.md`: no town zones), so a challenge may be made anywhere in town.
 4. Should **being struck by a hero** count as tide contribution ("half of damage taken")? Today it does, as any hit.
-5. **The mark book's wait runs on the wall clock in town.** A hero who struck and logs out for 10 minutes can put
-   the mark down on return. That reads "leaving the field does not clear the wait" as "leaving does not reset it",
-   not "time away does not count".
-6. **Stuns, slows and pushes** on heroes are left out; say if marked fights should have them.
+5. **Stuns, slows and pushes** on heroes are left out; say if marked fights should have them.

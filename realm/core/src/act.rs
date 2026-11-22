@@ -115,6 +115,7 @@ impl Field {
                 // The slot is emptied as `leave` does: the save holds nothing of a hero who is gone, so the
                 // running field must not either.
                 *h = Hero::default();
+                self.forget_slot(id);
                 self.events.push(Event::Bank { hero: id, coin, waystone: NO_WAYSTONE });
                 self.events.push(Event::Leave { hero: id });
                 continue;
@@ -154,6 +155,7 @@ impl Field {
                                 self.events.push(Event::Bank { hero: id, coin, waystone: w as u8 });
                             }
                             *h = Hero::default();
+                            self.forget_slot(id);
                             self.events.push(Event::Leave { hero: id });
                             continue;
                         } else {

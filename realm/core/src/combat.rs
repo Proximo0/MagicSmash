@@ -305,6 +305,8 @@ impl Field {
         h.downed = DOWNED_TICKS;
         h.raise = 0;
         h.hold = 0;
+        // Downed by this blow: credit only if it was a hero's (`apply_phits` sets it after this).
+        self.pvp.set_downer(i, crate::pvp::NOBODY);
         self.deaths_total += 1;
         self.events.push(Event::Down { hero: i as u16 });
         if m.burst_dmg > 0 {

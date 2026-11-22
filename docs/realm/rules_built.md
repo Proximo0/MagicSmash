@@ -226,7 +226,13 @@ Every number and the open questions are in `docs/realm/pvp.md`.
   - +25% coin and +15 luck while marked.
   - The helper ban (`may_help`, 60 s) covers heals, shields, buffs, raises and SANCTUARY.
   - A fall after a hero's blow pays the downer the lost coin (`Plunder`).
-  - The 10-minute wait is carried in the outing, and home through `Flush.mark` to the gateway's mark book.
+  - The 10-minute wait is carried in the outing, and home through `Flush.mark` to the gateway's mark book, which
+    stores the ticks left. It runs down only in a field; town and logged-out time do not count.
+  - Kill credit (the downer) is cleared on rise, on a non-hero down, and on leave (`forget_slot`, which also
+    disowns the leaver's drops and zones).
+- **Gateway limits:** 32 armed wars per field, 3 waiting declared per guild, one accepted war per guild per tide,
+  5 PvP requests a minute per account, 64 duels at once stepped outside the social lock, and fought wars with no
+  result are drawn a minute after their tide.
 - **Events, appended after `Vault`:** `Mark` 17, `Struck` 18, `Slain` 19, `Plunder` 20, `War` 21, `Duel` 22.
 - **State: no saved format changed.** The PvP block (tag `0x50`) is appended to the state bytes only when non-empty,
   so a field without PvP hashes as before, and `STATE_VERSION` stays 3. A yard is vault byte 254.
@@ -234,4 +240,4 @@ Every number and the open questions are in `docs/realm/pvp.md`.
   than 10 minutes now reads as none.
 - **Bots:** a bot never raises a hero the help ban forbids, and a hunter never raises her own prey.
 - **Budget:** 1,000 heroes, 500 of them marked hunters, among 20,000 monsters, with a tide and 4 threads. The worst
-  field is THE WORLD'S EDGE at 5.80 ms mean and 11.23 ms p99. Hashes are equal on 1 to 4 threads and on a follower.
+  field is THE WORLD'S EDGE at 6.19 ms mean and 13.17 ms p99. Hashes are equal on 1 to 4 threads and on a follower.

@@ -182,7 +182,14 @@ pub(crate) struct Inner {
     pub duels: BTreeMap<u64, pvp::DuelRun>,
     pub in_duel: HashMap<i64, u64>,
     pub next_duel: u64,
-    pub marks: HashMap<i64, (bool, i64)>,
+    /// A duellist's last town direction (read when her yard steps).
+    pub duel_inputs: HashMap<i64, u16>,
+    /// Running duels at most (0: `pvp::DUELS_MAX`).
+    pub duel_cap: usize,
+    /// Each account's recent war declarations, declines and duel challenges (ms), for the burst limit.
+    pub pvp_acts: HashMap<i64, VecDeque<i64>>,
+    /// hero -> (marked, ticks of the ten-minute wait left; it runs down only in a field).
+    pub marks: HashMap<i64, (bool, u32)>,
 }
 
 pub struct Social {
