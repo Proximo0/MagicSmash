@@ -25,7 +25,8 @@ from PIL import Image
 from . import checks
 from .cut import cut_still, load_still
 from .foot import behind_back_edge, fit_foot, reseat
-from .gear import hand_local as _hand_local
+from . import gear as gear_mod
+from .gear import hand_local as _hand_local, min_of as _gear_min
 from .imgops import shift
 from .motion import MOTIONS, Gait, fit_walk, walk
 from .rig import Rig, screen_angle, SIDES
@@ -55,6 +56,9 @@ CARRY_BOB = 0.15     # pass 8: arm swing of the carry pose (long hand gear), x t
 GEAR_ARM = 0.40      # ... and that arm swings only this much (a staff is carried steady)
 
 BODY_SIZES = (56, 112)   # game px body height of a human hero: every still is baked at both
+ARM_OUTLINE = True         # pass 10: a darker edge on a near arm the colour of the torso (outline_near_arm)
+TIDY_CLOTH = True          # pass 9: final cloth-silhouette clean-up (tidy_cloth_edge)
+DROP_DARK_BLOCKS = True    # pass 9: lone outline blocks on light cloth are repainted (intake.drop_dark_blocks)
 NATIVE_SS = 3            # supersample when the parts are flat blocks of the native grid: a turned
                          # block is re-sampled 3 x 3 and the mode taken, nothing is mixed
 
@@ -123,7 +127,7 @@ class Character:
         part comes out as one output pixel per block and a turned one moves whole blocks."""
         from .autocut import cut_auto
         from .fit import fit_still
-        from .intake import detect_grid, snap_to_grid
+        from .intake import detect_grid, drop_dark_blocks, snap_to_grid
         ch = cls()
         ch.auto = True
         img, data, masks = fitted or fit_still(png, layout_json)
@@ -156,6 +160,8 @@ class Character:
                 origin = (float(ch.rig.j["pelvis"][0]), float(ch.rig.ground_y))
             for p in ch.parts.values():
                 p.img = snap_to_grid(p.img, cell, origin)
+                if DROP_DARK_BLOCKS:
+                    p.img, _ = drop_dark_blocks(p.img, cell, origin, ch.rig.j["neck"][1] + 0.015 * ch.rig.body_height)
             ch.native, ch.ss = True, NATIVE_SS
             ch.grid = dict(g, used_cell=[float(cell[0]), float(cell[1])])
         # the walk is the same at every size: the ankle's plantarflexion limit is set in still
@@ -167,6 +173,11 @@ class Character:
             from .gear import load_gear
             gear = load_gear(png)
         ch.gear = list(gear)
+        tall = max([g.size for g in ch.gear if g.slot == "near_hand"] + [0.0])
+        if tall > 1.0:        # pass 10: a banner reaches above the usual headroom: the canvas grows upwards
+            extra = int(round(0.40 * ch.body_h))
+            ch.canvas = (ch.canvas[0], ch.canvas[1] + extra)
+            ch.foot_y += extra
         if ch.gear:               # colours of the gear pictures join the palette (R15)
             ch.palette = np.unique(np.concatenate([ch.palette] + [g.palette for g in ch.gear]), axis=0)
             # a near hand that holds gear is a carried arm: it keeps the still's pose and swings at
@@ -199,11 +210,13 @@ class Character:
         stride = 2 * self.step_px
         target = max(q, round(stride * 0.95 / q) * q)
         arm = GEAR_ARM if self.info.get("gear_reach", 0) > GEAR_LONG else 1.0
-        carry = any(g.slot == "near_hand" and g.long for g in self.gear)
-        if carry:                  # long gear: the carry pose, arm swing a small bob
-            arm = CARRY_BOB
+        poses = [g.carry for g in self.gear if g.slot == "near_hand" and g.carry]
+        carry = ("upright" if "upright" in poses else poses[0]) if poses else False
+        if carry:                  # long gear (upright) or a crossbow / censer (level) or a book (chest): carry pose,
+            arm = CARRY_BOB        # arm swing a small bob
         m = fit_walk(self.rig, target / 2.0 / 0.95, exact=target, quantum=q, arm=arm)
         m.carry = carry
+        m.far_hold = any(g.slot == "far_hand" and g.in_front for g in self.gear)
         return m
 
 
@@ -390,7 +403,21 @@ def cleanup(out, l):
     return res, rl
 
 
-def hide_far_behind_torso(rgba, lab, names):
+def paint_far_hand(rgba, lab, names, hand_xy, r, colour):
+    """Pass 10: with an off-hand weapon the far arm stays hidden behind the body as usual, and only the far
+    hand is drawn, a small disc of the far hand's colour (from the cut far forearm) in front of the body at the
+    weapon's grip, labelled as the far forearm.  The near arm and the head keep their pixels."""
+    if "far_fore" not in names:
+        return rgba, lab
+    keep = np.isin(lab, [names.index(n) for n in ("near_upper", "near_fore") if n in names])
+    yy, xx = np.mgrid[0:lab.shape[0], 0:lab.shape[1]]
+    disc = (np.hypot(xx + 0.5 - hand_xy[0], yy + 0.5 - hand_xy[1]) <= r) & ~keep
+    rgba[disc] = (*colour, 255)
+    lab[disc] = names.index("far_fore")
+    return rgba, lab
+
+
+def hide_far_behind_torso(rgba, lab, names, hide_all=False):
     """One treatment of the far arm for every character (pass 7, fault C): it shows only where it
     swings out FORWARD of the torso, an arm joined to the body, shaded.  Its pixels behind the
     torso's back edge (row by row, checks.far_edge) are not drawn: that is the arm hidden by the
@@ -406,6 +433,8 @@ def hide_far_behind_torso(rgba, lab, names):
         return rgba, lab
     H, W = lab.shape
     hide = far & (np.arange(W)[None, :] < checks.far_edge(tm)[:, None])
+    if hide_all:          # pass 10: an off-hand weapon is shown in front of the body; the far arm behind it is not
+        hide = far.copy()
     rgba[hide] = 0
     lab[hide] = 0
     far &= ~hide
@@ -422,6 +451,86 @@ def hide_far_behind_torso(rgba, lab, names):
                 rgba[cl == k] = 0
                 lab[cl == k] = 0
     return rgba, lab
+
+
+ARM_CLOSE = 40.0      # pass 10: an arm edge pixel this close (RGB distance) to the torso colour beside it vanishes
+
+
+edge_pairs = checks.edge_pairs
+
+
+def outline_near_arm(rgba, lab, names, palette, thick=1):
+    """Pass 10: a sleeve the colour of the coat made the near arm vanish (HR12.1, 12.2, 13.1, 13.3).  Where the near
+    arm's edge pixels lie over the torso or robe in a colour within ARM_CLOSE of the pixel beside them, they are
+    drawn as a darker shade of the sleeve's own colour (a lighter one for a very dark sleeve), taken from the
+    palette and at least ARM_CLOSE from the torso colour: an outline, not black.  `thick` px deep."""
+    edge, ny, nx = edge_pairs(lab, names)
+    if not edge.any():
+        return rgba, lab
+    out = rgba.copy()
+    pal = np.asarray(palette, float).reshape(-1, 3)
+    ys, xs = np.where(edge)
+    todo = []
+    for y, x in zip(ys, xs):
+        a = rgba[y, x, :3].astype(float)
+        h = rgba[ny[y, x], nx[y, x], :3].astype(float)
+        if np.sqrt(((a - h) ** 2).sum()) < ARM_CLOSE:
+            todo.append((y, x, a, h))
+    arm = np.isin(lab, [names.index(n) for n in ("near_upper", "near_fore") if n in names])
+    for y, x, a, h in todo:
+        lum = a @ np.array([0.299, 0.587, 0.114])
+        want = a * 0.62 if lum >= 70 else np.minimum(a * 1.5 + 30, 255)
+        d_h = np.sqrt(((pal - h) ** 2).sum(1))
+        cand = d_h >= ARM_CLOSE
+        if not cand.any():
+            cand = d_h >= d_h.max() - 1e-6
+        d_w = np.sqrt(((pal - want) ** 2).sum(1))
+        d_w[~cand] = 1e9
+        c = pal[int(np.argmin(d_w))].astype(np.uint8)
+        out[y, x, :3] = c
+        for k in range(1, thick):          # deeper into the arm: its pixels next to this one that are arm
+            for dy, dx in ((0, -1), (-1, 0), (0, 1), (1, 0)):
+                y2, x2 = y + dy * k, x + dx * k
+                if 0 <= y2 < lab.shape[0] and 0 <= x2 < lab.shape[1] and arm[y2, x2] and not edge[y2, x2]:
+                    out[y2, x2, :3] = c
+    return out, lab
+
+
+def tidy_cloth_edge(rgba, lab, names, neck_y):
+    """Pass 9: the silhouette of the cloth parts (robe, cape, the torso below the neck) loses its 1 px spurs
+    and gets its 1 px notches filled.  Only cloth is touched: the head (rows above the neck), weapons and
+    every limb keep their pixels, so a face, a blade's point or a corner of a shield is not rounded.
+    A spur: a cloth pixel with at most one opaque neighbour of the 8 (the end of a 1 px tail, which cannot disconnect anything).  A notch: a transparent pixel with at least
+    three opaque 4-neighbours, two of them cloth and facing each other or the third; it takes the commonest
+    colour of its cloth neighbours.  One pass of each, scanned in raster order on a copy: deterministic."""
+    cloth_ids = [names.index(n) for n in ("robe", "cape", "torso") if n in names]
+    if not cloth_ids:
+        return rgba, lab
+    H, W = lab.shape
+    op = rgba[..., 3] > 0
+    cl = np.isin(lab, cloth_ids)
+    cl[:int(np.ceil(neck_y)) + 2] &= (lab[:int(np.ceil(neck_y)) + 2] != names.index("torso")) if "torso" in names else True
+    pad = np.pad(op, 1)
+    n4 = (pad[:-2, 1:-1].astype(int) + pad[2:, 1:-1] + pad[1:-1, :-2] + pad[1:-1, 2:])
+    out, lo = rgba.copy(), lab.copy()
+    n8 = sum(pad[1 + dy:1 + dy + H, 1 + dx:1 + dx + W].astype(int) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx)
+    spur = cl & (n8 <= 1)
+    out[spur] = 0
+    lo[spur] = 0
+    notch = ~op & (n4 >= 3)
+    ys, xs = np.where(notch)
+    for y, x in zip(ys, xs):
+        if y == 0 or x == 0 or y >= H - 1 or x >= W - 1:
+            continue
+        nb = [(y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)]
+        cn = [(a, b) for a, b in nb if cl[a, b] and not spur[a, b]]
+        if len(cn) < 2:
+            continue
+        cols, cnt = np.unique(np.array([rgba[a, b] for a, b in cn]), axis=0, return_counts=True)
+        out[y, x] = cols[np.argmax(cnt)]
+        la = [lab[a, b] for a, b in cn]
+        lo[y, x] = max(set(la), key=la.count)
+    return out, lo
 
 
 SPECK_MAX = 4              # px: a piece of the body this small and apart from the figure is dust
@@ -506,7 +615,14 @@ def bake_motion(ch, motion, n=None, gait=None):
         rgba4, lab4, names = render(ch, J, cloth=cloth, phase=p, contact=contact)
         rgba, lab = reduce(rgba4, lab4, ch.ss, ch.native)
         rgba, lab = hide_far_behind_torso(rgba, lab, names)
+        if getattr(motion, "far_hold", False):
+            hp = ch.to_game(gear_mod.hand_point(J["far.elbow"], J["far.wrist"], gear_mod.hand_local(ch.rig)))
+            rgba, lab = paint_far_hand(rgba, lab, names, hp, 1.0 * ch.info["radius"]["fore"] * ch.k, _far_hand_colour(ch))
         rgba, lab = drop_specks(rgba, lab)
+        if TIDY_CLOTH:
+            rgba, lab = tidy_cloth_edge(rgba, lab, names, ch.to_game(J["neck"])[1])
+        if ARM_OUTLINE:
+            rgba, lab = outline_near_arm(rgba, lab, names, ch.palette, max(1, int(round(ch.body_h / 56.0))))
         Jg = {k: ch.to_game(v) for k, v in J.items()}
         meta = {"phase": p, "joints": Jg, "contact": contact,
                 "draw_order": names[1:], "labels": names,
@@ -537,6 +653,37 @@ def _has_colours(img, cols):
     keys = np.asarray(cols, np.int64)
     keys = keys[:, 0] * 65536 + keys[:, 1] * 256 + keys[:, 2]
     return bool((np.isin(code, keys) & (img[..., 3] > 0)).any())
+
+
+def _far_hand_colour(ch):
+    """The far hand's colour: the commonest colour of the cut far forearm's pixels around the still's hand."""
+    img = ch.parts["far_fore"].img
+    a = img[..., 3] > 0
+    j = ch.rig.j
+    mid = (np.asarray(j["wrist"], float) + np.asarray(j["hand_tip"], float)) / 2
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    near = a & (np.hypot(xx + 0.5 - mid[0], yy + 0.5 - mid[1]) < 0.05 * ch.rig.body_height)
+    px = img[near][:, :3] if near.any() else img[a][:, :3]
+    cols, cnt = np.unique(px, axis=0, return_counts=True)
+    lit = cols.sum(1) > 90
+    if lit.any():
+        cols, cnt = cols[lit], cnt[lit]
+    return tuple(int(v) for v in cols[np.argmax(cnt)])
+
+
+def _still_specks(ch):
+    """R29: the number of isolated dark specks on light cloth that the still itself has (the same test as
+    checks.speck_list, on the still, with the speck size of the bake scaled back to still px)."""
+    img = ch.still
+    a = img[..., 3] > 0
+    if not a.any():
+        return 0
+    f = ch.body_h / ch.rig.body_height
+    sk = ch.info.get("skin")
+    keys = checks._colour_keys(sk) if sk is not None and len(sk) else None
+    neck = ch.rig.j["neck"][1] + 0.02 * ch.rig.body_height
+    n = len(checks.speck_list(img, a, int(neck), checks.SPECK_PX * (ch.body_h / 56.0 / 2.0) ** 2 / (f * f), keys))
+    return n
 
 
 def _sleeve_colours(ch):
@@ -604,11 +751,13 @@ def context(ch, motion, gait, n):
                           and not _has_colours(ch.parts[nm].img, ch.info["skin"])],
         "hand_local": [v * k for v in _hand_local(ch.rig)]
         if ch.gear else [0.0, 0.0],
+        "still_specks": _still_specks(ch),
+        "gear_min": {g.label: _gear_min(ch, g) for g in ch.gear},
         "gear_scale": {g.label: g.size * ch.rig.body_height * k / max(g.extent, 1.0) for g in ch.gear},
         "cloth": [nm for nm, p in ch.parts.items() if getattr(p, "kind", "rigid") != "rigid"],
         "gain": getattr(motion, "gain", 1.0),
         # arms exempt from the hang rule: a near arm carrying long gear is held steady
-        "steady_arms": ["near"] if getattr(motion, "arm", 1.0) < 1.0 else [],
+        "steady_arms": (["near"] if getattr(motion, "arm", 1.0) < 1.0 else []) + (["far"] if getattr(motion, "far_hold", False) else []),
     }
 
 

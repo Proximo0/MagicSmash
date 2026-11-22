@@ -77,7 +77,7 @@ class TestKeyColour(test_animator.Base):
     def test_spec_stills_fringe_is_cleaned_at_intake(self):
         for name in ("HR6.1", "HR6.2", "HR6.4"):
             raw = np.array(Image.open(spec_still(name)[0]).convert("RGBA"))
-            self.assertGreater(int(intake.key_mask(raw).sum()), 800, name)   # the purple rim
+            self.assertGreater(int(intake.key_mask(raw, loose=True).sum()), 800, name)   # the purple rim
             self.assertEqual(int(intake.key_mask(load_single(spec_still(name)[0])).sum()), 0, name)
             self.assertEqual(fitted(name)[1]["fit"]["key_px"], 0, name)
 

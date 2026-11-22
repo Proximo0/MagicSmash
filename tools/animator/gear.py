@@ -4,7 +4,7 @@ Files, for a character <id> (STILL_SPEC.md):
     <id>.png                 the bare body still
     <id>.json                its joints (a copy of <build>_joints.json from `spec`)
     <id>_gear/<name>.png     one gear picture, drawn alone on a transparent background
-    <id>_gear/<name>.json    {"slot": "back" | "near_hand" | "far_hand" | "cape",
+    <id>_gear/<name>.json    {"slot": "back" | "near_hand" | "far_hand" | "cape" | "head",
                               "anchor": [x, y],   grip / pin point, px in the gear picture
                               "up": [0, -1],      the gear's up direction in the picture
                               "size": 0.36,       its length along `up`, x the body height
@@ -25,6 +25,10 @@ parts below its layer and behind those above it:
   far_hand    forearm's direction (elbow to wrist) turned by `angle` degrees towards the facing
               side (0 = hanging on along the forearm, 90 = straight out ahead, 180 = pointing
               back up the arm), fixed for the whole walk.  Drawn behind the hand unless in_front.
+  head        (pass 10, a halo) pinned above the head top: `at` = [x ahead, height above the head top], x body
+              height; its angle never changes; bobs with the head; drawn behind the head.
+  guide kinds (pass 10): crossbow and censer carry the near arm "level", a book "chest" (motion.CARRY_POSES); a
+  censer never turns (hangs straight down); an `in_front` far_hand gear is an off-hand weapon shown in front of the body.
   cape        hung from `at` on the spine; turns about that point by the torso's lean plus the
               cloth pendulum (cloth.ClothSim.cape_angle).  Drawn behind the torso, behind `back`.
 
@@ -43,23 +47,29 @@ from .colour import quantize
 from .imgops import components
 from .intake import clean_key, key_mask
 
-SLOTS = ("back", "near_hand", "far_hand", "cape")
+SLOTS = ("back", "near_hand", "far_hand", "cape", "head")
 GEAR_PALETTE = 24        # colours per gear picture
 GEAR_SS = 6              # supersample of the sprite
 GEAR_COVER = 0.34        # a sprite pixel is opaque when this share of it is covered (a handle
                          # two thirds of a pixel thick stays one unbroken line)
+GEAR_COVER_STEPS = (0.2, 0.12, 0.06, 0.02)   # fallbacks of GEAR_COVER for a stroke that breaks up
 ANGLE_STEP = 0.5         # deg
 SIZE_RANGE = (0.05, 1.40)    # x body height
 LOOSE_MIN = 9            # px: a second piece this big in a gear picture is refused
 MIN_PX = 24              # px: a gear picture shorter than this along `up` is too small to scale
-DEFAULT_ANGLE = {"near_hand": 110.0, "far_hand": 110.0, "back": 0.0, "cape": 0.0}
-DEFAULT_AT = {"back": (0.50, 0.10), "cape": (0.93, 0.07)}
+DEFAULT_ANGLE = {"near_hand": 110.0, "far_hand": 110.0, "back": 0.0, "cape": 0.0, "head": 0.0}
+DEFAULT_AT = {"back": (0.50, 0.10), "cape": (0.93, 0.07), "head": (0.0, 0.02)}   # head: [x ahead, height of the
+                                                                       # halo's middle above the head top], x body height
+# pass 10: carry poses and modes of the new gear kinds (guide kind -> pose of the near arm)
+CARRY_OF = {"crossbow": "level", "censer": "level", "book": "chest"}
+HOLD_OF = {"level": (60.0, 125.0), "chest": (0.0, 85.0)}     # deg ahead of straight up the gear's head may point
+HANG_GUIDES = ("censer",)                                    # hangs straight down from the hand, whatever the forearm does
 
 
-LONG_GUIDES = ("staff", "two_hand_weapon", "bow")
-GRIP_GUIDES = ("one_hand_weapon", "two_hand_weapon", "staff", "bow")
+LONG_GUIDES = ("staff", "two_hand_weapon", "bow", "banner")
+GRIP_GUIDES = ("one_hand_weapon", "two_hand_weapon", "staff", "bow", "banner")
 GRIP_TAPER = 0.45        # a sword's point: the last rows are this narrow against the shaft
-GRIP_FRAC = {"one_hand_weapon": 0.15, "staff": 0.33, "bow": 0.50}   # anchor, from the grip end (x length)
+GRIP_FRAC = {"one_hand_weapon": 0.15, "staff": 0.33, "bow": 0.50, "banner": 0.20}   # anchor, from the grip end (x length)
 
 
 def _width_profile(mask):
@@ -119,7 +129,7 @@ def orient_grip(img, anchor, up, guide, keep=False):
     if on_grip_half and kind != "sword":
         # a staff is carried a third of the way up (pass 8: the carry pose)
         frac = (y1 + 1 - anchor[1]) / (y1 - y0 + 1)
-        if guide != "staff" or abs(frac - GRIP_FRAC["staff"]) <= 0.04 or keep or end != "bottom":
+        if guide not in ("staff", "banner") or abs(frac - GRIP_FRAC[guide]) <= 0.04 or keep or end != "bottom":
             rec["anchor"] = rec["anchor_before"]
             return img, anchor, rec
     if kind == "sword":
@@ -182,6 +192,10 @@ class Gear:
         # long hand gear (staff, greatsword, bow) is CARRIED upright (motion.CARRY_*)
         self.long = spec.get("guide") in LONG_GUIDES or (spec.get("guide") is None and self.size >= 0.5
                                                          and self.slot in ("near_hand", "far_hand"))
+        g_ = spec.get("guide")
+        self.hang = g_ in HANG_GUIDES
+        # the carry pose of the near arm this gear asks for: upright (long gear) or level / chest (pass 10)
+        self.carry = ("upright" if self.long else CARRY_OF.get(g_)) if self.slot == "near_hand" else None
         self.in_front = bool(spec.get("in_front", False))
         self.angle = float(spec.get("angle", DEFAULT_ANGLE.get(self.slot, 0.0)))
         self.at = tuple(spec.get("at", DEFAULT_AT.get(self.slot, (0.5, 0.1))))
@@ -203,11 +217,11 @@ class Gear:
         """How far the gear reaches from its anchor, x body height."""
         return self.size * self.reach_px / max(self.extent, 1.0)
 
-    def sprite(self, scale, phi):
+    def sprite(self, scale, phi, min_thick=0):
         """The gear turned by phi degrees (ANGLE_STEP grid) at `scale` game px per picture px:
         (rgba HxWx4, (ox, oy)), where (ox, oy) is the sprite's top-left corner relative to the
         game pixel that holds the anchor.  The anchor sits on the centre of that pixel."""
-        key = (round(scale, 6), round(phi / ANGLE_STEP))
+        key = (round(scale, 6), round(phi / ANGLE_STEP), int(min_thick))
         if key in self._sprites:
             return self._sprites[key]
         from .bake import reduce
@@ -228,7 +242,16 @@ class Gear:
         ok = (ix >= 0) & (iy >= 0) & (ix < W) & (iy < H)
         src = self.img[np.clip(iy, 0, H - 1), np.clip(ix, 0, W - 1)]
         src[~ok] = 0
-        rgba, _ = reduce(src, (src[..., 3] > 0).astype(np.int16), SS, cover=GEAR_COVER)
+        # pass 10: coverage-preserving reduction.  A gear picture is one connected shape (G14): if the usual
+        # coverage leaves the sprite in pieces (a bow limb thinner than a pixel breaking into dashes), the
+        # coverage is lowered step by step until one piece is left, so a stroke stays unbroken.
+        lab0 = (src[..., 3] > 0).astype(np.int16)
+        for cov in (GEAR_COVER,) + GEAR_COVER_STEPS:
+            rgba, _ = reduce(src, lab0, SS, cover=cov)
+            if len(components(rgba[..., 3] > 0)[1]) <= 1:
+                break
+        if min_thick >= 2:
+            rgba = thicken(rgba, int(min_thick))
         out = (rgba, (x0, y0))
         self._sprites[key] = out
         return out
@@ -329,7 +352,11 @@ def layer_rank(g, names):
         return idx.get("torso", 1) - 0.3
     if g.slot == "cape":
         return idx.get("torso", 1) - 0.6
+    if g.slot == "head":                  # the halo is behind the head (the head is part of the torso part)
+        return idx.get("torso", 1) - 0.4
     side = "near" if g.slot == "near_hand" else "far"
+    if g.slot == "far_hand" and g.in_front:     # an off-hand weapon shows in front of the body, behind the near arm
+        return idx.get("near_upper", top) - 0.5
     if g.in_front:
         return idx.get(side + "_fore", top) + 0.5
     return idx.get(side + "_upper", top) - 0.5
@@ -351,13 +378,67 @@ def hand_point(elbow, wrist, local):
     return np.asarray(wrist, float) + local[0] * f + local[1] * np.array([-f[1], f[0]])
 
 
+def thicken(rgba, m):
+    """Pass 9: a line of the sprite thinner than `m` px (a bow at 112 px came out a 1 px line) is
+    drawn `m` px thick: a pixel whose horizontal or vertical run of opaque pixels is shorter
+    than m (a stroke 1 px wide) gets copies of its colour to its right and below (the sprite has a 1 px margin).  Parts
+    already m px thick are not touched."""
+    op = rgba[..., 3] > 0
+    H, W = op.shape
+    hr = np.zeros((H, W), int)
+    vr = np.zeros((H, W), int)
+    for y in range(H):
+        x = 0
+        while x < W:
+            if op[y, x]:
+                x1 = x
+                while x1 + 1 < W and op[y, x1 + 1]:
+                    x1 += 1
+                hr[y, x:x1 + 1] = x1 - x + 1
+                x = x1 + 1
+            else:
+                x += 1
+    for x in range(W):
+        y = 0
+        while y < H:
+            if op[y, x]:
+                y1 = y
+                while y1 + 1 < H and op[y1 + 1, x]:
+                    y1 += 1
+                vr[y:y1 + 1, x] = y1 - y + 1
+                y = y1 + 1
+            else:
+                y += 1
+    thin = op & ((hr < m) | (vr < m))
+    out = rgba.copy()
+    for dy, dx in ((0, 1), (1, 0)):
+        tgt = np.zeros_like(op)
+        tgt[dy:, dx:] = thin[:H - dy, :W - dx]
+        take = tgt & ~op
+        src = np.zeros_like(rgba)
+        src[dy:, dx:] = rgba[:H - dy, :W - dx]
+        out[take] = src[take]
+    return out
+
+
+def min_of(ch, g):
+    """Smallest drawn thickness, game px, of a hand gear: 1 at 56 px, 2 at 112 px."""
+    return ch.body_h / 56.0 if g.slot in ("near_hand", "far_hand", "head") else 0
+
+
 def place(ch, g, J, cloth=None, phase=0.0):
     """Pin point (still px) and turn (deg, rounded) of gear g for posed joints J."""
     rig = ch.rig
     BH = rig.body_height
+    if g.slot == "head":
+        pin = J["head_top"] + np.array([g.at[0] * BH, -g.at[1] * BH])
+        phi = round(g.angle / ANGLE_STEP) * ANGLE_STEP
+        return pin, phi
     if g.slot in ("near_hand", "far_hand"):
         s = g.slot[:-5]
         pin = hand_point(J[s + ".elbow"], J[s + ".wrist"], hand_local(rig))
+        if g.hang:             # hangs straight down from the hand in every frame, whatever the forearm does
+            return pin, round(((-90.0 - _ang(g.up) + 180.0) % 360.0 - 180.0) / ANGLE_STEP) * ANGLE_STEP
         t = _turn(_unit(J[s + ".wrist"] - J[s + ".elbow"]), g.angle)
     else:
         spine = J["neck"] - J["pelvis"]
@@ -388,7 +469,7 @@ def composite(ch, rgba, lab, names, J, cloth=None, phase=0.0):
     for g in sorted(ch.gear, key=lambda g_: layer_rank(g_, names)):
         rank = layer_rank(g, names)
         pin, phi = place(ch, g, J, cloth, phase)
-        spr, (ox, oy) = g.sprite(scale_of(ch, g), phi)
+        spr, (ox, oy) = g.sprite(scale_of(ch, g), phi, min_of(ch, g))
         G = ch.to_game(pin)
         px, py = int(math.floor(G[0])), int(math.floor(G[1]))
         x0, y0 = px + ox, py + oy
@@ -417,7 +498,7 @@ def export(ch, out_dir):
         Image.fromarray(g.img, "RGBA").save(os.path.join(out_dir, fn))
         recs[g.label] = dict(g.spec, png=fn, sha1=g.digest(), game_scale=scale_of(ch, g),
                              parent={"back": "torso", "cape": "torso", "near_hand": "near_fore",
-                                     "far_hand": "far_fore"}.get(g.slot))
+                                     "far_hand": "far_fore", "head": "torso"}.get(g.slot))
     return recs
 
 
@@ -471,7 +552,7 @@ def _solve_frames(ch):
 def _clear(ch, g, data, margin, head_margin=None):
     for J, low, head in data:
         pin, phi = place(ch, g, J)
-        spr, (ox, oy) = g.sprite(scale_of(ch, g), phi)
+        spr, (ox, oy) = g.sprite(scale_of(ch, g), phi, min_of(ch, g))
         G = ch.to_game(pin)
         x0, y0 = int(math.floor(G[0])) + ox, int(math.floor(G[1])) + oy
         H, W = low.shape
@@ -500,7 +581,9 @@ def _tilts(ch, g, data):
 def _carried(ch, g, data):
     """The gear's head points inside the hold range in every phase: a long gear within
     SOLVE_UPRIGHT deg of straight up (the carry pose), short gear between SOLVE_HOLD."""
-    lo, hi = (-SOLVE_UPRIGHT, SOLVE_UPRIGHT) if g.long else SOLVE_HOLD
+    if g.hang:
+        return True
+    lo, hi = (-SOLVE_UPRIGHT, SOLVE_UPRIGHT) if g.long else HOLD_OF.get(g.carry, SOLVE_HOLD)
     return all(lo <= f <= hi for f in _tilts(ch, g, data))
 
 

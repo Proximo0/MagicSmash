@@ -56,6 +56,51 @@ def _row_hull(mask):
     return out
 
 
+CLOSE_TORSO = True         # pass 9: close the torso's silhouette where an arm covered its edge (row-wise inpaint)
+
+
+def close_torso_edges(img, own, cover, y0, y1):
+    """Row-wise inpaint of a part's two side edges.  In rows y0..y1 a row whose first/last own pixel
+    has `cover` pixels (an arm, the erased far arm) right beside it has an edge the arm hid; that
+    edge is taken from the rows around it (linear between the rows with an open edge), and the
+    pixels between it and the first/last own pixel that the arm held are filled with the row's own
+    colour next to the new edge, so the torso part is closed and nothing shows through when the arm
+    swings away.  Returns the new image and own mask."""
+    img = img.copy()
+    own = own.copy()
+    H, W = own.shape
+    ys = [y for y in range(max(y0, 0), min(y1 + 1, H)) if own[y].any()]
+    if len(ys) < 3:
+        return img, own
+    first = np.array([int(np.flatnonzero(own[y])[0]) for y in ys])
+    last = np.array([int(np.flatnonzero(own[y])[-1]) for y in ys])
+    for side in (0, 1):
+        edge = first if side == 0 else last
+        ok = []
+        for k, y in enumerate(ys):
+            x = int(edge[k])
+            nx = x - 1 if side == 0 else x + 1
+            ok.append(not (0 <= nx < W and cover[y, nx]))
+        ok = np.array(ok)
+        if ok.all() or not ok.any():
+            continue
+        target = np.rint(np.interp(np.arange(len(ys)), np.flatnonzero(ok), edge[ok])).astype(int)
+        for k, y in enumerate(ys):
+            if ok[k]:
+                continue
+            x = int(edge[k])
+            xs = range(int(target[k]), x) if side == 0 else range(x + 1, int(target[k]) + 1)
+            xs = [q for q in xs if 0 <= q < W and cover[y, q] and not own[y, q]]
+            if not xs:
+                continue
+            for q in xs:
+                step = 1 if side == 0 else -1
+                src = x if side == 0 else x
+                img[y, q] = img[y, src]
+                own[y, q] = True
+    return img, own
+
+
 FAR_ARM_TO_ARM = True      # pass 8: the drawn far arm's sleeve behind the back is the arm's, not the cape's
 
 
@@ -268,6 +313,7 @@ def cut_auto(still, rig, masks):
     far_pix = lab == code["far_erased"]
     leg_pix = np.isin(lab, [code[n] for n in NEAR_LEG])
     # holes: torso / cape / robe under the arm and the erased limbs
+    closed_px = np.zeros_like(A)
     for nm, extra in (("torso", np.zeros_like(A)), ("cape", np.zeros_like(A)), ("robe", leg_pix)):
         own = lab == code[nm]
         if not own.any():
@@ -281,6 +327,11 @@ def cut_auto(still, rig, masks):
         if holes.any():
             imgs[nm][holes] = 0
             imgs[nm] = fill(_sweep_front(imgs[nm], own, holes), own, holes)
+        if nm == "torso" and CLOSE_TORSO:
+            own2 = imgs[nm][..., 3] > 0
+            imgs[nm], own3 = close_torso_edges(imgs[nm], own2, arm_pix | far_pix,
+                                               int(j["neck"][1]), int(hip_y + 0.04 * BH))
+            closed_px = own3 & ~own2
     # a knee guard drawn across the knee is shin armour: left half on the thigh it swings away from
     # the other half and shows as gold and black specks on the trousers (HR6.1, HR6.4).  In the knee's
     # disc the thigh keeps its own cloth colours only; anything else is the shin's
@@ -423,7 +474,7 @@ def cut_auto(still, rig, masks):
             "skin": skin, "far_arm": "own pixels" if far_real is not None else "copy of the near arm",
             "cloth": list(cloth), "robe_mode": robe_mode, "gear_reach": gear_reach,
             "gear_area": gear_area,
-            "gear_cut": gear_cut(still, parts["near_fore"].mask, parts["torso"].mask,
+            "gear_cut": gear_cut(still, parts["near_fore"].mask, parts["torso"].mask & ~closed_px,
                                  j["elbow"], R["fore"])}
     return parts, lab, info
 

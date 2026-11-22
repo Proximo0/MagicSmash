@@ -303,7 +303,10 @@ def arm_gap(build):
 GEAR_GUIDES = {
     "shield": {"size": (256, 320), "box": (28, 20, 228, 300), "anchor": (128, 160),
                "json": {"slot": "back", "anchor": [128, 160], "up": [0, -1], "size": 0.36},
-               "words": "a shield seen face-on, upright, filling the box; the anchor is its middle"},
+               "words": "a shield seen face-on, upright, filling the box; the anchor is its middle. A shield "
+                        "that goes on the back is drawn FACE-ON too: the painted face of the shield with its "
+                        "emblem, never its edge or its inside as a dark frame round a hollow middle (it reads "
+                        "as a crate)"},
     "one_hand_weapon": {"size": (160, 384), "box": (30, 16, 130, 368), "anchor": (80, 316),
                         "json": {"slot": "near_hand", "anchor": [80, 316], "up": [0, -1], "size": 0.34,
                                  "angle": 110, "in_front": False},
@@ -334,6 +337,54 @@ GEAR_GUIDES = {
                "words": "a quiver seen from the side, standing upright, wider at the top with a few arrow "
                         "feathers poking out of the top; the anchor is the middle of the strap, where it "
                         "pins to the spine"},
+    # ---- pass 10 ----
+    # a crossbow is carried level at the hip, muzzle forward and a little down (carry pose "level")
+    "crossbow": {"size": (224, 320), "box": (16, 16, 208, 304), "anchor": (112, 232),
+                 "json": {"slot": "near_hand", "anchor": [112, 232], "up": [0, -1], "size": 0.30,
+                          "angle": 0, "in_front": False, "guide": "crossbow"},
+                 "words": "a crossbow seen from the side, drawn upright: the muzzle (the bolt's end) at the top, the "
+                          "stock below, the bow across the top third; the anchor is the grip under the stock. In "
+                          "the game it is carried level at the hip, muzzle forward and a little down"},
+    # a censer hangs on its chain straight down from the hand in every frame, whatever the forearm does
+    "censer": {"size": (128, 320), "box": (28, 12, 100, 308), "anchor": (64, 20),
+               "json": {"slot": "near_hand", "anchor": [64, 20], "up": [0, -1], "size": 0.30,
+                        "angle": 0, "in_front": False, "guide": "censer"},
+               "words": "a censer on a chain, hanging: the top of the chain at the top of the box (the anchor, "
+                        "where the fingers hold it), a thin chain, the round perforated censer at the bottom. "
+                        "In the game it always hangs straight down from the hand"},
+    # a book is held closed against the chest, the forearm bent up (carry pose "chest")
+    "book": {"size": (192, 224), "box": (24, 16, 168, 208), "anchor": (96, 112),
+             "json": {"slot": "near_hand", "anchor": [96, 112], "up": [0, -1], "size": 0.13,
+                      "angle": 0, "in_front": True, "guide": "book"},
+             "words": "a closed book seen from the side with its spine to the left, standing upright; the anchor "
+                      "is the middle of the cover, under the fingers. In the game it is held against the chest, "
+                      "the forearm bent up"},
+    "scroll": {"size": (96, 288), "box": (16, 16, 80, 272), "anchor": (48, 144),
+               "json": {"slot": "near_hand", "anchor": [48, 144], "up": [0, -1], "size": 0.22,
+                        "angle": 110, "in_front": False, "guide": "scroll"},
+               "words": "a rolled scroll seen from the side, upright, a little thicker than the marked width; "
+                        "the anchor is the middle of the roll, where the hand grips it"},
+    # a banner on a pole is long gear: carried upright; the cloth stays above head height
+    "banner": {"size": (256, 576), "box": (20, 8, 236, 568), "anchor": (64, 456),
+               "json": {"slot": "near_hand", "anchor": [64, 456], "up": [0, -1], "size": 1.30,
+                        "angle": 112, "in_front": False, "guide": "banner"},
+               "words": "a banner on a pole, standing upright: a straight pole, thick as the marked width, with the "
+                        "cloth hanging from a crossbar in the top third of the box, facing forward (right); the anchor "
+                        "is the grip, a fifth of the way up the pole. The cloth stays above the head in the game"},
+    # a halo is pinned above the head, bobs with it, and is drawn behind the head
+    "halo": {"size": (256, 96), "box": (16, 8, 240, 88), "anchor": (128, 48),
+             "json": {"slot": "head", "anchor": [128, 48], "up": [0, -1], "size": 0.06,
+                      "angle": 0, "at": [0.0, 0.02], "guide": "halo"},
+             "words": "a halo: a flat glowing ring seen from the side as an ellipse, wider than tall, at least as "
+                      "thick as the marked width; the anchor is the middle of the ring. It is drawn behind the head, "
+                      "its lower edge hidden by the head, and bobs with it"},
+    # a weapon in the far hand: shown in front of the body at hip height, behind the near arm
+    "offhand_weapon": {"size": (160, 384), "box": (30, 16, 130, 368), "anchor": (80, 316),
+                       "json": {"slot": "far_hand", "anchor": [80, 316], "up": [0, -1], "size": 0.30,
+                                "angle": 110, "in_front": True, "guide": "offhand_weapon"},
+                       "words": "an off-hand axe, sword or dagger standing upright, head or point at the top, grip "
+                                "at the bottom; the anchor is the middle of the grip. In the game it shows in front "
+                                "of the body at hip height; only the weapon shows, the far arm stays hidden"},
     "cape": {"size": (224, 384), "box": (24, 16, 200, 368), "anchor": (176, 28),
              "json": {"slot": "cape", "anchor": [176, 28], "up": [0, -1], "size": 0.52},
              "words": "a cape seen from the side, hanging flat and straight down from the shoulder; the "
@@ -424,6 +475,47 @@ def example_gear(kind):
         d.polygon([(x0 + 6, y0 + 36), (x1 - 6, y0 + 36), (x1 - 18, y1), (x0 + 18, y1)], fill=ink)
         d.polygon([(x0 + 12, y0 + 42), (x1 - 12, y0 + 42), (x1 - 24, y1 - 8), (x0 + 24, y1 - 8)], fill=(104, 66, 40, 255))
         d.rectangle([x0 + 8, y0 + 100, x1 - 8, y0 + 114], fill=(190, 150, 60, 255))
+    elif kind == "crossbow":
+        d.rectangle([ax - 10, y0 + 30, ax + 10, y1], fill=ink)                 # stock
+        d.rectangle([ax - 6, y0 + 30, ax + 6, y1 - 4], fill=(122, 84, 48, 255))
+        d.rectangle([x0, y0 + 60, x1, y0 + 92], fill=ink)                       # prod (the bow)
+        d.rectangle([x0 + 6, y0 + 66, x1 - 6, y0 + 86], fill=(150, 154, 166, 255))
+        d.rectangle([ax - 3, y0, ax + 3, y0 + 60], fill=(200, 204, 214, 255))   # bolt
+    elif kind == "censer":
+        d.line([(ax, ay), (ax, y1 - 90)], fill=ink, width=14)                   # chain
+        d.line([(ax, ay), (ax, y1 - 90)], fill=(190, 150, 60, 255), width=6)
+        d.ellipse([x0, y1 - 96, x1, y1], fill=ink)
+        d.ellipse([x0 + 8, y1 - 88, x1 - 8, y1 - 8], fill=(190, 150, 60, 255))
+        d.ellipse([ax - 10, y1 - 60, ax + 10, y1 - 38], fill=ink)
+    elif kind == "book":
+        d.rectangle([x0, y0, x1, y1], fill=ink)
+        d.rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], fill=(120, 40, 50, 255))
+        d.rectangle([x0 + 8, y0 + 8, x0 + 30, y1 - 8], fill=(86, 28, 36, 255))
+        d.rectangle([ax - 20, ay - 30, ax + 30, ay + 30], fill=(214, 176, 70, 255))
+    elif kind == "scroll":
+        d.rectangle([x0, y0, x1, y1], fill=ink)
+        d.rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], fill=(226, 212, 168, 255))
+        d.rectangle([x0 - 2, y0 + 20, x1 + 2, y0 + 40], fill=(122, 84, 48, 255))
+        d.rectangle([x0 - 2, y1 - 40, x1 + 2, y1 - 20], fill=(122, 84, 48, 255))
+    elif kind == "banner":
+        d.rectangle([ax - 9, y0 + 20, ax + 9, y1], fill=ink)
+        d.rectangle([ax - 5, y0 + 20, ax + 5, y1 - 4], fill=(122, 84, 48, 255))
+        d.rectangle([ax - 9, y0 + 20, x1, y0 + 40], fill=ink)                   # crossbar
+        d.polygon([(ax + 6, y0 + 40), (x1 - 8, y0 + 40), (x1 - 8, y0 + 190), (ax + 70, y0 + 160), (ax + 6, y0 + 190)],
+                  fill=(170, 30, 40, 255))
+        d.line([(ax + 6, y0 + 40), (x1 - 8, y0 + 40), (x1 - 8, y0 + 190), (ax + 70, y0 + 160), (ax + 6, y0 + 190),
+                (ax + 6, y0 + 40)], fill=ink, width=5)
+        d.ellipse([ax - 16, y0, ax + 16, y0 + 32], fill=(214, 176, 70, 255))
+    elif kind == "halo":
+        d.ellipse([x0, y0, x1, y1], fill=ink)
+        d.ellipse([x0 + 4, y0 + 4, x1 - 4, y1 - 4], fill=(250, 226, 110, 255))
+        d.ellipse([x0 + 24, y0 + 22, x1 - 24, y1 - 22], fill=ink)
+        d.ellipse([x0 + 28, y0 + 26, x1 - 28, y1 - 26], fill=(0, 0, 0, 0))
+    elif kind == "offhand_weapon":
+        d.rectangle([ax - 9, y0 + 40, ax + 9, y1], fill=ink)
+        d.rectangle([ax - 5, y0 + 40, ax + 5, y1 - 4], fill=(122, 84, 48, 255))
+        d.polygon([(ax - 6, y0 + 60), (x1, y0 + 20), (x1, y0 + 120), (ax - 6, y0 + 96)], fill=ink)
+        d.polygon([(ax - 2, y0 + 64), (x1 - 8, y0 + 32), (x1 - 8, y0 + 110), (ax - 2, y0 + 92)], fill=(150, 154, 166, 255))
     elif kind == "cape":
         pts = [(ax, ay - 8), (ax - 60, ay), (x0, y1), (x0 + 110, y1), (ax, ay + 60)]
         d.polygon(pts, fill=(120, 30, 40, 255))
