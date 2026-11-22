@@ -42,7 +42,7 @@ fn world(name: &str) -> World {
     }
     let store = Arc::new(SqliteStore::open(&db).unwrap());
     let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
-    gw.add_host(HostOpts { sim: SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0 }, port: 0, ..HostOpts::default() }).unwrap();
+    gw.add_host(HostOpts { sim: SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None }, port: 0, ..HostOpts::default() }).unwrap();
     let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
     World { gw, store, addr: l.addr.to_string(), _l: l, db }
 }
