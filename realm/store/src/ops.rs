@@ -1350,12 +1350,17 @@ fn clawback(t: &mut Tx, items: &[ItemId], stacks: &[(Owner, StackKind, u64)], re
 	let mut removed = Vec::new();
 	let mut missing = Vec::new();
 	let mut seen = std::collections::BTreeSet::new();
+	// parcels whose escrow this clawback touches: one left holding nothing ends with it (fuzz seed 922952)
+	let mut parcels = std::collections::BTreeSet::new();
 	for id in items {
 		if !seen.insert(*id) {
 			continue;
 		}
 		match t.load_item(*id) {
 			Ok(it) => {
+				if it.place.kind == PlaceKind::Market {
+					parcels.insert(it.place.owner);
+				}
 				let party = t.party(it.place.kind, it.place.owner).unwrap_or(Party::Account(0));
 				t.destroy(&it, party, "CLAWBACK", reason)?;
 				removed.push(*id);
@@ -1374,6 +1379,9 @@ fn clawback(t: &mut Tx, items: &[ItemId], stacks: &[(Owner, StackKind, u64)], re
 		let have = t.stack_get(o, *k)?;
 		let take = have.min(*want);
 		if take > 0 {
+			if o.kind == PlaceKind::Market {
+				parcels.insert(o.id);
+			}
 			t.stack_sub(o, *k, take)?;
 			t.debit_row("CLAWBACK", o, party, *k, take, reason)?;
 		}
@@ -1402,6 +1410,9 @@ fn clawback(t: &mut Tx, items: &[ItemId], stacks: &[(Owner, StackKind, u64)], re
 		if left > 0 {
 			shortfall.push((*o, *k, left));
 		}
+	}
+	for p in parcels {
+		crate::parcels::end_if_empty(t, p)?;
 	}
 	Ok(Reply::Clawback { removed, missing, shortfall })
 }

@@ -275,6 +275,16 @@ pub fn give_back(t: &mut Tx, parcel: i64) -> Result<Reply> {
 	Ok(Reply::Done)
 }
 
+/// Ends a parcel left holding nothing (a clawback took what it held), in the caller's transaction: an empty
+/// listing or letter has nothing to sell or deliver, and verify holds every parcel to one entry or more.
+pub fn end_if_empty(t: &mut Tx, parcel: i64) -> Result<()> {
+	let (items, stacks) = contents(t, parcel)?;
+	if items.is_empty() && stacks.is_empty() {
+		t.exec("DELETE FROM parcels WHERE id = ?1", [parcel])?;
+	}
+	Ok(())
+}
+
 // ---- reads
 
 const COLS: &str = "p.id, p.kind, p.from_hero, h.account, p.to_hero, p.price, p.created, p.expires, p.text, h.name";
