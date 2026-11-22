@@ -9,6 +9,7 @@
 
 use realm_gateway::conn::listen;
 use realm_gateway::gateway::{load_secret, Config, Gateway};
+use realm_gateway::world::WorldConfig;
 use realm_server::host::HostOpts;
 use realm_server::sim::SimOpts;
 use realm_store::SqliteStore;
@@ -31,6 +32,8 @@ fn main() {
     let mut dev_grant = false;
     let mut admin_port: Option<u16> = None;
     let mut secret: Option<u64> = None;
+    let mut world = WorldConfig::default();
+    let mut speed = 1u32;
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
         let num = |v: &str| v.parse::<u64>().unwrap_or_else(|_| die(&format!("bad value in {arg}")));
@@ -50,8 +53,17 @@ fn main() {
             "--secs" => secs = num(v),
             "--secret" => secret = Some(num(v)),
             "--admin-port" => admin_port = Some(num(v) as u16),
+            "--realm-cap" => world.realm_cap = num(v) as u32,
+            "--copy-cap" => world.copies.cap = num(v) as u32,
+            "--open-at" => world.copies.open_at = num(v) as u32,
+            "--merge-under" => world.copies.merge_under = num(v) as u32,
+            "--max-copies" => world.copies.max_copies = num(v).max(1) as u32,
+            "--vault-max" => world.vault_max = num(v) as u32,
+            "--vault-monsters" => world.vault_monsters = num(v) as u32,
+            "--dev-bots" => world.dev_bots = true,
+            "--clock-speed" => speed = num(v).max(1) as u32,
             "--help" | "-h" => {
-                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--admin-port=N (loopback console, token in DB.admin)] [--secs=N]\n       realm-gateway admin (--db=FILE | --connect=ADDR --token-file=FILE) [--op=NAME] COMMAND... (try: help)");
+                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--admin-port=N (loopback console, token in DB.admin)] [--secs=N] [--realm-cap=4000] [--copy-cap=1000] [--open-at=800] [--merge-under=500] [--max-copies=4] [--vault-max=64] [--vault-monsters=4000] [--dev-bots] [--clock-speed=1]\n       realm-gateway admin (--db=FILE | --connect=ADDR --token-file=FILE) [--op=NAME] COMMAND... (try: help)");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),
@@ -63,7 +75,12 @@ fn main() {
     let store = Arc::new(SqliteStore::open(&db).unwrap_or_else(|e| die(&format!("open {db}: {e}"))));
     let secret = secret.unwrap_or_else(|| load_secret(std::path::Path::new(&format!("{db}.secret"))));
     let first_kills = Some(std::path::PathBuf::from(format!("{db}.bosskills")));
-    let gw = Gateway::start(store, Config { dev_login: dev, public_host, secret, first_kills, dev_grant });
+    world.monsters = monsters;
+    world.threads = threads;
+    world.seed = seed;
+    // The realm's clock runs from an epoch kept beside the store, so a restart does not move a tide.
+    world.clock = Some(realm_server::realm_clock::clock_from_epoch(std::path::Path::new(&format!("{db}.epoch")), speed));
+    let gw = Gateway::start(store, Config { dev_login: dev, public_host, secret, first_kills, dev_grant, world });
     if let Err(e) = gw.social.persist(std::path::Path::new(&format!("{db}.social"))) {
         die(&format!("social log {db}.social: {e}"));
     }
@@ -74,11 +91,12 @@ fn main() {
     }
     let mut udp = Vec::new();
     let mut n = 0u16;
-    for c in 0..copies {
+    for _ in 0..copies {
         for &f in &fields {
             let p = if field_port == 0 { 0 } else { field_port + n };
             n += 1;
-            let sim = SimOpts { field: f, seed: seed + n as u64 + c as u64 * 1000, monsters, threads, bots: 0, rally_permille: 0, level: 0 };
+            // Every copy of a field shares its seed (the same map); new copies the world opens pick free ports.
+            let sim = SimOpts { field: f, seed: seed + f as u64, monsters, threads, bots: 0, rally_permille: 0, level: 0, vault: None };
             let addr = gw.add_host(HostOpts { sim, port: p, ..HostOpts::default() }).unwrap_or_else(|e| die(&format!("field {f} on {p}: {e}")));
             udp.push(addr.port().to_string());
         }

@@ -3,15 +3,18 @@
 
 pub mod bots;
 pub mod client;
+pub mod driver;
 pub mod host;
 pub mod lockstep;
 pub mod predict;
+pub mod realm_clock;
 pub mod report;
 pub mod sim;
 pub mod snap;
 pub mod stats;
 pub mod view;
 pub mod wire;
+pub mod world;
 
 pub const DEFAULT_PORT: u16 = 7777;
 /// Largest datagram payload either side sends.

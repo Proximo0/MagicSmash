@@ -53,6 +53,9 @@ pub struct TickRec {
     pub leaves: Vec<u16>,
     pub changes: Vec<(u16, u16)>,
     pub hash: Option<u64>,
+    /// The realm clock to set before the step (the step then adds one): the server's copy follows the realm's one
+    /// clock this way, and every follower with it. None: the field's own clock runs on.
+    pub clock: Option<u64>,
 }
 
 impl TickRec {
@@ -76,12 +79,13 @@ impl TickRec {
             prev = slot as u32;
             put_u16(w, inp);
         }
-        match self.hash {
-            Some(h) => {
-                w.push(1);
-                put_u64(w, h);
-            }
-            None => w.push(0),
+        // Flags: bit 0 a hash follows, bit 1 a clock follows.
+        w.push(self.hash.is_some() as u8 | (self.clock.is_some() as u8) << 1);
+        if let Some(h) = self.hash {
+            put_u64(w, h);
+        }
+        if let Some(c) = self.clock {
+            put_u64(w, c);
         }
     }
 
@@ -99,8 +103,15 @@ impl TickRec {
             prev += r.varint()?;
             t.changes.push((prev as u16, r.u16()?));
         }
-        if r.u8()? == 1 {
+        let flags = r.u8()?;
+        if flags & !3 != 0 {
+            return None;
+        }
+        if flags & 1 != 0 {
             t.hash = Some(r.u64()?);
+        }
+        if flags & 2 != 0 {
+            t.clock = Some(r.u64()?);
         }
         (r.left() == 0).then_some(t)
     }
@@ -113,7 +124,7 @@ pub struct Lockstep {
 }
 
 impl Lockstep {
-    /// Leaves, then joins (ids must come out as recorded), then input changes, then the step.
+    /// Leaves, then joins (ids must come out as recorded), then input changes, the clock, then the step.
     /// Returns false if a join got a different id (a desync).
     pub fn apply(&mut self, f: &mut Field, rec: &TickRec, mark: impl FnMut(Phase)) -> bool {
         let mut ok = true;
@@ -136,6 +147,9 @@ impl Lockstep {
                 self.inputs.resize(slot as usize + 1, 0);
             }
             self.inputs[slot as usize] = inp;
+        }
+        if let Some(c) = rec.clock {
+            f.set_clock(c);
         }
         f.step_with(&self.inputs, mark);
         ok && f.tick() == rec.tick
@@ -443,6 +457,14 @@ mod tests {
             if t == 160 {
                 rec.joins.push({ let mut j = Join::bench(5, 1, 1, 30, FIELD / 3, FIELD / 3); j.outing.coin = 90; j.outing.level = 4; j });
             }
+            // The realm clock moves the field into a tide, and later to a field boss's rising, on both sides.
+            let fid = server.field_id();
+            if t == 100 {
+                rec.clock = Some(realm_core::tide_start(fid, 0) - 3);
+            }
+            if t == 300 {
+                rec.clock = Some(realm_core::field_boss_window(fid, 3).0 - 2);
+            }
             let want: Vec<u16> = (0..60u32).map(|i| if i == 5 && (150..160).contains(&t) { 0 } else { ((i * 7 + t / 15) % 9) as u16 }).collect();
             rec.changes = ls.changes(&rec, &want);
             assert!(ls.apply(&mut server, &rec, |_| {}));
@@ -471,6 +493,8 @@ mod tests {
             }
         }
         assert!(checked >= 17);
+        assert!(server.boss().is_some(), "the clock raised the field boss");
+        assert!(follower.unwrap().0.boss().is_some());
     }
 
     #[test]

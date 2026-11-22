@@ -36,11 +36,13 @@ pub struct SimOpts {
     pub bots: u32,
     pub rally_permille: u32,
     pub level: u8,
+    /// A vault (row, seals) instead of a field: `Field::open_vault` (rules section 10).
+    pub vault: Option<(u8, u8)>,
 }
 
 impl Default for SimOpts {
     fn default() -> Self {
-        SimOpts { field: 0, seed: 1, monsters: 20_000, threads: 1, bots: 0, rally_permille: 300, level: 0 }
+        SimOpts { field: 0, seed: 1, monsters: 20_000, threads: 1, bots: 0, rally_permille: 300, level: 0, vault: None }
     }
 }
 
@@ -62,12 +64,18 @@ pub struct Sim {
     /// Encoded B records of the last ticks.
     pub history: VecDeque<(u32, Vec<u8>)>,
     pub tick_time: u16,
+    /// The realm clock to set before the next tick (it goes into that tick's record, so followers set it too).
+    pub next_clock: Option<u64>,
 }
 
 impl Sim {
     pub fn new(opts: &SimOpts) -> Sim {
-        let field = Field::open(opts.field, opts.seed, Config { monsters: opts.monsters, threads: opts.threads });
-        Sim { opts: opts.clone(), field, ls: Lockstep::default(), bots: Vec::new(), rng: opts.seed ^ 0xB07, history: VecDeque::new(), tick_time: 0 }
+        let cfg = Config { monsters: opts.monsters, threads: opts.threads };
+        let field = match opts.vault {
+            Some((v, seals)) => Field::open_vault(v, seals, opts.seed, cfg),
+            None => Field::open(opts.field, opts.seed, cfg),
+        };
+        Sim { opts: opts.clone(), field, ls: Lockstep::default(), bots: Vec::new(), rng: opts.seed ^ 0xB07, history: VecDeque::new(), tick_time: 0, next_clock: None }
     }
 
     /// Ids the next joins will get: the lowest free slots after this tick's leaves.
@@ -120,7 +128,7 @@ impl Sim {
             self.bots.push(Bot::new(id, rally, self.opts.seed));
         }
         let t_bots = Instant::now();
-        let mut rec = TickRec { tick: self.field.tick() + 1, leaves: leaves.to_vec(), ..TickRec::default() };
+        let mut rec = TickRec { tick: self.field.tick() + 1, leaves: leaves.to_vec(), clock: self.next_clock.take(), ..TickRec::default() };
         for (j, &id) in all.iter().zip(&ids) {
             rec.joins.push(Join { id, sheet: j.sheet.clone(), outing: j.outing.clone(), x: j.x, y: j.y });
         }
