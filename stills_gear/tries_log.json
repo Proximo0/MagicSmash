@@ -388,5 +388,25 @@
    ],
    "gen_s": 12.4
   }
+ ],
+ "HR5.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR5.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.8
+  }
  ]
 }

@@ -88,5 +88,36 @@
   "rules": [
    "R25"
   ]
+ },
+ "HR5.3": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR5.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR6.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR6.2": {
+  "status": "rejected",
+  "rules": [
+   "R17",
+   "R27"
+  ]
+ },
+ "HR6.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR6.4": {
+  "status": "accepted",
+  "rules": []
  }
 }
