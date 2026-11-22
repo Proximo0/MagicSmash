@@ -1,1 +1,2 @@
 2026-11-22T19:12:27Z INFO id=261122184608-0031 kind=shell secs=66 lanplay: no live host
+2026-11-22T21:30:39Z PASS id=261122184608-0031 kind=shell secs=603 lanplay host=ubuntu addr=192.168.12.22:7700 secs=600 logins_ok=198 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=198 banked=192 deposits=192 rtt_mean_ms=4.60 rtt_p99_ms=37.53 calls=2658 refused_datagrams=0 hash_bad=0 mismatc
