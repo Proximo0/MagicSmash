@@ -10,7 +10,7 @@ command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 command -v cargo >/dev/null 2>&1 || { echo "FAIL world: cargo is not installed on this station"; exit 1; }
 cd "$(dirname "$0")/../../../realm" || { echo "FAIL world: no realm directory"; exit 1; }
 db="${TMPDIR:-/tmp}/station-world.db"
-out=$(cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=60000 --realm-cap=150 --vault-max=8 --outing-ticks=6000 --db="$db" 2>&1)
+out=$(cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=5000 --realm-cap=150 --vault-max=8 --outing-ticks=600 --db="$db" 2>&1)
 line=$(tail -1 <<<"$out")
 rm -f "$db"*
 if [[ "$line" == "WORLD ok "* ]]; then echo "PASS world secs=$secs ${line:0:280}"; exit 0; fi

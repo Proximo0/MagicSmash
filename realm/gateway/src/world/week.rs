@@ -350,9 +350,10 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
         }
     }
     if !started {
-        // A rush: for four realm hours out of every eight, half the bots want THE FOOL'S ROAD.
-        let rush = (day_hour / 4) % 2 == 0 && b % 2 == 0;
-        let field = if rush { 0 } else { ((b + n) % FIELDS.len() as u64) as u8 };
+        // A rush: for the first twelve realm hours of every day, every bot wants THE FOOL'S ROAD (copies open); then the wave
+        // leaves for the other fields and the road's copies empty and merge.
+        let rush = day_hour < 12;
+        let field = if rush { 0 } else { 1 + ((b + n) % (FIELDS.len() as u64 - 1).max(1)) as u8 };
         let ticks = o.outing_ticks / 2 + (realm_core::rng_next(&mut (o.seed ^ b << 20 ^ n)) % o.outing_ticks as u64) as u32;
         match gw.call(Req::World(WReq::BotTicket { hero: hero.id, field, ticks })).map_err(io)? {
             Resp::Ticket { .. } => {}
