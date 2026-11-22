@@ -137,11 +137,49 @@
  "HR1.2": [
   {
    "t": 1,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.3
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G2",
+    "G11",
+    "G12"
+   ],
+   "fit": 0.7,
+   "fixes_in_prompt": [],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G2",
+    "G12"
+   ],
+   "gen_s": 12.6
+  },
+  {
+   "t": 4,
    "ok": true,
    "rules": [],
    "fit": 1.0,
-   "fixes_in_prompt": [],
-   "gen_s": 13.8
+   "fixes_in_prompt": [
+    "G2",
+    "G12"
+   ],
+   "gen_s": 12.7
   }
  ],
  "HR1.3": [
@@ -617,95 +655,34 @@
    "t": 1,
    "ok": false,
    "rules": [
-    "G8",
-    "G12",
-    "G13"
+    "G12"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [],
-   "gen_s": 13.7
+   "gen_s": 13.5
   },
   {
    "t": 2,
    "ok": false,
    "rules": [
-    "G10",
-    "G12"
+    "G8"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [
-    "G8",
-    "G12",
-    "G13"
+    "G12"
    ],
    "gen_s": 11.6
   },
   {
    "t": 3,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12",
-    "G13"
-   ],
+   "ok": true,
+   "rules": [],
    "fit": 1.0,
    "fixes_in_prompt": [
-    "G8",
     "G12",
-    "G13",
-    "G10"
-   ],
-   "gen_s": 11.7
-  },
-  {
-   "t": 4,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12",
-    "G13"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G8",
-    "G12",
-    "G13",
-    "G10"
+    "G8"
    ],
    "gen_s": 11.6
-  },
-  {
-   "t": 5,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G8",
-    "G12",
-    "G13",
-    "G10"
-   ],
-   "gen_s": 11.8
-  },
-  {
-   "t": 6,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12",
-    "G13"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G8",
-    "G12",
-    "G13",
-    "G10"
-   ],
-   "gen_s": 11.8
   }
  ],
  "HR9.2": [
@@ -713,86 +690,36 @@
    "t": 1,
    "ok": false,
    "rules": [
-    "G8",
-    "G10"
+    "G8"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [],
-   "gen_s": 11.9
+   "gen_s": 11.6
   },
   {
    "t": 2,
    "ok": false,
    "rules": [
-    "G10",
+    "G8",
+    "G11",
     "G12"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [
-    "G8",
-    "G10"
+    "G8"
    ],
-   "gen_s": 12.1
+   "gen_s": 11.6
   },
   {
    "t": 3,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12"
-   ],
-   "fit": 0.9,
-   "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.2
-  },
-  {
-   "t": 4,
-   "ok": false,
-   "rules": [
-    "G8",
-    "G10"
-   ],
+   "ok": true,
+   "rules": [],
    "fit": 1.0,
    "fixes_in_prompt": [
     "G8",
-    "G10",
     "G12"
    ],
-   "gen_s": 12.3
-  },
-  {
-   "t": 5,
-   "ok": false,
-   "rules": [
-    "G8",
-    "G10"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.3
-  },
-  {
-   "t": 6,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.3
+   "gen_s": 11.7
   }
  ],
  "HR9.3": [
@@ -800,27 +727,23 @@
    "t": 1,
    "ok": false,
    "rules": [
-    "G8",
-    "G10",
-    "G12"
+    "G8"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [],
-   "gen_s": 12.3
+   "gen_s": 11.7
   },
   {
    "t": 2,
    "ok": false,
    "rules": [
-    "G12"
+    "G8"
    ],
-   "fit": 0.95,
+   "fit": 0.9,
    "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
+    "G8"
    ],
-   "gen_s": 12.3
+   "gen_s": 11.8
   },
   {
    "t": 3,
@@ -829,144 +752,47 @@
     "G8",
     "G12"
    ],
-   "fit": 1.0,
+   "fit": 0.95,
    "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
+    "G8"
    ],
-   "gen_s": 12.4
+   "gen_s": 11.9
   },
   {
    "t": 4,
    "ok": false,
    "rules": [
+    "G8",
+    "G11",
     "G12"
    ],
    "fit": 1.0,
    "fixes_in_prompt": [
     "G8",
-    "G10",
     "G12"
    ],
-   "gen_s": 12.3
+   "gen_s": 12.1
   },
   {
    "t": 5,
-   "ok": false,
-   "rules": [
-    "G1",
-    "G5",
-    "G10"
-   ],
-   "fit": 0.3,
-   "fixes_in_prompt": [
-    "G8",
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.4
-  },
-  {
-   "t": 6,
-   "ok": false,
-   "rules": [
-    "G12"
-   ],
+   "ok": true,
+   "rules": [],
    "fit": 1.0,
    "fixes_in_prompt": [
     "G8",
-    "G10",
-    "G12",
-    "G1",
-    "G5"
+    "G12"
    ],
-   "gen_s": 12.4
+   "gen_s": 12.3
   }
  ],
  "HR9.4": [
   {
    "t": 1,
-   "ok": false,
-   "rules": [
-    "G10"
-   ],
+   "ok": true,
+   "rules": [],
    "fit": 1.0,
    "fixes_in_prompt": [],
-   "gen_s": 12.4
-  },
-  {
-   "t": 2,
-   "ok": false,
-   "rules": [
-    "G12"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G10"
-   ],
-   "gen_s": 12.6
-  },
-  {
-   "t": 3,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.6
-  },
-  {
-   "t": 4,
-   "ok": false,
-   "rules": [
-    "G10",
-    "G12",
-    "G13"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G10",
-    "G12"
-   ],
-   "gen_s": 12.8
-  },
-  {
-   "t": 5,
-   "ok": false,
-   "rules": [
-    "G12",
-    "G15",
-    "G16"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G10",
-    "G12",
-    "G13"
-   ],
-   "gen_s": 12.8
-  },
-  {
-   "t": 6,
-   "ok": false,
-   "rules": [
-    "G8",
-    "G10"
-   ],
-   "fit": 1.0,
-   "fixes_in_prompt": [
-    "G10",
-    "G12",
-    "G13",
-    "G15"
-   ],
-   "gen_s": 12.8
+   "gen_s": 12.2
   }
  ],
  "HR10.1": [
