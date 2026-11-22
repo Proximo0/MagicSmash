@@ -1,0 +1,8 @@
+kind=shell
+args=script=lanhost secs=7200
+needs=ubuntu
+priority=9
+repeat=forever
+timeout_s=9000
+every_s=21600
+added=2026-11-22T18:46:07Z
