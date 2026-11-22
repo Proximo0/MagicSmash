@@ -1,0 +1,265 @@
+{
+ "HR6.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G11"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.8
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G11"
+   ],
+   "gen_s": 11.6
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G6",
+    "G11"
+   ],
+   "fit": 0.9,
+   "fixes_in_prompt": [
+    "G8",
+    "G11"
+   ],
+   "gen_s": 11.7
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "R1"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8",
+    "G11",
+    "G6"
+   ],
+   "gen_s": 11.7
+  },
+  {
+   "t": 5,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G11"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G8",
+    "G11",
+    "G6"
+   ],
+   "gen_s": 11.8
+  },
+  {
+   "t": 6,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G11"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G8",
+    "G11",
+    "G6",
+    "G1"
+   ],
+   "gen_s": 12.1
+  },
+  {
+   "t": 7,
+   "ok": false,
+   "rules": [
+    "G1"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G8",
+    "G11",
+    "G6",
+    "G1"
+   ],
+   "gen_s": 12.3
+  },
+  {
+   "t": 8,
+   "ok": false,
+   "rules": [
+    "G6"
+   ],
+   "fit": 0.9,
+   "fixes_in_prompt": [
+    "G8",
+    "G11",
+    "G6",
+    "G1"
+   ],
+   "gen_s": 12.4
+  }
+ ],
+ "HR6.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [],
+   "gen_s": 12.4
+  },
+  {
+   "t": 2,
+   "ok": false,
+   "rules": [
+    "G9",
+    "G11"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "gen_s": 12.5
+  },
+  {
+   "t": 3,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "gen_s": 12.4
+  },
+  {
+   "t": 4,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "gen_s": 12.4
+  },
+  {
+   "t": 5,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5",
+    "G9"
+   ],
+   "fit": 0.3,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "gen_s": 12.6
+  },
+  {
+   "t": 6,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9",
+    "G11"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11",
+    "G5"
+   ],
+   "gen_s": 12.5
+  },
+  {
+   "t": 7,
+   "ok": false,
+   "rules": [
+    "G8",
+    "G9",
+    "G11"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11",
+    "G5"
+   ],
+   "gen_s": 12.6
+  },
+  {
+   "t": 8,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G9"
+   ],
+   "fit": 0.75,
+   "fixes_in_prompt": [
+    "G1",
+    "G9",
+    "G11",
+    "G5",
+    "G8"
+   ],
+   "gen_s": 12.6
+  }
+ ],
+ "HR6.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.6
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 12.7
+  }
+ ]
+}
