@@ -22,7 +22,7 @@ case "$(uname -s)" in
     pc /setactive SCHEME_CURRENT || no apply-scheme
     d='HKCU\Control Panel\Desktop'
     rg "$d" ScreenSaveActive REG_SZ 0 && rg "$d" ScreenSaverIsSecure REG_SZ 0 && ok screensaver-lock=off || no screensaver-lock
-    rg "$d" DelayLockInterval REG_DWORD 0 && ok away-signin=never || no away-signin
+    rg "$d" DelayLockInterval REG_DWORD 4294967295 && ok away-signin=never || no away-signin
     rg 'HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon' EnableGoodbye REG_DWORD 0 && ok dynamic-lock=off || no dynamic-lock
     start="$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup"
     if ls "$start" 2>/dev/null | grep -qi station || MSYS_NO_PATHCONV=1 schtasks.exe /query /fo csv 2>/dev/null | grep -qi station; then
