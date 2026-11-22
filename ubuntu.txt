@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-22T20:54Z commit=22dfba7 took=2082s
-JOB realm FAIL realm/check.sh:  error: test failed, to rerun pass `-p realm-gateway --test world` REALM failed: cargo test  | STORE ok tests=53 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=25.9  | realm/check_client.sh: relay: FOLLOW_TEST FAILED server=127.0.0.1:7792 ticks=400 hash_checks passed=20 failed=0 join_kb=220 in_kb_s=1.6 out_kb_s=0.38 sim_ms=5.35 stall_ms_max=384 mispredicts=5/299 problems="predicted hero 1
-JOB world PASS world secs=600 WORLD ok days=7.00 secs=601 heroes=200 cycles=1642 outings=1642 vault_runs=54 vault_joins=54 queued=1506 queue_max=122 admitted=1474 copies_opened=7 merges=4 moved=37 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2607 won=0 bosses=685 killed=0 world_bosses=36 chests=0 news=532
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 drill ok backup=20261123-005452 schema=3 items=0 stacks=0 ledger=152 digest=cbf29ce484222325 on 2026-11-23 release=v1->v2->v1 downgrade=refused
-STATION FAIL jobs=3 failed=1 skipped=0
+STATION machine=ubuntu time=2026-11-22T20:56Z commit=e01de47 took=0s
+JOB realm SKIP nothing it tests changed since 22dfba7
+JOB world SKIP nothing it tests changed since 22dfba7
+JOB ops SKIP nothing it tests changed since 22dfba7
+STATION PASS jobs=0 failed=0 skipped=3
