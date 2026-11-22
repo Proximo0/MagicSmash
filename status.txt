@@ -1,1 +1,1 @@
-2026-11-22 04:57:47 STOPPED 470 ids left
+2026-11-22 05:20:19 RUNNING pid=12496 last=HS7.1 450 ids left, 9.1s/picture
