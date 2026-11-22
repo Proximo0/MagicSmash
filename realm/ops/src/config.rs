@@ -111,7 +111,12 @@ impl Conf {
     /// A path setting inside `root` unless it is absolute.
     pub fn path(&self, root: &Path, key: &str) -> std::path::PathBuf {
         let p = Path::new(self.get(key));
-        if p.is_absolute() { p.to_path_buf() } else { root.join(p) }
+        if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            // Join part by part so a relative "data/realm.db" uses this OS's separator throughout.
+            self.get(key).split(['/', '\\']).filter(|c| !c.is_empty()).fold(root.to_path_buf(), |acc, c| acc.join(c))
+        }
     }
 
     /// The realm-gateway flags this config means (paths resolved against `root`).
