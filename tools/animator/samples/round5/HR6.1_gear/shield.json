@@ -1,0 +1,14 @@
+{
+ "slot": "back",
+ "anchor": [
+  128,
+  160
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.36,
+ "guide": "shield",
+ "note": "a shield seen face-on, upright, filling the box; the anchor is its middle"
+}
