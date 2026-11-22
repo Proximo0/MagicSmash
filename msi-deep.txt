@@ -1,3 +1,3 @@
-STATION machine=msi time=2026-11-22T11:58Z commit=3d8feff took=92s
-JOB deep PASS fuzz seed=75163 STORE fuzz ok seed=75163 ops=50000 kills=200 (stmt=63 progress=35 commit=25 aftercommit=39 beforecommit=38) children=202 | bench field=4 seed=75163 BENCH 1000x20000 threads=2 ticks=600 wall=6.5s kills=87423 spawns=107423 deaths=0 recycled=0 hash=09a154ad14328375
+STATION machine=msi time=2026-11-22T11:59Z commit=3d8feff took=90s
+JOB deep PASS fuzz seed=398029 STORE fuzz ok seed=398029 ops=50000 kills=200 (stmt=60 progress=36 commit=27 aftercommit=34 beforecommit=43) children=20 | bench field=1 seed=398029 BENCH 1000x20000 threads=2 ticks=600 wall=6.1s kills=85357 spawns=105357 deaths=295 recycled=0 hash=677b64a2dfc2e3a3
 STATION PASS deep pass
