@@ -9,6 +9,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Nightly: the whole Windows suite, including the slow determinism gates the push/PR Windows job skips.
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +21,11 @@ env:
   # The toolchain the module and the workspace are built and tested with (gdext 0.5.5 needs 1.94 or newer).
   RUST_TOOLCHAIN: "1.97.0"
   CARGO_TERM_COLOR: never
+  # CI builds are one-shot: incremental data and debug info only slow them and bloat the cache.
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_RELEASE_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
+  CARGO_PROFILE_DEV_DEBUG: "0"
   # The determinism probe: the same bench on every platform must end on the same hash.
   BENCH: --bench --bots=300 --monsters=8000 --rally=0.3 --threads=2 --ticks=200 --warmup=40 --report=100
 
@@ -41,14 +50,15 @@ jobs:
             realm
             realm/godot
             realm/store
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: realm/check.sh
         run: realm/check.sh
       - name: Native module
         working-directory: realm/godot
         run: |
-          cargo build --release 2>&1 | tee build.log
+          cargo build --release -j"$(nproc)" 2>&1 | tee build.log
           if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
-          cargo test --release
+          cargo test --release -j"$(nproc)"
       - name: realm/store/check.sh
         run: realm/store/check.sh
       - name: Bench hash
@@ -83,18 +93,24 @@ jobs:
             realm
             realm/godot
             realm/store
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Server and load test
         working-directory: realm
         run: |
-          cargo build --release 2>&1 | tee build.log
+          cargo build --release -j"$(nproc)" 2>&1 | tee build.log
           if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
-          cargo test --release
+          # core/tests/gates.rs (256 s here) runs on Linux on every push and on Windows in the nightly run.
+          if [ "${{ github.event_name }}" = schedule ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            cargo test --release -j"$(nproc)"
+          else
+            cargo test --release -j"$(nproc)" -- --skip hash_equal_on_1_to_4_threads --skip a_run_of_the_bot_gates --skip a_lone_novice_kiting_bot --skip a_party_holds_the_middle_ring
+          fi
       - name: Native module
         working-directory: realm/godot
         run: |
-          cargo build --release 2>&1 | tee build.log
+          cargo build --release -j"$(nproc)" 2>&1 | tee build.log
           if grep -q "^warning" build.log; then echo "build warnings"; exit 1; fi
-          cargo test --release
+          cargo test --release -j"$(nproc)"
       - name: realm/store/check.sh
         run: bash realm/store/check.sh
       - name: Bench hash
@@ -156,6 +172,7 @@ jobs:
             realm
             realm/godot
             realm/store
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: ./.github/actions/setup-godot
       - name: realm/check_client.sh
         run: xvfb-run -a realm/check_client.sh
