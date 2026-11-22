@@ -366,6 +366,9 @@ impl Store for SqliteStore {
 	fn heroes(&self, account: AccountId, include_deleted: bool) -> Result<Vec<Hero>> {
 		self.with_read(|c| read::heroes(c, account, include_deleted))
 	}
+	fn hero_by_name(&self, name: &str) -> Result<Option<Hero>> {
+		self.with_read(|c| read::hero_by_name(c, name))
+	}
 	fn item(&self, id: ItemId) -> Result<Option<Item>> {
 		self.with_read(|c| read::item(c, id))
 	}

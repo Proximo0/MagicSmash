@@ -1,0 +1,22 @@
+[package]
+name = "realm-gateway"
+edition.workspace = true
+version.workspace = true
+description = "Horde & Hearth gateway: accounts, heroes, towns, field tickets and field hosts in one process."
+
+[lib]
+name = "realm_gateway"
+
+[[bin]]
+name = "realm-gateway"
+path = "src/main.rs"
+
+[[bin]]
+name = "realm-soak"
+path = "src/soak.rs"
+
+[dependencies]
+realm-core = { path = "../core" }
+realm-server = { path = "../server" }
+realm-store = { path = "../store" }
+realm-loot = { path = "../loot" }

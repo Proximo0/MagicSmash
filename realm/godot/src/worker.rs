@@ -9,7 +9,7 @@
 
 use crate::draw::{DrawState, SubRect};
 use crate::frame::{self, Frame};
-use realm_core::{FIELD, IN_SKILL1, IN_DIR};
+use realm_core::FIELD;
 use realm_server::client::LockstepClient;
 use std::io::ErrorKind;
 use std::net::UdpSocket;
@@ -140,12 +140,6 @@ impl Drop for Worker {
     }
 }
 
-/// The wire carries one byte a tick until W1's two-byte input lands: the direction and the skill-1 bit.
-/// This is the one place to change when it does (`LockstepClient::input` then takes the two bytes).
-pub fn wire_byte(input: u16) -> u8 {
-    (input & IN_DIR) as u8 | if input & IN_SKILL1 != 0 { realm_server::WIRE_SKILL } else { 0 }
-}
-
 /// Bytes in and out over the last whole second.
 #[derive(Default)]
 struct Rates {
@@ -222,7 +216,7 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
             match rx.try_recv() {
                 Ok(Cmd::Input(input)) => {
                     if client.welcomed() {
-                        let d = client.input(wire_byte(input));
+                        let d = client.input_word(input);
                         send(&sock, &mut rates, &d);
                         let (sx, sy, px, py) = pose_of(&client);
                         let mut p = lock(&shared.pose);
@@ -290,14 +284,6 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
 mod tests {
     use super::*;
     use realm_core::input;
-
-    #[test]
-    fn the_wire_byte_keeps_the_direction_and_skill_one() {
-        assert_eq!(wire_byte(input(3, 0)), 3);
-        assert_eq!(wire_byte(input(8 | 0x10, 0)), 8 | 0x80);
-        // Skill 2, the ultimate, interact and byte 1 wait for the two-byte wire.
-        assert_eq!(wire_byte(input(5 | 0x20 | 0x40 | 0x80, 0x1F)), 5);
-    }
 
     #[test]
     fn a_worker_without_a_server_runs_and_stops() {

@@ -69,6 +69,14 @@ pub fn hero(c: &Connection, id: HeroId) -> Result<Option<Hero>> {
 	Ok(c.prepare_cached(&format!("SELECT {HERO_COLS} FROM heroes WHERE id = ?1"))?.query_row([id], hero_from_row).optional()?)
 }
 
+/// The live hero holding a name (names are unique without regard to case). A deleted hero is not found.
+pub fn hero_by_name(c: &Connection, name: &str) -> Result<Option<Hero>> {
+	let key = name.to_ascii_lowercase();
+	Ok(c.prepare_cached(&format!("SELECT {HERO_COLS} FROM heroes WHERE name_key = ?1 AND name_held = 1 AND deleted_at IS NULL"))?
+		.query_row([key], hero_from_row)
+		.optional()?)
+}
+
 pub fn heroes(c: &Connection, account: AccountId, include_deleted: bool) -> Result<Vec<Hero>> {
 	let mut st = c.prepare_cached(&format!(
 		"SELECT {HERO_COLS} FROM heroes WHERE account = ?1 AND (?2 OR deleted_at IS NULL) ORDER BY id"

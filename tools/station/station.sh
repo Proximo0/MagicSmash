@@ -3,6 +3,8 @@
 # Usage: tools/station/station.sh [--watch] [--no-push] job [job ...]
 #   jobs: realm   Horde & Hearth: realm/check.sh and realm/store/check.sh (the Rust core, server and store). Needs cargo;
 #                 a station without it reports SKIP.
+#         soak    bots through the wire server (gateway, towns, field hosts, store) for STATION_SOAK_SECS (default 7200),
+#                 one summary line; FAIL when the line is not "SOAK ok" (a mismatch, a bot error or a store problem)
 #         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
 #         deep    (a role word only) between merges: seeded soaks, reported in <machine>-deep.txt
 #         The three below test Four of Wands, which is stopped; no station runs them now.
@@ -34,7 +36,7 @@ POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 watch=0; push=1; after=""; jobs=(); deep=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|idle) jobs+=("$a") ;; deep) deep=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -43,7 +45,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -133,6 +135,15 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
   echo "JOB realm $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
 }
+job_soak() {  # one line: realm-soak's summary
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB soak SKIP cargo is not installed on this station"; return 0; }
+  local secs="${STATION_SOAK_SECS:-7200}" out line
+  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((secs + 900)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$secs" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="${TMPDIR:-/tmp}/station-soak.db" 2>&1); line=$(tail -1 <<<"$out")
+  rm -f "${TMPDIR:-/tmp}"/station-soak.db*
+  if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
+  echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+}
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
@@ -157,7 +168,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
 touched() {
   case "$1" in
     idle) return 0 ;;
-    realm|frames) grep -q '^realm/' ;;
+    realm|frames|soak) grep -q '^realm/' ;;
     *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
   esac
 }

@@ -69,6 +69,21 @@ impl RealmLink {
     /// (0..3). False (and an error printed) when the address does not resolve or the socket cannot open.
     #[func]
     fn connect_to_host(&mut self, host: GString, port: i32, class: i32, race: i32) -> bool {
+        let client = LockstepClient::new(PROTO_BP, class.clamp(0, 4) as u8, race.clamp(0, 3) as u8, self.threads.max(1) as usize);
+        self.open_link(host, port, client)
+    }
+
+    /// As `connect_to_host`, for a field host behind a gateway: `ticket` is what the gateway's FIELD_TICKET
+    /// returned (a 64-bit number, passed as its two halves `ticket_high` and `ticket_low`, each 0 to
+    /// 4294967295); the host takes the hero's sheet from the store.
+    #[func]
+    fn connect_with_ticket(&mut self, host: GString, port: i32, ticket_high: i64, ticket_low: i64) -> bool {
+        let ticket = ((ticket_high as u64 & 0xFFFF_FFFF) << 32) | (ticket_low as u64 & 0xFFFF_FFFF);
+        let client = LockstepClient::with_ticket(ticket, self.threads.max(1) as usize);
+        self.open_link(host, port, client)
+    }
+
+    fn open_link(&mut self, host: GString, port: i32, client: LockstepClient) -> bool {
         self.worker = None;
         self.frame = Frame::default();
         let addr = format!("{host}:{port}");
@@ -81,7 +96,6 @@ impl RealmLink {
         })();
         match opened {
             Ok(sock) => {
-                let client = LockstepClient::new(PROTO_BP, class.clamp(0, 4) as u8, race.clamp(0, 3) as u8, self.threads.max(1) as usize);
                 self.worker = Some(Worker::start(sock, client));
                 true
             }

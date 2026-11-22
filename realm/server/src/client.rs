@@ -7,7 +7,7 @@
 
 use crate::lockstep::{take_seq_head, Assembler, Lockstep, TickRec, INPUT_REPEAT};
 use crate::predict::Predictor;
-use crate::{hello, input, input_seq, wire_input, Rd, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
+use crate::{hello_ticket, input, input_seq, input_word, Rd, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
 use realm_core::{Field, Player};
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -34,6 +34,7 @@ pub struct LockstepClient {
     proto: u32,
     class: u8,
     race: u8,
+    ticket: u64,
     threads: usize,
     welcomed: bool,
     hero: Option<u16>,
@@ -45,7 +46,7 @@ pub struct LockstepClient {
     seq_at: BTreeMap<u32, u32>,
     pred: Predictor,
     /// This player's newest moves, newest first, repeated in each INPUT.
-    recent: VecDeque<u8>,
+    recent: VecDeque<u16>,
     last_apply: Option<Instant>,
     pub stats: ClientStats,
 }
@@ -58,6 +59,7 @@ impl LockstepClient {
             proto,
             class,
             race,
+            ticket: 0,
             threads: threads.max(1),
             welcomed: false,
             hero: None,
@@ -73,8 +75,16 @@ impl LockstepClient {
         }
     }
 
+    /// A lockstep player of a hero the gateway named: `ticket` is what `FIELD_TICKET` returned. The field host
+    /// takes her sheet and outing from the store, so no class or race goes with it.
+    pub fn with_ticket(ticket: u64, threads: usize) -> LockstepClient {
+        let mut c = LockstepClient::new(PROTO_BP, 0, 0, threads);
+        c.ticket = ticket;
+        c
+    }
+
     pub fn hello(&self) -> Vec<u8> {
-        hello(self.proto, self.class, self.race)
+        hello_ticket(self.proto, self.class, self.race, self.ticket)
     }
 
     /// True once the server has answered the HELLO.
@@ -219,21 +229,31 @@ impl LockstepClient {
         let (x, y, alive) = (p.x, p.y, p.alive());
         let (Some((field, _)), Some(id)) = (&self.game, self.hero) else { return };
         // Before the first head the hero has used no input of ours yet.
-        self.pred.confirm(x, y, alive, seq.unwrap_or(0), |x, y, mv| field.walk(id, x, y, wire_input(mv)));
+        self.pred.confirm(x, y, alive, seq.unwrap_or(0), |x, y, mv| field.walk(id, x, y, mv));
     }
 
-    /// The INPUT for this client's next tick (direction 0..8, bit 7 the skill): a player's moves its
-    /// predicted hero at once; a follower's only acknowledges.
+    /// The INPUT for this client's next tick when only byte 0 is used (direction 0..8, bit 4 skill 1, bit 7
+    /// interact): see `input_word`.
     pub fn input(&mut self, mv: u8) -> Vec<u8> {
+        self.input_word(mv as u16)
+    }
+
+    /// The INPUT for this client's next tick: both input bytes of rules section 1 (`realm_core::IN_*`, picks
+    /// and potions in byte 1) as one word. A player's moves its predicted hero at once; a follower's only
+    /// acknowledges. Send it 20 times a second; a pick or potion should be held for a few inputs, since the
+    /// server uses one input a tick and may drop the oldest when the client runs ahead.
+    pub fn input_word(&mut self, word: u16) -> Vec<u8> {
         // Acknowledge only a whole state: while it downloads the server keeps sending its parts.
         let ack = self.tick();
         if self.proto == PROTO_BP {
+            let word = crate::wire::clean_input(word);
             let walker = self.game.as_ref().map(|g| &g.0).zip(self.hero);
-            let seq = self.pred.push(mv & 0x8F, |x, y, mv| walker.map_or((x, y), |(f, id)| f.walk(id, x, y, wire_input(mv))));
-            self.recent.push_front(mv & 0x8F);
+            let seq = self.pred.push(word, |x, y, w| walker.map_or((x, y), |(f, id)| f.walk(id, x, y, w)));
+            self.recent.push_front(word);
             self.recent.truncate(INPUT_REPEAT + 1);
             input_seq(ack, seq, self.recent.make_contiguous())
         } else {
+            let _ = input_word;
             input(ack, 0, 1)
         }
     }
@@ -260,7 +280,7 @@ mod tests {
 
         fn tick(&mut self, joins: Vec<Join>, want: &[u8]) {
             let mut rec = TickRec { tick: self.field.tick() + 1, joins, ..TickRec::default() };
-            let want: Vec<u16> = want.iter().map(|&mv| wire_input(mv)).collect();
+            let want: Vec<u16> = want.iter().map(|&mv| mv as u16).collect();
             rec.changes = self.ls.changes(&rec, &want);
             assert!(self.ls.apply(&mut self.field, &rec, |_| {}));
             if rec.tick % HASH_EVERY == 0 {
@@ -290,7 +310,7 @@ mod tests {
     #[test]
     fn a_follower_joins_from_the_state_and_matches_every_hash() {
         let mut m = Mini::new(1500);
-        let bots: Vec<Join> = (0..12u16).map(|k| Join { id: k, class: (k % 5) as u8, race: (k % 4) as u8, level: 1, x: FIELD / 2 + k as i32 * 9000, y: FIELD / 2 }).collect();
+        let bots: Vec<Join> = (0..12u16).map(|k| Join::bench(k, (k % 5) as u8, (k % 4) as u8, 1 + k as u8 * 4, FIELD / 2 + k as i32 * 9000, FIELD / 2)).collect();
         m.tick(bots, &[]);
         let want = |t: u32| -> Vec<u8> { (0..12u32).map(|i| ((i + t / 9) % 9) as u8).collect() };
         for t in 2..=30 {
@@ -324,7 +344,7 @@ mod tests {
     fn a_player_predicts_its_hero_from_the_seq_heads() {
         // No monsters: nothing may kill the hero, which would rightly break the prediction.
         let mut m = Mini::new(0);
-        m.tick(vec![Join { id: 0, class: 1, race: 2, level: 1, x: FIELD / 2, y: FIELD / 2 }], &[]);
+        m.tick(vec![Join::bench(0, 1, 2, 1, FIELD / 2, FIELD / 2)], &[]);
         let mut c = LockstepClient::new(PROTO_BP, 1, 2, 1);
         c.receive(&welcome(0, 1));
         assert_eq!(c.hero(), Some(0));
@@ -337,7 +357,7 @@ mod tests {
         for t in 2..=120u32 {
             let mv = 1 + (t / 10 % 8) as u8;
             let d = c.input(mv);
-            let seq = Rd::new(&d[7..]).u32().unwrap_or(0);
+            let seq = Rd::new(&d[8..]).u32().unwrap_or(0);
             sent.push((seq, mv));
             let (s, inp) = if sent.len() > 2 { sent[sent.len() - 3] } else { (0, 0) };
             m.tick(Vec::new(), &[inp]);
