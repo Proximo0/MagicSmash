@@ -262,5 +262,53 @@
   "status": "accepted",
   "rules": [],
   "missing_gear_guide": "scroll in the off hand"
+ },
+ "HR15.1": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR15.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR15.3": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR15.4": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": null
+ },
+ "HR16.1": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "banner on the back"
+ },
+ "HR16.2": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "banner on the back"
+ },
+ "HR16.3": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "banner on the back"
+ },
+ "HR16.4": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "banner on the back"
  }
 }

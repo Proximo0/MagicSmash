@@ -1351,5 +1351,160 @@
    "fixes_in_prompt": [],
    "gen_s": 12.2
   }
+ ],
+ "gear_cross_shield": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 10.7
+  }
+ ],
+ "gear_mace": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.1
+  }
+ ],
+ "gear_great_hammer": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 12.4
+  }
+ ],
+ "HR15.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.5
+  }
+ ],
+ "HR15.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR15.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G2",
+    "G5",
+    "G8",
+    "G9"
+   ],
+   "fit": 0.3,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G2",
+    "G5",
+    "G8"
+   ],
+   "gen_s": 11.6
+  }
+ ],
+ "HR15.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR16.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  }
+ ],
+ "HR16.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G8"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G8"
+   ],
+   "gen_s": 11.8
+  }
+ ],
+ "HR16.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "R24"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  }
+ ],
+ "HR16.4": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  }
  ]
 }
