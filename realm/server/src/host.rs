@@ -383,6 +383,9 @@ fn receiver(sock: &UdpSocket) -> Receiver<(SocketAddr, Vec<u8>)> {
         loop {
             match rsock.recv_from(&mut buf) {
                 Ok((len, from)) => {
+                    if !realm_ops::flood::allow_udp(from.ip()) {
+                        continue;
+                    }
                     if tx.send((from, buf[..len].to_vec())).is_err() {
                         break;
                     }
@@ -956,6 +959,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             }
         }
         row[C_TOTAL] = t0.elapsed().as_secs_f64() * 1000.0;
+        realm_ops::metrics::tick(opts.sim.field, row[C_TOTAL]);
         w.ticks.push(row);
         if tick % 20 == 0 {
             for c in clients.values_mut() {

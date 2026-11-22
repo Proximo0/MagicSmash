@@ -1,0 +1,23 @@
+# systemd unit for a Linux box. Install:
+#   sudo useradd --system --home /opt/realm realm && sudo chown -R realm /opt/realm
+#   sudo cp realm.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now realm
+# Logs: /opt/realm/logs (structured) and `journalctl -u realm`. Release: install + switch + `systemctl restart realm`.
+[Unit]
+Description=Horde & Hearth realm (gateway and field hosts)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=realm
+WorkingDirectory=/opt/realm
+ExecStart=/bin/sh -c 'exec /opt/realm/releases/$(cat /opt/realm/current)/realm-ops run --root=/opt/realm'
+ExecStop=/bin/sh -c '/opt/realm/releases/$(cat /opt/realm/current)/realm-ops stop --root=/opt/realm'
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+# The supervisor restarts a dead gateway itself; systemd restarts the supervisor.
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

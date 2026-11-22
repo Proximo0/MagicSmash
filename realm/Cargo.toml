@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["core", "server", "loadtest", "loot", "gateway"]
+members = ["core", "server", "loadtest", "loot", "gateway", "ops"]
 # The Godot module has its own workspace (it is the one crate with a crates.io dependency).
 exclude = ["godot", "store"]
 

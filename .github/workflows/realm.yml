@@ -100,14 +100,35 @@ jobs:
       - name: Bench hash
         working-directory: realm
         run: ./target/release/realm-server.exe $BENCH | grep "^BENCH" | grep -Eo "hash=[0-9a-f]+" > ../hash-windows.txt && cat ../hash-windows.txt
+      - name: Host scripts parse (PowerShell)
+        shell: pwsh
+        run: |
+          foreach ($f in Get-ChildItem realm/ops/host/*.ps1) {
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            if ($errs.Count) { $errs | Out-String; exit 1 }
+            Write-Host "parsed $($f.Name)"
+          }
+      - name: Operations rehearsal (backup, wreck, restore, drill, release, rollback)
+        working-directory: realm
+        run: ./target/release/realm-ops.exe rehearse
       - name: Gather the server package
         run: |
           mkdir -p realm-server-windows
           cp realm/target/release/realm-server.exe realm/target/release/realm-loadtest.exe realm/target/release/realm-gateway.exe realm/store/target/release/realm-store.exe realm/run_server.bat realm-server-windows/
+      - name: Gather the host package (scripts, config and releases/V in one folder)
+        run: |
+          cp realm/store/target/release/realm-store.exe realm/target/release/
+          realm/target/release/realm-ops.exe package --bins=realm/target/release --out=realm-host-windows --version="${{ steps.ver.outputs.v }}" --host=realm/ops/host
       - uses: actions/upload-artifact@v4
         with:
           name: realm-server-windows-${{ steps.ver.outputs.v }}
           path: realm-server-windows
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-host-windows-${{ steps.ver.outputs.v }}
+          path: realm-host-windows
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:

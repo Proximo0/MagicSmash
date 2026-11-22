@@ -10,6 +10,9 @@
 #                 the queue, vaults, a field host killed halfway; FAIL when the line is not "WORLD ok"
 #         economy Horde & Hearth's market simulation (realm-economy, record only): STATION_ECONOMY_BOTS (default 4000) bots for
 #                 STATION_ECONOMY_DAYS (default 180) game days with a fresh seed; one line of the sim's summary
+#         ops     Horde & Hearth's operations rehearsal (realm-ops rehearse): a store with play, an online backup with writes going on,
+#                 the live file wrecked and restored, the restore drill, a release, a rollback and the schema-downgrade refusal;
+#                 one line, FAIL when it is not "OPS ok". Also runs inside `deep` at most once a day (the nightly rehearsal).
 #         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
 #         deep    (a role word only) between merges: seeded soaks, reported in <machine>-deep.txt
 #         The three below test Four of Wands, which is stopped; no station runs them now.
@@ -41,7 +44,7 @@ POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 watch=0; push=1; after=""; jobs=(); deep=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|idle) jobs+=("$a") ;; deep) deep=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -50,7 +53,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -149,6 +152,15 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
   echo "JOB realm $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
 }
+job_ops() {  # one line: realm-ops rehearse on this machine's own disk
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB ops FAIL cargo is not installed on this station"; return 1; }
+  local out line dir="${TMPDIR:-/tmp}/station-ops-$MACHINE"
+  out=$(cd realm && cargo build --release -j2 -p realm-ops --bin realm-ops 2>&1 && timeout 600 target/release/realm-ops rehearse --dir="$dir" 2>&1); line=$(tail -1 <<<"$out")
+  rm -rf "$dir"
+  if [[ "$line" == "OPS ok "* ]]; then echo "JOB ops PASS ${line:7:300}"; return 0; fi
+  echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+}
 job_economy() {  # one line: realm-economy's summary, a longer run than the test; recorded, never a failure of the merge
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB economy FAIL cargo is not installed on this station"; return 1; }
@@ -196,6 +208,11 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
     if [[ "$(tail -1 <<<"$out")" == "SOAK ok "* ]]; then detail+=" | soak seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
     else bad=$((bad + 1)); detail+=" | soak seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
   fi
+  local stamp="${TMPDIR:-/tmp}/station-ops-last-$MACHINE"  # the nightly operations rehearsal: backup and restore, at most once in 20 hours
+  if [ ! -f "$stamp" ] || [ -n "$(find "$stamp" -mmin +1200 2>/dev/null)" ]; then
+    if out=$(job_ops 2>&1); then detail+=" | ${out:4:200}"; else bad=$((bad + 1)); detail+=" | ${out:4:200}"; fi
+    touch "$stamp"
+  fi
   rm -rf "$dir"
   echo "JOB deep $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
@@ -206,7 +223,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
 touched() {
   case "$1" in
     idle) return 0 ;;
-    realm|frames|soak|world|economy) grep -q '^realm/' ;;
+    realm|frames|soak|world|economy|ops) grep -q '^realm/' ;;
     *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
   esac
 }

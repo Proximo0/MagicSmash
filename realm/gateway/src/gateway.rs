@@ -333,12 +333,12 @@ impl Gateway {
         if who_may(&cmd) != Who::Owner {
             return Err(Error::Invalid(format!("{} is not a player's to run", cmd.name())));
         }
-        self.store.run(self.meta(account), cmd)
+        realm_ops::metrics::store_call(|| self.store.run(self.meta(account), cmd))
     }
 
     /// A change the server makes for a player after checking her right to it.
     pub(crate) fn server(&self, cmd: Cmd) -> Result<Reply> {
-        self.store.run(self.meta(0), cmd)
+        realm_ops::metrics::store_call(|| self.store.run(self.meta(0), cmd))
     }
 
     /// The hero if she is this account's and alive.
@@ -370,6 +370,9 @@ impl Gateway {
     fn dispatch(&self, s: &mut Session, req: Req) -> Result<Resp> {
         match req {
             Req::Ping => return Ok(Resp::Pong),
+            Req::LoginDev { .. } | Req::LoginSteam { .. } if realm_ops::switches::refuse_login() => {
+                return Ok(Resp::Err { code: code::DISABLED, msg: "the realm is closed for the moment; try again soon".into() });
+            }
             Req::LoginDev { name } => return self.login_dev(s, &name),
             Req::LoginSteam { .. } => return Ok(Resp::Err { code: code::DISABLED, msg: "Steam login comes with the Steam job".into() }),
             _ => {}
@@ -516,7 +519,15 @@ impl Gateway {
             Req::Cards { hero } => self.cards(account, hero),
             Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
             Req::Sell { hero, item } => self.sell(account, hero, item),
-            Req::Econ(e) => Ok(self.economy.handle(account, e, now_ms())),
+            Req::Econ(e) => {
+                use crate::economy::wire::EReq;
+                let trade = matches!(e, EReq::TradeInvite { .. } | EReq::TradeAccept { .. } | EReq::TradeOffer { .. } | EReq::TradeConfirm { .. });
+                let market = matches!(e, EReq::MarketList { .. } | EReq::MarketBuy { .. });
+                if (trade && realm_ops::switches::trade_frozen()) || (market && realm_ops::switches::market_frozen()) {
+                    return Ok(Resp::Err { code: code::DISABLED, msg: "frozen by the operators for the moment".into() });
+                }
+                Ok(self.economy.handle(account, e, now_ms()))
+            }
             Req::Ping | Req::LoginDev { .. } | Req::LoginSteam { .. } => unreachable!(),
         }
     }
@@ -587,6 +598,9 @@ impl Gateway {
     pub(crate) fn ask_field(&self, s: &mut Session, account: i64, hero: i64, field: u8, drive: Option<realm_server::driver::Drive>) -> Result<Resp> {
         if field as usize >= FIELDS.len() {
             return Ok(bad("no such field"));
+        }
+        if realm_ops::switches::field_stopped(field) {
+            return Ok(Resp::Err { code: code::NO_FIELD, msg: "this field is closed for the moment".into() });
         }
         let h = self.own_hero(account, hero)?;
         // Her sheet is read before anything is reserved, so a failure leaves her where she was.

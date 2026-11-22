@@ -28,3 +28,4 @@ realm-core = { path = "../core" }
 realm-server = { path = "../server" }
 realm-store = { path = "../store" }
 realm-loot = { path = "../loot" }
+realm-ops = { path = "../ops" }

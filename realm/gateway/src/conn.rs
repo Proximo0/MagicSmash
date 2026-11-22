@@ -43,9 +43,18 @@ pub fn listen(gw: Arc<Gateway>, addr: &str) -> std::io::Result<Listener> {
     let thread = std::thread::Builder::new().name("accept".into()).spawn(move || {
         while !st.load(Ordering::Relaxed) {
             match l.accept() {
-                Ok((s, _)) => {
+                Ok((s, peer)) => {
+                    if !realm_ops::flood::allow_connect(peer.ip()) {
+                        continue;
+                    }
                     let gw = gw.clone();
-                    let _ = std::thread::Builder::new().name("conn".into()).spawn(move || serve(gw, s));
+                    let _ = std::thread::Builder::new().name("conn".into()).spawn(move || {
+                        let ip = s.peer_addr().map(|a| a.ip());
+                        serve(gw, s, ip.as_ref().ok().copied());
+                        if let Ok(ip) = ip {
+                            realm_ops::flood::connection_closed(ip);
+                        }
+                    });
                 }
                 Err(e) if e.kind() == ErrorKind::WouldBlock => std::thread::sleep(Duration::from_millis(10)),
                 Err(e) => {
@@ -58,7 +67,7 @@ pub fn listen(gw: Arc<Gateway>, addr: &str) -> std::io::Result<Listener> {
     Ok(Listener { addr, stop, thread: Some(thread) })
 }
 
-fn serve(gw: Arc<Gateway>, stream: TcpStream) {
+fn serve(gw: Arc<Gateway>, stream: TcpStream, peer: Option<std::net::IpAddr>) {
     let _ = stream.set_nodelay(true);
     let _ = stream.set_nonblocking(false);
     let Ok(mut wr) = stream.try_clone() else { return };
@@ -79,6 +88,9 @@ fn serve(gw: Arc<Gateway>, stream: TcpStream) {
             Ok(Some(f)) => f,
             _ => break,
         };
+        if peer.is_some_and(|ip| !realm_ops::flood::allow_frame(ip)) {
+            break;
+        }
         let resp = match Req::decode(t, &body) {
             Some(req) => gw.handle(&mut s, req),
             None => Resp::Err { code: code::BAD_REQUEST, msg: "unreadable request".into() },

@@ -313,6 +313,14 @@ impl Drop for SqliteStore {
 /// Copies a live database to `dest` with SQLite's backup API in one step: it reads one WAL snapshot, so writers
 /// keep going, and the copy is that snapshot. Then verifies the copy.
 pub fn backup_file(src: &Path, dest: &Path) -> Result<VerifyReport> {
+	backup_copy(src, dest)?;
+	let d = open_reader(dest)?;
+	read::verify(&d)
+}
+
+/// The copy half of `backup_file`, without the verify: the operations tool uses it for a store older than this
+/// build's schema (the full verify knows only the newest tables) and checks the copy its own way.
+pub fn backup_copy(src: &Path, dest: &Path) -> Result<()> {
 	for suffix in ["", "-wal", "-shm"] {
 		let p = PathBuf::from(format!("{}{suffix}", dest.display()));
 		if p.exists() {
@@ -320,13 +328,10 @@ pub fn backup_file(src: &Path, dest: &Path) -> Result<VerifyReport> {
 		}
 	}
 	let s = open_reader(src)?;
-	{
-		let mut d = Connection::open(dest)?;
-		let b = Backup::new(&s, &mut d)?;
-		b.step(-1)?;
-	}
-	let d = open_reader(dest)?;
-	read::verify(&d)
+	let mut d = Connection::open(dest)?;
+	let b = Backup::new(&s, &mut d)?;
+	b.step(-1)?;
+	Ok(())
 }
 
 /// Replaces `dest` (no store may have it open) with the verified contents of the backup `src`, then verifies.
