@@ -1234,5 +1234,122 @@
    "fixes_in_prompt": [],
    "gen_s": 12.4
   }
+ ],
+ "gear_brand": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "gen_s": 6.6
+  }
+ ],
+ "HR13.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 13.7
+  }
+ ],
+ "HR13.2": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G1",
+    "G5",
+    "G9",
+    "G16"
+   ],
+   "fit": 0.25,
+   "fixes_in_prompt": [],
+   "gen_s": 11.7
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G1",
+    "G5"
+   ],
+   "gen_s": 11.7
+  }
+ ],
+ "HR13.3": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  }
+ ],
+ "HR13.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  }
+ ],
+ "HR14.1": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 11.9
+  }
+ ],
+ "HR14.2": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  }
+ ],
+ "HR14.3": [
+  {
+   "t": 1,
+   "ok": false,
+   "rules": [
+    "G15",
+    "G16"
+   ],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.0
+  },
+  {
+   "t": 2,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [
+    "G15"
+   ],
+   "gen_s": 12.2
+  }
+ ],
+ "HR14.4": [
+  {
+   "t": 1,
+   "ok": true,
+   "rules": [],
+   "fit": 1.0,
+   "fixes_in_prompt": [],
+   "gen_s": 12.2
+  }
  ]
 }

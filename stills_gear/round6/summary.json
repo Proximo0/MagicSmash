@@ -214,5 +214,53 @@
   "status": "accepted",
   "rules": [],
   "missing_gear_guide": "heavy crossbow (no crossbow guide)"
+ },
+ "HR13.1": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "halo of candle flames, open book"
+ },
+ "HR13.2": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "halo of candle flames, open book"
+ },
+ "HR13.3": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "halo of candle flames, open book"
+ },
+ "HR13.4": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "halo of candle flames, open book"
+ },
+ "HR14.1": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "scroll in the off hand"
+ },
+ "HR14.2": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "scroll in the off hand"
+ },
+ "HR14.3": {
+  "body_tries": 2,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "scroll in the off hand"
+ },
+ "HR14.4": {
+  "body_tries": 1,
+  "status": "accepted",
+  "rules": [],
+  "missing_gear_guide": "scroll in the off hand"
  }
 }
