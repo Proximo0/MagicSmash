@@ -1,0 +1,1 @@
+2026-11-22T17:02:55Z INFO id=261122115409-9602 kind=shell secs=3 power set: plan=high-performance cpu=100% mode=best-performance sleep=never hibernate=never disk=never lid=nothing sleepbutton=nothing autostart=yes; NOT set: hibernate-off(admin)
