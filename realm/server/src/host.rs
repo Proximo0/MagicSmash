@@ -178,6 +178,9 @@ pub struct Flush {
     pub banked: bool,
     /// None: she is still in the field.
     pub left: Option<Leave>,
+    /// Section 14 (job R3): her BLOOD MARK and the ticks since her last strike on a hero (`NEVER`), sent when either
+    /// changed and always when she leaves, so her next outing carries them.
+    pub mark: Option<(bool, u32)>,
 }
 
 /// One credited hero of a kill.
@@ -449,6 +452,10 @@ struct Tally {
     urgent: bool,
     gate: bool,
     last_flush: u32,
+    /// Her mark, the tick of her last strike on a hero (`NEVER`), and whether either changed since the last flush.
+    marked: bool,
+    struck: u32,
+    mark_dirty: bool,
 }
 
 impl Tally {
@@ -467,7 +474,9 @@ impl Tally {
             fell: self.fell,
             banked: self.banked || left.is_some(),
             left,
+            mark: (self.mark_dirty || left.is_some()).then(|| (self.marked, if self.struck == realm_core::tables::NEVER { self.struck } else { tick.saturating_sub(self.struck) })),
         };
+        self.mark_dirty = false;
         self.banked = false;
         self.coin = 0;
         self.lost = 0;
@@ -808,7 +817,8 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             }
             if let Some((hero, ticket)) = j.who {
                 let belt_ids = sim.field.players().get(id as usize).map_or([realm_core::tables::P_NONE; 3], |h| h.belt.map(|b| b.0));
-                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: tick });
+                let (marked, struck) = sim.field.players().get(id as usize).map_or((false, realm_core::tables::NEVER), |h| (h.marked, h.last_struck));
+                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
                 if let Some(d) = &j.drive {
                     drivers.insert(id, Driver::new(id, d, tick, vault_row.is_some()));
                 }
@@ -1105,6 +1115,19 @@ fn collect(field: &Field, tallies: &mut HashMap<u16, Tally>, clients: &mut HashM
                     }
                 }
             }
+            // Section 14 (job R3): the mark taken or put down, and her strikes on heroes, go home with her.
+            Event::Mark { hero, .. } => {
+                if let Some(t) = tallies.get_mut(&hero) {
+                    t.marked = field.players().get(hero as usize).is_some_and(|h| h.marked);
+                    t.mark_dirty = true;
+                }
+            }
+            Event::Struck { by, .. } => {
+                if let Some(t) = tallies.get_mut(&by) {
+                    t.struck = tick;
+                    t.mark_dirty = true;
+                }
+            }
             Event::Fallen { hero, coin } => {
                 if let Some(t) = tallies.get_mut(&hero) {
                     t.fell += 1;
@@ -1299,7 +1322,7 @@ mod tests {
         let (hx, hy) = f.terrain().heart;
         let id = f.join(&Sheet::bench(0, 0, 1), &Outing::new(), hx, hy);
         let mut tallies = HashMap::new();
-        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: 0 });
+        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
         let mut counts = HostCounts::default();
         let mut got = Vec::new();
         for _ in 0..20_000 {

@@ -166,6 +166,11 @@ pub fn mods_of(f: &Field, id: usize) -> Mods {
     m.coin_pct = 100 + FORTUNE_COIN_PCT * h.stats[FORTUNE] as u32 + cards.coin_pct;
     m.xp_pct = (100 + cards.xp_pct as i32 + fxs.3).max(0) as u32;
     m.luck = FORTUNE_LUCK * h.stats[FORTUNE] as i32 + fxs.4;
+    // The BLOOD MARK's reward (section 14): coin from kills and luck while she carries it.
+    if h.marked {
+        m.coin_pct += crate::pvp::MARK_COIN_PCT;
+        m.luck += crate::pvp::MARK_LUCK;
+    }
     m.pierce_add = cards.fool;
     m.targets_add = cards.fool;
     m.push_add = cards.push_px;

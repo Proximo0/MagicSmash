@@ -36,3 +36,6 @@ which the store's bundled SQLite needs). A station without it reports `JOB realm
 The fix happens on the machine that failed, where the failure reproduces: start one helper there with the failed
 report as its whole brief (agent type `worker`), let it push a branch, then stop it. One helper at a time.
 `STATION_ON_FAIL` can run a command with the report on stdin; leave it unset unless the owner asks for automatic wake-ups.
+
+Crowd screenshots: once in 20 hours the `frames` job also saves the battle at zoom 16, 4 and 2 and pushes them to
+the results branch as `shots/<machine>-zoom<N>.png` (newest only). `STATION_SHOTS=0` turns it off.

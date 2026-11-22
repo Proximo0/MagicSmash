@@ -13,6 +13,8 @@ mod lists;
 mod log;
 mod modtools;
 mod party;
+/// Players against players (job R3): altar wars, duels, the mark's book.
+pub mod pvp;
 pub mod wire;
 /// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
 pub mod gate;
@@ -172,6 +174,22 @@ pub(crate) struct Inner {
     pub recent: VecDeque<ChatLine>,
     pub log: Option<log::LogFile>,
     pub replaying: bool,
+    /// Job R3: declared wars, duel challenges ((challenged, challenger) -> expires), running duels, the mark's book
+    /// (hero -> (marked, last strike on a hero in ms, `i64::MIN` none)).
+    pub wars: BTreeMap<u64, pvp::WarRec>,
+    pub next_war: u64,
+    pub duel_offers: HashMap<(i64, i64), i64>,
+    pub duels: BTreeMap<u64, pvp::DuelRun>,
+    pub in_duel: HashMap<i64, u64>,
+    pub next_duel: u64,
+    /// A duellist's last town direction (read when her yard steps).
+    pub duel_inputs: HashMap<i64, u16>,
+    /// Running duels at most (0: `pvp::DUELS_MAX`).
+    pub duel_cap: usize,
+    /// Each account's recent war declarations, declines and duel challenges (ms), for the burst limit.
+    pub pvp_acts: HashMap<i64, VecDeque<i64>>,
+    /// hero -> (marked, ticks of the ten-minute wait left; it runs down only in a field).
+    pub marks: HashMap<i64, (bool, u32)>,
 }
 
 pub struct Social {
@@ -185,7 +203,7 @@ impl Default for Social {
     fn default() -> Social {
         use std::hash::{BuildHasher, Hasher};
         let boot = std::collections::hash_map::RandomState::new().build_hasher().finish();
-        let inner = Inner { next_party: 1, next_guild: 1, next_post: 1, ..Inner::default() };
+        let inner = Inner { next_party: 1, next_guild: 1, next_post: 1, next_war: 1, next_duel: 1, ..Inner::default() };
         Social { inner: Mutex::new(inner), filter: RwLock::new(default_filter(filter::DEFAULT_WORDS.iter().map(|s| s.to_string()).collect())), boot, n: AtomicU64::new(1) }
     }
 }
@@ -349,6 +367,7 @@ impl Inner {
                     r.done = Some(s(1));
                 }
             }
+            "wdecl" | "wacc" | "woff" | "wend" | "mark" => self.apply_pvp(kind, f),
             "admin" => {
                 self.admin_log.push_back((n(0), s(1), s(2)));
                 while self.admin_log.len() > ADMIN_LOG_KEEP {
@@ -537,7 +556,11 @@ impl Social {
             | SReq::FriendRemove { hero, .. }
             | SReq::Ignore { hero, .. }
             | SReq::Lists { hero }
-            | SReq::Report { hero, .. } => *hero,
+            | SReq::Report { hero, .. }
+            | SReq::WarDeclare { hero, .. }
+            | SReq::WarAnswer { hero, .. }
+            | SReq::WarList { hero }
+            | SReq::Duel { hero, .. } => *hero,
         };
         let me = self.me(s, account, hero)?;
         let now = now_ms();
@@ -570,6 +593,10 @@ impl Social {
             SReq::Ignore { name, on, .. } => self.ignore(gw, &me, &name, on),
             SReq::Lists { .. } => self.lists(&me, now),
             SReq::Report { name, reason, text, .. } => self.report(gw, &me, &name, reason, &text, now),
+            SReq::WarDeclare { foe, field, .. } => self.war_declare(gw, &me, &foe, field),
+            SReq::WarAnswer { war, accept, .. } => self.war_answer(gw, &me, war, accept),
+            SReq::WarList { .. } => self.war_list(gw, &me),
+            SReq::Duel { op, name, .. } => self.duel(gw, &me, op, &name, now),
         }
     }
 

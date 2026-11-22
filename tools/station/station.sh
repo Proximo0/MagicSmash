@@ -115,8 +115,16 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   sleep 5
   kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
   out=$(timeout "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
-  kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
   line=$(grep '^CLIENT_FRAMES ' <<<"$out" | tail -1)
+  # Pictures for Curtis, at most once in 20 hours a machine: the same battle at zoom 16 (already saved), 4 and 2,
+  # pushed to the results branch as shots/<machine>-zoom<N>.png (overwritten, so the branch holds only the newest).
+  local stamp="${TMPDIR:-/tmp}/station-shots-stamp-$MACHINE"
+  if [ "$push" = 1 ] && [ "${STATION_SHOTS:-1}" = 1 ] && [[ "$line" == "CLIENT_FRAMES ok"* ]] && [ -z "$(find "$stamp" -mmin -1200 2>/dev/null)" ]; then
+    timeout 120 "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots_near" --secs=3 --zooms=4,2 --mute >/dev/null 2>&1 || true
+    cp "$dir"/shots_near/zoom*.png "$dir/shots/" 2>/dev/null
+    publish_shots "$dir/shots" && touch "$stamp"
+  fi
+  kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
   rm -rf "$dir"
   [ -n "$line" ] || { echo "JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died)"; return 1; }
   [[ "$line" == "CLIENT_FRAMES ok"* ]] || { echo "JOB frames FAIL ${line#CLIENT_FRAMES }"; return 1; }
@@ -292,6 +300,23 @@ publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to t
     sleep 5
   done
   echo "station: could not push the report" >&2; return 1
+}
+
+publish_shots() {  # $1 = a folder of zoom<N>.png: adds them to the results branch as shots/<machine>-zoom<N>.png in one commit
+  local parent tree commit idx f blob n=0
+  git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
+  parent=$(git rev-parse -q --verify "refs/remotes/origin/$BRANCH" || true)
+  idx=$(mktemp -u)
+  [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
+  for f in "$1"/zoom*.png; do
+    [ -s "$f" ] || continue
+    blob=$(git hash-object -w "$f")
+    GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo 100644 "$blob" "shots/$MACHINE-$(basename "$f")"; n=$((n+1))
+  done
+  [ "$n" -gt 0 ] || { rm -f "$idx"; return 1; }
+  tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
+  commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $n crowd screenshots")
+  GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null
 }
 
 publish_append() {  # $1 = one line, $2 = file: append it to the file on the results branch (a history, not an overwrite)

@@ -543,7 +543,7 @@ impl Gateway {
         };
         let Some((id, field, copy, port)) = dest else {
             // Nowhere to go: she is banked as if the host had stopped.
-            self.apply(Flush { hero, ticket, seq: seq + 1, coin: transfer.outing.coin as u64, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Shutdown) });
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: transfer.outing.coin as u64, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Shutdown), mark: None });
             self.world.count(|s| s.moved_banked += 1);
             return;
         };
@@ -849,7 +849,7 @@ mod tests {
         };
         let host = gw.tickets.lock().unwrap()[&ticket].host;
         // She banked 120 coin and her host died: the flush is still queued when the gateway gives the host up.
-        let f = Flush { hero: hero as u64, ticket, seq: 1, coin: 120, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None };
+        let f = Flush { hero: hero as u64, ticket, seq: 1, coin: 120, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None, mark: None };
         gw.msgs.send(HostMsg::Flush(f)).unwrap();
         gw.host_lost(host);
         let told = c.wait_push(Duration::from_secs(10), |r| match r {

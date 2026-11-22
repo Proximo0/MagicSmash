@@ -264,6 +264,8 @@ impl Gateway {
                 while !g.stop.load(Ordering::Relaxed) {
                     std::thread::sleep(Duration::from_millis(1000 / crate::town::STEP_HZ as u64));
                     g.towns.step();
+                    // Job R3: duels in the training yard step with the town.
+                    g.social.run_duels();
                 }
             })
             .expect("thread");
@@ -424,8 +426,9 @@ impl Gateway {
                 Ok(Resp::Ok)
             }
             Req::TownInput { dir } => {
-                if let Some((room, me, _)) = s.town {
+                if let Some((room, me, hero)) = s.town {
                     self.towns.input(room, me, dir);
+                    self.social.duel_input(hero, dir);
                 }
                 Ok(Resp::Ok)
             }
@@ -651,6 +654,8 @@ impl Gateway {
     pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64)> {
         let h = self.store.hero(hero).ok().flatten()?;
         let mut outing = Outing::new();
+        // Job R3: her BLOOD MARK and its ten-minute wait come with her from the last outing.
+        self.social.outing_mark(hero, &mut outing);
         let way = h.progress.waystones.get(field as usize).copied().unwrap_or(-1);
         outing.waystone = if way >= 0 { way as u8 } else { NO_WAYSTONE };
         let ticket = loop {
@@ -861,6 +866,10 @@ impl Gateway {
     /// flush's number: a flush sent twice (or retried after a database error) is applied once.
     pub(crate) fn apply(&self, f: Flush) {
         let hero = f.hero as i64;
+        // Job R3: her mark and its wait, for her next outing.
+        if let Some((marked, struck_ago)) = f.mark {
+            self.social.note_mark(hero, marked, struck_ago);
+        }
         let info = self.tickets.lock().unwrap().get(&f.ticket).map(|t| (t.account, t.field));
         let Some((_account, field)) = info else { return };
         let mut done: Option<(u64, u64, u16, u32)> = None;
@@ -1047,7 +1056,7 @@ impl Gateway {
         let moved = self.tickets.lock().unwrap().get(&ticket).and_then(|t| t.moved);
         if let Some((seq, coin)) = moved {
             let lost = coin / 2;
-            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect) });
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect), mark: None });
             self.world.count(|s| s.moved_lost += 1);
             return;
         }
