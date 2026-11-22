@@ -628,6 +628,14 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             }
         }
         for hero in kicks {
+            // Admitted and kicked in the same batch of orders (a starved host): she never joins.
+            joins.retain(|j| match j.who {
+                Some((h, ticket)) if h == hero => {
+                    send_msg(HostMsg::Unused { hero, ticket });
+                    false
+                }
+                _ => true,
+            });
             if let Some((&id, _)) = tallies.iter().find(|(_, t)| t.hero == hero) {
                 leaves.push(id);
                 drivers.remove(&id);

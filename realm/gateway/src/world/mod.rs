@@ -719,8 +719,8 @@ impl Gateway {
             };
             let Some(host_id) = choose(&self.copy_loads(w.field), &self.world.cfg.copies, 1) else { continue };
             if let Some((port, copy, ticket)) = self.issue(w.account, w.hero, w.field, w.conn, &w.out, host_id, sheet, w.drive) {
-                let _ = w.out.send(resp_frame(0, &Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field: w.field, copy }));
                 self.world.count(|s| s.admitted_from_queue += 1);
+                let _ = w.out.send(resp_frame(0, &Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field: w.field, copy }));
             }
         }
         let mut st = self.world.state.lock().unwrap();

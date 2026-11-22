@@ -79,6 +79,8 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
     let (mut joined_at, mut banked_at, mut last_pos, mut still, mut wiggle) = (0u32, None::<u32>, (0, 0), 0u32, 0u32);
     let mut round = 0u64;
     let mut held_since: Option<u32> = None;
+    // A host that stops sending ticks (gone without a word) ends the outing instead of hanging here.
+    let (mut seen_tick, mut seen_at) = (u32::MAX, Instant::now());
     let result = loop {
         let now = Instant::now();
         if now < next {
@@ -95,8 +97,17 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         }
         c.apply();
         let mut word = 0u16;
+        let mut go: Option<u16> = None;
         if let (Some(f), Some(id)) = (c.field(), c.hero()) {
             let tick = f.tick();
+            if tick != seen_tick {
+                (seen_tick, seen_at) = (tick, Instant::now());
+            } else if gw.pushes.iter().any(|r| matches!(r, Resp::Outing { left, .. } if *left != 255)) {
+                // The gateway ended her outing (the host dropped her, or her copy died): what she has is told below.
+                break Ok(());
+            } else if seen_at.elapsed() > STALL && !gw.pushes.iter().any(|r| moved_port(r, ticket).is_some()) {
+                break Err(format!("the field stopped at tick {tick} (moves {moves}, joined {}, port {}, {:?})", out.joined, sock.peer_addr().map_or(0, |a| a.port()), c.stats));
+            }
             if !out.joined && c.hero_player().is_some() {
                 out.joined = true;
                 joined_at = tick;
@@ -156,16 +167,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
                     // She is gone from the field: through the gate or a waystone, or her copy is closing and she
                     // is moved to another (the gateway says where: HELLO there with the same ticket).
                     match wait_moved(gw, ticket)? {
-                        Some(p) => {
-                            let _ = sock.send(&[MSG_BYE]);
-                            sock = open(p)?;
-                            c = LockstepClient::with_ticket(ticket, 1);
-                            out.joined = false;
-                            bot = None;
-                            moves += 1;
-                            round = 0;
-                            continue;
-                        }
+                        Some(p) => go = Some(p),
                         None => break Ok(()),
                     }
                 }
@@ -186,6 +188,23 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
             break Err("never joined the field".to_string());
         }
         let _ = gw.poll(Duration::from_millis(0));
+        // The Moved push can come before the last ticks of the old copy do (or instead of them, when it closes at
+        // once): she is out of it either way.
+        if go.is_none() {
+            if let Some(i) = gw.pushes.iter().position(|r| moved_port(r, ticket).is_some()) {
+                go = gw.pushes.remove(i).and_then(|r| moved_port(&r, ticket));
+            }
+        }
+        if let Some(p) = go {
+            let _ = sock.send(&[MSG_BYE]);
+            sock = open(p)?;
+            c = LockstepClient::with_ticket(ticket, 1);
+            seen_at = Instant::now();
+            out.joined = false;
+            bot = None;
+            moves += 1;
+            round = 0;
+        }
     };
     let abrupt = opts.drop_after_bank && out.joined;
     if !abrupt {
@@ -232,12 +251,18 @@ fn hold(bot: &mut Option<Bot>, f: &Field) -> u16 {
 
 /// A `Moved` push for this ticket, waiting a little for it: the new copy's port.
 fn wait_moved(gw: &mut GatewayClient, ticket: u64) -> Result<Option<u16>, String> {
-    gw.wait_push(Duration::from_millis(1_500), |r| match r {
+    gw.wait_push(Duration::from_millis(1_500), |r| moved_port(r, ticket)).map_err(|e| e.to_string())
+}
+
+fn moved_port(r: &Resp, ticket: u64) -> Option<u16> {
+    match r {
         Resp::WorldPush(crate::world::wire::WResp::Moved { ticket: t, port, .. }) if *t == ticket => Some(*port),
         _ => None,
-    })
-    .map_err(|e| e.to_string())
+    }
 }
+
+/// How long a field may go without a tick before the bot gives up on it.
+const STALL: Duration = Duration::from_secs(15);
 
 fn age_over(tick: u32, joined_at: u32, joined: bool, max: u32) -> bool {
     joined && tick - joined_at > max

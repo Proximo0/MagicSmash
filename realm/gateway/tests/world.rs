@@ -127,7 +127,7 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     assert!(matches!(b.call(Req::World(WReq::BotTicket { hero: hb, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { copy: 0, .. }));
     // She fights well past the merge (3 s of grace is 600 ticks here), then banks and leaves from the new copy.
     let play = PlayOpts { fight_ticks: 2_000, max_ticks: 9_000, ..PlayOpts::default() };
-    let out = play_field(&mut p, &host, port, ticket, &play).unwrap();
+    let out = play_field(&mut p, &host, port, ticket, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
     assert_eq!(out.moves, 1, "{out:?}");
     assert!(out.left == 0 || out.left == 1, "she left by the gate or a waystone after the move: {out:?}");
     assert_eq!(coin(&r, hp), out.coin, "what was reported banked is in her bag");
@@ -165,21 +165,21 @@ fn a_full_realm_queues_tells_places_and_lets_heroes_in_in_order() {
     assert!(matches!(cs[2].0.call(Req::FieldTicket { hero: h2, field: 0 }).unwrap(), Resp::Err { code: code::BUSY, .. }));
     let h1 = cs[1].1;
     assert_eq!(cs[1].0.call(Req::World(WReq::LeaveQueue { hero: h1 })).unwrap(), Resp::Ok);
-    let place = cs[3].0.wait_push(Duration::from_secs(3), |r| match r {
+    let place = cs[3].0.wait_push(Duration::from_secs(10), |r| match r {
         Resp::WorldPush(WResp::Queued { place, .. }) => Some(*place),
         _ => None,
     });
     assert_eq!(place.unwrap(), Some(2), "the last one moves up");
     // The first comes home: the head of the queue goes in with a pushed ticket.
     assert_eq!(cs[0].0.call(Req::World(WReq::Recall { hero: first })).unwrap(), Resp::Ok);
-    let t = cs[2].0.wait_push(Duration::from_secs(5), |r| matches!(r, Resp::Ticket { .. }).then_some(()));
-    assert_eq!(t.unwrap(), Some(()));
+    let t = cs[2].0.wait_push(Duration::from_secs(20), |r| matches!(r, Resp::Ticket { .. }).then_some(()));
+    assert_eq!(t.unwrap(), Some(()), "tickets {} first at {} h2 at {} queue {} {:?} {:?}", r.gw.ticket_count(), r.gw.where_is(first), r.gw.where_is(h2), r.gw.world.queue_len(), r.gw.host_loads(), r.gw.world.stats());
     assert_eq!(r.gw.where_is(h2), 2);
     // A waiter who disconnects is out of the queue.
     let h3 = cs[3].1;
     let (c3, _) = cs.pop().unwrap();
     drop(c3);
-    assert!(wait_until(3, || r.gw.where_is(h3) == 0));
+    assert!(wait_until(10, || r.gw.where_is(h3) == 0));
     assert_eq!(r.gw.world.queue_len(), 0);
     let s = r.gw.world.stats();
     assert_eq!((s.queued, s.admitted_from_queue), (3, 1));

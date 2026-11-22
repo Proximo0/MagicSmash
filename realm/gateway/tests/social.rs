@@ -40,7 +40,7 @@ fn world(name: &str, copies: usize) -> World {
     let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
     gw.social.persist(std::path::Path::new(&format!("{}.social", db.display()))).unwrap();
     for c in 0..copies {
-        let sim = SimOpts { field: 0, seed: 3 + c as u64, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0 };
+        let sim = SimOpts { field: 0, seed: 3 + c as u64, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
         gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
     }
     let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
