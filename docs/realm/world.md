@@ -143,8 +143,10 @@ Changing either is a rules decision (open question 1).
 
 `a_compressed_week_of_bot_play_loses_and_doubles_nothing` (`gateway/tests/world.rs`, `run_week`): six fields and
 vaults, 32 bots through the gateway's TCP wire (log in, make a hero, town, queue, a host-played outing or a vault
-by key and code, bank the coin, log out, a pause longer in the realm's night), the realm clock at a week in 30 s,
-field hosts at 250 Hz and vaults at 4 kHz, copy rules scaled (cap 8, open 6, merge under 4, three copies, grace
+by key and code, bank the coin, log out, a pause longer in the realm's night), the realm clock at a week in 30 s
+but never more than 4.5 realm minutes ahead of the slowest field copy (`CLOCK_LEAD`, under a tide's length: every
+copy steps inside every tide, field boss and world boss window however loaded the box, so their counts follow the
+clock, not the box; an idle box keeps the 30 s), field hosts at 250 Hz and vaults at 4 kHz, copy rules scaled (cap 8, open 6, merge under 4, three copies, grace
 0.5 s), realm cap 24, and the busiest field copy killed halfway. A watcher samples every 20 ms that no hero is in
 two hosts. At the end: every hero is nowhere and no ticket is left; each hero's coin in the store (bag and bank)
 equals the coin the gateway reported banked for her outings, the killed host included; nobody's coin went down

@@ -70,6 +70,11 @@ fn level_up(r: &Realm, h: i64, level: u16) {
     r.store.apply_outing(Meta::system(0x1E7E1 << 64 | h as u128, 1), h, d).unwrap();
 }
 
+/// What the waits below allow before calling it a stall. Each waits on something the hosts do in their own ticks
+/// (a vault nobody entered closes after `VAULT_EMPTY_TICKS`, a closed copy's thread ends), which a loaded box runs
+/// at a fraction of their pace: the bound is a hang guard, not a pace, and a passing wait returns at once.
+const STALL_SECS: u64 = 120;
+
 fn wait_until(secs: u64, mut ok: impl FnMut() -> bool) -> bool {
     let end = Instant::now() + Duration::from_secs(secs);
     while Instant::now() < end {
@@ -135,10 +140,10 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     assert_eq!(coin(&r, hp), out.coin, "what was reported banked is in her bag");
     let s = r.gw.world.stats();
     assert!(s.merges >= 1 && s.moved >= 1, "{s:?}");
-    assert!(wait_until(5, || r.gw.host_loads().len() == 1), "the closed copy is gone: {:?}", r.gw.host_loads());
+    assert!(wait_until(STALL_SECS, || r.gw.host_loads().len() == 1), "the closed copy is gone: {:?}", r.gw.host_loads());
     let _ = a.call(Req::World(WReq::Recall { hero: ha }));
     let _ = b.call(Req::World(WReq::Recall { hero: hb }));
-    assert!(wait_until(5, || r.gw.ticket_count() == 0));
+    assert!(wait_until(STALL_SECS, || r.gw.ticket_count() == 0));
 }
 
 #[test]
@@ -167,21 +172,21 @@ fn a_full_realm_queues_tells_places_and_lets_heroes_in_in_order() {
     assert!(matches!(cs[2].0.call(Req::FieldTicket { hero: h2, field: 0 }).unwrap(), Resp::Err { code: code::BUSY, .. }));
     let h1 = cs[1].1;
     assert_eq!(cs[1].0.call(Req::World(WReq::LeaveQueue { hero: h1 })).unwrap(), Resp::Ok);
-    let place = cs[3].0.wait_push(Duration::from_secs(10), |r| match r {
+    let place = cs[3].0.wait_push(Duration::from_secs(STALL_SECS), |r| match r {
         Resp::WorldPush(WResp::Queued { place, .. }) => Some(*place),
         _ => None,
     });
     assert_eq!(place.unwrap(), Some(2), "the last one moves up");
     // The first comes home: the head of the queue goes in with a pushed ticket.
     assert_eq!(cs[0].0.call(Req::World(WReq::Recall { hero: first })).unwrap(), Resp::Ok);
-    let t = cs[2].0.wait_push(Duration::from_secs(20), |r| matches!(r, Resp::Ticket { .. }).then_some(()));
+    let t = cs[2].0.wait_push(Duration::from_secs(STALL_SECS), |r| matches!(r, Resp::Ticket { .. }).then_some(()));
     assert_eq!(t.unwrap(), Some(()), "tickets {} first at {} h2 at {} queue {} {:?} {:?}", r.gw.ticket_count(), r.gw.where_is(first), r.gw.where_is(h2), r.gw.world.queue_len(), r.gw.host_loads(), r.gw.world.stats());
     assert_eq!(r.gw.where_is(h2), 2);
     // A waiter who disconnects is out of the queue.
     let h3 = cs[3].1;
     let (c3, _) = cs.pop().unwrap();
     drop(c3);
-    assert!(wait_until(10, || r.gw.where_is(h3) == 0));
+    assert!(wait_until(STALL_SECS, || r.gw.where_is(h3) == 0));
     assert_eq!(r.gw.world.queue_len(), 0);
     let s = r.gw.world.stats();
     assert_eq!((s.queued, s.admitted_from_queue), (3, 1));
@@ -207,22 +212,24 @@ fn vaults_take_a_key_a_party_by_code_and_close_cleanly() {
     }
     let keys = |r: &Realm| r.store.stacks(Owner::bag(hl)).unwrap().iter().find(|s| s.0 == key).map_or(0, |s| s.1);
     assert_eq!(keys(&r), 0);
-    assert!(wait_until(10, || r.gw.world.stats().keys_refunded == 1), "{:?}", r.gw.world.stats());
+    assert!(wait_until(STALL_SECS, || r.gw.world.stats().keys_refunded == 1), "{:?}", r.gw.world.stats());
     assert_eq!(keys(&r), 1);
     assert_eq!(r.gw.where_is(hl), 0, "she is free again");
-    let unused = lead.wait_push(Duration::from_secs(2), |p| match p {
+    let unused = lead.wait_push(Duration::from_secs(STALL_SECS), |p| match p {
         Resp::Outing { left, .. } => Some(*left),
         _ => None,
     });
     assert_eq!(unused.unwrap(), Some(realm_gateway::gateway::LEFT_UNUSED), "her client is told the ticket went unused");
     // A party: the leader (played by the host) and a friend by the code; a stranger with a wrong code is refused.
+    // The friend is made first: the leader's run starts as the vault opens and can end in a few hundred of its
+    // ticks (a second at this pace), so nothing slow (a login, the store's writes) stands between the two.
+    let mut fr = login(&r, "friend");
+    let hf = hero(&mut fr, "Friend", 2);
+    level_up(&r, hf, 20);
     let code = match lead.call(Req::World(WReq::VaultOpen { hero: hl, vault: 0, seals: 0, drive_ticks: 1 })).unwrap() {
         Resp::World(WResp::Vault { code, .. }) => code,
         r => panic!("{r:?}"),
     };
-    let mut fr = login(&r, "friend");
-    let hf = hero(&mut fr, "Friend", 2);
-    level_up(&r, hf, 20);
     assert!(matches!(fr.call(Req::World(WReq::VaultJoin { hero: hf, code: code ^ 2, drive_ticks: 1 })).unwrap(), Resp::Err { code: code::MISSING, .. }));
     match fr.call(Req::World(WReq::VaultJoin { hero: hf, code, drive_ticks: 1 })).unwrap() {
         Resp::World(WResp::Vault { .. }) => {}
@@ -230,13 +237,13 @@ fn vaults_take_a_key_a_party_by_code_and_close_cleanly() {
     }
     // The run ends (won or lost) and the vault banks them and closes: both pushed `left` 5.
     for (c, h) in [(&mut lead, hl), (&mut fr, hf)] {
-        let left = c.wait_push(Duration::from_secs(120), |p| match p {
+        let left = c.wait_push(Duration::from_secs(STALL_SECS), |p| match p {
             Resp::Outing { hero, left, .. } if *hero == h && *left != 255 => Some(*left),
             _ => None,
         });
         assert_eq!(left.unwrap(), Some(5), "hero {h} left when her vault closed");
     }
-    assert!(wait_until(5, || r.gw.world.stats().vaults_closed == 2));
+    assert!(wait_until(STALL_SECS, || r.gw.world.stats().vaults_closed == 2));
     assert_eq!(r.gw.ticket_count(), 0);
     assert_eq!(r.gw.world.stats().keys_spent, 2);
     let v = r.store.verify().unwrap();
@@ -322,7 +329,7 @@ fn heroes_play_their_own_class_level_job_and_gear() {
         sock.set_nonblocking(true).unwrap();
         let mut lc = LockstepClient::with_ticket(ticket, 1);
         let mut buf = [0u8; 2048];
-        let end = Instant::now() + Duration::from_secs(20);
+        let end = Instant::now() + Duration::from_secs(STALL_SECS);
         let mut seen = None;
         while Instant::now() < end && seen.is_none() {
             if !lc.welcomed() {
