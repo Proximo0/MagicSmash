@@ -2,7 +2,11 @@
 //!
 //! A tick record (this job's packing): `u16 n joins, [u16 id, sheet, outing, i32 x, i32 y]` (`wire.rs`),
 //! `u16 n leaves, [u16 id]`, `u16 n changes, [varint slot gap, u16 input]` (inputs persist until changed),
-//! `u8 has hash, [u64 hash after the tick]` (every 20 ticks).
+//! `u8 flags`: bit 0 `u64 hash after the tick` (every 20 ticks), bit 1 `u64 realm clock`, bit 2 the PvP block
+//! (job R3b): `u16 n`, then n tagged entries from the PvP span of `gateway/src/proto/ranges.rs`:
+//! `0x74 GUILD u16 id, u64 guild` (the guild of this record's join `id`, never 0) and
+//! `0x75 WAR u64 war, u64 guild a, u64 guild b, u32 tide` (`Field::declare_war`). A record with neither has no
+//! block, so a field without guilds or wars sends the same bytes as before.
 //!
 //! Datagram `0x90, u8 n records`, then records `u32 tick, u8 frag, u8 frags, u16 len, bytes`; a record too
 //! big for one datagram goes in fragments. The server repeats every tick after the client's
@@ -37,13 +41,29 @@ pub struct Join {
     pub outing: Outing,
     pub x: i32,
     pub y: i32,
+    /// Her guild (0: none), tagged with `Field::set_guild` as she joins (a GUILD entry of the PvP block).
+    pub guild: u64,
 }
 
 impl Join {
     /// A bench hero (bots, the crowd test's HELLO class and race): see `Sheet::bench`.
     pub fn bench(id: u16, class: u8, race: u8, level: u8, x: i32, y: i32) -> Join {
-        Join { id, sheet: Sheet::bench(class, race, level), outing: Outing::new(), x, y }
+        Join { id, sheet: Sheet::bench(class, race, level), outing: Outing::new(), x, y, guild: 0 }
     }
+}
+
+/// The PvP block's entry tags: the PvP span reserved in `gateway/src/proto/ranges.rs` (requests 0x74..0x77).
+pub const REC_GUILD: u8 = 0x74;
+pub const REC_WAR: u8 = 0x75;
+
+/// A war the gateway arms on a field copy (`Field::declare_war`): every copy of the field and every follower apply
+/// it at the same tick, so their hashes stay equal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WarArm {
+    pub id: u64,
+    pub a: u64,
+    pub b: u64,
+    pub tide: u32,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -56,6 +76,8 @@ pub struct TickRec {
     /// The realm clock to set before the step (the step then adds one): the server's copy follows the realm's one
     /// clock this way, and every follower with it. None: the field's own clock runs on.
     pub clock: Option<u64>,
+    /// Wars armed before the step, after the joins (WAR entries of the PvP block).
+    pub wars: Vec<WarArm>,
 }
 
 impl TickRec {
@@ -79,13 +101,32 @@ impl TickRec {
             prev = slot as u32;
             put_u16(w, inp);
         }
-        // Flags: bit 0 a hash follows, bit 1 a clock follows.
-        w.push(self.hash.is_some() as u8 | (self.clock.is_some() as u8) << 1);
+        // Flags: bit 0 a hash follows, bit 1 a clock follows, bit 2 the PvP block follows.
+        let guilds = self.joins.iter().filter(|j| j.guild != 0).count();
+        // `Sim::tick` keeps guilded joins and wars within a u16 together; a record past it is a bug, never sent cut.
+        let pvp = guilds + self.wars.len();
+        assert!(pvp <= u16::MAX as usize, "a PvP block of {pvp} entries");
+        w.push(self.hash.is_some() as u8 | (self.clock.is_some() as u8) << 1 | ((pvp > 0) as u8) << 2);
         if let Some(h) = self.hash {
             put_u64(w, h);
         }
         if let Some(c) = self.clock {
             put_u64(w, c);
+        }
+        if pvp > 0 {
+            put_u16(w, pvp as u16);
+            for j in self.joins.iter().filter(|j| j.guild != 0) {
+                w.push(REC_GUILD);
+                put_u16(w, j.id);
+                put_u64(w, j.guild);
+            }
+            for a in &self.wars {
+                w.push(REC_WAR);
+                put_u64(w, a.id);
+                put_u64(w, a.a);
+                put_u64(w, a.b);
+                put_u32(w, a.tide);
+            }
         }
     }
 
@@ -93,7 +134,7 @@ impl TickRec {
         let mut r = Rd::new(b);
         let mut t = TickRec { tick, ..TickRec::default() };
         for _ in 0..r.u16()? {
-            t.joins.push(Join { id: r.u16()?, sheet: read_sheet(&mut r)?, outing: read_outing(&mut r)?, x: r.i32()?, y: r.i32()? });
+            t.joins.push(Join { id: r.u16()?, sheet: read_sheet(&mut r)?, outing: read_outing(&mut r)?, x: r.i32()?, y: r.i32()?, guild: 0 });
         }
         for _ in 0..r.u16()? {
             t.leaves.push(r.u16()?);
@@ -104,7 +145,7 @@ impl TickRec {
             t.changes.push((u16::try_from(prev).ok()?, r.u16()?));
         }
         let flags = r.u8()?;
-        if flags & !3 != 0 {
+        if flags & !7 != 0 {
             return None;
         }
         if flags & 1 != 0 {
@@ -112,6 +153,27 @@ impl TickRec {
         }
         if flags & 2 != 0 {
             t.clock = Some(r.u64()?);
+        }
+        if flags & 4 != 0 {
+            let n = r.u16()?;
+            if n == 0 {
+                return None;
+            }
+            for _ in 0..n {
+                match r.u8()? {
+                    REC_GUILD => {
+                        let (id, guild) = (r.u16()?, r.u64()?);
+                        // The guild of a join of this record, once, and never 0 (0 is written as no entry).
+                        let j = t.joins.iter_mut().find(|j| j.id == id && j.guild == 0)?;
+                        if guild == 0 {
+                            return None;
+                        }
+                        j.guild = guild;
+                    }
+                    REC_WAR => t.wars.push(WarArm { id: r.u64()?, a: r.u64()?, b: r.u64()?, tide: r.u32()? }),
+                    _ => return None,
+                }
+            }
         }
         (r.left() == 0).then_some(t)
     }
@@ -124,7 +186,8 @@ pub struct Lockstep {
 }
 
 impl Lockstep {
-    /// Leaves, then joins (ids must come out as recorded), then input changes, the clock, then the step.
+    /// Leaves, then joins (ids must come out as recorded) with their guilds, then wars, input changes, the clock,
+    /// then the step.
     /// Returns false if a join got a different id (a desync).
     pub fn apply(&mut self, f: &mut Field, rec: &TickRec, mark: impl FnMut(Phase)) -> bool {
         let mut ok = true;
@@ -137,10 +200,17 @@ impl Lockstep {
         for j in &rec.joins {
             let id = f.join(&j.sheet, &j.outing, j.x, j.y);
             ok &= id == j.id;
+            if j.guild != 0 {
+                f.set_guild(id, j.guild);
+            }
             if self.inputs.len() <= id as usize {
                 self.inputs.resize(id as usize + 1, 0);
             }
             self.inputs[id as usize] = 0;
+        }
+        for a in &rec.wars {
+            // Refused (`false`) the same way on every copy and follower: the state stays equal either way.
+            f.declare_war(a.id, a.a, a.b, a.tide);
         }
         for &(slot, inp) in &rec.changes {
             if self.inputs.len() <= slot as usize {

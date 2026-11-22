@@ -44,7 +44,9 @@ pub const ECONOMY: Row = Row { module: "economy", job: "E1", req: Span(0x33, 0x3
 pub const SOCIAL: Row = Row { module: "social", job: "T1", req: Span(0x40, 0x5F), reply: Span(0x90, 0x90), push: Span(0xB0, 0xB0) };
 pub const WORLD: Row = Row { module: "world", job: "W2", req: Span(0x60, 0x6F), reply: Span(0x91, 0x91), push: Span(0xB1, 0xB1) };
 pub const HOMES: Row = Row { module: "homes", job: "H1", req: Span(0x70, 0x73), reply: Span(0x8C, 0x8C), push: Span(0xA9, 0xA9) };
-/// Reserved: players against players, duels and guild wars (job R3).
+/// Reserved: players against players, duels and guild wars (job R3). Taken (job R3b): 0x74 and 0x75 tag the GUILD
+/// and WAR entries of a lockstep tick record's PvP block (`realm_server::lockstep::REC_GUILD`, `REC_WAR`), so no
+/// gateway request may use them. Free: requests 0x76..=0x77, reply 0x8D, push 0xAA.
 pub const PVP: Row = Row { module: "pvp", job: "R3", req: Span(0x74, 0x77), reply: Span(0x8D, 0x8D), push: Span(0xAA, 0xAA) };
 /// Reserved: Steam login, friends and overlay (job P1).
 pub const STEAM: Row = Row { module: "steam", job: "P1", req: Span(0x78, 0x7B), reply: Span(0x8E, 0x8E), push: Span(0xAB, 0xAB) };
@@ -104,6 +106,8 @@ mod tests {
         assert!(WORLD.req.has(w::T_WORLD) && WORLD.reply.has(w::R_WORLD) && WORLD.push.has(w::P_WORLD));
         use crate::homes as h;
         assert!(HOMES.req.has(h::T_HOME) && HOMES.reply.has(h::R_HOME) && HOMES.push.has(h::P_HOME));
+        use realm_server::lockstep as ls;
+        assert!(PVP.req.has(ls::REC_GUILD) && PVP.req.has(ls::REC_WAR) && ls::REC_GUILD != ls::REC_WAR, "the PvP block's tags are PvP's");
     }
 
     /// Every registered module has a row, and every message it encodes (its examples) carries a tag of its own.

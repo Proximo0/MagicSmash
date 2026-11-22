@@ -1,8 +1,8 @@
 //! Seeded fuzz of the server's network decoders (`WIRE_FUZZ_ITERS`, default 20000; `WIRE_FUZZ_SEED`): HELLO and
-//! INPUT, tick records, the `0x92` head, the tick datagram assembler, snapshots, and a join state. Each must refuse or
+//! INPUT, tick records (with their PvP block of GUILD and WAR entries, job R3b), the `0x92` head, the tick datagram assembler, snapshots, and a join state. Each must refuse or
 //! decode, never panic and never allocate much more than the bytes it was given; valid messages must round trip.
 
-use crate::lockstep::{pack_reserving, put_seq_head, state_parts, take_seq_head, Assembler, Join, Lockstep, TickRec};
+use crate::lockstep::{pack_reserving, put_seq_head, state_parts, take_seq_head, Assembler, Join, Lockstep, TickRec, WarArm};
 use crate::probe::{biggest, iters, mutate, reset, seed, Rng};
 use crate::snap::{decode, encode_v0, encode_v1};
 use crate::view::{MRec, PRec, View};
@@ -62,6 +62,15 @@ fn rec(rng: &mut Rng, tick: u32) -> TickRec {
     }
     t.hash = (rng.below(2) == 1).then(|| rng.next());
     t.clock = (rng.below(2) == 1).then(|| rng.next());
+    // Job R3b: the PvP block, a GUILD entry for some joins and a few WAR entries.
+    for j in t.joins.iter_mut() {
+        if rng.below(2) == 1 {
+            j.guild = 1 + (rng.next() >> 1);
+        }
+    }
+    for _ in 0..rng.below(3) {
+        t.wars.push(WarArm { id: rng.next(), a: rng.next(), b: rng.next(), tide: rng.next() as u32 });
+    }
     t
 }
 

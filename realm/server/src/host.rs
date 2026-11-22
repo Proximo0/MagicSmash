@@ -25,6 +25,8 @@ use crate::view::{build, Scratch, View};
 use crate::*;
 use realm_core::tables::{NO_WAYSTONE, R_BOSS_CHEST, VAULTS, VAULT_OVERTIME, BOSS_KILLED, BOSS_RISES, BOSS_LEFT, TIDE_BEGIN, TIDE_WON, TIDE_LOST, B_DEATH};
 use realm_core::{ring_of, Event, Field, Outing, Sheet, Transfer, FIELD, RUN_GOING, SUB};
+use realm_core::pvp::WAR_END;
+use crate::lockstep::WarArm;
 use std::collections::{HashMap, VecDeque};
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
@@ -111,11 +113,14 @@ pub struct Entry {
     /// never sent), her INPUT and BYE are tagged with it. A ticket whose key is all
     /// zeros joins nobody by HELLO.
     pub key: TicketKey,
+    /// Her guild (0: none), from the gateway's social (`Social::guild_of_account`): the field tags her with it as she
+    /// joins (`Field::set_guild`, carried by the join's record so followers tag her too). What a war reads.
+    pub guild: u64,
 }
 
 impl Entry {
     pub fn new(ticket: u64, hero: u64, sheet: Sheet, outing: Outing) -> Entry {
-        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None, key: TicketKey::default() }
+        Entry { ticket, hero, sheet, outing, seq: 0, arrive: None, drive: None, key: TicketKey::default(), guild: 0 }
     }
 }
 
@@ -131,6 +136,9 @@ pub enum HostCmd {
     Stop,
     /// Ends at once with no flush, as a crashed process would (the kill tests).
     Abort,
+    /// Arms a guild war on this copy (`Field::declare_war`, job R3b) with the next tick's record, so followers arm
+    /// it at the same tick.
+    War(WarArm),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -185,6 +193,23 @@ pub struct Flush {
     /// Section 14 (job R3): her BLOOD MARK and the ticks since her last strike on a hero (`NEVER`), sent when either
     /// changed and always when she leaves, so her next outing carries them.
     pub mark: Option<(bool, u32)>,
+    /// Job R3b: which of this flush's falls (`fell`, counted from 0) were plunders, and by whom: the gateway moves
+    /// what each of those falls took from her haul to that hero.
+    pub plunders: Vec<Plundered>,
+    /// Job R3b: the part of `coin` (banked) that she took from other heroes' hauls, as (victim, coin), first taken
+    /// first banked. Not part of `coin`: the gateway banks it as the victim's coin moved to her, so the victim's
+    /// trace and clawback reach it.
+    pub plunder_coin: Vec<(u64, u64)>,
+}
+
+/// One plundered fall: the hero who downed her (his gateway number and ticket, he was in the field) and the coin the
+/// core moved to his haul (`Event::Plunder`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Plundered {
+    pub fall: u32,
+    pub by_hero: u64,
+    pub by_ticket: u64,
+    pub coin: u64,
 }
 
 /// One credited hero of a kill.
@@ -255,6 +280,9 @@ pub struct HostCounts {
     pub moved_in: u32,
     pub moved_out: u32,
     pub recalled: u32,
+    /// Guild wars begun and ended in this copy (job R3b).
+    pub wars_begun: u32,
+    pub wars_ended: u32,
 }
 
 /// A host's state for the gateway, updated every tick.
@@ -321,6 +349,9 @@ pub enum HostMsg {
     Reward(RewardBatch),
     /// The host has stopped (cleanly: everyone flushed).
     Closed { host: u32 },
+    /// Job R3b: a war's held altar ticks in this copy. `over`: its tide ended here (`War{END}`); otherwise the host
+    /// stopped during the war (a copy closed into another) and this is what it held until then. Sent before `Closed`.
+    War { host: u32, war: u64, held: [u32; 2], over: bool },
     /// Never sent by a host: the gateway's own note that a host is gone, queued behind that host's last messages so
     /// every flush it sent is applied before its outings are given up.
     Lost { host: u32 },
@@ -461,6 +492,9 @@ struct Tally {
     waystone: Option<u8>,
     fell: u32,
     lost: u64,
+    plunders: Vec<Plundered>,
+    /// Coin plundered into her haul and not yet banked: (victim, coin), oldest first.
+    debts: VecDeque<(u64, u64)>,
     banked: bool,
     urgent: bool,
     gate: bool,
@@ -475,6 +509,18 @@ impl Tally {
     /// Takes what she has earned as a flush.
     fn take(&mut self, tick: u32, left: Option<Leave>) -> Flush {
         self.seq += 1;
+        // Banked coin pays her plunder debts first (oldest first): that part is the victims' coin.
+        let mut plunder_coin = Vec::new();
+        while self.coin > 0 {
+            let Some(d) = self.debts.front_mut() else { break };
+            let n = d.1.min(self.coin);
+            plunder_coin.push((d.0, n));
+            self.coin -= n;
+            d.1 -= n;
+            if d.1 == 0 {
+                self.debts.pop_front();
+            }
+        }
         let f = Flush {
             hero: self.hero,
             ticket: self.ticket,
@@ -488,6 +534,8 @@ impl Tally {
             banked: self.banked || left.is_some(),
             left,
             mark: (self.mark_dirty || left.is_some()).then(|| (self.marked, if self.struck == realm_core::tables::NEVER { self.struck } else { tick.saturating_sub(self.struck) })),
+            plunders: std::mem::take(&mut self.plunders),
+            plunder_coin,
         };
         self.mark_dirty = false;
         self.banked = false;
@@ -607,7 +655,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                         // A hero the host plays joins at once.
                         let (x, y) = arrival(&sim.field, &e, &mut rng);
                         let moved_in = e.arrive.is_some();
-                        joins.push(sim_join::Req { addr: None, req: JoinReq { sheet: e.sheet, outing: e.outing, x, y }, who: Some((e.hero, e.ticket)), seq: e.seq, drive: Some(d), moved_in });
+                        joins.push(sim_join::Req { addr: None, req: JoinReq { sheet: e.sheet, outing: e.outing, x, y, guild: e.guild }, who: Some((e.hero, e.ticket)), seq: e.seq, drive: Some(d), moved_in });
                     } else {
                         pending.insert(e.ticket, (e, Instant::now()));
                     }
@@ -640,6 +688,11 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                 }
                 HostCmd::Stop => stopping = Some(Leave::Shutdown),
                 HostCmd::Abort => break 'ticks,
+                HostCmd::War(a) => {
+                    if vault_row.is_none() && !sim.next_wars.contains(&a) {
+                        sim.next_wars.push(a);
+                    }
+                }
             }
         }
         // Heroes played by the host decide before anything else this tick; one who failed to get home is recalled.
@@ -738,13 +791,13 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
                             seq = e.seq;
                             moved_in = e.arrive.is_some();
                             proved = proof.map(|p| (e.key, p.0));
-                            req = Some(JoinReq { sheet: e.sheet, outing: e.outing, x, y });
+                            req = Some(JoinReq { sheet: e.sheet, outing: e.outing, x, y, guild: e.guild });
                         } else {
                             let rr = realm_core::rng_next(&mut rng);
                             let x = FIELD / 2 + ((rr % 400) as i32 - 200) * SUB;
                             let y = FIELD / 2 + (((rr >> 20) % 400) as i32 - 200) * SUB;
                             // The HELLO's class is 0..4 (KNIGHT to PALADIN); the core's class 0 is the NOVICE.
-                            req = Some(JoinReq { sheet: Sheet::bench(1 + class.min(4), race.min(3), sim.bench_level()), outing: Outing::new(), x, y });
+                            req = Some(JoinReq { sheet: Sheet::bench(1 + class.min(4), race.min(3), sim.bench_level()), outing: Outing::new(), x, y, guild: 0 });
                         }
                     } else if !opts.allow_followers || opts.require_tickets {
                         // A follower takes no ticket, so a ticketed field has none (the state stream it would send
@@ -871,7 +924,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             if let Some((hero, ticket)) = j.who {
                 let belt_ids = sim.field.players().get(id as usize).map_or([realm_core::tables::P_NONE; 3], |h| h.belt.map(|b| b.0));
                 let (marked, struck) = sim.field.players().get(id as usize).map_or((false, realm_core::tables::NEVER), |h| (h.marked, h.last_struck));
-                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
+                tallies.insert(id, Tally { hero, ticket, seq: j.seq, belt_ids, xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: tick, marked, struck, mark_dirty: false });
                 if let Some(d) = &j.drive {
                     drivers.insert(id, Driver::new(id, d, tick, vault_row.is_some()));
                 }
@@ -889,6 +942,12 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             }
         }
         let rewards = tally_realm(&sim.field, &tallies, &mut counts);
+        // Job R3b: a war's end in this copy goes to the gateway, which adds up every copy's held ticks.
+        for e in sim.field.events() {
+            if let Event::War { war, state: WAR_END, held, .. } = *e {
+                send_msg(HostMsg::War { host: opts.id, war, held, over: true });
+            }
+        }
         // A vault closes a while after its run ends, or when nobody came, or past its guard.
         if let Some(row) = vault_row {
             let run = sim.field.vault().map_or(RUN_GOING, |v| v.state);
@@ -1051,6 +1110,10 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             *status.counts.lock().unwrap() = counts.clone();
             status.members.lock().unwrap().clear();
             status.heroes.store(0, Ordering::Relaxed);
+            // A copy closed during a war (into another copy): what it held so far still counts.
+            for w in sim.field.wars().iter().filter(|w| w.on) {
+                send_msg(HostMsg::War { host: opts.id, war: w.id, held: w.held, over: false });
+            }
             send_msg(HostMsg::Closed { host: opts.id });
             break 'ticks;
         }
@@ -1095,6 +1158,13 @@ fn tally_realm(field: &Field, tallies: &HashMap<u16, Tally>, counts: &mut HostCo
                 BOSS_LEFT => counts.bosses_left += 1,
                 _ => {}
             },
+            Event::War { state, .. } => {
+                if state == WAR_END {
+                    counts.wars_ended += 1;
+                } else {
+                    counts.wars_begun += 1;
+                }
+            }
             Event::Reward { kind, source, level, seals, first, count } => {
                 counts.rewards += 1;
                 let heroes: Vec<(Credited, u32)> = field
@@ -1187,6 +1257,25 @@ fn collect(field: &Field, tallies: &mut HashMap<u16, Tally>, clients: &mut HashM
                     t.fell += 1;
                     t.lost += coin as u64;
                     t.urgent = true;
+                }
+            }
+            // Job R3b: the core sends `Plunder` right after her `Fallen`. A plunderer still in the field (as the core
+            // reads it) with a ticket gets what that fall took from her haul.
+            Event::Plunder { hero, by, coin } => {
+                let present = field.players().get(by as usize).is_some_and(|h| h.present);
+                let winner = tallies.get(&by).filter(|_| present).map(|w| (w.hero, w.ticket));
+                let mut victim = None;
+                if let (Some((by_hero, by_ticket)), Some(t)) = (winner, tallies.get_mut(&hero)) {
+                    if t.fell > 0 && by_hero != t.hero {
+                        t.plunders.push(Plundered { fall: t.fell - 1, by_hero, by_ticket, coin: coin as u64 });
+                        victim = Some(t.hero);
+                    }
+                }
+                // The coin is in his haul now; when he banks it, it is banked as hers moved to him.
+                if let (Some(v), Some(w)) = (victim, tallies.get_mut(&by)) {
+                    if coin > 0 {
+                        w.debts.push_back((v, coin as u64));
+                    }
                 }
             }
             Event::Bank { hero, coin, waystone } => {
@@ -1376,7 +1465,7 @@ mod tests {
         let (hx, hy) = f.terrain().heart;
         let id = f.join(&Sheet::bench(0, 0, 1), &Outing::new(), hx, hy);
         let mut tallies = HashMap::new();
-        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
+        tallies.insert(id, Tally { hero: 70, ticket: 700, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: false, struck: realm_core::tables::NEVER, mark_dirty: false });
         let mut counts = HostCounts::default();
         let mut got = Vec::new();
         for _ in 0..20_000 {
@@ -1408,5 +1497,66 @@ mod tests {
             tally_realm(&g, &HashMap::new(), &mut c);
         }
         assert_eq!((c.tides, c.tides_lost, c.bosses), (1, 1, 1));
+    }
+
+    /// Job R3b: a plundered fall reaches the flush with its fall number and the hero who downed her, once.
+    #[test]
+    fn a_plundered_fall_names_its_plunderer_in_the_victims_flush() {
+        let mut f = Field::open(3, 1, Config { monsters: 4096, threads: 1 });
+        f.set_births(false);
+        let (cx, cy) = f.terrain().heart;
+        let (x, y) = (0..400)
+            .map(|k| (cx + (k % 20 - 10) * 300 * SUB, cy + (k / 20 - 10) * 300 * SUB))
+            .find(|&(x, y)| !f.safe_ground(x, y) && !f.terrain().wall(x, y) && !f.terrain().wall(x + 40 * SUB, y) && !f.terrain().wall(x - 40 * SUB, y) && !f.terrain().wall(x + 20 * SUB, y))
+            .expect("an open spot");
+        let marked = Outing { marked: true, ..Outing::new() };
+        // No PHOENIX ASH on the belt: she must fall.
+        let mut sheet = Sheet::bench(1, 0, 30);
+        sheet.belt = [(realm_core::tables::P_NONE, 0); 3];
+        let a = f.join(&sheet, &marked, x, y);
+        let b = f.join(&sheet, &marked, x + 20 * SUB, y);
+        f.hero_mut(b).coin = 500;
+        f.hero_mut(b).health = 1;
+        let tally = |hero: u64, ticket: u64| Tally { hero, ticket, seq: 0, belt_ids: [0; 3], xp: 0, coin: 0, potions: [0; 6], waystone: None, fell: 0, lost: 0, plunders: Vec::new(), debts: VecDeque::new(), banked: false, urgent: false, gate: false, last_flush: 0, marked: true, struck: realm_core::tables::NEVER, mark_dirty: false };
+        let mut tallies = HashMap::new();
+        tallies.insert(a, tally(10, 100));
+        tallies.insert(b, tally(20, 200));
+        let (mut clients, mut finals) = (HashMap::new(), Vec::new());
+        let mut slain = false;
+        for _ in 0..400 {
+            f.step::<u16>(&[]);
+            collect(&f, &mut tallies, &mut clients, &mut finals);
+            if f.downed_by(b) == a {
+                slain = true;
+                break;
+            }
+        }
+        assert!(slain, "a downs b");
+        // He walks off, so he does not raise her; she falls.
+        let (bx, by) = (f.players()[b as usize].x, f.players()[b as usize].y);
+        f.hero_mut(a).x = bx + 300 * SUB;
+        f.hero_mut(a).y = by;
+        for _ in 0..2_000 {
+            f.step::<u16>(&[]);
+            collect(&f, &mut tallies, &mut clients, &mut finals);
+            if tallies[&b].fell > 0 {
+                break;
+            }
+        }
+        let fl = tallies.get_mut(&b).unwrap().take(f.tick(), None);
+        assert_eq!(fl.fell, 1);
+        assert_eq!(fl.plunders, vec![Plundered { fall: 0, by_hero: 10, by_ticket: 100, coin: 250 }]);
+        let again = tallies.get_mut(&b).unwrap().take(f.tick(), None);
+        assert!(again.plunders.is_empty(), "sent once");
+        // The coin is in his haul; when he banks, the first 250 of it are hers moved to him.
+        let w = tallies.get_mut(&a).unwrap();
+        w.coin = 300;
+        let wf = w.take(f.tick(), None);
+        assert!(wf.plunders.is_empty(), "the plunderer's own flush names no fall");
+        assert_eq!((wf.coin, wf.plunder_coin.clone()), (50, vec![(20, 250)]));
+        let w = tallies.get_mut(&a).unwrap();
+        w.coin = 70;
+        let wf = w.take(f.tick(), None);
+        assert_eq!((wf.coin, wf.plunder_coin), (70, vec![]), "paid once");
     }
 }

@@ -192,18 +192,16 @@ impl Field {
     pub fn guild(&self, id: u16) -> u64 {
         self.pvp.guild_of(id as usize)
     }
-    /// Declares war `id` between two guilds for this field's tide `tide`. It starts with that tide (or now, if that
-    /// tide is running) and ends with it. False if the guilds are the same, either is 0, either is already at war
-    /// in that tide, or `WARS_MAX` wars are armed.
+    /// Declares war `id` between two guilds for this field's tide `tide`. It starts with that tide (or at the next
+    /// step, if that tide is running) and ends with it. False if the guilds are the same, either is 0, either is
+    /// already at war in that tide, or `WARS_MAX` wars are armed.
     pub fn declare_war(&mut self, id: u64, a: u64, b: u64, tide: u32) -> bool {
         if a == 0 || b == 0 || a == b || self.pvp.wars.len() >= WARS_MAX || self.pvp.wars.iter().any(|w| w.tide == tide && (w.guilds.contains(&a) || w.guilds.contains(&b))) {
             return false;
         }
-        let on = self.tide && self.realm.tide_index == tide;
-        self.pvp.wars.push(War { id, guilds: [a, b], tide, held: [0, 0], on });
-        if on {
-            self.events.push(Event::War { war: id, state: WAR_BEGIN, winner: WAR_DRAW, held: [0, 0] });
-        }
+        // A war armed while its tide runs (a copy opened during it) begins at the next step (`wars_late`): an event
+        // pushed here, before the step, would be cleared with the step's events and never seen.
+        self.pvp.wars.push(War { id, guilds: [a, b], tide, held: [0, 0], on: false });
         true
     }
     /// Calls off a war that has not begun (or is running: it ends as a draw with no result for either).
@@ -504,6 +502,16 @@ impl Field {
     pub(crate) fn wars_begin(&mut self, n: u32) {
         self.pvp.wars.retain(|w| w.tide >= n);
         for w in self.pvp.wars.iter_mut().filter(|w| w.tide == n) {
+            w.on = true;
+            w.held = [0, 0];
+            self.events.push(Event::War { war: w.id, state: WAR_BEGIN, winner: WAR_DRAW, held: [0, 0] });
+        }
+    }
+
+    /// Every step of a running tide: a war armed for it after it began (job R3b: a copy opened during the war) goes
+    /// on now.
+    pub(crate) fn wars_late(&mut self, n: u32) {
+        for w in self.pvp.wars.iter_mut().filter(|w| !w.on && w.tide == n) {
             w.on = true;
             w.held = [0, 0];
             self.events.push(Event::War { war: w.id, state: WAR_BEGIN, winner: WAR_DRAW, held: [0, 0] });
