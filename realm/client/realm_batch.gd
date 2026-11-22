@@ -26,7 +26,7 @@ var _front: int = 0
 
 ## `entries` are the pictures in atlas order (the numbers RealmLink writes), each a Dictionary: `tex` (a
 ## picture, or a strip of `anim` frames side by side), `anim` (frames in the strip, 1 for a still picture) and
-## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px). `z` is the draw layer.
+## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px), `fps` (frames a second, 8). `z` is the draw layer.
 func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 	var cell := Vector2i.ZERO
 	for e in entries:
@@ -42,8 +42,11 @@ func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 	anims.resize(MAX_FRAMES)
 	var scales := PackedFloat32Array()
 	scales.resize(MAX_FRAMES)
+	var rates := PackedFloat32Array()
+	rates.resize(MAX_FRAMES)
 	anims.fill(1.0)
 	scales.fill(1.0)
+	rates.fill(FieldArt.WALK_FPS)
 	var x: int = 0
 	for i in entries.size():
 		var src: Image = (entries[i]["tex"] as Texture2D).get_image()
@@ -54,6 +57,7 @@ func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 		rects[i] = Vector4(at.x, at.y, src.get_width() / n, src.get_height())
 		anims[i] = float(n)
 		scales[i] = float(entries[i]["scale"])
+		rates[i] = float(entries[i].get("fps", FieldArt.WALK_FPS))
 		x += src.get_width() + 2 * PAD
 	img.generate_mipmaps()
 	var quad := QuadMesh.new()
@@ -66,6 +70,7 @@ func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 	material.set_shader_parameter("rects", rects)
 	material.set_shader_parameter("anims", anims)
 	material.set_shader_parameter("scales", scales)
+	material.set_shader_parameter("rates", rates)
 	var tex := ImageTexture.create_from_image(img)
 	for k in 2:
 		var mm := MultiMesh.new()

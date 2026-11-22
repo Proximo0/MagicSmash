@@ -44,6 +44,8 @@ func _art() -> void:
 	var walk: Dictionary = FieldArt.hero_entry(1, 1)
 	_check(walk["art"] == "walk" and int(walk["anim"]) == 4 and is_equal_approx(float(walk["scale"]), 0.5), "elf knight is the walk strip at half scale")
 	_check((walk["tex"] as Texture2D).get_width() % 4 == 0, "a strip of four whole frames")
+	_check(is_equal_approx(float(walk["fps"]), 8.0), "a strip with no sidecar steps at 8 fps")
+	_sidecar()
 	var novice: Dictionary = FieldArt.hero_entry(0, 0)
 	_check(novice["art"] == "walk", "human novice is a walk strip")
 	var borrowed: Dictionary = FieldArt.hero_entry(0, 3)
@@ -55,6 +57,33 @@ func _art() -> void:
 	var holder := Node.new()
 	var batch := RealmBatch.new(holder, kinds, 1)
 	_check(batch.count == 0, "a batch starts empty")
+	holder.free()
+
+
+## A strip's frames, fps and scale come from its .json next to it; a bad count falls back to 4.
+func _sidecar() -> void:
+	var dir: String = OS.get_temp_dir().path_join("field_test_sidecar")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var f := FileAccess.open(dir.path_join("hero_x_y_walk.json"), FileAccess.WRITE)
+	f.store_string('{"frames":8,"fps":16,"scale":0.25}')
+	f.close()
+	var p: Dictionary = FieldArt.walk_params("hero_x_y", dir, 320)
+	_check(int(p["anim"]) == 8 and is_equal_approx(float(p["fps"]), 16.0) and is_equal_approx(float(p["scale"]), 0.25), "sidecar sets 8 frames, 16 fps, scale 0.25")
+	_check(int(FieldArt.walk_params("hero_x_y", dir, 322)["anim"]) == 4, "a frame count that does not divide the width falls back to 4")
+	var d: Dictionary = FieldArt.walk_params("hero_none", dir, 168)
+	_check(int(d["anim"]) == 4 and is_equal_approx(float(d["scale"]), 0.5), "no sidecar: 4 frames at 0.5")
+	DirAccess.remove_absolute(dir.path_join("hero_x_y_walk.json"))
+	DirAccess.remove_absolute(dir)
+	# Two strips of different frame counts share one atlas.
+	var img := Image.create(80, 10, false, Image.FORMAT_RGBA8)
+	var holder := Node.new()
+	var mixed: Array[Dictionary] = [
+		{"tex": ImageTexture.create_from_image(img), "anim": 4, "fps": 8.0, "scale": 0.5, "art": "walk"},
+		{"tex": ImageTexture.create_from_image(img), "anim": 8, "fps": 16.0, "scale": 0.25, "art": "walk"}]
+	var b := RealmBatch.new(holder, mixed, 1)
+	var rates: PackedFloat32Array = b.material.get_shader_parameter("rates")
+	var anims: PackedFloat32Array = b.material.get_shader_parameter("anims")
+	_check(anims[0] == 4.0 and anims[1] == 8.0 and rates[0] == 8.0 and rates[1] == 16.0, "one batch holds strips of 4 and 8 frames with their own fps")
 	holder.free()
 
 

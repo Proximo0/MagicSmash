@@ -4,17 +4,20 @@ extends RefCounted
 ##   enemy_<kind>.png      a monster kind: its name with spaces as underscores (enemy_plague_rat.png)
 ##   hero_<race>_<class>.png   a hero: race human elf dwarf orc, class novice knight mage archer priest paladin
 ##   <name>_walk.png       four frames side by side for that picture (a strip: 2 texture px per world px)
+##   <name>_walk.json      optional, next to the strip: {"frames": 8, "fps": 16, "scale": 0.25}; defaults 4, 8, 0.5
 ##   <name>_atk.png (3 frames), <name>_hit.png (1), <name>_die.png (3): optional, same 2 px per world px; the entry
 ##   gets `atk`, `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks).
 ## A strip wins over the still picture. A monster with neither gets a flat stand-in drawn here from its field,
 ## its health and its behaviour; a hero with neither borrows the same race's knight.
-## An entry is {tex, anim, scale, art}: `art` is "walk", "still" or "stand-in".
+## An entry is {tex, anim (frames), fps, scale, art}: `art` is "walk", "still" or "stand-in".
 
 const CLASSES: Array[String] = ["novice", "knight", "mage", "archer", "priest", "paladin"]
 const RACES: Array[String] = ["human", "elf", "dwarf", "orc"]
 const WALK_FRAMES: int = 4
 ## A walk strip has 2 texture px per world px.
 const WALK_SCALE: float = 0.5
+## A walk strip steps this many frames a second unless its sidecar says otherwise.
+const WALK_FPS: float = 8.0
 ## Ground colour of each field's stand-ins: road, wood, marsh, peaks, tower, edge.
 const FIELD_COLOURS: Array[Color] = [
 	Color(0.62, 0.52, 0.36), Color(0.36, 0.5, 0.34), Color(0.3, 0.52, 0.5),
@@ -36,26 +39,44 @@ static func kind_key(name: String) -> String:
 	return "enemy_" + name.replace(" ", "_")
 
 
-static func _exists(key: String) -> bool:
-	return ResourceLoader.exists("res://art/%s.png" % key)
+static func _exists(key: String, dir: String = "res://art") -> bool:
+	return ResourceLoader.exists("%s/%s.png" % [dir, key])
 
 
-static func _load(key: String) -> Texture2D:
-	return load("res://art/%s.png" % key) as Texture2D
+static func _load(key: String, dir: String = "res://art") -> Texture2D:
+	return load("%s/%s.png" % [dir, key]) as Texture2D
 
 
-## A picture by key: its strip when there is one, else the still, else null.
-static func entry_for(key: String) -> Dictionary:
+## The strip's frames, fps and scale: the sidecar <key>_walk.json when there is one, else 4, 8 and 0.5. A frame
+## count that does not divide the strip's width falls back to 4.
+static func walk_params(key: String, dir: String, width: int) -> Dictionary:
+	var p: Dictionary = {"anim": WALK_FRAMES, "fps": WALK_FPS, "scale": WALK_SCALE}
+	var path: String = "%s/%s_walk.json" % [dir, key]
+	if FileAccess.file_exists(path):
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if d is Dictionary:
+			p["anim"] = maxi(int(d.get("frames", WALK_FRAMES)), 1)
+			p["fps"] = maxf(float(d.get("fps", WALK_FPS)), 0.1)
+			p["scale"] = maxf(float(d.get("scale", WALK_SCALE)), 0.01)
+	if width % int(p["anim"]) != 0:
+		p["anim"] = WALK_FRAMES
+	return p
+
+
+## A picture by key: its strip when there is one, else the still, else null. `dir` is where the files are.
+static func entry_for(key: String, dir: String = "res://art") -> Dictionary:
 	var e: Dictionary = {}
-	if _exists(key + "_walk"):
-		e = {"tex": _load(key + "_walk"), "anim": WALK_FRAMES, "scale": WALK_SCALE, "art": "walk"}
-	elif _exists(key):
-		e = {"tex": _load(key), "anim": 1, "scale": 1.0, "art": "still"}
+	if _exists(key + "_walk", dir):
+		var tex: Texture2D = _load(key + "_walk", dir)
+		var p: Dictionary = walk_params(key, dir, tex.get_width())
+		e = {"tex": tex, "anim": p["anim"], "fps": p["fps"], "scale": p["scale"], "art": "walk"}
+	elif _exists(key, dir):
+		e = {"tex": _load(key, dir), "anim": 1, "fps": WALK_FPS, "scale": 1.0, "art": "still"}
 	else:
 		return e
 	for suffix in ["atk", "hit", "die"]:
-		if _exists(key + "_" + suffix):
-			e[suffix] = _load(key + "_" + suffix)
+		if _exists(key + "_" + suffix, dir):
+			e[suffix] = _load(key + "_" + suffix, dir)
 	return e
 
 
@@ -66,7 +87,7 @@ static func monster_entries() -> Array[Dictionary]:
 		var info: Dictionary = RealmLink.kind_info(i)
 		var e: Dictionary = entry_for(kind_key(String(info["name"])))
 		if e.is_empty():
-			e = {"tex": stand_in(i, info), "anim": 1, "scale": 1.0, "art": "stand-in"}
+			e = {"tex": stand_in(i, info), "anim": 1, "fps": WALK_FPS, "scale": 1.0, "art": "stand-in"}
 		out.append(e)
 	return out
 
