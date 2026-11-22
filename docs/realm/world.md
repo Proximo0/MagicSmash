@@ -186,3 +186,6 @@ world_bosses=53 host_killed=1 tickets_lost=18 doubled=0/8904 coin_mismatch=0 kil
 4. A vault's party is anyone with the code until T1's parties send it. Seals are chosen by the leader with no
    unlock rule.
 5. `realm_cap` 4,000 and `vault_max` 64 are guesses for one 4-core box; the load test should set them.
+
+## Soak population (realm-world)
+The soak sends every bot to THE FOOL'S ROAD for realm hours 0-12 of each day (copies open), then the wave leaves for the other fields and the road's copies merge; `worldlong.sh` uses short outings (600 ticks) and a 5 s merge grace so one realm day (86 s at 600 s) can show both. Pass needs merges >= 1 (and moved >= 1 in the station line).
