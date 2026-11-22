@@ -1,0 +1,8 @@
+kind=soak
+args=secs=1800 bots=40 seeds=100001-200000
+needs=msi
+priority=4
+repeat=forever
+timeout_s=5400
+every_s=0
+added=2026-11-22T11:36:44Z
