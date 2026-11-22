@@ -1,0 +1,25 @@
+field,threads,monsters,seed,status,summary
+0,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=2.2s kills=27328 spawns=32328 deaths=1 recycled=0 hash=c5d410bf54b0fc60
+0,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=5.0s kills=72192 spawns=92192 deaths=10 recycled=0 hash=9f83cb897e43f2d6
+0,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.3s kills=27328 spawns=32328 deaths=1 recycled=0 hash=c5d410bf54b0fc60
+0,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=3.0s kills=72192 spawns=92192 deaths=10 recycled=0 hash=9f83cb897e43f2d6
+1,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=2.6s kills=30444 spawns=35444 deaths=47 recycled=0 hash=9d296006db1b1784
+1,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=10.1s kills=87771 spawns=107771 deaths=233 recycled=0 hash=a5b209a8dbcb1578
+1,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.6s kills=30444 spawns=35444 deaths=47 recycled=0 hash=9d296006db1b1784
+1,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=7.3s kills=87771 spawns=107771 deaths=233 recycled=0 hash=a5b209a8dbcb1578
+2,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=2.5s kills=28217 spawns=33217 deaths=5 recycled=0 hash=4d5812411c6f12c6
+2,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=6.3s kills=69620 spawns=89620 deaths=82 recycled=0 hash=21eb35b67f5eb3fc
+2,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.5s kills=28217 spawns=33217 deaths=5 recycled=0 hash=4d5812411c6f12c6
+2,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=4.7s kills=69620 spawns=89620 deaths=82 recycled=0 hash=21eb35b67f5eb3fc
+3,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=2.7s kills=28597 spawns=33597 deaths=0 recycled=0 hash=fed2eb7950fd1ec1
+3,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=10.1s kills=85455 spawns=105455 deaths=4 recycled=0 hash=9e94c2cd187cf259
+3,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.7s kills=28597 spawns=33597 deaths=0 recycled=0 hash=fed2eb7950fd1ec1
+3,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=7.1s kills=85455 spawns=105455 deaths=4 recycled=0 hash=9e94c2cd187cf259
+4,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=2.6s kills=32117 spawns=37117 deaths=0 recycled=0 hash=22022b39e473e5b5
+4,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=7.0s kills=98444 spawns=118444 deaths=0 recycled=0 hash=167bedb40dd48e41
+4,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.7s kills=32117 spawns=37117 deaths=0 recycled=0 hash=22022b39e473e5b5
+4,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=5.2s kills=98444 spawns=118444 deaths=0 recycled=0 hash=167bedb40dd48e41
+5,1,5000,116246,ok,BENCH 1000x5000 threads=1 ticks=600 wall=3.0s kills=53656 spawns=58656 deaths=0 recycled=0 hash=63428be59c598186
+5,1,20000,116246,ok,BENCH 1000x20000 threads=1 ticks=600 wall=13.6s kills=179868 spawns=199868 deaths=8 recycled=0 hash=f91d8e301bd7b015
+5,2,5000,116246,ok,BENCH 1000x5000 threads=2 ticks=600 wall=2.9s kills=53656 spawns=58656 deaths=0 recycled=0 hash=63428be59c598186
+5,2,20000,116246,ok,BENCH 1000x20000 threads=2 ticks=600 wall=8.4s kills=179868 spawns=199868 deaths=8 recycled=0 hash=f91d8e301bd7b015
