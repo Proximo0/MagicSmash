@@ -203,3 +203,124 @@ simulation must measure what the markets do with 4 to 20 an hour typical (1 in 4
   event index differ), but a gateway that replays a field must replay joins in the same order.
 - **Coin of a kill** is the core's (the haul); this crate only gives the coin of caches and chests.
 - Not built: potions as drops (merchants, E1), vault rewards (section 10 is another job), houses' use of materials.
+
+
+---
+
+# Horde & Hearth: the economy, part 2 (job E1: trade between players)
+
+Code: `realm/gateway/src/economy/` (`prices.rs` holds every number; `merchant.rs`, `trade.rs`, `market.rs`, `letters.rs`,
+`wire.rs`, `sim.rs`), the store's `parcels` (schema v3), the `realm-economy` binary and `gateway/tests/economy*.rs`.
+Nothing in the logic is a literal: change a number in `prices.rs`, run the sim.
+
+## The door
+
+`Req::Econ(EReq)` (tag 0x30) answers `Resp::Econ(EResp)` (0x8A); the server also pushes `Resp::EconPush` (0xA8, request
+tag 0) to a hero in town: a trade changed, a listing sold, a letter came. Every request carries the hero; the account must own
+her. A hero may make `LIMIT_BURST = 30` requests in a burst and earns `LIMIT_REFILL_PER_S = 3` per second back (a bot
+cannot sweep the market faster than a person could, and the store's single writer is not starved). Over the limit: a `SLOW`
+error, nothing done.
+
+## Merchants
+
+- Value of an item: `(5 + 3 x level) x RARITY_VALUE_MUL[rarity] x (100 + 25 x plus) / 100`. A COMMON is about nine kills of
+  coin at any level (a kill pays about `3 + L/3`), so the bottom rung is always minutes of play. The rarity multiples
+  `1 2 5 14 50` are shorter than the drop odds (60 / 30 / 8.5 / 1.4 / 0.1 percent): the market, not the table, makes
+  rare things dear. Each `+` adds 25% (the smith charges more, so upgrading is for oneself, not for resale).
+- A merchant pays 25% of value (`NPC_BUY_PCT`): the floor of every price, nobody sells below it. He sells gear at 12 x
+  value (`NPC_GEAR_MUL`): dear, so the market beats him for anyone who can wait. Potions `(8 + top level of her field) x
+  [1 3 3 5 8 20]`; embers `4 + top / 2`. He buys embers (2), field material (3) and boss trophies (150).
+- Daily caps per hero (restock at dawn): 20 potions, 100 embers, 2 gear pieces. Caps are in memory and reset on a server
+  restart (open question).
+- Buyback: a sold item can be bought back at 110% of what he paid for 30 minutes, the last 12 sales. It is in memory and
+  re-mints the item with a new id (open question); a sold item with filled sockets is refused (the rune would be lost).
+- Buying is a store DEBIT then a MINT/CREDIT, refunded if the second step fails.
+
+## Trade (hand to hand)
+
+Invite (60 s unanswered), accept, each side offers items, stacks and coin, then both confirm. A confirm names the version
+of both offers, so a change after you looked cannot be confirmed by mistake; a confirm is accepted only 1.5 s after the last
+change of either offer (`CONFIRM_DELAY_MS`: no swap at the last click); an open trade idles out after 10 minutes. When both
+have confirmed the same version the store does it in one transaction (`Store::trade`); nothing moves on a half confirm, and
+a failure (a full bag, an item gone) cancels with a reason and leaves everything where it was. Origin is kept through the move.
+
+## The market
+
+- List: item or stack, a price, 12 / 24 / 48 hours. The item leaves her bag into escrow (a `parcels` row, items in place
+  Market). Fee `1%` of the price per 12 hours, rounded up, at least 1, destroyed at once and not refunded: churn costs, and a
+  listing nobody wants for 48 hours costs 4%. At most 25 open listings per hero.
+- Price cap: at most `PRICE_CAP_MUL = 10` x the item's value (stacks: `stack_ref` x count x 10). It is the guard against
+  two ways to abuse a market: it cannot run away upward, and an account cannot move a large sum to another by listing a
+  trash item at a huge price for an accomplice to buy. The cap is a few hundred coin for gear a newcomer meets.
+- Buy: the price goes buyer to seller; the tax (`6%`, rounded up) is destroyed with the sale and is the market's main coin
+  sink; the item goes to the buyer's bag (`Full` if no room, nothing moves). You cannot buy your own account's listing.
+- Cancel (seller only) and expiry both return the thing to the seller's mail, by the sweeper (`Economy::sweep`).
+- Search: filters on slot, rarity, level range, stack kind, price ceiling; cheapest first, pages of 40. The row keeps the
+  entry's slot, level, rarity and stack kind as columns with partial indexes, so a search is an index walk (it was a scan
+  of every open listing and made the 2,000-bot run superlinear).
+
+## Letters and mail
+
+A letter carries a text (200), up to 8 things and coin, to a hero of any account; postage 2 coin plus 1 per thing, destroyed.
+Cash on delivery: the sender names a price, the addressee pays it to take the attachments (refuse sends them back, so does
+30 days, `LETTER_DAYS`; the sender may recall). 50 letters waiting per addressee. The sender's own letters block her hero's
+deletion while they are out. The older `mail_send` of the store bypasses consent and is left for the town's use (open question).
+
+## Self-found heroes and botter guards
+
+A self-found hero (the hero flag from creation) may not give or receive an item or stack by trade, market, letter or
+`MoveItem` / `StackTransfer` across heroes; the store refuses it (`Error::Refused`) in `ops.rs` through one gate, so no door
+can forget it. Trade-locked accounts (the botter farms of store.md) are refused the same way. Origin (`origin_account`,
+`origin_hero`, `mint_seq`) is kept through every move, so a stolen drop is traceable to the account that found it. The sim
+proves the refusals (the `refused_ok` counter) and that no item hopped onward from a locked farm.
+
+## Store additions (all additive, `realm/store/check.sh` is green)
+
+Schema v3: `parcels` (escrow for a listing or a letter; indexes by sender, addressee, expiry, search). Commands
+`ParcelPut`, `ParcelTake`, `ParcelReturn` (Server only; rows in `who_may`, `tests/auth.rs`, the codec). Reads `parcel`,
+`parcels_from`, `parcels_to`, `parcels_due`, `listings`, `coin_flows`. `verify` now checks that every parcel holds
+something and every market-place item has a parcel. `Options.durable` (default true; false is `synchronous=OFF` for the
+sim only). A 64 MB page cache on both connections (the request-id table is keyed by random ids and a 2 MB cache turned
+each insert into a file read once the store was big).
+
+## The proof: `realm-economy` and `gateway/tests/economy_sim.rs`
+
+`realm-economy --bots=2000 --days=90 [--seed --farms --db --quiet]`; the test runs seed 1 (about 6 minutes in release on
+one core: the store writer is two thirds of the time). Bots play outings (the real loot generator, the smith, the merchant)
+in batches, then visit town twice a day: sell junk to the merchant, list what is worth 60 coin or more, search and buy upgrades
+at the right price, send letters (some cash on delivery), trade, upgrade at the smith. 5% are self-found, 10% flippers, 20 are
+trade-locked farm accounts. Rounds are whole numbers and a seeded RNG; day is a 24 h game clock moved by the sim.
+
+Judged by `failures()`: (1) store `verify` clean (no item copied, every stack and the origin equal the ledger replay);
+(2) the coin the ledger says exists equals the coin held; (3) per item class (rarity x 10-level band), the median sale
+price as a percent of item value per 30-day window stays inside `30..=400` (`BAND_LO_PCT`, `BAND_HI_PCT`) for a window of at
+least `MIN_SALES = 30` sales (fewer is noise), and a window median is at most 2x the one before (upward only); (4) the guards.
+Why this band: the floor of any sale is the merchant's 25%, the cap's ceiling is 1000%; a median below 30% means the
+market is worse than selling to the merchant, above 400% means a few buyers are bidding up past any sane need. Inside it the
+price may find its own level.
+
+Seed 1, 2,000 bots, 90 days: 137,619 listings, 28,931 sold for 10,422,565 coin, 108,688 expired; tax 639,587, fees
+4,419,005; 803 trades; 1,148 letters; 97,510 items live; 2,295,758 ledger rows; verify clean. Medians run 40 to 190% of value
+in the classes with 30 or more sales (rarer classes at the top, `UNCOMMON` L11-20 settling at 39 to 62%), none above 400.
+
+Coin supply (every 5 days): day 5 13k per bot; 30: 84k; 60: 180k; 90: 283k per bot. **It grows without bound, about
+linearly**: hauls (kill coin) mint 732M over the 90 days against 195M sunk, of which 179M is the smith, 11M merchant
+purchases, 4.4M listing fees, 0.64M sale tax. See the open questions.
+
+## Open questions
+
+- **Coin glut.** The faucet is about 3.8x the sinks; the market's tax (0.6M) and fees (4.4M) are small beside the smith.
+  Prices are flat (they drift down to the merchant's floor on common stuff, since gear is oversupplied) while coin piles
+  up: the market does not run away because the cap bounds it, not because coin is scarce. Needed: a bigger sink (rising
+  smith cost, repair, house, listing fees that grow with the number of open listings), or less haul coin at high levels. The
+  sim's bots do not hoard for a purpose a player has, so the real glut may be smaller; measure on the station (`economy` job).
+- Prices fall to the 40 to 60% band on oversupplied classes; 79% of listings expire unsold. Is a larger fee on a relist wanted?
+- `stack_ref` (the cap reference of potions, runes, keys, pages, cards) is a guess: the merchant has a price for only some.
+- Self-found heroes and the shared bank: a self-found hero may still reach the account's bank by a path other than trade
+  (store.md); settle with the bank's rules.
+- Buyback and the daily caps are in memory (lost on restart; buyback re-mints under a new id). Move them to the store when
+  a restart matters.
+- Letter and COD flows are one-way spam for a rich account: postage is cheap on purpose (2 coin) and the 50-letter cap
+  per addressee is the only brake; add a block list in the client job.
+- Bots do not trade or write letters like people; `trades` (803) and the pair-guard (no pair 5+ times) are proof that the
+  guard fires, not of the real rate.

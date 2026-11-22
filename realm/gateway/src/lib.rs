@@ -4,6 +4,7 @@
 pub mod bot;
 pub mod client;
 pub mod conn;
+pub mod economy;
 pub mod gateway;
 pub mod harness;
 pub mod loot;

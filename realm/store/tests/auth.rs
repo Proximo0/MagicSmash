@@ -4,6 +4,8 @@ mod common;
 use common::*;
 use realm_store::*;
 
+const FAR: i64 = 1_800_000_000_000;
+
 struct W {
 	t: T,
 	x: AccountId,
@@ -29,6 +31,11 @@ fn world(name: &str) -> W {
 	t.credit(Owner::bag(hy), StackKind::page(20), 1);
 	let m = t.m();
 	t.s.socket(m, hy, sy, 0, StackKind::rune(0, 1)).unwrap();
+	// x has a listing (parcel 1) of an item for 40 coin
+	let lx = t.mint_bag(hx, 1);
+	let m = t.m();
+	let parcel = t.s.parcel_put(m, Cmd::ParcelPut { kind: ParcelKind::Listing, from: hx, to: None, items: vec![lx], stacks: vec![], price: 40, fee: 0, expires: FAR, text: String::new() }).unwrap();
+	assert_eq!(parcel, 1);
 	W { t, x, hx, y, hy, iy, sy }
 }
 
@@ -55,11 +62,14 @@ fn case_name(c: &Cmd) -> &'static str {
 		| Cmd::Outing { .. }
 		| Cmd::Trade { .. }
 		| Cmd::GrantEntitlement { .. }
+		| Cmd::ParcelPut { .. }
+		| Cmd::ParcelTake { .. }
+		| Cmd::ParcelReturn { .. }
 		| Cmd::Clawback { .. } => c.name(),
 	}
 }
 
-const VARIANTS: usize = 21;
+const VARIANTS: usize = 24;
 
 /// One command of every kind, each aimed at y's things.
 fn cases(w: &W) -> Vec<Cmd> {
@@ -98,6 +108,9 @@ fn cases(w: &W) -> Vec<Cmd> {
 		},
 		Cmd::GrantEntitlement { account: w.y, kind: EntitlementKind::HeroSlot, count: 5, purchase: "invented".into() },
 		Cmd::Clawback { items: vec![w.iy], stacks: vec![(Owner::bag(w.hy), StackKind::COIN, 500)], reason: "grief".into() },
+		Cmd::ParcelPut { kind: ParcelKind::Listing, from: w.hy, to: None, items: vec![w.iy], stacks: vec![], price: 50, fee: 0, expires: FAR, text: String::new() },
+		Cmd::ParcelTake { parcel: 1, hero: w.hy, tax: 4 },
+		Cmd::ParcelReturn { parcel: 1 },
 	]
 }
 

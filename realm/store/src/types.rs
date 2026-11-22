@@ -24,7 +24,15 @@ pub mod limits {
 	pub const GUILD_SLOTS: u32 = 100;
 	pub const GUILD_TABS: u32 = 8;
 	pub const TRADE_SLOTS: u32 = 16;
-	pub const MARKET_SLOTS: u32 = 1;
+	/// A parcel (listing or letter) holds up to this many items.
+	pub const MARKET_SLOTS: u32 = 8;
+	/// A parcel holds at most this many entries (items plus stack kinds).
+	pub const PARCEL_ENTRIES: usize = 8;
+	pub const PARCEL_TEXT_MAX: usize = 200;
+	/// Open listings a hero may have, and unclaimed letters one hero may have waiting.
+	pub const LISTINGS_PER_HERO: i64 = 25;
+	pub const LETTERS_PER_HERO: i64 = 50;
+	pub const PARCEL_PRICE_MAX: u64 = 1_000_000_000_000;
 	pub const MAX_LEVEL: u16 = 60;
 	pub const DECK_SIZE: usize = 20;
 	pub const DECK_CARDS: u16 = 30;
@@ -410,6 +418,67 @@ pub enum Cmd {
 	Outing { hero: HeroId, delta: OutingDelta },
 	Trade { a: TradeSide, b: TradeSide },
 	GrantEntitlement { account: AccountId, kind: EntitlementKind, count: u32, purchase: String },
+	/// Moves things from a hero's bag into escrow as a parcel (the server only; the gateway checks consent). A
+	/// listing is one item or one stack for `price` coin; a letter is up to eight entries for the hero `to`, with
+	/// `price` the cash on delivery (0 for a gift). `fee` coin is taken from the sender's bag and destroyed.
+	ParcelPut { kind: ParcelKind, from: HeroId, to: Option<HeroId>, items: Vec<ItemId>, stacks: Vec<(StackKind, u64)>, price: u64, fee: u64, expires: Millis, text: String },
+	/// A buyer (listing) or the addressee (letter) takes the parcel: the price moves from her bag to the sender's
+	/// bag, `tax` of it is destroyed, the things go to her bag; one transaction.
+	ParcelTake { parcel: i64, hero: HeroId, tax: u64 },
+	/// The things go to the sender's mail and the parcel ends (a cancelled or expired listing, a letter refused or
+	/// expired).
+	ParcelReturn { parcel: i64 },
+}
+
+/// What a parcel is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ParcelKind {
+	Listing = 1,
+	Letter = 2,
+}
+
+impl ParcelKind {
+	pub fn from_i64(v: i64) -> Option<ParcelKind> {
+		match v {
+			1 => Some(ParcelKind::Listing),
+			2 => Some(ParcelKind::Letter),
+			_ => None,
+		}
+	}
+}
+
+/// A parcel and what it holds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Parcel {
+	pub id: i64,
+	pub kind: ParcelKind,
+	pub from_hero: HeroId,
+	pub from_account: AccountId,
+	pub to_hero: Option<HeroId>,
+	pub price: u64,
+	pub created: Millis,
+	pub expires: Millis,
+	pub text: String,
+	/// the sending hero's name
+	pub from_name: String,
+	pub items: Vec<Item>,
+	pub stacks: Vec<(StackKind, u64)>,
+}
+
+/// A market search: listings that have not ended, cheapest first. Every filter is optional; item filters
+/// (`gear_slot` to `level_max`) match listings of an item, `stack` one of that kind.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ListingQuery {
+	pub now: Millis,
+	pub gear_slot: Option<u8>,
+	pub rarity_min: Option<u8>,
+	pub level_min: Option<u16>,
+	pub level_max: Option<u16>,
+	pub stack: Option<StackKind>,
+	pub price_max: Option<u64>,
+	pub seller_not: Option<HeroId>,
+	pub limit: u32,
+	pub offset: u32,
 }
 
 impl Cmd {
@@ -436,6 +505,9 @@ impl Cmd {
 			Cmd::Outing { .. } => "outing",
 			Cmd::Trade { .. } => "trade",
 			Cmd::GrantEntitlement { .. } => "grant_entitlement",
+			Cmd::ParcelPut { .. } => "parcel_put",
+			Cmd::ParcelTake { .. } => "parcel_take",
+			Cmd::ParcelReturn { .. } => "parcel_return",
 		}
 	}
 }
@@ -464,6 +536,8 @@ pub enum Reply {
 	Granted { new: bool, total: u32 },
 	/// what a clawback removed, which listed items no longer existed, and what stacks fell short
 	Clawback { removed: Vec<ItemId>, missing: Vec<ItemId>, shortfall: Vec<(Owner, StackKind, u64)> },
+	/// the id of a new parcel
+	Parcel(i64),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

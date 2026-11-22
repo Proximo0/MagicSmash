@@ -8,6 +8,7 @@
 //! found or made), and the outing results (`apply`), which come from the field host, never from a client.
 
 use crate::proto::*;
+use crate::economy::Economy;
 use crate::loot::{delivery_id, fall_rng, FirstKills, RewardKind, TicketLoot};
 use crate::sheet::{level_for_xp, sheet_of};
 use crate::town::Towns;
@@ -114,6 +115,8 @@ pub struct Gateway {
     pub store: Arc<SqliteStore>,
     pub cfg: Config,
     pub towns: Towns,
+    /// Merchants, trade, the market and letters (job E1).
+    pub economy: Arc<Economy>,
     locs: Mutex<HashMap<i64, Loc>>,
     tickets: Mutex<HashMap<u64, Ticket>>,
     hosts: Mutex<Vec<HostSlot>>,
@@ -196,10 +199,12 @@ impl Gateway {
     pub fn start(store: Arc<SqliteStore>, cfg: Config) -> Arc<Gateway> {
         let (msgs, rx) = channel();
         let first_kills = Mutex::new(FirstKills::open(cfg.first_kills.as_deref()));
+        let store_for_economy = store.clone();
         let gw = Arc::new(Gateway {
             store,
             cfg,
             towns: Towns::default(),
+            economy: Economy::new(store_for_economy),
             locs: Mutex::new(HashMap::new()),
             tickets: Mutex::new(HashMap::new()),
             hosts: Mutex::new(Vec::new()),
@@ -225,6 +230,7 @@ impl Gateway {
             })
             .expect("thread");
         gw.threads.lock().unwrap().extend([applier, ticker]);
+        gw.economy.spawn_sweeper();
         gw
     }
 
@@ -256,6 +262,7 @@ impl Gateway {
             s.handle.stop();
         }
         self.stop.store(true, Ordering::Relaxed);
+        self.economy.stop();
         let threads: Vec<_> = self.threads.lock().unwrap().drain(..).collect();
         for t in threads {
             let _ = t.join();
@@ -458,6 +465,7 @@ impl Gateway {
             Req::Cards { hero } => self.cards(account, hero),
             Req::Buy { hero, kind, n } => self.buy(account, hero, kind, n),
             Req::Sell { hero, item } => self.sell(account, hero, item),
+            Req::Econ(e) => Ok(self.economy.handle(account, e, now_ms())),
             Req::Ping | Req::LoginDev { .. } | Req::LoginSteam { .. } => unreachable!(),
         }
     }
@@ -490,6 +498,7 @@ impl Gateway {
         let info = Member { id: 0, name: h.name.clone(), class: h.class, race: h.race, level: h.progress.class_level, look: h.look };
         let (room, me, members) = self.towns.enter(info, s.out.clone());
         s.town = Some((room, me, hero));
+        self.economy.attach(hero, room, s.out.clone());
         Ok(Resp::Town { room, me, size: crate::town::TOWN_PX, members })
     }
 
@@ -498,6 +507,7 @@ impl Gateway {
         if let Some((room, me, hero)) = s.town {
             if only.is_none_or(|h| h == hero) {
                 self.towns.leave(room, me);
+                self.economy.detach(hero);
                 let mut locs = self.locs.lock().unwrap();
                 if matches!(locs.get(&hero), Some(Loc::Town { conn }) if *conn == s.conn) {
                     locs.remove(&hero);
@@ -549,6 +559,7 @@ impl Gateway {
         if let Some((room, me, th)) = s.town {
             if th == hero {
                 self.towns.leave(room, me);
+                self.economy.detach(hero);
                 s.town = None;
             }
         }
