@@ -17,7 +17,7 @@ a new role is a commit. Start every station as `station.sh --watch <any job>`; t
 | Heatherspc (Celeron N4100, UHD 600) | `realm` | the same checks on the slowest processor; later the frame test below minimum spec, recorded only |
 
 Four of Wands is stopped (21 Nov 2026), so no station runs `boss`, `checks`, `frames` or `golden`; the jobs remain for
-the day they are wanted. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot
+the day they are wanted. The `world` merge job is a short soak (STATION_WORLD_SECS, default 600); the 7200 s proof is the queue's shell job `script=worldlong` (`secs=` sets the length), so a merge never holds a station for hours. A station that was busy while several merges landed tests only the newest main once (it fetches `origin/main`, diffs against the last commit it tested, and so covers every merge in between); a running merge job is not cut short by a newer commit, which is why none runs for hours. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot
 jobs test everything except `realm/`, `docs/`, `.github/` and the stations), so the stations do no work for docs or art.
 
 `realm` needs Rust on the station (`cargo` on PATH, from rustup; on Windows also the Visual Studio C++ build tools,
@@ -69,6 +69,9 @@ Kinds and args (a job file never carries a command: args are `name=value` words 
 | `frames` | the `frames` job's client frame test | `zooms=16,4 secs=` (needs a GPU or desktop) |
 | `package` | server and client into `~/station-packages/<date>-<target>-<commit>` with `HASH.txt` | `target=linux\|windows` |
 | `shell` | `tools/station/jobs/<name>.sh` | `script=<name>` and words passed to it |
+
+Shell jobs shipped: `selftest`, `power`, `worldlong` (the 7200 s world soak, `secs=`) and `wirefuzz` (the wire decoder fuzz tests with a fresh seed and `iters=` iterations, default 2,000,000; queue it forever with
+`queue.sh add kind=shell args="script=wirefuzz iters=2000000" repeat=forever every_s=21600 timeout_s=7200 priority=3`).
 
 Add a kind: for a script, nothing in `station.sh`: commit `tools/station/jobs/<name>.sh` (see `jobs/selftest.sh`: last line is
 the summary starting PASS, FAIL or INFO, exit non-zero is FAIL, files written to `$STATION_JOB_ART` are published, `$STATION_JOB_SEED`

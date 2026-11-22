@@ -110,6 +110,24 @@ check "digest has per-machine jobs, hours, the FAIL with its seed, and a summary
 Q alpha fill-week >"$T/o" 2>&1; n1=$(grep -c '^added' "$T/o"); Q alpha fill-week >"$T/o" 2>&1; n2=$(grep -c '^added' "$T/o")
 check "fill-week loads jobs for both machines and is idempotent" '[ "$n1" -ge 12 ] && [ "$n2" = 0 ]'
 
+echo "== the world soak: short on a merge, long from the queue; wirefuzz is a queue job"
+git clone -q "$T/origin.git" "$T/gamma"
+( cd "$T/gamma" && STATION_NAME=gamma bash tools/station/station.sh --no-push world >"$T/w1" 2>&1 )
+check "a merge's world job runs 600 s by default" 'grep -q "^JOB world PASS world stub secs=600" "$T/w1"'
+( cd "$T/gamma" && rm -f "$(git rev-parse --git-dir)/station_last" && STATION_WORLD_SECS=33 STATION_NAME=gamma bash tools/station/station.sh --no-push world >"$T/w2" 2>&1 )
+check "STATION_WORLD_SECS still sets it" 'grep -q "^JOB world PASS world stub secs=33" "$T/w2"'
+check "worldlong.sh defaults to 7200 s and takes secs=" '[ "$(bash "$REPO/tools/station/jobs/worldlong.sh")" = "PASS world stub secs=7200" ] && [ "$(bash "$REPO/tools/station/jobs/worldlong.sh" secs=90)" = "PASS world stub secs=90" ]'
+idw2=$(Q alpha add kind=shell args="script=worldlong secs=7200" needs=alpha timeout_s=9000 | tail -1)
+Q alpha step >"$T/o" 2>&1
+check "the queue runs the long world soak as a shell job" 'rd station-results work/$idw2/alpha.txt | grep -q " PASS id=$idw2 kind=shell .*world stub secs=7200"'
+idz=$(Q alpha add kind=shell args="script=wirefuzz iters=2000000" repeat=forever every_s=3600 | tail -1)
+check "wirefuzz queues forever and its script exists" '[ -n "$idz" ] && [ -x "$REPO/tools/station/jobs/wirefuzz.sh" ] && files station-queue | grep -qx "queue/$idz.job"'
+Q alpha cancel "$idz" >/dev/null
+# the newest main only: two commits land while a station is busy, one run covers both
+( cd "$T/seed" && echo a >realm_a.txt && mkdir -p realm && echo 1 >realm/one && git add -A && git -c user.name=t -c user.email=t@t commit -qm one && echo 2 >realm/two && git add -A && git -c user.name=t -c user.email=t@t commit -qm two && git push -q origin HEAD:main )
+( cd "$T/gamma" && STATION_NAME=gamma bash tools/station/station.sh --no-push world >"$T/w3" 2>&1 )
+check "two merges that landed while busy are tested once, at the newest main" '[ "$(grep -c "^STATION machine=" "$T/w3")" = 1 ] && grep -q "commit=$(git -C "$T/seed" rev-parse --short=7 HEAD) " "$T/w3"'
+
 echo "== the real station loop: queue job first, deep only when the queue is empty"
 if command -v setsid >/dev/null 2>&1; then
   Q alpha list | awk '$1 ~ /^[0-9]/ { print $1 }' | while read -r i; do Q alpha cancel "$i" >/dev/null; done

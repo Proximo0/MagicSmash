@@ -19,6 +19,10 @@ mod hero;
 mod mods;
 mod monster;
 pub mod pvp;
+#[cfg(test)]
+mod probe;
+#[cfg(test)]
+mod wirefuzz;
 mod sheet;
 mod spawn;
 mod state;

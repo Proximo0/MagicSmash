@@ -2,6 +2,7 @@
 name = "realm-godot"
 edition = "2024"
 version = "0.1.0"
+publish = false
 description = "The realm follower as a Godot GDExtension: the RealmLink class."
 
 # Its own workspace: the godot crate comes from crates.io, while core, server and loadtest stay std only and

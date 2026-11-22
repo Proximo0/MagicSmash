@@ -2,6 +2,7 @@
 name = "realm-core"
 edition.workspace = true
 version.workspace = true
+publish = false
 
 [lib]
 name = "realm_core"

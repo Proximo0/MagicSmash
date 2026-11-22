@@ -3,7 +3,7 @@
 //! bit-flipped, with bytes spliced in and with counts blown up. Each must refuse (None / Err) or decode; never panic;
 //! never allocate much more than the frame it was given; and what it decodes must encode back to the same bytes.
 //!
-//! `REALM_FUZZ_CASES=N` runs N cases (default 200 000); `REALM_FUZZ_SEED=S` another seed.
+//! `WIRE_FUZZ_ITERS=N` (or `REALM_FUZZ_CASES`) runs N cases (default 200 000); `WIRE_FUZZ_SEED=S` another seed.
 
 use super::*;
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -144,8 +144,8 @@ fn mutate(rng: &mut Rng, t: u8, b: &[u8]) -> (u8, Vec<u8>) {
 
 #[test]
 fn no_decoder_panics_allocates_wildly_or_reads_what_it_cannot_write_back() {
-    let cases: usize = std::env::var("REALM_FUZZ_CASES").ok().and_then(|v| v.parse().ok()).unwrap_or(200_000);
-    let seed: u64 = std::env::var("REALM_FUZZ_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(0x5EED_F00D);
+    let cases: usize = std::env::var("WIRE_FUZZ_ITERS").or_else(|_| std::env::var("REALM_FUZZ_CASES")).ok().and_then(|v| v.parse().ok()).unwrap_or(200_000);
+    let seed: u64 = std::env::var("WIRE_FUZZ_SEED").or_else(|_| std::env::var("REALM_FUZZ_SEED")).ok().and_then(|v| v.parse().ok()).unwrap_or(0x5EED_F00D);
     let mut rng = Rng(seed);
     let corpus = corpus();
     for (t, b) in &corpus {

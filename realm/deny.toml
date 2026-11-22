@@ -1,0 +1,56 @@
+# cargo-deny config (pinned in .github/workflows/realm.yml, job `deny`; written for cargo-deny 0.18). Run from realm/:
+#   cargo deny check                                  (the workspace)
+#   cargo deny --manifest-path godot/Cargo.toml check (the Godot module's own workspace, gdext)
+#   cargo deny --manifest-path store/Cargo.toml check (the store's own workspace, bundled SQLite)
+# Horde & Hearth is shipped closed source and sold, so only licences that allow that may come in through a dependency.
+
+[graph]
+# The platforms we ship: a crate only built elsewhere does not count.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+]
+
+[advisories]
+# Vulnerabilities are always errors in 0.18 (the `vulnerability` key is gone); yanked crates are denied here.
+# Unmaintained notices fail only for crates the workspace names directly, and warn for transitive ones.
+yanked = "deny"
+unmaintained = "workspace"
+ignore = [
+    # (none yet; add { id = "RUSTSEC-....", reason = "..." } with a reason and a date to review)
+]
+
+[licenses]
+# Permissive licences that allow commercial closed-source use. Copyleft (GPL, AGPL, LGPL) is not listed, so it is denied,
+# and so is any licence not named here (unknown).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    # MPL-2.0 is file-level copyleft (modified MPL files must stay open; linking is fine for closed source). It is allowed only
+    # because godot/Cargo.lock needs it: godot, godot-bindings and gdextension-api (gdext). Remove it if no lockfile does.
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+unused-allowed-license = "allow"
+# A crate with no licence at all fails; the workspace's own crates are unpublished, so they are exempt.
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

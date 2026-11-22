@@ -6,6 +6,8 @@ pub mod client;
 pub mod driver;
 pub mod host;
 pub mod lockstep;
+#[cfg(test)]
+mod probe;
 pub mod predict;
 pub mod realm_clock;
 pub mod report;
@@ -15,6 +17,8 @@ pub mod stats;
 pub mod view;
 pub mod wire;
 pub mod world;
+#[cfg(test)]
+mod wirefuzz;
 
 pub const DEFAULT_PORT: u16 = 7777;
 /// Largest datagram payload either side sends.
