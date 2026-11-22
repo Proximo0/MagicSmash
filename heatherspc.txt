@@ -1,5 +1,4 @@
-STATION machine=heatherspc time=2026-11-22T05:20Z commit=99d2d0e took=11s
-JOB realm FAIL realm/check.sh: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release | realm/store/check.sh: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release
-JOB frames FAIL build: error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stabl
-JOB economy INFO seed=149912 error: rustup could not choose a version of cargo to run, because one wasn't specified explicitly, and no default is configured. help: run 'rustup default stable' to download the latest stable release of Rust and set it as your default toolchain. 
-STATION FAIL jobs=3 failed=2 skipped=0
+STATION machine=heatherspc time=2026-11-22T07:43Z commit=d65074b took=439s
+JOB realm FAIL realm/check.sh:   Access is denied. (os error 5) warning: build failed, waiting for other jobs to finish... REALM failed: cargo build  | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=17.8 
+JOB economy INFO seed=816573  Caused by:   Access is denied. (os error 5) 
+STATION FAIL jobs=2 failed=1 skipped=0
