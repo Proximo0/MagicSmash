@@ -35,7 +35,8 @@ impl GatewayClient {
                 self.buf.extend_from_slice(&tmp[..n]);
                 Ok(true)
             }
-            Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => Ok(true),
+            // Windows can report a read timeout as ERROR_IO_PENDING (997, "overlapped I/O is in progress").
+            Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted) || e.raw_os_error() == Some(997) => Ok(true),
             Err(e) => Err(e),
         }
     }

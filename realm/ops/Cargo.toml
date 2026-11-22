@@ -1,0 +1,25 @@
+[package]
+name = "realm-ops"
+edition.workspace = true
+version.workspace = true
+description = "Horde & Hearth operations: logs, metrics, alarms, backups, kill switches, releases, flood limits."
+
+[lib]
+name = "realm_ops"
+
+[[bin]]
+name = "realm-ops"
+path = "src/main.rs"
+required-features = ["store"]
+
+[features]
+# The store-facing half (backup, restore, release). The server crate takes only the hooks (no SQLite).
+default = ["store"]
+store = ["dep:realm-store"]
+
+[dependencies]
+realm-store = { path = "../store", optional = true }
+
+[dev-dependencies]
+# The migration test builds a store at an older schema by hand (the same crate and version the store uses).
+rusqlite = { version = "=0.37.0", features = ["bundled"] }

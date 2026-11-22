@@ -12,3 +12,4 @@ path = "src/main.rs"
 
 [dependencies]
 realm-core = { path = "../core" }
+realm-ops = { path = "../ops", default-features = false }

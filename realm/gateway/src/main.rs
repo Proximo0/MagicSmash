@@ -34,6 +34,7 @@ fn main() {
     let mut secret: Option<u64> = None;
     let mut world = WorldConfig::default();
     let mut speed = 1u32;
+    let mut ops_conf: Option<String> = None;
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
         let num = |v: &str| v.parse::<u64>().unwrap_or_else(|_| die(&format!("bad value in {arg}")));
@@ -62,8 +63,9 @@ fn main() {
             "--vault-monsters" => world.vault_monsters = num(v) as u32,
             "--dev-bots" => world.dev_bots = true,
             "--clock-speed" => speed = num(v).max(1) as u32,
+            "--ops-conf" => ops_conf = Some(v.to_string()),
             "--help" | "-h" => {
-                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--admin-port=N (loopback console, token in DB.admin)] [--secs=N] [--realm-cap=4000] [--copy-cap=1000] [--open-at=800] [--merge-under=500] [--max-copies=4] [--vault-max=64] [--vault-monsters=4000] [--dev-bots] [--clock-speed=1]\n       realm-gateway admin (--db=FILE | --connect=ADDR --token-file=FILE) [--op=NAME] COMMAND... (try: help)");
+                println!("realm-gateway [--db=realm.db] [--dev-login] [--dev-grant] [--bind=0.0.0.0] [--port=7700] [--fields=0,1,2,3,4,5] [--copies=1] [--field-port=7800] [--monsters=20000] [--threads=1] [--seed=1] [--public-host=ADDR] [--secret=N (default: kept in DB.secret)] [--admin-port=N (loopback console, token in DB.admin)] [--ops-conf=FILE (logs, metrics, alarms, backup clock, flood limits: docs/realm/ops.md)] [--secs=N] [--realm-cap=4000] [--copy-cap=1000] [--open-at=800] [--merge-under=500] [--max-copies=4] [--vault-max=64] [--vault-monsters=4000] [--dev-bots] [--clock-speed=1]\n       realm-gateway admin (--db=FILE | --connect=ADDR --token-file=FILE) [--op=NAME] COMMAND... (try: help)");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),
@@ -91,6 +93,20 @@ fn main() {
         let token = realm_gateway::social::admin::load_token(std::path::Path::new(&format!("{db}.admin")));
         let a = realm_gateway::social::admin::serve(gw.clone(), p, token).unwrap_or_else(|e| die(&format!("admin port {p}: {e}")));
         println!("ADMIN {a}");
+    }
+    if let Some(p) = ops_conf {
+        let p = std::path::PathBuf::from(p);
+        let conf = realm_ops::config::Conf::load(&p).unwrap_or_else(|e| die(&e));
+        let root = p.parent().filter(|d| !d.as_os_str().is_empty()).map_or_else(|| std::path::PathBuf::from("."), |d| d.to_path_buf());
+        let g = gw.clone();
+        let probe: realm_ops::runtime::ProbeFn = Arc::new(move || {
+            let fields = g.host_loads();
+            realm_ops::metrics::Probe { players: fields.iter().map(|f| f.2 as u64).sum(), fields }
+        });
+        match realm_ops::runtime::start(&conf, &root, probe) {
+            Ok(r) => println!("OPS metrics={}", r.metrics.map_or("off".to_string(), |a| a.to_string())),
+            Err(e) => die(&format!("ops: {e}")),
+        }
     }
     let mut udp = Vec::new();
     let mut n = 0u16;

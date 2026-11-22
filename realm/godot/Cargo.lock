@@ -147,10 +147,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "realm-ops"
+version = "0.1.0"
+
+[[package]]
 name = "realm-server"
 version = "0.1.0"
 dependencies = [
  "realm-core",
+ "realm-ops",
 ]
 
 [[package]]

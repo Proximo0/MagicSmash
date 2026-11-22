@@ -126,6 +126,9 @@ impl Console<'_> {
         let rest = |from: usize| w.get(from..).map(|s| s.join(" ")).unwrap_or_default();
         let out = match w.first().copied() {
             None | Some("help") => Ok(HELP.trim().to_string()),
+            Some("kill" | "revive" | "switches") => realm_ops::switches::command(&w).unwrap_or_else(|| Err("kill what?".into())).inspect(|_| {
+                self.social.log_admin(now, &self.op, line.trim());
+            }),
             Some("silence") if w.len() >= 3 => self.account_of(w[1]).and_then(|(id, name)| {
                 let span = parse_span(w[2], 'm').ok_or("bad span (30m, 2h, 7d, perm)")?;
                 let reason = rest(3);
@@ -242,6 +245,7 @@ kick NAME [reason]           ban NAME SPAN [reason]    unban NAME
 flag NAME FLAGS [drops=PCT]  FLAGS: trade_locked,shadowed,drops_reduced,watched or none
 banwave FLAG SPAN [reason]   ban every account carrying FLAG
 reports [all] [N]            resolve ID        who NAME        log [N]
+kill WHAT | revive WHAT      WHAT: login | trade | market | field N | all     switches (shows them)
 NAME is a hero's name or #ACCOUNT.";
 
 fn rand64(salt: u64) -> u64 {
@@ -356,6 +360,8 @@ pub fn cli(args: &[String]) -> i32 {
         eprintln!("admin: social log: {e}");
         return 2;
     }
+    // Switches thrown here are saved beside the store, and the realm reads them when it next starts.
+    realm_ops::switches::persist(std::path::PathBuf::from(format!("{db}.switches")));
     let out = Console { store: &store, social: &social, live: None, op }.run(&line);
     println!("{out}");
     i32::from(out.starts_with("error:"))
