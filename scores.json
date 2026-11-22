@@ -7999,5 +7999,999 @@
 "notes": "figures 1 cover 0.19 edge False missing ['missing wheel']"
 }
 ]
+},
+"SC1.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.198,
+"traits": {
+"shrine": 0.9775,
+"melted candles": 0.9765
+},
+"notes": "figures 1 cover 0.22 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 1.289,
+"traits": {
+"shrine": 0.9949,
+"melted candles": 0.9526
+},
+"notes": "figures 1 cover 0.32 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 1.19,
+"traits": {
+"shrine": 0.9758,
+"melted candles": 0.9966
+},
+"notes": "figures 1 cover 0.20 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 1.199,
+"traits": {
+"shrine": 0.8679,
+"melted candles": 0.9515
+},
+"notes": "figures 1 cover 0.29 edge False"
+}
+]
+},
+"SC1.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.952,
+"traits": {
+"cage": 0.9983,
+"post": 0.3433
+},
+"notes": "figures 1 cover 0.28 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.686,
+"traits": {
+"cage": 0.9968,
+"post": 0.0091
+},
+"notes": "figures 1 cover 0.18 edge False missing ['post']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.786,
+"traits": {
+"cage": 0.9992,
+"post": 0.1168
+},
+"notes": "figures 1 cover 0.23 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 1.015,
+"traits": {
+"cage": 1.0,
+"post": 0.5699
+},
+"notes": "figures 1 cover 0.23 edge False"
+}
+]
+},
+"SC1.5": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.278,
+"traits": {
+"burnt stubble": 0.0289,
+"single object": 0.001
+},
+"notes": "figures 1 cover 0.26 edge False missing ['burnt stubble', 'single object']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.264,
+"traits": {
+"burnt stubble": 0.0021,
+"single object": 0.0001
+},
+"notes": "figures 1 cover 0.26 edge False missing ['burnt stubble', 'single object']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.29,
+"traits": {
+"burnt stubble": 0.0933,
+"single object": 0.0017
+},
+"notes": "figures 1 cover 0.24 edge False missing ['burnt stubble', 'single object']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.253,
+"traits": {
+"burnt stubble": 0.103,
+"single object": 0.0009
+},
+"notes": "figures 1 cover 0.20 edge False missing ['single object']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.283,
+"traits": {
+"burnt stubble": 0.0454,
+"single object": 0.0003
+},
+"notes": "figures 1 cover 0.26 edge False missing ['burnt stubble', 'single object']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.43,
+"traits": {
+"burnt stubble": 0.3259,
+"single object": 0.0014
+},
+"notes": "figures 1 cover 0.27 edge False missing ['single object']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.199,
+"traits": {
+"burnt stubble": 0.0011,
+"single object": 0.0002
+},
+"notes": "figures 1 cover 0.20 edge False missing ['burnt stubble', 'single object']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.231,
+"traits": {
+"burnt stubble": 0.0001,
+"single object": 0.0
+},
+"notes": "figures 1 cover 0.23 edge False missing ['burnt stubble', 'single object']"
+},
+{
+"try": 3,
+"ok": true,
+"score": 0.389,
+"traits": {
+"burnt stubble": 0.4359,
+"single object": 0.0047
+},
+"notes": "figures 1 cover 0.17 edge False missing ['single object']"
+}
+]
+},
+"SC1.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.798,
+"traits": {
+"roofless chapel": 0.7264,
+"broken bell": 0.0233
+},
+"notes": "figures 1 cover 0.42 edge False missing ['broken bell']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.871,
+"traits": {
+"roofless chapel": 0.9646,
+"broken bell": 0.0344
+},
+"notes": "figures 1 cover 0.37 edge False missing ['broken bell']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 1.21,
+"traits": {
+"roofless chapel": 0.9691,
+"broken bell": 0.6943
+},
+"notes": "figures 1 cover 0.38 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.988,
+"traits": {
+"roofless chapel": 0.9845,
+"broken bell": 0.0671
+},
+"notes": "figures 1 cover 0.46 edge False missing ['broken bell']"
+}
+]
+},
+"SC7.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.214,
+"traits": {
+"lamp post": 0.2282,
+"lantern": 0.0041
+},
+"notes": "figures 1 cover 0.10 edge False missing ['lantern']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.69,
+"traits": {
+"lamp post": 0.932,
+"lantern": 0.2408
+},
+"notes": "figures 1 cover 0.10 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.822,
+"traits": {
+"lamp post": 0.9801,
+"lantern": 0.4571
+},
+"notes": "figures 1 cover 0.10 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.643,
+"traits": {
+"lamp post": 0.9005,
+"lantern": 0.1956
+},
+"notes": "figures 1 cover 0.10 edge False"
+}
+]
+},
+"SC7.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.771,
+"traits": {
+"stone bench": 1.0,
+"single object": 0.0276
+},
+"notes": "figures 1 cover 0.26 edge False missing ['single object']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.726,
+"traits": {
+"stone bench": 0.9999,
+"single object": 0.0132
+},
+"notes": "figures 1 cover 0.22 edge False missing ['single object']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.735,
+"traits": {
+"stone bench": 1.0,
+"single object": 0.0901
+},
+"notes": "figures 1 cover 0.19 edge False missing ['single object']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.705,
+"traits": {
+"stone bench": 1.0,
+"single object": 0.0399
+},
+"notes": "figures 1 cover 0.19 edge False missing ['single object']"
+}
+]
+},
+"SC7.3": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.708,
+"traits": {
+"well": 0.9992,
+"bucket": 0.0331
+},
+"notes": "figures 1 cover 0.29 edge True missing ['bucket']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.403,
+"traits": {
+"well": 0.2509,
+"bucket": 0.0014
+},
+"notes": "figures 1 cover 0.28 edge False missing ['bucket']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.768,
+"traits": {
+"well": 0.9202,
+"bucket": 0.006
+},
+"notes": "figures 1 cover 0.30 edge False missing ['bucket']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.763,
+"traits": {
+"well": 0.9284,
+"bucket": 0.0726
+},
+"notes": "figures 1 cover 0.26 edge False missing ['bucket']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.847,
+"traits": {
+"well": 0.975,
+"bucket": 0.0047
+},
+"notes": "figures 1 cover 0.36 edge False missing ['bucket']"
+}
+]
+},
+"SC7.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.074,
+"traits": {
+"cart": 0.7957,
+"turnips": 0.7773
+},
+"notes": "figures 1 cover 0.29 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.776,
+"traits": {
+"cart": 0.1441,
+"turnips": 0.7154
+},
+"notes": "figures 1 cover 0.35 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.637,
+"traits": {
+"cart": 0.0481,
+"turnips": 0.6549
+},
+"notes": "figures 1 cover 0.29 edge False missing ['cart']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.825,
+"traits": {
+"cart": 0.3905,
+"turnips": 0.566
+},
+"notes": "figures 1 cover 0.35 edge False"
+}
+]
+},
+"SC7.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.231,
+"traits": {
+"barrels": 1.0,
+"crates": 0.9998
+},
+"notes": "figures 1 cover 0.23 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 1.11,
+"traits": {
+"barrels": 0.9957,
+"crates": 0.8615
+},
+"notes": "figures 1 cover 0.18 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 1.171,
+"traits": {
+"barrels": 1.0,
+"crates": 1.0
+},
+"notes": "figures 1 cover 0.17 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.567,
+"traits": {
+"barrels": 0.6002,
+"crates": 0.1603
+},
+"notes": "figures 1 cover 0.19 edge False"
+}
+]
+},
+"SC7.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.731,
+"traits": {
+"plank stage": 0.9916,
+"single object": 0.0274
+},
+"notes": "figures 1 cover 0.22 edge False missing ['single object']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.722,
+"traits": {
+"plank stage": 0.9646,
+"single object": 0.019
+},
+"notes": "figures 1 cover 0.23 edge False missing ['single object']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.691,
+"traits": {
+"plank stage": 0.93,
+"single object": 0.0196
+},
+"notes": "figures 1 cover 0.22 edge False missing ['single object']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.659,
+"traits": {
+"plank stage": 0.9344,
+"single object": 0.0015
+},
+"notes": "figures 1 cover 0.19 edge False missing ['single object']"
+}
+]
+},
+"TL1.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL1.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL1.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL1.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL7.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL7.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL7.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"TL7.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.0,
+"traits": {},
+"notes": ""
+}
+]
+},
+"BS2.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.104,
+"traits": {
+"goat head": 0.9888,
+"four arms": 0.0001,
+"stone throne": 0.988
+},
+"notes": "figures 1 cover 0.44 edge False missing ['four arms']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 1.008,
+"traits": {
+"goat head": 0.9137,
+"four arms": 0.0,
+"stone throne": 0.8652
+},
+"notes": "figures 1 cover 0.41 edge False missing ['four arms']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.974,
+"traits": {
+"goat head": 0.6671,
+"four arms": 0.0,
+"stone throne": 0.8941
+},
+"notes": "figures 1 cover 0.45 edge False missing ['four arms']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 1.01,
+"traits": {
+"goat head": 0.9901,
+"four arms": 0.0002,
+"stone throne": 0.9973
+},
+"notes": "figures 1 cover 0.35 edge False missing ['four arms']"
+}
+]
+},
+"BS2.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.038,
+"traits": {
+"crown": 0.7154,
+"molten cracks": 0.6549,
+"broken sword": 0.7264
+},
+"notes": "figures 1 cover 0.34 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.858,
+"traits": {
+"crown": 0.5545,
+"molten cracks": 0.537,
+"broken sword": 0.4961
+},
+"notes": "figures 1 cover 0.33 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.274,
+"traits": {
+"crown": 0.0187,
+"molten cracks": 0.0038,
+"broken sword": 0.0174
+},
+"notes": "figures 1 cover 0.36 edge True missing ['crown', 'molten cracks', 'broken sword']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.51,
+"traits": {
+"crown": 0.2613,
+"molten cracks": 0.3666,
+"broken sword": 0.1277
+},
+"notes": "figures 1 cover 0.36 edge True"
+},
+{
+"try": 3,
+"ok": true,
+"score": 0.73,
+"traits": {
+"crown": 0.3905,
+"molten cracks": 0.6809,
+"broken sword": 0.148
+},
+"notes": "figures 1 cover 0.32 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 1.177,
+"traits": {
+"crown": 0.8093,
+"molten cracks": 0.9019,
+"broken sword": 0.7786
+},
+"notes": "figures 1 cover 0.35 edge False"
+}
+]
 }
 }
