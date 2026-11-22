@@ -1,6 +1,6 @@
 #!/bin/bash
-# Cloud session setup: Godot (pinned), render/export helpers and the project import, so tests, lint, sims
-# and renders work the moment a session or agent starts. Idempotent; cloud sessions only.
+# Cloud session setup: Godot (pinned), render/export helpers and the Rust toolchain, so realm/check_all.sh and
+# renders work the moment a session or agent starts. Idempotent; cloud sessions only.
 set -euo pipefail
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
@@ -27,6 +27,16 @@ if [ ${#missing[@]} -gt 0 ]; then
   (apt-get update -qq && apt-get install -y -qq "${missing[@]}") >/dev/null 2>&1 || echo "session-start: could not apt-get ${missing[*]}" >&2
 fi
 
-# Import once so the class cache and resources are ready. tools/import.sh takes the shared lock and leaves a stamp,
-# so the first tool a session runs does not import again.
-tools/import.sh >&2 || { echo "session-start: godot import failed" >&2; exit 1; }
+# Rust for Horde & Hearth (realm/check_all.sh), pinned like CI (RUST_TOOLCHAIN in .github/workflows/realm.yml).
+RUST_TOOLCHAIN="1.97.0"
+export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v rustup >/dev/null 2>&1; then
+  curl -fsSL https://sh.rustup.rs | sh -s -- -y -q --profile minimal --default-toolchain "$RUST_TOOLCHAIN" >/dev/null 2>&1 \
+    || echo "session-start: could not install rustup" >&2
+fi
+if command -v rustup >/dev/null 2>&1 && ! rustup toolchain list 2>/dev/null | grep -q "^${RUST_TOOLCHAIN}"; then
+  (rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN") >/dev/null 2>&1 \
+    || echo "session-start: could not install Rust $RUST_TOOLCHAIN" >&2
+fi
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then echo 'export PATH="$HOME/.cargo/bin:$PATH"' >>"$CLAUDE_ENV_FILE"; fi
+# Four of Wands is stopped, so its project is no longer imported here (tools/import.sh does it on first use).
