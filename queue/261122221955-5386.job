@@ -1,8 +1,0 @@
-kind=shell
-args=script=sizepick screen=1 secs=1800
-needs=msi
-priority=8
-repeat=once
-timeout_s=2400
-every_s=0
-added=2026-11-22T22:19:55Z
