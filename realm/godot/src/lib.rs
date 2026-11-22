@@ -171,7 +171,7 @@ impl RealmLink {
         if !link.client.welcomed() {
             return;
         }
-        let mv = direction.clamp(0, 8) as u8 | if skill { realm_core::INPUT_SKILL } else { 0 };
+        let mv = direction.clamp(0, 8) as u8 | if skill { realm_server::WIRE_SKILL } else { 0 };
         let d = link.client.input(mv);
         link.send(&d);
     }
@@ -224,7 +224,7 @@ impl RealmLink {
     #[func]
     fn hero_state(&self) -> PackedInt32Array {
         let Some(p) = self.client().and_then(|c| c.hero_player()) else { return PackedInt32Array::new() };
-        PackedInt32Array::from(&[i32::from(p.health), i32::from(p.max_health), i32::from(p.level), i32::from(p.alive())][..])
+        PackedInt32Array::from(&[p.health.min(i32::MAX as u32) as i32, p.max_health.min(i32::MAX as u32) as i32, i32::from(p.level), i32::from(p.alive())][..])
     }
 
     #[func]

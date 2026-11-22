@@ -30,14 +30,28 @@ pub const PLY_HURT: i32 = 4;
 pub const PLY_DEAD: i32 = 8;
 pub const PLY_ME: i32 = 16;
 
-/// `id, x, y, kind, flags` for every live monster in `r`, by id.
+/// The stand-in pictures: eight monster frames shared by the core's kinds, and five classes by four races
+/// (a NOVICE is drawn as the first class) until the field client loads the real sheets by name.
+const MONSTER_FRAMES: usize = 8;
+const HERO_CLASSES: usize = 5;
+const HERO_RACES: usize = 4;
+
+fn monster_frame(kind: u8) -> usize {
+    usize::from(kind) % MONSTER_FRAMES
+}
+
+fn hero_frame(class: u8, race: u8) -> usize {
+    (usize::from(class).max(1) - 1).min(HERO_CLASSES - 1) * HERO_RACES + usize::from(race).min(HERO_RACES - 1)
+}
+
+/// `id, x, y, picture, flags` for every live monster in `r`, by id.
 pub fn monsters_in(f: &Field, r: SubRect) -> Vec<i32> {
     let m = f.monsters();
     let mut out = Vec::new();
     for i in 0..m.hp.len() {
         if m.hp[i] > 0 && r.contains(m.x[i], m.y[i]) {
-            let flags = if m.kind[i] & 8 != 0 { MON_ELITE } else { 0 } | if m.hurt[i] != 0 { MON_HURT } else { 0 };
-            out.extend_from_slice(&[i as i32, m.x[i], m.y[i], i32::from(m.kind[i] & 7), flags]);
+            let flags = if m.is_elite(i) { MON_ELITE } else { 0 } | if m.hurt[i] != 0 { MON_HURT } else { 0 };
+            out.extend_from_slice(&[i as i32, m.x[i], m.y[i], monster_frame(m.kind[i]) as i32, flags]);
         }
     }
     out
@@ -51,7 +65,7 @@ pub fn players_in(f: &Field, r: SubRect, me: Option<u16>) -> Vec<i32> {
             let flags = [(p.facing_left, PLY_LEFT), (p.moving, PLY_MOVING), (p.hurt, PLY_HURT), (!p.alive(), PLY_DEAD), (me == Some(i as u16), PLY_ME)]
                 .iter()
                 .fold(0, |a, &(on, bit)| if on { a | bit } else { a });
-            out.extend_from_slice(&[i as i32, p.x, p.y, i32::from(p.class), i32::from(p.race), flags]);
+            out.extend_from_slice(&[i as i32, p.x, p.y, (hero_frame(p.class, p.race) / 4) as i32, i32::from(p.race), flags]);
         }
     }
     out
@@ -133,11 +147,11 @@ impl DrawState {
         let mut out = Vec::with_capacity(self.order.len() * STRIDE);
         for &(_, id) in &self.order {
             let i = id as usize;
-            let elite = m.kind[i] & 8 != 0;
+            let elite = m.is_elite(i);
             let s = if elite { ELITE_SCALE } else { 1.0 };
             let tint = if m.hurt[i] != 0 { HURT } else if elite { ELITE } else { WHITE };
             let back = self.monsters.back(i, m.x[i], m.y[i]);
-            put(&mut out, m.x[i], m.y[i], s, s, tint, back, usize::from(m.kind[i] & 7), 0);
+            put(&mut out, m.x[i], m.y[i], s, s, tint, back, monster_frame(m.kind[i]), 0);
         }
         out
     }
@@ -162,7 +176,7 @@ impl DrawState {
             let back = self.players.back(i, p.x, p.y);
             let sx = if p.facing_left { -1.0 } else { 1.0 };
             let bob = if p.moving && p.alive() { 1 + i % BOB_SEEDS } else { 0 };
-            put(&mut out, p.x, p.y, sx, 1.0, tint, back, usize::from(p.class) * 4 + usize::from(p.race), bob);
+            put(&mut out, p.x, p.y, sx, 1.0, tint, back, hero_frame(p.class, p.race), bob);
         }
         out
     }
@@ -171,17 +185,21 @@ impl DrawState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use realm_core::{Config, CLASSES, FIELD};
+    use realm_core::{Config, Outing, Sheet, FIELD};
 
     /// Frames in the hero atlas (class x race).
-    const HERO_FRAMES: usize = CLASSES.len() * 4;
+    const HERO_FRAMES: usize = HERO_CLASSES * HERO_RACES;
+
+    fn join(f: &mut Field, class: u8, race: u8, x: i32, y: i32) -> u16 {
+        f.join(&Sheet::bench(1 + class, race, 1), &Outing::new(), x, y)
+    }
 
     const ALL: SubRect = SubRect { x0: 0, y0: 0, x1: FIELD, y1: FIELD };
 
     fn busy_field() -> Field {
         let mut f = Field::new(9, Config { monsters: 3000, threads: 1 });
         for k in 0..6 {
-            f.join(k as u8 % 5, k as u8 % 4, FIELD / 2 + k * 40 * SUB, FIELD / 2);
+            join(&mut f, k as u8 % 5, k as u8 % 4, FIELD / 2 + k * 40 * SUB, FIELD / 2);
         }
         for t in 0..60u32 {
             f.step(&[1, 2, 3, 4, 5, (t % 9) as u8]);
@@ -214,7 +232,7 @@ mod tests {
         assert!(first.chunks(STRIDE).all(|c| c[12] == 0.0 && c[13] == 0.0), "nothing to blend from on the first call");
         let before: std::collections::HashMap<u32, (f32, f32)> =
             monsters_in(&f, ALL).chunks(5).map(|m| (m[0] as u32, (m[1] as f32 / SUB as f32, m[2] as f32 / SUB as f32))).collect();
-        f.step(&[1, 2, 3, 4, 5, 6]);
+        f.step(&[1u16, 2, 3, 4, 5, 6]);
         let next = d.monsters(&f, ALL);
         let now = monsters_in(&f, ALL);
         let mut blended = 0;
@@ -232,21 +250,25 @@ mod tests {
                 _ => assert!(c[12] == 0.0 && c[13] == 0.0),
             }
         }
-        assert!(blended > 1000, "{blended} blended");
+        // Nearly every monster was there a tick ago and moved a step: all of those blend.
+        assert!(blended > 300 && blended * 10 >= now.len() / 5 * 9, "{blended} of {} blended", now.len() / 5);
     }
 
     #[test]
     fn a_flipped_figure_blends_the_right_way() {
         let mut f = Field::new(9, Config { monsters: 0, threads: 1 });
-        f.join(0, 0, FIELD / 2, FIELD / 2);
-        f.join(1, 1, FIELD / 2 + 100 * SUB, FIELD / 2);
+        join(&mut f, 0, 0, FIELD / 2, FIELD / 2);
+        let other = join(&mut f, 1, 1, FIELD / 2 + 100 * SUB, FIELD / 2);
         let mut d = DrawState::default();
         d.players(&f, ALL, Some(0));
-        // West: the player faces left (scale -1) and was 3 px to the right of where it is now.
-        f.step(&[0, 5]);
+        // West: the player faces left (scale -1) and was one step to the right of where it is now.
+        let was = f.players()[other as usize].x;
+        f.step(&[0u16, 5]);
+        let walked = (was - f.players()[other as usize].x) as f32 / SUB as f32;
+        assert!(walked > 2.0, "{walked}");
         let b = d.players(&f, ALL, Some(0));
         assert_eq!(b[0], -1.0);
-        assert!((b[12] * b[0] - 3.0).abs() < 1e-3, "{}", b[12]);
+        assert!((b[12] * b[0] - walked).abs() < 1e-3, "{}", b[12]);
     }
 
     #[test]

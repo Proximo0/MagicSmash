@@ -23,7 +23,7 @@ fail() {
 }
 
 # The native module, with no warnings, copied where realm/client/realm.gdextension looks for it.
-if ! (cd godot && cargo build --release -j3) >"$work/build.log" 2>&1; then
+if ! (cd godot && cargo build --release -j2) >"$work/build.log" 2>&1; then
 	grep -A6 -E "^(error|warning)" "$work/build.log" | head -20
 	fail "cargo build (realm/godot)"
 fi
@@ -31,18 +31,20 @@ if grep -q "^warning" "$work/build.log"; then
 	grep -A4 "^warning" "$work/build.log" | head -20
 	fail "build warnings (realm/godot)"
 fi
-if ! (cd godot && cargo test --release -j3 -q) >"$work/test.log" 2>&1; then
+if ! (cd godot && cargo test --release -j2 -q) >"$work/test.log" 2>&1; then
 	grep -E "panicked|FAILED|error(\[|:)" "$work/test.log" | head -20
 	fail "cargo test (realm/godot)"
 fi
 cp godot/target/release/librealm_godot.so client/bin/ || fail "copy the module"
-if ! cargo build --release -j3 >"$work/build.log" 2>&1; then
+if ! cargo build --release -j2 >"$work/build.log" 2>&1; then
 	grep -A6 -E "^(error|warning)" "$work/build.log" | head -20
 	fail "cargo build (realm)"
 fi
 
-# Import the client project (the pictures, and the extension list Godot loads the module from).
-if ! timeout 120 "$GODOT" --headless --path client --import >"$work/import.log" 2>&1; then
+# Import the client project (the pictures, and the extension list Godot loads the module from). On a fresh
+# clone the first import does its work and then Godot aborts while quitting; the second one is clean.
+import() { (timeout 120 "$GODOT" --headless --path client --import >"$work/import.log" 2>&1) 2>/dev/null; }
+if ! import && ! import; then
 	grep -E "ERROR" "$work/import.log" | head -10
 	fail "godot --import"
 fi

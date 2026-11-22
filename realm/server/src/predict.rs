@@ -2,15 +2,16 @@
 //!
 //! Every input the player sends gets a seq and moves the predicted hero one tick at once. When the server's
 //! ticks arrive the follower knows where the hero really is at the confirmed tick and which seq was in force
-//! there; the prediction is that position with every later input replayed on top. Hero movement depends on
-//! nothing but its inputs (monsters never push players), so the replay is exact unless the server used the
-//! inputs differently (one arrived late, two in one tick) or the hero died or respawned.
+//! there; the prediction is that position with every later input replayed on top. The caller hands in the
+//! walking step (`Field::walk` of its follower field: the core's own movement, walls and speed included), so
+//! the replay is exact unless the server used the inputs differently (one arrived late, two in one tick),
+//! the hero's speed changed since the confirmed tick, a skill moved her, or she went down or left.
 //!
 //! The hero is drawn at `shown`, which follows the prediction: each tick it takes the newest input's own step
 //! plus at most `CORRECTION_PER_TICK` of any remaining error, so a misprediction fades out over a few ticks
 //! instead of jumping. An error larger than `SNAP_PX` (a respawn) is taken at once.
 
-use realm_core::{DIRS, FIELD, SUB};
+use realm_core::SUB;
 use std::collections::VecDeque;
 
 /// The most the shown hero moves beyond its own step in one tick to close a prediction error (1 px).
@@ -19,12 +20,6 @@ pub const CORRECTION_PER_TICK: i32 = SUB;
 pub const SNAP_PX: i32 = 64;
 /// Inputs kept while unconfirmed (12.8 s at 20 a second); older ones are dropped as the server ignores them.
 const PENDING_MAX: usize = 256;
-
-/// One tick of the hero's movement, exactly as the core's input phase does it.
-pub fn step(x: i32, y: i32, input: u8) -> (i32, i32) {
-    let (sx, sy) = DIRS[(input & 0x0F).min(8) as usize];
-    ((x + sx).clamp(0, FIELD - 1), (y + sy).clamp(0, FIELD - 1))
-}
 
 /// `(dx, dy)` shortened to at most `max` long (sub units, whole numbers).
 fn clamp_len(dx: i32, dy: i32, max: i32) -> (i32, i32) {
@@ -63,7 +58,8 @@ pub struct Predictor {
 
 impl Predictor {
     /// The player sends `input` for its next tick: returns its seq and moves the prediction one step.
-    pub fn push(&mut self, input: u8) -> u32 {
+    /// `step(x, y, input)` is one tick of the hero's walking.
+    pub fn push(&mut self, input: u8, step: impl Fn(i32, i32, u8) -> (i32, i32)) -> u32 {
         self.last_seq += 1;
         let seq = self.last_seq;
         let Some((rx, ry)) = self.raw else {
@@ -86,8 +82,8 @@ impl Predictor {
     }
 
     /// The follower reached a tick where the hero is at `(x, y)` (`alive` or not) and the input with `seq`
-    /// was in force: drops the inputs the server has used and replays the rest from there.
-    pub fn confirm(&mut self, x: i32, y: i32, alive: bool, seq: u32) {
+    /// was in force: drops the inputs the server has used and replays the rest from there with `step`.
+    pub fn confirm(&mut self, x: i32, y: i32, alive: bool, seq: u32, step: impl Fn(i32, i32, u8) -> (i32, i32)) {
         while self.pending.front().is_some_and(|p| p.seq < seq) {
             self.pending.pop_front();
         }
@@ -146,18 +142,32 @@ fn follow(ax: i32, ay: i32, tx: i32, ty: i32) -> (i32, i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use realm_core::{Config, Field, INPUT_SKILL};
+    use crate::{wire_input, WIRE_SKILL};
+    use realm_core::{Config, Field, Outing, Sheet, FIELD};
 
     /// A field with no monsters, so nothing but inputs moves or hurts the hero.
     fn quiet_field() -> (Field, u16) {
         let mut f = Field::new(3, Config { monsters: 0, threads: 1 });
-        let id = f.join(0, 0, FIELD / 2, FIELD / 2);
+        let id = f.join(&Sheet::bench(1, 0, 1), &Outing::new(), FIELD / 2, FIELD / 2);
+        // A tick derives her speed, as the first tick a client applies does.
+        f.step::<u16>(&[]);
         (f, id)
     }
 
     fn walk(t: u32) -> u8 {
         let dir = 1 + (t / 7 % 8) as u8;
-        if t % 50 == 0 { dir | INPUT_SKILL } else { dir }
+        if t % 50 == 0 { dir | WIRE_SKILL } else { dir }
+    }
+
+    /// The walking step the client hands the predictor.
+    fn step_of(f: &Field, id: u16) -> impl Fn(i32, i32, u8) -> (i32, i32) + '_ {
+        move |x, y, input| f.walk(id, x, y, wire_input(input))
+    }
+
+    fn inputs_for(id: u16, input: u8) -> Vec<u16> {
+        let mut inputs = vec![0u16; id as usize + 1];
+        inputs[id as usize] = wire_input(input);
+        inputs
     }
 
     /// The server uses each input `lag` ticks after it was sent; returns the hero at every confirm.
@@ -167,10 +177,10 @@ mod tests {
         let mut sent: VecDeque<(u32, u8)> = VecDeque::new();
         let mut in_force = (0u32, 0u8);
         let mut trail = Vec::new();
-        pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0);
+        pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0, step_of(&f, id));
         for t in 1..=ticks {
             let input = walk(t);
-            let seq = pred.push(input);
+            let seq = pred.push(input, step_of(&f, id));
             sent.push_back((seq, input));
             // The input `late` reaches the server one tick after the next one: the server skips it.
             if sent.len() > lag && Some(sent[0].0) != late {
@@ -178,12 +188,10 @@ mod tests {
             } else if sent.len() > lag {
                 sent.pop_front();
             }
-            let mut inputs = vec![0u8; id as usize + 1];
-            inputs[id as usize] = in_force.1;
-            f.step(&inputs);
+            f.step(&inputs_for(id, in_force.1));
             let p = &f.players()[id as usize];
             let before = pred.shown().unwrap_or_default();
-            pred.confirm(p.x, p.y, p.alive(), in_force.0);
+            pred.confirm(p.x, p.y, p.alive(), in_force.0, step_of(&f, id));
             trail.push((before, pred.shown().unwrap_or_default()));
         }
         (pred, trail)
@@ -195,16 +203,22 @@ mod tests {
         let (mut x, mut y) = (f.players()[id as usize].x, f.players()[id as usize].y);
         for t in 0..400 {
             let input = walk(t);
-            f.step(&[input]);
-            (x, y) = step(x, y, input);
+            (x, y) = f.walk(id, x, y, wire_input(input));
+            f.step(&inputs_for(id, input));
             assert_eq!((x, y), (f.players()[id as usize].x, f.players()[id as usize].y), "tick {t}");
         }
     }
 
     #[test]
-    fn the_step_stops_at_the_wall() {
-        assert_eq!(step(0, 5 * SUB, 5), (0, 5 * SUB));
-        assert_eq!(step(FIELD - 1, FIELD - 1, 2), (FIELD - 1, FIELD - 1));
+    fn the_step_never_enters_a_wall() {
+        let (f, id) = quiet_field();
+        for dir in 1..=8u8 {
+            let (mut x, mut y) = (f.players()[id as usize].x, f.players()[id as usize].y);
+            for _ in 0..4000 {
+                (x, y) = f.walk(id, x, y, wire_input(dir));
+                assert!((0..FIELD).contains(&x) && (0..FIELD).contains(&y) && !f.terrain().wall(x, y), "dir {dir}: ({x}, {y})");
+            }
+        }
     }
 
     #[test]
@@ -226,7 +240,7 @@ mod tests {
         let lag = 4;
         let (mut f, id) = quiet_field();
         let mut pred = Predictor::default();
-        pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0);
+        pred.confirm(f.players()[id as usize].x, f.players()[id as usize].y, true, 0, step_of(&f, id));
         let mut sent: VecDeque<(u32, u8)> = VecDeque::new();
         let mut in_force = (0u32, 0u8);
         let mut shown = pred.shown().unwrap_or_default();
@@ -234,10 +248,10 @@ mod tests {
         let mut longest = 0;
         for t in 1..=200u32 {
             let input = walk(t);
-            let seq = pred.push(input);
+            let seq = pred.push(input, step_of(&f, id));
             // The shown hero moved by its own step plus at most the correction.
             let now = pred.shown().unwrap_or_default();
-            let own = step(shown.0, shown.1, input);
+            let own = step_of(&f, id)(shown.0, shown.1, input);
             let extra = ((now.0 - own.0) as i64).pow(2) + ((now.1 - own.1) as i64).pow(2);
             assert!(extra <= (CORRECTION_PER_TICK as i64).pow(2), "tick {t}: jumped {extra}");
             sent.push_back((seq, input));
@@ -247,11 +261,9 @@ mod tests {
                     in_force = s;
                 }
             }
-            let mut inputs = vec![0u8; id as usize + 1];
-            inputs[id as usize] = in_force.1;
-            f.step(&inputs);
+            f.step(&inputs_for(id, in_force.1));
             let p = &f.players()[id as usize];
-            pred.confirm(p.x, p.y, true, in_force.0);
+            pred.confirm(p.x, p.y, true, in_force.0, step_of(&f, id));
             shown = pred.shown().unwrap_or_default();
             if shown != pred.predicted().unwrap_or_default() {
                 let since = *wrong_since.get_or_insert(t);
@@ -269,19 +281,21 @@ mod tests {
     #[test]
     fn a_far_correction_jumps_at_once() {
         let mut pred = Predictor::default();
-        pred.confirm(FIELD / 2, FIELD / 2, true, 0);
-        pred.push(1);
-        pred.confirm(FIELD / 4, FIELD / 4, true, 1);
-        pred.push(0);
+        let east = |x: i32, y: i32, input: u8| (x + 3 * SUB * (input != 0) as i32, y);
+        pred.confirm(FIELD / 2, FIELD / 2, true, 0, east);
+        pred.push(1, east);
+        pred.confirm(FIELD / 4, FIELD / 4, true, 1, east);
+        pred.push(0, east);
         assert_eq!(pred.shown(), Some((FIELD / 4, FIELD / 4)));
     }
 
     #[test]
     fn a_dead_hero_is_not_moved_by_inputs() {
         let mut pred = Predictor::default();
-        pred.confirm(FIELD / 2, FIELD / 2, false, 0);
+        let east = |x: i32, y: i32, _: u8| (x + 3 * SUB, y);
+        pred.confirm(FIELD / 2, FIELD / 2, false, 0, east);
         for _ in 0..5 {
-            pred.push(3);
+            pred.push(3, east);
         }
         assert_eq!(pred.predicted(), Some((FIELD / 2, FIELD / 2)));
         assert_eq!(pred.shown(), Some((FIELD / 2, FIELD / 2)));

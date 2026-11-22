@@ -15,6 +15,14 @@ pub const MAX_DATAGRAM: usize = 1200;
 /// IP + UDP header bytes per datagram, for wire totals.
 pub const UDP_OVERHEAD: usize = 28;
 
+/// The skill bit of the one-byte move a client sends (bits 0..3 are the direction).
+pub const WIRE_SKILL: u8 = 0x80;
+
+/// A client's one-byte move as the core's input: the direction, and the skill bit as skill 1.
+pub fn wire_input(mv: u8) -> u16 {
+    (mv & 0x0F) as u16 | if mv & WIRE_SKILL != 0 { realm_core::IN_SKILL1 } else { 0 }
+}
+
 pub const MSG_HELLO: u8 = 0x01;
 pub const MSG_INPUT: u8 = 0x02;
 pub const MSG_BYE: u8 = 0x03;

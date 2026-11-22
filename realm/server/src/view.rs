@@ -58,11 +58,11 @@ pub fn box_size(zoom: u8) -> (i32, i32) {
     (realm_core::VIEW_W * z + 2 * BOX_MARGIN, realm_core::VIEW_H * z + 2 * BOX_MARGIN)
 }
 
-pub fn hp_eighths(hp: u16, max: u16) -> u8 {
+pub fn hp_eighths(hp: u32, max: u32) -> u8 {
     if hp == 0 || max == 0 {
         return 0;
     }
-    (((hp as u32 * 8 - 1) / max as u32).min(7)) as u8
+    (((hp as u64 * 8 - 1) / max as u64).min(7)) as u8
 }
 
 /// Scratch reused across views so a thousand of them a tick do not allocate.
@@ -84,7 +84,7 @@ pub fn build(f: &Field, id: u16, zoom: u8, tick_time: u16, s: &mut Scratch, out:
     out.oy = oy;
     out.me_x = (px - ox) as u16;
     out.me_y = (py - oy) as u16;
-    out.health = p.health;
+    out.health = p.health.min(u16::MAX as u32) as u16;
     out.level = p.level;
     out.field_players = f.player_count();
     out.field_monsters = f.monster_count();
@@ -117,7 +117,7 @@ pub fn build(f: &Field, id: u16, zoom: u8, tick_time: u16, s: &mut Scratch, out:
             id: i,
             x: (m.x[k] / SUB) as u16,
             y: (m.y[k] / SUB) as u16,
-            attrs: (kind & 7) | hp_eighths(m.hp[k], m.max_hp(k)) << 3 | ((kind >> 3) & 1) << 6,
+            attrs: (kind & 7) | hp_eighths(m.hp[k], m.max_hp(k)) << 3 | (m.is_elite(k) as u8) << 6,
             hurt: m.hurt[k] != 0,
         });
     }

@@ -26,10 +26,12 @@ struct Args {
     follow: bool,
     zoom: u8,
     warmup: u32,
+    field: u8,
+    level: u8,
 }
 
 fn parse_args() -> Args {
-    let mut a = Args { port: DEFAULT_PORT, seed: 1, bots: 0, monsters: 20_000, rally_permille: 300, threads: 1, report: 5, ticks: None, bench: false, follow: false, zoom: 1, warmup: 100 };
+    let mut a = Args { port: DEFAULT_PORT, seed: 1, bots: 0, monsters: 20_000, rally_permille: 300, threads: 1, report: 5, ticks: None, bench: false, follow: false, zoom: 1, warmup: 100, field: 0, level: 0 };
     for arg in std::env::args().skip(1) {
         let (k, v) = arg.split_once('=').unwrap_or((arg.as_str(), ""));
         let num = |v: &str| v.parse::<u64>().unwrap_or_else(|_| die(&format!("bad value in {arg}")));
@@ -46,8 +48,10 @@ fn parse_args() -> Args {
             "--follow" => a.follow = true,
             "--zoom" => a.zoom = num(v) as u8,
             "--warmup" => a.warmup = num(v) as u32,
+            "--field" => a.field = (num(v) as u8).min(5),
+            "--level" => a.level = (num(v) as u8).min(60),
             "--help" | "-h" => {
-                println!("realm-server [--port=7777] [--seed=1] [--bots=N] [--monsters=M] [--rally=0.3] [--threads=T] [--report=secs] [--ticks=N] [--bench] [--follow] [--zoom=1] [--warmup=100]");
+                println!("realm-server [--port=7777] [--seed=1] [--bots=N] [--monsters=M] [--rally=0.3] [--threads=T] [--report=secs] [--ticks=N] [--bench] [--follow] [--zoom=1] [--warmup=100] [--field=0..5] [--level=N (0: the field's top)]");
                 std::process::exit(0);
             }
             _ => die(&format!("unknown flag {arg}")),
@@ -116,7 +120,7 @@ const HISTORY: usize = 64;
 
 impl Sim {
     fn new(args: &Args) -> Sim {
-        let field = Field::new(args.seed, Config { monsters: args.monsters, threads: args.threads });
+        let field = Field::open(args.field, args.seed, Config { monsters: args.monsters, threads: args.threads });
         Sim { args: args.clone(), field, ls: Lockstep::default(), bots: Vec::new(), rng: args.seed ^ 0xB07, history: VecDeque::new(), tick_time: 0 }
     }
 
@@ -171,16 +175,17 @@ impl Sim {
         let t_bots = Instant::now();
         let mut rec = TickRec { tick: self.field.tick() + 1, leaves: leaves.to_vec(), ..TickRec::default() };
         for (j, &id) in joins.iter().zip(&ids) {
-            rec.joins.push(Join { id, class: j.0, race: j.1, x: j.2, y: j.3 });
+            let level = if self.args.level == 0 { realm_core::tables::FIELDS[self.args.field as usize].top } else { self.args.level };
+            rec.joins.push(Join { id, class: j.0, race: j.1, level, x: j.2, y: j.3 });
         }
         let slots = self.field.players().len().max(ids.iter().map(|&i| i as usize + 1).max().unwrap_or(0));
-        let mut want = vec![0u8; slots];
+        let mut want = vec![0u16; slots];
         for b in &self.bots {
             want[b.id as usize] = b.input;
         }
         for &(id, inp) in client_inputs {
             if let Some(w) = want.get_mut(id as usize) {
-                *w = inp;
+                *w = wire_input(inp);
             }
         }
         for &l in leaves {
@@ -535,7 +540,8 @@ fn serve(args: &Args) {
                         let rr = realm_core::rng_next(&mut rng);
                         let x = FIELD / 2 + ((rr % 400) as i32 - 200) * SUB;
                         let y = FIELD / 2 + (((rr >> 20) % 400) as i32 - 200) * SUB;
-                        joins.push((class, race, x, y));
+                        // The HELLO's class is 0..4 (KNIGHT to PALADIN); the core's class 0 is the NOVICE.
+                        joins.push((1 + class.min(4), race.min(3), x, y));
                         join_addrs.push(from);
                     }
                     clients.insert(from, c);

@@ -362,7 +362,7 @@ mod tests {
     fn v0_and_v1_decode_to_the_same_view() {
         let mut f = Field::new(3, Config { monsters: 20_000, threads: 2 });
         for i in 0..300 {
-            f.join((i % 5) as u8, (i % 4) as u8, FIELD / 2 + (i % 20 - 10) * 40 * SUB, FIELD / 2 + (i / 20 - 7) * 40 * SUB);
+            f.join(&realm_core::Sheet::bench((i % 5) as u8, (i % 4) as u8, 1), &realm_core::Outing::new(), FIELD / 2 + (i % 20 - 10) * 40 * SUB, FIELD / 2 + (i / 20 - 7) * 40 * SUB);
         }
         let mut s = Scratch::default();
         let mut views: Vec<View> = Vec::new();

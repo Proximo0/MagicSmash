@@ -7,7 +7,7 @@
 
 use crate::lockstep::{take_seq_head, Assembler, Lockstep, TickRec, INPUT_REPEAT};
 use crate::predict::Predictor;
-use crate::{hello, input, input_seq, Rd, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
+use crate::{hello, input, input_seq, wire_input, Rd, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS, MSG_WELCOME, PROTO_BP};
 use realm_core::{Field, Player};
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -217,8 +217,9 @@ impl LockstepClient {
         let seq = self.seq_at.get(&tick).copied();
         let Some(p) = self.hero_player() else { return };
         let (x, y, alive) = (p.x, p.y, p.alive());
+        let (Some((field, _)), Some(id)) = (&self.game, self.hero) else { return };
         // Before the first head the hero has used no input of ours yet.
-        self.pred.confirm(x, y, alive, seq.unwrap_or(0));
+        self.pred.confirm(x, y, alive, seq.unwrap_or(0), |x, y, mv| field.walk(id, x, y, wire_input(mv)));
     }
 
     /// The INPUT for this client's next tick (direction 0..8, bit 7 the skill): a player's moves its
@@ -227,7 +228,8 @@ impl LockstepClient {
         // Acknowledge only a whole state: while it downloads the server keeps sending its parts.
         let ack = self.tick();
         if self.proto == PROTO_BP {
-            let seq = self.pred.push(mv & 0x8F);
+            let walker = self.game.as_ref().map(|g| &g.0).zip(self.hero);
+            let seq = self.pred.push(mv & 0x8F, |x, y, mv| walker.map_or((x, y), |(f, id)| f.walk(id, x, y, wire_input(mv))));
             self.recent.push_front(mv & 0x8F);
             self.recent.truncate(INPUT_REPEAT + 1);
             input_seq(ack, seq, self.recent.make_contiguous())
@@ -258,7 +260,8 @@ mod tests {
 
         fn tick(&mut self, joins: Vec<Join>, want: &[u8]) {
             let mut rec = TickRec { tick: self.field.tick() + 1, joins, ..TickRec::default() };
-            rec.changes = self.ls.changes(&rec, want);
+            let want: Vec<u16> = want.iter().map(|&mv| wire_input(mv)).collect();
+            rec.changes = self.ls.changes(&rec, &want);
             assert!(self.ls.apply(&mut self.field, &rec, |_| {}));
             if rec.tick % HASH_EVERY == 0 {
                 rec.hash = Some(self.field.hash());
@@ -287,7 +290,7 @@ mod tests {
     #[test]
     fn a_follower_joins_from_the_state_and_matches_every_hash() {
         let mut m = Mini::new(1500);
-        let bots: Vec<Join> = (0..12u16).map(|k| Join { id: k, class: (k % 5) as u8, race: (k % 4) as u8, x: FIELD / 2 + k as i32 * 9000, y: FIELD / 2 }).collect();
+        let bots: Vec<Join> = (0..12u16).map(|k| Join { id: k, class: (k % 5) as u8, race: (k % 4) as u8, level: 1, x: FIELD / 2 + k as i32 * 9000, y: FIELD / 2 }).collect();
         m.tick(bots, &[]);
         let want = |t: u32| -> Vec<u8> { (0..12u32).map(|i| ((i + t / 9) % 9) as u8).collect() };
         for t in 2..=30 {
@@ -321,7 +324,7 @@ mod tests {
     fn a_player_predicts_its_hero_from_the_seq_heads() {
         // No monsters: nothing may kill the hero, which would rightly break the prediction.
         let mut m = Mini::new(0);
-        m.tick(vec![Join { id: 0, class: 1, race: 2, x: FIELD / 2, y: FIELD / 2 }], &[]);
+        m.tick(vec![Join { id: 0, class: 1, race: 2, level: 1, x: FIELD / 2, y: FIELD / 2 }], &[]);
         let mut c = LockstepClient::new(PROTO_BP, 1, 2, 1);
         c.receive(&welcome(0, 1));
         assert_eq!(c.hero(), Some(0));

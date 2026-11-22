@@ -1,7 +1,7 @@
 //! Protocol B: every client runs the whole field; the server sends what changed each tick.
 //!
-//! A tick record (this job's packing): `u16 n joins, [u16 id, u8 class, u8 race, i32 x, i32 y]`,
-//! `u16 n leaves, [u16 id]`, `u16 n changes, [varint slot gap, u8 input]` (inputs persist until changed),
+//! A tick record (this job's packing): `u16 n joins, [u16 id, u8 class, u8 race, u8 level, i32 x, i32 y]`,
+//! `u16 n leaves, [u16 id]`, `u16 n changes, [varint slot gap, u16 input]` (inputs persist until changed),
 //! `u8 has hash, [u64 hash after the tick]` (every 20 ticks).
 //!
 //! Datagram `0x90, u8 n records`, then records `u32 tick, u8 frag, u8 frags, u16 len, bytes`; a record too
@@ -9,7 +9,7 @@
 //! acknowledgement (INPUT's `u32` field), so a lost datagram costs a repeat, not a desync.
 //!
 //! Joining: `0x91, u32 tick, u16 part, u16 parts, bytes` carries the state after `tick`: the field
-//! `u32 n` and the persistent input bytes, then the field (`Field::to_bytes`).
+//! `u32 n` and the persistent `u16` inputs, then the field (`Field::to_bytes`).
 //!
 //! A lockstep player (HELLO proto 4) is a follower whose own inputs enter the stream. Its INPUT adds
 //! `u32 seq, u8 n, n x u8 move` (a number per input sent, from 1, and the moves of seqs `seq - 1` back to
@@ -23,7 +23,7 @@
 //! apply joins, leaves and inputs in the same order.
 
 use crate::{put_i32, put_u16, put_u32, put_u64, put_varint, Rd, MAX_DATAGRAM, MSG_PLAYER_TICKS, MSG_STATE, MSG_TICKS};
-use realm_core::{Field, Phase};
+use realm_core::{Field, Outing, Phase, Sheet};
 
 pub const HASH_EVERY: u32 = 20;
 
@@ -32,6 +32,7 @@ pub struct Join {
     pub id: u16,
     pub class: u8,
     pub race: u8,
+    pub level: u8,
     pub x: i32,
     pub y: i32,
 }
@@ -41,7 +42,7 @@ pub struct TickRec {
     pub tick: u32,
     pub joins: Vec<Join>,
     pub leaves: Vec<u16>,
-    pub changes: Vec<(u16, u8)>,
+    pub changes: Vec<(u16, u16)>,
     pub hash: Option<u64>,
 }
 
@@ -52,6 +53,7 @@ impl TickRec {
             put_u16(w, j.id);
             w.push(j.class);
             w.push(j.race);
+            w.push(j.level);
             put_i32(w, j.x);
             put_i32(w, j.y);
         }
@@ -64,7 +66,7 @@ impl TickRec {
         for &(slot, inp) in &self.changes {
             put_varint(w, slot as u32 - prev);
             prev = slot as u32;
-            w.push(inp);
+            put_u16(w, inp);
         }
         match self.hash {
             Some(h) => {
@@ -79,7 +81,7 @@ impl TickRec {
         let mut r = Rd::new(b);
         let mut t = TickRec { tick, ..TickRec::default() };
         for _ in 0..r.u16()? {
-            t.joins.push(Join { id: r.u16()?, class: r.u8()?, race: r.u8()?, x: r.i32()?, y: r.i32()? });
+            t.joins.push(Join { id: r.u16()?, class: r.u8()?, race: r.u8()?, level: r.u8()?, x: r.i32()?, y: r.i32()? });
         }
         for _ in 0..r.u16()? {
             t.leaves.push(r.u16()?);
@@ -87,7 +89,7 @@ impl TickRec {
         let mut prev = 0u32;
         for _ in 0..r.u16()? {
             prev += r.varint()?;
-            t.changes.push((prev as u16, r.u8()?));
+            t.changes.push((prev as u16, r.u16()?));
         }
         if r.u8()? == 1 {
             t.hash = Some(r.u64()?);
@@ -99,7 +101,7 @@ impl TickRec {
 /// The input bytes every player holds, kept beside the field on both sides.
 #[derive(Clone, Debug, Default)]
 pub struct Lockstep {
-    pub inputs: Vec<u8>,
+    pub inputs: Vec<u16>,
 }
 
 impl Lockstep {
@@ -114,7 +116,7 @@ impl Lockstep {
             }
         }
         for j in &rec.joins {
-            let id = f.join(j.class, j.race, j.x, j.y);
+            let id = f.join(&Sheet::bench(j.class, j.race, j.level), &Outing::new(), j.x, j.y);
             ok &= id == j.id;
             if self.inputs.len() <= id as usize {
                 self.inputs.resize(id as usize + 1, 0);
@@ -132,7 +134,7 @@ impl Lockstep {
     }
 
     /// The changes that turn the held inputs into `want`, after `rec`'s leaves and joins reset theirs.
-    pub fn changes(&self, rec: &TickRec, want: &[u8]) -> Vec<(u16, u8)> {
+    pub fn changes(&self, rec: &TickRec, want: &[u16]) -> Vec<(u16, u16)> {
         let mut held = self.inputs.clone();
         for &id in rec.leaves.iter().chain(rec.joins.iter().map(|j| &j.id)) {
             if let Some(i) = held.get_mut(id as usize) {
@@ -148,11 +150,11 @@ impl Lockstep {
         out
     }
 
-    /// `u32 n, n input bytes`, then the field.
+    /// `u32 n, n u16 inputs`, then the field.
     pub fn state_bytes(&self, f: &Field) -> Vec<u8> {
         let mut b = Vec::new();
         put_u32(&mut b, self.inputs.len() as u32);
-        b.extend_from_slice(&self.inputs);
+        self.inputs.iter().for_each(|&i| put_u16(&mut b, i));
         b.extend_from_slice(&f.to_bytes());
         b
     }
@@ -160,8 +162,8 @@ impl Lockstep {
     pub fn from_state(b: &[u8], threads: usize) -> Option<(Field, Lockstep)> {
         let mut r = Rd::new(b);
         let n = r.u32()? as usize;
-        let inputs = r.bytes(n)?.to_vec();
-        let f = Field::from_bytes(&b[4 + n..], threads)?;
+        let inputs = (0..n).map(|_| r.u16()).collect::<Option<Vec<u16>>>()?;
+        let f = Field::from_bytes(&b[4 + 2 * n..], threads)?;
         Some((f, Lockstep { inputs }))
     }
 }
@@ -354,16 +356,16 @@ mod tests {
             let mut rec = TickRec { tick: t, ..TickRec::default() };
             if t <= 3 {
                 for k in 0..20u16 {
-                    rec.joins.push(Join { id: (t as u16 - 1) * 20 + k, class: (k % 5) as u8, race: (k % 4) as u8, x: FIELD / 2 + k as i32 * 50 * SUB, y: FIELD / 2 });
+                    rec.joins.push(Join { id: (t as u16 - 1) * 20 + k, class: (k % 5) as u8, race: (k % 4) as u8, level: 1, x: FIELD / 2 + k as i32 * 50 * SUB, y: FIELD / 2 });
                 }
             }
             if t == 150 {
                 rec.leaves.push(5);
             }
             if t == 160 {
-                rec.joins.push(Join { id: 5, class: 1, race: 1, x: FIELD / 3, y: FIELD / 3 });
+                rec.joins.push(Join { id: 5, class: 1, race: 1, level: 1, x: FIELD / 3, y: FIELD / 3 });
             }
-            let want: Vec<u8> = (0..60u32).map(|i| if i == 5 && (150..160).contains(&t) { 0 } else { ((i * 7 + t / 15) % 9) as u8 }).collect();
+            let want: Vec<u16> = (0..60u32).map(|i| if i == 5 && (150..160).contains(&t) { 0 } else { ((i * 7 + t / 15) % 9) as u16 }).collect();
             rec.changes = ls.changes(&rec, &want);
             assert!(ls.apply(&mut server, &rec, |_| {}));
             if t % HASH_EVERY == 0 {
@@ -444,5 +446,5 @@ mod tests {
         assert_eq!(q.seq, 4);
     }
 
-    const INPUT_SKILL_BIT: u8 = realm_core::INPUT_SKILL;
+    const INPUT_SKILL_BIT: u8 = crate::WIRE_SKILL;
 }

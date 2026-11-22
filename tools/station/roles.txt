@@ -4,5 +4,5 @@
 # that changed nothing it tests, so a merge of docs or art costs the stations nothing.
 ubuntu: realm
 msi: realm
-laptop: idle
-heatherspc: idle
+laptop: realm
+heatherspc: realm
