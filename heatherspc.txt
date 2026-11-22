@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-22T12:46Z commit=ec36466 took=7187s
-JOB economy INFO seed=742645    Compiling realm-loot v0.1.0 (C:\projects\stations\MagicSmash\realm\loot)    Compiling realm-gateway v0.1.0 (C:\projects\stations\MagicSmash\realm\gateway)     Finished `release` profile [optimized] target(s) in 3m 04s 
+STATION machine=heatherspc time=2026-11-22T14:48Z commit=5a19576 took=7185s
+JOB economy INFO seed=486570    Compiling realm-server v0.1.0 (C:\projects\stations\MagicSmash\realm\server)    Compiling realm-gateway v0.1.0 (C:\projects\stations\MagicSmash\realm\gateway)     Finished `release` profile [optimized] target(s) in 3m 01s 
 STATION PASS jobs=1 failed=0 skipped=0
