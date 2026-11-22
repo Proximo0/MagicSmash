@@ -389,6 +389,8 @@ fn verify_inner(c: &Connection) -> Result<VerifyReport> {
 		add(p, format!("bad socket contents: {badsock}"));
 	}
 
+	crate::parcels::check(c, p)?;
+
 	// replay
 	let (ritems, rstacks, nrows) = replay(c, p)?;
 	rep.ledger_rows = nrows;
@@ -777,4 +779,16 @@ fn plan_inner(c: &Connection, account: AccountId, since: i64) -> Result<Clawback
 	}
 	plan.stacks = merged.into_iter().map(|((o, k), n)| (o, k, n)).collect();
 	Ok(plan)
+}
+
+/// Coin by ledger op and reason: (op, reason, minted, rows, total). The faucets are the minted CREDIT rows and the
+/// sinks the DEBIT and CLAWBACK rows; `TRANSFER` rows (between parties) net to zero over the whole game.
+pub fn coin_flows(c: &Connection) -> Result<Vec<(String, String, bool, i64, i64)>> {
+	let mut st = c.prepare(
+		"SELECT op, reason, minted, count(*), sum(count) FROM ledger WHERE stack_kind = 1 GROUP BY op, reason, minted ORDER BY op, reason",
+	)?;
+	let v = st
+		.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get::<_, i64>(2)? != 0, r.get(3)?, r.get(4)?)))?
+		.collect::<rusqlite::Result<Vec<_>>>()?;
+	Ok(v)
 }

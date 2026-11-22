@@ -3,7 +3,7 @@
 
 use rusqlite::{Connection, OptionalExtension};
 
-pub const LATEST: i64 = 2;
+pub const LATEST: i64 = 3;
 
 pub const V1: &str = r#"
 CREATE TABLE schema_version (version INTEGER NOT NULL);
@@ -156,7 +156,37 @@ CREATE INDEX ledger_from_guild ON ledger (from_owner) WHERE from_kind = 8;
 UPDATE schema_version SET version = 2;
 "#;
 
-pub const STEPS: [&str; 2] = [V1, V2];
+/// Version 3 (job E1, additive): parcels. A parcel is what the market and letters hold in escrow: a listing
+/// (one item or one stack for a price, any hero may buy) or a letter (attachments for one hero, with an optional
+/// cash-on-delivery price). Its things sit in the MARKET place (items) and the MARKET stack owner, owner = the
+/// parcel id; this table is the record: who sent it, to whom, the price and when it ends. Ids are never reused.
+pub const V3: &str = r#"
+CREATE TABLE parcels (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	kind INTEGER NOT NULL CHECK (kind IN (1, 2)),
+	from_hero INTEGER NOT NULL REFERENCES heroes(id),
+	to_hero INTEGER REFERENCES heroes(id),
+	price INTEGER NOT NULL CHECK (price >= 0),
+	created INTEGER NOT NULL,
+	expires INTEGER NOT NULL,
+	text TEXT NOT NULL DEFAULT '',
+	-- a listing's one entry, copied here so a search is an index walk and not a scan of every listing
+	gear_slot INTEGER,
+	item_level INTEGER,
+	rarity INTEGER,
+	stack_kind INTEGER
+);
+CREATE INDEX parcels_from ON parcels (from_hero);
+CREATE INDEX parcels_to ON parcels (to_hero) WHERE to_hero IS NOT NULL;
+CREATE INDEX parcels_expires ON parcels (expires);
+CREATE INDEX parcels_kind ON parcels (kind, expires);
+CREATE INDEX parcels_slot_price ON parcels (gear_slot, price) WHERE kind = 1 AND gear_slot IS NOT NULL;
+CREATE INDEX parcels_stack_price ON parcels (stack_kind, price) WHERE kind = 1 AND stack_kind IS NOT NULL;
+CREATE INDEX parcels_price ON parcels (price) WHERE kind = 1;
+UPDATE schema_version SET version = 3;
+"#;
+
+pub const STEPS: [&str; 3] = [V1, V2, V3];
 
 pub fn version(c: &Connection) -> rusqlite::Result<i64> {
 	let has: Option<String> = c

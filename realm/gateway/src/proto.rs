@@ -45,6 +45,8 @@ pub const T_FUSE: u8 = 0x1F;
 pub const T_CARDS: u8 = 0x30;
 pub const T_BUY: u8 = 0x31;
 pub const T_SELL: u8 = 0x32;
+/// The economy (merchants, trade, market, letters): one type, a sub-byte after it (`economy::wire`).
+pub const T_ECON: u8 = 0x33;
 
 // ---- replies
 pub const R_OK: u8 = 0x80;
@@ -58,6 +60,7 @@ pub const R_INVENTORY: u8 = 0x87;
 pub const R_PONG: u8 = 0x88;
 pub const R_SMITH: u8 = 0x89;
 pub const R_CARDS: u8 = 0x8A;
+pub const R_ECON: u8 = 0x8B;
 
 // ---- pushes (tag 0)
 pub const P_TOWN_SNAPSHOT: u8 = 0xA0;
@@ -65,6 +68,7 @@ pub const P_TOWN_CHAT: u8 = 0xA1;
 pub const P_TOWN_ARRIVE: u8 = 0xA2;
 pub const P_TOWN_DEPART: u8 = 0xA3;
 pub const P_OUTING: u8 = 0xA4;
+pub const P_ECON: u8 = 0xA8;
 
 /// Error codes of `R_ERR`.
 pub mod code {
@@ -168,6 +172,7 @@ pub enum Req {
     Buy { hero: i64, kind: u32, n: u32 },
     /// A merchant buys an item from her bag for coin.
     Sell { hero: i64, item: i64 },
+    Econ(crate::economy::wire::EReq),
     Ping,
 }
 
@@ -332,6 +337,10 @@ impl Req {
                 put_u64(&mut w, *item as u64);
                 T_SELL
             }
+            Req::Econ(e) => {
+                e.put(&mut w);
+                T_ECON
+            }
             Req::Ping => T_PING,
         };
         (t, w)
@@ -385,6 +394,7 @@ impl Req {
             T_CARDS => Req::Cards { hero: hero(&mut r)? },
             T_BUY => Req::Buy { hero: hero(&mut r)?, kind: r.u32()?, n: r.u32()? },
             T_SELL => Req::Sell { hero: hero(&mut r)?, item: hero(&mut r)? },
+            T_ECON => Req::Econ(crate::economy::wire::EReq::read(&mut r)?),
             T_PING => Req::Ping,
             _ => return None,
         };
@@ -612,6 +622,8 @@ pub enum Resp {
     Smith { item: i64, plus: u8, success: bool, amount: u64 },
     /// The deck cards a hero owns (`Req::Cards`).
     Cards(Vec<u16>),
+    /// An economy reply (`economy::wire`).
+    Econ(crate::economy::wire::EResp),
     // pushes
     Snapshot(TownSnapshot),
     Chat { from: u16, name: String, text: String },
@@ -620,6 +632,8 @@ pub enum Resp {
     /// A field outing's result, applied to the store: coin banked, class XP, levels gained, potions drunk, and why
     /// she left the field (0 gate, 1 waystone, 2 disconnect, 3 kicked, 4 shutdown, 255 still there).
     Outing { hero: i64, coin: u64, xp: u64, levels: u16, potions: u32, left: u8 },
+    /// An economy push: a trade update, a sale, a letter, an expiry.
+    EconPush(crate::economy::wire::EResp),
 }
 
 impl Resp {
@@ -682,6 +696,14 @@ impl Resp {
                 }
                 R_CARDS
             }
+            Resp::Econ(e) => {
+                e.put(&mut w);
+                R_ECON
+            }
+            Resp::EconPush(e) => {
+                e.put(&mut w);
+                P_ECON
+            }
             Resp::Snapshot(s) => {
                 s.put(&mut w);
                 P_TOWN_SNAPSHOT
@@ -737,6 +759,8 @@ impl Resp {
                 let n = r.u16()? as usize;
                 Resp::Cards((0..n).map(|_| r.u16()).collect::<Option<Vec<_>>>()?)
             }
+            R_ECON => Resp::Econ(crate::economy::wire::EResp::read(&mut r)?),
+            P_ECON => Resp::EconPush(crate::economy::wire::EResp::read(&mut r)?),
             P_TOWN_SNAPSHOT => Resp::Snapshot(TownSnapshot::read(&mut r)?),
             P_TOWN_CHAT => Resp::Chat { from: r.u16()?, name: read_str(&mut r)?, text: read_str(&mut r)? },
             P_TOWN_ARRIVE => Resp::Arrive(Member::read(&mut r)?),

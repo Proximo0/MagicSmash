@@ -151,6 +151,16 @@ impl Enc {
 			Cmd::GrantEntitlement { account, kind, count, purchase } => {
 				self.i(*account).u(*kind as u64).u(*count as u64).s(purchase)
 			}
+			Cmd::ParcelPut { kind, from, to, items, stacks, price, fee, expires, text } => {
+				self.u(*kind as u64).i(*from).opt_i(*to);
+				self.u(items.len() as u64);
+				for it in items {
+					self.i(*it);
+				}
+				self.stacks(stacks).u(*price).u(*fee).i(*expires).s(text)
+			}
+			Cmd::ParcelTake { parcel, hero, tax } => self.i(*parcel).i(*hero).u(*tax),
+			Cmd::ParcelReturn { parcel } => self.i(*parcel),
 		}
 	}
 	pub fn request(&mut self, r: &Request) -> &mut Self {
@@ -173,6 +183,7 @@ impl Enc {
 						self
 					}
 					Reply::Count(c) => self.w("count").u(*c),
+					Reply::Parcel(p) => self.w("parcel").i(*p),
 					Reply::Granted { new, total } => self.w("granted").b(*new).u(*total as u64),
 					Reply::Clawback { removed, missing, shortfall } => {
 						self.w("clawback").u(removed.len() as u64);
@@ -457,6 +468,19 @@ impl<'a> Dec<'a> {
 				count: self.u32()?,
 				purchase: self.s()?,
 			},
+			"parcel_put" => {
+				let kind = ParcelKind::from_i64(self.i()?).ok_or_else(|| bad("parcel kind"))?;
+				let from = self.i()?;
+				let to = self.opt_i()?;
+				let n = self.count()?;
+				let mut items = Vec::with_capacity(n);
+				for _ in 0..n {
+					items.push(self.i()?);
+				}
+				Cmd::ParcelPut { kind, from, to, items, stacks: self.stacks()?, price: self.u()?, fee: self.u()?, expires: self.i()?, text: self.s()? }
+			}
+			"parcel_take" => Cmd::ParcelTake { parcel: self.i()?, hero: self.i()?, tax: self.u()? },
+			"parcel_return" => Cmd::ParcelReturn { parcel: self.i()? },
 			_ => return Err(bad("cmd name")),
 		})
 	}
@@ -483,6 +507,7 @@ impl<'a> Dec<'a> {
 					Reply::Items(v)
 				}
 				"count" => Reply::Count(self.u()?),
+				"parcel" => Reply::Parcel(self.i()?),
 				"granted" => Reply::Granted { new: self.b()?, total: self.u32()? },
 				"clawback" => {
 					let n = self.count()?;

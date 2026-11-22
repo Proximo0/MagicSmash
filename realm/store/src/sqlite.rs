@@ -24,11 +24,14 @@ pub struct Options {
 	/// fixed 20 ms window measured 3 to 4 times slower here (see docs/realm/store.md).
 	pub group_window: Duration,
 	pub max_batch: usize,
+	/// `synchronous = FULL` (the default: a reply means the change is on disk). False is for simulations that test
+	/// rules and not crashes: it keeps WAL but does not fsync at each commit.
+	pub durable: bool,
 }
 
 impl Default for Options {
 	fn default() -> Options {
-		Options { group_window: Duration::ZERO, max_batch: MAX_BATCH }
+		Options { group_window: Duration::ZERO, max_batch: MAX_BATCH, durable: true }
 	}
 }
 
@@ -55,7 +58,9 @@ pub struct SqliteStore {
 
 fn pragmas(c: &Connection) -> rusqlite::Result<()> {
 	c.busy_timeout(Duration::from_secs(10))?;
-	c.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;")?;
+	// a page cache of 64 MB (the default is 2 MB): the request table is keyed by random ids, so its pages are
+	// touched all over and a small cache turned every insert into a read from the file once the store was big
+	c.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL; PRAGMA cache_size = -65536;")?;
 	Ok(())
 }
 
@@ -74,6 +79,7 @@ pub fn open_writer(path: &Path) -> Result<Connection> {
 pub fn open_reader(path: &Path) -> Result<Connection> {
 	let c = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX)?;
 	c.busy_timeout(Duration::from_secs(10))?;
+	c.execute_batch("PRAGMA cache_size = -65536;")?;
 	Ok(c)
 }
 
@@ -239,6 +245,9 @@ impl SqliteStore {
 	pub fn open_with(path: impl AsRef<Path>, opts: Options) -> Result<SqliteStore> {
 		let path = path.as_ref().to_path_buf();
 		let c = open_writer(&path)?;
+		if !opts.durable {
+			c.execute_batch("PRAGMA synchronous = OFF")?;
+		}
 		if crash::armed(Site::Commit) || crash::counting() {
 			c.commit_hook(Some(|| {
 				crash::point(Site::Commit);
@@ -406,5 +415,24 @@ impl Store for SqliteStore {
 	fn stats(&self) -> Result<Stats> {
 		let c = open_reader(&self.path)?;
 		read::stats(&c)
+	}
+	fn coin_flows(&self) -> Result<Vec<(String, String, bool, i64, i64)>> {
+		let c = open_reader(&self.path)?;
+		read::coin_flows(&c)
+	}
+	fn parcel(&self, id: i64) -> Result<Option<Parcel>> {
+		self.with_read(|c| crate::parcels::parcel(c, id))
+	}
+	fn parcels_from(&self, hero: HeroId) -> Result<Vec<Parcel>> {
+		self.with_read(|c| crate::parcels::parcels_from(c, hero))
+	}
+	fn parcels_to(&self, hero: HeroId) -> Result<Vec<Parcel>> {
+		self.with_read(|c| crate::parcels::parcels_to(c, hero))
+	}
+	fn parcels_due(&self, now: Millis, limit: u32) -> Result<Vec<i64>> {
+		self.with_read(|c| crate::parcels::parcels_due(c, now, limit))
+	}
+	fn listings(&self, q: &ListingQuery) -> Result<Vec<Parcel>> {
+		self.with_read(|c| crate::parcels::listings(c, q))
 	}
 }

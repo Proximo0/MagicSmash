@@ -135,6 +135,54 @@ fn rand_dest(r: &mut Rng, w: &World, h: HeroId, a: AccountId) -> Dest {
 	}
 }
 
+/// A parcel operation: put a listing or a letter, take one (maybe a stranger's letter), or return one.
+fn parcel_op(r: &mut Rng, w: &World, h: HeroId, now: Millis, roll: u64) -> Cmd {
+	let n: i64 = w.c.query_row("SELECT count(*) FROM parcels", [], |x| x.get(0)).unwrap_or(0);
+	let nth = |r: &mut Rng| -> Option<(i64, i64, Option<i64>, i64)> {
+		if n == 0 {
+			return None;
+		}
+		let k = r.below(n as u64) as i64;
+		w.c.query_row("SELECT id, kind, to_hero, price FROM parcels ORDER BY id LIMIT 1 OFFSET ?1", [k], |x| Ok((x.get(0)?, x.get(1)?, x.get(2)?, x.get(3)?))).ok()
+	};
+	match roll {
+		950..=974 => {
+			let items = w.bag(h);
+			let it = r.pick(&items).map(|i| i.id);
+			let letter = r.chance(40);
+			let to = if letter { r.pick(&w.heroes).map(|x| x.0) } else { None };
+			let stacks: Vec<(StackKind, u64)> = if it.is_none() || r.chance(25) {
+				w.bag_stacks(h).into_iter().take(1).map(|(k, n)| (k, 1 + r.below(n))).collect()
+			} else {
+				vec![]
+			};
+			let items = if stacks.is_empty() || letter { it.into_iter().collect() } else { vec![] };
+			Cmd::ParcelPut {
+				kind: if letter { ParcelKind::Letter } else { ParcelKind::Listing },
+				from: h,
+				to,
+				items,
+				stacks,
+				price: if letter { r.below(50) } else { 1 + r.below(500) },
+				fee: r.below(5),
+				expires: now + 1000 * (1 + r.below(5000)) as i64 - 500_000,
+				text: "fuzz".into(),
+			}
+		}
+		975..=984 => match nth(r) {
+			Some((id, kind, to, price)) => {
+				let taker = if kind == 2 && r.chance(90) { to.unwrap_or(h) } else { h };
+				Cmd::ParcelTake { parcel: id, hero: taker, tax: if kind == 1 { r.below(price as u64 + 1) } else { 0 } }
+			}
+			None => fallback(h),
+		},
+		_ => match nth(r) {
+			Some((id, ..)) => Cmd::ParcelReturn { parcel: id },
+			None => fallback(h),
+		},
+	}
+}
+
 /// The op for stream index `idx`, from the seed and the database as it now is.
 fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 	let mut r = Rng::new(seed ^ idx.wrapping_mul(0x2545_f491_4f6c_dd1d));
@@ -335,6 +383,7 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 			let card = if r.chance(80) { r.pick(&pages).copied() } else { None };
 			Cmd::LearnPage { hero: h, card: card.unwrap_or(12 + r.below(18) as u16) }
 		}
+		950..=999 => parcel_op(&mut r, w, h, now, roll),
 		_ => {
 			// actor-checked moves: a player moving its own things, or trying someone else's
 			let items = w.kept(h, a);

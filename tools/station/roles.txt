@@ -8,4 +8,4 @@
 ubuntu: realm soak deep
 msi: realm frames deep
 laptop: realm frames deep
-heatherspc: realm frames deep
+heatherspc: realm frames economy deep

@@ -46,11 +46,11 @@ pub struct Row<'a> {
 	pub data: String,
 }
 
-fn place_cols(p: &Place) -> (PlaceKind, i64, Option<u32>, Option<u32>) {
+pub(crate) fn place_cols(p: &Place) -> (PlaceKind, i64, Option<u32>, Option<u32>) {
 	(p.kind, p.owner, Some(p.tab), Some(p.slot))
 }
 
-fn owner_cols(o: &Owner) -> (PlaceKind, i64, Option<u32>, Option<u32>) {
+pub(crate) fn owner_cols(o: &Owner) -> (PlaceKind, i64, Option<u32>, Option<u32>) {
 	(o.kind, o.id, None, None)
 }
 
@@ -118,11 +118,11 @@ pub fn item_from_row(r: &rusqlite::Row) -> rusqlite::Result<Item> {
 	})
 }
 
-fn inv(s: impl Into<String>) -> Error {
+pub(crate) fn inv(s: impl Into<String>) -> Error {
 	Error::Invalid(s.into())
 }
 
-fn i64_of(v: u64, what: &str) -> Result<i64> {
+pub(crate) fn i64_of(v: u64, what: &str) -> Result<i64> {
 	i64::try_from(v).map_err(|_| inv(format!("{what} too large")))
 }
 
@@ -149,12 +149,12 @@ pub fn acct_of(p: Party) -> Option<AccountId> {
 }
 
 impl<'c> Tx<'c> {
-	fn exec<P: Params>(&self, sql: &str, p: P) -> Result<usize> {
+	pub(crate) fn exec<P: Params>(&self, sql: &str, p: P) -> Result<usize> {
 		crash::point(Site::Stmt);
 		Ok(self.c.prepare_cached(sql)?.execute(p)?)
 	}
 
-	fn one<T, P: Params, F: FnOnce(&rusqlite::Row) -> rusqlite::Result<T>>(&self, sql: &str, p: P, f: F) -> Result<Option<T>> {
+	pub(crate) fn one<T, P: Params, F: FnOnce(&rusqlite::Row) -> rusqlite::Result<T>>(&self, sql: &str, p: P, f: F) -> Result<Option<T>> {
 		crash::point(Site::Stmt);
 		Ok(self.c.prepare_cached(sql)?.query_row(p, f).optional()?)
 	}
@@ -243,7 +243,7 @@ impl<'c> Tx<'c> {
 	}
 
 	/// A live hero, whoever asks (a mail recipient, a trade partner).
-	fn live_hero(&self, id: HeroId) -> Result<HeroRow> {
+	pub(crate) fn live_hero(&self, id: HeroId) -> Result<HeroRow> {
 		let h = self.hero_row(id)?;
 		if h.deleted_at.is_some() {
 			return Err(Error::Deleted);
@@ -251,12 +251,36 @@ impl<'c> Tx<'c> {
 		Ok(h)
 	}
 
-	fn party(&self, kind: PlaceKind, owner: i64) -> Result<Party> {
+	pub(crate) fn party(&self, kind: PlaceKind, owner: i64) -> Result<Party> {
 		party_of(self.c, kind, owner)
 	}
 
 	/// TRADE_LOCKED: no value moves between a locked account and any other party, in either direction.
-	fn check_flow(&self, from: Party, to: Party) -> Result<()> {
+	pub(crate) fn is_self_found(&self, hero: HeroId) -> Result<bool> {
+		Ok(self.one("SELECT self_found FROM heroes WHERE id = ?1", [hero], |r| r.get::<_, i64>(0))?.unwrap_or(0) != 0)
+	}
+
+	/// The self-found rule. A self-found hero's items are hers alone and she holds only what was minted for her:
+	/// she gives nothing to another hero, and an item enters her containers only if she is its origin hero.
+	/// (The bank and the house belong to the account, so she may use them for her own things.)
+	pub(crate) fn self_found_gate(&self, it: &Item, from: Option<HeroId>, to: Option<HeroId>) -> Result<()> {
+		if from == to {
+			return Ok(());
+		}
+		if let Some(f) = from {
+			if to.is_some() && self.is_self_found(f)? {
+				return Err(Error::Refused);
+			}
+		}
+		if let Some(h) = to {
+			if it.origin_hero != Some(h) && self.is_self_found(h)? {
+				return Err(Error::Refused);
+			}
+		}
+		Ok(())
+	}
+
+	pub(crate) fn check_flow(&self, from: Party, to: Party) -> Result<()> {
 		if from == to {
 			return Ok(());
 		}
@@ -353,7 +377,7 @@ impl<'c> Tx<'c> {
 		self.party(kind, owner)
 	}
 
-	fn taken(&self, kind: PlaceKind, owner: i64, tab: u32, slot: u32) -> Result<Option<ItemId>> {
+	pub(crate) fn taken(&self, kind: PlaceKind, owner: i64, tab: u32, slot: u32) -> Result<Option<ItemId>> {
 		self.one(
 			"SELECT id FROM items WHERE place_kind = ?1 AND place_owner = ?2 AND place_tab = ?3 AND place_slot = ?4",
 			params![kind as i64, owner, tab, slot],
@@ -430,7 +454,7 @@ impl<'c> Tx<'c> {
 			.ok_or_else(|| Error::Missing(format!("item {id}")))
 	}
 
-	fn set_place(&self, id: ItemId, p: &Place) -> Result<()> {
+	pub(crate) fn set_place(&self, id: ItemId, p: &Place) -> Result<()> {
 		self.exec(
 			"UPDATE items SET place_kind = ?2, place_owner = ?3, place_tab = ?4, place_slot = ?5 WHERE id = ?1",
 			params![id, p.kind as i64, p.owner, p.tab, p.slot],
@@ -451,14 +475,14 @@ impl<'c> Tx<'c> {
 	}
 
 	/// Checks a stack owner may hold stacks and returns its party.
-	fn stack_owner(&self, o: &Owner) -> Result<Party> {
+	pub(crate) fn stack_owner(&self, o: &Owner) -> Result<Party> {
 		match o.kind {
 			PlaceKind::Worn => Err(inv("worn holds no stacks")),
 			_ => self.container(o.kind, o.id, 0),
 		}
 	}
 
-	fn stack_set(&self, o: &Owner, k: StackKind, n: u64) -> Result<()> {
+	pub(crate) fn stack_set(&self, o: &Owner, k: StackKind, n: u64) -> Result<()> {
 		if n == 0 {
 			self.exec(
 				"DELETE FROM stacks WHERE owner_kind = ?1 AND owner = ?2 AND kind = ?3",
@@ -495,7 +519,7 @@ impl<'c> Tx<'c> {
 		Ok(have - n)
 	}
 
-	fn check_kind(k: StackKind, count: u64) -> Result<()> {
+	pub(crate) fn check_kind(k: StackKind, count: u64) -> Result<()> {
 		if k.class().is_none() {
 			return Err(inv(format!("no stack kind {}", k.0)));
 		}
@@ -506,7 +530,7 @@ impl<'c> Tx<'c> {
 		Ok(())
 	}
 
-	fn credit_row(&mut self, o: &Owner, party: Party, k: StackKind, n: u64, minted: bool, reason: &str) -> Result<()> {
+	pub(crate) fn credit_row(&mut self, o: &Owner, party: Party, k: StackKind, n: u64, minted: bool, reason: &str) -> Result<()> {
 		self.ledger(Row {
 			op: "CREDIT",
 			stack: Some(k),
@@ -520,7 +544,7 @@ impl<'c> Tx<'c> {
 		Ok(())
 	}
 
-	fn debit_row(&mut self, op: &str, o: &Owner, party: Party, k: StackKind, n: u64, reason: &str) -> Result<()> {
+	pub(crate) fn debit_row(&mut self, op: &str, o: &Owner, party: Party, k: StackKind, n: u64, reason: &str) -> Result<()> {
 		self.ledger(Row {
 			op,
 			stack: Some(k),
@@ -535,7 +559,7 @@ impl<'c> Tx<'c> {
 
 	// ---- items ----
 
-	fn check_spec(sp: &ItemSpec) -> Result<()> {
+	pub(crate) fn check_spec(sp: &ItemSpec) -> Result<()> {
 		if sp.gear_slot >= WORN_SLOTS as u8 {
 			return Err(inv("gear slot"));
 		}
@@ -600,7 +624,7 @@ impl<'c> Tx<'c> {
 		Ok(id)
 	}
 
-	fn move_row(&mut self, op: &str, it: &Item, from_party: Party, to: &Place, to_party: Party) -> Result<()> {
+	pub(crate) fn move_row(&mut self, op: &str, it: &Item, from_party: Party, to: &Place, to_party: Party) -> Result<()> {
 		self.ledger(Row {
 			op,
 			item: Some(it.id),
@@ -636,7 +660,7 @@ impl<'c> Tx<'c> {
 	}
 
 	/// An item the hero carries (bag, or worn when `worn_ok`).
-	fn carried(&self, hero: HeroId, item: ItemId, worn_ok: bool) -> Result<Item> {
+	pub(crate) fn carried(&self, hero: HeroId, item: ItemId, worn_ok: bool) -> Result<Item> {
 		let it = self.load_item(item)?;
 		let ok = it.place.owner == hero
 			&& (it.place.kind == PlaceKind::Bag || (worn_ok && it.place.kind == PlaceKind::Worn));
@@ -657,7 +681,7 @@ fn check_name(name: &str) -> Result<String> {
 	Ok(name.to_ascii_lowercase())
 }
 
-fn check_reason(r: &str) -> Result<()> {
+pub(crate) fn check_reason(r: &str) -> Result<()> {
 	if r.is_empty() || r.len() > 64 {
 		return Err(inv("reason must be 1 to 64 bytes"));
 	}
@@ -714,6 +738,9 @@ pub fn who_may(c: &Cmd) -> Who {
 		Cmd::Socket { .. } => Who::Owner,
 		Cmd::Unsocket { .. } => Who::Owner,
 		Cmd::StackTransfer { .. } => Who::Owner,
+		Cmd::ParcelPut { .. } => Who::Server,
+		Cmd::ParcelTake { .. } => Who::Server,
+		Cmd::ParcelReturn { .. } => Who::Server,
 	}
 }
 
@@ -823,6 +850,10 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 		}
 		Cmd::HeroDelete { hero } => {
 			let h = t.own_hero(*hero)?;
+			// what she has in escrow (a listing, a letter with cash on delivery) would be stranded
+			if t.one("SELECT 1 FROM parcels WHERE from_hero = ?1 LIMIT 1", [hero], |r| r.get::<_, i64>(0))?.is_some() {
+				return Err(inv("the hero has things on the market or in letters in transit"));
+			}
 			t.exec("UPDATE heroes SET deleted_at = ?2 WHERE id = ?1", params![hero, now])?;
 			t.ledger(Row { op: "HERO_DELETE", to_acct: Some(h.account), data: format!("hero {hero}"), ..Default::default() })?;
 			Ok(Reply::Done)
@@ -968,6 +999,8 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			// an account puts things only in its own places (mail to its own heroes); the server may send anywhere
 			t.may_touch(to_party, "destination")?;
 			t.check_flow(from_party, to_party)?;
+			let hero_of = |k: PlaceKind, o: i64| if k.hero_owned() { Some(o) } else { None };
+			t.self_found_gate(&it, hero_of(it.place.kind, it.place.owner), hero_of(p.kind, p.owner))?;
 			t.set_place(it.id, &p)?;
 			t.move_row("MOVE", &it, from_party, &p, to_party)?;
 			Ok(Reply::Item(it.id, p))
@@ -1075,6 +1108,12 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			let tp = t.stack_owner(to)?;
 			t.may_touch(tp, "destination")?;
 			t.check_flow(fp, tp)?;
+			if from.kind.hero_owned() && to.kind.hero_owned() && from.id != to.id {
+				// stacks have no origin, so a self-found hero neither gives nor takes them from another hero
+				if t.is_self_found(from.id)? || t.is_self_found(to.id)? {
+					return Err(Error::Refused);
+				}
+			}
 			let n = t.stack_sub(from, *kind, *count)?;
 			t.stack_add(to, *kind, *count)?;
 			t.ledger(Row {
@@ -1127,6 +1166,11 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 			Ok(Reply::Granted { new: true, total })
 		}
 		Cmd::Clawback { items, stacks, reason } => clawback(t, items, stacks, reason),
+		Cmd::ParcelPut { kind, from, to, items, stacks, price, fee, expires, text } => {
+			crate::parcels::put(t, *kind, *from, *to, items, stacks, *price, *fee, *expires, text)
+		}
+		Cmd::ParcelTake { parcel, hero, tax } => crate::parcels::take(t, *parcel, *hero, *tax),
+		Cmd::ParcelReturn { parcel } => crate::parcels::give_back(t, *parcel),
 	}
 }
 
@@ -1219,6 +1263,9 @@ fn trade(t: &mut Tx, a: &TradeSide, b: &TradeSide) -> Result<Reply> {
 	let pa = Party::Account(ha.account);
 	let pb = Party::Account(hb.account);
 	t.check_flow(pa, pb)?;
+	if t.is_self_found(a.hero)? || t.is_self_found(b.hero)? {
+		return Err(Error::Refused);
+	}
 	let mut ids = std::collections::BTreeSet::new();
 	let mut staged = Vec::new();
 	for (side, other) in [(a, b), (b, a)] {

@@ -8,6 +8,7 @@ pub mod codec;
 pub mod crash;
 pub mod fuzz;
 pub mod ops;
+pub mod parcels;
 pub mod read;
 pub mod rng;
 pub mod schema;
@@ -74,6 +75,18 @@ pub trait Store: Send + Sync {
 	/// An online backup to a file while writes continue, verified.
 	fn backup(&self, dest: &Path) -> Result<VerifyReport>;
 	fn stats(&self) -> Result<Stats>;
+	/// Coin by ledger op and reason: (op, reason, minted, rows, total).
+	fn coin_flows(&self) -> Result<Vec<(String, String, bool, i64, i64)>>;
+	/// One parcel (a market listing or a letter) with what it holds.
+	fn parcel(&self, id: i64) -> Result<Option<Parcel>>;
+	/// A hero's own listings and letters in transit.
+	fn parcels_from(&self, hero: HeroId) -> Result<Vec<Parcel>>;
+	/// Letters waiting for a hero.
+	fn parcels_to(&self, hero: HeroId) -> Result<Vec<Parcel>>;
+	/// Ids of parcels whose time has come (to return to their senders).
+	fn parcels_due(&self, now: Millis, limit: u32) -> Result<Vec<i64>>;
+	/// Open listings by price, filtered.
+	fn listings(&self, q: &ListingQuery) -> Result<Vec<Parcel>>;
 
 	// ---- typed operations ----
 	fn run(&self, m: Meta, cmd: Cmd) -> Result<Reply> {
@@ -176,6 +189,21 @@ pub trait Store: Send + Sync {
 		}
 	}
 	/// Two heroes swap items and stacks between their bags atomically. Use `trade_request_id` for `m.id`.
+	/// Escrow a listing or letter from a hero's bag (the server only).
+	fn parcel_put(&self, m: Meta, cmd: Cmd) -> Result<i64> {
+		match self.run(m, cmd)? {
+			Reply::Parcel(p) => Ok(p),
+			r => Err(unexpected(r)),
+		}
+	}
+	/// Pay for and take a parcel (a buyer, or the addressee of a letter).
+	fn parcel_take(&self, m: Meta, parcel: i64, hero: HeroId, tax: u64) -> Result<()> {
+		self.run(m, Cmd::ParcelTake { parcel, hero, tax }).map(|_| ())
+	}
+	/// End a parcel: its things go to the sender's mail.
+	fn parcel_return(&self, m: Meta, parcel: i64) -> Result<()> {
+		self.run(m, Cmd::ParcelReturn { parcel }).map(|_| ())
+	}
 	fn trade_commit(&self, m: Meta, a: TradeSide, b: TradeSide) -> Result<()> {
 		self.run(m, Cmd::Trade { a, b }).map(|_| ())
 	}
