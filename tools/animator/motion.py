@@ -147,7 +147,7 @@ FAR_BACK = 0.25       # R27: deg the far upper arm leans back per deg of extra f
 FAR_BACK_MAX = 10.0   # ... at most this much
 ELBOW = (8.0, 28.0)   # deg: elbow flexion, arm back .. arm forward (Murray: 10-35)
 GAIN_MAX = 2.0
-GAIN_MIN = 0.75  # a still with a short step gets a smaller thigh swing, so the legs reach the feet it plants
+GAIN_MIN = 0.8   # a still with a short step gets a smaller thigh swing, so the legs reach the feet it plants
 BASE_LEAN = (0.0, 3.5)   # deg: the trunk's lean before the walk's own 1-2.5 deg: a still leaning back is stood upright,
                          # one leaning far forward is brought back to a slight stoop (R31: baked lean 0 .. +6)
 STANCE_KNEE_MAX = 55.0   # deg: a planted leg's knee never folds further (Perry: ~40 at toe off)

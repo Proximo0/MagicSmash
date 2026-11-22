@@ -69,10 +69,13 @@ class TestClosedTorso(unittest.TestCase):
 
     def test_r28_sliver_where_the_arm_was_cut_out_with_the_fill_switched_off(self):
         autocut.CLOSE_TORSO = False
+        bad = {}
         for cid, bh in (("HR1.1", 56), ("HR1.1", 112), ("HR1.4", 56), ("HR1.4", 112)):
             fr, ctx = baked(cid, bh)
-            bad = [m for m in checks.far_arm_flap(fr, ctx) if "walled in" in m]
-            self.assertTrue(bad, (cid, bh))
+            bad[(cid, bh)] = [m for m in checks.far_arm_flap(fr, ctx) if "walled in" in m]
+        # the walk's thigh swing and arm swing are smaller since R31 (posture): the sliver shows in the cases where
+        # the near arm still swings off the chest, not in every one
+        self.assertTrue(any(bad.values()), bad)
 
     def test_r28_clean_with_the_torso_closed(self):
         for cid, bh in (("HR1.1", 56), ("HR1.1", 112), ("HR1.4", 56), ("HR1.4", 112)):

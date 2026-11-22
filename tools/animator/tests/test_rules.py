@@ -53,8 +53,9 @@ def test_classes():
     import test_pass7
     import test_pass9
     import test_pass10
+    import test_posture
     out = {}
-    for mod in (test_animator, test_rules, test_arms_feet, test_intake, test_gear, test_pass7, test_pass9, test_pass10):
+    for mod in (test_animator, test_rules, test_arms_feet, test_intake, test_gear, test_pass7, test_pass9, test_pass10, test_posture):
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             if issubclass(obj, unittest.TestCase):
                 out[name] = obj
