@@ -4,6 +4,9 @@
 # no disk spin-down, closing a laptop lid does nothing; the screen may still turn off. Battery settings are left alone.
 # It changes only what an ordinary user may change, tries the admin-only parts without prompting, and reports what is
 # left. Safe to run again. Queue it once per machine: queue.sh add kind=shell args=script=power needs=<machine> priority=9
+# With the word perf=max ("args=script=power perf=max") it first switches the machine to its highest performance mode
+# (Curtis, 22 Nov 2026: "make sure the performance settings are set to max on all pcs except the msi").
+perf=""; for w in "$@"; do [ "$w" = perf=max ] && perf=1; done
 did="" left=""
 ok() { did="$did $1"; }
 no() { left="$left $1"; }
@@ -11,6 +14,14 @@ no() { left="$left $1"; }
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*)
     pc() { MSYS_NO_PATHCONV=1 powercfg.exe "$@" >/dev/null 2>&1; }
+    if [ -n "$perf" ]; then
+      # the High performance plan where the PC has one (many laptops hide it), then full processor speed and the
+      # "Best performance" power mode on whichever plan is active; the sleep settings below go onto that plan
+      pc /setactive SCHEME_MIN && ok plan=high-performance || no "high-performance-plan(not offered here)"
+      pc /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 100 && pc /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100 &&
+        ok cpu=100% || no cpu-min-max
+      pc /overlaysetactive OVERLAY_SCHEME_MAX && ok mode=best-performance || no "best-performance-mode"
+    fi
     pc /change standby-timeout-ac 0 && ok sleep=never || no sleep-timeout
     pc /change hibernate-timeout-ac 0 && ok hibernate=never || no hibernate-timeout
     pc /change disk-timeout-ac 0 && ok disk=never || no disk-timeout
@@ -28,6 +39,11 @@ case "$(uname -s)" in
     MSYS_NO_PATHCONV=1 powercfg.exe /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 2>/dev/null | tr -d '\r' >"${STATION_JOB_ART:-.}/power_state.txt" 2>/dev/null || true
     ;;
   Linux)
+    if [ -n "$perf" ]; then
+      if command -v powerprofilesctl >/dev/null 2>&1 && powerprofilesctl set performance 2>/dev/null; then ok profile=performance
+      elif sudo -n true 2>/dev/null && echo performance | sudo -n tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null 2>&1; then ok governor=performance
+      else no "performance-profile(no powerprofilesctl, no sudo)"; fi
+    fi
     if command -v gsettings >/dev/null 2>&1; then
       s=org.gnome.settings-daemon.plugins.power
       gsettings set $s sleep-inactive-ac-type nothing 2>/dev/null && gsettings set $s sleep-inactive-ac-timeout 0 2>/dev/null && ok sleep=never || no "desktop-sleep-setting"
