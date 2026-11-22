@@ -1,1 +1,1 @@
-2026-11-22 02:13:03 STOPPED 651 ids left
+2026-11-22 02:33:04 RUNNING pid=24508 last=MN1.2 633 ids left, 16.2s/picture

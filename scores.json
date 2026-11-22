@@ -1824,7 +1824,8 @@
 "large shield": 0.6058,
 "war hammer": 0.9982
 },
-"notes": "legdiff 0.75/0.72 sym 0.46/0.11/0.67/0.40 h 391-395 consist 0.24"
+"notes": "legdiff 0.75/0.72 sym 0.46/0.11/0.67/0.40 h 391-395 consist 0.24",
+"stale": true
 },
 {
 "try": 7,
@@ -1834,7 +1835,8 @@
 "large shield": 0.9493,
 "war hammer": 0.8895
 },
-"notes": "legdiff 0.78/0.78 sym 0.67/0.31/0.67/0.39 h 396-398 consist 0.23"
+"notes": "legdiff 0.78/0.78 sym 0.67/0.31/0.67/0.39 h 396-398 consist 0.23",
+"stale": true
 },
 {
 "try": 8,
@@ -1844,7 +1846,8 @@
 "large shield": 0.717,
 "war hammer": 0.9019
 },
-"notes": "legdiff 0.73/0.70 sym 0.59/0.61/0.56/0.38 h 397-397 consist 0.17"
+"notes": "legdiff 0.73/0.70 sym 0.59/0.61/0.56/0.38 h 397-397 consist 0.17",
+"stale": true
 },
 {
 "try": 9,
@@ -1854,7 +1857,18 @@
 "large shield": 0.9482,
 "war hammer": 0.83
 },
-"notes": "legdiff 0.68/0.68 sym 0.61/0.46/0.70/0.37 h 396-396 consist 0.12"
+"notes": "legdiff 0.68/0.68 sym 0.61/0.46/0.70/0.37 h 396-396 consist 0.12",
+"stale": true
+},
+{
+"try": 10,
+"ok": true,
+"score": 1.579,
+"traits": {
+"large shield": 0.9987,
+"war hammer": 0.8568
+},
+"notes": "legdiff 0.66/0.65 sym 0.53/0.24/0.56/0.30 h 396-396 consist 0.07"
 }
 ],
 "2": [
@@ -1913,7 +1927,8 @@
 "large shield": 0.8911,
 "war hammer": 0.9996
 },
-"notes": "legdiff 0.61/0.58 sym 0.52/0.46/0.64/0.37 h 394-419 consist 0.20"
+"notes": "legdiff 0.61/0.58 sym 0.52/0.46/0.64/0.37 h 394-419 consist 0.20",
+"stale": true
 },
 {
 "try": 6,
@@ -1923,7 +1938,28 @@
 "large shield": 0.7372,
 "war hammer": 0.9149
 },
-"notes": "legdiff 0.43/0.40 sym 0.66/0.68/0.66/0.45 h 391-391 consist 0.14"
+"notes": "legdiff 0.43/0.40 sym 0.66/0.68/0.66/0.45 h 391-391 consist 0.14",
+"stale": true
+},
+{
+"try": 7,
+"ok": false,
+"score": 1.384,
+"traits": {
+"large shield": 0.9214,
+"war hammer": 0.9019
+},
+"notes": "legdiff 0.56/0.54 sym 0.68/0.43/0.53/0.45 h 394-395 consist 0.17"
+},
+{
+"try": 8,
+"ok": true,
+"score": 1.595,
+"traits": {
+"large shield": 0.9992,
+"war hammer": 0.8775
+},
+"notes": "legdiff 0.66/0.66 sym 0.57/0.37/0.54/0.34 h 395-396 consist 0.03"
 }
 ],
 "3": [
@@ -1947,7 +1983,8 @@
 "large shield": 0.9093,
 "war hammer": 0.8926
 },
-"notes": "legdiff 0.44/0.46 sym 0.70/0.57/0.61/0.61 h 396-396 consist 0.17"
+"notes": "legdiff 0.44/0.46 sym 0.70/0.57/0.61/0.61 h 396-396 consist 0.17",
+"stale": true
 },
 {
 "try": 3,
@@ -1957,7 +1994,18 @@
 "large shield": 0.9214,
 "war hammer": 0.9263
 },
-"notes": "legdiff 0.54/0.55 sym 0.61/0.45/0.66/0.42 h 390-392 consist 0.14"
+"notes": "legdiff 0.54/0.55 sym 0.61/0.45/0.66/0.42 h 390-392 consist 0.14",
+"stale": true
+},
+{
+"try": 4,
+"ok": true,
+"score": 1.34,
+"traits": {
+"large shield": 0.9241,
+"war hammer": 0.5927
+},
+"notes": "legdiff 0.59/0.58 sym 0.66/0.56/0.64/0.49 h 391-395 consist 0.12"
 }
 ],
 "4": [
@@ -2049,7 +2097,8 @@
 "large shield": 0.8652,
 "war hammer": 0.931
 },
-"notes": "legdiff 0.50/0.51 sym 0.59/0.55/0.67/0.53 h 396-396 consist 0.15"
+"notes": "legdiff 0.50/0.51 sym 0.59/0.55/0.67/0.53 h 396-396 consist 0.15",
+"stale": true
 },
 {
 "try": 9,
@@ -2059,7 +2108,8 @@
 "large shield": 0.9099,
 "war hammer": 0.9978
 },
-"notes": "legdiff 0.68/0.64 sym 0.59/0.54/0.60/0.49 h 394-396 consist 0.17"
+"notes": "legdiff 0.68/0.64 sym 0.59/0.54/0.60/0.49 h 394-396 consist 0.17",
+"stale": true
 },
 {
 "try": 10,
@@ -2069,7 +2119,8 @@
 "large shield": 0.9508,
 "war hammer": 0.908
 },
-"notes": "legdiff 0.72/0.73 sym 0.70/0.12/0.71/0.39 h 396-397 consist 0.18"
+"notes": "legdiff 0.72/0.73 sym 0.70/0.12/0.71/0.39 h 396-397 consist 0.18",
+"stale": true
 },
 {
 "try": 11,
@@ -2079,7 +2130,18 @@
 "large shield": 0.9952,
 "war hammer": 0.9981
 },
-"notes": "legdiff 0.61/0.49 sym 0.62/0.61/0.63/0.15 h 392-396 consist 0.12"
+"notes": "legdiff 0.61/0.49 sym 0.62/0.61/0.63/0.15 h 392-396 consist 0.12",
+"stale": true
+},
+{
+"try": 12,
+"ok": true,
+"score": 1.585,
+"traits": {
+"large shield": 0.9998,
+"war hammer": 0.9612
+},
+"notes": "legdiff 0.61/0.60 sym 0.60/0.28/0.56/0.31 h 397-399 consist 0.11"
 }
 ]
 },
@@ -2199,7 +2261,20 @@
 "large shield": 0.3775,
 "war hammer": 0.5273
 },
-"notes": "legdiff 0.57/0.38 sym 0.59/0.46/0.58/0.33 h 396-398 consist 0.13 missing ['slender']"
+"notes": "legdiff 0.57/0.38 sym 0.59/0.46/0.58/0.33 h 396-398 consist 0.13 missing ['slender']",
+"stale": true
+},
+{
+"try": 10,
+"ok": true,
+"score": 0.774,
+"traits": {
+"long pointed ears": 0.6758,
+"slender": 0.2006,
+"large shield": 0.4494,
+"war hammer": 0.1136
+},
+"notes": "legdiff 0.50/0.41 sym 0.70/0.53/0.60/0.55 h 399-405 consist 0.12"
 }
 ],
 "2": [
@@ -2317,7 +2392,32 @@
 "large shield": 0.2553,
 "war hammer": 0.1023
 },
-"notes": "legdiff 0.30/0.25 sym 0.49/0.49/0.58/0.45 h 398-399 consist 0.14 missing ['slender']"
+"notes": "legdiff 0.30/0.25 sym 0.49/0.49/0.58/0.45 h 398-399 consist 0.14 missing ['slender']",
+"stale": true
+},
+{
+"try": 10,
+"ok": false,
+"score": 0.725,
+"traits": {
+"long pointed ears": 0.0538,
+"slender": 0.0357,
+"large shield": 0.3794,
+"war hammer": 0.9824
+},
+"notes": "legdiff 0.41/0.49 sym 0.45/0.61/0.32/0.50 h 391-394 consist 0.16 missing ['long pointed ears', 'slender']"
+},
+{
+"try": 11,
+"ok": true,
+"score": 1.122,
+"traits": {
+"long pointed ears": 0.5832,
+"slender": 0.0947,
+"large shield": 0.5,
+"war hammer": 0.4863
+},
+"notes": "legdiff 0.71/0.78 sym 0.41/0.56/0.63/0.54 h 401-406 consist 0.10 missing ['slender']"
 }
 ],
 "3": [
@@ -2435,7 +2535,8 @@
 "large shield": 0.4397,
 "war hammer": 0.9429
 },
-"notes": "legdiff 0.29/0.25 sym 0.51/0.60/0.64/0.65 h 405-453 consist 0.20 missing ['long pointed ears', 'slender']"
+"notes": "legdiff 0.29/0.25 sym 0.51/0.60/0.64/0.65 h 405-453 consist 0.20 missing ['long pointed ears', 'slender']",
+"stale": true
 },
 {
 "try": 10,
@@ -2447,7 +2548,8 @@
 "large shield": 0.2975,
 "war hammer": 0.1711
 },
-"notes": "legdiff 0.60/0.32 sym 0.36/0.47/0.66/0.55 h 411-412 consist 0.23 missing ['slender']"
+"notes": "legdiff 0.60/0.32 sym 0.36/0.47/0.66/0.55 h 411-412 consist 0.23 missing ['slender']",
+"stale": true
 },
 {
 "try": 11,
@@ -2459,7 +2561,8 @@
 "large shield": 0.179,
 "war hammer": 0.0647
 },
-"notes": "legdiff 0.74/0.50 sym 0.49/0.41/0.44/0.45 h 388-389 consist 0.18 missing ['war hammer']"
+"notes": "legdiff 0.74/0.50 sym 0.49/0.41/0.44/0.45 h 388-389 consist 0.18 missing ['war hammer']",
+"stale": true
 },
 {
 "try": 12,
@@ -2471,7 +2574,44 @@
 "large shield": 0.8856,
 "war hammer": 0.4688
 },
-"notes": "legdiff 0.39/0.37 sym 0.65/0.46/0.69/0.44 h 402-403 consist 0.11"
+"notes": "legdiff 0.39/0.37 sym 0.65/0.46/0.69/0.44 h 402-403 consist 0.11",
+"stale": true
+},
+{
+"try": 13,
+"ok": false,
+"score": 0.811,
+"traits": {
+"long pointed ears": 0.2862,
+"slender": 0.0995,
+"large shield": 0.4746,
+"war hammer": 0.9867
+},
+"notes": "legdiff 0.72/0.43 sym 0.52/0.38/0.30/0.61 h 398-418 consist 0.18 missing ['slender']"
+},
+{
+"try": 14,
+"ok": false,
+"score": 1.131,
+"traits": {
+"long pointed ears": 0.9813,
+"slender": 0.4824,
+"large shield": 0.3469,
+"war hammer": 0.4282
+},
+"notes": "legdiff 0.81/0.64 sym 0.67/0.65/0.58/0.48 h 398-399 consist 0.17"
+},
+{
+"try": 15,
+"ok": true,
+"score": 1.115,
+"traits": {
+"long pointed ears": 0.9053,
+"slender": 0.5983,
+"large shield": 0.3225,
+"war hammer": 0.283
+},
+"notes": "legdiff 0.66/0.59 sym 0.56/0.34/0.52/0.57 h 413-415 consist 0.12"
 }
 ],
 "4": [
@@ -2589,7 +2729,8 @@
 "large shield": 0.8679,
 "war hammer": 0.9005
 },
-"notes": "legdiff 0.43/0.34 sym 0.62/0.50/0.66/0.51 h 397-403 consist 0.15 missing ['slender']"
+"notes": "legdiff 0.43/0.34 sym 0.62/0.50/0.66/0.51 h 397-403 consist 0.15 missing ['slender']",
+"stale": true
 },
 {
 "try": 10,
@@ -2601,7 +2742,8 @@
 "large shield": 0.1968,
 "war hammer": 0.6792
 },
-"notes": "legdiff 0.40/0.32 sym 0.55/0.66/0.61/0.62 h 396-397 consist 0.18 missing ['long pointed ears', 'slender']"
+"notes": "legdiff 0.40/0.32 sym 0.55/0.66/0.61/0.62 h 396-397 consist 0.18 missing ['long pointed ears', 'slender']",
+"stale": true
 },
 {
 "try": 11,
@@ -2613,7 +2755,8 @@
 "large shield": 0.2926,
 "war hammer": 0.9353
 },
-"notes": "legdiff 0.73/0.44 sym 0.48/0.49/0.45/0.55 h 393-394 consist 0.27 missing ['long pointed ears', 'slender']"
+"notes": "legdiff 0.73/0.44 sym 0.48/0.49/0.45/0.55 h 393-394 consist 0.27 missing ['long pointed ears', 'slender']",
+"stale": true
 },
 {
 "try": 12,
@@ -2625,7 +2768,8 @@
 "large shield": 0.4941,
 "war hammer": 0.1645
 },
-"notes": "legdiff 0.45/0.36 sym 0.61/0.49/0.53/0.59 h 390-398 consist 0.19"
+"notes": "legdiff 0.45/0.36 sym 0.61/0.49/0.53/0.59 h 390-398 consist 0.19",
+"stale": true
 },
 {
 "try": 13,
@@ -2637,7 +2781,32 @@
 "large shield": 0.691,
 "war hammer": 0.3504
 },
-"notes": "legdiff 0.66/0.30 sym 0.59/0.53/0.53/0.55 h 400-401 consist 0.21"
+"notes": "legdiff 0.66/0.30 sym 0.59/0.53/0.53/0.55 h 400-401 consist 0.21",
+"stale": true
+},
+{
+"try": 14,
+"ok": false,
+"score": 0.708,
+"traits": {
+"long pointed ears": 0.0107,
+"slender": 0.0111,
+"large shield": 0.3024,
+"war hammer": 0.9754
+},
+"notes": "legdiff 0.45/0.40 sym 0.36/0.53/0.51/0.69 h 401-475 consist 0.15 missing ['long pointed ears', 'slender']"
+},
+{
+"try": 15,
+"ok": true,
+"score": 1.076,
+"traits": {
+"long pointed ears": 0.7746,
+"slender": 0.1259,
+"large shield": 0.4863,
+"war hammer": 0.6095
+},
+"notes": "legdiff 0.81/0.58 sym 0.66/0.58/0.55/0.56 h 400-406 consist 0.08"
 }
 ]
 },
@@ -4506,6 +4675,1200 @@
 "profile": 0.3812
 },
 "notes": ""
+}
+]
+},
+"IC11.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.484,
+"traits": {
+"beard": 0.9522,
+"profile": 0.0167
+},
+"notes": " missing ['profile']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.519,
+"traits": {
+"beard": 0.9761,
+"profile": 0.0614
+},
+"notes": " missing ['profile']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.495,
+"traits": {
+"beard": 0.9768,
+"profile": 0.0127
+},
+"notes": " missing ['profile']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.494,
+"traits": {
+"beard": 0.9765,
+"profile": 0.0123
+},
+"notes": " missing ['profile']"
+}
+]
+},
+"IC11.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.602,
+"traits": {
+"green skin": 0.9493,
+"tusks": 0.2553
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.59,
+"traits": {
+"green skin": 0.8824,
+"tusks": 0.2975
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.754,
+"traits": {
+"green skin": 0.8749,
+"tusks": 0.6334
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.838,
+"traits": {
+"green skin": 0.9474,
+"tusks": 0.7295
+},
+"notes": ""
+}
+]
+},
+"IC11.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.9,
+"traits": {
+"handprint": 0.9713,
+"drips": 0.8289
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.788,
+"traits": {
+"handprint": 0.9761,
+"drips": 0.6002
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.581,
+"traits": {
+"handprint": 0.2006,
+"drips": 0.9607
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.813,
+"traits": {
+"handprint": 0.9889,
+"drips": 0.637
+},
+"notes": ""
+}
+]
+},
+"IC11.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.847,
+"traits": {
+"standing stone": 0.9651,
+"glowing rune": 0.7295
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.988,
+"traits": {
+"standing stone": 0.9852,
+"glowing rune": 0.9914
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.995,
+"traits": {
+"standing stone": 0.9952,
+"glowing rune": 0.9943
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.988,
+"traits": {
+"standing stone": 0.9964,
+"glowing rune": 0.9795
+},
+"notes": ""
+}
+]
+},
+"IC14.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.946,
+"traits": {
+"ash pile": 0.954,
+"spark": 0.9381
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.588,
+"traits": {
+"ash pile": 0.904,
+"spark": 0.272
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.928,
+"traits": {
+"ash pile": 0.9493,
+"spark": 0.9067
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.658,
+"traits": {
+"ash pile": 0.9819,
+"spark": 0.3346
+},
+"notes": ""
+}
+]
+},
+"IC14.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.503,
+"traits": {
+"stack of coins": 0.9989,
+"single centred item": 0.0069
+},
+"notes": " missing ['single centred item']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.5,
+"traits": {
+"stack of coins": 0.9961,
+"single centred item": 0.0042
+},
+"notes": " missing ['single centred item']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.495,
+"traits": {
+"stack of coins": 0.9835,
+"single centred item": 0.0056
+},
+"notes": " missing ['single centred item']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.48,
+"traits": {
+"stack of coins": 0.9588,
+"single centred item": 0.0008
+},
+"notes": " missing ['single centred item']"
+}
+]
+},
+"IC14.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.457,
+"traits": {
+"key": 0.8926,
+"skull bow": 0.0208
+},
+"notes": " missing ['skull bow']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.486,
+"traits": {
+"key": 0.9339,
+"skull bow": 0.0379
+},
+"notes": " missing ['skull bow']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.498,
+"traits": {
+"key": 0.9956,
+"skull bow": 0.001
+},
+"notes": " missing ['skull bow']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.507,
+"traits": {
+"key": 0.9798,
+"skull bow": 0.0336
+},
+"notes": " missing ['skull bow']"
+}
+]
+},
+"IC14.4": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.014,
+"traits": {
+"torn page": 0.0102,
+"border pattern": 0.0177
+},
+"notes": " missing ['torn page', 'border pattern']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.004,
+"traits": {
+"torn page": 0.0037,
+"border pattern": 0.0042
+},
+"notes": " missing ['torn page', 'border pattern']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.001,
+"traits": {
+"torn page": 0.0014,
+"border pattern": 0.0013
+},
+"notes": " missing ['torn page', 'border pattern']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.012,
+"traits": {
+"torn page": 0.0028,
+"border pattern": 0.0221
+},
+"notes": " missing ['torn page', 'border pattern']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.035,
+"traits": {
+"torn page": 0.0637,
+"border pattern": 0.0067
+},
+"notes": " missing ['torn page', 'border pattern']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.008,
+"traits": {
+"torn page": 0.0065,
+"border pattern": 0.0103
+},
+"notes": " missing ['torn page', 'border pattern']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.009,
+"traits": {
+"torn page": 0.0083,
+"border pattern": 0.0102
+},
+"notes": " missing ['torn page', 'border pattern']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.015,
+"traits": {
+"torn page": 0.0067,
+"border pattern": 0.0239
+},
+"notes": " missing ['torn page', 'border pattern']"
+}
+]
+},
+"IC14.5": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.0,
+"traits": {
+"chest": 0.0004,
+"iron bands": 0.0002
+},
+"notes": " missing ['chest', 'iron bands']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.002,
+"traits": {
+"chest": 0.0015,
+"iron bands": 0.0018
+},
+"notes": " missing ['chest', 'iron bands']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.002,
+"traits": {
+"chest": 0.0021,
+"iron bands": 0.0009
+},
+"notes": " missing ['chest', 'iron bands']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.001,
+"traits": {
+"chest": 0.0006,
+"iron bands": 0.0005
+},
+"notes": " missing ['chest', 'iron bands']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.004,
+"traits": {
+"chest": 0.0033,
+"iron bands": 0.0043
+},
+"notes": " missing ['chest', 'iron bands']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.0,
+"traits": {
+"chest": 0.0001,
+"iron bands": 0.0006
+},
+"notes": " missing ['chest', 'iron bands']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.009,
+"traits": {
+"chest": 0.0064,
+"iron bands": 0.012
+},
+"notes": " missing ['chest', 'iron bands']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.032,
+"traits": {
+"chest": 0.004,
+"iron bands": 0.0605
+},
+"notes": " missing ['chest', 'iron bands']"
+}
+]
+},
+"IC14.6": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.045,
+"traits": {
+"gilded chest": 0.069,
+"horns": 0.021
+},
+"notes": " missing ['gilded chest', 'horns']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.208,
+"traits": {
+"gilded chest": 0.291,
+"horns": 0.1242
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.025,
+"traits": {
+"gilded chest": 0.0437,
+"horns": 0.0067
+},
+"notes": " missing ['gilded chest', 'horns']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.137,
+"traits": {
+"gilded chest": 0.1667,
+"horns": 0.1082
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.199,
+"traits": {
+"gilded chest": 0.3979,
+"horns": 0.0004
+},
+"notes": " missing ['horns']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.337,
+"traits": {
+"gilded chest": 0.5254,
+"horns": 0.148
+},
+"notes": ""
+}
+]
+},
+"IC16.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.123,
+"traits": {
+"sword": 0.1366,
+"rusty plain": 0.1097
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.246,
+"traits": {
+"sword": 0.2241,
+"rusty plain": 0.2689
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.252,
+"traits": {
+"sword": 0.1592,
+"rusty plain": 0.3451
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.251,
+"traits": {
+"sword": 0.304,
+"rusty plain": 0.1981
+},
+"notes": ""
+}
+]
+},
+"IC16.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.579,
+"traits": {
+"helmet": 0.9691,
+"rusty plain": 0.1895
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.474,
+"traits": {
+"helmet": 0.8895,
+"rusty plain": 0.0583
+},
+"notes": " missing ['rusty plain']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.705,
+"traits": {
+"helmet": 0.9939,
+"rusty plain": 0.4168
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.556,
+"traits": {
+"helmet": 0.9656,
+"rusty plain": 0.1461
+},
+"notes": ""
+}
+]
+},
+"IC16.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.762,
+"traits": {
+"chest armour": 0.7773,
+"rusty plain": 0.7476
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.81,
+"traits": {
+"chest armour": 0.6826,
+"rusty plain": 0.9372
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.733,
+"traits": {
+"chest armour": 0.6002,
+"rusty plain": 0.8652
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.668,
+"traits": {
+"chest armour": 0.4282,
+"rusty plain": 0.908
+},
+"notes": ""
+}
+]
+},
+"IC16.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.252,
+"traits": {
+"gauntlets": 0.4378,
+"rusty plain": 0.0661
+},
+"notes": " missing ['rusty plain']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.638,
+"traits": {
+"gauntlets": 0.9582,
+"rusty plain": 0.3174
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.409,
+"traits": {
+"gauntlets": 0.7432,
+"rusty plain": 0.0753
+},
+"notes": " missing ['rusty plain']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.268,
+"traits": {
+"gauntlets": 0.5117,
+"rusty plain": 0.0233
+},
+"notes": " missing ['rusty plain']"
+}
+]
+},
+"IC16.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.733,
+"traits": {
+"boots": 0.9754,
+"rusty plain": 0.4902
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.595,
+"traits": {
+"boots": 0.95,
+"rusty plain": 0.2408
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.917,
+"traits": {
+"boots": 0.9795,
+"rusty plain": 0.8549
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.746,
+"traits": {
+"boots": 0.95,
+"rusty plain": 0.5429
+},
+"notes": ""
+}
+]
+},
+"IC16.6": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.063,
+"traits": {
+"amulet": 0.0764,
+"rusty plain": 0.0492
+},
+"notes": " missing ['amulet', 'rusty plain']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.111,
+"traits": {
+"amulet": 0.216,
+"rusty plain": 0.0063
+},
+"notes": " missing ['rusty plain']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.489,
+"traits": {
+"amulet": 0.7202,
+"rusty plain": 0.2583
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.218,
+"traits": {
+"amulet": 0.2926,
+"rusty plain": 0.1441
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.195,
+"traits": {
+"amulet": 0.3666,
+"rusty plain": 0.0235
+},
+"notes": " missing ['rusty plain']"
+}
+]
+},
+"MN1.1": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.801,
+"traits": {
+"plague rat": 0.9691,
+"red eyes": 0.0053,
+"bare patches": 0.0063
+},
+"notes": "legdiff 0.47/0.67 sym 0.36/0.09/0.42/0.17 h 447-447 consist 0.11 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.695,
+"traits": {
+"plague rat": 0.9816,
+"red eyes": 0.0078,
+"bare patches": 0.0025
+},
+"notes": "legdiff 0.36/0.72 sym 0.27/0.11/0.40/0.27 h 444-445 consist 0.04 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.788,
+"traits": {
+"plague rat": 0.9696,
+"red eyes": 0.0099,
+"bare patches": 0.0005
+},
+"notes": "legdiff 0.46/0.68 sym 0.34/0.10/0.42/0.13 h 444-445 consist 0.08 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.698,
+"traits": {
+"plague rat": 0.9964,
+"red eyes": 0.0481,
+"bare patches": 0.0252
+},
+"notes": "legdiff 0.34/0.67 sym 0.19/0.10/0.43/0.12 h 444-444 consist 0.06 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.742,
+"traits": {
+"plague rat": 0.9995,
+"red eyes": 0.0246,
+"bare patches": 0.0107
+},
+"notes": "legdiff 0.40/0.70 sym 0.34/0.09/0.42/0.14 h 444-444 consist 0.05 missing ['red eyes', 'bare patches']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.809,
+"traits": {
+"plague rat": 0.9353,
+"red eyes": 0.001,
+"bare patches": 0.0004
+},
+"notes": "legdiff 0.50/0.72 sym 0.42/0.09/0.37/0.16 h 440-442 consist 0.04 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.729,
+"traits": {
+"plague rat": 0.9968,
+"red eyes": 0.019,
+"bare patches": 0.0019
+},
+"notes": "legdiff 0.39/0.69 sym 0.16/0.10/0.43/0.15 h 444-444 consist 0.07 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.789,
+"traits": {
+"plague rat": 0.9782,
+"red eyes": 0.0034,
+"bare patches": 0.0045
+},
+"notes": "legdiff 0.50/0.69 sym 0.40/0.11/0.40/0.13 h 443-443 consist 0.16 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 4,
+"ok": true,
+"score": 0.776,
+"traits": {
+"plague rat": 0.9981,
+"red eyes": 0.1441,
+"bare patches": 0.0558
+},
+"notes": "legdiff 0.38/0.71 sym 0.19/0.10/0.42/0.13 h 443-444 consist 0.05 missing ['bare patches']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.725,
+"traits": {
+"plague rat": 0.9931,
+"red eyes": 0.0405,
+"bare patches": 0.0108
+},
+"notes": "legdiff 0.38/0.69 sym 0.33/0.12/0.45/0.17 h 443-444 consist 0.10 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.737,
+"traits": {
+"plague rat": 0.9953,
+"red eyes": 0.03,
+"bare patches": 0.0093
+},
+"notes": "legdiff 0.39/0.70 sym 0.18/0.09/0.46/0.12 h 444-445 consist 0.09 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.666,
+"traits": {
+"plague rat": 0.9972,
+"red eyes": 0.0298,
+"bare patches": 0.0023
+},
+"notes": "legdiff 0.32/0.68 sym 0.32/0.14/0.44/0.15 h 441-443 consist 0.11 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.837,
+"traits": {
+"plague rat": 0.9837,
+"red eyes": 0.0046,
+"bare patches": 0.0015
+},
+"notes": "legdiff 0.51/0.67 sym 0.45/0.13/0.41/0.21 h 444-447 consist 0.04 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.758,
+"traits": {
+"plague rat": 0.9595,
+"red eyes": 0.0075,
+"bare patches": 0.0016
+},
+"notes": "legdiff 0.43/0.68 sym 0.41/0.09/0.44/0.22 h 447-451 consist 0.06 missing ['red eyes', 'bare patches']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.78,
+"traits": {
+"plague rat": 0.9873,
+"red eyes": 0.0035,
+"bare patches": 0.0009
+},
+"notes": "legdiff 0.45/0.73 sym 0.43/0.09/0.35/0.10 h 440-441 consist 0.07 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.718,
+"traits": {
+"plague rat": 0.9899,
+"red eyes": 0.0221,
+"bare patches": 0.0073
+},
+"notes": "legdiff 0.38/0.63 sym 0.19/0.10/0.45/0.19 h 443-443 consist 0.07 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.783,
+"traits": {
+"plague rat": 0.9975,
+"red eyes": 0.0888,
+"bare patches": 0.0051
+},
+"notes": "legdiff 0.42/0.72 sym 0.23/0.12/0.43/0.19 h 444-445 consist 0.14 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.649,
+"traits": {
+"plague rat": 0.9837,
+"red eyes": 0.0031,
+"bare patches": 0.0006
+},
+"notes": "legdiff 0.32/0.67 sym 0.18/0.11/0.41/0.14 h 444-444 consist 0.05 missing ['red eyes', 'bare patches']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.699,
+"traits": {
+"plague rat": 0.9995,
+"red eyes": 0.0895,
+"bare patches": 0.0113
+},
+"notes": "legdiff 0.33/0.70 sym 0.19/0.12/0.41/0.13 h 444-444 consist 0.07 missing ['red eyes', 'bare patches']"
+}
+]
+},
+"MN1.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.16,
+"traits": {
+"crow": 0.851,
+"open beak": 0.5254,
+"ragged wings": 0.0158
+},
+"notes": "legdiff 0.70/0.77 sym 0.29/0.28/0.40/0.19 h 534-552 consist 0.02 missing ['ragged wings']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.907,
+"traits": {
+"crow": 0.1339,
+"open beak": 0.4922,
+"ragged wings": 0.0073
+},
+"notes": "legdiff 0.70/0.77 sym 0.38/0.26/0.42/0.19 h 534-553 consist 0.03 missing ['ragged wings']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 1.159,
+"traits": {
+"crow": 0.6316,
+"open beak": 0.7491,
+"ragged wings": 0.0721
+},
+"notes": "legdiff 0.67/0.76 sym 0.33/0.27/0.42/0.22 h 536-553 consist 0.12 missing ['ragged wings']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.975,
+"traits": {
+"crow": 0.6424,
+"open beak": 0.0534,
+"ragged wings": 0.0151
+},
+"notes": "legdiff 0.80/0.74 sym 0.17/0.23/0.29/0.24 h 523-543 consist 0.08 missing ['open beak', 'ragged wings']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 1.04,
+"traits": {
+"crow": 0.4746,
+"open beak": 0.5889,
+"ragged wings": 0.0118
+},
+"notes": "legdiff 0.68/0.77 sym 0.35/0.45/0.41/0.21 h 536-553 consist 0.03 missing ['ragged wings']"
 }
 ]
 }
