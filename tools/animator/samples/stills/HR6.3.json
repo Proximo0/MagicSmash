@@ -1,0 +1,84 @@
+{
+ "id": "HR6.3",
+ "name": "hero_dwarf_paladin",
+ "source_picture": "HR6.3_3.png",
+ "frame": 3,
+ "stride_px": 176,
+ "facing": "right",
+ "ground_y": 337,
+ "size": [
+  241,
+  350
+ ],
+ "joints": {
+  "head": [
+   94.8,
+   33.1
+  ],
+  "neck": [
+   90.8,
+   67.2
+  ],
+  "pelvis": [
+   84.2,
+   225.2
+  ],
+  "near_shoulder": [
+   81.0,
+   77.0
+  ],
+  "near_elbow": [
+   106.9,
+   125.8
+  ],
+  "near_wrist": [
+   139.7,
+   170.3
+  ],
+  "near_hip": [
+   81.0,
+   225.2
+  ],
+  "near_knee": [
+   56.5,
+   283.8
+  ],
+  "near_ankle": [
+   9.2,
+   337.0
+  ],
+  "near_toe": [
+   44.95,
+   337
+  ],
+  "far_shoulder": [
+   90.8,
+   77.0
+  ],
+  "far_elbow": [
+   64.8,
+   125.8
+  ],
+  "far_wrist": [
+   32.0,
+   170.3
+  ],
+  "far_hip": [
+   87.5,
+   225.2
+  ],
+  "far_knee": [
+   128.0,
+   281.1
+  ],
+  "far_ankle": [
+   165.8,
+   337.0
+  ],
+  "far_toe": [
+   201.55,
+   337
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

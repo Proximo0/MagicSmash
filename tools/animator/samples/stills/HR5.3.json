@@ -1,0 +1,84 @@
+{
+ "id": "HR5.3",
+ "name": "hero_dwarf_priest",
+ "source_picture": "HR5.3_2.png",
+ "frame": 1,
+ "stride_px": 222,
+ "facing": "right",
+ "ground_y": 444,
+ "size": [
+  247,
+  457
+ ],
+ "joints": {
+  "head": [
+   126.4,
+   40.1
+  ],
+  "neck": [
+   121.0,
+   85.4
+  ],
+  "pelvis": [
+   112.4,
+   295.4
+  ],
+  "near_shoulder": [
+   108.0,
+   98.4
+  ],
+  "near_elbow": [
+   73.6,
+   163.2
+  ],
+  "near_wrist": [
+   30.0,
+   222.4
+  ],
+  "near_hip": [
+   108.0,
+   295.4
+  ],
+  "near_knee": [
+   170.5,
+   369.7
+  ],
+  "near_ankle": [
+   220.8,
+   444.0
+  ],
+  "near_toe": [
+   268.32,
+   444
+  ],
+  "far_shoulder": [
+   121.0,
+   98.4
+  ],
+  "far_elbow": [
+   155.5,
+   163.2
+  ],
+  "far_wrist": [
+   199.1,
+   222.4
+  ],
+  "far_hip": [
+   116.7,
+   295.4
+  ],
+  "far_knee": [
+   75.5,
+   373.3
+  ],
+  "far_ankle": [
+   12.6,
+   444.0
+  ],
+  "far_toe": [
+   60.120000000000005,
+   444
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

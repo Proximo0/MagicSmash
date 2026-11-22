@@ -1,0 +1,84 @@
+{
+ "id": "HR6.4",
+ "name": "hero_orc_paladin",
+ "source_picture": "HR6.4_2.png",
+ "frame": 3,
+ "stride_px": 252,
+ "facing": "right",
+ "ground_y": 426,
+ "size": [
+  277,
+  439
+ ],
+ "joints": {
+  "head": [
+   122.3,
+   38.9
+  ],
+  "neck": [
+   117.1,
+   82.4
+  ],
+  "pelvis": [
+   108.9,
+   266.6
+  ],
+  "near_shoulder": [
+   104.7,
+   94.8
+  ],
+  "near_elbow": [
+   137.8,
+   156.9
+  ],
+  "near_wrist": [
+   179.5,
+   213.6
+  ],
+  "near_hip": [
+   104.7,
+   266.6
+  ],
+  "near_knee": [
+   68.9,
+   350.2
+  ],
+  "near_ankle": [
+   1.4,
+   426.0
+  ],
+  "near_toe": [
+   46.94,
+   426
+  ],
+  "far_shoulder": [
+   117.1,
+   94.8
+  ],
+  "far_elbow": [
+   84.1,
+   156.9
+  ],
+  "far_wrist": [
+   42.3,
+   213.6
+  ],
+  "far_hip": [
+   113.0,
+   266.6
+  ],
+  "far_knee": [
+   170.7,
+   346.3
+  ],
+  "far_ankle": [
+   224.6,
+   426.0
+  ],
+  "far_toe": [
+   270.14,
+   426
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

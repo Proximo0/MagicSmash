@@ -1,0 +1,84 @@
+{
+ "id": "HR3.4",
+ "name": "hero_orc_mage",
+ "source_picture": "HR3.4_2.png",
+ "frame": 3,
+ "stride_px": 255,
+ "facing": "right",
+ "ground_y": 482,
+ "size": [
+  280,
+  495
+ ],
+ "joints": {
+  "head": [
+   161.2,
+   42.5
+  ],
+  "neck": [
+   155.3,
+   91.9
+  ],
+  "pelvis": [
+   145.9,
+   301.0
+  ],
+  "near_shoulder": [
+   141.2,
+   106.0
+  ],
+  "near_elbow": [
+   178.8,
+   176.5
+  ],
+  "near_wrist": [
+   226.2,
+   240.9
+  ],
+  "near_hip": [
+   141.2,
+   301.0
+  ],
+  "near_knee": [
+   100.5,
+   395.9
+  ],
+  "near_ankle": [
+   23.9,
+   482.0
+  ],
+  "near_toe": [
+   75.6,
+   482
+  ],
+  "far_shoulder": [
+   155.3,
+   106.0
+  ],
+  "far_elbow": [
+   117.8,
+   176.5
+  ],
+  "far_wrist": [
+   70.4,
+   240.9
+  ],
+  "far_hip": [
+   150.6,
+   301.0
+  ],
+  "far_knee": [
+   216.2,
+   391.5
+  ],
+  "far_ankle": [
+   277.3,
+   482.0
+  ],
+  "far_toe": [
+   329.0,
+   482
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}
