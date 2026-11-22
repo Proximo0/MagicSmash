@@ -36,7 +36,10 @@ from . import gamesize as gs
 
 RACES = ("human", "elf", "dwarf", "orc")
 COLUMN_RACE = {1: "human", 2: "elf", 3: "dwarf", 4: "orc"}
-ROW_CLASS = {1: "novice", 2: "knight", 3: "mage", 4: "archer", 5: "priest", 6: "paladin"}
+# rows 7 to 16 are the jobs, as the art runner's queue names them (tools/art_runner/queue.json, branch art-pipeline)
+ROW_CLASS = {1: "novice", 2: "knight", 3: "mage", 4: "archer", 5: "priest", 6: "paladin", 7: "warden", 8: "berserker",
+             9: "archmage", 10: "hexer", 11: "ranger", 12: "sharpshooter", 13: "oracle", 14: "inquisitor", 15: "templar",
+             16: "crusader"}
 GEAR_CLASS = (("hammer", "paladin"), ("candle_staff", "priest"), ("mage_staff", "mage"), ("bow", "archer"),
               ("greatsword", "knight"), ("dirk", "novice"))
 BG = (90, 110, 90, 255)
