@@ -336,6 +336,42 @@ publish_append() {  # $1 = one line, $2 = file: append it to the file on the res
 # A re-exec runs no EXIT trap, so `restart` stops the loop before every exec. The loop also ends by itself when the
 # station process is gone or a newer loop has written its pid to $STATE.heartbeat (an exec keeps the pid, so the pid
 # alone cannot tell the old station from the new). STATION_HEARTBEAT_LOG (tests) gets "<loop pid> <time>" each round.
+# Keep-awake (Curtis, 22 Nov 2026: "some kind of thing that keeps everything fresh and active as if im here"): while a station
+# watches, the PC is asked to stay awake with its screen on, the request video players make (Windows SetThreadExecutionState;
+# Linux systemd-inhibit). Nothing is installed, no window, no mouse or key is touched. The helper lives only while the station
+# refreshes $STATE.awake (the heartbeat loop touches it every 10 s) and while its token is the newest, so a restart leaves one.
+# STATION_KEEPAWAKE=0 turns it off.
+keepawake_start() {
+  [ "${STATION_KEEPAWAKE:-1}" = 1 ] || return 0
+  local tok="$$-$RANDOM-$(date +%s)" f; f="$(cd "$(dirname "$STATE")" && pwd)/$(basename "$STATE").awake"
+  echo "$tok" >"$f"
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+      command -v powershell.exe >/dev/null 2>&1 || return 0
+      local wf; wf=$(cygpath -w "$f" 2>/dev/null || echo "$f")
+      STATION_AWAKE_FILE="$wf" STATION_AWAKE_TOKEN="$tok" powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command '
+        $sig = "[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);"
+        $k = Add-Type -MemberDefinition $sig -Name Awake -Namespace Station -PassThru
+        while ($true) {
+          $i = Get-Item -LiteralPath $env:STATION_AWAKE_FILE -ErrorAction SilentlyContinue
+          if (-not $i) { break }
+          if (((Get-Date) - $i.LastWriteTime).TotalSeconds -gt 180) { break }
+          if ((Get-Content -LiteralPath $env:STATION_AWAKE_FILE -TotalCount 1) -ne $env:STATION_AWAKE_TOKEN) { break }
+          [void]$k::SetThreadExecutionState(0x80000003)
+          Start-Sleep -Seconds 30
+        }
+        [void]$k::SetThreadExecutionState(0x80000000)' >/dev/null 2>&1 &
+      ;;
+    Linux)
+      command -v systemd-inhibit >/dev/null 2>&1 || return 0
+      STATION_AWAKE_FILE="$f" STATION_AWAKE_TOKEN="$tok" systemd-inhibit --what=idle:sleep:handle-lid-switch --who=station \
+        --why="test station running" bash -c 'while [ "$(head -1 "$STATION_AWAKE_FILE" 2>/dev/null)" = "$STATION_AWAKE_TOKEN" ] &&
+          [ -n "$(find "$STATION_AWAKE_FILE" -newermt "-180 seconds" 2>/dev/null)" ]; do sleep 30; done' >/dev/null 2>&1 &
+      ;;
+  esac
+  disown 2>/dev/null || true
+}
+keepawake_touch() { [ -f "$STATE.awake" ] && touch "$STATE.awake" 2>/dev/null; return 0; }
 hb_pid=""
 heartbeat_start() {
   local station=$$
@@ -347,7 +383,7 @@ heartbeat_start() {
       [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
       publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null
       left="${STATION_HEARTBEAT_SECS:-1800}"
-      while [ "$left" -gt 0 ] && mine; do sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
+      while [ "$left" -gt 0 ] && mine; do keepawake_touch; sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
     done
   ) &
   hb_pid=$!
@@ -434,8 +470,9 @@ run_once() {
 if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
     heartbeat_reap
+    keepawake_start
     heartbeat_start
-    trap heartbeat_stop EXIT
+    trap 'heartbeat_stop; rm -f "$STATE.awake"' EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
   hours_init
