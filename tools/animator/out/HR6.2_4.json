@@ -1,0 +1,25 @@
+{
+ "name": "HR6.2_4",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "body_height": 56,
+ "scale": 0.42105263157894735,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 30.752,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 30.752,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ }
+}

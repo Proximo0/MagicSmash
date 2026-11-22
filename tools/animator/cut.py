@@ -342,8 +342,11 @@ def cut_still(still, rig):
         lab[m] = code[name]
         free[m] = False
 
-    for g in gear_defs:
-        take(poly_mask((H, W), g["poly"]), "gear:" + g["name"])
+    for g in gear_defs:   # the polygon plus its 1-px outline
+        gm = poly_mask((H, W), g["poly"])
+        gp = np.pad(gm, 1)
+        gm = gm | gp[:-2, 1:-1] | gp[2:, 1:-1] | gp[1:-1, :-2] | gp[1:-1, 2:]
+        take(gm, "gear:" + g["name"])
     if "back" in data:
         take(poly_mask((H, W), data["back"]["poly"]), "back")
     for poly in data.get("far_poly", []):

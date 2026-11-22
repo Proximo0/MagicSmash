@@ -136,7 +136,7 @@ def two_legs(frames, ctx):
     Leg rows: from the higher knee down to the ground, skipping rows where the torso (cape,
     robe) hangs.  Pixels of arms/gear in front of a leg are bridged, not counted."""
     out = []
-    lw = max(2, int(round(ctx["leg_width"] * 0.45)))
+    lw = max(2, int(round(ctx["leg_width"] * 0.6)))   # a leg-wide run: 60 % of a shin
     for i, f in enumerate(frames):
         rgba, lab, names = f["rgba"], f["label"], f["meta"]["labels"]
         J = _J(f["meta"])

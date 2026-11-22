@@ -259,4 +259,47 @@ def bake_character(still_path, joints_path, out_dir, motions=("walk",)):
                 "ms_per_frame": ms, "checks": "ok" if not fails else fails}
     with open(os.path.join(out_dir, ch.name + ".json"), "w") as f:
         json.dump(meta_out, f, indent=1)
+    export_parts(ch, out_dir)
     return ch, results
+
+
+PARENT = {"torso": None, "back": "torso", "near_upper": "torso", "near_fore": "near_upper",
+          "near_thigh": "torso", "near_shin": "near_thigh", "near_foot": "near_shin",
+          "far_upper": "torso", "far_fore": "far_upper", "far_thigh": "torso",
+          "far_shin": "far_thigh", "far_foot": "far_shin"}
+
+
+def export_parts(ch, out_dir):
+    """Plain-file rig: one PNG per part (cropped) + rig.json with pivot, parent bone, draw
+    order and bone lengths, so the parts can be packed into another runtime later."""
+    d = os.path.join(out_dir, ch.name + "_parts")
+    os.makedirs(d, exist_ok=True)
+    rig = ch.rig
+    parts = {}
+    for i, name in enumerate(ch.order()):
+        p = ch.parts[name]
+        m = p.mask
+        ys, xs = np.where(m)
+        x0, y0 = int(xs.min()), int(ys.min())
+        crop = p.img[y0:ys.max() + 1, x0:xs.max() + 1]
+        fn = name.replace(":", "_") + ".png"
+        Image.fromarray(crop, "RGBA").save(os.path.join(d, fn))
+        side = "far" if name.startswith("far_") else "near"
+        piv = rig.j[p.pivot].copy()
+        if side == "far" and p.pivot in ("shoulder", "hip"):
+            pass  # the far root joint sits at the near one + far offset when posed
+        parent = PARENT.get(name, side + "_fore" if p.attach == "hand" else "torso")
+        parts[name] = {
+            "png": fn, "draw": i, "origin_in_still": [x0, y0],
+            "pivot_joint": p.pivot, "pivot_in_png": [float(piv[0] - x0), float(piv[1] - y0)],
+            "bone": list(p.bone), "parent": parent, "sha1": p.digest(),
+            "far_copy_of": name.replace("far_", "near_") if side == "far" else None,
+        }
+    out = {"name": ch.name, "still_frame": ch.frame_index, "joints": rig.data["joints"],
+           "ground_y": rig.ground_y, "lengths": rig.lengths,
+           "far_shoulder_offset": rig.far_shoulder_offset.tolist(),
+           "far_hip_offset": rig.far_hip_offset.tolist(),
+           "rest_angles": rig.rest, "game_scale": ch.k, "parts": parts}
+    with open(os.path.join(d, "rig.json"), "w") as f:
+        json.dump(out, f, indent=1)
+    return d
