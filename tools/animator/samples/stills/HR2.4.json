@@ -1,0 +1,84 @@
+{
+ "id": "HR2.4",
+ "name": "hero_orc_knight",
+ "source_picture": "HR2.4_2.png",
+ "frame": 3,
+ "stride_px": 251,
+ "facing": "right",
+ "ground_y": 439,
+ "size": [
+  276,
+  452
+ ],
+ "joints": {
+  "head": [
+   135.9,
+   39.8
+  ],
+  "neck": [
+   130.6,
+   84.6
+  ],
+  "pelvis": [
+   122.0,
+   274.6
+  ],
+  "near_shoulder": [
+   117.7,
+   97.4
+  ],
+  "near_elbow": [
+   151.8,
+   161.5
+  ],
+  "near_wrist": [
+   194.9,
+   219.9
+  ],
+  "near_hip": [
+   117.7,
+   274.6
+  ],
+  "near_knee": [
+   80.8,
+   360.8
+  ],
+  "near_ankle": [
+   11.2,
+   439.0
+  ],
+  "near_toe": [
+   58.17,
+   439
+  ],
+  "far_shoulder": [
+   130.6,
+   97.4
+  ],
+  "far_elbow": [
+   96.5,
+   161.5
+  ],
+  "far_wrist": [
+   53.4,
+   219.9
+  ],
+  "far_hip": [
+   126.3,
+   274.6
+  ],
+  "far_knee": [
+   185.9,
+   356.8
+  ],
+  "far_ankle": [
+   241.4,
+   439.0
+  ],
+  "far_toe": [
+   288.37,
+   439
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

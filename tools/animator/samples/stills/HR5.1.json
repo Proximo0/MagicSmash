@@ -1,0 +1,84 @@
+{
+ "id": "HR5.1",
+ "name": "hero_human_priest",
+ "source_picture": "HR5.1_4.png",
+ "frame": 3,
+ "stride_px": 238,
+ "facing": "right",
+ "ground_y": 385,
+ "size": [
+  263,
+  398
+ ],
+ "joints": {
+  "head": [
+   135.4,
+   36.2
+  ],
+  "neck": [
+   130.7,
+   75.4
+  ],
+  "pelvis": [
+   123.3,
+   241.4
+  ],
+  "near_shoulder": [
+   119.5,
+   86.6
+  ],
+  "near_elbow": [
+   149.3,
+   142.6
+  ],
+  "near_wrist": [
+   186.9,
+   193.6
+  ],
+  "near_hip": [
+   119.5,
+   241.4
+  ],
+  "near_knee": [
+   87.2,
+   316.7
+  ],
+  "near_ankle": [
+   26.4,
+   385.0
+  ],
+  "near_toe": [
+   67.43,
+   385
+  ],
+  "far_shoulder": [
+   130.7,
+   86.6
+  ],
+  "far_elbow": [
+   101.0,
+   142.6
+  ],
+  "far_wrist": [
+   63.3,
+   193.6
+  ],
+  "far_hip": [
+   127.0,
+   241.4
+  ],
+  "far_knee": [
+   179.0,
+   313.2
+  ],
+  "far_ankle": [
+   227.6,
+   385.0
+  ],
+  "far_toe": [
+   268.63,
+   385
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

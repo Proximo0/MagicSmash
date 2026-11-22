@@ -1,1 +1,6 @@
 target/
+# The gateway's --dev-cert pair (beside the store): never commit a key.
+*.dev-key.pem
+*.dev-cert.pem
+*.dev-cert.names
+*.pem

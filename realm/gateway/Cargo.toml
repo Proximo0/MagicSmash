@@ -24,9 +24,18 @@ path = "src/world_bin.rs"
 name = "realm-economy"
 path = "src/economy_bin.rs"
 
+[features]
+# `--insecure-dev` for bots (accept any gateway certificate). Dev builds only; never in a release build.
+dev-insecure = []
+
 [dependencies]
 realm-core = { path = "../core" }
 realm-server = { path = "../server" }
 realm-store = { path = "../store" }
 realm-loot = { path = "../loot" }
 realm-ops = { path = "../ops" }
+# Transport security (docs/realm/wire.md "Transport security"): rustls on the ring provider (no cmake, NASM or
+# OpenSSL on Windows), webpki-roots for a launch certificate, rcgen for `--dev-cert` (local play and tests).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1"
+rcgen = { version = "0.14", default-features = false, features = ["ring", "pem", "crypto"] }

@@ -61,6 +61,8 @@ pub struct WeekOpts {
     pub seed: u64,
     pub db: Option<PathBuf>,
     pub progress_secs: u64,
+    /// The gateway and its bots speak TLS (an in-memory dev certificate the bots trust).
+    pub tls: bool,
 }
 
 impl Default for WeekOpts {
@@ -83,6 +85,7 @@ impl Default for WeekOpts {
             seed: 7,
             db: None,
             progress_secs: 0,
+            tls: false,
         }
     }
 }
@@ -292,8 +295,8 @@ fn prep(store: &SqliteStore, hero: &HeroInfo, keys: bool, n: u64) {
 
 /// One bot's session: login, hero, town, then an outing (a field, or a vault) to its end, the coin to the bank.
 #[allow(clippy::too_many_arguments)]
-fn session(addr: &str, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: &SqliteStore, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(), String> {
-    let mut gw = GatewayClient::connect(addr).map_err(io)?;
+fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientConfig>>, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: &SqliteStore, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(), String> {
+    let mut gw = GatewayClient::connect_with(addr, tls).map_err(io)?;
     match gw.login(&format!("world-bot-{b}")).map_err(io)? {
         Resp::Login { .. } => {}
         r => return Err(format!("login: {r:?}")),
@@ -459,7 +462,8 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
         let sim = SimOpts { field: f, seed: o.seed + f as u64, monsters: o.monsters, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
         gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).map_err(|e| e.to_string())?;
     }
-    let listener = crate::conn::listen(gw.clone(), "127.0.0.1:0").map_err(|e| e.to_string())?;
+    let (server_tls, client_tls) = if o.tls { crate::tls::loopback_pair().map(|(s, c)| (Some(s), Some(c)))? } else { (None, None) };
+    let listener = crate::conn::listen_tls(gw.clone(), "127.0.0.1:0", server_tls).map_err(|e| e.to_string())?;
     let addr = listener.addr.to_string();
     let stop = Arc::new(AtomicBool::new(false));
     let sh = Arc::new(Mutex::new(Shared::default()));
@@ -471,11 +475,12 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
     let mut threads = Vec::new();
     for b in 0..o.bots as u64 {
         let (addr, stop, sh, o2, clock, store) = (addr.clone(), stop.clone(), sh.clone(), o.clone(), clock.clone(), store.clone());
+        let client_tls = client_tls.clone();
         threads.push(std::thread::spawn(move || {
             let mut n = 0u64;
             let mut rng = o2.seed ^ (b << 32) ^ 0xB07;
             while !stop.load(Ordering::Relaxed) {
-                if let Err(e) = session(&addr, b, n, &o2, &clock, &store, &stop, &sh) {
+                if let Err(e) = session(&addr, client_tls.as_ref(), b, n, &o2, &clock, &store, &stop, &sh) {
                     if !stop.load(Ordering::Relaxed) {
                         sh.lock().unwrap().errors.push(format!("bot {b}: {e}"));
                     }

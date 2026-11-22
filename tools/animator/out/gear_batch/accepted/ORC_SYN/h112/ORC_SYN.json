@@ -1,0 +1,93 @@
+{
+ "name": "ORC_SYN",
+ "still_frame": 0,
+ "canvas": [
+  192,
+  160
+ ],
+ "foot_y": 148,
+ "body_height_px": 112,
+ "scale": 0.28717948717948716,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 64.0,
+   "gain": 1.0,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 64.0,
+   "gain": 1.0,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "native_grid": {
+  "found": true,
+  "cell": [
+   10.280000000000006,
+   11.180000000000007
+  ],
+  "phase": [
+   2.75,
+   3.5
+  ],
+  "score": [
+   1.91,
+   2.0
+  ],
+  "texel": 4.0,
+  "used_cell": [
+   10.280000000000006,
+   11.180000000000007
+  ]
+ },
+ "fit": {
+  "id": "ORC_SYN",
+  "flags": [],
+  "penalties": {},
+  "on_spec": true,
+  "key_px": 0,
+  "key_at": [],
+  "body_only": true,
+  "loose": [],
+  "layout_scale": 1.005,
+  "robe": false,
+  "ankle_moved_px": 1.1,
+  "arm_from_layout": true,
+  "back_reach": 0.0,
+  "inner_hand": false,
+  "hands": [],
+  "arm_overlap": 0,
+  "gear_blobs": [],
+  "thin_objects": [],
+  "hand_reach": 0.072,
+  "back_cloth": 0.0,
+  "leg_skin": 0.0,
+  "layout_swapped": {
+   "legs": false,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 40.1,
+   "neck": 1.1,
+   "pelvis": 8.5,
+   "shoulder": 0.5,
+   "elbow": 0.8,
+   "wrist": 1.1,
+   "hip": 9.7,
+   "knee": 6.9,
+   "ankle": 4.1,
+   "toe": 4.4,
+   "far_knee": 7.7,
+   "far_ankle": 3.2
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 422.0,
+  "leg_width": 56.5,
+  "far_arm": "hidden"
+ }
+}

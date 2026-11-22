@@ -376,8 +376,8 @@ fn a_trade_moves_nothing_until_both_confirm_the_same_offers() {
     let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
     let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
     let addr = l.addr.to_string();
-    let mut ca = GatewayClient::connect(&addr).unwrap();
-    let mut cb = GatewayClient::connect(&addr).unwrap();
+    let mut ca = GatewayClient::connect_plain(&addr).unwrap();
+    let mut cb = GatewayClient::connect_plain(&addr).unwrap();
     let Resp::Login { account: a } = ca.login("ann").unwrap() else { panic!() };
     let Resp::Login { account: b } = cb.login("bo").unwrap() else { panic!() };
     let mk = |c: &mut GatewayClient, n: &str| match c.call(Req::CreateHero { name: n.into(), race: 1, class: 1, look: 0, self_found: false }).unwrap() {

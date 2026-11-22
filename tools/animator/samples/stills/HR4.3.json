@@ -1,0 +1,84 @@
+{
+ "id": "HR4.3",
+ "name": "hero_dwarf_archer",
+ "source_picture": "HR4.3_3.png",
+ "frame": 1,
+ "stride_px": 190,
+ "facing": "right",
+ "ground_y": 351,
+ "size": [
+  234,
+  364
+ ],
+ "joints": {
+  "head": [
+   104.4,
+   34.0
+  ],
+  "neck": [
+   100.2,
+   69.6
+  ],
+  "pelvis": [
+   93.4,
+   234.4
+  ],
+  "near_shoulder": [
+   90.0,
+   79.8
+  ],
+  "near_elbow": [
+   63.0,
+   130.7
+  ],
+  "near_wrist": [
+   28.8,
+   177.1
+  ],
+  "near_hip": [
+   90.0,
+   234.4
+  ],
+  "near_knee": [
+   139.1,
+   292.7
+  ],
+  "near_ankle": [
+   178.5,
+   351.0
+  ],
+  "near_toe": [
+   215.79,
+   351
+  ],
+  "far_shoulder": [
+   100.2,
+   79.8
+  ],
+  "far_elbow": [
+   127.3,
+   130.7
+  ],
+  "far_wrist": [
+   161.5,
+   177.1
+  ],
+  "far_hip": [
+   96.8,
+   234.4
+  ],
+  "far_knee": [
+   64.5,
+   295.5
+  ],
+  "far_ankle": [
+   15.1,
+   351.0
+  ],
+  "far_toe": [
+   52.39,
+   351
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

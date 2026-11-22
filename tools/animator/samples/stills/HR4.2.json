@@ -1,0 +1,84 @@
+{
+ "id": "HR4.2",
+ "name": "hero_elf_archer",
+ "source_picture": "HR4.2_4.png",
+ "frame": 3,
+ "stride_px": 239,
+ "facing": "right",
+ "ground_y": 392,
+ "size": [
+  264,
+  405
+ ],
+ "joints": {
+  "head": [
+   134.6,
+   36.7
+  ],
+  "neck": [
+   129.8,
+   76.6
+  ],
+  "pelvis": [
+   122.2,
+   245.7
+  ],
+  "near_shoulder": [
+   118.4,
+   88.0
+  ],
+  "near_elbow": [
+   148.7,
+   145.0
+  ],
+  "near_wrist": [
+   187.1,
+   197.0
+  ],
+  "near_hip": [
+   118.4,
+   245.7
+  ],
+  "near_knee": [
+   85.5,
+   322.4
+  ],
+  "near_ankle": [
+   23.6,
+   392.0
+  ],
+  "near_toe": [
+   65.4,
+   392
+  ],
+  "far_shoulder": [
+   129.8,
+   88.0
+  ],
+  "far_elbow": [
+   99.5,
+   145.0
+  ],
+  "far_wrist": [
+   61.1,
+   197.0
+  ],
+  "far_hip": [
+   126.0,
+   245.7
+  ],
+  "far_knee": [
+   179.0,
+   318.8
+  ],
+  "far_ankle": [
+   228.4,
+   392.0
+  ],
+  "far_toe": [
+   270.2,
+   392
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}

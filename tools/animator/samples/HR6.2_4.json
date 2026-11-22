@@ -1,0 +1,18 @@
+{
+ "name": "HR6.2_4",
+ "frame": 0,
+ "ground_y": 133,
+ "joints": {
+  "head_top": [37, 0], "neck": [37, 28], "pelvis": [37, 84],
+  "shoulder": [45, 41], "elbow": [53, 52], "wrist": [59, 61], "hand_tip": [63, 68],
+  "hip": [42, 88], "knee": [55, 103], "ankle": [66, 118], "heel": [66, 133], "toe": [75, 125]
+ },
+ "far": {
+  "shoulder": [26, 40], "elbow": [19, 53], "wrist": [14, 64], "hand_tip": [12, 71],
+  "hip": [30, 88], "knee": [19, 102], "ankle": [8, 115], "heel": [1, 120], "toe": [10, 133]
+ },
+ "far_shoulder_offset": [-19, 1],
+ "far_hip_offset": [-10, 0],
+ "torso_keep": [[[40, 70], [53, 70], [53, 89], [40, 89]]],
+ "radius": {"upper": 4.6, "fore": 4.6, "thigh": 6.0, "shin": 5.5, "foot": 4.5}
+}

@@ -1,0 +1,14 @@
+{
+ "slot": "cape",
+ "anchor": [
+  176,
+  28
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.52,
+ "guide": "cape",
+ "note": "a cape seen from the side, hanging flat and straight down from the shoulder; the anchor is its top front corner, where it sits on the shoulder"
+}

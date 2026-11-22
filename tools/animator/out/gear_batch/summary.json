@@ -1,0 +1,236 @@
+{
+ "DWARF_SYN": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 40.5,
+   "neck": 0.5,
+   "pelvis": 6.0,
+   "shoulder": 0.6,
+   "elbow": 0.9,
+   "wrist": 1.1,
+   "hip": 6.9,
+   "knee": 1.1,
+   "ankle": 5.0,
+   "toe": 2.2,
+   "far_knee": 3.1,
+   "far_ankle": 9.6
+  },
+  "flags": [],
+  "gear": [
+   "axe:near_hand",
+   "shield:back"
+  ],
+  "gear_cut": 0.24,
+  "native_grid": {
+   "found": false,
+   "cell": [
+    11.200000000000006,
+    8.160000000000004
+   ],
+   "phase": [
+    8.0,
+    3.25
+   ],
+   "score": [
+    1.91,
+    1.92
+   ],
+   "texel": 4.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 24.0,
+   "112": 48.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 3.82
+ },
+ "ELF_SYN": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 34.3,
+   "neck": 0.6,
+   "pelvis": 8.1,
+   "shoulder": 0.4,
+   "elbow": 0.7,
+   "wrist": 1.0,
+   "hip": 9.2,
+   "knee": 5.2,
+   "ankle": 6.3,
+   "toe": 4.5,
+   "far_knee": 5.8,
+   "far_ankle": 4.8
+  },
+  "flags": [],
+  "gear": [
+   "cape:cape",
+   "staff:near_hand"
+  ],
+  "gear_cut": 0.0,
+  "native_grid": {
+   "found": false,
+   "cell": [
+    8.820000000000006,
+    11.640000000000008
+   ],
+   "phase": [
+    8.5,
+    8.5
+   ],
+   "score": [
+    1.92,
+    2.02
+   ],
+   "texel": 4.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 32.0,
+   "112": 64.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 4.56
+ },
+ "HR6.1_SPLIT": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 52.4,
+   "neck": 2.5,
+   "pelvis": 9.4,
+   "shoulder": 0.3,
+   "elbow": 0.4,
+   "wrist": 0.5,
+   "hip": 10.3,
+   "knee": 1.9,
+   "ankle": 13.7,
+   "toe": 40.8,
+   "far_knee": 12.0,
+   "far_ankle": 16.6
+  },
+  "flags": [],
+  "gear": [
+   "hammer:near_hand",
+   "shield:back"
+  ],
+  "gear_cut": 0.67,
+  "native_grid": {
+   "found": false,
+   "cell": [
+    5.720000000000002,
+    6.780000000000003
+   ],
+   "phase": [
+    3.0,
+    4.0
+   ],
+   "score": [
+    1.16,
+    1.19
+   ],
+   "texel": 4.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 40.0,
+   "112": 80.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 3.65
+ },
+ "ORC_SYN": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 40.1,
+   "neck": 1.1,
+   "pelvis": 8.5,
+   "shoulder": 0.5,
+   "elbow": 0.8,
+   "wrist": 1.1,
+   "hip": 9.7,
+   "knee": 6.9,
+   "ankle": 4.1,
+   "toe": 4.4,
+   "far_knee": 7.7,
+   "far_ankle": 3.2
+  },
+  "flags": [],
+  "gear": [
+   "maul:near_hand"
+  ],
+  "gear_cut": 0.0,
+  "native_grid": {
+   "found": true,
+   "cell": [
+    10.280000000000006,
+    11.180000000000007
+   ],
+   "phase": [
+    2.75,
+    3.5
+   ],
+   "score": [
+    1.91,
+    2.0
+   ],
+   "texel": 4.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 32.0,
+   "112": 64.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 4.33
+ },
+ "PAL_SYN": {
+  "fit_score": 1.0,
+  "moved_px": {
+   "head_top": 37.2,
+   "neck": 0.4,
+   "pelvis": 7.8,
+   "shoulder": 0.5,
+   "elbow": 0.8,
+   "wrist": 1.0,
+   "hip": 8.9,
+   "knee": 5.5,
+   "ankle": 6.0,
+   "toe": 3.7,
+   "far_knee": 6.7,
+   "far_ankle": 4.2
+  },
+  "flags": [],
+  "gear": [
+   "hammer:near_hand",
+   "shield:back"
+  ],
+  "gear_cut": 0.0,
+  "native_grid": {
+   "found": true,
+   "cell": [
+    9.140000000000006,
+    8.240000000000006
+   ],
+   "phase": [
+    6.75,
+    8.0
+   ],
+   "score": [
+    1.91,
+    1.74
+   ],
+   "texel": 3.0
+  },
+  "gain": 1.0,
+  "speed_px_per_cycle": {
+   "56": 32.0,
+   "112": 64.0
+  },
+  "status": "accepted",
+  "rules": [],
+  "seconds": 4.5
+ }
+}

@@ -1,5 +1,6 @@
 //! The gateway through real sockets: login, characters, towns and chat, field tickets, the bank, mail, spends and
-//! the smith, each through the store's own rules.
+//! the smith, each through the store's own rules. Every connection here is TLS (an in-memory dev certificate the
+//! clients trust), as a launch gateway's are.
 
 use realm_gateway::client::GatewayClient;
 use realm_gateway::gateway::{Config, Gateway};
@@ -16,6 +17,13 @@ struct World {
     addr: String,
     _l: realm_gateway::conn::Listener,
     db: std::path::PathBuf,
+    tls: Arc<realm_gateway::tls::rustls::ClientConfig>,
+}
+
+impl World {
+    fn connect(&self) -> GatewayClient {
+        GatewayClient::connect_with(&self.addr, Some(&self.tls)).unwrap()
+    }
 }
 
 impl Drop for World {
@@ -36,12 +44,13 @@ fn world_with(name: &str, cfg: Config) -> World {
     let gw = Gateway::start(store.clone(), cfg);
     let sim = SimOpts { field: 0, seed: 3, monsters: 100, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
     gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
-    let l = realm_gateway::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
-    World { gw, store, addr: l.addr.to_string(), _l: l, db }
+    let (server_tls, tls) = realm_gateway::tls::loopback_pair().unwrap();
+    let l = realm_gateway::conn::listen_tls(gw.clone(), "127.0.0.1:0", Some(server_tls)).unwrap();
+    World { gw, store, addr: l.addr.to_string(), _l: l, db, tls }
 }
 
 fn login(w: &World, name: &str) -> GatewayClient {
-    let mut c = GatewayClient::connect(&w.addr).unwrap();
+    let mut c = w.connect();
     assert!(matches!(c.login(name).unwrap(), Resp::Login { .. }));
     c
 }
@@ -71,7 +80,7 @@ fn spec(slot: u8) -> ItemSpec {
 #[test]
 fn login_characters_and_the_rules_of_a_name() {
     let off = world("off", false);
-    let mut c = GatewayClient::connect(&off.addr).unwrap();
+    let mut c = off.connect();
     assert_eq!(code_of(c.login("x").unwrap()), code::DISABLED, "dev login is behind its flag");
     assert_eq!(code_of(c.call(Req::LoginSteam { ticket: vec![1] }).unwrap()), code::DISABLED);
     assert_eq!(code_of(c.call(Req::ListHeroes).unwrap()), code::NOT_LOGGED_IN);

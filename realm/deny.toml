@@ -24,6 +24,8 @@ ignore = [
 # Permissive licences that allow commercial closed-source use. Copyleft (GPL, AGPL, LGPL) is not listed, so it is denied,
 # and so is any licence not named here (unknown).
 allow = [
+    # CDLA-Permissive-2.0: the licence of the Mozilla root certificate list in webpki-roots (data, permissive, commercial use allowed).
+    "CDLA-Permissive-2.0",
     "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",

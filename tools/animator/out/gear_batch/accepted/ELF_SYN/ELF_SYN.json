@@ -1,0 +1,93 @@
+{
+ "name": "ELF_SYN",
+ "still_frame": 0,
+ "canvas": [
+  96,
+  80
+ ],
+ "foot_y": 74,
+ "body_height_px": 56,
+ "scale": 0.14358974358974358,
+ "motions": {
+  "walk4": {
+   "frames": 4,
+   "speed_px_per_cycle": 32.0,
+   "gain": 1.0,
+   "ms_per_frame": 250,
+   "checks": "ok"
+  },
+  "walk8": {
+   "frames": 8,
+   "speed_px_per_cycle": 32.0,
+   "gain": 1.0,
+   "ms_per_frame": 125,
+   "checks": "ok"
+  }
+ },
+ "native_grid": {
+  "found": false,
+  "cell": [
+   8.820000000000006,
+   11.640000000000008
+  ],
+  "phase": [
+   8.5,
+   8.5
+  ],
+  "score": [
+   1.92,
+   2.02
+  ],
+  "texel": 4.0,
+  "used_cell": [
+   6.964285714285714,
+   6.964285714285714
+  ]
+ },
+ "fit": {
+  "id": "ELF_SYN",
+  "flags": [],
+  "penalties": {},
+  "on_spec": true,
+  "key_px": 0,
+  "key_at": [],
+  "body_only": true,
+  "loose": [],
+  "layout_scale": 1.005,
+  "robe": false,
+  "ankle_moved_px": 0.7,
+  "arm_from_layout": true,
+  "back_reach": 0.0,
+  "inner_hand": false,
+  "hands": [],
+  "arm_overlap": 0,
+  "gear_blobs": [],
+  "thin_objects": [],
+  "hand_reach": 0.065,
+  "back_cloth": 0.0,
+  "leg_skin": 0.0,
+  "layout_swapped": {
+   "legs": false,
+   "arms": false
+  },
+  "moved_px": {
+   "head_top": 34.3,
+   "neck": 0.6,
+   "pelvis": 8.1,
+   "shoulder": 0.4,
+   "elbow": 0.7,
+   "wrist": 1.0,
+   "hip": 9.2,
+   "knee": 5.2,
+   "ankle": 6.3,
+   "toe": 4.5,
+   "far_knee": 5.8,
+   "far_ankle": 4.8
+  },
+  "score": 1.0,
+  "ok": true,
+  "body_height": 402.0,
+  "leg_width": 40.0,
+  "far_arm": "hidden"
+ }
+}

@@ -1,0 +1,14 @@
+{
+ "slot": "near_hand",
+ "anchor": [
+  32,
+  42
+ ],
+ "up": [
+  0.9826,
+  -0.1859
+ ],
+ "size": 0.259,
+ "angle": 49.0,
+ "in_front": false
+}

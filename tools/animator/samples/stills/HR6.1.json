@@ -1,0 +1,84 @@
+{
+ "id": "HR6.1",
+ "name": "hero_human_paladin",
+ "source_picture": "HR6.1_2.png",
+ "frame": 3,
+ "stride_px": 239,
+ "facing": "right",
+ "ground_y": 404,
+ "size": [
+  264,
+  417
+ ],
+ "joints": {
+  "head": [
+   109.8,
+   37.5
+  ],
+  "neck": [
+   104.9,
+   78.6
+  ],
+  "pelvis": [
+   97.1,
+   253.1
+  ],
+  "near_shoulder": [
+   93.2,
+   90.4
+  ],
+  "near_elbow": [
+   124.4,
+   149.2
+  ],
+  "near_wrist": [
+   164.0,
+   202.9
+  ],
+  "near_hip": [
+   93.2,
+   253.1
+  ],
+  "near_knee": [
+   59.2,
+   332.2
+  ],
+  "near_ankle": [
+   -4.7,
+   404.0
+  ],
+  "near_toe": [
+   38.419999999999995,
+   404
+  ],
+  "far_shoulder": [
+   104.9,
+   90.4
+  ],
+  "far_elbow": [
+   73.6,
+   149.2
+  ],
+  "far_wrist": [
+   34.1,
+   202.9
+  ],
+  "far_hip": [
+   101.0,
+   253.1
+  ],
+  "far_knee": [
+   155.7,
+   328.5
+  ],
+  "far_ankle": [
+   206.7,
+   404.0
+  ],
+  "far_toe": [
+   249.82,
+   404
+  ]
+ },
+ "note": "joints from the pose-layout skeleton (walk.pose) fitted to the figure's height and hip row; approximate (a few % of the height), not detected from the picture; toes placed on the ground line"
+}
