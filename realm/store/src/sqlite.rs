@@ -244,7 +244,7 @@ impl SqliteStore {
 
 	pub fn open_with(path: impl AsRef<Path>, opts: Options) -> Result<SqliteStore> {
 		let path = path.as_ref().to_path_buf();
-		let c = open_writer(&path)?;
+		let mut c = open_writer(&path)?;
 		if !opts.durable {
 			c.execute_batch("PRAGMA synchronous = OFF")?;
 		}
@@ -252,7 +252,7 @@ impl SqliteStore {
 			c.commit_hook(Some(|| {
 				crash::point(Site::Commit);
 				false
-			}));
+			}))?;
 		}
 		if crash::armed(Site::Progress) || crash::counting() {
 			c.progress_handler(
@@ -261,7 +261,7 @@ impl SqliteStore {
 					crash::point(Site::Progress);
 					false
 				}),
-			);
+			)?;
 		}
 		let seq = Writer::load_seq(&c)?;
 		let read = open_reader(&path)?;

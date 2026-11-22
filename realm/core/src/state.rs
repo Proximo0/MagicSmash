@@ -144,6 +144,11 @@ impl Field {
         let seed = r.u64()?;
         let (vault, seals) = (r.u8()?, r.u8()?);
         let monsters = r.u32()?;
+        // Every monster slot is at least its 4 hp bytes below, so a count the bytes cannot hold is a lie: refuse it before
+        // the pool (tens of bytes a slot) is allocated.
+        if monsters as usize > r.b.len().saturating_sub(r.at) / 4 {
+            return None;
+        }
         let cfg = Config { monsters, threads: threads.max(1) };
         let mut f = if vault == NO_VAULT {
             Field::open(field, seed, cfg)

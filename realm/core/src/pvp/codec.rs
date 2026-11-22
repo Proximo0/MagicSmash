@@ -101,3 +101,57 @@ fn flag(b: u8) -> Option<bool> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::probe::{biggest, iters, mutate, reset, seed, Rng};
+    use crate::pvp::{DUEL_OVER, War};
+
+    fn sample(rng: &mut Rng, heroes: usize) -> Pvp {
+        let mut p = Pvp { marked_realm: rng.below(2) == 1, guild: vec![0; heroes], downer: vec![NOBODY; heroes], ..Pvp::default() };
+        for _ in 0..rng.below(4) {
+            p.wars.push(War { id: rng.next(), guilds: [rng.next(), rng.next()], tide: rng.next() as u32, held: [rng.next() as u32, rng.next() as u32], on: rng.below(2) == 1 });
+        }
+        if rng.below(2) == 1 {
+            p.duel = Some(Duel { heroes: [rng.next() as u16, rng.next() as u16], started: rng.next() as u32, state: rng.below(DUEL_OVER as usize + 1) as u8 });
+        }
+        for i in 0..heroes {
+            if rng.below(3) == 0 {
+                p.guild[i] = 1 + rng.next() % 1000;
+            }
+            if rng.below(3) == 0 {
+                p.downer[i] = rng.below(heroes) as u16;
+            }
+        }
+        p
+    }
+
+    #[test]
+    fn the_pvp_block_round_trips_and_survives_hostile_bytes() {
+        let mut rng = Rng(seed());
+        let heroes = 12;
+        for _ in 0..iters() {
+            let p = sample(&mut rng, heroes);
+            let mut w = Vec::new();
+            p.write(&mut w);
+            let mut at = 0;
+            assert_eq!(Pvp::read(&w, &mut at, heroes).as_ref(), Some(&p));
+            assert_eq!(at, w.len());
+            let bad = match rng.below(4) {
+                0 => rng.bytes(64),
+                _ => mutate(&mut rng, &w),
+            };
+            reset();
+            let mut at = 0;
+            let got = Pvp::read(&bad, &mut at, heroes);
+            assert!(biggest() <= 64 * bad.len() + 16 * 1024, "{} bytes made read ask for {}: {bad:02x?}", bad.len(), biggest());
+            if let Some(q) = got {
+                let mut again = Vec::new();
+                q.write(&mut again);
+                let mut at2 = 0;
+                assert_eq!(Pvp::read(&again, &mut at2, heroes).as_ref(), Some(&q));
+            }
+        }
+    }
+}
