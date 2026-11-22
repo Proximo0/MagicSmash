@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-22T02:47Z commit=d3f0da7 took=611s
-JOB realm PASS REALM ok tests=251 bench 300x8000 tick_ms=4.79/6.63 follower=ok 8 tower_tick_ms=4.77/6.55 tower_follower=ok 3 | STORE ok tests=30 fuzz ops=5000 kills=20 acked=4824 digest=70aacd58b58cf688 secs=5.3 
-JOB frames INFO zooms=16 mean_ms=47.43 p99_ms=86.49 monsters_drawn=14252 renderer="AMD RadeonT 610M"
-STATION PASS jobs=2 failed=0 skipped=0
+STATION machine=laptop time=2026-11-22T03:09Z commit=690ed3e took=569s
+JOB realm FAIL realm/check.sh: error: test failed, to rerun pass `-p realm-loot --lib` REALM failed: cargo test  | STORE ok tests=30 fuzz ops=5000 kills=20 acked=4824 digest=70aacd58b58cf688 secs=5.0 
+JOB frames INFO zooms=16 mean_ms=44.00 p99_ms=83.38 monsters_drawn=14243 renderer="AMD RadeonT 610M"
+STATION FAIL jobs=2 failed=1 skipped=0
