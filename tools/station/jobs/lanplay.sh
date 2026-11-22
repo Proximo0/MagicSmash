@@ -3,9 +3,11 @@
 #   queue.sh add kind=shell args="script=lanplay secs=600 bots=4" needs=msi timeout_s=1800
 # Reads the live host's info (lan/host.txt on station-results), then runs `bots` bots of realm-lanplay through the real
 # client path: TLS trusting exactly the published certificate (--ca), login, hero, town, field ticket, field play over UDP
-# with the per-admission key, bank. Words: secs=N (default 300), bots=K (default 4), wait=N (seconds to wait for a host, 180).
+# with the per-admission key, bank. Words: secs=N (default 300), bots=K (default 4), wait=N (seconds to wait for a host, 900).
+# A host file counts only when it is FRESH: state=live, time left, and updated_epoch (the host rewrites it every ~90 s) not older than
+# this job's own start (minus STATION_LAN_SLACK, default 60 s, for clocks that differ). A file left by a host that died is stale.
 # Last line: PASS (no handshake or auth failure, outings done), `INFO lanplay: no live host`, or FAIL.
-secs=300 bots=4 wait=180
+secs=300 bots=4 wait=900
 for w in "$@"; do case "$w" in secs=[0-9]*) secs="${w#secs=}" ;; bots=[0-9]*) bots="${w#bots=}" ;; wait=[0-9]*) wait="${w#wait=}" ;; esac; done
 [ -n "${STATION_QUEUE_STUB:-}" ] && { echo "PASS lanplay stub secs=$secs bots=$bots"; exit 0; }
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -14,9 +16,11 @@ command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 command -v cargo >/dev/null 2>&1 || { echo "FAIL lanplay: cargo is not installed on this station"; exit 1; }
 art="${STATION_JOB_ART:-$(mktemp -d)}"; mkdir -p "$art"
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
-live() {  # a live host file in $work/host.txt, with time left
+pstart=$(date +%s)
+live() {  # a fresh live host file in $work/host.txt, with time left
 	lan_get >"$work/host.txt"
 	[ "$(lan_field state <"$work/host.txt")" = live ] || return 1
+	upd=$(lan_field updated_epoch <"$work/host.txt"); [ -n "$upd" ] && [ "$upd" -ge $((pstart - ${STATION_LAN_SLACK:-60})) ] || return 1
 	end=$(lan_field end_epoch <"$work/host.txt"); [ -n "$end" ] && [ $((end - $(date +%s))) -ge 20 ]
 }
 waited=0

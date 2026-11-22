@@ -47,9 +47,9 @@ SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
 POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 . tools/station/queue_lib.sh  # the work queue (queue_step, hours_mark); read now, like the rest of the script
-watch=0; push=1; after=""; jobs=(); deep=0; queue=0
+watch=0; push=1; after=""; jobs=(); deep=0; queue=0; ci_covered=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --ci-covered) ci_covered=1 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -58,7 +58,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --ci-covered) ci_covered=1 ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -100,9 +100,7 @@ job_checks() {
 job_frames() {  # one line: the realm client's frame times with a full horde on screen, on this machine's own graphics
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB frames FAIL cargo is not installed on this station"; return 1; }
-  local gs="${HH_ART_STATUS-D:\\projects\\hh_art\\status.txt}"  # Horde & Hearth art generation owns the GPU while this file says RUNNING
-  command -v cygpath >/dev/null 2>&1 && [ -n "$gs" ] && gs=$(cygpath -u "$gs" 2>/dev/null || echo "$gs")
-  if [ -n "$gs" ] && [ -f "$gs" ] && grep -q RUNNING "$gs" 2>/dev/null; then echo "JOB frames INFO gpu busy (art generation is RUNNING), skipped"; return 0; fi
+  if q_gpu_busy; then echo "JOB frames INFO gpu busy (art generation is RUNNING), skipped"; return 0; fi
   local limit="${P95:-${STATION_FRAME_P99_MS:-0}}" dir port="${STATION_FRAMES_PORT:-7811}" lib out line server runner=()
   dir="${TMPDIR:-/tmp}/station-frames-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) lib=realm_godot.dll ;; Darwin) lib=librealm_godot.dylib ;; *) lib=librealm_godot.so ;; esac
@@ -154,13 +152,13 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
     [ -f "$c" ] || continue
     out=$(timeout "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
-    else bad=$((bad + 1)); detail+=" | $c: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+    else bad=$((bad + 1)); detail+=" | $c: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   done
   if [ "$(uname -s)" = Linux ] && command -v "$GODOT" >/dev/null 2>&1 && [ -f realm/check_client.sh ]; then  # the client against a real server, on Linux machines with Godot
     local runner=(); [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && runner=(xvfb-run -a)
     out=$(GODOT="$GODOT" timeout "${STATION_REALM_TIMEOUT:-3600}" "${runner[@]}" bash realm/check_client.sh 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == "REALM_CLIENT ok "* ]]; then detail+=" | ${line:0:120}"
-    else bad=$((bad + 1)); detail+=" | realm/check_client.sh: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+    else bad=$((bad + 1)); detail+=" | realm/check_client.sh: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   fi
   echo "JOB realm $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
   return $bad
@@ -172,7 +170,7 @@ job_ops() {  # one line: realm-ops rehearse on this machine's own disk
   out=$(cd realm && cargo build --release -j2 -p realm-ops --bin realm-ops 2>&1 && timeout 600 target/release/realm-ops rehearse --dir="$dir" 2>&1); line=$(tail -1 <<<"$out")
   rm -rf "$dir"
   if [[ "$line" == "OPS ok "* ]]; then echo "JOB ops PASS ${line:7:300}"; return 0; fi
-  echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+  echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; return 1
 }
 job_economy() {  # one line: realm-economy's summary; recorded, never a failure of the merge. Kept to minutes (the 4000-bot 180-day
   # run took two hours a merge and kept the station from the work queue; that long run is the queue's `economy` job now)
@@ -200,7 +198,7 @@ job_soak() {  # one line: realm-soak's summary
   out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((secs + 900)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$secs" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="${TMPDIR:-/tmp}/station-soak.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-soak.db*
   if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
-  echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+  echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; return 1
 }
 job_world() {  # one line: realm-world's summary, a short soak on a merge (jobs/worldlong.sh runs the long one from the queue)
   local line; line=$(STATION_QUEUE_STUB="${STATION_QUEUE_STUB:-}" bash tools/station/jobs/worldlong.sh "secs=${STATION_WORLD_SECS:-600}" | tail -1)
@@ -221,14 +219,21 @@ pending_merge() {
   for j in "${jobs[@]}"; do touched "$j" <<<"$changed" && return 0; done
   return 1
 }
-step_run() {  # $1 = output file, rest = command; the command's status, or 99 when a merge landed and it was killed
-  local f="$1" pid last=$SECONDS rc; shift
+# A queue job (Q_IN_JOB=1, set by queue_lib's q_run_job) is killed by a merge only when it is short (Q_KILLABLE=1: timeout_s of at most
+# STATION_QUEUE_KILL_MAX_S, default 900); a long one runs to its end and the station takes the new commit afterwards. A queue job that
+# needs the GPU (J_GPUIDLE=1) is stopped, claim released, when art generation starts. deep steps (Q_IN_JOB unset) are killed by any merge.
+step_run() {  # $1 = output file, rest = command; the command's status, or 99 when it was killed (merge landed, GPU wanted)
+  local f="$1" pid last=$SECONDS rc watch_merge=1; shift
+  [ "${Q_IN_JOB:-0}" = 1 ] && [ "${Q_KILLABLE:-0}" != 1 ] && watch_merge=0
   "$@" >"$f" 2>&1 & pid=$!
   while kill -0 "$pid" 2>/dev/null; do
     sleep 1
     if [ $((SECONDS - last)) -ge "${STATION_DEEP_POLL:-60}" ]; then
       last=$SECONDS
-      if pending_merge; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99; fi
+      if [ "${Q_IN_JOB:-0}" = 1 ] && [ "${J_GPUIDLE:-0}" = 1 ] && q_gpu_busy; then
+        echo "station: art generation needs the GPU, stopping the queue job" >&2; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99
+      fi
+      if [ $watch_merge = 1 ] && pending_merge; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99; fi
     fi
   done
   wait "$pid"; return $?
@@ -240,21 +245,21 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
   command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir rc
   dir="${TMPDIR:-/tmp}/station-deep-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
-  ( cd realm && cargo build --release -j2 -q ) >/dev/null 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >/dev/null 2>&1 \
-    || { echo "JOB deep FAIL build"; return 1; }
+  ( cd realm && cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
+    || { echo "JOB deep FAIL build, last 40 lines:"; tail -40 "$dir/build.log" | tr -d '\r' | cut -c1-300 | sed 's/^/  /'; rm -rf "$dir"; return 1; }
   interrupted() { rm -rf "$dir"; echo "JOB deep INTERRUPTED a merge landed (seed=$seed)"; return 3; }
   pending_merge && { interrupted; return 3; }
   step_run "$dir/fuzz.out" timeout 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz"; rc=$?
   [ $rc = 99 ] && { interrupted; return 3; }
   out=$(cat "$dir/fuzz.out")
   if [ $rc = 0 ]; then detail+=" | fuzz seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
-  else bad=$((bad + 1)); detail+=" | fuzz seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  else bad=$((bad + 1)); detail+=" | fuzz seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   pending_merge && { interrupted; return 3; }
   step_run "$dir/bench.out" timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300; rc=$?
   [ $rc = 99 ] && { interrupted; return 3; }
   out=$(cat "$dir/bench.out")
   if [ $rc = 0 ]; then detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
-  else bad=$((bad + 1)); detail+=" | bench field=$field seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  else bad=$((bad + 1)); detail+=" | bench field=$field seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   local ssecs="${STATION_DEEP_SOAK_SECS:-900}"  # a time-boxed soak with a fresh seed (0 = none); the per-merge soak job is gone from roles.txt
   if [ "$ssecs" -gt 0 ]; then
     pending_merge && { interrupted; return 3; }
@@ -263,7 +268,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
     [ $rc = 99 ] && { interrupted; return 3; }
     out=$(cat "$dir/soak.out")
     if [[ "$(tail -1 <<<"$out")" == "SOAK ok "* ]]; then detail+=" | soak seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
-    else bad=$((bad + 1)); detail+=" | soak seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+    else bad=$((bad + 1)); detail+=" | soak seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   fi
   local stamp="${TMPDIR:-/tmp}/station-ops-last-$MACHINE"  # the nightly operations rehearsal: backup and restore, at most once in 20 hours
   if [ ! -f "$stamp" ] || [ -n "$(find "$stamp" -mmin +1200 2>/dev/null)" ]; then
@@ -298,7 +303,7 @@ publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to t
     tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
     commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $(tail -1 <<<"$1")")
     GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null && return 0
-    sleep 5
+    sleep "${STATION_PUBLISH_SLEEP:-5}"
   done
   echo "station: could not push the report" >&2; return 1
 }
@@ -331,6 +336,42 @@ publish_append() {  # $1 = one line, $2 = file: append it to the file on the res
 # A re-exec runs no EXIT trap, so `restart` stops the loop before every exec. The loop also ends by itself when the
 # station process is gone or a newer loop has written its pid to $STATE.heartbeat (an exec keeps the pid, so the pid
 # alone cannot tell the old station from the new). STATION_HEARTBEAT_LOG (tests) gets "<loop pid> <time>" each round.
+# Keep-awake (Curtis, 22 Nov 2026: "some kind of thing that keeps everything fresh and active as if im here"): while a station
+# watches, the PC is asked to stay awake with its screen on, the request video players make (Windows SetThreadExecutionState;
+# Linux systemd-inhibit). Nothing is installed, no window, no mouse or key is touched. The helper lives only while the station
+# refreshes $STATE.awake (the heartbeat loop touches it every 10 s) and while its token is the newest, so a restart leaves one.
+# STATION_KEEPAWAKE=0 turns it off.
+keepawake_start() {
+  [ "${STATION_KEEPAWAKE:-1}" = 1 ] || return 0
+  local tok="$$-$RANDOM-$(date +%s)" f; f="$(cd "$(dirname "$STATE")" && pwd)/$(basename "$STATE").awake"
+  echo "$tok" >"$f"
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+      command -v powershell.exe >/dev/null 2>&1 || return 0
+      local wf; wf=$(cygpath -w "$f" 2>/dev/null || echo "$f")
+      STATION_AWAKE_FILE="$wf" STATION_AWAKE_TOKEN="$tok" powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command '
+        $sig = "[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);"
+        $k = Add-Type -MemberDefinition $sig -Name Awake -Namespace Station -PassThru
+        while ($true) {
+          $i = Get-Item -LiteralPath $env:STATION_AWAKE_FILE -ErrorAction SilentlyContinue
+          if (-not $i) { break }
+          if (((Get-Date) - $i.LastWriteTime).TotalSeconds -gt 180) { break }
+          if ((Get-Content -LiteralPath $env:STATION_AWAKE_FILE -TotalCount 1) -ne $env:STATION_AWAKE_TOKEN) { break }
+          [void]$k::SetThreadExecutionState(0x80000003)
+          Start-Sleep -Seconds 30
+        }
+        [void]$k::SetThreadExecutionState(0x80000000)' >/dev/null 2>&1 &
+      ;;
+    Linux)
+      command -v systemd-inhibit >/dev/null 2>&1 || return 0
+      STATION_AWAKE_FILE="$f" STATION_AWAKE_TOKEN="$tok" systemd-inhibit --what=idle:sleep:handle-lid-switch --who=station \
+        --why="test station running" bash -c 'while [ "$(head -1 "$STATION_AWAKE_FILE" 2>/dev/null)" = "$STATION_AWAKE_TOKEN" ] &&
+          [ -n "$(find "$STATION_AWAKE_FILE" -newermt "-180 seconds" 2>/dev/null)" ]; do sleep 30; done' >/dev/null 2>&1 &
+      ;;
+  esac
+  disown 2>/dev/null || true
+}
+keepawake_touch() { [ -f "$STATE.awake" ] && touch "$STATE.awake" 2>/dev/null; return 0; }
 hb_pid=""
 heartbeat_start() {
   local station=$$
@@ -342,7 +383,7 @@ heartbeat_start() {
       [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
       publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null
       left="${STATION_HEARTBEAT_SECS:-1800}"
-      while [ "$left" -gt 0 ] && mine; do sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
+      while [ "$left" -gt 0 ] && mine; do keepawake_touch; sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
     done
   ) &
   hb_pid=$!
@@ -359,7 +400,17 @@ heartbeat_reap() {
 restart() { heartbeat_stop; exec bash tools/station/station.sh "$@"; }
 self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
+deep_has_room() { q_free_mb_set; [ -z "$Q_FREE_MB" ] || [ "$Q_FREE_MB" -ge "${STATION_DEEP_FREE_MB:-2048}" ]; }  # the same RAM gate the queue has
+# A finished report whose push failed is kept in $STATE.unpushed and only the push is retried (at the start of every run_once);
+# the jobs are not run again. A newer report replaces it.
+retry_unpushed() {
+  [ -s "$STATE.unpushed" ] || return 0
+  if publish "$(cat "$STATE.unpushed")"; then
+    tail -n +2 "$STATE.unpushed" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum >"$STATE.report"; rm -f "$STATE.unpushed"; echo "station: the kept report was pushed"
+  fi
+}
 run_once() {
+  [ "$push" = 1 ] && retry_unpushed
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
   git config core.autocrlf false  # Godot rewrites .import files with LF; Windows Git's autocrlf=true would call the clone changed
   local dirty; dirty=$(git status --porcelain --untracked-files=no)
@@ -385,6 +436,8 @@ run_once() {
   for j in "${jobs[@]}"; do
     if [ $known = 1 ] && ! touched "$j" <<<"$changed"; then
       body+="JOB $j SKIP nothing it tests changed since ${base:0:7}"$'\n'; skipped=$((skipped + 1))
+    elif [ "$j" = realm ] && [ "$ci_covered" = 1 ] && ! grep -qE "${STATION_REALM_OWN_PATHS:-\.(ps1|cmd|bat)$|^realm/ops/host/|^tools/station/start_station}" <<<"$changed"; then
+      body+="JOB realm SKIP CI tests this commit (role flag --ci-covered); only Windows-only paths run here"$'\n'; skipped=$((skipped + 1))
     else run+=("$j"); fi
   done
   local verdict
@@ -402,9 +455,13 @@ run_once() {
   local report="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=${head:0:7} took=$((SECONDS - start))s"$'\n'"$body$verdict"
   if [ $failed -gt 0 ] && [ -n "${STATION_ON_FAIL:-}" ]; then bash -c "$STATION_ON_FAIL" <<<"$report" >/dev/null 2>&1 || true; fi
   if [ "$push" = 1 ]; then
-    # Push only a report that differs from the last one pushed (ignoring time and took); mark the commit tested only after the push worked.
+    # Push only a report that differs from the last one pushed (ignoring time and took). The commit counts as tested once its jobs ran; a failed push keeps the report ($STATE.unpushed) and only the push is retried.
     local sig; sig=$(tail -n +2 <<<"$report" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum)
-    if [ "$sig" != "$(cat "$STATE.report" 2>/dev/null)" ]; then publish "$report" || return 2; echo "$sig" >"$STATE.report"; fi
+    if [ "$sig" != "$(cat "$STATE.report" 2>/dev/null)" ]; then
+      printf '%s\n' "$report" >"$STATE.unpushed"
+      if publish "$report"; then echo "$sig" >"$STATE.report"; rm -f "$STATE.unpushed"
+      else echo "station: report kept, the push will be retried; the jobs are not run again" >&2; fi
+    fi
     echo "$head" >"$STATE"; tail -1 <<<"$report"
   else echo "$head" >"$STATE"; echo "$report"; fi
   [ $failed -eq 0 ]
@@ -413,8 +470,9 @@ run_once() {
 if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
     heartbeat_reap
+    keepawake_start
     heartbeat_start
-    trap heartbeat_stop EXIT
+    trap 'heartbeat_stop; rm -f "$STATE.awake"' EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
   hours_init
@@ -426,6 +484,7 @@ if [ "$watch" = 1 ]; then
       queue_step; qrc=$?
       if [ $qrc = 0 ] || [ $qrc = 3 ]; then hours_mark busy; continue; fi  # ran one (or a merge cut it short): look at main again
     fi
+    if [ $rc = 3 ] && [ "$deep" = 1 ] && ! deep_has_room; then echo "SKIP deep pass: needs ${STATION_DEEP_FREE_MB:-2048} MB free RAM, only $Q_FREE_MB MB free" >&2; sleep "$POLL"; hours_mark idle; continue; fi
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
       t0=$SECONDS; body=$(job_deep); drc=$?
       now=$(date +%s); hours_mark busy
@@ -444,7 +503,7 @@ if [ "$watch" = 1 ]; then
         if [ $drc != 0 ] || [ $after_merge = 1 ] || [ $hourly = 1 ]; then
           publish "$rep" "$MACHINE-deep.txt" && { last_pub=$now; after_merge=0; deep_n=0; deep_cut=0; deep_seeds=""; } || true
         fi
-        if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:400}" "$MACHINE-failures.txt" || true; fi
+        if [ $drc != 0 ]; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${body:0:1500}" "$MACHINE-failures.txt" || true; fi
       else echo "$rep"; fi
       if [ $drc = 0 ]; then sleep "${STATION_DEEP_GAP:-10}"; else sleep "$POLL"; fi
       hours_mark idle; continue

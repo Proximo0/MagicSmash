@@ -11,6 +11,9 @@
 # by name (seeds=.. ops=..) with its own digit checks. `shell` runs only tools/station/jobs/<name>.sh.
 # Needs from the caller (station.sh sets them): MACHINE, BRANCH (results). Optional functions of the caller are used when
 # they exist: step_run and pending_merge (kill a long job when a merge lands), job_frames, publish_append.
+# Job fields beyond the five: needs_free_mb (RAM that must be free to start; default by kind, 0 = no check), needs_gpu_idle (1 = no art
+# generation may be using the GPU; default 1 for frames and for needs=gpu). A merge never kills a queue job longer than
+# STATION_QUEUE_KILL_MAX_S (default 900 s timeout_s): the job finishes, then the station takes the new commit (step_run).
 # STATION_QUEUE_STUB=1 replaces every heavy command with a stub line (tests); a seed of 666 makes the stub fail.
 : "${MACHINE:=${STATION_NAME:-$(hostname)}}"
 : "${BRANCH:=station-results}"
@@ -29,11 +32,12 @@ gb_cat() { git show "refs/remotes/origin/$1:$2" 2>/dev/null; }
 gb_has() { git rev-parse -q --verify "refs/remotes/origin/$1" >/dev/null 2>&1; }
 # gb_put BRANCH MESSAGE op...   op = +path:file (add or replace from a file) or -path (delete). One commit, one push on top of the
 # freshly fetched branch; returns 1 when the push is rejected (somebody else got there first). gb_hook, when defined, runs
-# between building the commit and pushing it (tests use it to make a race happen).
+# between building the commit and pushing it (tests use it to make a race happen). GB_BASE=<commit> builds on that commit
+# without fetching again, so a push is rejected when anybody pushed after the caller looked (q_claim: check and lock on one view).
 gb_put() {
   local br=$1 msg=$2 parent idx blob tree commit op p f; shift 2
-  gb_fetch "$br"
-  parent=$(git rev-parse -q --verify "refs/remotes/origin/$br" || true)
+  if [ -n "${GB_BASE:-}" ]; then parent=$GB_BASE
+  else gb_fetch "$br"; parent=$(git rev-parse -q --verify "refs/remotes/origin/$br" || true); fi
   idx=$(mktemp -u)
   [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
   for op in "$@"; do
@@ -72,6 +76,8 @@ q_valid_job() {  # uses the J_* variables; sets Q_WHY
   re='^[0-9]$'; [[ "$J_PRIO" =~ $re ]] || { Q_WHY="bad priority"; return 1; }
   case "$J_REPEAT" in once|forever) ;; *) Q_WHY="bad repeat"; return 1 ;; esac
   re='^[0-9]+$'; [[ "$J_TIMEOUT" =~ $re ]] && [[ "$J_EVERY" =~ $re ]] || { Q_WHY="bad timeout_s or every_s"; return 1; }
+  [[ "${J_MB:-0}" =~ $re ]] || { Q_WHY="bad needs_free_mb"; return 1; }
+  re='^[01]$'; [[ "${J_GPUIDLE:-0}" =~ $re ]] || { Q_WHY="bad needs_gpu_idle"; return 1; }
   return 0
 }
 q_warn() {  # a line on stdout, once per job and reason
@@ -79,6 +85,44 @@ q_warn() {  # a line on stdout, once per job and reason
   echo "$1 $2" >>"$Q_WARNED_FILE"; echo "queue: skipping job $1: $2" >&2
 }
 q_gpu() { case "${STATION_HAS_GPU:-}" in 1) return 0 ;; 0) return 1 ;; esac; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) return 0 ;; esac; [ -n "${DISPLAY:-}" ]; }
+# ---- resource gate: free RAM and the GPU, checked before a job starts (q_eligible) and while it runs (step_run) ------------------
+q_default_mb() {  # RAM a kind needs free, by default (MB)
+  case "$1" in fuzz) echo 512 ;; soak|balance|package) echo 1024 ;; bench|economy) echo 2048 ;; frames) echo 3072 ;; *) echo 256 ;; esac
+}
+Q_FREE_MB=""; Q_FREE_AT=0
+q_free_mb_set() {  # sets Q_FREE_MB (empty = unknown, which never blocks); cached 60 s, because PowerShell is slow to start
+  local now; now=$(q_now)
+  [ -n "${STATION_FREE_MB:-}" ] && { Q_FREE_MB=$STATION_FREE_MB; return 0; }
+  [ $((now - Q_FREE_AT)) -lt 60 ] && return 0
+  Q_FREE_AT=$now; Q_FREE_MB=""
+  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*)   # kB of free physical memory
+    Q_FREE_MB=$(powershell.exe -NoProfile -Command '[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)' 2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' | head -1) ;;
+  esac
+  if [ -z "$Q_FREE_MB" ] && [ -r /proc/meminfo ]; then
+    Q_FREE_MB=$(awk '/^MemAvailable:/ { print int($2 / 1024); exit }' /proc/meminfo 2>/dev/null)
+    [ -n "$Q_FREE_MB" ] || Q_FREE_MB=$(awk '/^MemFree:/ { print int($2 / 1024); exit }' /proc/meminfo 2>/dev/null)
+  fi
+  return 0
+}
+q_gpu_busy() {  # Horde & Hearth art generation owns the GPU while its status file says RUNNING (HH_ART_STATUS, "" = no such file)
+  local gs="${HH_ART_STATUS-D:\\projects\\hh_art\\status.txt}"
+  command -v cygpath >/dev/null 2>&1 && [ -n "$gs" ] && gs=$(cygpath -u "$gs" 2>/dev/null || echo "$gs")
+  [ -n "$gs" ] && [ -f "$gs" ] && grep -q RUNNING "$gs" 2>/dev/null
+}
+q_resources_ok() {  # uses J_MB and J_GPUIDLE; 1 with Q_WHY when short
+  if [ "${J_MB:-0}" -gt 0 ]; then
+    q_free_mb_set
+    if [ -n "$Q_FREE_MB" ] && [ "$Q_FREE_MB" -lt "$J_MB" ]; then Q_WHY="needs ${J_MB} MB free RAM, only ${Q_FREE_MB} MB free"; return 1; fi
+  fi
+  if [ "${J_GPUIDLE:-0}" = 1 ] && q_gpu_busy; then Q_WHY="the GPU is busy (art generation is RUNNING)"; return 1; fi
+  return 0
+}
+q_skip() {  # $1 = id, $2 = why: one SKIP line on stderr per job and half an hour (the pick runs every few minutes)
+  local f="$Q_WARNED_FILE.skip" now last; now=$(q_now)
+  last=$(awk -v k="$1" '$1 == k { t = $2 } END { print t }' "$f" 2>/dev/null)
+  [ -n "$last" ] && [ $((now - last)) -lt "${STATION_QUEUE_SKIP_NOTE_S:-1800}" ] && return 0
+  echo "$1 $now" >>"$f"; echo "SKIP queue job $1: $2" >&2
+}
 q_needs_ok() {
   case "$J_NEEDS" in
     any) return 0 ;;
@@ -92,7 +136,10 @@ q_load() {  # $1 = id: read and validate queue/<id>.job into J_*; 0 usable here
   local txt; txt=$(gb_cat "$QBRANCH" "queue/$1.job" | tr -d '\r'); [ -n "$txt" ] || return 1
   J_KIND=$(q_get "$txt" kind); J_ARGS=$(q_get "$txt" args); J_NEEDS=$(q_get "$txt" needs); J_PRIO=$(q_get "$txt" priority)
   J_REPEAT=$(q_get "$txt" repeat); J_TIMEOUT=$(q_get "$txt" timeout_s); J_EVERY=$(q_get "$txt" every_s)
+  J_MB=$(q_get "$txt" needs_free_mb); J_GPUIDLE=$(q_get "$txt" needs_gpu_idle)
   : "${J_NEEDS:=any}" "${J_PRIO:=5}" "${J_REPEAT:=once}" "${J_TIMEOUT:=3600}" "${J_EVERY:=0}"
+  : "${J_MB:=$(q_default_mb "$J_KIND")}"
+  if [ -z "$J_GPUIDLE" ]; then if [ "$J_KIND" = frames ] || [ "$J_NEEDS" = gpu ]; then J_GPUIDLE=1; else J_GPUIDLE=0; fi; fi
   q_valid_job || { q_warn "$1" "refused: $Q_WHY"; return 1; }
   if [ "$J_KIND" = shell ]; then
     local s; s=$(q_tok "$J_ARGS" script ""); re='^[A-Za-z0-9_-]+$'
@@ -104,14 +151,17 @@ q_load() {  # $1 = id: read and validate queue/<id>.job into J_*; 0 usable here
 # q_eligible id: after q_load. Sets Q_KEY for ordering: finite (once) jobs first by priority, then the forever jobs, oldest
 # run first with priority worth an hour of age, so a forever job of high priority cannot starve the others.
 q_eligible() {
-  local id=$1 now f t newest=0 last=0 cl dn; now=$(q_now)
+  local id=$1 now f t newest=0 last=0 cl dn me; now=$(q_now); me=$(q_me)
   q_needs_ok || return 1
   cl=$(grep "^claims/$id\." <<<"$Q_TREE"); dn=$(grep "^done/$id\." <<<"$Q_TREE")
+  # A claim of this machine never blocks it: one station runs one job at a time, so our own claim is left from a crash or a reboot.
+  cl=$(grep -v "^claims/$id\.$me\$" <<<"$cl")
   for f in $cl; do t=$(gb_cat "$QBRANCH" "$f" | q_time_of); [ "${t:-0}" -gt "$newest" ] && newest=$t; done
   [ -n "$cl" ] && [ "$now" -lt $((newest + 2 * J_TIMEOUT)) ] && return 1       # claimed and not stale
   for f in $dn; do t=$(gb_cat "$QBRANCH" "$f" | q_time_of); [ "${t:-0}" -gt "$last" ] && last=$t; done
   if [ "$J_REPEAT" = once ]; then [ -n "$dn" ] && return 1; Q_KEY="0 $((9 - J_PRIO))"
   else [ $((now - last)) -ge "$J_EVERY" ] || return 1; Q_KEY="1 $((last - J_PRIO * 3600))"; fi
+  q_resources_ok || { q_skip "$id" "$Q_WHY"; return 1; }
   return 0
 }
 q_pick() {  # the best eligible job id, or nothing
@@ -122,13 +172,14 @@ q_pick() {  # the best eligible job id, or nothing
   done | sort -k1,1n -k2,2n -k3,3 | head -1 | cut -d' ' -f3
 }
 q_claim() {  # $1 = id; the push is the lock. 0 won, 1 lost or no longer free
-  local id=$1 tmp me f ops=() ; me=$(q_me)
+  local id=$1 tmp me f ops=() base; me=$(q_me)
   q_fetch || return 1
+  base=$(git rev-parse -q --verify "refs/remotes/origin/$QBRANCH") || return 1   # the view we check below is the one we push on
   q_load "$id" && q_eligible "$id" || return 1
   tmp=$(mktemp); echo "machine=$MACHINE time=$(q_now)" >"$tmp"
   for f in $(grep "^claims/$id\." <<<"$Q_TREE"); do ops+=("-$f"); done     # a stale claim is taken over: its file goes
   ops+=("+claims/$id.$me:$tmp")
-  gb_put "$QBRANCH" "$MACHINE claims $id" "${ops[@]}"; local rc=$?
+  GB_BASE=$base gb_put "$QBRANCH" "$MACHINE claims $id" "${ops[@]}"; local rc=$?
   rm -f "$tmp"; return $rc
 }
 
@@ -179,7 +230,7 @@ q_run() {
   if declare -F step_run >/dev/null; then step_run "$f" "$@"; return $?; fi
   "$@" >"$f" 2>&1
 }
-q_tail() { tail -3 "$1" | tr '\n' ' ' | cut -c1-200; }
+q_tail() { tail -3 "$1" | tr -d '\r' | tr '\n' ' ' | cut -c1-1500; }   # a failure's last lines: long enough to hold the cause
 
 qk_fuzz() {  # args: seeds=A-B ops=N kills=N. realm-store fuzz per seed.
   local args=$1 rep=$2 s seeds ops kills bad=0 n=0 detail="" rc
@@ -327,11 +378,18 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
   q_load "$id" || { gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; return 0; }
   QK=$J_KIND; Q_WD=$(mktemp -d); mkdir -p "$Q_WD/art"; QDEADLINE=$((SECONDS + J_TIMEOUT)); LAST=""
   echo "queue: $MACHINE runs $id kind=$J_KIND args='$J_ARGS' repeat=$J_REPEAT"
-  line=$(q_exec "$J_KIND" "$J_ARGS" "$J_REPEAT"); rc=$?
+  # step_run reads these: a merge may kill only a short job; a long one finishes first (a merge used to throw away up to hours of work)
+  Q_IN_JOB=1; Q_KILLABLE=0; [ "$J_TIMEOUT" -le "${STATION_QUEUE_KILL_MAX_S:-900}" ] && Q_KILLABLE=1
+  line=$(q_exec "$J_KIND" "$J_ARGS" "$J_REPEAT" 2>"$Q_WD/stderr.log"); rc=$?
+  Q_IN_JOB=0; Q_KILLABLE=0
+  [ -s "$Q_WD/stderr.log" ] && tail -20 "$Q_WD/stderr.log" >&2
   if [ $rc = 3 ]; then
-    rm -rf "$Q_WD"; gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; echo "queue: job $id interrupted, a merge landed; claim released"; return 3
+    rm -rf "$Q_WD"; gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; echo "queue: job $id interrupted (a merge landed or the GPU was needed); claim released"; return 3
   fi
-  [ -n "$line" ] || line="FAIL job printed nothing"
+  if [ -z "$line" ]; then  # silent death: say how it ended and what it last wrote
+    local last; last=$(ls -t "$Q_WD" 2>/dev/null | grep -v '^stderr.log$' | head -1)
+    line="FAIL job printed nothing (exit $rc; stderr: $(tail -5 "$Q_WD/stderr.log" 2>/dev/null | tr -d '\r' | tr '\n' ' ' | cut -c1-600); last output${last:+ $last}: $([ -f "$Q_WD/$last" ] && tail -3 "$Q_WD/$last" | tr -d '\r' | tr '\n' ' ' | cut -c1-600))"
+  fi
   status=${line%% *}; case "$status" in PASS|FAIL|INFO|SKIP) ;; *) status=FAIL; line="FAIL $line" ;; esac
   line="$(date -u +%Y-%m-%dT%H:%M:%SZ) $status id=$id kind=$J_KIND secs=$((SECONDS - t0)) ${line#* }"
   q_publish_result "$id" "$line" "$Q_WD/art" || echo "queue: could not publish the result of $id"
@@ -341,7 +399,7 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
   gb_put_retry "$QBRANCH" "$MACHINE done $id $status" "+done/$id.$me:$tmp" "-claims/$id.$me" || echo "queue: could not record done for $id (the claim will go stale)"
   rm -f "$tmp"; rm -rf "$Q_WD"
   echo "queue: $id $status ${line:0:200}"
-  if [ "$status" = FAIL ] && declare -F publish_append >/dev/null; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE queue ${line:0:400}" "$MACHINE-failures.txt" || true; fi
+  if [ "$status" = FAIL ] && declare -F publish_append >/dev/null; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE queue ${line:0:1500}" "$MACHINE-failures.txt" || true; fi
   return 0
 }
 queue_step() {  # one job from the queue. 0 ran one, 1 nothing to do (the caller falls back to deep), 3 interrupted by a merge
