@@ -1,0 +1,1 @@
+2026-11-22T12:29:40Z INFO id=261122114110-7867 kind=shell secs=2 power set: sleep=never hibernate=never disk=never lid=nothing sleepbutton=nothing autostart=yes; NOT set: hibernate-off(admin)
