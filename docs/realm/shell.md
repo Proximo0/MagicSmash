@@ -68,7 +68,11 @@ untouched (`Main` decides).
 
 | Station | What it shows | Gateway calls |
 |---|---|---|
-| Bank | her bag (40 slots), the account's bank (100 slots a tab, 2 pages of 50 shown), stacks; deposit, withdraw, 1/10/all | `BANK_DEPOSIT`, `BANK_WITHDRAW` |
+| Bank | her bag (40 slots), the account's bank (100 slots a tab, tabs in a strip), stacks; deposit, withdraw, 1/10/all | `BANK_DEPOSIT`, `BANK_WITHDRAW` (with the tab) |
+| Market | BROWSE (filter slot, rarity, price; BUY), SELL (item or stack, price, 12/24/48 h), MINE (cancel) | `ECON` market search, buy, list, mine, cancel (`ui/econ_wire.gd`) |
+| Post | INBOX (take, pay cash on delivery, refuse), WRITE (text, 1 to 8 things, coin, a price), SENT (recall), SHELF (what came back) | `ECON` letters, `MAIL_TAKE` |
+| Trade table | invite by name, accept, lay items and coin, confirm the seen version, cancel; the invitation opens the table by itself | `ECON` trade, pushes `P_ECON` |
+| World board | six fields' tide and boss countdowns, the world boss's ride, heroes in copies, queue, vaults (read every 5 s) | `WORLD` board (`ui/world_wire.gd`) |
 | Smith | SALVAGE, UPGRADE, REROLL, SOCKET (set in, take out), FUSE; the price before the click | `SALVAGE`, `UPGRADE`, `REROLL`, `SOCKET`, `UNSOCKET`, `FUSE` |
 | Merchants | BUY potions, SELL items, the BELT (three slots) | `BUY`, `SELL` (new), `SET_BELT` |
 | Card reader | the 30 cards (owned or not, why), the deck of up to 20 as a row of cards, learn a page | `CARDS` (new), `SET_DECK`, `LEARN_PAGE` |
@@ -130,7 +134,16 @@ bag, 19 settings in town, 20 gates, 21 the field, 22 back in town; `zoom*.png` a
    plaza belong to the town room.
 4. **Stand-ins everywhere** (the art list above). The portraits are the field's tiny sprites scaled; a real card face
    per class (`ui_card_<class>.png`) is the first picture to ask for.
-5. **Not built here**: mail and trade screens, the market (E1), parties and guilds (T1/H1), Steam login (the gateway
-   answers DISABLED), hero rename and the bank's extra tabs (the calls exist).
+5. **Not built here**: Steam login (the gateway answers DISABLED), hero rename, the class trial vault (needs a party, a
+   vault key and the `VAULT` ticket path), duels (the `Duel` request and its pushes 12 to 15 are not decoded by the
+   shell yet), the Blood Mark (a field rite: hold interact at a waystone with `IN_MARK`; the gateway has no request for
+   it). The bank does not learn how many tabs the account owns: the strip shows every tab with things in it, the next
+   one and one more, and a tab the account has not got is refused in words.
+
+**Node-built screens.** Bank, market, post, trade table and world board are `NodePanel`s (`ui/node_panel.gd`): real
+`Button`, `ItemList`, `Tree`, `TabBar`, `LineEdit`, `SpinBox`, `OptionButton` under one shared `UiTheme` (`ui/ui_theme.gd`:
+dark ground, bone text, a gold focus frame), all focusable, so the arrows, the D-pad and accept work, and Esc or the
+controller's B (`ui_cancel`) closes. `press(id)` clicks the control registered under an id, so tests drive the nodes.
+The dev gateway's `--dev-grant` also gives each account one extra bank tab.
 6. **Sound.** The shell has no sounds yet (`FieldSound` has the hooks for the field only); volume and mute are wired
    to the master bus.

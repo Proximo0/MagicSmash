@@ -14,7 +14,8 @@ const SAY_S: float = 6.0
 const CHAT_MAX: int = 200
 const STATION_PANELS: Dictionary = {
 	"bank": "BankPanel", "smith": "SmithPanel", "merchants": "MerchantPanel", "reader": "ReaderPanel",
-	"trainer": "TrainerPanel", "gate": "GatePanel"}
+	"trainer": "TrainerPanel", "gate": "GatePanel", "market": "MarketPanel", "post": "PostPanel",
+	"trade": "TradePanel", "board": "BoardPanel"}
 
 var members: Dictionary = {}
 var me: int = -1
@@ -400,6 +401,14 @@ func open_station(sid: String) -> void:
 				p = TrainerPanel.new()
 			"gate":
 				p = GatePanel.new()
+			"market":
+				p = MarketPanel.new()
+			"post":
+				p = PostPanel.new()
+			"trade":
+				p = TradePanel.new()
+			"board":
+				p = BoardPanel.new()
 	if p != null and shell.top() == self:
 		shell.open_panel(p)
 
