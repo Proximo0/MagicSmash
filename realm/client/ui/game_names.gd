@@ -133,6 +133,8 @@ static func look_mark(look: int) -> int:
 
 
 static func base_name(base: int) -> String:
+	if HomeMap.is_thing(base):
+		return HomeMap.thing_name(base)
 	var slot: int = base / 100
 	var tier: int = (base / 10) % 10
 	var variant: int = base % 10

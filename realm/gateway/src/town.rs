@@ -41,6 +41,8 @@ struct Mem {
 
 struct Room {
     id: u32,
+    /// Which place this room is (`homes::place::key`); 0 is the plaza, where every hero arrives.
+    place: u64,
     next: u16,
     members: BTreeMap<u16, Mem>,
 }
@@ -64,14 +66,23 @@ pub fn clean_chat(text: &str) -> String {
 
 impl Towns {
     /// Puts a hero in the first room with space. Returns (room id, her member id, the members now, including her).
-    pub fn enter(&self, mut info: Member, out: Sender<Vec<u8>>) -> (u32, u16, Vec<Member>) {
+    pub fn enter(&self, info: Member, out: Sender<Vec<u8>>) -> (u32, u16, Vec<Member>) {
+        self.enter_at(0, ROOM_MAX, true, info, out).expect("the plaza overflows into new rooms")
+    }
+
+    /// Puts a hero in a room of the place `place` with fewer than `cap` heroes; with `overflow` a new room opens when
+    /// all are full (else None: the place is full). Rooms of different places never mix.
+    pub fn enter_at(&self, place: u64, cap: usize, overflow: bool, mut info: Member, out: Sender<Vec<u8>>) -> Option<(u32, u16, Vec<Member>)> {
         let mut g = self.inner.lock().unwrap();
-        let at = match g.rooms.iter().position(|r| r.members.len() < ROOM_MAX) {
+        let at = match g.rooms.iter().position(|r| r.place == place && r.members.len() < cap) {
             Some(i) => i,
             None => {
+                if !overflow && g.rooms.iter().any(|r| r.place == place) {
+                    return None;
+                }
                 g.next_room += 1;
                 let id = g.next_room;
-                g.rooms.push(Room { id, next: 0, members: BTreeMap::new() });
+                g.rooms.push(Room { id, place, next: 0, members: BTreeMap::new() });
                 g.rooms.len() - 1
             }
         };
@@ -90,7 +101,31 @@ impl Towns {
         }
         room.members.insert(id, Mem { info, x, y, dir: 0, out, tokens: CHAT_BURST });
         let members = room.members.values().map(|m| m.info.clone()).collect();
-        (room.id, id, members)
+        Some((room.id, id, members))
+    }
+
+    /// Where a member stands, in whole px, and which place her room is.
+    pub fn position(&self, room: u32, id: u16) -> Option<(u16, u16, u64)> {
+        let g = self.inner.lock().unwrap();
+        let r = g.rooms.iter().find(|r| r.id == room)?;
+        let m = r.members.get(&id)?;
+        Some(((m.x / SUB) as u16, (m.y / SUB) as u16, r.place))
+    }
+
+    /// Members of a room (for a place's own pushes).
+    pub fn members_of(&self, room: u32) -> Vec<Member> {
+        let g = self.inner.lock().unwrap();
+        g.rooms.iter().find(|r| r.id == room).map(|r| r.members.values().map(|m| m.info.clone()).collect()).unwrap_or_default()
+    }
+
+    /// Sends a frame to everyone in a room.
+    pub fn broadcast(&self, room: u32, frame: &[u8]) {
+        let g = self.inner.lock().unwrap();
+        if let Some(r) = g.rooms.iter().find(|r| r.id == room) {
+            for m in r.members.values() {
+                let _ = m.out.send(frame.to_vec());
+            }
+        }
     }
 
     pub fn leave(&self, room: u32, id: u16) {
@@ -255,5 +290,27 @@ mod tests {
         assert_eq!(x2, TOWN_PX - 1);
         towns.leave(room, me);
         assert_eq!(towns.population(), 0);
+    }
+
+    #[test]
+    fn rooms_of_different_places_never_mix_and_a_place_without_overflow_says_full() {
+        let towns = Towns::default();
+        let mut rx = Vec::new();
+        let mut enter = |place: u64, cap: usize, overflow: bool| {
+            let (tx, r) = channel();
+            rx.push(r);
+            towns.enter_at(place, cap, overflow, member("x"), tx)
+        };
+        let (plaza, ..) = enter(0, 2, true).unwrap();
+        let (house, ..) = enter(7, 2, false).unwrap();
+        assert_ne!(plaza, house);
+        assert_eq!(enter(7, 2, false).unwrap().0, house);
+        assert!(enter(7, 2, false).is_none(), "a full house opens no second room");
+        assert_eq!(enter(0, 2, true).unwrap().0, plaza);
+        let (plaza2, ..) = enter(0, 2, true).unwrap();
+        assert_ne!(plaza2, plaza, "a public place opens another room");
+        assert_eq!(towns.rooms(), 3);
+        assert_eq!(towns.position(house, 0).map(|p| p.2), Some(7));
+        assert_eq!(towns.members_of(house).len(), 2);
     }
 }
