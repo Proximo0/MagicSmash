@@ -1,3 +1,4 @@
-STATION machine=ubuntu time=2026-11-22T01:05Z commit=45dbe6e took=83s
-JOB realm PASS REALM ok tests=173 bench 300x8000 tick_ms=5.36/8.55 follower=ok 8 tower_tick_ms=5.08/6.71 tower_follower=ok 3 | STORE ok tests=30 fuzz ops=5000 kills=20 acked=4824 digest=70aacd58b58cf688 secs=26.1 
-STATION PASS jobs=1 failed=0 skipped=0
+STATION machine=ubuntu time=2026-11-22T03:47Z commit=fec4778 took=7427s
+JOB realm PASS REALM ok tests=190 bench 300x8000 tick_ms=5.22/7.07 follower=ok 8 tower_tick_ms=5.07/7.39 tower_follower=ok 3 | STORE ok tests=30 fuzz ops=5000 kills=20 acked=4824 digest=70aacd58b58cf688 secs=26.0 
+JOB soak PASS SOAK ok secs=7201 cycles=1896 heroes=40 outings=1896 banked=1896 left_gate=0 left_waystone=1407 timeouts=0 coin=48025061 xp=44446258 levels=1640 potions=0 deposits=1896 points=2080 snapshots=14990 chats=4484 mismatches=0 errors=0 peak_in_fields=40 verify=ok items=14756 stacks=1104 ledger_rows=44855
+STATION PASS jobs=2 failed=0 skipped=0
