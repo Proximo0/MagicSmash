@@ -34,7 +34,7 @@ CLS = {  # gear, must, neg
  "mage": ("soot-black robe, wide dark hat, gnarled wooden staff with orange ember tip", ["wide hat", "staff with ember"], "plate armour, sword"),
  "archer": ("brown leather jerkin, deep hood, tall yew longbow, quiver of black-fletched arrows", ["hood", "tall longbow", "quiver"], "sword, plate armour"),
  "priest": ("grey cassock, wooden reliquary on chain, tall iron candle staff with yellow flame, bandaged hands", ["candle staff", "grey cassock"], "armour, sword"),
- "paladin": ("blackened plate with gold edges, iron war hammer, kite shield with yellow sunburst, grey-white cloak", ["large shield", "war hammer"], "robe, bow"),
+ "paladin": ("blackened plate with gold edges, iron war hammer, kite shield with yellow sunburst strapped to the back in every frame, short grey-white cloak the same in every frame", ["large shield", "war hammer"], "robe, bow"),
  "warden": ("heaviest dark plate, tower shield as tall as the body, short broad sword, chains across chest", ["tower shield", "chains on chest"], "robe, bow"),
  "berserker": ("bare scarred arms, grey wolf pelt, two bearded axes, red war paint, broken helm", ["two axes", "bare arms", "wolf pelt"], "full plate, shield"),
  "archmage": ("gold-threaded layered robe, tall horned mitre, staff with floating burning orange orb", ["horned mitre", "floating orb staff"], "plate armour, sword"),

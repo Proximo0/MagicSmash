@@ -38,3 +38,6 @@ The runner lives on the MSI at `D:\projects\hh_art` (not in this repo) and runs 
 
 ## Runner code (copied from D:\projects\hh_art)
 runner2.py (two-phase runner: SDXL layouts, then FLUX.2-klein-4B), runner.py (shared helpers + SDXL Gen), walk.py (drawn pose skeletons and sheet checks), ab_klein.py (Klein loader), score.py (SigLIP must-trait scores), clean.py / pixsnap.py (keying, pixel snapping), contact.py (contact sheets), licence_check.py + licences.json (licence gate), supervise.py + start_runner.ps1 / stop_runner.ps1 (supervisor). Paths assume D:\projects\hh_art with its venv; no weights or outputs are kept here.
+
+## Known issue: shields and capes can alternate between walk frames (accepted)
+Klein sometimes draws a shield or cape only in frames 2 and 4 of a walk cycle, even from a consistent layout. The colour-histogram consistency check can't catch it, because those parts are too small a share of the colours. For the paladins (HR6.x), the prompt now says "strapped to the back in every frame" and "short ... the same in every frame". That made about half the pictures consistent, and the best pick uses those. Pictures that still alternate are accepted as they are.
