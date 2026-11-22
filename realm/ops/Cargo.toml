@@ -23,4 +23,4 @@ realm-store = { path = "../store", optional = true }
 
 [dev-dependencies]
 # The migration test builds a store at an older schema by hand (the same crate and version the store uses).
-rusqlite = { version = "=0.37.0", features = ["bundled"] }
+rusqlite = { version = "=0.43.0", features = ["bundled"] }

@@ -13,4 +13,4 @@ realm-core = { path = "../core" }
 realm-store = { path = "../store" }
 
 [dev-dependencies]
-rusqlite = { version = "=0.37.0", features = ["bundled"] }
+rusqlite = { version = "=0.43.0", features = ["bundled"] }

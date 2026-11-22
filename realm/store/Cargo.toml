@@ -14,7 +14,7 @@ name = "realm-store"
 path = "src/main.rs"
 
 [dependencies]
-rusqlite = { version = "=0.37.0", features = ["bundled", "backup", "hooks"] }
+rusqlite = { version = "=0.43.0", features = ["bundled", "backup", "hooks"] }
 
 [profile.release]
 debug = false
