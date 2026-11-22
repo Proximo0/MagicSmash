@@ -97,9 +97,9 @@ fn say(p: &mut P, chan: u8, to: &str, text: &str) -> Resp {
     soc(p, SReq::Talk { hero, chan, to: to.into(), text: text.into() })
 }
 
-/// The next chat push on a channel within a moment.
+/// The next chat push on a channel within a moment (a loaded station's loopback can take a while).
 fn hear(p: &mut P, ch: u8) -> Option<(String, String)> {
-    p.c.wait_push(Duration::from_millis(600), |r| match r {
+    p.c.wait_push(Duration::from_secs(3), |r| match r {
         Resp::SocialPush(SPush::Chat { chan, from, text, .. }) if *chan == ch => Some((from.clone(), text.clone())),
         _ => None,
     })
@@ -270,8 +270,13 @@ fn party_leave_kick_and_lead_pass_on() {
     let (hd, he) = (ps2[0].hero, ps2[1].hero);
     let _ = he;
     drop(ps2.remove(1));
-    std::thread::sleep(Duration::from_millis(300));
-    assert!(matches!(soc(&mut ps2[0], SReq::PartyInfo { hero: hd }), Resp::Social(SResp::Party(None))));
+    let end = std::time::Instant::now() + Duration::from_secs(10);
+    let mut alone = false;
+    while !alone && std::time::Instant::now() < end {
+        alone = matches!(soc(&mut ps2[0], SReq::PartyInfo { hero: hd }), Resp::Social(SResp::Party(None)));
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(alone, "the party ended when the other's connection dropped");
 }
 
 #[test]
@@ -557,7 +562,7 @@ fn a_ban_ends_sessions_and_refuses_login_and_a_wave_bans_by_flag() {
     assert!(out.contains("banned") && out.contains("1 hero"), "{out}");
     // Her connection is closed by the server.
     let mut closed = false;
-    for _ in 0..30 {
+    for _ in 0..100 {
         if ann.c.call(Req::Ping).is_err() {
             closed = true;
             break;
@@ -572,7 +577,7 @@ fn a_ban_ends_sessions_and_refuses_login_and_a_wave_bans_by_flag() {
     assert!(acct.banned_until.is_some_and(|u| u > realm_gateway::gateway::now_ms()));
     // She is out of her field (kicked and banked) once the host has sent her result.
     let mut free = false;
-    for _ in 0..60 {
+    for _ in 0..150 {
         if !w.gw.is_placed(ann.hero) {
             free = true;
             break;
@@ -598,7 +603,7 @@ fn a_ban_ends_sessions_and_refuses_login_and_a_wave_bans_by_flag() {
     assert!(out.contains("2 account(s) banned") && out.contains("2 hero"), "{out}");
     for c in [&mut bob.c, &mut cat.c] {
         let mut closed = false;
-        for _ in 0..30 {
+        for _ in 0..100 {
             if c.call(Req::Ping).is_err() {
                 closed = true;
                 break;
@@ -644,7 +649,7 @@ fn kick_ends_a_session_without_a_ban_and_the_admin_port_needs_its_token() {
     assert!(ask("0123456789abcdef0123", "who Annie").contains("online true"));
     assert!(ask("0123456789abcdef0123", "kick Annie bad manners").contains("1 hero(es) removed"));
     let mut closed = false;
-    for _ in 0..30 {
+    for _ in 0..100 {
         if ann.c.call(Req::Ping).is_err() {
             closed = true;
             break;

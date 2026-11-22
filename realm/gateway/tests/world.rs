@@ -101,7 +101,8 @@ fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
     // A tide of five minutes passes in a few host ticks at this speed, and a host the box starves misses some.
     assert!(r.counts.tides as f64 >= 7.0 * 48.0 * 6.0 / 4.0, "a week of tides in the fields: {}", r.counts.tides);
     assert!(r.counts.bosses as f64 >= 7.0 * 12.0 * 6.0 / 4.0, "field bosses: {}", r.counts.bosses);
-    assert!(r.outings >= 100 && r.vault_runs >= 1);
+    // About 130 outings on an idle box; a loaded one (other builds on its cores) has done under 90.
+    assert!(r.outings >= 60 && r.vault_runs >= 1, "outings {} vault runs {}", r.outings, r.vault_runs);
 }
 
 #[test]
@@ -126,7 +127,8 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     };
     assert!(matches!(b.call(Req::World(WReq::BotTicket { hero: hb, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { copy: 0, .. }));
     // She fights well past the merge (3 s of grace is 600 ticks here), then banks and leaves from the new copy.
-    let play = PlayOpts { fight_ticks: 2_000, max_ticks: 9_000, ..PlayOpts::default() };
+    // The walk to a waystone is slow in host ticks when the box starves the bot (its inputs come every 50 ms).
+    let play = PlayOpts { fight_ticks: 2_000, max_ticks: 24_000, ..PlayOpts::default() };
     let out = play_field(&mut p, &host, port, ticket, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
     assert_eq!(out.moves, 1, "{out:?}");
     assert!(out.left == 0 || out.left == 1, "she left by the gate or a waystone after the move: {out:?}");

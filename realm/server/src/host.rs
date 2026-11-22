@@ -310,6 +310,9 @@ pub enum HostMsg {
     Reward(RewardBatch),
     /// The host has stopped (cleanly: everyone flushed).
     Closed { host: u32 },
+    /// Never sent by a host: the gateway's own note that a host is gone, queued behind that host's last messages so
+    /// every flush it sent is applied before its outings are given up.
+    Lost { host: u32 },
 }
 
 pub struct HostHandle {

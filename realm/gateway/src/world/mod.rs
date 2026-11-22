@@ -618,7 +618,7 @@ impl Gateway {
                 if self.world.state.lock().unwrap().closed.contains(&id) {
                     // It closed after all (its message was late).
                 } else {
-                    self.lose_host(id);
+                    self.host_lost(id);
                     self.world.count(|s| s.hosts_lost += 1);
                 }
             }
@@ -636,7 +636,7 @@ impl Gateway {
                 let k = s.handle.status.counts.lock().unwrap().clone();
                 add_counts(&mut self.world.state.lock().unwrap().retired, &k);
                 // Anyone still holding a ticket to it (a ticket refused as it closed) is freed.
-                self.lose_host(id);
+                self.host_lost(id);
                 if let Some(v) = &s.vault {
                     self.world.count(|w| w.vaults_closed += 1);
                     if s.handle.status.counts.lock().unwrap().joined == 0 {
@@ -803,5 +803,56 @@ impl Gateway {
     /// Tickets held now.
     pub fn ticket_count(&self) -> usize {
         self.tickets.lock().unwrap().len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::GatewayClient;
+    use crate::gateway::{Config, LEFT_LOST};
+    use realm_server::host::HostMsg;
+    use realm_store::{Meta, OutingDelta, SqliteStore};
+    use std::sync::Arc;
+
+    /// The week once ended with a hero's coin in the store but not in what she was told: her host died with a
+    /// flush on its way, and the host's outings were given up (on another thread) while the applier wrote it. The
+    /// loss now queues behind the host's messages, so the flush is banked and counted in the LOST result.
+    #[test]
+    fn a_flush_sent_before_its_host_was_lost_is_banked_and_told() {
+        let db = std::env::temp_dir().join(format!("realm-lost-host-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
+        let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+        gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
+        let mut c = GatewayClient::connect(&l.addr.to_string()).unwrap();
+        assert!(matches!(c.login("lost").unwrap(), Resp::Login { .. }));
+        let hero = match c.call(Req::CreateHero { name: "Lost".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
+            Resp::HeroCreated(id) => id,
+            r => panic!("{r:?}"),
+        };
+        let d = OutingDelta { xp: crate::sheet::xp_to_reach(12), levels: 11, waystone: Some((0, 0)), ..OutingDelta::default() };
+        store.apply_outing(Meta::system(0x1057 << 64 | hero as u128, 1), hero, d).unwrap();
+        let ticket = match c.call(Req::FieldTicket { hero, field: 0 }).unwrap() {
+            Resp::Ticket { ticket, .. } => ticket,
+            r => panic!("{r:?}"),
+        };
+        let host = gw.tickets.lock().unwrap()[&ticket].host;
+        // She banked 120 coin and her host died: the flush is still queued when the gateway gives the host up.
+        let f = Flush { hero: hero as u64, ticket, seq: 1, coin: 120, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: None };
+        gw.msgs.send(HostMsg::Flush(f)).unwrap();
+        gw.host_lost(host);
+        let told = c.wait_push(Duration::from_secs(10), |r| match r {
+            Resp::Outing { coin, left, .. } if *left == LEFT_LOST => Some(*coin),
+            _ => None,
+        });
+        let have = store.stacks(Owner::bag(hero)).unwrap().iter().find(|s| s.0 == StackKind::COIN).map_or(0, |s| s.1);
+        assert_eq!((told.unwrap(), have), (Some(120), 120), "what she was told is what the store has");
+        assert_eq!(gw.ticket_count(), 0);
+        drop(l);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
     }
 }

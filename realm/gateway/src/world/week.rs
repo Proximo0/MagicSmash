@@ -336,7 +336,14 @@ fn session(addr: &str, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: 
                 sh.lock().unwrap().queued += 1;
                 if await_ticket(&mut gw, stop)?.is_none() {
                     let _ = gw.call(Req::World(WReq::LeaveQueue { hero: hero.id }));
-                    return Ok(());
+                    // Let in just as she gave up: she is in the field, and her outing is followed (and recalled) like
+                    // any other, or the coin it banks would be coin nobody was told of.
+                    let late = gw
+                        .wait_push(Duration::from_millis(1_000), |r| matches!(r, Resp::Ticket { .. }).then_some(()))
+                        .map_err(io)?;
+                    if late.is_none() {
+                        return Ok(());
+                    }
                 }
             }
             Resp::Err { code: code::BUSY, .. } => return Ok(()),

@@ -821,6 +821,7 @@ impl Gateway {
                 Ok(HostMsg::Moved { host, hero, ticket, seq, transfer, driven }) => self.on_moved(host, hero, ticket, seq, transfer, driven),
                 Ok(HostMsg::Reward(b)) => self.on_reward(b),
                 Ok(HostMsg::Closed { host }) => self.world.closed(host),
+                Ok(HostMsg::Lost { host }) => self.lose_host(host),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     if self.stop.load(Ordering::Relaxed) {
                         break;
@@ -1039,6 +1040,12 @@ impl Gateway {
         if let Some(tx) = tx {
             let _ = tx.send(resp_frame(0, &Resp::Outing { hero: hero as i64, coin: 0, xp: 0, levels: 0, potions: 0, left: LEFT_UNUSED }));
         }
+    }
+
+    /// A host is gone: its outings are given up on the applier thread, after every message it sent (a flush in
+    /// flight still banks what it says; one applied while the outings were dropped would be coin nobody was told of).
+    pub(crate) fn host_lost(&self, host_id: u32) {
+        let _ = self.msgs.send(HostMsg::Lost { host: host_id });
     }
 
     /// Forgets the outings of a host that died (a crash, `HostCmd::Abort`): what each hero banked is in the store;
