@@ -32,6 +32,7 @@ fn main() {
             "--realm-cap" => o.realm_cap = num(v) as u32,
             "--vault-max" => o.vault_max = num(v) as u32,
             "--outing-ticks" => o.outing_ticks = num(v) as u32,
+            "--recall-secs" => o.recall_secs = num(v),
             "--vault-every" => o.vault_every = num(v) as u64,
             "--no-kill" => o.kill = false,
             "--seed" => o.seed = num(v) as u64,
@@ -39,7 +40,7 @@ fn main() {
             "--progress" => o.progress_secs = num(v) as u64,
             "--tls" => o.tls = true,
             "--help" | "-h" => {
-                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS] [--tls]");
+                println!("realm-world [--bots=40] [--days=7] [--secs=40] [--monsters=300] [--vault-monsters=600] [--tick-us=2000] [--vault-tick-us=250] [--copy-cap=8] [--open-at=6] [--merge-under=4] [--max-copies=3] [--merge-grace-ms=500] [--realm-cap=30] [--vault-max=3] [--outing-ticks=400] [--recall-secs=240] [--vault-every=3] [--no-kill] [--seed=7] [--db=PATH] [--progress=SECS] [--tls]");
                 return;
             }
             _ => die(&format!("unknown flag {arg}")),

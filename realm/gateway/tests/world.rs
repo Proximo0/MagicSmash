@@ -93,7 +93,10 @@ fn coin(r: &Realm, h: i64) -> u64 {
 #[test]
 fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
     // Hosts at 250 Hz and a vault every sixth session of a leader keep the run near a minute and a half of CPU.
-    let o = WeekOpts { bots: 32, secs: 30.0, realm_cap: 24, tick_us: 4_000, vault_every: 6, ..WeekOpts::default() };
+    // Outings ask for 0.8 s to 2.4 s of host ticks; a bot recalls hers after 1.5 s and follows her to the end, so some
+    // outings end by a recall and the coin they bank on leaving must still be what was reported (the station's
+    // `hero 126: store 1349722, reported 32019`: a bot that gave up instead left that coin unreported).
+    let o = WeekOpts { bots: 32, secs: 30.0, realm_cap: 24, tick_us: 4_000, vault_every: 6, recall_secs: 1.5, ..WeekOpts::default() };
     let r = run_week(&o).unwrap();
     for e in r.errors.iter().take(5) {
         eprintln!("{e}");
@@ -108,6 +111,7 @@ fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
     assert!(r.counts.bosses as f64 >= 7.0 * 12.0 * 6.0 / 4.0, "field bosses: {}", r.counts.bosses);
     // About 130 outings on an idle box; a loaded one (other builds on its cores) has done under 90.
     assert!(r.outings >= 60 && r.vault_runs >= 1, "outings {} vault runs {}", r.outings, r.vault_runs);
+    assert!(r.recalled >= 1, "some outings outlast the recall: {}", r.line());
 }
 
 #[test]
