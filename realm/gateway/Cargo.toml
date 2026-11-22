@@ -16,6 +16,10 @@ name = "realm-soak"
 path = "src/soak.rs"
 
 [[bin]]
+name = "realm-world"
+path = "src/world_bin.rs"
+
+[[bin]]
 name = "realm-economy"
 path = "src/economy_bin.rs"
 

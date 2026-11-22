@@ -47,6 +47,8 @@ pub const T_BUY: u8 = 0x31;
 pub const T_SELL: u8 = 0x32;
 /// The economy (merchants, trade, market, letters): one type, a sub-byte after it (`economy::wire`).
 pub const T_ECON: u8 = 0x33;
+/// The world's requests (`world::wire`): the board, the queue, bot tickets, vaults.
+pub const T_WORLD: u8 = 0x60;
 
 // ---- replies
 pub const R_OK: u8 = 0x80;
@@ -61,6 +63,7 @@ pub const R_PONG: u8 = 0x88;
 pub const R_SMITH: u8 = 0x89;
 pub const R_CARDS: u8 = 0x8A;
 pub const R_ECON: u8 = 0x8B;
+pub const R_WORLD: u8 = 0x91;
 
 // ---- pushes (tag 0)
 pub const P_TOWN_SNAPSHOT: u8 = 0xA0;
@@ -69,6 +72,8 @@ pub const P_TOWN_ARRIVE: u8 = 0xA2;
 pub const P_TOWN_DEPART: u8 = 0xA3;
 pub const P_OUTING: u8 = 0xA4;
 pub const P_ECON: u8 = 0xA8;
+/// The world's pushes: queue places, a move to another copy, boss news.
+pub const P_WORLD: u8 = 0xB1;
 
 /// Error codes of `R_ERR`.
 pub mod code {
@@ -177,6 +182,7 @@ pub enum Req {
     Econ(crate::economy::wire::EReq),
     /// Parties, guilds, friends, chat channels, reports (job T1; tags 0x40..0x5F, `social::wire`).
     Social(crate::social::SReq),
+    World(crate::world::wire::WReq),
     Ping,
 }
 
@@ -350,6 +356,10 @@ impl Req {
                 e.put(&mut w);
                 T_ECON
             }
+            Req::World(q) => {
+                q.put(&mut w);
+                T_WORLD
+            }
             Req::Ping => T_PING,
         };
         (t, w)
@@ -404,6 +414,7 @@ impl Req {
             T_BUY => Req::Buy { hero: hero(&mut r)?, kind: r.u32()?, n: r.u32()? },
             T_SELL => Req::Sell { hero: hero(&mut r)?, item: hero(&mut r)? },
             T_ECON => Req::Econ(crate::economy::wire::EReq::read(&mut r)?),
+            T_WORLD => Req::World(crate::world::wire::WReq::read(&mut r)?),
             T_PING => Req::Ping,
             crate::social::T_SOC_FIRST..=crate::social::T_SOC_LAST => return crate::social::SReq::decode(t, b).map(Req::Social),
             _ => return None,
@@ -644,10 +655,15 @@ pub enum Resp {
     Arrive(Member),
     Depart(u16),
     /// A field outing's result, applied to the store: coin banked, class XP, levels gained, potions drunk, and why
-    /// she left the field (0 gate, 1 waystone, 2 disconnect, 3 kicked, 4 shutdown, 255 still there).
+    /// she left the field (0 gate, 1 waystone, 2 disconnect, 3 kicked, 4 shutdown, 5 her vault closed, 6 her field's host
+    /// died (what was banked is kept, the haul is lost), 255 still there).
     Outing { hero: i64, coin: u64, xp: u64, levels: u16, potions: u32, left: u8 },
     /// An economy push: a trade update, a sale, a letter, an expiry.
     EconPush(crate::economy::wire::EResp),
+    /// A world reply (`world::wire`).
+    World(crate::world::wire::WResp),
+    /// A world push: a queue place, a move to another copy, boss news.
+    WorldPush(crate::world::wire::WResp),
 }
 
 impl Resp {
@@ -726,6 +742,14 @@ impl Resp {
                 w = p.encode();
                 crate::social::P_SOCIAL
             }
+            Resp::World(e) => {
+                e.put(&mut w);
+                R_WORLD
+            }
+            Resp::WorldPush(e) => {
+                e.put(&mut w);
+                P_WORLD
+            }
             Resp::Snapshot(s) => {
                 s.put(&mut w);
                 P_TOWN_SNAPSHOT
@@ -785,6 +809,8 @@ impl Resp {
             P_ECON => Resp::EconPush(crate::economy::wire::EResp::read(&mut r)?),
             crate::social::R_SOCIAL => return crate::social::SResp::decode(b).map(Resp::Social),
             crate::social::P_SOCIAL => return crate::social::SPush::decode(b).map(Resp::SocialPush),
+            R_WORLD => Resp::World(crate::world::wire::WResp::read(&mut r)?),
+            P_WORLD => Resp::WorldPush(crate::world::wire::WResp::read(&mut r)?),
             P_TOWN_SNAPSHOT => Resp::Snapshot(TownSnapshot::read(&mut r)?),
             P_TOWN_CHAT => Resp::Chat { from: r.u16()?, name: read_str(&mut r)?, text: read_str(&mut r)? },
             P_TOWN_ARRIVE => Resp::Arrive(Member::read(&mut r)?),

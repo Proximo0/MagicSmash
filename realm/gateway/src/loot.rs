@@ -92,6 +92,8 @@ pub enum RewardKind {
     Tide { field: u8, level: u8 },
     Boss { boss: u8, level: u8 },
     World { level: u8, top: bool },
+    /// A won vault's chest: its row, level and seals.
+    Vault { vault: u8, level: u8, seals: u8 },
 }
 
 #[cfg(test)]

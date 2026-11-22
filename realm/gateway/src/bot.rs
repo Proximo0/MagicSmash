@@ -48,6 +48,8 @@ pub struct Outcome {
     pub ticks: u32,
     pub banked: bool,
     pub joined: bool,
+    /// Times her copy closed and she was moved to another.
+    pub moves: u32,
 }
 
 fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
@@ -59,10 +61,15 @@ fn nearest_waystone(f: &Field, x: i32, y: i32) -> (i32, i32) {
 /// Outing pushes are read here).
 pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, opts: &PlayOpts) -> Result<Outcome, String> {
     let host = if host.is_empty() { gw.peer_ip.clone() } else { host.to_string() };
-    let sock = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    sock.connect((host.as_str(), port)).map_err(|e| e.to_string())?;
-    sock.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let open = |port: u16| -> Result<UdpSocket, String> {
+        let sock = UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+        sock.connect((host.as_str(), port)).map_err(|e| e.to_string())?;
+        sock.set_nonblocking(true).map_err(|e| e.to_string())?;
+        Ok(sock)
+    };
+    let mut sock = open(port)?;
     let mut c = LockstepClient::with_ticket(ticket, 1);
+    let mut moves = 0u32;
     let mut out = Outcome { left: 255, ..Outcome::default() };
     let mut bot: Option<Bot> = None;
     let start = Instant::now();
@@ -146,8 +153,21 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
                     }
                 }
                 None if out.joined => {
-                    // She is gone from the field: through the gate or a waystone.
-                    break Ok(());
+                    // She is gone from the field: through the gate or a waystone, or her copy is closing and she
+                    // is moved to another (the gateway says where: HELLO there with the same ticket).
+                    match wait_moved(gw, ticket)? {
+                        Some(p) => {
+                            let _ = sock.send(&[MSG_BYE]);
+                            sock = open(p)?;
+                            c = LockstepClient::with_ticket(ticket, 1);
+                            out.joined = false;
+                            bot = None;
+                            moves += 1;
+                            round = 0;
+                            continue;
+                        }
+                        None => break Ok(()),
+                    }
                 }
                 None => {}
             }
@@ -172,6 +192,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, op
         let _ = sock.send(&[MSG_BYE]);
     }
     drop(sock);
+    out.moves = moves;
     result?;
     // The result of the outing arrives from the gateway once the store has it.
     let wait = if abrupt { Duration::from_secs(12) } else { Duration::from_secs(8) };
@@ -207,6 +228,15 @@ fn hold(bot: &mut Option<Bot>, f: &Field) -> u16 {
         }
         None => IN_INTERACT,
     }
+}
+
+/// A `Moved` push for this ticket, waiting a little for it: the new copy's port.
+fn wait_moved(gw: &mut GatewayClient, ticket: u64) -> Result<Option<u16>, String> {
+    gw.wait_push(Duration::from_millis(1_500), |r| match r {
+        Resp::WorldPush(crate::world::wire::WResp::Moved { ticket: t, port, .. }) if *t == ticket => Some(*port),
+        _ => None,
+    })
+    .map_err(|e| e.to_string())
 }
 
 fn age_over(tick: u32, joined_at: u32, joined: bool, max: u32) -> bool {

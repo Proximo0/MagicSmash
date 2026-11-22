@@ -87,6 +87,8 @@ pub struct World {
     pub tick: u32,
     /// A tide is running.
     pub tide: bool,
+    /// The realm's clock, the tide's and bosses' countdowns and the boss up now (`realm_server::world`).
+    pub view: realm_server::world::WorldView,
     /// The gate, the heart, seven waystones and six altars in px: pairs.
     pub sites: Vec<f32>,
     /// Zones, drops and shots in the field (all of them, not just in view).
@@ -344,6 +346,7 @@ pub fn build(c: &LockstepClient, view: SubRect, draw: &mut DrawState) -> Frame {
         field: i32::from(f.field_id()),
         tick: f.tick(),
         tide: f.tide(),
+        view: realm_server::world::world_view(f),
         sites,
         zones: f.zones().len() as i32,
         drops: f.drops().len() as i32,

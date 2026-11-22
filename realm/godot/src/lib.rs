@@ -237,7 +237,9 @@ impl RealmLink {
     }
 
     /// The field's own state: `field`, `tick`, `tide` (a tide is running), `sites` (px pairs: the gate, the
-    /// heart, seven waystones, six altars), `zones`, `drops`, `shots`.
+    /// heart, seven waystones, six altars), `zones`, `drops`, `shots`; the realm clock's `clock`, `tide_in` and
+    /// `tide_left` (ticks), `altars` (state, held, health per altar), `next_boss` and `next_boss_in`, `world_field`
+    /// and `world_in`, and `boss` (`name`, `health`, `max_health`, `x`, `y` px, `world`, `leaves_in`) while one is up.
     #[func]
     fn world(&self) -> VarDictionary {
         let w = &self.frame.world;
@@ -249,6 +251,30 @@ impl RealmLink {
         d.set("zones", w.zones);
         d.set("drops", w.drops);
         d.set("shots", w.shots);
+        let v = &w.view;
+        let t = |x: u64| x.min(i64::MAX as u64) as i64;
+        d.set("clock", t(v.clock));
+        d.set("tide_in", t(v.tide_in));
+        d.set("tide_left", t(v.tide_left));
+        d.set("quick", v.quick);
+        let altars: Vec<i64> = v.altars.iter().flat_map(|a| [i64::from(a.0), i64::from(a.1), i64::from(a.2)]).collect();
+        d.set("altars", &PackedInt64Array::from(altars.as_slice()).to_variant());
+        d.set("next_boss", i64::from(v.next_boss.0));
+        d.set("next_boss_in", t(v.next_boss.1));
+        d.set("world_field", i64::from(v.world_field));
+        d.set("world_in", t(v.world_in));
+        if let Some(b) = &v.boss {
+            let mut bd = VarDictionary::new();
+            bd.set("which", i64::from(b.which));
+            bd.set("name", b.name);
+            bd.set("health", i64::from(b.health));
+            bd.set("max_health", i64::from(b.max_health));
+            bd.set("x", b.x);
+            bd.set("y", b.y);
+            bd.set("world", b.world);
+            bd.set("leaves_in", t(b.leaves_in));
+            d.set("boss", &bd.to_variant());
+        }
         d
     }
 

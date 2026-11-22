@@ -31,7 +31,7 @@ struct Args {
 
 impl Args {
     fn sim_opts(&self) -> SimOpts {
-        SimOpts { field: self.field, seed: self.seed, monsters: self.monsters, threads: self.threads, bots: self.bots, rally_permille: self.rally_permille, level: self.level }
+        SimOpts { field: self.field, seed: self.seed, monsters: self.monsters, threads: self.threads, bots: self.bots, rally_permille: self.rally_permille, level: self.level, vault: None }
     }
 }
 

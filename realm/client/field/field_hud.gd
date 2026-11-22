@@ -238,6 +238,8 @@ func _draw_world_clock() -> void:
 	var col: Color
 	if tide:
 		var left: int = maxi(TIDE_LEN_TICKS - phase, 0) if not fake_tide else TIDE_LEN_TICKS * 3 / 5
+		if world.has("tide_left") and not fake_tide:
+			left = int(world["tide_left"])
 		s = "TIDE  %s LEFT" % clock(left)
 		col = Color(1.0, 0.45, 0.35)
 		draw_rect(Rect2(0, 0, W, 3), Color(0.9, 0.15, 0.1, 0.55))
@@ -245,7 +247,8 @@ func _draw_world_clock() -> void:
 		draw_rect(Rect2(0, 0, 3, H), Color(0.9, 0.15, 0.1, 0.55))
 		draw_rect(Rect2(W - 3, 0, 3, H), Color(0.9, 0.15, 0.1, 0.55))
 	else:
-		s = "NEXT TIDE %s" % clock(TIDE_EVERY_TICKS - phase)
+		var wait: int = int(world["tide_in"]) if world.has("tide_in") else TIDE_EVERY_TICKS - phase
+		s = "NEXT TIDE %s" % clock(wait)
 		col = DIM
 	_box(Rect2(W / 2.0 - 45, 3, 90, 11), PANEL if not tide else Color(0.3, 0.04, 0.03, 0.85))
 	_ctxt(W / 2.0, 5.5, s, col, FONT_SMALL)

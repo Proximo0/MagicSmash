@@ -15,7 +15,8 @@ use crate::town::Towns;
 use realm_core::tables::{CLASSES, FIELDS, JOBS, JOB_LEVEL, NO_WAYSTONE, P_NONE, RACES};
 use realm_core::Outing;
 use realm_loot::{deliver, drops_percent_of, roll, Credit, Haul, RollKey, Smith, Source};
-use realm_server::host::{self, Entry, Flush, HostCmd, HostHandle, HostMsg, HostOpts, KillBatch, Leave};
+use realm_server::host::{Entry, Flush, HostCmd, HostHandle, HostMsg, HostOpts, KillBatch, Leave};
+use crate::world::{Placed, World, WorldConfig};
 use realm_store::*;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -40,6 +41,8 @@ pub struct Config {
     /// Dev only (`--dev-grant`, with dev login): a new hero is given a small kit (coin, embers, a few items, runes,
     /// potions) so the shell's bank, smith and merchants can be tried on day one. Minted as "grant".
     pub dev_grant: bool,
+    /// Copies, the queue, the realm clock, vaults (`world`).
+    pub world: WorldConfig,
 }
 
 /// The loot secret kept in `path` (16 hex digits), made from the clock, the process and the OS's random hasher
@@ -57,25 +60,50 @@ pub fn load_secret(path: &std::path::Path) -> u64 {
 
 /// Where a hero is. A hero is in one place: a town room, or a field (from the ticket until her final flush is
 /// applied), never both and never two copies.
-enum Loc {
+pub(crate) enum Loc {
     Town { conn: u64 },
     Field { ticket: u64, out: Sender<Vec<u8>> },
+    /// Waiting in the realm's queue for a place in a field.
+    Queue { conn: u64 },
 }
 
-struct Ticket {
-    hero: i64,
-    account: i64,
-    field: u8,
+pub(crate) struct Ticket {
+    pub(crate) hero: i64,
+    pub(crate) account: i64,
+    pub(crate) field: u8,
     /// Applied so far, for the result pushed to her client.
-    coin: u64,
-    xp: u64,
-    levels: u16,
-    potions: u32,
+    pub(crate) coin: u64,
+    pub(crate) xp: u64,
+    pub(crate) levels: u16,
+    pub(crate) potions: u32,
+    /// The host (`HostSlot::id`) she is in or on her way to.
+    pub(crate) host: u32,
+    /// The session that asked for it (a hero the host plays is recalled when it ends).
+    pub(crate) conn: u64,
+    pub(crate) driven: bool,
+    /// Moved from a closing copy and not yet in the new one: her last flush number and the haul's coin she carries,
+    /// banked (as a disconnect) if she never arrives.
+    pub(crate) moved: Option<(u32, u64)>,
 }
 
-struct HostSlot {
-    handle: HostHandle,
-    copy: u8,
+/// A vault's host: its row, seals, the code its party enters with, and who paid its key.
+pub(crate) struct VaultSlot {
+    pub(crate) vault: u8,
+    pub(crate) seals: u8,
+    pub(crate) code: u64,
+    pub(crate) key: Option<(i64, u32)>,
+}
+
+pub(crate) struct HostSlot {
+    pub(crate) handle: HostHandle,
+    pub(crate) id: u32,
+    pub(crate) field: u8,
+    pub(crate) copy: u8,
+    pub(crate) vault: Option<VaultSlot>,
+    /// Being closed into this copy (rules section 11).
+    pub(crate) closing: Option<u32>,
+    /// A Stop has been sent.
+    pub(crate) stopping: bool,
 }
 
 /// One connection's state.
@@ -117,14 +145,16 @@ pub struct Gateway {
     pub towns: Towns,
     /// Merchants, trade, the market and letters (job E1).
     pub economy: Arc<Economy>,
-    locs: Mutex<HashMap<i64, Loc>>,
-    tickets: Mutex<HashMap<u64, Ticket>>,
-    hosts: Mutex<Vec<HostSlot>>,
-    msgs: Sender<HostMsg>,
+    pub(crate) locs: Mutex<HashMap<i64, Loc>>,
+    pub(crate) tickets: Mutex<HashMap<u64, Ticket>>,
+    pub(crate) hosts: Mutex<Vec<HostSlot>>,
+    pub(crate) msgs: Sender<HostMsg>,
+    /// Copies, the queue, the clock, vaults.
+    pub world: World,
     loot: Mutex<HashMap<u64, TicketLoot>>,
     first_kills: Mutex<FirstKills>,
     ids: IdGen,
-    stop: AtomicBool,
+    pub(crate) stop: AtomicBool,
     threads: Mutex<Vec<JoinHandle<()>>>,
     next_conn: AtomicU64,
     ticket_rng: AtomicU64,
@@ -154,7 +184,7 @@ pub fn err(e: Error) -> Resp {
     Resp::Err { code, msg }
 }
 
-fn bad(msg: &str) -> Resp {
+pub(crate) fn bad(msg: &str) -> Resp {
     Resp::Err { code: code::BAD_REQUEST, msg: msg.into() }
 }
 
@@ -202,6 +232,7 @@ impl Gateway {
         let (msgs, rx) = channel();
         let first_kills = Mutex::new(FirstKills::open(cfg.first_kills.as_deref()));
         let store_for_economy = store.clone();
+        let world = World::new(cfg.world.clone());
         let gw = Arc::new(Gateway {
             store,
             cfg,
@@ -211,6 +242,7 @@ impl Gateway {
             tickets: Mutex::new(HashMap::new()),
             hosts: Mutex::new(Vec::new()),
             msgs,
+            world,
             loot: Mutex::new(HashMap::new()),
             first_kills,
             ids: IdGen::new(),
@@ -232,7 +264,17 @@ impl Gateway {
                 }
             })
             .expect("thread");
-        gw.threads.lock().unwrap().extend([applier, ticker]);
+        let g = gw.clone();
+        let world = std::thread::Builder::new()
+            .name("world".into())
+            .spawn(move || {
+                while !g.stop.load(Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_millis(crate::world::WORLD_STEP_MS));
+                    g.world_step();
+                }
+            })
+            .expect("thread");
+        gw.threads.lock().unwrap().extend([applier, ticker, world]);
         gw.economy.spawn_sweeper();
         gw
     }
@@ -241,26 +283,25 @@ impl Gateway {
         self.next_conn.fetch_add(1, Ordering::Relaxed)
     }
 
-    /// Opens a field copy of `opts.sim.field` on its own thread group; returns the UDP address it listens on.
-    pub fn add_host(&self, mut opts: HostOpts) -> std::io::Result<std::net::SocketAddr> {
-        opts.require_tickets = true;
-        let handle = host::spawn(opts, Some(self.msgs.clone()))?;
-        let addr = handle.addr;
-        let mut hosts = self.hosts.lock().unwrap();
-        let copy = hosts.iter().filter(|h| h.handle.field == handle.field).count() as u8;
-        hosts.push(HostSlot { handle, copy });
-        Ok(addr)
+    /// Opens a field copy (or a vault, `opts.sim.vault`) on its own thread group, on the realm's clock; returns the
+    /// UDP address it listens on. The world opens and closes copies by itself; this is the first copy of a field.
+    pub fn add_host(&self, opts: HostOpts) -> std::io::Result<std::net::SocketAddr> {
+        self.spawn_host(opts, None).map(|(addr, _)| addr)
     }
 
-    /// Heroes in each field copy now: (field, copy, heroes).
+    /// Heroes in each field copy now: (field, copy, heroes). Vaults are not listed.
     pub fn host_loads(&self) -> Vec<(u8, u8, u32)> {
-        self.hosts.lock().unwrap().iter().map(|h| (h.handle.field, h.copy, h.handle.heroes.load(Ordering::Relaxed))).collect()
+        self.hosts.lock().unwrap().iter().filter(|h| h.vault.is_none()).map(|h| (h.field, h.copy, h.handle.heroes())).collect()
     }
 
-    /// Stops the field hosts (every hero in them is banked and her result applied), then the applier and the
-    /// town ticker.
+    /// Stops the world, then the field hosts and vaults (every hero in them is banked and her result applied),
+    /// then the applier and the town ticker.
     pub fn shutdown(&self) {
+        self.world.stopping.store(true, Ordering::Relaxed);
         let slots: Vec<HostSlot> = self.hosts.lock().unwrap().drain(..).collect();
+        for s in &slots {
+            let _ = s.handle.cmds.send(HostCmd::Stop);
+        }
         for mut s in slots {
             s.handle.stop();
         }
@@ -272,7 +313,7 @@ impl Gateway {
         }
     }
 
-    fn random(&self) -> u64 {
+    pub(crate) fn random(&self) -> u64 {
         // splitmix over an atomic counter seeded from the boot nonce: tickets are not guessable in a run.
         let mut z = self.ticket_rng.fetch_add(0x9E37_79B9_7F4A_7C15, Ordering::Relaxed).wrapping_add(0x9E37_79B9_7F4A_7C15);
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -296,12 +337,12 @@ impl Gateway {
     }
 
     /// A change the server makes for a player after checking her right to it.
-    fn server(&self, cmd: Cmd) -> Result<Reply> {
+    pub(crate) fn server(&self, cmd: Cmd) -> Result<Reply> {
         self.store.run(self.meta(0), cmd)
     }
 
     /// The hero if she is this account's and alive.
-    fn own_hero(&self, account: AccountId, hero: HeroId) -> Result<Hero> {
+    pub(crate) fn own_hero(&self, account: AccountId, hero: HeroId) -> Result<Hero> {
         let h = self.store.hero(hero)?.ok_or_else(|| Error::Missing(format!("hero {hero}")))?;
         if h.account != account {
             return Err(Error::NotYours(format!("hero {hero}")));
@@ -388,6 +429,7 @@ impl Gateway {
                 }
             }
             Req::FieldTicket { hero, field } => self.field_ticket(s, account, hero, field),
+            Req::World(q) => self.world_request(s, account, q),
             Req::Inventory { hero } => self.inventory(account, hero),
             Req::BankDeposit { hero, what, tab } => self.bank(account, hero, what, tab, true),
             Req::BankWithdraw { hero, what, tab } => self.bank(account, hero, what, tab, false),
@@ -491,6 +533,7 @@ impl Gateway {
             }
         }
         s.account = Some(account);
+        self.world.sessions.lock().unwrap().insert(s.conn, s.out.clone());
         Ok(Resp::Login { account })
     }
 
@@ -532,17 +575,64 @@ impl Gateway {
     pub fn close_session(&self, s: &mut Session) {
         self.leave_town_of(s, None);
         self.social.detach_conn(s.conn);
+        self.world_session_closed(s.conn);
     }
 
     fn field_ticket(&self, s: &mut Session, account: i64, hero: i64, field: u8) -> Result<Resp> {
+        self.ask_field(s, account, hero, field, None)
+    }
+
+    /// A place in a field for a hero: a ticket to the emptiest copy with room, or a place in the realm's queue when
+    /// the realm (or every copy of the field) is full. `drive`: the host plays her (dev bots).
+    pub(crate) fn ask_field(&self, s: &mut Session, account: i64, hero: i64, field: u8, drive: Option<realm_server::driver::Drive>) -> Result<Resp> {
         if field as usize >= FIELDS.len() {
             return Ok(bad("no such field"));
         }
         let h = self.own_hero(account, hero)?;
         // Her sheet is read before anything is reserved, so a failure leaves her where she was.
         let sheet = sheet_of(&*self.store, &h)?;
+        if !self.hosts.lock().unwrap().iter().any(|x| x.vault.is_none() && x.field == field) {
+            return Ok(Resp::Err { code: code::NO_FIELD, msg: "that field is closed".into() });
+        }
+        {
+            let locs = self.locs.lock().unwrap();
+            match locs.get(&hero) {
+                Some(Loc::Field { .. }) => return Ok(Resp::Err { code: code::BUSY, msg: "she is in a field".into() }),
+                Some(Loc::Queue { .. }) => return Ok(Resp::Err { code: code::BUSY, msg: "she is waiting for a place".into() }),
+                Some(Loc::Town { conn }) if *conn != s.conn => return Ok(Resp::Err { code: code::BUSY, msg: "she is in a town".into() }),
+                _ => {}
+            }
+        }
+        // Leaving the town room (if she is in one here) must not free the hero: take the room only.
+        let take_room = |s: &mut Session| {
+            if let Some((room, me, th)) = s.town {
+                if th == hero {
+                    self.towns.leave(room, me);
+                    self.economy.detach(hero);
+                    s.town = None;
+                }
+            }
+        };
+        match self.place(account, hero, field, s.conn, &s.out, sheet, drive) {
+            Placed::Ticket(r) => {
+                take_room(s);
+                Ok(r)
+            }
+            Placed::Queued(r) => {
+                take_room(s);
+                Ok(r)
+            }
+            Placed::Busy => Ok(Resp::Err { code: code::BUSY, msg: "she is already somewhere".into() }),
+        }
+    }
+
+    /// Issues a ticket to host `host_id` for a hero who is free (checked by the caller under `locs`): she is
+    /// placed in the field, the host is told to admit her. None if the host is gone or she was placed meanwhile.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn issue(&self, account: i64, hero: i64, field: u8, conn: u64, out: &Sender<Vec<u8>>, host_id: u32, sheet: realm_core::Sheet, drive: Option<realm_server::driver::Drive>) -> Option<(u16, u8, u64)> {
+        let h = self.store.hero(hero).ok().flatten()?;
         let mut outing = Outing::new();
-        let way = h.progress.waystones[field as usize];
+        let way = h.progress.waystones.get(field as usize).copied().unwrap_or(-1);
         outing.waystone = if way >= 0 { way as u8 } else { NO_WAYSTONE };
         let ticket = loop {
             let t = self.random();
@@ -550,41 +640,28 @@ impl Gateway {
                 break t;
             }
         };
-        // The emptier copy of the field.
-        let (port, copy) = {
-            let hosts = self.hosts.lock().unwrap();
-            // A party's heroes share a copy (job T1): the one a party mate's ticket was given, else the emptier.
-            let shared = self.social.party_copy(hero, field, now_ms()).and_then(|c| hosts.iter().find(|h| h.handle.field == field && h.copy == c));
-            let Some(slot) = shared.or_else(|| hosts.iter().filter(|h| h.handle.field == field).min_by_key(|h| h.handle.heroes.load(Ordering::Relaxed))) else {
-                return Ok(Resp::Err { code: code::NO_FIELD, msg: "that field is closed".into() });
-            };
-            (slot.handle.addr.port(), slot.copy)
-        };
+        let hosts = self.hosts.lock().unwrap();
+        let slot = hosts.iter().find(|x| x.id == host_id && !x.stopping && x.closing.is_none())?;
         {
             let mut locs = self.locs.lock().unwrap();
             match locs.get(&hero) {
-                Some(Loc::Field { .. }) => return Ok(Resp::Err { code: code::BUSY, msg: "she is in a field".into() }),
-                Some(Loc::Town { conn }) if *conn != s.conn => return Ok(Resp::Err { code: code::BUSY, msg: "she is in a town".into() }),
+                Some(Loc::Field { .. }) => return None,
+                Some(Loc::Town { conn: c }) | Some(Loc::Queue { conn: c }) if *c != conn => return None,
                 _ => {}
             }
-            locs.insert(hero, Loc::Field { ticket, out: s.out.clone() });
+            locs.insert(hero, Loc::Field { ticket, out: out.clone() });
         }
-        self.social.attach(hero, account, &h.name, h.class, h.progress.class_level, s.conn, s.out.clone(), crate::social::PLACE_FIELD);
-        self.social.party_set_copy(hero, field, copy, now_ms());
-        // Leaving the town room (if she is in one here) must not free the hero: take the room only.
-        if let Some((room, me, th)) = s.town {
-            if th == hero {
-                self.towns.leave(room, me);
-                self.economy.detach(hero);
-                s.town = None;
-            }
-        }
-        self.tickets.lock().unwrap().insert(ticket, Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0 });
-        let hosts = self.hosts.lock().unwrap();
-        if let Some(slot) = hosts.iter().find(|h| h.handle.field == field && h.copy == copy) {
-            let _ = slot.handle.cmds.send(HostCmd::Admit(Entry { ticket, hero: hero as u64, sheet, outing }));
-        }
-        Ok(Resp::Ticket { host: self.cfg.public_host.clone(), port, ticket, field, copy })
+        // Her party sees her in the field, and its next members go to the same copy (job T1).
+        self.social.attach(hero, account, &h.name, h.class, h.progress.class_level, conn, out.clone(), crate::social::PLACE_FIELD);
+        self.social.party_set_copy(hero, field, slot.copy, now_ms());
+        self.tickets.lock().unwrap().insert(
+            ticket,
+            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None },
+        );
+        let mut e = Entry::new(ticket, hero as u64, sheet, outing);
+        e.drive = drive;
+        let _ = slot.handle.cmds.send(HostCmd::Admit(e));
+        Some((slot.handle.addr.port(), slot.copy, ticket))
     }
 
     /// The deck cards the hero may use: the novice twelve, one more at each even class level to 24 (the store's
@@ -735,12 +812,15 @@ impl Gateway {
             match rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(HostMsg::Flush(f)) => self.apply(f),
                 Ok(HostMsg::Kills(b)) => self.roll_kills(b),
-                Ok(HostMsg::Unused { hero, ticket }) => {
-                    self.loot.lock().unwrap().remove(&ticket);
-                    self.tickets.lock().unwrap().remove(&ticket);
-                    self.locs.lock().unwrap().remove(&(hero as i64));
+                Ok(HostMsg::Unused { hero, ticket }) => self.unused(hero, ticket),
+                Ok(HostMsg::Joined { ticket, .. }) => {
+                    if let Some(t) = self.tickets.lock().unwrap().get_mut(&ticket) {
+                        t.moved = None;
+                    }
                 }
-                Ok(HostMsg::Joined { .. }) | Ok(HostMsg::Closed) => {}
+                Ok(HostMsg::Moved { host, hero, ticket, seq, transfer, driven }) => self.on_moved(host, hero, ticket, seq, transfer, driven),
+                Ok(HostMsg::Reward(b)) => self.on_reward(b),
+                Ok(HostMsg::Closed { host }) => self.world.closed(host),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                     if self.stop.load(Ordering::Relaxed) {
                         break;
@@ -753,7 +833,7 @@ impl Gateway {
 
     /// One field host flush into the store, in one `apply_outing`, with a request id made of the ticket and the
     /// flush's number: a flush sent twice (or retried after a database error) is applied once.
-    fn apply(&self, f: Flush) {
+    pub(crate) fn apply(&self, f: Flush) {
         let hero = f.hero as i64;
         let info = self.tickets.lock().unwrap().get(&f.ticket).map(|t| (t.account, t.field));
         let Some((_account, field)) = info else { return };
@@ -834,14 +914,7 @@ impl Gateway {
             tx
         };
         if let (Some(tx), Some((coin, xp, levels, potions))) = (tx, out) {
-            let left = match f.left {
-                None => 255,
-                Some(Leave::Gate) => 0,
-                Some(Leave::Waystone) => 1,
-                Some(Leave::Disconnect) => 2,
-                Some(Leave::Kicked) => 3,
-                Some(Leave::Shutdown) => 4,
-            };
+            let left = f.left.map_or(255, Leave::code);
             let _ = tx.send(resp_frame(0, &Resp::Outing { hero, coin, xp, levels, potions, left }));
         }
     }
@@ -861,7 +934,7 @@ impl Gateway {
                 let Some(&(account, _)) = accounts.get(&c.ticket) else { continue };
                 let tl = loot.entry(c.ticket).or_default();
                 let pct = *tl.pct.get_or_insert_with(|| drops_percent_of(&*self.store, account).unwrap_or(100));
-                let key = RollKey { field_seed: b.field_seed, tick: b.tick, index: k.index, slot: c.slot };
+                let key = RollKey { field_seed: crate::world::roll_seed(b.field_seed, b.host), tick: b.tick, index: k.index, slot: c.slot };
                 let credit = Credit { luck: c.luck.max(0) as u32, drops_percent: pct };
                 for found in roll(self.cfg.secret, &key, &credit, &src, &mut tl.gate) {
                     if let Some(now) = tl.haul.take(found) {
@@ -897,11 +970,24 @@ impl Gateway {
             RewardKind::Tide { field, level } => Source::TideCache { field, level },
             RewardKind::Boss { boss, level } => Source::BossChest { boss, level, first_kill: self.first_kills.lock().unwrap().first(hero, boss) },
             RewardKind::World { level, top } => Source::WorldChest { level, top },
+            // A vault chest is the Archlich's chest (rolls from RARE, its card and trophy rolls), once for every two
+            // of the chest's rolls (`chest_rolls`: two and one more per seal).
+            RewardKind::Vault { level, .. } => Source::BossChest { boss: realm_core::tables::B_ARCHLICH, level, first_kill: self.first_kills.lock().unwrap().first(hero, realm_core::tables::B_ARCHLICH) },
+        };
+        let rounds = match kind {
+            RewardKind::Vault { seals, .. } => (realm_core::chest_rolls(seals) as u32).div_ceil(2),
+            _ => 1,
         };
         let mut loot = self.loot.lock().unwrap();
         let tl = loot.entry(ticket).or_default();
         let pct = *tl.pct.get_or_insert_with(|| drops_percent_of(&*self.store, account).unwrap_or(100));
-        let found = roll(self.cfg.secret, &key, &Credit { luck: luck.max(0) as u32, drops_percent: pct }, &src, &mut tl.gate);
+        let mut found = Vec::new();
+        for r in 0..rounds {
+            // Each round its own key: the event index moved past any tick's real events.
+            let k = RollKey { index: key.index ^ (r << 24), ..key };
+            let src = if r == 0 { src } else { match src { Source::BossChest { boss, level, .. } => Source::BossChest { boss, level, first_kill: false }, s => s } };
+            found.extend(roll(self.cfg.secret, &k, &Credit { luck: luck.max(0) as u32, drops_percent: pct }, &src, &mut tl.gate));
+        }
         tl.n += 1;
         let id = delivery_id(ticket, tl.n);
         // Rewards are kept, never held in the haul: `take` returns every kept drop and holds the rest.
@@ -925,7 +1011,69 @@ impl Gateway {
             let _ = s.handle.cmds.send(HostCmd::Kick(hero as u64));
         }
     }
+
+    /// A ticket the host never used: the hero is free again. A hero moved from a closing copy who never arrived
+    /// in the other is banked as a disconnect (half the haul's coin).
+    fn unused(&self, hero: u64, ticket: u64) {
+        let moved = self.tickets.lock().unwrap().get(&ticket).and_then(|t| t.moved);
+        if let Some((seq, coin)) = moved {
+            let lost = coin / 2;
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: coin - lost, lost_coin: lost, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Disconnect) });
+            self.world.count(|s| s.moved_lost += 1);
+            return;
+        }
+        self.loot.lock().unwrap().remove(&ticket);
+        self.tickets.lock().unwrap().remove(&ticket);
+        let tx = {
+            let mut locs = self.locs.lock().unwrap();
+            match locs.get(&(hero as i64)) {
+                Some(Loc::Field { ticket: t, out }) if *t == ticket => {
+                    let o = out.clone();
+                    locs.remove(&(hero as i64));
+                    Some(o)
+                }
+                _ => None,
+            }
+        };
+        // Her client learns the ticket went unused (never entered: expired, or the vault was full or closing).
+        if let Some(tx) = tx {
+            let _ = tx.send(resp_frame(0, &Resp::Outing { hero: hero as i64, coin: 0, xp: 0, levels: 0, potions: 0, left: LEFT_UNUSED }));
+        }
+    }
+
+    /// Forgets the outings of a host that died (a crash, `HostCmd::Abort`): what each hero banked is in the store;
+    /// her haul is lost, as when the whole server is killed. She is free again at once.
+    pub(crate) fn lose_host(&self, host_id: u32) {
+        let lost: Vec<(u64, i64, u64, u64, u16, u32)> = {
+            let mut tickets = self.tickets.lock().unwrap();
+            let ids: Vec<u64> = tickets.iter().filter(|(_, t)| t.host == host_id).map(|(k, _)| *k).collect();
+            ids.into_iter().filter_map(|k| tickets.remove(&k).map(|t| (k, t.hero, t.coin, t.xp, t.levels, t.potions))).collect()
+        };
+        for (ticket, hero, coin, xp, levels, potions) in lost {
+            self.loot.lock().unwrap().remove(&ticket);
+            let tx = {
+                let mut locs = self.locs.lock().unwrap();
+                match locs.get(&hero) {
+                    Some(Loc::Field { ticket: t, out }) if *t == ticket => {
+                        let o = out.clone();
+                        locs.remove(&hero);
+                        Some(o)
+                    }
+                    _ => None,
+                }
+            };
+            if let Some(tx) = tx {
+                let _ = tx.send(resp_frame(0, &Resp::Outing { hero, coin, xp, levels, potions, left: LEFT_LOST }));
+            }
+            self.world.count(|s| s.tickets_lost += 1);
+        }
+    }
 }
+
+/// The Outing push's code for a hero whose field host died.
+pub const LEFT_LOST: u8 = 6;
+/// The Outing push's code for a ticket that was never used (she never entered).
+pub const LEFT_UNUSED: u8 = 7;
 
 /// The potion id a belt entry holds, for tests.
 /// What a merchant asks for a potion of stack kind 100 + p, in coin (None: not a potion he sells).

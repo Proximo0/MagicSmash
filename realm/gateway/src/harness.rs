@@ -274,7 +274,7 @@ pub fn run_soak(o: &SoakOpts) -> Result<SoakReport, String> {
     let store = Arc::new(SqliteStore::open(&db).map_err(|e| e.to_string())?);
     let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: o.seed ^ 0x5EC2_E7C0_FFEE, ..Config::default() });
     for (i, &f) in o.fields.iter().enumerate() {
-        let sim = SimOpts { field: f.min(FIELDS.len() as u8 - 1), seed: o.seed + i as u64, monsters: o.monsters, threads: o.threads, bots: 0, rally_permille: 0, level: 0 };
+        let sim = SimOpts { field: f.min(FIELDS.len() as u8 - 1), seed: o.seed + i as u64, monsters: o.monsters, threads: o.threads, bots: 0, rally_permille: 0, level: 0, vault: None };
         gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).map_err(|e| e.to_string())?;
     }
     let listener = crate::conn::listen(gw.clone(), "127.0.0.1:0").map_err(|e| e.to_string())?;
@@ -348,16 +348,19 @@ pub fn run_soak(o: &SoakOpts) -> Result<SoakReport, String> {
 /// kills a scarecrow in a second) and her waystone 0 in every field, so she appears at a waystone and banks
 /// there. This is the server acting on the store, as an operator's grant would.
 pub fn fast_prep(store: Arc<SqliteStore>) -> impl Fn(&HeroInfo) + Send + Sync {
+    move |h: &HeroInfo| fast_prep_one(&store, h)
+}
+
+/// `fast_prep` for one hero.
+pub fn fast_prep_one(store: &SqliteStore, h: &HeroInfo) {
     use realm_store::{Meta, OutingDelta};
-    move |h: &HeroInfo| {
-        if h.class_xp > 0 || h.class_level > 1 {
-            return;
-        }
-        let xp = crate::sheet::xp_to_reach(12);
-        for f in 0..FIELDS.len() as u8 {
-            let d = OutingDelta { xp: if f == 0 { xp } else { 0 }, levels: if f == 0 { 11 } else { 0 }, waystone: Some((f, 0)), ..OutingDelta::default() };
-            let id = (0xFA57u128 << 96) | ((h.id as u128) << 8) | f as u128;
-            let _ = store.apply_outing(Meta::system(id, crate::gateway::now_ms()), h.id, d);
-        }
+    if h.class_xp > 0 || h.class_level > 1 {
+        return;
+    }
+    let xp = crate::sheet::xp_to_reach(12);
+    for f in 0..FIELDS.len() as u8 {
+        let d = OutingDelta { xp: if f == 0 { xp } else { 0 }, levels: if f == 0 { 11 } else { 0 }, waystone: Some((f, 0)), ..OutingDelta::default() };
+        let id = (0xFA57u128 << 96) | ((h.id as u128) << 8) | f as u128;
+        let _ = store.apply_outing(Meta::system(id, crate::gateway::now_ms()), h.id, d);
     }
 }

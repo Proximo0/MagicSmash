@@ -9,6 +9,8 @@ except `godot/`, the Godot native module, which is its own cargo workspace with 
   `to_bytes()` / `from_bytes()`. The result is the same for any thread count.
 - `server/`: the 20 Hz UDP server (protocol A v0 and v1, protocol B), bots, and `--bench`.
 - `gateway/`: `realm-gateway` (accounts, heroes, towns, field tickets and a field host per copy, on one store file) and `realm-soak` (bots through all of it, one `SOAK ok` line). Wire and numbers: `docs/realm/wire.md`.
+  The world (the realm clock, copies that open and merge, the queue, vaults, boss news) and `realm-world` (a
+  compressed week of bot play, one `WORLD ok` line): `docs/realm/world.md`.
 - `loadtest/`: real UDP clients, protocol B followers and lockstep players, and a lossy UDP relay.
 - `godot/`: the native module (a GDExtension `cdylib`, gdext `godot` 0.5.5, Godot API 4.7): the class
   `RealmLink`, a lockstep player inside Godot. Its own workspace and `Cargo.lock`.

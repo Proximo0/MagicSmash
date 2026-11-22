@@ -5,6 +5,9 @@
 #                 a station without it reports FAIL.
 #         soak    bots through the wire server (gateway, towns, field hosts, store) for STATION_SOAK_SECS (default 7200),
 #                 one summary line; FAIL when the line is not "SOAK ok" (a mismatch, a bot error or a store problem)
+#         world   the world's long proof (realm-world): STATION_WORLD_BOTS (default 200) bots live STATION_WORLD_DAYS (default 7)
+#                 days of the realm clock in STATION_WORLD_SECS (default 7200) with hosts at 20 Hz: copies open and merge,
+#                 the queue, vaults, a field host killed halfway; FAIL when the line is not "WORLD ok"
 #         economy Horde & Hearth's market simulation (realm-economy, record only): STATION_ECONOMY_BOTS (default 4000) bots for
 #                 STATION_ECONOMY_DAYS (default 180) game days with a fresh seed; one line of the sim's summary
 #         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
@@ -38,7 +41,7 @@ POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 watch=0; push=1; after=""; jobs=(); deep=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -47,7 +50,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -164,6 +167,15 @@ job_soak() {  # one line: realm-soak's summary
   if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
   echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
 }
+job_world() {  # one line: realm-world's summary
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB world SKIP cargo is not installed on this station"; return 0; }
+  local secs="${STATION_WORLD_SECS:-7200}" out line
+  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-world 2>&1 && timeout $((secs + 900)) target/release/realm-world --bots="${STATION_WORLD_BOTS:-200}" --days="${STATION_WORLD_DAYS:-7}" --secs="$secs" --tick-us=50000 --vault-tick-us=50000 --monsters=2000 --vault-monsters=2000 --copy-cap=60 --open-at=45 --merge-under=30 --max-copies=4 --merge-grace-ms=60000 --realm-cap=150 --vault-max=8 --outing-ticks=6000 --db="${TMPDIR:-/tmp}/station-world.db" 2>&1); line=$(tail -1 <<<"$out")
+  rm -f "${TMPDIR:-/tmp}"/station-world.db*
+  if [[ "$line" == "WORLD ok "* ]]; then echo "JOB world PASS ${line:0:300}"; return 0; fi
+  echo "JOB world FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-300)"; return 1
+}
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
 job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
@@ -194,7 +206,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
 touched() {
   case "$1" in
     idle) return 0 ;;
-    realm|frames|soak|economy) grep -q '^realm/' ;;
+    realm|frames|soak|world|economy) grep -q '^realm/' ;;
     *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
   esac
 }
