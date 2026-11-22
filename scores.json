@@ -16437,5 +16437,1155 @@
 "notes": "figures 1 cover 0.32 edge False missing ['broken']"
 }
 ]
+},
+"HS7.2": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.078,
+"traits": {
+"lance": 0.0027,
+"pennant": 0.0001
+},
+"notes": "figures 1 cover 0.08 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.204,
+"traits": {
+"lance": 0.0177,
+"pennant": 0.1461
+},
+"notes": "figures 1 cover 0.12 edge False missing ['lance']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.103,
+"traits": {
+"lance": 0.002,
+"pennant": 0.0
+},
+"notes": "figures 1 cover 0.10 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.077,
+"traits": {
+"lance": 0.0003,
+"pennant": 0.0
+},
+"notes": "figures 1 cover 0.08 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 3,
+"ok": true,
+"score": 0.124,
+"traits": {
+"lance": 0.1268,
+"pennant": 0.0001
+},
+"notes": "figures 1 cover 0.06 edge False missing ['pennant']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.094,
+"traits": {
+"lance": 0.0133,
+"pennant": 0.0007
+},
+"notes": "figures 1 cover 0.09 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.088,
+"traits": {
+"lance": 0.0034,
+"pennant": 0.0002
+},
+"notes": "figures 1 cover 0.09 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.098,
+"traits": {
+"lance": 0.0142,
+"pennant": 0.0004
+},
+"notes": "figures 1 cover 0.09 edge False missing ['lance', 'pennant']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.066,
+"traits": {
+"lance": 0.0001,
+"pennant": 0.0
+},
+"notes": "figures 1 cover 0.07 edge False missing ['lance', 'pennant']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.213,
+"traits": {
+"lance": 0.1441,
+"pennant": 0.0016
+},
+"notes": "figures 1 cover 0.14 edge False missing ['pennant']"
+}
+]
+},
+"HS7.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.865,
+"traits": {
+"green flame": 0.3311,
+"cage": 0.9746
+},
+"notes": "figures 1 cover 0.21 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.612,
+"traits": {
+"green flame": 0.0086,
+"cage": 0.8449
+},
+"notes": "figures 1 cover 0.19 edge False missing ['green flame']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.916,
+"traits": {
+"green flame": 0.4552,
+"cage": 0.9722
+},
+"notes": "figures 1 cover 0.20 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.944,
+"traits": {
+"green flame": 0.5254,
+"cage": 0.9612
+},
+"notes": "figures 1 cover 0.20 edge False"
+}
+]
+},
+"HS7.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.25,
+"traits": {
+"banner": 0.1105,
+"wave": 0.0001
+},
+"notes": "figures 1 cover 0.19 edge False missing ['wave']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.193,
+"traits": {
+"banner": 0.0115,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.19 edge False missing ['banner', 'wave']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.242,
+"traits": {
+"banner": 0.0775,
+"wave": 0.0001
+},
+"notes": "figures 1 cover 0.20 edge False missing ['banner', 'wave']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.221,
+"traits": {
+"banner": 0.0385,
+"wave": 0.0001
+},
+"notes": "figures 1 cover 0.20 edge False missing ['banner', 'wave']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 0.211,
+"traits": {
+"banner": 0.0485,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.19 edge False missing ['banner', 'wave']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.192,
+"traits": {
+"banner": 0.0188,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.18 edge False missing ['banner', 'wave']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.234,
+"traits": {
+"banner": 0.0437,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.21 edge False missing ['banner', 'wave']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 0.297,
+"traits": {
+"banner": 0.0628,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.27 edge False missing ['banner', 'wave']"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.262,
+"traits": {
+"banner": 0.0489,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.24 edge False missing ['banner', 'wave']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.228,
+"traits": {
+"banner": 0.0314,
+"wave": 0.0
+},
+"notes": "figures 1 cover 0.21 edge False missing ['banner', 'wave']"
+}
+]
+},
+"HS7.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.904,
+"traits": {
+"wolf head": 0.954,
+"plaque": 0.0258
+},
+"notes": "figures 1 cover 0.41 edge False missing ['plaque']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.864,
+"traits": {
+"wolf head": 0.9395,
+"plaque": 0.045
+},
+"notes": "figures 1 cover 0.37 edge False missing ['plaque']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.808,
+"traits": {
+"wolf head": 0.8766,
+"plaque": 0.0014
+},
+"notes": "figures 1 cover 0.37 edge False missing ['plaque']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.885,
+"traits": {
+"wolf head": 0.9442,
+"plaque": 0.0221
+},
+"notes": "figures 1 cover 0.40 edge False missing ['plaque']"
+}
+]
+},
+"HS7.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.621,
+"traits": {
+"gold statue": 0.7122,
+"plinth": 0.1778
+},
+"notes": "figures 1 cover 0.18 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.335,
+"traits": {
+"gold statue": 0.3363,
+"plinth": 0.0481
+},
+"notes": "figures 1 cover 0.14 edge False missing ['plinth']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.937,
+"traits": {
+"gold statue": 0.9742,
+"plinth": 0.5137
+},
+"notes": "figures 1 cover 0.19 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.709,
+"traits": {
+"gold statue": 0.7564,
+"plinth": 0.3141
+},
+"notes": "figures 1 cover 0.17 edge False"
+}
+]
+},
+"IC19.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.336,
+"traits": {
+"sword": 0.6637,
+"black and gold": 0.0083
+},
+"notes": " missing ['black and gold']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.248,
+"traits": {
+"sword": 0.4941,
+"black and gold": 0.0017
+},
+"notes": " missing ['black and gold']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.281,
+"traits": {
+"sword": 0.5156,
+"black and gold": 0.0467
+},
+"notes": " missing ['black and gold']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.274,
+"traits": {
+"sword": 0.5254,
+"black and gold": 0.0233
+},
+"notes": " missing ['black and gold']"
+}
+]
+},
+"IC19.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.79,
+"traits": {
+"helmet": 0.9474,
+"black and gold": 0.6316
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.553,
+"traits": {
+"helmet": 0.7827,
+"black and gold": 0.3242
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.787,
+"traits": {
+"helmet": 0.9421,
+"black and gold": 0.6316
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.73,
+"traits": {
+"helmet": 0.9026,
+"black and gold": 0.5583
+},
+"notes": ""
+}
+]
+},
+"IC19.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.661,
+"traits": {
+"chest armour": 0.9284,
+"black and gold": 0.3942
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.018,
+"traits": {
+"chest armour": 0.0351,
+"black and gold": 0.0018
+},
+"notes": " missing ['chest armour', 'black and gold']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.664,
+"traits": {
+"chest armour": 0.8418,
+"black and gold": 0.4863
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.531,
+"traits": {
+"chest armour": 0.6792,
+"black and gold": 0.3831
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.174,
+"traits": {
+"chest armour": 0.3363,
+"black and gold": 0.0112
+},
+"notes": " missing ['black and gold']"
+}
+]
+},
+"IC19.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.473,
+"traits": {
+"gauntlets": 0.8941,
+"black and gold": 0.0522
+},
+"notes": " missing ['black and gold']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.039,
+"traits": {
+"gauntlets": 0.0235,
+"black and gold": 0.0542
+},
+"notes": " missing ['gauntlets', 'black and gold']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.528,
+"traits": {
+"gauntlets": 0.9845,
+"black and gold": 0.0711
+},
+"notes": " missing ['black and gold']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.562,
+"traits": {
+"gauntlets": 0.9801,
+"black and gold": 0.1441
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.217,
+"traits": {
+"gauntlets": 0.4225,
+"black and gold": 0.0121
+},
+"notes": " missing ['black and gold']"
+}
+]
+},
+"IC19.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.603,
+"traits": {
+"boots": 0.973,
+"black and gold": 0.2337
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.5,
+"traits": {
+"boots": 0.9363,
+"black and gold": 0.0628
+},
+"notes": " missing ['black and gold']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.716,
+"traits": {
+"boots": 0.993,
+"black and gold": 0.4397
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.52,
+"traits": {
+"boots": 0.9252,
+"black and gold": 0.1144
+},
+"notes": ""
+}
+]
+},
+"IC19.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.38,
+"traits": {
+"amulet": 0.6549,
+"black and gold": 0.1052
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.237,
+"traits": {
+"amulet": 0.3739,
+"black and gold": 0.1009
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.311,
+"traits": {
+"amulet": 0.6095,
+"black and gold": 0.0117
+},
+"notes": " missing ['black and gold']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.45,
+"traits": {
+"amulet": 0.8615,
+"black and gold": 0.0385
+},
+"notes": " missing ['black and gold']"
+}
+]
+},
+"IC20.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.347,
+"traits": {
+"sword": 0.2689,
+"bone, gold, glow": 0.4244
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.495,
+"traits": {
+"sword": 0.3225,
+"bone, gold, glow": 0.6671
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.252,
+"traits": {
+"sword": 0.5,
+"bone, gold, glow": 0.0047
+},
+"notes": " missing ['bone, gold, glow']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.082,
+"traits": {
+"sword": 0.1582,
+"bone, gold, glow": 0.0066
+},
+"notes": " missing ['bone, gold, glow']"
+}
+]
+},
+"IC20.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.746,
+"traits": {
+"helmet": 0.8376,
+"bone, gold, glow": 0.6549
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.886,
+"traits": {
+"helmet": 0.8715,
+"bone, gold, glow": 0.9005
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.802,
+"traits": {
+"helmet": 0.908,
+"bone, gold, glow": 0.696
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.616,
+"traits": {
+"helmet": 0.9662,
+"bone, gold, glow": 0.2659
+},
+"notes": ""
+}
+]
+},
+"IC20.3": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 0.014,
+"traits": {
+"chest armour": 0.015,
+"bone, gold, glow": 0.0138
+},
+"notes": " missing ['chest armour', 'bone, gold, glow']"
+},
+{
+"try": 2,
+"ok": true,
+"score": 0.839,
+"traits": {
+"chest armour": 0.7311,
+"bone, gold, glow": 0.9466
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.58,
+"traits": {
+"chest armour": 0.2095,
+"bone, gold, glow": 0.95
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.324,
+"traits": {
+"chest armour": 0.3648,
+"bone, gold, glow": 0.283
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.164,
+"traits": {
+"chest armour": 0.001,
+"bone, gold, glow": 0.3277
+},
+"notes": " missing ['chest armour']"
+}
+]
+},
+"IC20.4": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.318,
+"traits": {
+"gauntlets": 0.0063,
+"bone, gold, glow": 0.6298
+},
+"notes": " missing ['gauntlets']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.937,
+"traits": {
+"gauntlets": 0.9582,
+"bone, gold, glow": 0.9149
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.491,
+"traits": {
+"gauntlets": 0.7491,
+"bone, gold, glow": 0.2323
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.502,
+"traits": {
+"gauntlets": 0.152,
+"bone, gold, glow": 0.8529
+},
+"notes": ""
+}
+]
+},
+"IC20.5": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.913,
+"traits": {
+"boots": 0.8766,
+"bone, gold, glow": 0.9493
+},
+"notes": ""
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.959,
+"traits": {
+"boots": 0.9738,
+"bone, gold, glow": 0.9442
+},
+"notes": ""
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.578,
+"traits": {
+"boots": 0.9026,
+"bone, gold, glow": 0.2524
+},
+"notes": ""
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.718,
+"traits": {
+"boots": 0.8715,
+"bone, gold, glow": 0.5641
+},
+"notes": ""
+}
+]
+},
+"IC20.6": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.334,
+"traits": {
+"amulet": 0.6671,
+"bone, gold, glow": 0.0005
+},
+"notes": " missing ['bone, gold, glow']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.465,
+"traits": {
+"amulet": 0.9274,
+"bone, gold, glow": 0.0017
+},
+"notes": " missing ['bone, gold, glow']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.327,
+"traits": {
+"amulet": 0.5908,
+"bone, gold, glow": 0.0637
+},
+"notes": " missing ['bone, gold, glow']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.325,
+"traits": {
+"amulet": 0.6442,
+"bone, gold, glow": 0.0052
+},
+"notes": " missing ['bone, gold, glow']"
+}
+]
+},
+"SC6.1": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.252,
+"traits": {
+"stone hand": 0.9867,
+"cracked": 0.9252
+},
+"notes": "figures 1 cover 0.30 edge False"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 1.089,
+"traits": {
+"stone hand": 0.9289,
+"cracked": 0.7106
+},
+"notes": "figures 1 cover 0.27 edge False"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.805,
+"traits": {
+"stone hand": 0.9112,
+"cracked": 0.2254
+},
+"notes": "figures 1 cover 0.24 edge False"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.827,
+"traits": {
+"stone hand": 0.8715,
+"cracked": 0.3007
+},
+"notes": "figures 1 cover 0.24 edge False"
+}
+]
+},
+"SC6.2": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.69,
+"traits": {
+"bone pillar": 0.9978,
+"single object": 0.0019
+},
+"notes": "figures 1 cover 0.19 edge False missing ['single object']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.685,
+"traits": {
+"bone pillar": 0.9997,
+"single object": 0.0009
+},
+"notes": "figures 1 cover 0.18 edge False missing ['single object']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.718,
+"traits": {
+"bone pillar": 0.9999,
+"single object": 0.0007
+},
+"notes": "figures 1 cover 0.22 edge False missing ['single object']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.735,
+"traits": {
+"bone pillar": 1.0,
+"single object": 0.0174
+},
+"notes": "figures 1 cover 0.23 edge False missing ['single object']"
+}
+]
+},
+"SC6.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 0.524,
+"traits": {
+"floating rock": 0.7491,
+"single object": 0.002
+},
+"notes": "figures 1 cover 0.15 edge False missing ['single object']"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 0.598,
+"traits": {
+"floating rock": 0.8176,
+"single object": 0.0067
+},
+"notes": "figures 1 cover 0.19 edge False missing ['single object']"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": true,
+"score": 0.383,
+"traits": {
+"floating rock": 0.4707,
+"single object": 0.0018
+},
+"notes": "figures 1 cover 0.15 edge False missing ['single object']"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 0.564,
+"traits": {
+"floating rock": 0.7944,
+"single object": 0.0027
+},
+"notes": "figures 1 cover 0.17 edge False missing ['single object']"
+}
+]
 }
 }
