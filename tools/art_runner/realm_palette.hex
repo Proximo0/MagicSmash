@@ -1,0 +1,49 @@
+; Horde & Hearth shared palette, 48 colours, dark gothic. One RRGGBB per line; text after ';' is a comment.
+000000 ; outline black
+18121e ; outline ink
+14141a ; iron 1
+24262c ; iron 2
+383c44 ; iron 3
+50545c ; iron 4
+6c7078 ; iron 5
+8e929a ; iron 6
+b4b6ba ; steel light
+d8d4c4 ; bone shadow
+ece4cc ; bone
+fff6dc ; bone light
+2a0a0c ; blood 1
+4a1014 ; blood 2
+6e1a1c ; blood 3
+8e2a26 ; blood 4
+b0433a ; blood 5
+d06a52 ; blood light
+7a5a14 ; tallow dark
+a8861e ; tallow
+d6b02c ; tallow bright
+f4dc50 ; tallow light
+1c2a16 ; sick green 1
+2e4420 ; sick green 2
+446a26 ; sick green 3
+6a8e30 ; sick green 4
+94b448 ; sick green 5
+c0d870 ; sick green light
+1a1030 ; purple 1
+2e1c4c ; purple 2
+48286a ; purple 3
+68408c ; purple 4
+8c64ae ; purple light
+3a3042 ; dusk grey-violet
+24160e ; brown 1
+3c2616 ; brown 2
+58381e ; brown 3
+7a502a ; brown 4
+a07240 ; brown 5
+c49a60 ; leather light
+5a3a2c ; skin shadow
+8a5a44 ; skin 1
+b8826a ; skin 2
+e0ae90 ; skin light
+3e5a2a ; orc skin dark
+5e8238 ; orc skin
+86aa50 ; orc skin light
+20323a ; cold teal shadow
