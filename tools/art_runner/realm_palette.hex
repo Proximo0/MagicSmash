@@ -1,4 +1,4 @@
-; Horde & Hearth shared palette, 48 colours, dark gothic. One RRGGBB per line; text after ';' is a comment.
+; Horde & Hearth shared palette, 64 colours, dark gothic. One RRGGBB per line; text after ';' is a comment.
 000000 ; outline black
 18121e ; outline ink
 14141a ; iron 1
@@ -47,3 +47,19 @@ e0ae90 ; skin light
 5e8238 ; orc skin
 86aa50 ; orc skin light
 20323a ; cold teal shadow
+3a4a32 ; moss dark
+4e6240 ; moss
+62784a ; moss light
+4a4e2a ; olive dark
+6c6e3a ; olive
+8e8c50 ; olive light
+34503c ; cloak green dark
+486a4e ; cloak green
+688a6a ; cloak green light
+7a6a48 ; khaki dark
+a08c62 ; khaki
+c4b280 ; tan
+dcd0a4 ; tan light
+2a3a5a ; cold blue dark
+44608a ; cold blue
+7a98b8 ; cold blue light
