@@ -301,8 +301,13 @@ class TestBowQuiver(GearBase):
         with open(os.path.join(self.dir, "thin", "THIN_gear", "bow.json"), "w") as f:
             json.dump(spec.GEAR_GUIDES["bow"]["json"], f)
         ch = Character.from_still(png, png[:-4] + ".json")
-        fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
-        self.assertIn("R24", {checks.rule_id(o) for o in checks.run_all(fr, ctx)})
+        keep = gear.GEAR_COVER_STEPS
+        gear.GEAR_COVER_STEPS = ()                  # the coverage fallback (pass 10) mends it; switched off here
+        try:
+            fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
+            self.assertIn("R24", {checks.rule_id(o) for o in checks.run_all(fr, ctx)})
+        finally:
+            gear.GEAR_COVER_STEPS = keep
 
 
 class TestGearBatch(unittest.TestCase):

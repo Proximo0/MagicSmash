@@ -172,11 +172,15 @@ LEG_SKIN_MAX = 0.25        # G15: share of the lit leg pixels that may have the 
 LEG_SKIN_SHIN_FULL = 0.9   # G16: share of each shin (knee to ankle) that counts: bare shins under shorts
 FAR_BLOB_MAX = 1.5         # x the near hand blob: a bigger 'far hand' behind the back of a body still is clothes
 LEG_SKIN_DE = 22.0         # G16: Lab distance to the hand's colour that still counts as skin
+ANKLE_BAND_SHARE = 0.6     # G18: share of a shin row that is skin for the row to count as a band row
+ANKLE_BAND_L = -0.18       # G18: lightness window below the hand's (a band in the shade of the ankle is darker)
+ANKLE_BAND_R = 0.7         # G18: half width of the strip along the shin that is read (the other leg is not)
+ANKLE_BAND_MAX = 0.006     # G18: mean thickness of a skin band across a shin, in body heights (HR3.4: 0.008)
 LEG_SKIN_SHIN_MAX = 0.25   # G16: share of a shin that may have the hand's colour
 
 
 def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top_y,
-             shin_t=LEG_SKIN_SHIN, thighs=True, tight=None):
+             shin_t=LEG_SKIN_SHIN, thighs=True, tight=None, band=False):
     """Share of the pixels of the thighs and the upper LEG_SKIN_SHIN of the shins (boot shafts
     and leg wraps are below that) that have the front hand's colour, by the same colour test as the hand census
     (hue within HAND_HUE, chroma and lightness windows).  None when there is no hand."""
@@ -203,17 +207,87 @@ def leg_skin(lab_img, img, body, hand_blob, hand_at, shoulder, BH, bones, r, top
         same = (hue < HAND_HUE) & (chroma > HAND_CHROMA[0] * c_ref) & (chroma < HAND_CHROMA[1] * c_ref)
     else:
         same = np.hypot(*(lab_img - ref)[..., 1:].transpose(2, 0, 1)) < HAND_GREY
-    same &= (dl > HAND_L[0]) & (dl < HAND_L[1])
+    same &= (dl > (ANKLE_BAND_L if band else HAND_L[0])) & (dl < HAND_L[1])
     if tight is not None:          # G16: within this Lab distance of the hand's own colour
         same &= np.sqrt(((lab_img - ref) ** 2).sum(-1)) < tight
     P = np.stack([xx + 0.5, yy + 0.5], -1).astype(float)
     legs = np.zeros_like(body)
+    if band:     # G18: a skin blob spanning most of a shin's width: its mean thickness in body heights
+        best = 0.0
+        for a, b in bones:
+            d, t = seg_dist(P, np.asarray(a, float), np.asarray(b, float))
+            sh = (d <= ANKLE_BAND_R * r) & (t >= 0) & (t <= 1.0) & body & (yy >= top_y)
+            sk = sh & same
+            rw = sh.sum(1)[sh.any(1)]
+            wid = int(np.median(rw)) if len(rw) else 0       # the leg's width: its median row
+            if wid < 3 or not sk.any():
+                continue
+            cover = min(1.0, int(sk.any(0).sum()) / wid)         # share of the leg's columns that hold skin
+            if cover >= ANKLE_BAND_SHARE:
+                best = max(best, float(sk.sum()) / wid / BH)
+        return round(best, 4)
     for i, (a, b) in enumerate(bones):      # thigh, shin, thigh, shin
         d, t = seg_dist(P, np.asarray(a, float), np.asarray(b, float))
         legs |= (d <= r) & (t >= 0) & ((t <= shin_t) if i % 2 else thighs)
     legs &= body & (yy >= top_y)
     n = int(legs.sum())
     return round(float((legs & same).sum()) / n, 3) if n else None
+
+
+FACE_SCALE = 112.0        # G19: the head is read on the 112 px bake: still px x FACE_SCALE / body height
+FACE_SKIN_DE = 0.16       # G19: OKLab distance to the hand's colour that still counts as the face's skin
+FACE_SKIN_MIN = 10        # G19: skin pixels (at 112 px) a face needs
+FACE_EYE_L = 0.40         # G19: OKLab lightness under which a pixel is eye-dark
+FACE_EYE_MAX = 10         # G19: more dark pixels than this inside the skin is a blob of flecks, not an eye
+
+
+def head_face(img, lab_img, body, hand_blob, hand_at, shoulder, BH, head_top, neck):
+    """G19: how readable the head is, measured on the head at the 112 px bake's scale (block mean of the
+    still).  Skin = within FACE_SKIN_DE (OKLab) of the front hand's colour.  Returns {"skin": px,
+    "eye": px of eye-dark pixels with skin beside them inside the face, "hair_de": distance of the
+    skin's colour from the colour of the rest of the head (hair, hat, hood), None without hair},
+    or None without a hand to read the skin from."""
+    if not hand_blob.any():
+        return None
+    H, W = body.shape
+    yy, xx = np.mgrid[0:H, 0:W]
+    if hand_at is None:
+        by_, bx_ = np.where(hand_blob)
+        i = int(np.argmax(np.hypot(bx_ + 0.5 - shoulder[0], by_ + 0.5 - shoulder[1])))
+        hand_at = np.array([bx_[i] + 0.5, by_[i] + 0.5])
+    hb = hand_blob & (np.hypot(xx + 0.5 - hand_at[0], yy + 0.5 - hand_at[1]) < 0.045 * BH)
+    if hb.sum() < 6:
+        return None
+    px = lab_img[hb]
+    lit = px[px[:, 0] > np.percentile(px[:, 0], 35)]
+    ref = np.median(lit if len(lit) >= 4 else px, 0)
+    y0, y1 = int(head_top[1]), int(neck[1])
+    x0 = int(np.flatnonzero(body[y0:y1 + 1].any(0))[0]) if body[y0:y1 + 1].any() else 0
+    x1 = int(np.flatnonzero(body[y0:y1 + 1].any(0))[-1]) + 1 if body[y0:y1 + 1].any() else W
+    f = min(FACE_SCALE / BH, 1.0)          # a still smaller than the 112 px bake is read as it is
+    w, h = max(int(round((x1 - x0) * f)), 1), max(int(round((y1 - y0 + 1) * f)), 1)
+    crop = lab_img[y0:y1 + 1, x0:x1]
+    msk = body[y0:y1 + 1, x0:x1].astype(float)
+    # block means over the cell grid of the 112 px bake
+    ys = np.minimum((np.arange(crop.shape[0]) * h) // crop.shape[0], h - 1)
+    xs = np.minimum((np.arange(crop.shape[1]) * w) // crop.shape[1], w - 1)
+    bid = ys[:, None] * w + xs[None, :]
+    cnt = np.bincount(bid.ravel(), weights=msk.ravel(), minlength=h * w)
+    tot = np.bincount(bid.ravel(), minlength=h * w)
+    mean = np.stack([np.bincount(bid.ravel(), weights=(crop[..., c] * msk).ravel(), minlength=h * w)
+                     / np.maximum(cnt, 1) for c in range(3)], -1).reshape(h, w, 3)
+    on = (cnt * 2 >= tot).reshape(h, w)
+    skin = on & (np.sqrt(((mean - ref) ** 2).sum(-1)) < FACE_SKIN_DE)
+    dark = on & (mean[..., 0] < FACE_EYE_L)
+    sp = np.pad(skin, 1)
+    nbr = sum(sp[1 + dy:1 + dy + h, 1 + dx:1 + dx + w].astype(int) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+              if dy or dx)
+    eyes = dark & (nbr >= 3)
+    front = np.zeros_like(eyes)
+    if skin.any():
+        cols = np.flatnonzero(skin.any(0))
+        front[:, (cols[0] + cols[-1]) // 2:] = True      # the front half of the face region (the figure faces +x)
+    return {"skin": int(skin.sum()), "eye": int((eyes & front).sum()), "eye_in": int((dark & (nbr >= 5)).sum())}
 
 
 def load_single(path):
@@ -894,6 +968,14 @@ def fit_still(png, layout_json):
         if v_ is not None:
             shin_sk.append(v_)
     report["shin_skin"] = max(shin_sk) if shin_sk else None
+    # ---- G19: a readable head
+    report["face"] = head_face(img, lab_img, body, hand_blob, (wr2 + hand_tip) / 2 if spec_arm else None,
+                               shoulder, BH, head_top, neck)
+    # ---- G18: a skin-coloured band across either leg below the knee (trousers short of the boots)
+    report["ankle_band"] = leg_skin(lab_img, img, body, hand_blob, (wr2 + hand_tip) / 2 if spec_arm else None,
+                                    shoulder, BH, [(F["knee"], ff["ankle"])],
+                                    max(F["shin_w"] / 2, 0.025 * BH), hip_y + LEG_SKIN_TOP * BH,
+                                    tight=LEG_SKIN_DE, band=True)
     # ---- radii
     radius = {"thigh": max(0.55 * leg_w, 0.03 * BH), "shin": max(F["shin_w"] / 2, 0.025 * BH),
               "foot": max(0.4 * F["shin_w"], 0.02 * BH), "upper": 0.045 * BH, "fore": 0.042 * BH}
@@ -1102,6 +1184,23 @@ def gate_still(data):
                     "keep a skin shade in the palette and comes out grey beside the pale near leg; "
                     "greaves, boots or long trousers in a colour different from the skin"
                     % (100 * rep["shin_skin"], 100 * LEG_SKIN_SHIN_MAX), ["knee", "ankle"]))
+    # G19 a readable head: skin (the hand's colour) with an eye-dark cluster in its front half, not flecked
+    fc = rep.get("face") if rep.get("body_only") else None      # body stills (the legacy stills are painted, not on spec)
+    if fc is not None:
+        why = []
+        if fc["skin"] < FACE_SKIN_MIN:
+            why.append("no face region: %d skin-coloured pixels at 112 px (at least %d)" % (fc["skin"], FACE_SKIN_MIN))
+        if fc["eye"] < 1:
+            why.append("no eye: no dark pixel with skin beside it in the front half of the face")
+        if fc["eye_in"] > FACE_EYE_MAX:
+            why.append("%d dark flecks inside the skin (at most %d): a blocky blob, no single eye" % (fc["eye_in"], FACE_EYE_MAX))
+        if why:
+            out.append(("G19: readable_head: " + "; ".join(why) + ": the head must show an eye on the skin and no blob of flecks", ["neck", "head_top"]))
+    # G18 no skin band across a leg below the knee (an ankle gap between trousers and boots)
+    if rep.get("ankle_band") is not None and rep["ankle_band"] > ANKLE_BAND_MAX:
+        out.append(("G18: ankle_gap: a skin-coloured band %.3f body heights tall (limit %.3f) crosses a leg "
+                    "below the knee: skin shows between trousers and boots; trousers tucked into the boots"
+                    % (rep["ankle_band"], ANKLE_BAND_MAX), ["knee", "ankle"]))
     # G8 every arm in the still belongs to exactly one arm part: a hand or bare forearm drawn
     # over the body cannot be cut from the torso and would stay painted on it (a third arm)
     inside = [h for h in rep.get("hands", []) if h["zone"] == "inside"]

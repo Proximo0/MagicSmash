@@ -31,12 +31,29 @@ FRINGE_BAL = 0.35     # ... and |red - blue| at most this x max(red, blue)
 KEY_DEPTH = 3         # px: a fringe is at most this deep from the background
 
 
-def key_mask(rgba):
-    """Rule G10 / R19: opaque pixels of the background key's colour (magenta, pure or shaded)."""
+KEY_BRIGHT = 150      # pass 10: a key pixel this bright (red and blue) may stand anywhere ...
+KEY_BRIGHT_GREEN = 0.25   # ... with green at most this x min(red, blue)
+KEY_DARK_GREEN = 0.12     # a shaded key (red and blue under KEY_BRIGHT: magenta blended with the dark outline) has
+KEY_DARK_DEPTH = 4        # almost no green, and stands only within this many px of the background: dark purple
+                          # and violet cloth inside the figure (an archmage's robe) is not the key
+
+
+def key_mask(rgba, loose=False):
+    """Rule G10 / R19: opaque pixels of the background key's colour: pure magenta near 255,0,255 anywhere,
+    and its blend with the outline (darker, almost no green) only on the rim, within KEY_DARK_DEPTH px of the
+    background.  Violet and purple cloth (green well above zero) is not the key."""
     a = rgba.astype(np.int32)
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     lo, hi = np.minimum(r, b), np.maximum(r, b)
-    return (a[..., 3] > 0) & (lo >= KEY_MIN) & (g <= KEY_GREEN * lo) & (np.abs(r - b) <= KEY_BAL * hi)
+    op = a[..., 3] > 0
+    if loose:        # the pre-pass-10 test on a raw still: any magenta-ish pixel (the rim before intake cleans it)
+        return op & (lo >= KEY_MIN) & (g <= KEY_GREEN * lo) & (np.abs(r - b) <= KEY_BAL * hi)
+    bal = np.abs(r - b) <= KEY_BAL * hi
+    bright = op & (lo >= KEY_BRIGHT) & (g <= KEY_BRIGHT_GREEN * lo) & bal
+    dark = op & (lo >= KEY_MIN) & (lo < KEY_BRIGHT) & (g <= KEY_DARK_GREEN * lo) & bal
+    if dark.any():
+        dark &= dilate(~op, KEY_DARK_DEPTH)
+    return bright | dark
 
 
 def fringe_mask(rgba):
@@ -322,3 +339,61 @@ def snap_to_grid(rgba, cell, origin, cover=None):
     out[..., 3] = 255
     out[~m] = 0
     return out
+
+
+SPECK_BLOCKS = 6           # drop_dark_blocks: a group of at most this many dark blocks is a speck
+SPECK_LIGHT = 100          # drop_dark_blocks: the cloth around a speck is at least this light (luma)
+
+
+def drop_dark_blocks(rgba, cell, origin, y_min):
+    """Isolated outline blocks on light cloth are repainted with the cloth around them.  The cut leaves
+    pieces of the still's outline strokes (a sleeve seam, a hem) on a part; at the grid's coarse blocks a
+    stroke a third of a block wide survives in some blocks and not in the next, and what is left is
+    single black blocks scattered on the cassock (HR5.1), where the still has one unbroken line or none.
+    A block below row `y_min` (the neck: eyes and beards are above it) that is darker than OUTLINE_LUMA,
+    (or a group of up to SPECK_BLOCKS of them: dashes of a sleeve seam) has no dark block of a bigger group among its neighbours and at least three opaque light ones (luma above SPECK_LIGHT)
+    takes the commonest colour of those neighbours.  Returns the picture and the number of blocks."""
+    H, W = rgba.shape[:2]
+    cx = np.floor((np.arange(W) + 0.5 - origin[0]) / cell[0]).astype(np.int64)
+    cy = np.floor((np.arange(H) + 0.5 - origin[1]) / cell[1]).astype(np.int64)
+    cx -= cx.min()
+    cy -= cy.min()
+    ncx, ncy = int(cx.max()) + 1, int(cy.max()) + 1
+    cid = cy[:, None] * ncx + cx[None, :]
+    op = rgba[..., 3] > 0
+    first = np.full(ncx * ncy, -1, np.int64)
+    idx = np.flatnonzero(op.ravel())
+    first[cid.ravel()[idx][::-1]] = idx[::-1]
+    on = (first >= 0).reshape(ncy, ncx)
+    flat = rgba.reshape(-1, 4)
+    col = np.zeros((ncx * ncy, 3), np.int64)
+    col[first >= 0] = flat[first[first >= 0], :3]
+    lum = ((col[:, 0] * 3 + col[:, 1] * 4 + col[:, 2] * 2) / 9.0).reshape(ncy, ncx)
+    dark = on & (lum < OUTLINE_LUMA)
+    light = on & (lum > SPECK_LIGHT)
+    top = np.array([int(np.flatnonzero(cy == r)[0]) for r in range(ncy)])
+    low = (top >= y_min)[:, None]
+    out = rgba.copy()
+    n = 0
+    colg = col.reshape(ncy, ncx, 3)
+    from .imgops import components
+    cl, sizes = components(dark & low)
+    for k, nblk in sizes.items():
+        if nblk > SPECK_BLOCKS:
+            continue
+        m = cl == k
+        ring = np.zeros_like(m)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                ring |= np.roll(np.roll(m, dy, 0), dx, 1)
+        ring &= ~m
+        big_dark = dark & ~np.isin(cl, [q for q, n_ in sizes.items() if n_ <= SPECK_BLOCKS]) 
+        if (ring & big_dark).any() or (ring & light).sum() < 3:
+            continue
+        nb = list(zip(*np.where(ring & light)))
+        cols, cnt = np.unique(np.array([colg[a, b] for a, b in nb]), axis=0, return_counts=True)
+        new = cols[np.argmax(cnt)]
+        for by, bx in zip(*np.where(m)):
+            out[(cid == by * ncx + bx) & op, :3] = new
+        n += 1
+    return out, n

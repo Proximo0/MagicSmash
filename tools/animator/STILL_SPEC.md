@@ -27,7 +27,7 @@ Prompt, as it stands, then the look:
 ```
 python3 -m tools.animator spec --gear --out DIR
 ```
-writes, for `shield`, `one_hand_weapon`, `two_hand_weapon`, `staff`, `bow`, `quiver` and `cape`:
+writes, for `shield`, `one_hand_weapon`, `two_hand_weapon`, `staff`, `bow`, `quiver`, `crossbow`, `censer`, `book`, `scroll`, `banner`, `halo`, `offhand_weapon` and `cape`:
 `gear_<kind>_guide.png` (black picture; cyan box = where to draw, yellow cross in a red ring =
 the anchor, green arrow = up) and `gear_<kind>.json` (the JSON for a gear drawn on that guide).
 Prompt, as it stands, then the look:
@@ -40,12 +40,19 @@ The guide's sentence (also in `gear_<kind>.json` under `note`):
 
 | kind | picture, box | anchor | sentence | slot, size, angle in the JSON |
 |---|---|---|---|---|
-| shield | 256 x 320, box 28,20-228,300 | 128,160 (its middle) | "a shield seen face-on, upright" | back, 0.36 |
+| shield | 256 x 320, box 28,20-228,300 | 128,160 (its middle) | "a shield seen face-on, upright": a shield for the back is drawn FACE-ON too, its painted face with the emblem, never its edge or the inside as a dark frame round a hollow middle (that reads as a crate) | back, 0.36 |
 | one_hand_weapon | 160 x 384, box 30,16-130,368 | 80,316 (middle of the grip) | "a hammer / sword / axe / mace standing upright, head or point at the top, grip at the bottom" | near_hand, 0.34, 110 |
 | two_hand_weapon | 192 x 448, box 26,12-166,436 | 96,330 (the leading hand, a quarter up the haft) | "a greatsword / great axe / maul standing upright, head or point at the top" | near_hand, 0.62, 115 |
 | staff | 128 x 448, box 34,8-94,440 | 64,330 (a quarter up) | "a staff / spear standing upright, head at the top, shaft as thick as marked" | near_hand, 0.90, 112 |
 | bow | 128 x 448, box 24,8-104,440 | 64,256 (the grip, a little below the middle) | "an unstrung recurve bow or longbow seen side-on, standing upright, one smooth curved limb, at least as thick as the marked width" | near_hand, 0.40, 112, in_front false |
 | quiver | 128 x 320, box 28,16-100,304 | 64,130 (the strap, where it pins to the spine) | "a quiver seen from the side, standing upright, wider at the top with a few arrow feathers poking out of the top" | back, 0.30, at [0.5, 0.10] |
+| crossbow | 224 x 320, box 16,16-208,304 | 112,232 (the grip under the stock) | "a crossbow seen from the side, drawn upright: muzzle at the top, stock below, the bow across the top third"; carried level at the hip, muzzle forward and a little down (carry pose `level`) | near_hand, 0.30, 0 |
+| censer | 128 x 320, box 28,12-100,308 | 64,20 (the top of the chain) | "a censer on a chain, hanging: chain from the top, the round censer at the bottom"; hangs straight down from the hand in every frame, whatever the forearm does (`hang` mode: the sprite never turns) | near_hand, 0.30, 0 |
+| book | 192 x 224, box 24,16-168,208 | 96,112 (the middle of the cover) | "a closed book seen from the side, spine to the left, upright"; held against the chest, the forearm bent up (carry pose `chest`) | near_hand, 0.13, 0, in_front true |
+| scroll | 96 x 288, box 16,16-80,272 | 48,144 (the middle of the roll) | "a rolled scroll seen from the side, upright" (short gear) | near_hand, 0.22, 110 |
+| banner | 256 x 576, box 20,8-236,568 | 64,456 (a fifth up the pole) | "a banner on a pole, upright: straight pole, the cloth from a crossbar in the top third, facing right"; long gear in the upright carry pose, the cloth stays above head height (the canvas grows 0.30 BH upwards for it) | near_hand, 1.30, 112 |
+| halo | 256 x 96, box 16,8-240,88 | 128,48 (the middle of the ring) | "a flat glowing ring seen from the side, wider than tall"; slot `head`: pinned above the head (`at` = [x ahead, height of the ring's middle above the head top], x BH), bobs with it, drawn behind the head | head, 0.06, at [0.0, 0.02] |
+| offhand_weapon | 160 x 384, box 30,16-130,368 | 80,316 (the middle of the grip) | "an off-hand axe, sword or dagger standing upright, grip at the bottom"; slot `far_hand`, `in_front` true: the far arm is held in a fixed pose (`motion.FAR_HOLD`) and stays hidden behind the body, only a disc of the far hand's colour and the weapon show in front of the hip, behind the near arm. Without `in_front` a far-hand gear stays behind the far arm (hidden by the torso) as before | far_hand, 0.30, 110, in_front true |
 | cape | 224 x 384, box 24,16-200,368 | 176,28 (top front corner, on the shoulder) | "a cape seen from the side, hanging flat and straight down" | cape, 0.52 |
 
 **Files to push for a character `<id>`** (a folder of these is what `batch` reads):
@@ -219,6 +226,10 @@ Put these sentences into the prompt as they stand; each one answers a fault the 
 - Gear (G12): none in the body still, see the recipe. (Until 22 Nov the shield was asked for "on
   the back" in the same picture; it came back over the near arm about half the time, HR6.2.)
 - Legs (G15): "trousers or greaves in a colour different from the skin".
+- Ankles (G18): "trousers tucked into the boots, no skin showing on the legs" (a band of skin between the trouser
+  hem and the boot top, HR3.4's green ankles, is refused).
+- Head (G19): "a clear face: eyes as dark dots on skin, hair or hat in a colour clearly different from the skin"
+  (a bald head, white hair on a white face or a blob of dark flecks is refused).
 - Boots (G9): the build's boot sentence under Feet above.
 - Background: flat pure magenta (255, 0, 255), nothing else magenta or purple-pink in the
   picture. Our intake removes the 1 px half-keyed rim (`intake.clean_key`); magenta left

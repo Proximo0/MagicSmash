@@ -394,7 +394,7 @@ def gear_rigid(frames, ctx):
         names = f["meta"]["labels"]
         for nm, L in _gear_layers(f).items():
             g = ctx["gear"][nm]
-            want, _ = g.sprite(ctx["gear_scale"][nm], L["phi"])
+            want, _ = g.sprite(ctx["gear_scale"][nm], L["phi"], ctx.get("gear_min", {}).get(nm, 0))
             h = hashlib.sha1(np.ascontiguousarray(L["rgba"]).tobytes()).hexdigest()
             if L["rgba"].shape != want.shape or h != hashlib.sha1(np.ascontiguousarray(want).tobytes()).hexdigest():
                 out.append(f"frame {i}: gear_rigid: {nm} is not its picture turned {L['phi']:.1f} deg "
@@ -754,6 +754,10 @@ def arm_swing(frames, ctx):
     return out
 
 
+GAP_MIN = 4               # R28: px (x size_x) of walled-in background that count; HR1.1/HR1.4 had 5-30
+GAP_REACH = 6             # R28: a background pixel with body within this many px on all four sides is a gap (pass 9)
+
+
 def far_arm_flap(frames, ctx):
     """R28: the far arm is one treatment for every character: an arm joined to the body that
     shows only where it swings out forward of the torso, or nothing.  Failures per frame: (a) a
@@ -822,6 +826,194 @@ def far_arm_flap(frames, ctx):
         if gap:
             out.append(f"frame {i}: far_arm_flap: {gap} px of background inside the torso's rows "
                        f"(a gap in the torso), first at {at[0]},{at[1]}")
+        n_, at_ = enclosed_gap(lab, tm, lab == names.index("near_upper") if "near_upper" in names else None,
+                               y0, y1, GAP_REACH * ctx.get("size_x", 1))
+        if n_ >= GAP_MIN * ctx.get("size_x", 1):
+            out.append(f"frame {i}: far_arm_flap: {n_} px of background walled in by the torso and the "
+                       f"arm on all four sides (a sliver in the chest or at the belt where the arm was "
+                       f"cut out), first at {at_[0]},{at_[1]}")
+    return out
+
+
+def enclosed_gap(lab, tm, um, y0, y1, reach):
+    """Background pixels in rows y0..y1 with a body pixel (label > 0) within `reach` px to the left, to
+    the right, above and below: the torso to the left and the near UPPER arm to the right (a sliver of
+    background between chest and sleeve where the torso part has a hole).  (The wedge under the arm and the
+    space between hand and hip are not walled in by the upper arm: not counted.)  Returns (count, first)."""
+    if um is None:
+        return 0, None
+    reach = int(round(reach))
+    H, W = lab.shape
+    body = lab > 0
+    def seen(shift_axis, sign):
+        acc = np.zeros_like(body)
+        for k in range(1, reach + 1):
+            acc |= np.roll(body, -sign * k, shift_axis)
+        return acc
+    left = np.zeros_like(body)
+    for k in range(1, reach + 1):
+        left |= np.roll(tm, k, 1)
+    right = np.zeros_like(body)
+    for k in range(1, reach + 1):
+        right |= np.roll(um, -k, 1)
+    ok = ~body & left & right & seen(1, +1) & seen(0, +1) & seen(0, -1)
+    ok[:max(y0, 0)] = False
+    ok[y1 + 1:] = False
+    if not ok.any():
+        return 0, None
+    ys, xs = np.where(ok)
+    return int(ok.sum()), (int(xs[0]), int(ys[0]))
+
+
+SPECK_PX = 6               # R29: most pixels of a dark speck at 112 px (the same speck at 56 px is a quarter: 1.5)
+SPECK_NECK = 0.12          # R29: body heights under the neck where specks start to count (a beard hangs to the chest)
+ISO = 3                    # R29: a speck is alone when no other dark pixel lies within this many px (a dash of a seam has company)
+SPECK_LIGHT = 100          # R29: luma of the cloth round a speck
+
+
+def speck_list(rgba, cloth, neck_row, max_px, skin_keys=None, iso=None, min_px=1):
+    """Isolated dark specks on light cloth: [(px, x, y)].  A connected group of at most `max_px` dark pixels
+    (max channel under 60) wholly inside `cloth` and below `neck_row`, whose ring of 8-neighbours is
+    all body, none of it dark, all of it light cloth (luma above SPECK_LIGHT, not a skin colour)."""
+    from .imgops import components
+    body = rgba[..., 3] > 0
+    px = rgba[..., :3].astype(int)
+    code = px[..., 0] * 65536 + px[..., 1] * 256 + px[..., 2]
+    skinny = np.isin(code, skin_keys) if skin_keys is not None else np.zeros_like(body)
+    dark = body & (px.max(-1) < 60)
+    lum = px @ np.array([0.299, 0.587, 0.114])
+    cl, sizes = components(dark)
+    out = []
+    for k, n in sizes.items():
+        if n > max_px or n < min_px:
+            continue
+        m = cl == k
+        ys, xs = np.where(m)
+        if ys.min() < neck_row or not cloth[m].all():
+            continue
+        near = np.zeros_like(m)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                near |= np.roll(np.roll(m, dy, 0), dx, 1)
+        ring = near & ~m
+        far2 = near.copy()                      # a lone speck has no other dark pixel within ISO px
+        for dy in range(-(iso or ISO), (iso or ISO) + 1):
+            for dx in range(-(iso or ISO), (iso or ISO) + 1):
+                far2 |= np.roll(np.roll(m, dy, 0), dx, 1)
+        if (far2 & dark & ~m).any():
+            continue
+        rb = ring & body
+        if rb.sum() >= 5 and not (rb & dark).any() and (lum[rb] > SPECK_LIGHT).all() and not skinny[rb].any() \
+                and rb.sum() >= 0.6 * ring.sum():
+            out.append((int(n), int(xs.mean()), int(ys.mean())))
+    return out
+
+
+def dark_specks(frames, ctx):
+    """R29: no isolated dark speck inside a light garment that the still does not have.  In every frame, a
+    connected group of dark pixels (max channel under 60) of at most SPECK_PX x (size_x / 2)^2 px on the
+    torso, cape or an upper arm (not the robe's hem; a speck on the silhouette, a dash of the sleeve's edge, is not counted: the ring must be all body), below the neck, whose ring of 8-neighbours is body (60 %), not dark, light
+    cloth (luma above SPECK_LIGHT, not skin) and with no other dark pixel within ISO px (a dash of an outline is not alone), is ink left by the cut (HR5.1: black specks on the grey
+    cassock).  The still's own count of such specks (ctx["still_specks"], the same test on the still, a
+    hem's dark marks) is allowed; more are refused."""
+    out = []
+    sx = ctx.get("size_x", 1)
+    sk = ctx.get("skin")
+    skin_keys = _colour_keys(sk) if sk is not None and len(sk) else None
+    allowed = ctx.get("still_specks", 0)
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        lab, rgba = f["label"], f["rgba"]
+        cloth = np.isin(lab, [names.index(n) for n in ("torso", "cape", "near_upper", "far_upper")
+                              if n in names])
+        if not cloth.any():
+            continue
+        neck = int(np.ceil(f["meta"]["joints"]["neck"][1] + SPECK_NECK * ctx.get("body_h", 56)))
+        found = speck_list(rgba, cloth, neck, SPECK_PX * (sx / 2.0) ** 2, skin_keys, ISO, 2)
+        if len(found) > allowed:
+            n, x, y = found[0]
+            out.append(f"frame {i}: dark_speck: {len(found)} isolated dark speck(s) on light cloth, the still has "
+                       f"{allowed} (first {n} px at {x},{y}: ink left by the cut)")
+    return out
+
+
+def enclosed_gap(lab, tm, um, y0, y1, reach):
+    """Background pixels in rows y0..y1 with a body pixel (label > 0) within `reach` px to the left, to
+    the right, above and below: the torso to the left and the near UPPER arm to the right (a sliver of
+    background between chest and sleeve where the torso part has a hole).  (The wedge under the arm and the
+    space between hand and hip are not walled in by the upper arm: not counted.)  Returns (count, first)."""
+    if um is None:
+        return 0, None
+    reach = int(round(reach))
+    H, W = lab.shape
+    body = lab > 0
+    def seen(shift_axis, sign):
+        acc = np.zeros_like(body)
+        for k in range(1, reach + 1):
+            acc |= np.roll(body, -sign * k, shift_axis)
+        return acc
+    left = np.zeros_like(body)
+    for k in range(1, reach + 1):
+        left |= np.roll(tm, k, 1)
+    right = np.zeros_like(body)
+    for k in range(1, reach + 1):
+        right |= np.roll(um, -k, 1)
+    ok = ~body & left & right & seen(1, +1) & seen(0, +1) & seen(0, -1)
+    ok[:max(y0, 0)] = False
+    ok[y1 + 1:] = False
+    if not ok.any():
+        return 0, None
+    ys, xs = np.where(ok)
+    return int(ok.sum()), (int(xs[0]), int(ys[0]))
+
+
+def edge_pairs(lab, names):
+    """Near-arm pixels with a 4-neighbour on the torso or robe (the arm's edge where it lies over the body):
+    (mask of those arm pixels, for each of them the neighbour's (y, x))."""
+    arm = np.isin(lab, [names.index(n) for n in ("near_upper", "near_fore") if n in names])
+    host = np.isin(lab, [names.index(n) for n in ("torso", "robe") if n in names])
+    H, W = lab.shape
+    edge = np.zeros_like(arm)
+    ny = np.zeros((H, W), int)
+    nx = np.zeros((H, W), int)
+    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        sh = np.zeros_like(host)
+        ys, xs = np.mgrid[0:H, 0:W]
+        y2, x2 = ys + dy, xs + dx
+        ok = (y2 >= 0) & (y2 < H) & (x2 >= 0) & (x2 < W)
+        sh[ok] = host[y2[ok], x2[ok]]
+        new = arm & sh & ~edge
+        ny[new], nx[new] = y2[new], x2[new]
+        edge |= new
+    return edge, ny, nx
+
+
+ARM_CONTRAST = 24.0   # R30: RGB distance an arm edge pixel needs from the torso pixel beside it
+ARM_VANISH = 0.5      # R30: share of the edge that may be below that (the rest is the arm's own outline)
+ARM_EDGE_MIN = 6      # R30: edges shorter than this many px are not judged
+
+
+def arm_contrast(frames, ctx):
+    """R30: the near arm is distinguishable over the torso: along its edge where it lies on the torso or robe, at
+    most half of the edge pixels may be within ARM_CONTRAST (RGB) of the torso pixel beside them.  A sleeve the
+    colour of the coat (white on white) has no edge in the picture and the hero looks armless; the baker draws a
+    darker shade along that edge (bake.outline_near_arm)."""
+    out = []
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        if "near_upper" not in names:
+            continue
+        lab, rgba = f["label"], f["rgba"]
+        edge, ny, nx = edge_pairs(lab, names)
+        n = int(edge.sum())
+        if n < ARM_EDGE_MIN * max(1, ctx.get("size_x", 1)):
+            continue
+        a = rgba[edge][:, :3].astype(float)
+        h = rgba[ny[edge], nx[edge]][:, :3].astype(float)
+        close = np.sqrt(((a - h) ** 2).sum(1)) < ARM_CONTRAST
+        if close.mean() > ARM_VANISH:
+            out.append(f"frame {i}: arm_contrast: {100 * close.mean():.0f} % of the near arm's {n} edge pixels over the "
+                       f"torso are within {ARM_CONTRAST:.0f} of the coat's colour beside them: the arm vanishes")
     return out
 
 
@@ -845,7 +1037,7 @@ def far_edge(tm):
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
          rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour,
          gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs, leg_skin_colour,
-         far_hand_hidden, far_arm_flap]
+         far_hand_hidden, far_arm_flap, dark_specks, arm_contrast]
 
 
 def run_all(frames, ctx):
@@ -863,7 +1055,7 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19",
             "gear_rigid": "R20", "gear_grip": "R21", "gear_back": "R22", "gear_head": "R23",
             "loose_blob": "R24", "gear_legs": "R25", "leg_skin": "R26",
-            "far_hand_visible": "R27", "far_arm_flap": "R28"}
+            "far_hand_visible": "R27", "far_arm_flap": "R28", "dark_speck": "R29", "arm_contrast": "R30"}
 
 
 def rule_id(failure):

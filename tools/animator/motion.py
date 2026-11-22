@@ -140,6 +140,8 @@ ARM_SWING = 20.0      # deg: shoulder swing amplitude at gain 1 (Murray 1967: 30
 ARM_MAX = 23.0        # deg: arm swing amplitude cap (gain 2)
 ARM_CENTRE = 2.0      # deg: the swing is centred on the arm hanging straight down
 CARRY_UPPER = 20.0     # deg, pass 8: carry pose of a long hand gear: upper arm forward of hanging ...
+FAR_HOLD = (-25.0, 80.0)   # pass 10: (upper arm, elbow) of the far arm holding an off-hand weapon
+CARRY_POSES = {"upright": (20.0, 55.0), "level": (15.0, 70.0), "chest": (10.0, 125.0)}   # pass 10: (upper arm, elbow)
 CARRY_ELBOW = 55.0     # ... elbow flexion (forearm 75 deg from hanging: forward, a little down)
 FAR_BACK = 0.25       # R27: deg the far upper arm leans back per deg of extra far-elbow flexion ...
 FAR_BACK_MAX = 10.0   # ... at most this much
@@ -500,9 +502,14 @@ class Gait:
                 # CARRY POSE (pass 8): the upper arm a little forward, the elbow bent so the forearm
                 # points forward and a little down: the hand sits ahead of the torso at belt height
                 # and bobs; the gear is held upright from there, clear of legs and face by position
-                rest_up, rest_el = CARRY_UPPER, CARRY_ELBOW
+                pose_ = self.m.carry if isinstance(self.m.carry, str) else "upright"
+                rest_up, rest_el = CARRY_POSES.get(pose_, (CARRY_UPPER, CARRY_ELBOW))
             up = rest_up + k * (up - self._arm_mean["upper"])
             el = rest_el + k * (el - self._arm_mean["elbow"])
+        if s == "far" and getattr(self.m, "far_hold", False):
+            # pass 10: the far hand holds an off-hand weapon in front of the hip: a fixed pose, upper arm a little
+            # back, forearm forward and up, the hand just touching the torso's front above the hip row
+            return FAR_HOLD[0], FAR_HOLD[0] + FAR_HOLD[1]
         if s == "far":
             up, el = self.tucked(up, el, self.far_tuck_at(p))
         el = min(max(el, 1.0), 145.0)
