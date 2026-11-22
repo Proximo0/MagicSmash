@@ -1,1 +1,1 @@
-2026-11-22 02:58:09 STOPPED 630 ids left
+2026-11-22 03:19:50 RUNNING pid=1052 last=SC1.2 610 ids left, 7.6s/picture
