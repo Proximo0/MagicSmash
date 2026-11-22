@@ -23,19 +23,34 @@ pub enum CardFx {
     /// Every `n`th attack hits twice.
     EveryNth(u32),
     /// +% damage to monsters under `under`% health.
-    Execute { pct: u32, under: u32 },
+    Execute {
+        pct: u32,
+        under: u32,
+    },
     /// +dmg%, takes +taken% more.
-    Devil { dmg: i32, taken: i32 },
+    Devil {
+        dmg: i32,
+        taken: i32,
+    },
     /// `chance`% of hits strike for double.
     Crit(u32),
     /// Allies within px deal % more (group effect: the strongest counts).
-    Sun { pct: u32, px: i32 },
+    Sun {
+        pct: u32,
+        px: i32,
+    },
     /// Heals % of damage dealt, at most `cap`% of health a second.
-    Lifesteal { pct: u32, cap: u32 },
+    Lifesteal {
+        pct: u32,
+        cap: u32,
+    },
     /// +% damage to ELITES, CHAMPIONS and bosses.
     Elite(u32),
     /// Raises allies % faster; rises with % more health.
-    Raiser { raise: u32, rise: u32 },
+    Raiser {
+        raise: u32,
+        rise: u32,
+    },
     /// +% damage during a tide.
     Tide(i32),
     /// +1 pierce or target (LONGBOW, FIREBALL, SMITE); other weapons +% damage.
@@ -44,13 +59,26 @@ pub enum CardFx {
     /// Potions restore % more and hold one more charge this outing.
     Cups(u32),
     /// The ultimate's cooldown % shorter (no job: +% damage).
-    Wands { cdr: u32, dmg: i32 },
+    Wands {
+        cdr: u32,
+        dmg: i32,
+    },
     /// +% damage while no ally is within px.
-    Alone { pct: i32, px: i32 },
+    Alone {
+        pct: i32,
+        px: i32,
+    },
     /// +% per ally within px, at most max.
-    Company { pct: i32, max: i32, px: i32 },
+    Company {
+        pct: i32,
+        max: i32,
+        px: i32,
+    },
     /// On being downed, bursts px for damage.
-    Burst { px: i32, dmg: u32 },
+    Burst {
+        px: i32,
+        dmg: u32,
+    },
     /// The haul loses this many tenths less on a fall.
     Keep(u32),
     /// +% move speed for 3 s after a kill (the KNIGHT OF WANDS effect).

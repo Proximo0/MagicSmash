@@ -13,11 +13,7 @@ fn scripted(field: u8, threads: usize) -> Field {
         let mut s = Sheet::bench(class, (i % 4) as u8, top);
         s.deck = (1..=30).collect();
         s.belt = [(P_HEALING, 3), (P_VEIL + (i % 4) as u8, 2), (P_PHOENIX, 1)];
-        let (x, y) = if i < 30 {
-            (cx + (i % 6 - 3) * px(40), cy + (i / 6 - 3) * px(40))
-        } else {
-            f.terrain().waystones[(i % 7) as usize]
-        };
+        let (x, y) = if i < 30 { (cx + (i % 6 - 3) * px(40), cy + (i / 6 - 3) * px(40)) } else { f.terrain().waystones[(i % 7) as usize] };
         f.join(&s, &Outing::new(), x, y);
     }
     f

@@ -3,12 +3,12 @@
 //! result. A hit names a monster; heroes are struck through `combat::damage_hero` (kept apart so a later
 //! job can let marked heroes' attacks strike heroes).
 
-use crate::hero::{Hero, CAST1};
+use crate::hero::{CAST1, Hero};
 use crate::mods::{Mods, POWER_ONE};
 use crate::monster::{CHAMPION, ELITE};
 use crate::tables::*;
-use crate::util::{cos_q14, d2, grid_box, isqrt, mix, pct, rotate, Q14};
-use crate::{cell_of, Drop, Field, CELLS_W, CELL_SHIFT, GRID_MARGIN, PCELLS_W, PCELL_SHIFT, SUB};
+use crate::util::{Q14, cos_q14, d2, grid_box, isqrt, mix, pct, rotate};
+use crate::{CELL_SHIFT, CELLS_W, Drop, Field, GRID_MARGIN, PCELL_SHIFT, PCELLS_W, SUB, cell_of};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Hit {
@@ -201,18 +201,14 @@ impl Field {
             }
         }
         cells.sort_unstable();
-        cells
-            .into_iter()
-            .take(n)
-            .map(|(_, c)| ((((c % CELLS_W) as i32) << CELL_SHIFT) + half, (((c / CELLS_W) as i32) << CELL_SHIFT) + half))
-            .collect()
+        cells.into_iter().take(n).map(|(_, c)| ((((c % CELLS_W) as i32) << CELL_SHIFT) + half, (((c / CELLS_W) as i32) << CELL_SHIFT) + half)).collect()
     }
 }
 
 impl Ctx<'_> {
     /// Damage of a base number for this hero: the weapon's item level, then MIGHT, field level, cards, effects.
     fn power(&self, base: u32) -> u64 {
-        let lvl = weapon_pct(self.h.sheet.weapon_level(self.f.field));
+        let lvl = weapon_pct(self.h.sheet.weapon_level_top(self.f.top_level()));
         base as u64 * lvl / 100 * self.m.power / POWER_ONE
     }
 
@@ -247,7 +243,9 @@ impl Ctx<'_> {
             match w.shape {
                 Shape::Arc { deg, px } => {
                     let r = px * size / 100 * reach / 100 * SUB;
-                    let Some(&t) = self.f.nearest_k(x, y, r, 1).first() else { break };
+                    let Some(&t) = self.f.nearest_k(x, y, r, 1).first() else {
+                        break;
+                    };
                     let (dx, dy) = (self.f.m.x[t as usize] - x, self.f.m.y[t as usize] - y);
                     self.arc(out, x, y, dx, dy, deg, r, base, push);
                     struck = true;
@@ -396,7 +394,9 @@ impl Ctx<'_> {
             }
             Act::Volley { n, deg } => {
                 let w = h.class_row().weapon;
-                let Shape::Bolt { reach, pierce, .. } = w.shape else { return };
+                let Shape::Bolt { reach, pierce, .. } = w.shape else {
+                    return;
+                };
                 let pj = h.job_row().map(|j| j.passive).unwrap_or_default();
                 let r = reach * self.m.reach_pct as i32 / 100 * SUB;
                 let p = if h.has_fx(FX_DEADEYE) { u8::MAX } else { (if pj.pierce > 0 { pj.pierce } else { pierce }).saturating_add(self.m.pierce_add) };

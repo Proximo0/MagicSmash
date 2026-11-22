@@ -88,6 +88,12 @@ pub struct Hero {
     pub moving: bool,
     /// The last direction she moved (1..8).
     pub dir: u8,
+    /// Ticks since she last moved (contribution counts only while this is short).
+    pub idle: u16,
+    /// Contribution to the running tide and to the running boss or vault (rules 8): damage dealt, healing done and
+    /// half the damage taken, never while she stands still.
+    pub tide_contrib: u32,
+    pub boss_contrib: u32,
     /// A wailer was near at the end of the last tick.
     pub wailed: bool,
     // ---- this tick only (output; not saved)
@@ -141,6 +147,9 @@ impl Default for Hero {
             facing_left: false,
             moving: false,
             dir: 3,
+            idle: 0,
+            tide_contrib: 0,
+            boss_contrib: 0,
             wailed: false,
             hurt: false,
             fired: false,
@@ -207,6 +216,11 @@ impl Hero {
 
     /// Fills a fresh hero from a sheet and an outing.
     pub fn enter(sheet: &Sheet, outing: &Outing, field: u8, x: i32, y: i32) -> Hero {
+        Hero::enter_top(sheet, outing, FIELDS[field as usize].top, x, y)
+    }
+
+    /// The same for a place whose top level is `top` (a field's, or a vault's level).
+    pub fn enter_top(sheet: &Sheet, outing: &Outing, top: u8, x: i32, y: i32) -> Hero {
         let mut h = Hero {
             present: true,
             x,
@@ -215,8 +229,8 @@ impl Hero {
             class: sheet.class.min(CLASSES.len() as u8 - 1),
             job: sheet.job,
             race: sheet.race % RACES.len() as u8,
-            class_level: sheet.counted_level(field),
-            stats: sheet.stats(field),
+            class_level: sheet.counted_level_top(top),
+            stats: sheet.stats_top(top),
             level: outing.level.max(1),
             xp: outing.xp,
             copies: outing.copies,
@@ -230,6 +244,8 @@ impl Hero {
             fx: outing.fx,
             waystone: outing.waystone,
             marked: outing.marked,
+            tide_contrib: outing.tide_contrib,
+            boss_contrib: outing.boss_contrib,
             ..Hero::default()
         };
         if h.class_level < SKILL1_LEVEL {
@@ -268,6 +284,8 @@ impl Hero {
             waystone: self.waystone,
             marked: self.marked,
             struck_ago: if self.last_struck == NEVER { NEVER } else { tick.saturating_sub(self.last_struck) },
+            tide_contrib: self.tide_contrib,
+            boss_contrib: self.boss_contrib,
         }
     }
 

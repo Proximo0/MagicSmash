@@ -6,10 +6,10 @@ use crate::attack::{Hit, Strikes};
 use crate::events::Event;
 use crate::hero::rise_up;
 use crate::mods::{CARD_KNIGHT_OF_WANDS, POWER_ONE};
-use crate::monster::{clutch_offset, AURA_MEND, AURA_WAIL};
+use crate::monster::{AURA_MEND, AURA_WAIL, BOSS, clutch_offset};
 use crate::tables::*;
 use crate::util::{d2, grid_box, par_ranges, pct};
-use crate::{cell_of, Drop, Field, Shot, PCELLS_W, PCELL_SHIFT, SUB};
+use crate::{Drop, Field, PCELL_SHIFT, PCELLS_W, SUB, Shot, cell_of};
 
 /// Heroes per fight thread at least.
 pub const FIGHT_MIN_PER_THREAD: usize = 64;
@@ -25,19 +25,25 @@ impl Field {
             }
         }
         let this = &*self;
-        let outs = par_ranges(self.heroes.len(), self.cfg.threads, FIGHT_MIN_PER_THREAD, |a, b| {
-            (this.gather_strikes(a, b), this.gather_contact(a, b))
-        });
+        let outs = par_ranges(self.heroes.len(), self.cfg.threads, FIGHT_MIN_PER_THREAD, |a, b| (this.gather_strikes(a, b), this.gather_contact(a, b)));
         let mut killed: Vec<(u32, u16)> = Vec::new();
         self.dealt.clear();
         self.dealt.resize(self.heroes.len(), 0);
         let mut contact = Vec::new();
         // Drops thrown earlier land first, so one thrown this tick falls `delay` ticks from now.
         self.land_drops(&mut killed);
+        // All the ranges' strikes as one, so the order of hits, heals and pulls never depends on the thread count.
+        let mut all = crate::attack::Strikes::default();
         for (s, c) in outs {
-            self.apply_strikes(s, &mut killed);
+            all.hits.extend(s.hits);
+            all.heals.extend(s.heals);
+            all.drops.extend(s.drops);
+            all.zones.extend(s.zones);
+            all.curses.extend(s.curses);
+            all.pulls.extend(s.pulls);
             contact.extend(c);
         }
+        self.apply_strikes(all, &mut killed);
         self.act_zones(&mut killed);
         // Heroes struck: contact (with JUSTICE and drainers) and monster shots.
         let shots = self.update_shots();
@@ -86,12 +92,13 @@ impl Field {
         // Menders: every 2 s, monsters near one heal 4% (once, however many menders).
         if self.tick % MEND_EVERY == 0 {
             for i in 0..self.m.hp.len() {
-                if self.m.hp[i] > 0 && self.aura[cell_of(self.m.x[i], self.m.y[i])] & AURA_MEND != 0 {
+                if self.m.hp[i] > 0 && self.m.flags[i] & BOSS == 0 && self.aura[cell_of(self.m.x[i], self.m.y[i])] & AURA_MEND != 0 {
                     let mx = self.m.max_hp(i);
                     self.m.hp[i] = (self.m.hp[i] + pct(mx, MEND_PCT as i64)).min(mx);
                 }
             }
         }
+        self.realm_fight(&mut killed);
         self.process_kills(killed);
     }
 
@@ -102,15 +109,18 @@ impl Field {
         for (q, amount, by, shield) in s.heals {
             let tick = self.tick;
             let qh = &mut self.heroes[q as usize];
-            qh.heal(amount, tick);
+            let healed = qh.heal(amount, tick);
             if shield {
                 qh.fx[FX_SHIELD as usize] = EFFECTS[FX_SHIELD as usize].ticks;
             }
             self.heroes[by as usize].active = tick;
+            if q != by {
+                self.credit(by as usize, healed);
+            }
         }
         for (i, tx, ty) in s.pulls {
             let i = i as usize;
-            if self.m.hp[i] > 0 && KINDS[self.m.kind[i] as usize].beh & BRUTE == 0 {
+            if self.m.hp[i] > 0 && !self.m.immovable(i) {
                 let (x, y) = self.terrain.slide(self.m.x[i], self.m.y[i], tx, ty);
                 self.m.x[i] = x;
                 self.m.y[i] = y;
@@ -143,7 +153,7 @@ impl Field {
         if let Some(x) = self.dealt.get_mut(hit.hero as usize) {
             *x = x.saturating_add(d);
         }
-        if KINDS[m.kind[i] as usize].beh & BRUTE == 0 {
+        if !m.immovable(i) {
             m.stun[i] = m.stun[i].max(hit.stun);
             m.slow[i] = m.slow[i].max(hit.slow);
             if hit.push > 0 {
@@ -174,7 +184,7 @@ impl Field {
                     v.sort_unstable();
                     let mods = self.mods.get(z.owner as usize).copied().unwrap_or_default();
                     for i in v {
-                        if row.slow && KINDS[self.m.kind[i] as usize].beh & BRUTE == 0 {
+                        if row.slow && !self.m.immovable(i) {
                             self.m.slow[i] = self.m.slow[i].max(ZONE_SLOW_TICKS);
                         }
                         if z.dmg > 0 {
@@ -188,9 +198,13 @@ impl Field {
                         let qh = &mut self.heroes[q];
                         if row.heal_s > 0 {
                             let amount = (qh.max_health as u64 * z.heal_tenths as u64 / 1_000) as u32;
-                            if qh.heal(amount.max(1), tick) > 0 {
+                            let healed = qh.heal(amount.max(1), tick);
+                            if healed > 0 {
                                 if let Some(o) = self.heroes.get_mut(z.owner as usize) {
                                     o.active = tick;
+                                }
+                                if q != z.owner as usize {
+                                    self.credit(z.owner as usize, healed);
                                 }
                             }
                         }
@@ -245,7 +259,6 @@ impl Field {
         }
         h.active = tick;
         h.hurt = true;
-        h.hold = 0;
         if m.unhurt {
             return 0;
         }
@@ -255,9 +268,12 @@ impl Field {
         }
         if d < h.health {
             h.health -= d;
+            self.credit(i, d / 2);
             return d;
         }
         let taken = h.health;
+        self.credit(i, taken / 2);
+        let h = &mut self.heroes[i];
         h.health = 0;
         h.downed = DOWNED_TICKS;
         h.raise = 0;
@@ -313,7 +329,9 @@ impl Field {
                 if level as u32 + CLASS_XP_LEVELS_BELOW as u32 >= h.sheet.class_level as u32 {
                     self.cxp[q] += pct(gain, RACES[h.race as usize].class_xp_pct as i64);
                 }
-                h.coin = h.coin.saturating_add(pct(xp, m.coin_pct as i64));
+                if flags & BOSS == 0 {
+                    h.coin = h.coin.saturating_add(pct(xp, m.coin_pct as i64));
+                }
             }
             if let Some(h) = self.heroes.get_mut(killer as usize) {
                 if h.alive() {
@@ -331,6 +349,10 @@ impl Field {
             self.alive -= 1;
             self.kills_total += 1;
             let beh = KINDS[kind as usize].beh;
+            if flags & BOSS != 0 {
+                self.boss_dead();
+                continue;
+            }
             if beh & BURSTER != 0 {
                 let shot = Shot { x, y, vx: 0, vy: 0, left: BURST_DELAY, dmg: dmg * BURST_DAMAGE_MUL, px: BURST_PX };
                 if self.shots.len() < SHOT_POOL {

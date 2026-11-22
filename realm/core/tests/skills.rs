@@ -68,7 +68,7 @@ fn ring_hits_a_circle_on_the_hero() {
     let b = stunned(&mut f, DROWNED_K, 60, x - px(100), y);
     let (ha, hb) = (hp(&f, a), hp(&f, b));
     fire(&mut f, &[]);
-    assert_eq!(ha - hp(&f, a), expect(&f, id, 15));
+    assert_eq!(ha - hp(&f, a), expect(&f, id, 28));
     assert_eq!(hb, hp(&f, b));
 }
 
@@ -273,7 +273,13 @@ fn volley_looses_12_arrows_in_a_120_degree_fan() {
 fn cos(deg: i32) -> i32 {
     // Bhaskara in thousandths, as the core turns vectors.
     let d = deg.rem_euclid(360);
-    let (d, s) = if d <= 90 { (d, 1) } else if d < 270 { (180 - d, -1) } else { (d - 360, 1) };
+    let (d, s) = if d <= 90 {
+        (d, 1)
+    } else if d < 270 {
+        (180 - d, -1)
+    } else {
+        (d - 360, 1)
+    };
     s * 1000 * (32400 - 4 * d * d) / (32400 + d * d)
 }
 
@@ -583,7 +589,7 @@ fn oracle_heals_shield_the_low_and_inquisitor_doubles_holy_light() {
     let m = stunned(&mut g, CULTIST, 60, x + px(50), y);
     let before = hp(&g, m);
     fire(&mut g, &[]);
-    assert_eq!(before - hp(&g, m), expect(&g, i, 15) * 2);
+    assert_eq!(before - hp(&g, m), expect(&g, i, 28) * 2);
     let _ = o;
 }
 

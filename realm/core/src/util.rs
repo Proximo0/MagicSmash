@@ -15,8 +15,7 @@ pub fn rng_next(s: &mut u64) -> u64 {
 /// A stateless draw from the field's seed and a few counters (draws, THE MOON): the same on every
 /// machine and thread, whatever order heroes are handled in.
 pub fn mix(seed: u64, a: u64, b: u64, c: u64) -> u64 {
-    let mut s = seed ^ a.wrapping_mul(0xD6E8_FEB8_6659_FD93) ^ b.wrapping_mul(0xA076_1D64_78BD_642F)
-        ^ c.wrapping_mul(0xE703_7ED1_A0B4_28DB);
+    let mut s = seed ^ a.wrapping_mul(0xD6E8_FEB8_6659_FD93) ^ b.wrapping_mul(0xA076_1D64_78BD_642F) ^ c.wrapping_mul(0xE703_7ED1_A0B4_28DB);
     rng_next(&mut s)
 }
 

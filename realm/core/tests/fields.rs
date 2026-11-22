@@ -131,7 +131,11 @@ fn mire_slows_heroes_30_percent_not_monsters() {
     let half = 1 << (CELL_SHIFT - 1);
     let row = (100..CELLS_W - 100)
         .flat_map(|cy| (100..CELLS_W - 100).map(move |cx| (cx, cy)))
-        .find(|&(cx, cy)| (0..20).all(|k| t.map[cy * CELLS_W + cx + k] & (WALL | MIRE) == MIRE) && (0..20).all(|k| t.map[(cy + 1) * CELLS_W + cx + k] & WALL == 0) && (0..20).all(|k| t.map[(cy - 1) * CELLS_W + cx + k] & WALL == 0))
+        .find(|&(cx, cy)| {
+            (0..20).all(|k| t.map[cy * CELLS_W + cx + k] & (WALL | MIRE) == MIRE)
+                && (0..20).all(|k| t.map[(cy + 1) * CELLS_W + cx + k] & WALL == 0)
+                && (0..20).all(|k| t.map[(cy - 1) * CELLS_W + cx + k] & WALL == 0)
+        })
         .expect("a mire run");
     let y = ((row.1 as i32) << CELL_SHIFT) + half;
     let hx = (((row.0 + 19) as i32) << CELL_SHIFT) + half;
@@ -155,7 +159,9 @@ fn in_the_dark_births_come_250_to_450_px_away() {
     let t = f.terrain().clone();
     let half = 1 << (CELL_SHIFT - 1);
     let c = (0..CELLS)
-        .find(|&c| t.map[c] & DARK != 0 && t.map[c] & WALL == 0 && ring_of(((c % CELLS_W) as i32) << CELL_SHIFT, ((c / CELLS_W) as i32) << CELL_SHIFT) == RING_MIDDLE)
+        .find(|&c| {
+            t.map[c] & DARK != 0 && t.map[c] & WALL == 0 && ring_of(((c % CELLS_W) as i32) << CELL_SHIFT, ((c / CELLS_W) as i32) << CELL_SHIFT) == RING_MIDDLE
+        })
         .expect("a dark cell");
     let (x, y) = ((((c % CELLS_W) as i32) << CELL_SHIFT) + half, (((c / CELLS_W) as i32) << CELL_SHIFT) + half);
     // Seven heroes on one spot, so the whole base of 400 is born around them.

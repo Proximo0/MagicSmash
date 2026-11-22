@@ -6,14 +6,19 @@
 //! 14 state), zones, drops, monster shots, and the flow field's sources and progress. Not state: the
 //! grids, the aura map, the mods, events, the hurt flags.
 
+use crate::boss::{Boss, Cast, Mire};
 use crate::flow::Flow;
 use crate::hero::Hero;
 use crate::sheet::Sheet;
 use crate::tables::*;
-use crate::{terrain, Config, Drop, Field, Shot, Zone};
+use crate::tide::{Altar, Realm};
+use crate::vault::VaultRun;
+use crate::{Config, Drop, Field, Shot, Zone, terrain};
 
 /// Format version of `to_bytes`.
-pub const STATE_VERSION: u32 = 2;
+pub const STATE_VERSION: u32 = 3;
+/// The vault byte of a field (not a vault).
+const NO_VAULT: u8 = u8::MAX;
 
 impl Field {
     /// A 64-bit hash of the whole state.
@@ -34,6 +39,16 @@ impl Field {
         w.u32(STATE_VERSION);
         w.u8(self.field);
         w.u64(self.seed);
+        match &self.realm.vault {
+            Some(v) => {
+                w.u8(v.vault);
+                w.u8(v.seals);
+            }
+            None => {
+                w.u8(NO_VAULT);
+                w.u8(0);
+            }
+        }
         w.u32(self.cfg.monsters);
         w.u32(self.tick);
         w.u64(self.rng);
@@ -103,6 +118,7 @@ impl Field {
             }
         }
         w.u32(self.flow.progress() as u32);
+        w.realm(&self.realm);
         w.0
     }
 
@@ -117,8 +133,16 @@ impl Field {
             return None;
         }
         let seed = r.u64()?;
+        let (vault, seals) = (r.u8()?, r.u8()?);
         let monsters = r.u32()?;
-        let mut f = Field::open(field, seed, Config { monsters, threads: threads.max(1) });
+        let cfg = Config { monsters, threads: threads.max(1) };
+        let mut f = if vault == NO_VAULT {
+            Field::open(field, seed, cfg)
+        } else if (vault as usize) < VAULTS.len() && VAULTS[vault as usize].field == field {
+            Field::open_vault(vault, seals, seed, cfg)
+        } else {
+            return None;
+        };
         f.tick = r.u32()?;
         f.rng = r.u64()?;
         f.alive = r.u32()?;
@@ -198,6 +222,11 @@ impl Field {
         }
         f.flow.start(build);
         f.flow.run(progress, &f.terrain.map);
+        let realm = r.realm()?;
+        if let Some(b) = &realm.boss {
+            f.m.boss_max = b.max_hp;
+        }
+        f.realm = realm;
         if f.flow.progress() != progress || r.at != b.len() {
             return None;
         }
@@ -300,6 +329,77 @@ impl W {
         self.u16(h.input);
         self.u8(h.facing_left as u8 | (h.moving as u8) << 1 | (h.wailed as u8) << 2);
         self.u8(h.dir);
+        self.u16(h.idle);
+        self.u32(h.tide_contrib);
+        self.u32(h.boss_contrib);
+    }
+    fn realm(&mut self, s: &Realm) {
+        self.u64(s.clock);
+        self.u32(s.tide_index);
+        self.u32(s.tide_seen);
+        self.u32(s.factor);
+        for a in &s.altars {
+            self.u8(a.state);
+            self.u32(a.progress);
+            self.u32(a.hp);
+        }
+        self.u64(s.quick_until);
+        self.u8(s.result);
+        self.u32(s.result_index);
+        self.u32(s.boss_seen);
+        self.u32(s.world_seen);
+        match &s.boss {
+            None => self.u8(0),
+            Some(b) => {
+                self.u8(1);
+                for v in [b.which, b.phase, b.world as u8] {
+                    self.u8(v);
+                }
+                self.u32(b.slot);
+                self.u32(b.max_hp);
+                self.u64(b.leaves);
+                self.u32(b.dmg_pct);
+                self.u64(b.next_at);
+                self.u32(b.cycle);
+                self.u32(b.window);
+                self.u32(b.casts.len() as u32);
+                for c in &b.casts {
+                    self.u8(c.atk);
+                    self.u16(c.age);
+                    self.i32(c.x);
+                    self.i32(c.y);
+                    self.i32(c.angle);
+                    self.u16(c.rides);
+                    self.u32(c.pts.len() as u32);
+                    for &(x, y) in &c.pts {
+                        self.i32(x);
+                        self.i32(y);
+                    }
+                    self.u32(c.hit.len() as u32);
+                    for &q in &c.hit {
+                        self.u16(q);
+                    }
+                }
+                self.u32(b.mires.len() as u32);
+                for m in &b.mires {
+                    self.i32(m.x);
+                    self.i32(m.y);
+                    self.i32(m.px);
+                    self.u16(m.left);
+                }
+            }
+        }
+        match &s.vault {
+            None => self.u8(0),
+            Some(v) => {
+                self.u8(1);
+                for b in [v.vault, v.seals, v.state, v.minute_seen, v.next_boss] {
+                    self.u8(b);
+                }
+                self.u32(v.started);
+                self.u32(v.ended);
+            }
+        }
     }
 }
 
@@ -410,6 +510,81 @@ impl R<'_> {
         h.moving = fl & 2 != 0;
         h.wailed = fl & 4 != 0;
         h.dir = self.u8()?;
+        h.idle = self.u16()?;
+        h.tide_contrib = self.u32()?;
+        h.boss_contrib = self.u32()?;
         Some(h)
+    }
+    fn realm(&mut self) -> Option<Realm> {
+        let mut s = Realm::new();
+        s.clock = self.u64()?;
+        s.tide_index = self.u32()?;
+        s.tide_seen = self.u32()?;
+        s.factor = self.u32()?;
+        for a in s.altars.iter_mut() {
+            *a = Altar { state: self.u8()?, progress: self.u32()?, hp: self.u32()? };
+        }
+        s.quick_until = self.u64()?;
+        s.result = self.u8()?;
+        s.result_index = self.u32()?;
+        s.boss_seen = self.u32()?;
+        s.world_seen = self.u32()?;
+        if self.u8()? == 1 {
+            let (which, phase, world) = (self.u8()?, self.u8()?, self.u8()? != 0);
+            if which as usize >= BOSSES.len() {
+                return None;
+            }
+            let mut b = Boss {
+                which,
+                slot: self.u32()?,
+                max_hp: 0,
+                phase,
+                leaves: 0,
+                dmg_pct: 0,
+                next_at: 0,
+                cycle: 0,
+                casts: Vec::new(),
+                mires: Vec::new(),
+                world,
+                window: 0,
+            };
+            b.max_hp = self.u32()?;
+            b.leaves = self.u64()?;
+            b.dmg_pct = self.u32()?;
+            b.next_at = self.u64()?;
+            b.cycle = self.u32()?;
+            b.window = self.u32()?;
+            for _ in 0..self.u32()? {
+                let mut c = Cast {
+                    atk: self.u8()?,
+                    age: self.u16()?,
+                    x: self.i32()?,
+                    y: self.i32()?,
+                    angle: self.i32()?,
+                    pts: Vec::new(),
+                    hit: Vec::new(),
+                    rides: self.u16()?,
+                };
+                if c.atk as usize >= BOSSES[which as usize].attacks.len() {
+                    return None;
+                }
+                for _ in 0..self.u32()? {
+                    c.pts.push((self.i32()?, self.i32()?));
+                }
+                for _ in 0..self.u32()? {
+                    c.hit.push(self.u16()?);
+                }
+                b.casts.push(c);
+            }
+            for _ in 0..self.u32()? {
+                b.mires.push(Mire { x: self.i32()?, y: self.i32()?, px: self.i32()?, left: self.u16()? });
+            }
+            s.boss = Some(b);
+        }
+        if self.u8()? == 1 {
+            let (vault, seals, state, minute_seen, next_boss) = (self.u8()?, self.u8()?, self.u8()?, self.u8()?, self.u8()?);
+            s.vault = Some(VaultRun { vault, seals, state, started: self.u32()?, minute_seen, next_boss, ended: self.u32()? });
+        }
+        Some(s)
     }
 }

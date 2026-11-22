@@ -68,7 +68,7 @@ fn holding_at_a_waystone_for_3_s_banks_and_a_second_hold_leaves() {
 }
 
 #[test]
-fn being_struck_breaks_the_hold() {
+fn being_struck_pauses_the_hold_for_that_tick_and_does_not_start_it_over() {
     let (mut f, id) = one(KNIGHT, 10);
     put_at_waystone(&mut f, id, 0);
     let inp = input_for(&f, id, IN_INTERACT);
@@ -84,7 +84,33 @@ fn being_struck_breaks_the_hold() {
             break;
         }
     }
-    assert_eq!(f.heroes()[id as usize].hold, 0);
+    let held = f.heroes()[id as usize].hold;
+    assert!(held >= BANK_HOLD / 2, "kept: {held}");
+    f.monsters_mut().hp[k as usize] = 0;
+    // The tick after a hit adds nothing; the ones after it do.
+    f.step(&inp);
+    let after = f.heroes()[id as usize].hold;
+    assert!(after <= held + 1 && after >= held, "paused: {held} then {after}");
+}
+
+#[test]
+fn the_second_hold_banks_what_was_picked_up_since_before_it_leaves() {
+    let (mut f, id) = one(KNIGHT, 10);
+    put_at_waystone(&mut f, id, 1);
+    let inp = input_for(&f, id, IN_INTERACT);
+    for _ in 0..BANK_HOLD {
+        f.step(&inp);
+    }
+    assert!(f.heroes()[id as usize].banked);
+    f.hero_mut(id).coin = 55;
+    for _ in 0..BANK_HOLD {
+        f.step(&inp);
+        if count(&f, LEAVE) > 0 {
+            break;
+        }
+    }
+    assert!(f.events().contains(&Event::Bank { hero: id, coin: 55, waystone: 1 }));
+    assert!(f.events().contains(&Event::Leave { hero: id }));
 }
 
 #[test]

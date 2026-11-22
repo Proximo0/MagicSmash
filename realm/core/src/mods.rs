@@ -5,7 +5,7 @@ use crate::deck;
 use crate::hero::Hero;
 use crate::tables::*;
 use crate::util::{d2, grid_box};
-use crate::{Field, PCELLS_W, PCELL_SHIFT, SUB};
+use crate::{Field, PCELL_SHIFT, PCELLS_W, SUB};
 
 /// Numbers derived from a hero's state at the start of a tick (not state: rebuilt every tick).
 #[derive(Clone, Copy, Debug, Default)]
@@ -149,6 +149,11 @@ pub fn mods_of(f: &Field, id: usize) -> Mods {
     if h.wailed {
         terrain += WAIL_MOVE_PCT;
     }
+    if let Some(b) = &f.realm.boss {
+        if b.mires.iter().any(|mi| d2(h.x, h.y, mi.x, mi.y) <= (mi.px * SUB) as i64 * (mi.px * SUB) as i64) {
+            terrain += crate::boss::MIRE_SLOW_PCT;
+        }
+    }
     m.move_pct = swift + cards.move_pct + pc.move_pct + pj.move_pct + fxs.2 + terrain;
 
     let ward = (WARD_PCT * h.stats[WARD] as i32).min(WARD_CAP_PCT);
@@ -193,4 +198,3 @@ pub const SUN_PX: i32 = 100;
 pub const REGEN_DEN: u32 = 1_000 * TICK_HZ;
 /// The fraction carried by TEMPERANCE is in parts of this.
 pub const LOVERS_EVERY: u32 = TICK_HZ;
-
