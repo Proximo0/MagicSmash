@@ -5871,5 +5871,271 @@
 "notes": "legdiff 0.68/0.77 sym 0.35/0.45/0.41/0.21 h 536-553 consist 0.03 missing ['ragged wings']"
 }
 ]
+},
+"MN1.3": {
+"1": [
+{
+"try": 1,
+"ok": true,
+"score": 1.394,
+"traits": {
+"sack head": 0.908,
+"stitched grin": 0.9618,
+"straw body": 0.97
+},
+"notes": "legdiff 0.47/0.45 sym 0.72/0.45/0.75/0.48 h 401-434 consist 0.13"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": false,
+"score": 0.706,
+"traits": {
+"sack head": 0.9241,
+"stitched grin": 0.5156,
+"straw body": 0.9886
+},
+"notes": "legdiff 0.62/0.62 sym 0.67/0.60/0.73/0.36 h 384-413 consist 0.50"
+},
+{
+"try": 2,
+"ok": false,
+"score": 1.056,
+"traits": {
+"sack head": 0.957,
+"stitched grin": 0.069,
+"straw body": 0.9985
+},
+"notes": "legdiff 0.53/0.52 sym 0.80/0.44/0.78/0.50 h 382-392 consist 0.21 missing ['stitched grin']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 1.025,
+"traits": {
+"sack head": 0.8895,
+"stitched grin": 0.8578,
+"straw body": 0.9819
+},
+"notes": "legdiff 0.53/0.56 sym 0.59/0.36/0.49/0.57 h 383-436 consist 0.35"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.804,
+"traits": {
+"sack head": 0.6826,
+"stitched grin": 0.0087,
+"straw body": 0.9941
+},
+"notes": "legdiff 0.59/0.64 sym 0.67/0.48/0.57/0.50 h 385-406 consist 0.31 missing ['stitched grin']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.768,
+"traits": {
+"sack head": 0.7592,
+"stitched grin": 0.8529,
+"straw body": 0.9822
+},
+"notes": "legdiff 0.43/0.46 sym 0.65/0.39/0.84/0.54 h 384-418 consist 0.40"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 1.322,
+"traits": {
+"sack head": 0.8732,
+"stitched grin": 0.7154,
+"straw body": 0.9974
+},
+"notes": "legdiff 0.77/0.75 sym 0.61/0.62/0.74/0.60 h 389-408 consist 0.29"
+},
+{
+"try": 2,
+"ok": false,
+"score": 0.46,
+"traits": {
+"sack head": 0.8941,
+"stitched grin": 0.026,
+"straw body": 0.986
+},
+"notes": "legdiff 0.69/0.68 sym 0.54/0.26/0.58/0.53 h 382-395 consist 0.57 missing ['stitched grin']"
+},
+{
+"try": 3,
+"ok": false,
+"score": 0.951,
+"traits": {
+"sack head": 0.8007,
+"stitched grin": 0.0737,
+"straw body": 0.9969
+},
+"notes": "legdiff 0.73/0.71 sym 0.58/0.31/0.61/0.16 h 388-411 consist 0.33 missing ['stitched grin']"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.781,
+"traits": {
+"sack head": 0.7944,
+"stitched grin": 0.0863,
+"straw body": 0.9395
+},
+"notes": "legdiff 0.55/0.55 sym 0.50/0.46/0.66/0.54 h 385-449 consist 0.33 missing ['stitched grin']"
+},
+{
+"try": 5,
+"ok": false,
+"score": 0.776,
+"traits": {
+"sack head": 0.9795,
+"stitched grin": 0.2227,
+"straw body": 0.9996
+},
+"notes": "legdiff 0.44/0.45 sym 0.64/0.47/0.65/0.50 h 385-396 consist 0.34"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": false,
+"score": 1.396,
+"traits": {
+"sack head": 0.8991,
+"stitched grin": 0.7264,
+"straw body": 0.9954
+},
+"notes": "legdiff 0.58/0.63 sym 0.73/0.44/0.74/0.39 h 381-395 consist 0.17"
+},
+{
+"try": 2,
+"ok": false,
+"score": 1.022,
+"traits": {
+"sack head": 0.8459,
+"stitched grin": 0.2254,
+"straw body": 0.9927
+},
+"notes": "legdiff 0.57/0.50 sym 0.68/0.63/0.66/0.72 h 382-434 consist 0.22"
+},
+{
+"try": 3,
+"ok": false,
+"score": 1.175,
+"traits": {
+"sack head": 0.9779,
+"stitched grin": 0.1394,
+"straw body": 0.9995
+},
+"notes": "legdiff 0.60/0.63 sym 0.61/0.59/0.68/0.57 h 385-428 consist 0.21"
+},
+{
+"try": 4,
+"ok": false,
+"score": 0.58,
+"traits": {
+"sack head": 0.9804,
+"stitched grin": 0.3259,
+"straw body": 0.999
+},
+"notes": "legdiff 0.42/0.44 sym 0.65/0.40/0.81/0.55 h 383-395 consist 0.45"
+},
+{
+"try": 5,
+"ok": false,
+"score": 1.491,
+"traits": {
+"sack head": 0.8549,
+"stitched grin": 0.9363,
+"straw body": 0.9845
+},
+"notes": "legdiff 0.65/0.63 sym 0.71/0.56/0.80/0.44 h 387-396 consist 0.17"
+}
+]
+},
+"MN1.4": {
+"1": [
+{
+"try": 1,
+"ok": false,
+"score": 1.072,
+"traits": {
+"swollen green body": 0.9801,
+"clutching belly": 0.3277
+},
+"notes": "legdiff 0.47/0.48 sym 0.65/0.71/0.72/0.41 h 444-445 consist 0.16"
+},
+{
+"try": 2,
+"ok": false,
+"score": 1.339,
+"traits": {
+"swollen green body": 0.998,
+"clutching belly": 0.6514
+},
+"notes": "legdiff 0.54/0.54 sym 0.72/0.43/0.70/0.53 h 439-443 consist 0.15"
+},
+{
+"try": 3,
+"ok": true,
+"score": 1.217,
+"traits": {
+"swollen green body": 0.9956,
+"clutching belly": 0.502
+},
+"notes": "legdiff 0.56/0.47 sym 0.74/0.47/0.51/0.39 h 444-445 consist 0.12"
+}
+],
+"2": [
+{
+"try": 1,
+"ok": true,
+"score": 1.191,
+"traits": {
+"swollen green body": 0.9941,
+"clutching belly": 0.5794
+},
+"notes": "legdiff 0.45/0.40 sym 0.67/0.70/0.64/0.46 h 437-443 consist 0.12"
+}
+],
+"3": [
+{
+"try": 1,
+"ok": false,
+"score": 1.238,
+"traits": {
+"swollen green body": 0.9886,
+"clutching belly": 0.5889
+},
+"notes": "legdiff 0.52/0.47 sym 0.62/0.64/0.64/0.67 h 433-438 consist 0.15"
+},
+{
+"try": 2,
+"ok": true,
+"score": 1.234,
+"traits": {
+"swollen green body": 0.973,
+"clutching belly": 0.291
+},
+"notes": "legdiff 0.63/0.60 sym 0.72/0.69/0.66/0.42 h 439-440 consist 0.10"
+}
+],
+"4": [
+{
+"try": 1,
+"ok": true,
+"score": 1.238,
+"traits": {
+"swollen green body": 0.9947,
+"clutching belly": 0.5564
+},
+"notes": "legdiff 0.46/0.58 sym 0.76/0.66/0.68/0.40 h 445-445 consist 0.09"
+}
+]
 }
 }
