@@ -1,0 +1,1 @@
+2026-11-22T15:12:51Z PASS id=261122115411-1899 kind=shell secs=13 power set: plan=high-performance cpu=100% mode=best-performance sleep=never hibernate=never disk=never lid=nothing sleepbutton=nothing hibernate=off autostart=yes
