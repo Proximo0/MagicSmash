@@ -168,7 +168,8 @@ mod tests {
         assert!(Conf::parse("port 7700").is_err());
         let c = Conf::parse("# c\nport = 9000\n").unwrap();
         assert_eq!(c.num("port"), 9000);
-        assert!(c.gateway_args(Path::new("/r")).contains(&"--db=/r/data/realm.db".to_string()));
+        let db = Path::new("/r").join("data").join("realm.db");
+        assert!(c.gateway_args(Path::new("/r")).contains(&format!("--db={}", db.display())), "{:?}", c.gateway_args(Path::new("/r")));
     }
 
     #[test]
