@@ -38,9 +38,11 @@ pub fn upgrade_cost(spec: &ItemSpec) -> Option<Cost> {
 	}
 	let s = spec.plus as u64 + 1;
 	let l = spec.item_level as u64;
+	// The coin follows what a hero of the item's level earns an hour (job B1, `sinks.rs`), never below the old price.
+	let by_income = crate::sinks::income_per_hour(spec.item_level) * crate::sinks::SMITH_STEP_BP * s * s / 10_000;
 	Some(Cost {
 		embers: (UPGRADE_EMBER_BASE + l / UPGRADE_EMBER_LEVEL_DIV) * s,
-		coin: UPGRADE_COIN_PER_LEVEL * l * s * s,
+		coin: (UPGRADE_COIN_PER_LEVEL * l * s * s).max(by_income),
 	})
 }
 

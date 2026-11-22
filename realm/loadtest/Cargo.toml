@@ -6,3 +6,6 @@ version.workspace = true
 [dependencies]
 realm-core = { path = "../core" }
 realm-server = { path = "../server" }
+realm-loot = { path = "../loot" }
+realm-store = { path = "../store" }
+realm-gateway = { path = "../gateway" }

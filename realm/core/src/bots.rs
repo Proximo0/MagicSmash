@@ -18,6 +18,8 @@ use crate::tables::*;
 use crate::util::{at_angle, d2, grid_box, isqrt, rng_next};
 use crate::{CELL_SHIFT, CELLS_W, FIELD, Field, PCELL_SHIFT, PCELLS_W, SUB};
 
+mod nav;
+
 /// How a class fights.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
@@ -73,6 +75,9 @@ pub struct Bot {
     pub plan: Plan,
     pub input: u16,
     rng: u64,
+    /// Navigation around walls (job B1): the waypoint (px) toward the patrol's target and the tick to look again.
+    nav: Option<(i32, i32)>,
+    nav_until: u32,
 }
 
 /// Fixed point of the flee vector: a monster at 100 px weighs `FLEE_K / 100`.
@@ -102,7 +107,7 @@ const PICKS_HEALER: [u8; 12] = [4, 12, 5, 21, 2, 3, 8, 17, 19, 1, 7, 24];
 
 impl Bot {
     pub fn new(id: u16, seed: u64, plan: Plan) -> Bot {
-        Bot { id, plan, input: 0, rng: seed ^ (id as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) }
+        Bot { id, plan, input: 0, rng: seed ^ (id as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15), nav: None, nav_until: 0 }
     }
 
     /// The input word for this tick: a new decision every `plan.every` ticks (staggered by id), else the last.
@@ -203,6 +208,10 @@ impl Bot {
                 }
             }
         }
+        // A lobbed or bursting circle about to land on her, or a bolt about to pass through her: step out of it.
+        let (ax, ay) = nav::dodge(f, h);
+        vx += ax;
+        vy += ay;
         // A boss shape about to land: leave it.
         if let Some(b) = f.boss() {
             let (bx, by) = f.boss_pos().map(|(a, c)| (a / SUB, c / SUB)).unwrap_or((x, y));
@@ -354,8 +363,23 @@ impl Bot {
                 let ring = if role == Role::Ranged || self.plan.ring_px > 0 { self.plan.ring_px as i64 } else { 4_200 };
                 let (tx, ty) = (-ry * PATROL_W / rl, rx * PATROL_W / rl);
                 let pull = ((ring - rl) * PATROL_W / 400).clamp(-PATROL_W, PATROL_W);
-                vx += tx + pull * rx / rl;
-                vy += ty + pull * ry / rl;
+                // The patrol's target: a point of the ring a little ahead. When walls stand between, walk the
+                // way around them that a search of the cells finds, as a person would.
+                let (ax, ay) = (rx - ry * nav::NAV_AHEAD_PCT / 100, ry + rx * nav::NAV_AHEAD_PCT / 100);
+                let al = isqrt(ax * ax + ay * ay).max(1);
+                let (gx, gy) = ((cx as i64 + ax * ring / al) as i32, (cy as i64 + ay * ring / al) as i32);
+                match self.waypoint(f, x, y, gx, gy) {
+                    Some((wx, wy)) => {
+                        let (ex, ey) = ((wx - x) as i64, (wy - y) as i64);
+                        let d = isqrt(ex * ex + ey * ey).max(1);
+                        vx += ex * nav::NAV_W / d;
+                        vy += ey * nav::NAV_W / d;
+                    }
+                    None => {
+                        vx += tx + pull * rx / rl;
+                        vy += ty + pull * ry / rl;
+                    }
+                }
             }
         }
         // Healers stay with the party.

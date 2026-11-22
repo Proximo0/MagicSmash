@@ -15,6 +15,7 @@ pub mod gear;
 pub mod haul;
 pub mod rng;
 pub mod roll;
+pub mod sinks;
 pub mod smith;
 pub mod tables;
 

@@ -4,7 +4,8 @@
 //! flag, the counters, the terrain's hash (the map itself is rebuilt from field id and seed), every
 //! monster, the free slots in order, every hero (sheet and outing, timers, effects, the reserved section
 //! 14 state), zones, drops, monster shots, and the flow field's sources and progress. Not state: the
-//! grids, the aura map, the mods, events, the hurt flags.
+//! grids, the aura map, the mods, events, the monsters' hurt flags (a hero's is state: the next tick's banking
+//! reads it).
 
 use crate::boss::{Boss, Cast, Mire};
 use crate::flow::Flow;
@@ -327,7 +328,9 @@ impl W {
         self.u8(h.marked as u8);
         self.u32(h.last_struck);
         self.u16(h.input);
-        self.u8(h.facing_left as u8 | (h.moving as u8) << 1 | (h.wailed as u8) << 2);
+        // `hurt` is read by the next tick's banking hold (a hit pauses it), so it is state (job B1 found a loaded
+        // copy that counted one tick more of a hold than the field it was saved from).
+        self.u8(h.facing_left as u8 | (h.moving as u8) << 1 | (h.wailed as u8) << 2 | (h.hurt as u8) << 3);
         self.u8(h.dir);
         self.u16(h.idle);
         self.u32(h.tide_contrib);
@@ -509,6 +512,7 @@ impl R<'_> {
         h.facing_left = fl & 1 != 0;
         h.moving = fl & 2 != 0;
         h.wailed = fl & 4 != 0;
+        h.hurt = fl & 8 != 0;
         h.dir = self.u8()?;
         h.idle = self.u16()?;
         h.tide_contrib = self.u32()?;

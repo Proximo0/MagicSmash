@@ -5,7 +5,9 @@
 # that changed nothing it tests. `deep`: between merges the station runs seeded soaks (big store crash fuzz, full-size
 # field bench) and reports them in <machine>-deep.txt instead of sleeping, so a merge of docs or art costs the stations nothing.
 # `soak` runs inside `deep` now (time-boxed, fresh seed; STATION_DEEP_SOAK_SECS, default 900), so no role lists it. A deep FAIL also appends a line to <machine>-failures.txt.
+# `balance` (laptop): careers 1 to 60 of every class and job, alone and in parties (docs/realm/balance.md).
+# `realm` is deterministic, so only ubuntu and msi run it; the laptop and heatherspc spend that time on seeds, careers and frames.
 ubuntu: realm world ops deep
 msi: realm deep
-laptop: realm frames deep
-heatherspc: realm economy deep
+laptop: frames balance deep
+heatherspc: economy deep

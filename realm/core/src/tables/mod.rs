@@ -66,15 +66,17 @@ pub const CLASS_LEVEL_MAX: u8 = 60;
 pub const CEILING_ABOVE_TOP: u8 = 2;
 /// A monster more than 10 levels below a hero's class level pays her no class XP.
 pub const CLASS_XP_LEVELS_BELOW: u8 = 10;
-/// Class XP from level L to L + 1 (index L - 1). Targets to tune with bots: level 10 after about 25
-/// minutes of field play, 20 after 4 hours, 40 after 25 hours, 60 after 80 hours (see rules_built.md).
+/// Class XP from level L to L + 1 (index L - 1). Fitted by job B1 (`docs/realm/balance.md`, `realm-loadtest
+/// balance fit`) to the class XP an hour bot careers earn at each level, so that the median career reaches level 10
+/// after 25 minutes of field play, 20 after 4 hours, 40 after 25 and 60 after 80 (rules 2). The steps follow the
+/// fields: a field that pays more an hour (THE HERMIT'S PEAKS, THE WORLD'S EDGE) asks more a level.
 pub const CLASS_XP: [u32; 59] = [
-    450, 640, 850, 1_080, 1_330, 1_600, 1_890, 2_200, 2_530, // 1..9
-    5_570, 6_440, 7_360, 8_330, 9_350, 10_420, 11_540, 12_710, 13_930, 15_200, // 10..19
-    10_280, 10_830, 11_390, 11_960, 12_540, 13_130, 13_730, 14_340, 14_960, 15_590, // 20..29
-    16_230, 16_880, 17_540, 18_210, 18_890, 19_580, 20_280, 20_990, 21_710, 22_440, // 30..39
-    23_400, 23_950, 24_510, 25_080, 25_660, 26_250, 26_850, 27_460, 28_080, 28_710, // 40..49
-    29_350, 30_000, 30_660, 31_330, 32_010, 32_700, 33_400, 34_110, 34_830, 35_560, // 50..59
+    14, 26, 36, 44, 52, 76, 110, 156, 219, // 1..9
+    10_300, 12_600, 15_200, 18_100, 21_300, 24_800, 26_600, 28_500, 36_100, 45_400, // 10..19
+    69_200, 79_100, 90_100, 102_000, 116_000, 131_000, 139_000, 148_000, 157_000, 166_000, // 20..29
+    322_000, 339_000, 357_000, 375_000, 394_000, 413_000, 484_000, 571_000, 673_000, 791_000, // 30..39
+    897_000, 939_000, 982_000, 1_030_000, 1_070_000, 1_200_000, 1_290_000, 1_390_000, 1_500_000, 1_610_000, // 40..49
+    2_440_000, 2_600_000, 2_760_000, 2_920_000, 3_100_000, 3_280_000, 4_160_000, 5_280_000, 6_690_000, 8_470_000, // 50..59
 ];
 
 // ---- the haul, falling, rising

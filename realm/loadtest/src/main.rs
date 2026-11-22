@@ -176,6 +176,10 @@ impl BClient {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("balance") {
+        realm_loadtest::balance::main();
+        return;
+    }
     if std::env::args().nth(1).as_deref() == Some("bots") {
         botgate::run();
         return;

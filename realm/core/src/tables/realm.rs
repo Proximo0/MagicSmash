@@ -13,6 +13,23 @@ pub const TIDE_STAGGER: u32 = secs(3 * 60);
 /// A tide makes monsters this much faster (percent), and the target count double.
 pub const TIDE_SPEED_PCT: u32 = 120;
 pub const TIDE_TARGET_MUL: u32 = 2;
+/// The doubling grows with the heroes up in the field (job B1, from the party gate): x1 (percent 100) at
+/// `TIDE_FULL_FROM` heroes or fewer, x`TIDE_TARGET_MUL` at `TIDE_FULL_AT` or more, linear between. A small
+/// party is not met by twice the horde its own density brings; a field with a crowd meets the contract's double.
+pub const TIDE_FULL_FROM: u32 = 4;
+pub const TIDE_FULL_AT: u32 = 40;
+
+/// The tide's target in percent of the field's for `heroes` up.
+pub const fn tide_target_pct(heroes: u32) -> u32 {
+    let full = (TIDE_TARGET_MUL - 1) * 100;
+    if heroes <= TIDE_FULL_FROM {
+        100
+    } else if heroes >= TIDE_FULL_AT {
+        100 + full
+    } else {
+        100 + full * (heroes - TIDE_FULL_FROM) / (TIDE_FULL_AT - TIDE_FULL_FROM)
+    }
+}
 /// After a LOST tide the horde stays quick this long.
 pub const TIDE_LOST_QUICK: u32 = secs(120);
 /// Three altars of the six light, chosen by the field's seed.
@@ -24,6 +41,9 @@ pub const ALTAR_HOLD_PX: i32 = 150;
 pub const ALTAR_HEALTH: u32 = 8_000;
 pub const ALTAR_STRIKE_PX: i32 = 60;
 pub const ALTAR_FACTOR_HEROES: u32 = 20;
+/// Contribution counts this percent of each hit that came at a hero, before her own reductions (rules 8 say half of
+/// damage taken; job B1 counts the hit drawn, so a tank's mitigation does not cut her share).
+pub const CONTRIB_DRAWN_PCT: u32 = 50;
 /// The contribution floor of a tide is `40 x factor`.
 pub const TIDE_FLOOR: u32 = 40;
 /// A hero who has not moved for this long earns no contribution ("standing still earns nothing").
