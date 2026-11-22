@@ -24,5 +24,41 @@
  "HR2.2": {
   "status": "accepted",
   "rules": []
+ },
+ "HR2.3": {
+  "status": "rejected",
+  "rules": [
+   "R23",
+   "R25"
+  ]
+ },
+ "HR2.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR3.1": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
+ },
+ "HR3.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR3.3": {
+  "status": "rejected",
+  "rules": [
+   "R23",
+   "R25"
+  ]
+ },
+ "HR3.4": {
+  "status": "rejected",
+  "rules": [
+   "R25"
+  ]
  }
 }
