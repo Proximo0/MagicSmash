@@ -3,8 +3,10 @@
 # a server with 300 bots and 8 000 monsters and a lossy relay in front of it (5% loss, 80 ms delay, 20 ms
 # jitter, each way), then runs realm/client/tests/follow_test.gd twice at once, straight to the server and
 # through the relay: 400 ticks each, every hash check must pass. Before that it runs the field client's
-# pieces with no server (tests/field_test.gd), and after it, when a display or xvfb-run is there, the real
-# client as the bot for a second at zoom 1, 2 and 4 (screenshots in SHOTS_DIR, default a temp dir).
+# pieces with no server (tests/field_test.gd) and the shell (title, login, hero builder, town, bank, smith,
+# merchants, card reader, trainer, sheet, bag, settings, a field gate and back, tests/shell_test.gd) against a
+# real realm-gateway; after it, when a display or xvfb-run is there, the real client as the bot for a second at
+# zoom 1, 2 and 4 (screenshots in SHOTS_DIR, default a temp dir; the shell's screens in SHELL_SHOTS_DIR).
 # Quiet: failures, then one summary line.
 # Ports: SERVER_PORT (7791) and RELAY_PORT (7792). GODOT picks the Godot binary (default godot).
 set -u
@@ -58,6 +60,26 @@ if [[ "$field" != "FIELD_TEST ok"* ]]; then
 	fail "field test"
 fi
 
+# The shell against a real gateway (dev login and a starter kit for a new hero): every screen once, with a
+# screenshot of each when there is somewhere to draw.
+./target/release/realm-gateway --db="$work/shell.db" --dev-login --dev-grant --port=0 --field-port=0 --fields=0 --monsters=300 >"$work/gateway.log" 2>&1 &
+pids+=($!)
+for _ in $(seq 1 50); do grep -q LISTEN "$work/gateway.log" && break; sleep 0.2; done
+gw_addr=$(grep -m1 -o "tcp=[^ ]*" "$work/gateway.log" | cut -d= -f2)
+[ -n "$gw_addr" ] || fail "the gateway did not start"
+shell_runner=()
+if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then shell_runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
+shell_shots="${SHELL_SHOTS_DIR:-$work/shell_shots}"
+if [ -n "${DISPLAY:-}" ] || [ ${#shell_runner[@]} -gt 0 ]; then
+	shell_line=$(timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --shots="$shell_shots" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+else
+	shell_line=$(timeout 240 "$GODOT" --headless --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+fi
+if [[ "$shell_line" != *"SHELL_TEST ok"* ]]; then
+	echo "${shell_line:-SHELL_TEST printed nothing}"
+	fail "shell test"
+fi
+
 ./target/release/realm-server --port="$SERVER_PORT" --bots=300 --monsters=8000 --rally=0.3 --threads=2 --report=60 >"$work/server.log" 2>&1 &
 pids+=($!)
 ./target/release/realm-loadtest --relay="$RELAY_PORT" --to=127.0.0.1:"$SERVER_PORT" --loss=0.05 --delay-ms=80 --jitter-ms=20 --seed=7 >"$work/relay_proc.log" 2>&1 &
@@ -107,4 +129,4 @@ fi
 # The relay reports every 10 s: its last line covers the whole test (to the server / to the clients).
 d_hash=$(line direct | grep -Eo "passed=[0-9]+ failed=[0-9]+")
 r_hash=$(line relay | grep -Eo "passed=[0-9]+ failed=[0-9]+")
-echo "REALM_CLIENT ok $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"
+echo "REALM_CLIENT ok $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') $(echo "$shell_line" | grep -Eo "checks=[0-9]+" | sed 's/checks/shell_test_checks/') $(echo "$shell_line" | grep -Eo "shots=[0-9]+" | sed 's/shots/shell_shots/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"

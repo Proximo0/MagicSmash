@@ -1,0 +1,421 @@
+class_name GwWire
+extends RefCounted
+## The gateway's TCP wire (docs/realm/wire.md, realm/gateway/src/proto.rs) in GDScript: every request the shell
+## sends is built here as a body, every reply and push is read here into a Dictionary with a "t" (the type
+## constant below) and its fields. Frames are `u32 len, u8 type, u32 tag, body`, little endian; strings are
+## `u16 len, UTF-8`. A u64 is a GDScript int (a ticket above 2^63 is a negative int with the same bits).
+
+# requests
+const T_LOGIN_DEV := 0x01
+const T_LIST_HEROES := 0x03
+const T_CREATE_HERO := 0x04
+const T_DELETE_HERO := 0x05
+const T_UNDELETE_HERO := 0x06
+const T_ENTER_TOWN := 0x07
+const T_LEAVE_TOWN := 0x08
+const T_TOWN_INPUT := 0x09
+const T_CHAT := 0x0A
+const T_FIELD_TICKET := 0x0B
+const T_INVENTORY := 0x0C
+const T_BANK_DEPOSIT := 0x0D
+const T_BANK_WITHDRAW := 0x0E
+const T_SPEND_POINT := 0x11
+const T_SET_DECK := 0x12
+const T_SET_BELT := 0x13
+const T_LEARN_PAGE := 0x14
+const T_EQUIP := 0x15
+const T_UNEQUIP := 0x16
+const T_SOCKET := 0x17
+const T_UNSOCKET := 0x18
+const T_CHOOSE_JOB := 0x19
+const T_PING := 0x1A
+const T_RENAME_HERO := 0x1B
+const T_SALVAGE := 0x1C
+const T_UPGRADE := 0x1D
+const T_REROLL := 0x1E
+const T_FUSE := 0x1F
+const T_CARDS := 0x30
+const T_BUY := 0x31
+const T_SELL := 0x32
+# replies
+const R_OK := 0x80
+const R_ERR := 0x81
+const R_LOGIN := 0x82
+const R_HEROES := 0x83
+const R_HERO_CREATED := 0x84
+const R_TOWN := 0x85
+const R_TICKET := 0x86
+const R_INVENTORY := 0x87
+const R_PONG := 0x88
+const R_SMITH := 0x89
+const R_CARDS := 0x8A
+# pushes
+const P_TOWN_SNAPSHOT := 0xA0
+const P_TOWN_CHAT := 0xA1
+const P_TOWN_ARRIVE := 0xA2
+const P_TOWN_DEPART := 0xA3
+const P_OUTING := 0xA4
+## Not on the wire: the link's own answer when the connection is gone or a reply never came.
+const R_LOST := 0xFF
+
+const FRAME_MAX := 1 << 20
+
+# Error codes of R_ERR (proto.rs `code`).
+const E_BAD_REQUEST := 1
+const E_NOT_LOGGED_IN := 2
+const E_DISABLED := 3
+const E_NOT_YOURS := 4
+const E_FULL := 5
+const E_MISSING := 6
+const E_NAME_TAKEN := 7
+const E_BAD_NAME := 8
+const E_INSUFFICIENT := 9
+const E_REFUSED := 10
+const E_BUSY := 11
+const E_BANNED := 12
+const E_INVALID := 13
+const E_SLOW_DOWN := 14
+const E_INTERNAL := 15
+const E_NO_FIELD := 16
+
+
+static func _buf() -> StreamPeerBuffer:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+	return b
+
+
+static func put_str(b: StreamPeerBuffer, s: String) -> void:
+	var bytes: PackedByteArray = s.to_utf8_buffer()
+	if bytes.size() > 65535:
+		bytes = bytes.slice(0, 65535)
+	b.put_u16(bytes.size())
+	b.put_data(bytes)
+
+
+static func get_str(b: StreamPeerBuffer) -> String:
+	var n: int = b.get_u16()
+	if n == 0:
+		return ""
+	var r: Array = b.get_data(n)
+	return (r[1] as PackedByteArray).get_string_from_utf8()
+
+
+## A frame ready to send.
+static func frame(t: int, tag: int, body: PackedByteArray) -> PackedByteArray:
+	var b := _buf()
+	b.put_u32(5 + body.size())
+	b.put_u8(t)
+	b.put_u32(tag)
+	b.put_data(body)
+	return b.data_array
+
+
+## A Thing: an item (item != 0) or a count of a stack kind.
+static func put_thing(b: StreamPeerBuffer, item: int, stack_kind: int, count: int) -> void:
+	if item != 0:
+		b.put_u8(0)
+		b.put_u64(item)
+	else:
+		b.put_u8(1)
+		b.put_u32(stack_kind)
+		b.put_u64(count)
+
+
+# ---- requests: each returns [type, body]
+
+static func login_dev(name: String) -> Array:
+	var b := _buf()
+	put_str(b, name)
+	return [T_LOGIN_DEV, b.data_array]
+
+
+static func plain(t: int) -> Array:
+	return [t, PackedByteArray()]
+
+
+static func hero_only(t: int, hero: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	return [t, b.data_array]
+
+
+static func create_hero(name: String, race: int, cls: int, look: int, self_found: bool) -> Array:
+	var b := _buf()
+	put_str(b, name)
+	b.put_u8(race)
+	b.put_u8(cls)
+	b.put_u8(1 if self_found else 0)
+	b.put_u32(look)
+	return [T_CREATE_HERO, b.data_array]
+
+
+static func rename_hero(hero: int, name: String) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_str(b, name)
+	return [T_RENAME_HERO, b.data_array]
+
+
+static func town_input(dir: int) -> Array:
+	var b := _buf()
+	b.put_u8(dir)
+	return [T_TOWN_INPUT, b.data_array]
+
+
+static func chat(text: String) -> Array:
+	var b := _buf()
+	put_str(b, text)
+	return [T_CHAT, b.data_array]
+
+
+static func field_ticket(hero: int, field: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(field)
+	return [T_FIELD_TICKET, b.data_array]
+
+
+## Bank deposit or withdraw of an item (item != 0) or a stack.
+static func bank(deposit: bool, hero: int, item: int, stack_kind: int, count: int, tab: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	put_thing(b, item, stack_kind, count)
+	b.put_u32(tab)
+	return [T_BANK_DEPOSIT if deposit else T_BANK_WITHDRAW, b.data_array]
+
+
+static func spend_point(hero: int, stat: int, n: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(stat)
+	b.put_u16(n)
+	return [T_SPEND_POINT, b.data_array]
+
+
+static func set_deck(hero: int, cards: Array) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(cards.size())
+	for c in cards:
+		b.put_u16(int(c))
+	return [T_SET_DECK, b.data_array]
+
+
+static func set_belt(hero: int, kinds: Array) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	for i in 3:
+		b.put_u32(int(kinds[i]) if i < kinds.size() else 0)
+	return [T_SET_BELT, b.data_array]
+
+
+static func learn_page(hero: int, card: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u16(card)
+	return [T_LEARN_PAGE, b.data_array]
+
+
+static func hero_item(t: int, hero: int, item: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(item)
+	return [t, b.data_array]
+
+
+static func socket(hero: int, item: int, sock: int, kind: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(item)
+	b.put_u8(sock)
+	b.put_u32(kind)
+	return [T_SOCKET, b.data_array]
+
+
+static func unsocket(hero: int, item: int, sock: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u64(item)
+	b.put_u8(sock)
+	return [T_UNSOCKET, b.data_array]
+
+
+static func choose_job(hero: int, job: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(job)
+	return [T_CHOOSE_JOB, b.data_array]
+
+
+static func fuse(hero: int, stat: int, grade: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(stat)
+	b.put_u8(grade)
+	return [T_FUSE, b.data_array]
+
+
+static func buy(hero: int, kind: int, n: int) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u32(kind)
+	b.put_u32(n)
+	return [T_BUY, b.data_array]
+
+
+# ---- replies and pushes
+
+static func _member(b: StreamPeerBuffer) -> Dictionary:
+	var m := {}
+	m["id"] = b.get_u16()
+	m["name"] = get_str(b)
+	m["class"] = b.get_u8()
+	m["race"] = b.get_u8()
+	m["level"] = b.get_u16()
+	m["look"] = b.get_u32()
+	return m
+
+
+static func _hero(b: StreamPeerBuffer) -> Dictionary:
+	var h := {}
+	h["id"] = b.get_64()
+	h["name"] = get_str(b)
+	h["race"] = b.get_u8()
+	h["class"] = b.get_u8()
+	h["job"] = b.get_u8()
+	h["self_found"] = b.get_u8() != 0
+	h["deleted"] = b.get_u8() != 0
+	h["look"] = b.get_u32()
+	h["level"] = b.get_u16()
+	h["xp"] = b.get_u64()
+	h["unspent"] = b.get_u16()
+	var stats: Array[int] = []
+	for i in 6:
+		stats.append(b.get_u16())
+	h["stats"] = stats
+	var deck: Array[int] = []
+	var n: int = b.get_u8()
+	for i in n:
+		deck.append(b.get_u16())
+	h["deck"] = deck
+	var belt: Array[int] = []
+	for i in 3:
+		belt.append(b.get_u32())
+	h["belt"] = belt
+	var ways: Array[int] = []
+	for i in 6:
+		ways.append(b.get_32())
+	h["waystones"] = ways
+	return h
+
+
+static func _item(b: StreamPeerBuffer) -> Dictionary:
+	var it := {}
+	it["id"] = b.get_64()
+	it["base"] = b.get_u32()
+	it["gear_slot"] = b.get_u8()
+	it["rarity"] = b.get_u8()
+	it["sockets"] = b.get_u8()
+	it["place"] = b.get_u8()
+	it["level"] = b.get_u16()
+	it["tab"] = b.get_u32()
+	it["slot"] = b.get_u32()
+	var lines: Array = []
+	var n: int = b.get_u8()
+	for i in n:
+		var stat: int = b.get_u8()
+		lines.append([stat, b.get_u16()])
+	it["lines"] = lines
+	it["plus"] = b.get_u8()
+	var socketed: Array[int] = []
+	for i in int(it["sockets"]):
+		socketed.append(b.get_u32())
+	it["socketed"] = socketed
+	return it
+
+
+## Reads one reply or push body. A body that does not read cleanly gives {"t": R_ERR, "code": 0, "msg": "unreadable"}.
+static func decode(t: int, body: PackedByteArray) -> Dictionary:
+	var b := _buf()
+	b.data_array = body
+	var d := {"t": t}
+	match t:
+		R_OK, R_PONG:
+			pass
+		R_ERR:
+			d["code"] = b.get_u16()
+			d["msg"] = get_str(b)
+		R_LOGIN:
+			d["account"] = b.get_64()
+		R_HEROES:
+			var heroes: Array[Dictionary] = []
+			for i in b.get_u16():
+				heroes.append(_hero(b))
+			d["heroes"] = heroes
+		R_HERO_CREATED:
+			d["hero"] = b.get_64()
+		R_TOWN:
+			d["room"] = b.get_u32()
+			d["me"] = b.get_u16()
+			d["size"] = b.get_u16()
+			var members: Array[Dictionary] = []
+			for i in b.get_u16():
+				members.append(_member(b))
+			d["members"] = members
+		R_TICKET:
+			d["host"] = get_str(b)
+			d["port"] = b.get_u16()
+			d["ticket"] = b.get_64()
+			d["field"] = b.get_u8()
+			d["copy"] = b.get_u8()
+		R_INVENTORY:
+			var items: Array[Dictionary] = []
+			for i in b.get_u32():
+				items.append(_item(b))
+			var stacks: Array[Array] = []
+			for i in b.get_u32():
+				var place: int = b.get_u8()
+				var kind: int = b.get_u32()
+				stacks.append([place, kind, b.get_64()])
+			d["items"] = items
+			d["stacks"] = stacks
+		R_SMITH:
+			d["item"] = b.get_64()
+			d["plus"] = b.get_u8()
+			d["success"] = b.get_u8() != 0
+			d["amount"] = b.get_64()
+		R_CARDS:
+			var cards: Array[int] = []
+			for i in b.get_u16():
+				cards.append(b.get_u16())
+			d["cards"] = cards
+		P_TOWN_SNAPSHOT:
+			d["tick"] = b.get_u32()
+			var at: Array[Array] = []
+			for i in b.get_u16():
+				var id: int = b.get_u16()
+				var x: int = b.get_u16()
+				var y: int = b.get_u16()
+				at.append([id, x, y, b.get_u8()])
+			d["at"] = at
+		P_TOWN_CHAT:
+			d["from"] = b.get_u16()
+			d["name"] = get_str(b)
+			d["text"] = get_str(b)
+		P_TOWN_ARRIVE:
+			d["member"] = _member(b)
+		P_TOWN_DEPART:
+			d["id"] = b.get_u16()
+		P_OUTING:
+			d["hero"] = b.get_64()
+			d["coin"] = b.get_u64()
+			d["xp"] = b.get_u64()
+			d["levels"] = b.get_u16()
+			d["potions"] = b.get_u32()
+			d["left"] = b.get_u8()
+		_:
+			return {"t": R_ERR, "code": 0, "msg": "unknown reply %d" % t}
+	if b.get_position() != body.size():
+		return {"t": R_ERR, "code": 0, "msg": "unreadable reply %d" % t}
+	return d

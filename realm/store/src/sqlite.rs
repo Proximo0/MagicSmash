@@ -381,6 +381,9 @@ impl Store for SqliteStore {
 	fn stacks(&self, owner: Owner) -> Result<Vec<(StackKind, u64)>> {
 		self.with_read(|c| read::stacks(c, &owner))
 	}
+	fn owned_cards(&self, account: AccountId) -> Result<Vec<u16>> {
+		self.with_read(|c| read::owned_cards(c, account))
+	}
 	fn entitlements(&self, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>> {
 		self.with_read(|c| read::entitlements(c, account))
 	}

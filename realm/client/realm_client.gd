@@ -16,6 +16,11 @@ extends Node2D
 ## Keys: arrows or WASD move; Space skill 1, E skill 2, R the ultimate (held); F interact (hold to bank);
 ## 4 5 6 potions; Z X C V or a click pick the offered card; 1 / 2 / 3 zoom 1 / 2 / 4; F3 the numbers; Esc quits.
 
+## The shell's hand-off (realm/client/ui/shell.gd): a field joined with a gateway ticket instead of a class and race.
+## `embedded` skips the window and quits: Esc emits `escaped` and the shell decides. `script_move` (0..8) overrides
+## the keys, for a scripted walk to the gate; -1 leaves them alone. `warn(text)` shows a line on the HUD.
+signal escaped
+
 const TICK_S: float = 0.05
 ## The HELLO's class 0..4 joins as KNIGHT..PALADIN (the core's classes 1..5; 0 is the NOVICE).
 const CLASS_COUNT: int = 5
@@ -47,6 +52,13 @@ const BOT_POTION_UNDER: float = 0.5
 const BOT_POTION_GAP_S: float = 4.0
 
 var link: RealmLink = RealmLink.new()
+var embedded: bool = false
+var ticket_host: String = ""
+var ticket_port: int = 0
+var ticket: int = 0
+var script_move: int = -1
+var _warn_text: String = ""
+var _warn_until: float = 0.0
 
 var _host: String = "127.0.0.1"
 var _port: int = 7777
@@ -115,7 +127,8 @@ var _rec_fx: PackedInt32Array = PackedInt32Array()
 
 func _ready() -> void:
 	_parse_args()
-	get_window().size = _window
+	if not embedded:
+		get_window().size = _window
 	RenderingServer.set_default_clear_color(BG)
 	_t0_us = Time.get_ticks_usec()
 	add_child(_world)
@@ -141,7 +154,11 @@ func _ready() -> void:
 	_sound.muted = _mute
 	add_child(_sound)
 	_build_hud()
-	if not link.connect_to_host(_host, _port, _hero_class, _race):
+	if embedded:
+		var ok: bool = link.connect_with_ticket(ticket_host, ticket_port, (ticket >> 32) & 0xFFFFFFFF, ticket & 0xFFFFFFFF)
+		if not ok:
+			push_error("cannot open the field at %s:%d" % [ticket_host, ticket_port])
+	elif not link.connect_to_host(_host, _port, _hero_class, _race):
 		push_error("cannot open %s:%d" % [_host, _port])
 	_apply_zoom(_zoom)
 	if not _shots_dir.is_empty():
@@ -213,6 +230,13 @@ func _screen_px_per_field_px() -> float:
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
+		# Potions and card picks are the settings screen's keys (4 5 6 and Z X C V by default).
+		for i in 3:
+			if e.physical_keycode == ShellSettings.key("potion%d" % (i + 1)):
+				_potion_latch |= 1 << i
+		for i in 4:
+			if e.physical_keycode == ShellSettings.key("pick%d" % (i + 1)):
+				_pick_latch = i + 1
 		match e.physical_keycode:
 			KEY_1:
 				_apply_zoom(KEY_ZOOMS[0])
@@ -220,20 +244,6 @@ func _unhandled_input(e: InputEvent) -> void:
 				_apply_zoom(KEY_ZOOMS[1])
 			KEY_3:
 				_apply_zoom(KEY_ZOOMS[2])
-			KEY_4:
-				_potion_latch |= 1
-			KEY_5:
-				_potion_latch |= 2
-			KEY_6:
-				_potion_latch |= 4
-			KEY_Z:
-				_pick_latch = 1
-			KEY_X:
-				_pick_latch = 2
-			KEY_C:
-				_pick_latch = 3
-			KEY_V:
-				_pick_latch = 4
 			KEY_F3:
 				_debug = not _debug
 				_hud.show_debug = _debug
@@ -260,8 +270,17 @@ func _offer_slot(i: int) -> int:
 
 
 func _quit(code: int) -> void:
+	if embedded:
+		escaped.emit()
+		return
 	link.close()
 	get_tree().quit(code)
+
+
+## A line on the HUD for a few seconds (the shell's warning before leaving by Esc).
+func warn(text: String) -> void:
+	_warn_text = text
+	_warn_until = _now() + 4.0
 
 
 func _process(delta: float) -> void:
@@ -290,6 +309,7 @@ func _process(delta: float) -> void:
 	if now - _hud_t >= HUD_EVERY_S:
 		_hud_t = now
 		_debug_text = _debug_lines()
+	_hud.notice = _warn_text if _now() < _warn_until else ""
 	_hud.set_state(_info, _world_info, _debug_text)
 	if _rec:
 		_rec_frames.append(delta * 1000.0)
@@ -379,15 +399,15 @@ func _read_keys(now: float) -> void:
 		_buttons = BTN_SKILL1 | BTN_SKILL2 | BTN_ULT
 		_bot_choices(now)
 	else:
-		var dx: int = int(Input.is_physical_key_pressed(KEY_RIGHT) or Input.is_physical_key_pressed(KEY_D)) \
-			- int(Input.is_physical_key_pressed(KEY_LEFT) or Input.is_physical_key_pressed(KEY_A))
-		var dy: int = int(Input.is_physical_key_pressed(KEY_DOWN) or Input.is_physical_key_pressed(KEY_S)) \
-			- int(Input.is_physical_key_pressed(KEY_UP) or Input.is_physical_key_pressed(KEY_W))
+		var dx: int = int(ShellSettings.held("right")) - int(ShellSettings.held("left"))
+		var dy: int = int(ShellSettings.held("down")) - int(ShellSettings.held("up"))
 		_move = _dir_code(dx, dy)
-		_buttons = (BTN_SKILL1 if Input.is_physical_key_pressed(KEY_SPACE) else 0) \
-			| (BTN_SKILL2 if Input.is_physical_key_pressed(KEY_E) else 0) \
-			| (BTN_ULT if Input.is_physical_key_pressed(KEY_R) else 0) \
-			| (BTN_INTERACT if Input.is_physical_key_pressed(KEY_F) else 0)
+		_buttons = (BTN_SKILL1 if ShellSettings.held("skill1") else 0) \
+			| (BTN_SKILL2 if ShellSettings.held("skill2") else 0) \
+			| (BTN_ULT if ShellSettings.held("ult") else 0) \
+			| (BTN_INTERACT if ShellSettings.held("interact") else 0)
+	if script_move >= 0:
+		_move = script_move
 	if _move in [4, 5, 6]:
 		_hero.hero_flip = true
 	elif _move in [1, 2, 8]:

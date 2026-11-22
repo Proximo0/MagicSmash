@@ -28,6 +28,8 @@ const DIM: Color = Color(0.6, 0.6, 0.62)
 var hero: Dictionary = {}
 var world: Dictionary = {}
 var debug_text: String = ""
+## A line over the field (the shell's warning before leaving by Esc); empty draws nothing.
+var notice: String = ""
 var show_debug: bool = true
 ## Screenshots and tests: show a tide or a boss the core has not made yet.
 var fake_tide: bool = false
@@ -93,6 +95,9 @@ func _draw() -> void:
 		for i in lines.size():
 			_txt(Vector2(5, 4 + i * 7.0), lines[i], Color(0.85, 0.95, 0.8), FONT_SMALL)
 	_draw_world_clock()
+	if not notice.is_empty():
+		_box(Rect2(40, 40, W - 80, 14), Color(0.2, 0.04, 0.04, 0.85), EDGE)
+		_ctxt(W / 2.0, 43, notice, TEXT, FONT_SMALL)
 	if hero.is_empty():
 		_ctxt(W / 2.0, H / 2.0, "JOINING THE FIELD", TEXT, 9)
 		return
