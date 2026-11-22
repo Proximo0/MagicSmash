@@ -24,6 +24,9 @@ PartyGo(field), `0x47` PartyInfo, `0x48` GuildCreate(name), `0x49` GuildInvite(n
 GuildMotd(text), `0x50` GuildPost(text), `0x51` GuildUnpost(post), `0x52` GuildBank(thing, tab, deposit), `0x53`
 GuildBankView(tab), `0x54` GuildInfo, `0x55` GuildDisband, `0x56` FriendAdd(name), `0x57` FriendAnswer(account, accept),
 `0x58` FriendRemove(account), `0x59` Ignore(name, on), `0x5A` Lists, `0x5B` Report(name, reason, text).
+Job R3 took `0x5C` WarDeclare(foe guild name, field), `0x5D` WarAnswer(war, accept), `0x5E` WarList, `0x5F`
+Duel(op, name), replies 6 Wars and 7 WarDeclared, and pushes 9 to 15 (war, war off, war result, duel challenge, duel
+declined, duel start, duel result); see `docs/realm/pvp.md`. The social request span is now full.
 Reply `0x90` is one tagged union (`SResp`: party, guild, guild created, bank view, lists, report id); plain successes are
 `R_OK`. Push `0xB0` is `SPush`: chat line, party invite, party update, party go, guild invite, guild changed, friend
 request, friend status, notice. New error code `MUTED` = 17 (silenced by a moderator or by the flood limit); `SLOW_DOWN`

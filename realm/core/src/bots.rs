@@ -52,22 +52,34 @@ pub struct Plan {
     pub objectives: bool,
     /// Walks toward the heart when farther than `rally_px` (the dense fight of a crowd test), 0: not.
     pub rally_px: i32,
+    /// Hunts her foes (section 14) when she can strike heroes: walks to the nearest one off safe ground.
+    pub hunt: bool,
 }
 
 impl Plan {
     /// A lone hero of the edge, as the kiting gate plays: a careful decision every 2 ticks.
     pub fn alone(ring_px: i32) -> Plan {
-        Plan { every: 2, ring_px, bank_coin: u32::MAX, objectives: false, rally_px: 0 }
+        Plan { every: 2, ring_px, bank_coin: u32::MAX, objectives: false, rally_px: 0, hunt: false }
     }
     /// A hero in a party or a crowd, with every objective.
     pub fn party(ring_px: i32) -> Plan {
-        Plan { every: 2, ring_px, bank_coin: 400, objectives: true, rally_px: 0 }
+        Plan { every: 2, ring_px, bank_coin: 400, objectives: true, rally_px: 0, hunt: false }
     }
     /// One of a crowd of a thousand: a decision every 8 ticks.
     pub fn crowd(rally_px: i32) -> Plan {
-        Plan { every: 8, ring_px: 4_200, bank_coin: u32::MAX, objectives: true, rally_px }
+        Plan { every: 8, ring_px: 4_200, bank_coin: u32::MAX, objectives: true, rally_px, hunt: false }
+    }
+    /// A marked hero of a crowd who hunts the other marked (job R3's proof): a crowd bot with `hunt`.
+    pub fn hunter(rally_px: i32) -> Plan {
+        Plan { hunt: true, ..Plan::crowd(rally_px) }
     }
 }
+
+/// A hunter looks for foes this far (px), and keeps this distance by role (melee, healer, ranged).
+pub const HUNT_PX: i32 = 900;
+const HUNT_KEEP: [i64; 3] = [24, 120, 160];
+/// Under this share of health (percent) a hunter backs away from the foe instead.
+const HUNT_FLEE_PCT: u32 = 30;
 
 #[derive(Clone, Debug)]
 pub struct Bot {
@@ -190,7 +202,9 @@ impl Bot {
         if n60 <= RAISE_CROWD {
             let mut best: Option<(i64, i32, i32)> = None;
             for (q, a) in f.heroes().iter().enumerate() {
-                if q as u16 != self.id && a.present && a.downed > 0 {
+                // Not her prey (a hunter does not raise a hero she is marked against), and not one the help ban
+                // keeps her from raising.
+                if q as u16 != self.id && a.present && a.downed > 0 && !(self.plan.hunt && f.hostile(self.id as usize, q)) && f.may_help(self.id as usize, q) {
                     let dd = d2(a.x, a.y, h.x, h.y) / (SUB as i64 * SUB as i64);
                     if dd < 400 * 400 && best.is_none_or(|(bd, _, _)| dd < bd) {
                         best = Some((dd, a.x / SUB, a.y / SUB));
@@ -205,6 +219,38 @@ impl Bot {
                     goal = Some((x, y, 0));
                     vx = 0;
                     vy = 0;
+                }
+            }
+        }
+        // A foe to hunt (section 14): the nearest one she could strike, at her role's distance; away when hurt.
+        if goal.is_none() && self.plan.hunt && f.flagged(self.id as usize) {
+            let r = HUNT_PX * SUB;
+            let me = self.id as usize;
+            let mut best: Option<(i64, u32)> = None;
+            grid_box(f.player_grid(), PCELLS_W, PCELL_SHIFT, h.x - r, h.y - r, h.x + r, h.y + r, |q| {
+                let a = &f.heroes()[q as usize];
+                let dd = d2(a.x, a.y, h.x, h.y);
+                if dd <= r as i64 * r as i64 && f.hostile(me, q as usize) && a.alive() && !f.safe_ground(a.x, a.y) && best.is_none_or(|(bd, bq)| dd < bd || (dd == bd && q < bq)) {
+                    best = Some((dd, q));
+                }
+            });
+            if let Some((dd, q)) = best {
+                let a = &f.heroes()[q as usize];
+                let (ax, ay) = (a.x / SUB, a.y / SUB);
+                let d = isqrt(dd) / SUB as i64;
+                let keep = HUNT_KEEP[match role {
+                    Role::Melee => 0,
+                    Role::Healer => 1,
+                    Role::Ranged => 2,
+                }];
+                if h.health * 100 < h.max_health * HUNT_FLEE_PCT {
+                    goal = Some((x + (x - ax), y + (y - ay), GOAL_W * 2));
+                } else if d > keep {
+                    goal = Some((ax, ay, GOAL_W * 2));
+                } else if d < keep / 2 {
+                    goal = Some((x + (x - ax), y + (y - ay), GOAL_W / 2));
+                } else {
+                    goal = Some((x, y, 0));
                 }
             }
         }

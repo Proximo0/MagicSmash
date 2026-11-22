@@ -72,7 +72,12 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
         SReq::Ignore { hero: 1, name: "Bob".into(), on: true },
         SReq::Lists { hero: 1 },
         SReq::Report { hero: 1, name: "Bob".into(), reason: 2, text: "gold".into() },
+        SReq::WarDeclare { hero: 1, foe: "The Pale".into(), field: 2 },
+        SReq::WarAnswer { hero: 1, war: 3, accept: true },
+        SReq::WarList { hero: 1 },
+        SReq::Duel { hero: 1, op: duel_op::CHALLENGE, name: "Bob".into() },
     ];
+    let war = WarView { id: 3, guilds: [4, 5], names: ["G".into(), "H".into()], field: 2, tide: 7, accepted: false };
     let party = PartyView { id: 3, leader: 1, copy: Some((2, 1)), members: vec![PartyMember { hero: 1, name: "Ann".into(), class: 2, level: 7, online: true }] };
     let guild = GuildView {
         id: 4,
@@ -93,6 +98,8 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
         SResp::Bank { items: vec![item], stacks: vec![(1, 20)] },
         SResp::Lists(Lists { friends: vec![FriendRow { account: 2, name: "B".into(), online: true, place: 1 }], pending: vec![(3, "C".into())], ignores: vec![(4, "D".into())] }),
         SResp::Reported(12),
+        SResp::Wars(vec![war.clone()]),
+        SResp::WarDeclared(war.clone()),
     ];
     let pushes = vec![
         SPush::Chat { chan: chan::GUILD, from: "A".into(), to: String::new(), text: "x".into() },
@@ -104,6 +111,13 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
         SPush::FriendRequest { from: 2, name: "A".into() },
         SPush::FriendStatus { account: 2, name: "A".into(), online: false, place: 0 },
         SPush::Notice { text: "muted".into() },
+        SPush::War(war),
+        SPush::WarOff { war: 3 },
+        SPush::WarResult { war: 3, winner: 4, held: [10, 2] },
+        SPush::DuelChallenge { from: 2, name: "A".into() },
+        SPush::DuelDeclined { name: "A".into() },
+        SPush::DuelStart { duel: 1, foe: 2, name: "A".into(), seed: 9 },
+        SPush::DuelResult { duel: 1, winner: 2, loser: 1, draw: false },
     ];
     let mut out: Vec<Resp> = resps.into_iter().map(Resp::Social).collect();
     out.extend(pushes.into_iter().map(Resp::SocialPush));

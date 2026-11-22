@@ -41,6 +41,7 @@ impl Field {
             all.zones.extend(s.zones);
             all.curses.extend(s.curses);
             all.pulls.extend(s.pulls);
+            all.phits.extend(s.phits);
             contact.extend(c);
         }
         self.apply_strikes(all, &mut killed);
@@ -106,7 +107,13 @@ impl Field {
         for hit in s.hits {
             self.apply_hit(hit, killed);
         }
+        if !s.phits.is_empty() {
+            self.apply_phits(s.phits, killed);
+        }
         for (q, amount, by, shield) in s.heals {
+            if !self.may_help(by as usize, q as usize) {
+                continue;
+            }
             let tick = self.tick;
             let qh = &mut self.heroes[q as usize];
             let healed = qh.heal(amount, tick);
@@ -193,8 +200,20 @@ impl Field {
                         }
                     }
                 }
+                // A hero's zone strikes her foes in it too (section 14).
+                if z.dmg > 0 && self.flagged(z.owner as usize) {
+                    let ph: Vec<crate::pvp::PHit> = self
+                        .foes_in_circle(z.owner as usize, z.x, z.y, r)
+                        .into_iter()
+                        .map(|q| crate::pvp::PHit { to: q, by: z.owner, dmg: pvp_dmg(z.dmg as u64) })
+                        .collect();
+                    self.apply_phits(ph, killed);
+                }
                 if row.heal_s > 0 || row.fx != NONE {
                     for q in self.allies_within(z.x, z.y, z.px, true) {
+                        if !self.may_help(z.owner as usize, q) {
+                            continue;
+                        }
                         let qh = &mut self.heroes[q];
                         if row.heal_s > 0 {
                             let amount = (qh.max_health as u64 * z.heal_tenths as u64 / 1_000) as u32;
@@ -245,6 +264,11 @@ impl Field {
                 let dmg = (d.dmg as u64 * self.target_pct(&mods, i, d.x, d.y) / 100) as u32;
                 self.apply_hit(Hit { m: i as u32, dmg, hero: d.hero, stun: d.stun, slow: 0, push: 0, sx: d.x, sy: d.y }, killed);
             }
+            if self.flagged(d.hero as usize) {
+                let ph: Vec<crate::pvp::PHit> =
+                    self.foes_in_circle(d.hero as usize, d.x, d.y, d.px * SUB).into_iter().map(|q| crate::pvp::PHit { to: q, by: d.hero, dmg: pvp_dmg(d.dmg as u64) }).collect();
+                self.apply_phits(ph, killed);
+            }
         }
     }
 
@@ -281,6 +305,8 @@ impl Field {
         h.downed = DOWNED_TICKS;
         h.raise = 0;
         h.hold = 0;
+        // Downed by this blow: credit only if it was a hero's (`apply_phits` sets it after this).
+        self.pvp.set_downer(i, crate::pvp::NOBODY);
         self.deaths_total += 1;
         self.events.push(Event::Down { hero: i as u16 });
         if m.burst_dmg > 0 {
@@ -392,6 +418,11 @@ impl Field {
         }
         let _ = rise_up;
     }
+}
+
+/// A blow's damage to a hero: `PVP_DAMAGE_PCT` of what it does to a monster.
+pub(crate) fn pvp_dmg(d: u64) -> u32 {
+    (d * crate::pvp::PVP_DAMAGE_PCT / 100).clamp(1, u32::MAX as u64) as u32
 }
 
 /// BLOOD RAGE: each kill heals 1%.
