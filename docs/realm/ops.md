@@ -19,8 +19,13 @@ without `--host` it makes just a release folder to `install` on a running host. 
 systems; only the scripts differ. The supervisor (`realm-ops run`, started by `start.cmd`, `start.ps1`, `start.sh` or
 systemd) reads `ops.conf`, starts `releases/<current>/realm-gateway` with the matching flags and `--ops-conf`, restarts
 it when it dies (1 s, doubling to 30 s, reset after a minute of life) and raises `host-death`. `running` holds its pid;
-`stop` and `restart` are files the CLI drops, so every launcher works the same way. Stopping is a kill: everything
-banked is already in the store (the kill test, `gateway/tests/kill.rs`), and std has no graceful signal.
+`stop` and `restart` are files the CLI drops, so every launcher works the same way. On either, the supervisor asks the
+gateway to stop by dropping `gateway.stop` in the host folder (std has no graceful signal; the gateway watches the file
+beside its `--ops-conf`, or `--stop-file=PATH`): it banks every hero in a field with her whole haul and her class XP
+(`Leave::Shutdown`, as `Gateway::shutdown`), ends its hosts and exits 0, logging `realm_stopping` and `realm_stopped`.
+A gateway still running after 20 s (`supervise::STOP_GRACE`) is killed (`gateway_stop_forced`). `realm-ops stop` returns
+once the supervisor has ended (at most 25 s; realm.service's `TimeoutStopSec` is 40). A kill (SIGKILL, a crash, a forced
+stop) still loses only the unbanked hauls: everything banked is already in the store (`gateway/tests/kill.rs`, both tests).
 `install-task.ps1` registers a logon task so Curtis's PC brings the realm back after a reboot.
 
 ## Logs, metrics, alarms
@@ -45,7 +50,10 @@ banked is already in the store (the kill test, `gateway/tests/kill.rs`), and std
 
 `backup_every_mins` (60) backs up with SQLite's online backup (play goes on), to `realm-YYYYMMDD-HHMMSS.part`, then
 opens the copy fresh and runs the store's full `verify` (every invariant, the ledger replayed) before renaming it; a copy that does not verify
-is deleted and is an alarm, never kept. `.secret`, `.admin`, `.social`, `.bosskills`, `.switches` are copied beside it.
+is deleted and is an alarm, never kept. Every side file in `realm_ops::sides::SIDES` is copied beside it: `.secret`,
+`.admin`, `.social`, `.bosskills`, `.switches`, `.homes` (who owns every house), `.epoch` (the realm clock's start: every
+tide) and `.social.words`; restore copies them back. The writers name these files through `sides::side`, and
+`ops/tests/sides.rs` fails on a `<db>.x` path built anywhere else, so a new kept file cannot miss the backup.
 Kept: the newest `backup_keep` (48 = two days hourly) plus the first backup of each of the last `backup_daily_keep` (14) days.
 The first backup after a start is due by the clock's own schedule (a restart does not skip an interval), at least a minute in.
 `realm-ops restore [file]` (realm stopped: refused while `running` exists) verifies the backup, moves the live store and
@@ -129,13 +137,17 @@ calling the hook. `gateway/tests/ops.rs`: kill switches through real sockets, fl
 `realm-gateway --ops-conf` logging, serving metrics and keeping a switch across a restart. Unit tests cover the rules (rotation,
 percentiles, the window and ban arithmetic with a fake clock, retention, the config template). CI: Linux runs all of it in
 `cargo test`; the Windows job runs it too, parses every `.ps1` with PowerShell's parser, runs `realm-ops rehearse` and uploads the
-host package. Station word `ops` (Ubuntu): `realm-ops rehearse` per realm merge and nightly inside `deep`.
+host package. Station word `ops` (Ubuntu): `realm-ops rehearse` per realm merge and nightly inside `deep`. The rehearsal
+also writes a house to `.homes` and an epoch to `.epoch` before the backup, loses both with the wrecked disk and checks the
+restore brings them back (`gateway/tests/ops.rs` does the same with the real plot registry and clock).
+`gateway/tests/kill.rs` stops a realm run with `--ops-conf` through `gateway.stop` while a hero fights unbanked: it exits 0
+within the bound, her whole haul is banked, and the restarted realm loads it. On Unix the e2e supervisor's stop asks its
+stand-in gateway to stop rather than killing it.
 
 ## Open questions
 
 - Windows has not been run by me: the `.cmd`/`.ps1` are checked for syntax by CI only; the first real try is Curtis's PC.
 - `realm-store` binary: the package takes it from `realm/store/target/release` when present (the Windows job copies it); the Linux job
   does not build a package artifact yet.
-- A graceful stop (bank everyone, then exit) needs a gateway command; today stop is a kill, safe by the store's design.
 - UDP limits are per IP, not per ticket; two clients behind one NAT share a budget.
 - Alarms have no clear message ("recovered"); the hook sees only the raising.

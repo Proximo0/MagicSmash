@@ -186,9 +186,10 @@ fn the_supervisor_keeps_the_gateway_up_and_alarms_when_it_dies() {
     let b = bins(&d);
     let host = d.join("host");
     ok(&host, &["package", &format!("--bins={}", b.display()), &format!("--out={}", host.display()), "--version=v1", &format!("--host={}", Path::new(env!("CARGO_MANIFEST_DIR")).join("host").display())]);
-    // The stand-in gateway: the first run dies at once, later ones stay up. It records each start.
+    // The stand-in gateway: the first run dies at once, later ones stay up until asked to stop (the file
+    // `gateway.stop` in the host folder, its working folder), as the real one does. It records each start and stop.
     let gw = host.join("releases/v1/realm-gateway");
-    std::fs::write(&gw, format!("#!/bin/sh\necho start >> {0}/starts.txt\nif [ $(wc -l < {0}/starts.txt) -lt 2 ]; then exit 3; fi\nexec sleep 60\n", host.display())).unwrap();
+    std::fs::write(&gw, format!("#!/bin/sh\necho start >> {0}/starts.txt\nif [ $(wc -l < {0}/starts.txt) -lt 2 ]; then exit 3; fi\nwhile [ ! -f gateway.stop ]; do sleep 0.1; done\necho stop >> {0}/stops.txt\nexit 0\n", host.display())).unwrap();
     std::fs::set_permissions(&gw, std::fs::Permissions::from_mode(0o755)).unwrap();
     let hook = host.join("hook.sh");
     std::fs::write(&hook, format!("#!/bin/sh\necho \"$1|$2\" >> {}/alarms.txt\n", host.display())).unwrap();
@@ -208,8 +209,10 @@ fn the_supervisor_keeps_the_gateway_up_and_alarms_when_it_dies() {
     let alarms = std::fs::read_to_string(host.join("alarms.txt")).unwrap_or_default();
     assert!(alarms.starts_with("host-death|"), "the hook heard of the death: {alarms:?}");
     // A second supervisor is refused; restart relaunches; stop ends it all.
-    let (good, _) = ops(&host, &["stop", "--nothing"]);
-    assert!(good);
+    let (good, said) = ops(&host, &["stop", "--nothing"]);
+    assert!(good && said.contains("stopped in"), "{said}");
+    assert!(!host.join("running").exists(), "the stop returns once the supervisor has ended");
+    assert_eq!(std::fs::read_to_string(host.join("stops.txt")).unwrap_or_default().lines().count(), 1, "the gateway was asked, not killed");
     let st = sup.wait().unwrap();
     assert!(st.success(), "the supervisor ends on stop");
     assert!(!host.join("running").exists());

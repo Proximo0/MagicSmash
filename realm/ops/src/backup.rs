@@ -1,8 +1,9 @@
 //! Backups on a clock, and the restore drill. A backup is SQLite's online backup (`realm_store::backup_file`: writers
 //! keep going), written under a `.part` name, then opened again and verified (the store's full `verify`: every
 //! invariant, the ledger replayed) before it gets its real name; a backup that does not verify is deleted and is an
-//! error, never "kept anyway". The store's side files (`.secret` tickets key, `.admin` token, `.social` log,
-//! `.bosskills`) are copied beside it. Retention: the newest `keep`, plus the first backup of each of the last
+//! error, never "kept anyway". Every file the realm keeps beside its store (`SIDES`: the `.secret` tickets key,
+//! `.admin` token, `.social` log, `.bosskills`, `.switches`, the `.homes` plot registry, the realm clock's `.epoch`
+//! and the operator's `.social.words`) is copied beside it. Retention: the newest `keep`, plus the first backup of each of the last
 //! `daily_keep` days. `restore` and `drill` prove the way back.
 //! (`backup_copy` is a store addition: the copy without its verify, for stores a schema behind.)
 
@@ -11,7 +12,7 @@ use realm_store::sqlite::open_reader;
 use realm_store::read;
 use std::path::{Path, PathBuf};
 
-pub const SIDES: [&str; 5] = ["secret", "admin", "social", "bosskills", "switches"];
+pub use crate::sides::{side, SIDES};
 
 #[derive(Clone, Debug)]
 pub struct Made {
@@ -21,10 +22,6 @@ pub struct Made {
     pub stacks: i64,
     pub ledger_rows: i64,
     pub digest: u64,
-}
-
-fn side(db: &Path, ext: &str) -> PathBuf {
-    PathBuf::from(format!("{}.{ext}", db.display()))
 }
 
 fn name(stamp: &str) -> String {

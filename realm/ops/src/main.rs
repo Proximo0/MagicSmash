@@ -78,7 +78,20 @@ fn go(args: &[String]) -> Result<String, String> {
                 return Err(format!("no supervisor is running in {}", root.display()));
             }
             std::fs::write(root.join(cmd), "").map_err(|e| e.to_string())?;
-            Ok(format!("{cmd} requested"))
+            if cmd == "restart" {
+                return Ok("restart requested".into());
+            }
+            // The stop returns when the supervisor has ended (its gateway banked and exited, or was killed after
+            // the grace), so a service manager that kills what is left after this command kills nothing.
+            let t = std::time::Instant::now();
+            let bound = supervise::STOP_GRACE + std::time::Duration::from_secs(5);
+            while release::running(&root) {
+                if t.elapsed() > bound {
+                    return Err(format!("stop requested, but the supervisor is still running after {} s", bound.as_secs()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            Ok(format!("stopped in {:.1} s", t.elapsed().as_secs_f64()))
         }
         "status" => {
             let c = load(&root)?;
@@ -94,7 +107,7 @@ fn go(args: &[String]) -> Result<String, String> {
             if port == 0 {
                 return Err("admin_port is 0 (off) in ops.conf".into());
             }
-            let token = std::fs::read_to_string(format!("{}.admin", c.path(&root, "db").display())).map_err(|e| format!("admin token: {e}"))?;
+            let token = std::fs::read_to_string(realm_ops::sides::side(&c.path(&root, "db"), realm_ops::sides::ADMIN)).map_err(|e| format!("admin token: {e}"))?;
             let mut s = std::net::TcpStream::connect(("127.0.0.1", port as u16)).map_err(|e| format!("the realm's admin port {port} does not answer: {e}"))?;
             let words: Vec<&str> = args.iter().filter(|a| !a.starts_with("--")).map(|a| a.as_str()).collect();
             std::io::Write::write_all(&mut s, format!("{}\tops\n{}\n", token.trim(), words.join(" ")).as_bytes()).map_err(|e| e.to_string())?;

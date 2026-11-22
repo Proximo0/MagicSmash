@@ -204,3 +204,36 @@ fn a_gateway_started_with_an_ops_conf_logs_serves_metrics_and_keeps_switches_acr
     assert!(log.contains("INFO realm_start") && log.contains("WARN switches_restored"), "{log}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A disaster restore brings back the houses and the realm clock: a plot bought in the gateway's own registry and the
+/// epoch the clock wrote are copied with the backup, and after the disk is lost the restore puts both back, so
+/// the owner still owns her house and the tides have not moved.
+#[test]
+fn a_backup_and_restore_keep_the_plot_registry_and_the_clock_epoch() {
+    use realm_gateway::homes::plots::Registry;
+    use realm_ops::sides::{side, EPOCH, HOMES};
+    let dir = std::env::temp_dir().join(format!("realm-ops-gw-sides-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("data")).unwrap();
+    let db = dir.join("data/realm.db");
+    SqliteStore::open(&db).unwrap().close();
+    let now = 1_700_000_000_000i64;
+    {
+        let mut reg = Registry::open(&side(&db, HOMES)).unwrap();
+        reg.buy(0, 42, "Annie", now).unwrap();
+    }
+    // An epoch a day old, as the realm wrote it on its first start; the clock reads it.
+    let day_ago = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64 - 86_400_000;
+    std::fs::write(side(&db, EPOCH), format!("{day_ago}\n")).unwrap();
+    let before = realm_server::realm_clock::clock_from_epoch(&side(&db, EPOCH), 1).now();
+    let made = realm_ops::backup::backup_now(&db, &dir.join("backups"), 3, 0, now).unwrap();
+    // The disk is lost.
+    for s in ["", "-wal", "-shm", ".homes", ".epoch"] {
+        let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+    }
+    realm_ops::backup::restore(&made.file, &db, now + 1000).unwrap();
+    assert_eq!(Registry::open(&side(&db, HOMES)).unwrap().plot_of(42, now), Some(0), "she still owns her house");
+    let after = realm_server::realm_clock::clock_from_epoch(&side(&db, EPOCH), 1).now();
+    assert!(after >= before && after - before < 20 * 60, "the realm clock runs on from the same epoch ({before} then {after})");
+    let _ = std::fs::remove_dir_all(&dir);
+}

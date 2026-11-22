@@ -105,3 +105,99 @@ fn a_server_killed_mid_outing_loses_nothing_banked() {
         let _ = std::fs::remove_file(f);
     }
 }
+
+/// The stop: a realm run as the supervisor runs it (`--ops-conf`) is asked to stop by the file
+/// `realm_ops::runtime::GATEWAY_STOP` beside its ops.conf (what `realm-ops stop` and `restart` drop). It banks
+/// every hero still in a field (her whole haul, as a gate would) and exits by itself within a bounded time; what
+/// she held at the stop is what a restarted realm loads. A kill (the test above) would have lost that haul.
+#[test]
+fn a_server_asked_to_stop_banks_every_haul_and_exits() {
+    let dir = std::env::temp_dir().join(format!("realm-stop-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = dir.join("realm.db");
+    let mut conf = realm_ops::config::template();
+    conf.push_str(&format!("\nmetrics_port = 0\nadmin_port = 0\nbackup_every_mins = 0\nlog_dir = {0}/logs\ndb = {0}/realm.db\nbackup_dir = {0}/backups\n", dir.display()));
+    std::fs::write(dir.join("ops.conf"), conf).unwrap();
+    let spawn_conf = || {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_realm-gateway"))
+            .args([&format!("--db={}", db.display()), "--dev-login", "--dev-cert", "--bind=127.0.0.1", "--public-host=127.0.0.1", "--port=0", "--field-port=0", "--fields=0", "--monsters=1500", "--seed=5", &format!("--ops-conf={}/ops.conf", dir.display())])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn realm-gateway");
+        let mut out = BufReader::new(child.stdout.take().unwrap());
+        let mut line = String::new();
+        while !line.starts_with("LISTEN") {
+            line.clear();
+            assert!(out.read_line(&mut line).unwrap() > 0, "the gateway ended before LISTEN");
+        }
+        let tcp = line.split_whitespace().find_map(|w| w.strip_prefix("tcp=")).expect("a LISTEN line").to_string();
+        // Keep reading its output so it never blocks on a full pipe.
+        std::thread::spawn(move || for _ in out.lines() {});
+        (child, tcp)
+    };
+    let (mut child, addr) = spawn_conf();
+    let helper = Arc::new(SqliteStore::open(&db).unwrap());
+    let prep = fast_prep(helper.clone());
+    let mut st = BotStats::default();
+    let tls = tls(&db);
+    cycle(&addr, Some(&tls), 1, 0, &PlayOpts { fight_ticks: 100, drop_after_bank: true, ..PlayOpts::default() }, &prep, &mut st).expect("a banked cycle");
+    let account = helper.account_by_dev_name(Meta::system(1 << 100, 1), "soak-bot-1").unwrap();
+    let hero = helper.heroes(account, false).unwrap()[0].id;
+    let before = held(&helper, hero);
+    // A second outing that never banks by itself: she fights until the realm stops.
+    let mut gw = GatewayClient::connect_with(&addr, Some(&tls)).unwrap();
+    assert!(matches!(gw.login("soak-bot-1").unwrap(), Resp::Login { .. }));
+    let ticket = loop {
+        match gw.call(Req::FieldTicket { hero, field: 0 }).unwrap() {
+            Resp::Err { .. } => std::thread::sleep(Duration::from_millis(200)),
+            r => break r,
+        }
+    };
+    let Resp::Ticket { host, port, ticket, key, .. } = ticket else { panic!("no ticket") };
+    let play = PlayOpts { bank: false, max_ticks: 20 * 120, ..PlayOpts::default() };
+    let bot = std::thread::spawn(move || play_field(&mut gw, &host, port, ticket, key, &play));
+    std::thread::sleep(Duration::from_secs(12));
+    std::fs::write(dir.join(realm_ops::runtime::GATEWAY_STOP), "").unwrap();
+    let asked = std::time::Instant::now();
+    let status = loop {
+        if let Some(s) = child.try_wait().unwrap() {
+            break s;
+        }
+        if asked.elapsed() > Duration::from_secs(30) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("the gateway did not stop within 30 s of being asked (a stop is a kill)");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert!(status.success(), "a requested stop ends cleanly: {status}");
+    assert!(!dir.join(realm_ops::runtime::GATEWAY_STOP).exists(), "the request is taken");
+    let outcome = bot.join().unwrap();
+    // The store, reopened cold: her haul was banked at the stop.
+    drop(helper);
+    let store = SqliteStore::open(&db).unwrap();
+    let after = held(&store, hero);
+    assert!(after.0 > before.0 && after.1 > before.1, "the haul and class XP of the stopped outing are banked: {before:?} -> {after:?}");
+    if let Ok(o) = &outcome {
+        assert_eq!(o.left, 4, "she left by the shutdown: {o:?}");
+        assert_eq!(after.0, before.0 + o.coin, "all of her haul's coin, none lost: {o:?}");
+    }
+    assert!(store.verify().unwrap().problems.is_empty());
+    drop(store);
+    // A restarted realm loads what she had at the stop.
+    let (mut again, addr) = spawn_conf();
+    let mut gw = GatewayClient::connect_with(&addr, Some(&tls)).unwrap();
+    assert!(matches!(gw.login("soak-bot-1").unwrap(), Resp::Login { .. }));
+    let info = gw.heroes().unwrap().into_iter().find(|h| h.id == hero).expect("her hero");
+    assert_eq!(info.class_xp, after.1);
+    assert!(matches!(gw.call(Req::EnterTown { hero }).unwrap(), Resp::Town { .. }));
+    std::fs::write(dir.join(realm_ops::runtime::GATEWAY_STOP), "").unwrap();
+    let t = std::time::Instant::now();
+    while again.try_wait().unwrap().is_none() && t.elapsed() < Duration::from_secs(30) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let _ = again.kill();
+    let _ = again.wait();
+    let _ = std::fs::remove_dir_all(&dir);
+}

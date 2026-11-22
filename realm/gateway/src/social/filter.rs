@@ -22,7 +22,7 @@ pub type Filter = Box<dyn Fn(&str) -> Verdict + Send + Sync>;
 /// A line may hold this many of one character in a row (so "aaaaaaaaaaaaa" is spam).
 pub const RUN_MAX: usize = 8;
 
-/// Words masked by the default filter; the operator adds more with `{db}.words` (one a line).
+/// Words masked by the default filter; the operator adds more with `{db}.social.words` (one a line).
 pub const DEFAULT_WORDS: [&str; 8] = ["fuck", "shit", "cunt", "bitch", "nigger", "faggot", "whore", "asshole"];
 
 fn plain(c: char) -> char {

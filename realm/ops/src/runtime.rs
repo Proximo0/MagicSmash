@@ -32,11 +32,15 @@ pub fn flood_limits(c: &Conf) -> flood::Limits {
     }
 }
 
+/// The file (in the host folder, beside ops.conf) that asks a running gateway to stop: it banks every hero in a
+/// field, ends its hosts and exits. `realm-ops stop` and `restart` have the supervisor drop it (`supervise`).
+pub const GATEWAY_STOP: &str = "gateway.stop";
+
 pub fn start(c: &Conf, root: &Path, probe: ProbeFn) -> std::io::Result<Running> {
     metrics::mark_start();
     log::init(&c.path(root, "log_dir"), c.num("log_max_mb"), c.num("log_keep") as usize)?;
     let db = c.path(root, "db");
-    switches::persist(std::path::PathBuf::from(format!("{}.switches", db.display())));
+    switches::persist(crate::sides::side(&db, crate::sides::SWITCHES));
     flood::configure(flood_limits(c));
     log::info("realm_start", &[("db", db.display().to_string()), ("fields", c.get("fields").to_string()), ("flood", flood::enabled().to_string())]);
 

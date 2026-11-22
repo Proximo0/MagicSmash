@@ -220,8 +220,8 @@ short test holds each band's forced sinks (falls, potions, repair, fares) to at 
 3. Faucet scale: E1's prices (potions, the merchant, the market) are a few hundred coin while a career mints 145
    million; the sinks here are scaled to income, E1's are not. The potion price and the merchant's pay may want
    the same income scale.
-4. The gateway's `sheet_of` ignores an item's smith plus and its `RUNE_POINTS` differ from the loot crate's; careers
-   use the loot crate's numbers.
+4. (Settled 2026-11-22.) The gateway's `sheet_of` now sums gear with the loot crate's `gear_stats`, as careers do:
+   the smith's plus, socketed cards and grade III runes at 7 count in the field.
 5. Chest coin is minted both by the core (`Reward`) and by the loot roll; careers book both.
 6. THE TOWER's rim (level 40) pays a tenth of its middle (probe: 58k against 456k an hour): parties there stall in
    corridors. Careers skip it (`best_rate`), but a player would not.

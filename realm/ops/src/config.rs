@@ -17,7 +17,7 @@ const fn s(key: &'static str, default: &'static str, doc: &'static str) -> Setti
 
 pub const SETTINGS: &[Setting] = &[
     // The realm itself (they become realm-gateway flags).
-    s("db", "data/realm.db", "The store file (SQLite). Its .secret, .admin, .social and .bosskills files sit beside it and are backed up with it. Relative paths are inside the host folder."),
+    s("db", "data/realm.db", "The store file (SQLite). Its side files (.secret, .admin, .social, .bosskills, .switches, .homes, .epoch, .social.words) sit beside it and are backed up with it. Relative paths are inside the host folder."),
     s("bind", "0.0.0.0", "Address the gateway's TCP port listens on. 127.0.0.1 keeps the realm private (a test on one PC)."),
     s("port", "7700", "Gateway TCP port (login, heroes, town). Forward it on the router."),
     s("public_host", "", "The address clients are told to send field UDP to (the PC's public name or IP). Empty: the address the client used."),

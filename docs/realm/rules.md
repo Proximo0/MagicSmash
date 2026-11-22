@@ -41,7 +41,8 @@ in CAPITALS are on-screen names. The town, the bank, trade, the market, guilds a
 ## 2. The saved hero and the field hero
 
 The server keeps a hero's sheet and turns it into the numbers the field needs when she enters (`Sheet`, passed to
-`Field::join`): class, job, race, class level, the six stats after race, points, gear, cards and runes, the deck
+`Field::join`; built by the gateway's `sheet_of` for every field, vault, duel and home, its gear the loot crate's
+`gear_stats`: item lines raised 3% a smith step, plus the runes and monster cards in their sockets): class, job, race, class level, the six stats after race, points, gear, cards and runes, the deck
 (card ids), the belt (three potion ids with counts), the look. The field keeps what lasts one outing: health, field
 level and XP, drawn cards, the haul's coin, cooldowns, effects. `join` also takes that outing state, so a hero moved
 between two copies of a field (section 11) arrives as she left.
