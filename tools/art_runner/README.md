@@ -35,3 +35,6 @@ The runner lives on the MSI at `D:\projects\hh_art` (not in this repo) and runs 
 
 ## Licence gate
 `licences.json` lists every model repo the runner may load, with its licence and `commercial_ok`. `licence_check.py` enforces it: `runner2.main()` calls `check_all(LOADS)` and refuses to start unless every repo is listed and cleared, and every load site (`snap()` in runner.py and ab_klein.py, the two LoRA `hf_hub_download` calls, the SigLIP scorer) calls `allow(repo)` first, so a new model cannot be loaded until it is added here. Pose guides are drawn in code (walk.py); no OpenPose detector weights are used.
+
+## Runner code (copied from D:\projects\hh_art)
+runner2.py (two-phase runner: SDXL layouts, then FLUX.2-klein-4B), runner.py (shared helpers + SDXL Gen), walk.py (drawn pose skeletons and sheet checks), ab_klein.py (Klein loader), score.py (SigLIP must-trait scores), clean.py / pixsnap.py (keying, pixel snapping), contact.py (contact sheets), licence_check.py + licences.json (licence gate), supervise.py + start_runner.ps1 / stop_runner.ps1 (supervisor). Paths assume D:\projects\hh_art with its venv; no weights or outputs are kept here.
