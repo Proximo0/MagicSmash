@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The lead's tool for the station work queue (see tools/station/README.md). Run it from any clone of the repository.
 #   queue.sh add kind=fuzz args="seeds=1-50 ops=50000" [needs=any|gpu|linux|windows|<machine>] [priority=0-9] [repeat=once|forever]
-#                [timeout_s=3600] [every_s=0]
+#                [timeout_s=3600] [every_s=0] [needs_free_mb=MB] [needs_gpu_idle=0|1]
 #   queue.sh list                 pending jobs, who holds a claim and for how long, done counts
 #   queue.sh cancel <id>
 #   queue.sh fill-week            load a default week of work (safe to run again: jobs already queued are not repeated)
@@ -14,9 +14,12 @@ cd "$(dirname "$0")/../.."
 
 cmd=${1:-}; shift || true
 
-q_job_text() { printf 'kind=%s\nargs=%s\nneeds=%s\npriority=%s\nrepeat=%s\ntimeout_s=%s\nevery_s=%s\nadded=%s\n' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$(date -u +%FT%TZ)"; }
+q_job_text() {  # the optional 8th and 9th words (needs_free_mb, needs_gpu_idle) are written only when given
+  printf 'kind=%s\nargs=%s\nneeds=%s\npriority=%s\nrepeat=%s\ntimeout_s=%s\nevery_s=%s\nadded=%s\n' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$(date -u +%FT%TZ)"
+  [ -z "${8:-}" ] || printf 'needs_free_mb=%s\n' "$8"; [ -z "${9:-}" ] || printf 'needs_gpu_idle=%s\n' "$9"
+}
 q_add() {  # kind args needs priority repeat timeout every -> prints the id
-  J_KIND=$1 J_ARGS=$2 J_NEEDS=$3 J_PRIO=$4 J_REPEAT=$5 J_TIMEOUT=$6 J_EVERY=$7
+  J_KIND=$1 J_ARGS=$2 J_NEEDS=$3 J_PRIO=$4 J_REPEAT=$5 J_TIMEOUT=$6 J_EVERY=$7 J_MB=${8:-} J_GPUIDLE=${9:-}
   q_valid_job || { echo "queue: refused: $Q_WHY" >&2; return 1; }
   local id tmp; id="$(date -u +%y%m%d%H%M%S)-$(printf %04d $((RANDOM % 10000)))"
   tmp=$(mktemp); q_job_text "$@" >"$tmp"
@@ -28,13 +31,14 @@ q_machines() { grep -v '^#' tools/station/roles.txt | grep -iw queue | cut -d: -
 
 case "$cmd" in
   add)
-    kind="" args="" needs=any prio=5 rep=once to=3600 every=0
+    kind="" args="" needs=any prio=5 rep=once to=3600 every=0 mb="" gpuidle=""
     for a in "$@"; do
       case "$a" in kind=*) kind=${a#kind=} ;; args=*) args=${a#args=} ;; needs=*) needs=${a#needs=} ;; priority=*) prio=${a#priority=} ;;
         repeat=*) rep=${a#repeat=} ;; timeout_s=*) to=${a#timeout_s=} ;; every_s=*) every=${a#every_s=} ;;
+        needs_free_mb=*) mb=${a#needs_free_mb=} ;; needs_gpu_idle=*) gpuidle=${a#needs_gpu_idle=} ;;
         *) echo "queue: unknown word '${a:0:30}'" >&2; exit 2 ;; esac
     done
-    q_add "$kind" "$args" "$needs" "$prio" "$rep" "$to" "$every" || exit 1 ;;
+    q_add "$kind" "$args" "$needs" "$prio" "$rep" "$to" "$every" "$mb" "$gpuidle" || exit 1 ;;
   list)
     q_fetch || { echo "queue: no branch $QBRANCH yet (use add or fill-week)"; exit 0; }
     now=$(q_now); n=0

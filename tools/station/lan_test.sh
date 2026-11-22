@@ -32,7 +32,7 @@ check "the published file now says ended" 'grep -q "^state=ended" "$STATION_LAN_
 bash "$REPO/tools/station/jobs/lanplay.sh" secs=5 bots=1 wait=0 >"$T/none2.out" 2>&1
 check "after the host ended: no live host" '[ "$(tail -1 "$T/none2.out")" = "INFO lanplay: no live host" ]'
 # the host is gone but its file looks live (a crashed host, a closed firewall)
-sed -i '/^state=/s/ended/live/; s/^end_epoch=.*/end_epoch=9999999999/' "$STATION_LAN_DIR/host.txt"
+sed -i '/^state=/s/ended/live/; s/^end_epoch=.*/end_epoch=9999999999/; s/^updated_epoch=.*/updated_epoch=9999999999/' "$STATION_LAN_DIR/host.txt"
 bash "$REPO/tools/station/jobs/lanplay.sh" secs=5 bots=1 wait=0 >"$T/dead.out" 2>&1
 check "a live-looking host that is down: FAIL host unreachable (firewall?) with the address" 'tail -1 "$T/dead.out" | grep -q "^FAIL lanplay: host unreachable (firewall?) $ip:17700"'
 [ $fails = 0 ] && echo "LAN ok" || { echo "LAN FAILED $fails"; exit 1; }

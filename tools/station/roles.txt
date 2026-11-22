@@ -11,5 +11,6 @@ ubuntu: realm world ops queue deep
 msi: realm queue deep
 laptop: frames balance queue deep
 heatherspc: economy queue deep
+# `--ci-covered` (flag, optional per machine): the `realm` job is skipped unless the merge touched Windows-only paths CI does not test (README, "CI overlap").
 # `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with tools/station/queue.sh,
 # see README) and falls back to `deep` only when the queue has nothing for this machine. A merge still comes first and interrupts a long job.

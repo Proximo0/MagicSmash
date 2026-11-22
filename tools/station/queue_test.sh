@@ -4,7 +4,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-export STATION_QUEUE_STUB=1 STATION_QUEUE_RETRY_SLEEP=1 TMPDIR="$T" GIT_TERMINAL_PROMPT=0
+export STATION_QUEUE_STUB=1 STATION_QUEUE_RETRY_SLEEP=1 TMPDIR="$T" GIT_TERMINAL_PROMPT=0 STATION_FREE_MB=100000   # the RAM gate sees plenty unless a test says otherwise
 fails=0
 ok() { echo "  ok   $1"; }
 bad() { echo "  FAIL $1"; fails=$((fails + 1)); }
@@ -128,6 +128,14 @@ Q alpha cancel "$idz" >/dev/null
 ( cd "$T/gamma" && STATION_NAME=gamma bash tools/station/station.sh --no-push world >"$T/w3" 2>&1 )
 check "two merges that landed while busy are tested once, at the newest main" '[ "$(grep -c "^STATION machine=" "$T/w3")" = 1 ] && grep -q "commit=$(git -C "$T/seed" rev-parse --short=7 HEAD) " "$T/w3"'
 
+echo "== a failed push keeps the finished report: the jobs are not run again, only the push is retried"
+( cd "$T/seed" && echo 3 >realm/three && git add -A && git -c user.name=t -c user.email=t@t commit -qm three && git push -q origin HEAD:main )
+gd=$(git -C "$T/gamma" rev-parse --absolute-git-dir); head3=$(git -C "$T/seed" rev-parse HEAD)
+( cd "$T/gamma" && git config remote.origin.pushurl "$T/nowhere.git" && STATION_PUBLISH_SLEEP=0 STATION_NAME=gamma bash tools/station/station.sh world >"$T/p1" 2>&1 )
+check "push failed: the commit is marked tested and the report is kept" '[ "$(cat "$gd/station_last")" = "$head3" ] && [ -s "$gd/station_last.unpushed" ] && grep -q "report kept" "$T/p1" && ! rd station-results gamma.txt | grep -q "commit=${head3:0:7} "'
+( cd "$T/gamma" && git config --unset remote.origin.pushurl && STATION_POLL=1 STATION_NAME=gamma timeout 12 bash tools/station/station.sh --watch world >"$T/p2" 2>&1 )
+check "the watching station pushed the kept report without running the jobs again" 'grep -q "kept report was pushed" "$T/p2" && ! grep -q "^STATION PASS" "$T/p2" && [ ! -e "$gd/station_last.unpushed" ] && rd station-results gamma.txt | grep -q "commit=${head3:0:7} "'
+
 echo "== the LAN rehearsal jobs (stubs here; tools/station/lan_test.sh runs the real pair)"
 check "lanhost.sh and lanplay.sh answer with a stub line and exist as queue shell scripts" '[ "$(bash "$REPO/tools/station/jobs/lanhost.sh" secs=30)" = "PASS lanhost stub secs=30" ] && [ "$(bash "$REPO/tools/station/jobs/lanplay.sh" secs=30 bots=3)" = "PASS lanplay stub secs=30 bots=3" ]'
 idl=$(Q alpha add kind=shell args="script=lanhost secs=1800" needs=alpha | tail -1)
@@ -136,6 +144,47 @@ check "the queue runs lanhost as a shell job" 'rd station-results work/$idl/alph
 if [ -x "$REPO/realm/target/release/realm-lanplay" ] && [ -x "$REPO/realm/target/release/realm-gateway" ]; then
   STATION_QUEUE_STUB= bash "$REPO/tools/station/lan_test.sh" >"$T/lan.out" 2>&1; check "the local host and player pair (lan_test.sh) prints LAN ok" 'tail -1 "$T/lan.out" | grep -q "^LAN ok"'
 else echo "  skip the real LAN pair: build realm first (cargo build --release -p realm-gateway); run tools/station/lan_test.sh"; fi
+
+echo "== a machine's own old claim does not block it; a claim is checked and pushed on one view"
+cancel_all() { Q alpha list | awk '$1 ~ /^[0-9]/ { print $1 }' | while read -r i; do Q alpha cancel "$i" >/dev/null; done; }
+cancel_all
+ido=$(Q alpha add kind=soak args="secs=5 seeds=3" needs=any priority=9 | tail -1)
+printf 'machine=alpha time=%s\n' "$(date +%s)" >"$T/own"   # alpha crashed a minute ago holding this claim; it is not stale for others yet
+( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha gb_put station-queue "own claim" "+claims/$ido.alpha:$T/own" )
+Q beta step >"$T/o" 2>&1; rc=$?
+check "another machine still respects the live claim" '[ $rc = 1 ]'
+Q alpha step >"$T/o" 2>&1; rc=$?
+check "alpha retakes its own claim and finishes the job" '[ $rc = 0 ] && rd station-results work/$ido/alpha.txt | grep -q " PASS id=$ido " && ! files station-queue | grep -q "^claims/$ido\."'
+idr2=$(Q alpha add kind=soak args="secs=5 seeds=4" needs=any priority=9 | tail -1)
+( cd "$T/beta" && . tools/station/queue_lib.sh && MACHINE=beta
+  eval "$(declare -f q_load | sed '1s/q_load/q_load_orig/')"
+  q_load() { q_load_orig "$@"; local lrc=$?; if [ -z "${raced:-}" ]; then raced=1; ( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha && q_fetch && q_claim "$idr2" ); fi; return $lrc; }
+  q_claim "$idr2" ); rc=$?
+check "alpha claims after beta looked but before beta pushed: beta loses, one claim" '[ $rc = 1 ] && [ "$(files station-queue | grep -c "^claims/$idr2\.")" = 1 ] && files station-queue | grep -qx "claims/$idr2.alpha"'
+cancel_all
+
+echo "== the resource gate: RAM and the GPU"
+idm=$(Q alpha add kind=soak args="secs=5 seeds=5" needs=alpha needs_free_mb=500 | tail -1)
+check "the job file carries needs_free_mb" 'rd station-queue queue/$idm.job | grep -qx "needs_free_mb=500"'
+STATION_FREE_MB=100 Q alpha step >"$T/o" 2>&1; rc=$?
+check "100 MB free for a 500 MB job: nothing runs, one clear SKIP line" '[ $rc = 1 ] && grep -qx "SKIP queue job $idm: needs 500 MB free RAM, only 100 MB free" "$T/o" && ! rd station-results work/$idm/alpha.txt | grep -q .'
+Q alpha step >"$T/o" 2>&1; rc=$?
+check "with enough RAM the same job runs" '[ $rc = 0 ] && rd station-results work/$idm/alpha.txt | grep -q " PASS id=$idm "'
+idg=$(Q alpha add kind=frames args="zooms=16" needs=alpha | tail -1)
+echo "RUNNING" >"$T/art-status"
+HH_ART_STATUS="$T/art-status" Q alpha step >"$T/o" 2>&1; rc=$?
+check "a GPU job waits while art generation is RUNNING (SKIP line)" '[ $rc = 1 ] && grep -q "SKIP queue job $idg: the GPU is busy" "$T/o"'
+echo "DONE" >"$T/art-status"
+HH_ART_STATUS="$T/art-status" Q alpha step >"$T/o" 2>&1; rc=$?
+check "and runs when the art status file says otherwise" '[ $rc = 0 ] && rd station-results work/$idg/alpha.txt | grep -q " INFO id=$idg kind=frames "'
+Q alpha add kind=soak args="secs=5" needs_free_mb=abc >"$T/o" 2>&1; check "add refuses a bad needs_free_mb" '[ $? != 0 ] && grep -q "bad needs_free_mb" "$T/o"'
+
+echo "== a job that dies silently reports its exit code and last stderr"
+ids2=$(Q alpha add kind=soak args="secs=5 seeds=9" needs=alpha | tail -1)
+( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha
+  qk_soak() { echo "boom on stderr" >&2; exit 7; }
+  q_fetch && q_run_job "$ids2" ) >"$T/o" 2>&1
+check "the FAIL line has exit 7 and the stderr text, not just 'printed nothing'" 'rd station-results work/$ids2/alpha.txt | grep -q " FAIL id=$ids2 .*job printed nothing (exit 7; stderr: boom on stderr"'
 
 echo "== the real station loop: queue job first, deep only when the queue is empty"
 if command -v setsid >/dev/null 2>&1; then
@@ -165,5 +214,28 @@ if command -v setsid >/dev/null 2>&1; then
   check "the heartbeat loop ends by itself when its station process is gone" '[ ! -s "$hb" ]'
   kill -- -"$(cat "$T/hb.pid")" 2>/dev/null; sleep 1
 else echo "  skip the heartbeat test: no setsid here"; fi
+
+echo "== a merge lands while a queue job runs: a long job finishes, then the commit is tested; a short one is cut"
+if command -v setsid >/dev/null 2>&1; then
+  cancel_all
+  ( cd "$T/seed" && printf '#!/usr/bin/env bash\nsleep "${1#secs=}"; echo "PASS sleepy done"\n' >tools/station/jobs/sleepy.sh && echo "delta: world queue" >>tools/station/roles.txt \
+    && git add -A && git -c user.name=t -c user.email=t@t commit -qm sleepy && git push -q origin HEAD:main )
+  git clone -q "$T/origin.git" "$T/delta"; dgd=$(git -C "$T/delta" rev-parse --absolute-git-dir)
+  ( cd "$T/delta" && STATION_NAME=delta STATION_POLL=1 STATION_DEEP_POLL=1 setsid bash -c 'echo $$ >"$1"; exec bash tools/station/station.sh --watch idle' _ "$T/d.pid" >"$T/d.log" 2>&1 & )
+  for _ in $(seq 1 30); do grep -q "^STATION PASS" "$T/d.log" && break; sleep 1; done
+  merge() { ( cd "$T/seed" && echo "$1" >"realm/m_$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "m $1" && git push -q origin HEAD:main ); git -C "$T/seed" rev-parse HEAD; }
+  idL=$(Q alpha add kind=shell args="script=sleepy secs=14" needs=delta timeout_s=3600 | tail -1)
+  for _ in $(seq 1 30); do grep -q "delta runs $idL" "$T/d.log" && break; sleep 1; done
+  mh=$(merge long)
+  for _ in $(seq 1 60); do [ "$(cat "$dgd/station_last" 2>/dev/null)" = "$mh" ] && break; sleep 1; done
+  check "long job (timeout 3600 s): not interrupted, its PASS is published" '! grep -q "interrupted" "$T/d.log" && rd station-results work/$idL/delta.txt | grep -q " PASS id=$idL .*sleepy done"'
+  check "and the station then tested the merge" '[ "$(cat "$dgd/station_last")" = "$mh" ]'
+  idS=$(Q alpha add kind=shell args="script=sleepy secs=40" needs=delta timeout_s=60 | tail -1)
+  for _ in $(seq 1 30); do grep -q "delta runs $idS" "$T/d.log" && break; sleep 1; done
+  mh2=$(merge short)
+  for _ in $(seq 1 30); do grep -q "job $idS interrupted" "$T/d.log" && break; sleep 1; done
+  check "short job (timeout 60 s): killed by the merge, claim released" 'grep -q "job $idS interrupted" "$T/d.log" && ! files station-queue | grep -q "^claims/$idS\.delta"'
+  kill -- -"$(cat "$T/d.pid")" 2>/dev/null; sleep 1
+else echo "  skip the merge-vs-queue-job test: no setsid here"; fi
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi

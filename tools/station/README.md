@@ -43,7 +43,27 @@ the results branch as `shots/<machine>-zoom<N>.png` (newest only). `STATION_SHOT
 ## The work queue: the machines work after the lead is switched off
 Between merges a station used to repeat the same `deep` pass. With the role word `queue` (all four machines) it first takes
 the next job from a queue the lead loaded in advance, and runs `deep` only when the queue has nothing for it. A merge still
-comes first: a long job is killed when a merge lands, its claim is released, and the job is picked up again later.
+comes first, but a merge no longer throws away a long job: a queue job with `timeout_s` above `STATION_QUEUE_KILL_MAX_S` (default 900)
+runs to its end and the station takes the new commit afterwards (audit 22 Nov: kills cost 21% of machine hours); a short job is cut by a
+merge, its claim released, and picked up again later. A claim a machine left itself (crash, reboot) never blocks that machine.
+
+Resource gate: before a job starts the station needs free RAM (job field `needs_free_mb`, default by kind: fuzz 512, soak/balance/package 1024,
+bench/economy 2048, frames 3072, shell 256; `0` = no check; the test override is `STATION_FREE_MB`) and, for `frames` and `needs=gpu` jobs
+(`needs_gpu_idle=1`), no art generation RUNNING (`HH_ART_STATUS`, default `D:\projects\hh_art\status.txt`). A short job prints
+`SKIP queue job <id>: ...` (once per half hour) and the station takes another job or falls to `deep` (which has the same RAM gate,
+`STATION_DEEP_FREE_MB`, default 2048). A GPU job is stopped, claim released, when art starts. `queue.sh add ... needs_free_mb=4096 needs_gpu_idle=1`.
+
+Reports: a failed job keeps up to 1500 characters of its last lines; a failed `deep` build keeps the last 40 lines of the build; a job that
+prints nothing reports its exit code, stderr and last output. A finished report whose push fails is kept (`station_last.unpushed` in `.git`)
+and only the push is retried every poll; the jobs are not run again.
+
+LAN rehearsal: players wait up to 900 s for a FRESH host file (the host rewrites `lan/host.txt` with `updated_epoch` every 90 s and writes
+`state=ended` when killed); a host that served and saw no login reports `FAIL lanhost: no player connected`. A host job is long, so a merge no longer kills it.
+
+CI overlap: CI (`realm.yml`) already runs `realm/check.sh`, the store check and the client on every push. The role flag `--ci-covered`
+(`msi: realm queue deep --ci-covered`) makes the `realm` job SKIP unless the merge changed a path CI does not cover on Windows
+(`STATION_REALM_OWN_PATHS`, an extended regex; default `.ps1`, `.cmd`, `.bat`, `realm/ops/host/`, `start_station`). No machine has it yet:
+the owner decides which one.
 
 How it is stored (git branch `station-queue`, written and read without a work tree, like `publish`; never main):
 `queue/<id>.job` (one job: `kind args needs priority repeat timeout_s added`, optional `every_s` = at least that many seconds
