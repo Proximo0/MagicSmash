@@ -147,6 +147,9 @@ FAR_BACK = 0.25       # R27: deg the far upper arm leans back per deg of extra f
 FAR_BACK_MAX = 10.0   # ... at most this much
 ELBOW = (8.0, 28.0)   # deg: elbow flexion, arm back .. arm forward (Murray: 10-35)
 GAIN_MAX = 2.0
+GAIN_MIN = 0.75  # a still with a short step gets a smaller thigh swing, so the legs reach the feet it plants
+BASE_LEAN = (0.0, 3.5)   # deg: the trunk's lean before the walk's own 1-2.5 deg: a still leaning back is stood upright,
+                         # one leaning far forward is brought back to a slight stoop (R31: baked lean 0 .. +6)
 STANCE_KNEE_MAX = 55.0   # deg: a planted leg's knee never folds further (Perry: ~40 at toe off)
 STANCE_PITCH_MIN = -45.0  # deg: a planted foot never stands steeper on its toe
 STRIDE_MATCH = 0.95   # a touch under the drawn step, so frame 0 never overshoots the still
@@ -202,7 +205,7 @@ def fit_walk(rig, step_px, exact=None, quantum=None, arm=1.0):
             for s in SIDES:
                 if contact[s]:
                     worst = min(worst, STANCE_KNEE_MAX - a[s + ".knee"], pose[s]["pitch"] - STANCE_PITCH_MIN)
-        if worst >= 0 or m.gain <= 1.0:
+        if worst >= 0 or m.gain <= GAIN_MIN:
             break
         target = max(quantum, target - quantum) if quantum else target * 0.94
         m = _fit_gain(rig, target, arm)
@@ -211,7 +214,7 @@ def fit_walk(rig, step_px, exact=None, quantum=None, arm=1.0):
 
 
 def _fit_gain(rig, target, arm=1.0):
-    lo, hi = 1.0, GAIN_MAX
+    lo, hi = GAIN_MIN, GAIN_MAX
     if Gait(rig, walk(lo, arm)).stride >= target:
         return walk(lo, arm)
     if Gait(rig, walk(hi, arm)).stride <= target:
@@ -258,6 +261,7 @@ class Gait:
         self.px = float(rig.j["pelvis"][0])
         self.flen = float(np.hypot(*rig.foot_local["toe"]))
         self.rest_lean = rig.rest["lean"]
+        self.base_lean = min(max(self.rest_lean, BASE_LEAN[0]), BASE_LEAN[1])   # the walk's trunk: upright .. slight stoop
         self.hip_off = {s: self._hip_local(s) for s in SIDES}
         # footprint: heel x at heel strike, from the table's own FK; stride from toe-off FK.
         self.hx0, est = {}, []
@@ -302,7 +306,7 @@ class Gait:
 
     # ---- helpers
     def lean(self, p):
-        return self.rest_lean + self.m.get("lean", p)
+        return self.base_lean + self.m.get("lean", p)
 
     def _hip_local(self, s):
         v = self.rig.torso_local["hip"].copy()

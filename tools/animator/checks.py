@@ -1034,10 +1034,43 @@ def far_edge(tm):
     return edge
 
 
+POSTURE_LEAN = (-0.5, 6.5)   # R31: deg the trunk (pelvis -> neck) may lean in any frame: upright .. slightly forward (+ = forward)
+POSTURE_KNEE = 20.0          # R31: deg of knee flexion a leg standing alone (the other swinging) may have
+POSTURE_PELVIS = 1.0         # R31: pelvis height over the ground, as a share of thigh + shin (a standing walker: 1.1-1.2; hip joint and ankle add to it)
+
+
+def posture(frames, ctx):
+    """R31: the walker stands up: in every frame the trunk leans between upright and +6 deg forward (never back:
+    a figure with its shoulders behind its hips reads as sitting), a leg that carries the body alone (the other
+    swinging) is nearly straight, and the pelvis rides at a walking height, not a squat."""
+    out = []
+    L = ctx.get("lengths", {})
+    leg = L["near.thigh"] + L["near.shin"] if "near.thigh" in L and "near.shin" in L else None
+    for i, f in enumerate(frames):
+        J = _J(f["meta"])
+        d = J["neck"] - J["pelvis"]
+        lean = float(np.degrees(np.arctan2(d[0], -d[1])))
+        if lean < POSTURE_LEAN[0] or lean > POSTURE_LEAN[1]:
+            out.append(f"frame {i}: posture: trunk leans {lean:.1f} deg ({'back' if lean < 0 else 'too far forward'}), "
+                       f"allowed 0..{POSTURE_LEAN[1] - 0.5:.0f}")
+        ang = joint_angles(J, ctx.get("rest_lean", 0.0))
+        con = f["meta"]["contact"]
+        for s in SIDES:
+            o = "far" if s == "near" else "near"
+            if con[s] and not con[o] and ang[s + ".knee"] > POSTURE_KNEE:
+                out.append(f"frame {i}: posture: the {s} leg stands alone with its knee bent {ang[s + '.knee']:.0f} deg "
+                           f"(seated), most {POSTURE_KNEE:.0f}")
+        if leg and "ground" in ctx and (ctx["ground"] - J["pelvis"][1]) < POSTURE_PELVIS * leg:
+            out.append(f"frame {i}: posture: pelvis {(ctx['ground'] - J['pelvis'][1]) / leg:.2f} of the leg length above "
+                       f"the ground (seated), least {POSTURE_PELVIS}")
+    return out
+
+
+
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
          rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour,
          gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs, leg_skin_colour,
-         far_hand_hidden, far_arm_flap, dark_specks, arm_contrast]
+         far_hand_hidden, far_arm_flap, dark_specks, arm_contrast, posture]
 
 
 def run_all(frames, ctx):
@@ -1055,7 +1088,7 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19",
             "gear_rigid": "R20", "gear_grip": "R21", "gear_back": "R22", "gear_head": "R23",
             "loose_blob": "R24", "gear_legs": "R25", "leg_skin": "R26",
-            "far_hand_visible": "R27", "far_arm_flap": "R28", "dark_speck": "R29", "arm_contrast": "R30"}
+            "far_hand_visible": "R27", "far_arm_flap": "R28", "dark_speck": "R29", "arm_contrast": "R30", "posture": "R31"}
 
 
 def rule_id(failure):
