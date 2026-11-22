@@ -48,6 +48,8 @@ STRIDE_QUANT = 8     # game px: stride per cycle is a multiple of this, so at 8 
 
 SEAT_MAX = 1.5       # game px at 56 px body height: how far a planted foot's pixels may be moved
                      # to stand on the ground row (render)
+BACK_SLOTS = ("back", "cape", "far_hand")   # gear that should hide the far hand (R26)
+FAR_HAND_CLEAR = 0.01  # x body height: the far hand ends this far above the hip line
 GEAR_LONG = 0.30     # x body height: held gear reaching this far past the wrist is "long" ...
 GEAR_ARM = 0.40      # ... and that arm swings only this much (a staff is carried steady)
 
@@ -385,6 +387,9 @@ def cleanup(out, l):
 def bake_motion(ch, motion, n=None, gait=None):
     n = n or motion.frames
     gait = gait or Gait(ch.rig, motion)
+    if any(g.slot in BACK_SLOTS for g in ch.gear) and not hasattr(gait, "_tucked"):
+        gait.solve_far_tuck(margin=-FAR_HAND_CLEAR * ch.rig.body_height)    # R26
+        gait._tucked = True
     cloth = None
     if any(getattr(p, "kind", "rigid") != "rigid" for p in ch.parts.values()) or \
             any(g.slot == "cape" for g in ch.gear):
@@ -422,6 +427,13 @@ def bake_motion(ch, motion, n=None, gait=None):
     return frames, ctx
 
 
+def _has_colours(img, cols):
+    code = img[..., 0].astype(np.int64) * 65536 + img[..., 1].astype(np.int64) * 256 + img[..., 2]
+    keys = np.asarray(cols, np.int64)
+    keys = keys[:, 0] * 65536 + keys[:, 1] * 256 + keys[:, 2]
+    return bool((np.isin(code, keys) & (img[..., 3] > 0)).any())
+
+
 def context(ch, motion, gait, n):
     k = ch.k
     ff = ch.rig.data.get("foot_fit", {})
@@ -433,7 +445,8 @@ def context(ch, motion, gait, n):
     for nm in ("near_fore", "far_fore"):
         if nm in ch.parts:
             c_, n_ = checks.hand_colours(ch.parts[nm].img, ch.rig.j["wrist"], ch.rig.j["hand_tip"],
-                                         other=body_imgs)
+                                         other=body_imgs,
+                                         common=0.0 if nm == "far_fore" else None)
             hc |= c_
             hpx = max(hpx, n_)
     return {
@@ -459,6 +472,10 @@ def context(ch, motion, gait, n):
         "rigid": [nm for nm in ch.parts if nm in ("torso", "back") or nm.startswith("gear:")]
         + [g.label for g in ch.gear],
         "gear": {g.label: g for g in ch.gear},
+        "skin": ch.info.get("skin"),
+        "skinless_legs": [nm for nm in ("near_thigh", "near_shin", "near_foot", "far_thigh", "far_shin", "far_foot")
+                          if nm in ch.parts and ch.info.get("skin") is not None and len(ch.info["skin"])
+                          and not _has_colours(ch.parts[nm].img, ch.info["skin"])],
         "hand_local": [v * k for v in _hand_local(ch.rig)]
         if ch.gear else [0.0, 0.0],
         "gear_scale": {g.label: g.size * ch.rig.body_height * k / max(g.extent, 1.0) for g in ch.gear},

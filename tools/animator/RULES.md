@@ -67,6 +67,8 @@ G12 | -     | A body still (layout `"format": "body"`, or gear pictures beside i
 G13 | owner | Nothing loose in the still: every opaque blob of 9 px or more is connected to the body (smaller ones are keying dust and are dropped; a ground plate is still erased) | check: fit.gate_still | test: TestBodyStill.test_g13_loose_stick_in_the_still
 G14 | -     | A gear picture is one connected shape with a known slot (one gear per slot), its anchor inside the picture (a hand grip on the gear itself), a size of 0.05 to 1.40 body heights, at least 24 px long, and no key colour left | check: gear.gate_gear | test: TestGearPictures.test_g14_gear_picture
 G15 | owner | The legs do not have the hand's colour: at most 25 % of the thighs and upper shins may pass the hand-colour test of G8 (bare legs: the hand vanishes against the thigh and cannot be counted). Trousers or greaves in a colour different from the skin | check: fit.gate_still | test: TestBodyStill.test_g15_bare_legs
+R26 | -     | No leg part shows the body's skin colour where the still had none: no pixel of the hand's palette (`colour.skin_palette`) on a trouser, greave or boot part of a baked frame when that part's cut picture has none (a rare grey or gold that median cut turned into a skin shade, a shaded kilt come out pink). The cut repairs such pixels (`colour.repair_false_skin`, `darken` keeps non-skin colours non-skin); the check guards it | check: checks.leg_skin_colour | test: TestPass6.test_r26_skin_on_a_leg_part
+R27 | -     | With back gear (shield, cape) or far-hand gear the far hand stays hidden behind it: no pixel of the far forearm is visible below the far hip's row (a hand dangling under the shield at the back hip). The pose keeps it there: `Gait.solve_far_tuck` folds the far elbow, per phase, just enough that the far wrist and hand tip hang no lower than the far hip, and only where the arm swings back (no stub of forearm ahead of the chest) | check: checks.far_hand_hidden | test: TestPass6.test_r27_far_hand_dangling_under_the_shield
 ```
 
 Measured on the three stills drawn on spec (22 Nov), with the margin to each limit:
@@ -93,3 +95,9 @@ New rules on the old stills: R24 refuses HR2.2 (the loose line at its hip, seen 
 G13 refuses loose pieces on HR2.1, HR5.3, HR5.4; G15 refuses HR4.1, HR4.4, HR5.4 and the spec
 still HR6.4 (grey-green trousers on a green orc), all of which already failed another rule.
 `samples/stills` now: accepted HR3.1 HR4.2 HR5.1; `samples/stills_spec`: accepted HR6.1.
+
+Sixth pass (22 Nov, `samples/stills_gear_msi`, HR6.1 / HR6.3 / HR6.4 with shield and hammer): R26 and R27 added;
+nothing else changed. R17 reads the far forearm's hand colours only where the body does not use them
+(`hand_colours(common=0)`): the far arm is the near one shaded and snapped to the palette, and on HR6.3 the
+shade of the skin snapped to the belt's colour, so a belt of 25 px was counted as a third hand (false alarm;
+the near hand's own colours still count every blob on the torso).

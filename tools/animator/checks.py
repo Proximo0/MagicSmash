@@ -505,12 +505,16 @@ HAND_BLOB = 0.4      # a blob of them off the forearms, this big x a hand (min 3
 ARM_ROWS = 0.08      # arm rows run from the shoulders to this far (x body height) below the hips
 
 
-def hand_colours(part_img, wrist, tip, lit=70, other=None):
+def hand_colours(part_img, wrist, tip, lit=70, other=None, common=None):
     """The colours a hand is made of: the commonest lit colours of a forearm part's pixels
     around the hand (between wrist and tip), up to HAND_SHARE of them.  A colour that the
     rest of the body (`other`: images of the non-arm parts) uses HAND_COMMON times more than
     the hand does is cloth the cuff shares with the clothes, not a hand colour.  Returns
-    (set of (r,g,b), number of hand pixels in still px)."""
+    (set of (r,g,b), number of hand pixels in still px).  `common`: the HAND_COMMON for this part;
+    the far forearm is the near one darkened and snapped to the palette, its shade can land on a
+    belt or a trim colour of the body (HR6.3: skin 251,185,156 -> belt 198,134,65), so its census
+    asks for colours the body does not use at all (common=0)."""
+    common = HAND_COMMON if common is None else common
     wrist = np.asarray(wrist, float)
     tip = np.asarray(tip, float)
     mid = (wrist + tip) / 2
@@ -531,7 +535,7 @@ def hand_colours(part_img, wrist, tip, lit=70, other=None):
         if len(ok):
             ks, kc = np.unique(key(ok), return_counts=True)
             elsewhere = dict(zip(ks.tolist(), kc.tolist()))
-            keep = np.array([elsewhere.get(int(k_), 0) <= HAND_COMMON * c_ for k_, c_ in zip(key(cols), cnt)])
+            keep = np.array([elsewhere.get(int(k_), 0) <= common * c_ for k_, c_ in zip(key(cols), cnt)])
             cols, cnt = cols[keep], cnt[keep]
             if not len(cols):
                 return set(), n_hand
@@ -621,6 +625,61 @@ def arm_count(frames, ctx):
     return out
 
 
+def _colour_keys(cols):
+    lut = np.asarray(sorted(map(tuple, cols)), np.int64).reshape(-1, 3)
+    return lut[:, 0] * 65536 + lut[:, 1] * 256 + lut[:, 2]
+
+
+def leg_skin_colour(frames, ctx):
+    """R26: no leg part shows the body's skin palette where the still had none.  ctx["skin"] is
+    the palette of the hand (colour.skin_palette) and ctx["skinless_legs"] the leg parts whose cut
+    picture has no pixel of it; one such pixel on a trouser or boot part of a baked frame (a
+    median-cut speck at the knee, a shaded kilt come out as skin) is refused."""
+    out = []
+    skin, parts = ctx.get("skin"), ctx.get("skinless_legs")
+    if skin is None or not len(skin) or not parts:
+        return out
+    keys = _colour_keys(skin)
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        rgba, lab = f["rgba"], f["label"]
+        code = rgba[..., 0].astype(np.int64) * 65536 + rgba[..., 1].astype(np.int64) * 256 + rgba[..., 2]
+        skinny = np.isin(code, keys) & (rgba[..., 3] > 0)
+        for nm in parts:
+            if nm not in names:
+                continue
+            ys, xs = np.where(skinny & (lab == names.index(nm)))
+            if len(ys):
+                out.append(f"frame {i}: leg_skin: {len(ys)} px of {nm} have the body's skin colour "
+                           f"(first at {xs[0]},{ys[0]}), the still has none on that leg part")
+    return out
+
+
+FAR_HAND_SLOTS = ("back", "cape", "far_hand")
+
+
+def far_hand_hidden(frames, ctx):
+    """R27: with back gear (shield, cape) or a far-hand gear the far hand stays hidden behind it:
+    no pixel of the far forearm is visible below the far hip's row (a hand dangling under the
+    shield at the back hip).  The pose folds the far elbow to keep it there (Gait.solve_far_tuck)."""
+    out = []
+    if not any(getattr(g, "slot", None) in FAR_HAND_SLOTS for g in ctx.get("gear", {}).values()):
+        return out
+    tol = _tol(ctx)
+    for i, f in enumerate(frames):
+        names = f["meta"]["labels"]
+        if "far_fore" not in names:
+            continue
+        J = _J(f["meta"])
+        row = J["far.hip"][1] + tol
+        ys, xs = np.where(f["label"] == names.index("far_fore"))
+        low = ys > row
+        if low.any():
+            out.append(f"frame {i}: far_hand_visible: {int(low.sum())} px of the far hand show below the hip "
+                       f"line (row {J['far.hip'][1]:.0f}), at {int(xs[low].mean())},{int(ys[low].mean())}")
+    return out
+
+
 def _seg_d(p, a, b):
     ab = b - a
     t = min(1.0, max(0.0, float((p - a) @ ab) / max(float(ab @ ab), 1e-9)))
@@ -697,7 +756,8 @@ def arm_swing(frames, ctx):
 
 RULES = [arm_count, arm_swing, bone_lengths, joint_limits, stance_foot, feet_facing, heel_flush, draw_order, two_legs,
          rigid_parts, cycle_closes, mirror_timing, palette, foot_jitter, two_arms, key_colour,
-         gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs]
+         gear_rigid, gear_grip, gear_back, gear_head, gear_legs, loose_blobs, leg_skin_colour,
+         far_hand_hidden]
 
 
 def run_all(frames, ctx):
@@ -714,7 +774,8 @@ RULE_IDS = {"two_legs": "R1", "two_arms": "R2", "joint_limit:knee": "R3", "joint
             "rigid_part": "R12", "cycle_closes": "R13", "mirror_timing": "R14", "palette": "R15",
             "foot_jitter": "R16", "arm_count": "R17", "arm_swing": "R18", "key_colour": "R19",
             "gear_rigid": "R20", "gear_grip": "R21", "gear_back": "R22", "gear_head": "R23",
-            "loose_blob": "R24", "gear_legs": "R25"}
+            "loose_blob": "R24", "gear_legs": "R25", "leg_skin": "R26",
+            "far_hand_visible": "R27"}
 
 
 def rule_id(failure):

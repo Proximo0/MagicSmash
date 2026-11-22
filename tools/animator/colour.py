@@ -85,3 +85,53 @@ def darken(rgb, pal, light=FAR_L, chroma=FAR_C):
     lab[..., 1:] *= chroma
     target = from_oklab(lab)
     return snap(target, pal, SNAP_W)
+
+
+SKIN_MIN_SHARE = 0.01     # share of the hand's pixels a palette colour needs to count as skin
+SKIN_MIN_CHROMA = 0.04    # OKLab chroma under which a colour is outline / grey, never skin
+SKIN_HUE = 40.0           # deg from the hand's median hue
+FALSE_SKIN_AB = 0.03      # OKLab ab distance between a pixel as drawn and its palette colour
+
+
+def skin_palette(img, hand_mask, pal=None):
+    """The palette colours (k,3) that are the body's skin: the quantized colours of the hand's
+    pixels that have chroma and the hand's hue (outline black and grey are not skin)."""
+    m = hand_mask & (img[..., 3] > 0)
+    if m.sum() < 6:
+        return np.zeros((0, 3), np.uint8)
+    cols, n = np.unique(img[m][:, :3], axis=0, return_counts=True)
+    lab = to_oklab(cols.astype(float))
+    ch = np.hypot(lab[:, 1], lab[:, 2])
+    ok = (n >= SKIN_MIN_SHARE * m.sum()) & (ch >= SKIN_MIN_CHROMA)
+    if not ok.any():
+        return np.zeros((0, 3), np.uint8)
+    w = n * ok
+    ref = np.arctan2(*(lab[ok][np.argmax(w[ok])][[2, 1]]))
+    hue = np.degrees(np.abs((np.arctan2(lab[:, 2], lab[:, 1]) - ref + np.pi) % (2 * np.pi) - np.pi))
+    return cols[ok & (hue < SKIN_HUE)]
+
+
+def repair_false_skin(quant, raw, region, skin, pal):
+    """Median cut spends too few colours on a rare grey or gold and may give such a pixel (a
+    knee-guard's rim, a buckle) the nearest skin shade: a skin speck on the trousers.  Every pixel of
+    `region` whose quantized colour is skin but whose drawn colour was not takes the nearest palette
+    colour that is not skin.  Returns a copy of quant."""
+    out = quant.copy()
+    if not len(skin) or not region.any():
+        return out
+    ys, xs = np.where(region & (quant[..., 3] > 0))
+    if not len(ys):
+        return out
+    q = quant[ys, xs, :3]
+    is_skin = (q[:, None, :] == skin[None, :, :]).all(-1).any(1)
+    lab_raw = to_oklab(raw[ys, xs, :3].astype(float))
+    lab_q = to_oklab(q.astype(float))
+    far = np.hypot(*(lab_raw - lab_q)[:, 1:].T) > FALSE_SKIN_AB
+    bad = is_skin & far
+    if not bad.any():
+        return out
+    keep = pal[~(pal[:, None, :] == skin[None, :, :]).all(-1).any(1)]
+    if not len(keep):
+        return out
+    out[ys[bad], xs[bad], :3] = snap(raw[ys[bad], xs[bad], :3], keep, SNAP_W)
+    return out

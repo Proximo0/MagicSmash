@@ -289,3 +289,78 @@ class TestGearBatch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+SAMPLES = os.path.join(HERE, "samples", "stills_gear_msi")
+
+
+def _real(cid, body_h):
+    png = os.path.join(SAMPLES, cid + ".png")
+    return Character.from_still(png, png[:-4] + ".json", body_h=body_h)
+
+
+class TestPass6(GearBase):
+    """R26 (skin colour on a leg part) and R27 (far hand below the hip line behind back gear),
+    and the sixth-pass faults of the real HR6.x stills."""
+
+    def test_example_has_the_new_context(self):
+        self.assertTrue(len(self.ctx["skin"]) > 0)
+        self.assertIn("far_thigh", self.ctx["skinless_legs"])
+
+    def test_r26_skin_on_a_leg_part(self):
+        fr, ctx = self.fresh()
+        names = fr[2]["meta"]["labels"]
+        ys, xs = np.where(fr[2]["label"] == names.index("near_shin"))
+        fr[2]["rgba"][ys[0], xs[0], :3] = ctx["skin"][0]            # one skin-coloured speck
+        self.rule_fails(checks.leg_skin_colour, fr, ctx, "near_shin")
+        self.assertEqual(checks.leg_skin_colour(*self.fresh()), [])
+
+    def test_r27_far_hand_dangling_under_the_shield(self):
+        fr, ctx = self.fresh()
+        names = fr[1]["meta"]["labels"]
+        row = int(fr[1]["meta"]["joints"]["far.hip"][1]) + 6
+        x = int(fr[1]["meta"]["joints"]["far.hip"][0])
+        fr[1]["label"][row:row + 3, x:x + 3] = names.index("far_fore")
+        self.rule_fails(checks.far_hand_hidden, fr, ctx, "far_hand_visible")
+        self.assertEqual(checks.far_hand_hidden(*self.fresh()), [])
+
+    def test_pose_keeps_the_far_hand_up_only_with_back_gear(self):
+        self.assertGreater(max(self._tucks()), 0)
+
+    def _tucks(self):
+        from tools.animator.motion import Gait
+        g = Gait(self.ch.rig, self.ch.walk_motion())
+        return g.solve_far_tuck(margin=-0.01 * self.ch.rig.body_height)
+
+    def test_real_orc_without_the_tuck_shows_the_hand(self):
+        ch = _real("HR6.4", 56)
+        from tools.animator.motion import Gait
+        g = Gait(ch.rig, ch.walk_motion())
+        g._tucked = True                                           # the old pose: no fold
+        fr, ctx = bake_motion(ch, ch.walk_motion(), 8, gait=g)
+        self.assertTrue(checks.far_hand_hidden(fr, ctx))
+        fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
+        self.assertEqual(checks.far_hand_hidden(fr, ctx), [])
+        self.assertEqual(checks.run_all(fr, ctx), [])
+
+    def test_real_orc_knees_have_no_skin_specks(self):
+        ch = _real("HR6.4", 56)
+        for nm in ("near_thigh", "near_shin", "far_thigh", "far_shin"):
+            a = ch.parts[nm].img
+            code = a[..., 0].astype(int) * 65536 + a[..., 1].astype(int) * 256 + a[..., 2]
+            keys = ch.info["skin"].astype(int) @ [65536, 256, 1]
+            self.assertFalse((np.isin(code, keys) & (a[..., 3] > 0)).any(), nm)
+
+    def test_real_paladin_far_leg_has_no_pink_kilt(self):
+        ch = _real("HR6.1", 56)
+        a = ch.parts["far_thigh"].img
+        code = a[..., 0].astype(int) * 65536 + a[..., 1].astype(int) * 256 + a[..., 2]
+        keys = ch.info["skin"].astype(int) @ [65536, 256, 1]
+        self.assertFalse((np.isin(code, keys) & (a[..., 3] > 0)).any())
+
+    def test_real_dwarf_is_not_refused_for_its_belt(self):
+        for bh in (56, 112):
+            ch = _real("HR6.3", bh)
+            fr, ctx = bake_motion(ch, ch.walk_motion(), 8)
+            self.assertEqual(checks.run_all(fr, ctx), [], bh)
+            self.assertIn((198, 134, 65), {tuple(c) for c in map(tuple, ch.parts["torso"].img[ch.parts["torso"].img[..., 3] > 0][:, :3])})

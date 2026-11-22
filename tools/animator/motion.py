@@ -139,6 +139,8 @@ KNEE_LIFT = 0.30      # swing-knee flexion x (1 + KNEE_LIFT (gain - 1)) above 20
 ARM_SWING = 20.0      # deg: shoulder swing amplitude at gain 1 (Murray 1967: 30-40 deg total, brisk)
 ARM_MAX = 23.0        # deg: arm swing amplitude cap (gain 2)
 ARM_CENTRE = 2.0      # deg: the swing is centred on the arm hanging straight down
+FAR_BACK = 0.25       # R27: deg the far upper arm leans back per deg of extra far-elbow flexion ...
+FAR_BACK_MAX = 10.0   # ... at most this much
 ELBOW = (8.0, 28.0)   # deg: elbow flexion, arm back .. arm forward (Murray: 10-35)
 GAIN_MAX = 2.0
 STANCE_KNEE_MAX = 55.0   # deg: a planted leg's knee never folds further (Perry: ~40 at toe off)
@@ -239,6 +241,8 @@ class Gait:
     place (pelvis x fixed), so a planted foot moves back at the forward speed."""
 
     GRID = 240
+    far_tuck = 0.0      # extra elbow flexion (deg) of the far arm ...
+    far_tucks = None    # ... or its profile round the cycle (solve_far_tuck): keeps its hand behind back gear
 
     def __init__(self, rig, motion):
         self.rig = rig
@@ -492,8 +496,52 @@ class Gait:
             rest_el = min(max(wrap(r["fore"] - r["upper"]), 0.0), 130.0)
             up = rest_up + k * (up - self._arm_mean["upper"])
             el = rest_el + k * (el - self._arm_mean["elbow"])
+        if s == "far":
+            up, el = self.tucked(up, el, self.far_tuck_at(p))
         el = min(max(el, 1.0), 145.0)
         return up, up + el
+
+    @staticmethod
+    def tucked(up, el, tuck):
+        """Far arm with `tuck` deg more elbow flexion; the upper arm leans back by a quarter of it
+        (at most FAR_BACK_MAX) so the folded forearm's hand stays near the line under the shoulder."""
+        return up - min(FAR_BACK * tuck, FAR_BACK_MAX), el + tuck
+
+    def far_tuck_at(self, p):
+        """Far-elbow flexion (deg) added at cycle phase p: 0 unless solve_far_tuck set a profile."""
+        t = self.far_tucks
+        if t is None:
+            return self.far_tuck
+        x = (p % 1.0) * len(t)
+        i = int(x) % len(t)
+        f = x - int(x)
+        return t[i] * (1 - f) + t[(i + 1) % len(t)] * f
+
+    def solve_far_tuck(self, step=5.0, top=130.0, margin=0.0, n=32):
+        """R27: per phase, the least far-elbow flexion (deg, multiples of `step`) with which the far
+        hand (wrist and hand tip) hangs no lower than the far hip (`margin` px above it), smoothed
+        round the cycle (never below that least value).  Back gear or the torso then keep the hand
+        out of sight; where the arm swings forward it needs little or no fold, so no stub of
+        forearm sticks out ahead of the chest.  Sets far_tucks (a profile of n values)."""
+        self.far_tucks = None
+        self.far_tuck = 0.0
+        poses = [self.pose(i / n)[0] for i in range(n)]
+        need = []
+        for pose in poses:
+            tuck = 0.0
+            while tuck < top:
+                up, el = self.tucked(pose["far"]["upper"], pose["far"]["fore"] - pose["far"]["upper"], tuck)
+                el = min(max(el, 1.0), 145.0)
+                q = {k: (dict(v) if isinstance(v, dict) else v) for k, v in pose.items()}
+                q["far"]["upper"], q["far"]["fore"] = up, up + el
+                J = self.rig.fk(q)
+                if max(J["far.wrist"][1], J["far.hand_tip"][1]) - J["far.hip"][1] <= margin:
+                    break
+                tuck += step
+            need.append(tuck)
+        m = [max(need[(i + d) % n] for d in range(-2, 3)) for i in range(n)]
+        self.far_tucks = [sum(m[(i + d) % n] for d in (-1, 0, 1)) / 3.0 for i in range(n)]
+        return self.far_tucks
 
     def _stance_rel(self, s, p):
         ankle, _ = self._stance_foot(s, p)

@@ -17,13 +17,14 @@ shows a gap.  Overlap caps at shoulder, hip, elbow, knee and ankle as in cut.py.
 """
 import numpy as np
 
-from .colour import darken, quantize
+from .colour import darken, quantize, repair_false_skin, skin_palette
 from .cut import Part, FAR_OF, NEAR_ARM, NEAR_LEG
 from .foot import below_ankle, reseat
 from .imgops import dilate, fill, seg_dist, components
 
 DETACH_REACH = 0.25   # x body height: a loose piece this close to the hand is held gear
 CAPE_MARGIN = 0.02    # x body height behind the torso's back line before cloth starts
+KNEE_GUARD_R = 1.3    # x shin radius: the knee disc where a guard belongs to the shin
 LEG_R = 1.15          # leg capsule reach (x measured radius) below the hip
 
 
@@ -63,6 +64,7 @@ def cut_auto(still, rig, masks):
     det = masks["detached"]
     img = still.copy()
     img[~(body | det)] = 0
+    raw = img.copy()
     img, pal = quantize(img)
     A = img[..., 3] > 0
     H, W = A.shape
@@ -107,6 +109,9 @@ def cut_auto(still, rig, masks):
         free[m] = False
 
     hip_y = float(j["hip"][1])
+    # median cut may have turned a rare grey or gold below the hips into a skin shade: not on legs
+    skin = skin_palette(img, masks["hand"], pal)
+    img = repair_false_skin(img, raw, P[..., 1] > hip_y, skin, pal)
     robe_mode = bool(data.get("robe"))
     merge_y = float(data.get("merge_y", hip_y))
     # 1. arm: hand blob (+ held gear), then capsules
@@ -162,6 +167,21 @@ def cut_auto(still, rig, masks):
         low = below_ankle(P, cut_line)
         near_lower = in_leg & ((lbest == 1) | (lbest == 2))
         lbest = np.where(near_lower, np.where(low, 2, 1), lbest)
+    # a loin cloth or kilt over the trousers is cloth: the thigh capsule must not claim its pixels
+    # (they would swing with the leg, and the far leg's darkened copy shows them as brown scraps
+    # above the hem); they stay with the robe and the thigh refills them with its own trousers
+    kilt = np.zeros_like(A)
+    if not robe_mode:
+        cand = below & (P[..., 1] > hip_y + 0.02 * BH) & A & ~in_leg
+        if cand.sum() >= 30:
+            cols, cnt = np.unique(img[cand][:, :3], axis=0, return_counts=True)
+            main = cols[(cnt >= 0.08 * cnt.sum()) & (cols.max(1) >= 60)]
+            if len(main):
+                same = (img[..., :3][:, :, None, :] == main[None, None]).all(-1).any(-1)
+                dark = img[..., :3].max(-1) < 60        # the hem's outline is the kilt's too
+                kilt = in_leg & (same | dark) & dilate(cand, 2) & (lbest == 0)
+                in_leg &= ~kilt
+                take(kilt, "robe")
     for i, n in enumerate(lnames):
         take(in_leg & (lbest == i), n)
     # 4. cloth
@@ -247,6 +267,21 @@ def cut_auto(still, rig, masks):
         if holes.any():
             imgs[nm][holes] = 0
             imgs[nm] = fill(_sweep_front(imgs[nm], own, holes), own, holes)
+    # a knee guard drawn across the knee is shin armour: left half on the thigh it swings away from
+    # the other half and shows as gold and black specks on the trousers (HR6.1, HR6.4).  In the knee's
+    # disc the thigh keeps its own cloth colours only; anything else is the shin's
+    moved = np.zeros_like(A)
+    th = lab == code["near_thigh"]
+    if th.sum() > 50:
+        kd = np.hypot(P[..., 0] - j["knee"][0], P[..., 1] - j["knee"][1]) <= KNEE_GUARD_R * R["shin"]
+        cols_, cnt_ = np.unique(img[th & ~kd][:, :3], axis=0, return_counts=True)
+        cloth_ = cols_[(cnt_ >= 0.03 * cnt_.sum()) & (cols_.max(1) >= 40)]     # not outline black
+        if len(cloth_):
+            same_ = (img[..., :3][:, :, None, :] == cloth_[None, None]).all(-1).any(-1)
+            moved = th & kd & ~same_
+            lab[moved] = code["near_shin"]
+            imgs["near_thigh"][moved] = 0
+            imgs["near_shin"][moved] = img[moved]
     # legs: fill slits and, under a robe, extend the leg up to the hip with its own colours
     for n in NEAR_LEG:
         own = lab == code[n]
@@ -255,9 +290,9 @@ def cut_auto(still, rig, masks):
         core = leg_n[n] <= 0.8
         if n == "near_thigh":
             core &= P[..., 1] > hip_y + 0.5 * R["thigh"]
-        holes = core & ~own & (~A | far_pix | arm_pix | (lab == code["robe"]) | (lab == code["torso"]))
+        holes = core & ~own & (~A | far_pix | arm_pix | (lab == code["robe"]) | (lab == code["torso"]) | moved)
         if not robe_mode:
-            holes &= ~A | far_pix | arm_pix
+            holes &= ~A | far_pix | arm_pix | kilt | moved
         if n == "near_foot":
             holes &= A            # never invent pixels around a foot (they hang below the sole)
         holes &= P[..., 1] < rig.ground_y
@@ -326,7 +361,15 @@ def cut_auto(still, rig, masks):
         out = np.zeros_like(src)
         if m.any():
             cols, inv = np.unique(src[m][:, :3], axis=0, return_inverse=True)
-            out[m, :3] = darken(cols, pal)[inv.ravel()]
+            dk = darken(cols, pal)
+            if len(skin):     # a shaded white or grey must not come out as a skin shade (HR6.1: pink patch)
+                notskin = ~(cols[:, None, :] == skin[None, :, :]).all(-1).any(1)
+                dk_skin = (dk[:, None, :] == skin[None, :, :]).all(-1).any(1)
+                keep = pal[~(pal[:, None, :] == skin[None, :, :]).all(-1).any(1)]
+                fix = notskin & dk_skin
+                if fix.any() and len(keep):
+                    dk[fix] = darken(cols[fix], keep)
+            out[m, :3] = dk[inv.ravel()]
             out[m, 3] = 255
         if fn == "far_fore" and far_real is not None:
             out = _real_far_fore(out, img, far_real, rig, R)
@@ -363,7 +406,7 @@ def cut_auto(still, rig, masks):
                 if ys_.min() > hip_y:
                     parts["torso"].img[cl == k] = 0
     info = {"labels": lab, "codes": code, "palette": pal, "radius": R, "image": img,
-            "far_arm": "own pixels" if far_real is not None else "copy of the near arm",
+            "skin": skin, "far_arm": "own pixels" if far_real is not None else "copy of the near arm",
             "cloth": list(cloth), "robe_mode": robe_mode, "gear_reach": gear_reach,
             "gear_area": gear_area,
             "gear_cut": gear_cut(still, parts["near_fore"].mask, parts["torso"].mask,
