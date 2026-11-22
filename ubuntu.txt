@@ -1,3 +1,4 @@
-STATION machine=ubuntu time=2026-11-22T06:25Z commit=66474ff took=1164s
-JOB realm PASS REALM ok tests=282 bench 300x8000 tick_ms=5.64/7.95 follower=ok 8 tower_tick_ms=5.52/7.69 tower_follower=ok 3 | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=25.7  | REALM_CLIENT ok gallery_sprites=34 field_test_checks=125 shell_test_checks=79 shell_shots=30 shots: zoom 1/2/4 monsters_
-STATION PASS jobs=1 failed=0 skipped=0
+STATION machine=ubuntu time=2026-11-22T09:23Z commit=d65074b took=8217s
+JOB realm FAIL REALM ok tests=305 bench 300x8000 tick_ms=5.78/8.24 follower=ok 8 tower_tick_ms=5.77/10.15 tower_follower=ok 3 | STORE ok tests=41 fuzz ops=5000 kills=20 acked=4824 digest=b78ddd00f3056c6d secs=26.5  | realm/check_client.sh: direct: FOLLOW_TEST FAILED server=127.0.0.1:7791 ticks=400 hash_checks passed=20 failed=0 join_kb=219 in_kb_s=1.5 out_kb_s=0.38 sim_ms=11.00 stall_ms_max=68 mispredicts=7/394 problems="predicted hero 
+JOB world FAIL hero 126: store 1349722, reported 32019 hero 98: store 1175816, reported 61727 WORLD FAILED days=7.00 secs=7202 heroes=200 cycles=1304 outings=1304 vault_runs=137 vault_joins=118 queued=4530 queue_max=75 admitted=4493 copies_opened=2 merges=0 moved=0 moved_bots=0 peak_copies=7 peak_heroes=152 tides=
+STATION FAIL jobs=2 failed=2 skipped=0
