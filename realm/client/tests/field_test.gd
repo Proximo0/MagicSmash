@@ -10,6 +10,7 @@ var _checks: int = 0
 
 func _initialize() -> void:
 	_art()
+	_anim()
 	_sound()
 	_fx()
 	_hud()
@@ -55,6 +56,35 @@ func _art() -> void:
 	var batch := RealmBatch.new(holder, kinds, 1)
 	_check(batch.count == 0, "a batch starts empty")
 	holder.free()
+
+
+func _anim() -> void:
+	var A := FieldAnim
+	_check(A.state_of(true, 0.05, 9.0, true) == A.HIT, "a fresh hit is the hit state")
+	_check(A.state_of(true, 9.0, 0.1, true) == A.ATTACK, "a fresh attack is the attack state")
+	_check(A.state_of(true, 9.0, 9.0, true) == A.WALK and A.state_of(true, 9.0, 9.0, false) == A.IDLE, "walk or idle")
+	_check(A.state_of(false, 0.0, 0.0, true) == A.DIE, "death wins")
+	_check(A.tint(A.HIT, false, 0.0, Color.WHITE).r > 1.0, "a hit with no strip flashes white")
+	_check(A.tint(A.HIT, true, 0.0, Color.WHITE) == Color.WHITE, "a hit with a strip does not flash")
+	_check(A.tint(A.DIE, false, 9.0, Color(0.5, 0.5, 0.5, 0.4)).a < 0.5, "a death fades to the dead colour")
+	_check(A.tilt(A.DIE, false, 9.0, false) > 0.5 and A.tilt(A.DIE, false, 9.0, true) < -0.5, "a death tilts, mirrored with the flip")
+	_check(A.tilt(A.DIE, true, 9.0, false) == 0.0 and A.tilt(A.WALK, false, 9.0, false) == 0.0, "no tilt with a strip or alive")
+	_check(A.frame_at(0.0, 0.3, 3) == 0 and A.frame_at(0.2, 0.3, 3) == 2 and A.frame_at(5.0, 0.3, 3) == 2, "frames run then hold")
+	_check(A.strip_for({"atk": null}, A.ATTACK) == null and A.strip_for({}, A.DIE) == null, "a missing strip falls back")
+	# The hero layer draws with the fallbacks: a hit hero flashes, a dead one fades and tilts.
+	var layer := RealmLayer.new()
+	layer.is_ground = false
+	layer.hero_entry = FieldArt.hero_entry(1, 1)
+	var now: float = Time.get_ticks_msec() / 1000.0
+	layer.hit_at = now
+	layer._draw_hero()
+	_check(layer.last_state == A.HIT and layer.last_tint.r > 1.0, "a hit hero draws with the flash")
+	layer.hit_at = -100.0
+	layer.hero_alive = false
+	layer.died_at = -100.0
+	layer._draw_hero()
+	_check(layer.last_state == A.DIE and layer.last_tint.a < 0.5, "a dead hero draws faded")
+	layer.free()
 
 
 func _sound() -> void:

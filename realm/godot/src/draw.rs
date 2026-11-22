@@ -106,6 +106,8 @@ struct Seen {
     x: Vec<i32>,
     y: Vec<i32>,
     call: Vec<u32>,
+    /// Which way each id last moved sideways: -1 left, 1 right (a monster is drawn mirrored by it).
+    face: Vec<f32>,
     now: u32,
 }
 
@@ -116,6 +118,7 @@ impl Seen {
             self.x.resize(ids, 0);
             self.y.resize(ids, 0);
             self.call.resize(ids, 0);
+            self.face.resize(ids, 1.0);
         }
     }
 
@@ -125,6 +128,11 @@ impl Seen {
         let near = dx.abs().max(dy.abs()) <= BLEND_MAX_PX * SUB;
         let back = if self.call[id] + 1 == self.now && near { (dx as f32 / SUB as f32, dy as f32 / SUB as f32) } else { (0.0, 0.0) };
         (self.x[id], self.y[id], self.call[id]) = (x, y, self.now);
+        if back.0 > 0.0 {
+            self.face[id] = -1.0;
+        } else if back.0 < 0.0 {
+            self.face[id] = 1.0;
+        }
         back
     }
 }
@@ -179,7 +187,7 @@ impl DrawState {
                 WHITE
             };
             let back = self.monsters.back(i, m.x[i], m.y[i]);
-            put(&mut out, m.x[i], m.y[i], s, s, tint, back, monster_frame(m.kind[i]), 0);
+            put(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), 0);
         }
         out
     }

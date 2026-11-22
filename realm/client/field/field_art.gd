@@ -4,6 +4,8 @@ extends RefCounted
 ##   enemy_<kind>.png      a monster kind: its name with spaces as underscores (enemy_plague_rat.png)
 ##   hero_<race>_<class>.png   a hero: race human elf dwarf orc, class novice knight mage archer priest paladin
 ##   <name>_walk.png       four frames side by side for that picture (a strip: 2 texture px per world px)
+##   <name>_atk.png (3 frames), <name>_hit.png (1), <name>_die.png (3): optional, same 2 px per world px; the entry
+##   gets `atk`, `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks).
 ## A strip wins over the still picture. A monster with neither gets a flat stand-in drawn here from its field,
 ## its health and its behaviour; a hero with neither borrows the same race's knight.
 ## An entry is {tex, anim, scale, art}: `art` is "walk", "still" or "stand-in".
@@ -44,11 +46,17 @@ static func _load(key: String) -> Texture2D:
 
 ## A picture by key: its strip when there is one, else the still, else null.
 static func entry_for(key: String) -> Dictionary:
+	var e: Dictionary = {}
 	if _exists(key + "_walk"):
-		return {"tex": _load(key + "_walk"), "anim": WALK_FRAMES, "scale": WALK_SCALE, "art": "walk"}
-	if _exists(key):
-		return {"tex": _load(key), "anim": 1, "scale": 1.0, "art": "still"}
-	return {}
+		e = {"tex": _load(key + "_walk"), "anim": WALK_FRAMES, "scale": WALK_SCALE, "art": "walk"}
+	elif _exists(key):
+		e = {"tex": _load(key), "anim": 1, "scale": 1.0, "art": "still"}
+	else:
+		return e
+	for suffix in ["atk", "hit", "die"]:
+		if _exists(key + "_" + suffix):
+			e[suffix] = _load(key + "_" + suffix)
+	return e
 
 
 ## The 42 monster kinds in the core's order.

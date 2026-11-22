@@ -26,6 +26,13 @@ var hero_moving: bool = false
 var hero_pos: Vector2 = Vector2.ZERO
 var hero_flip: bool = false
 var hero_alive: bool = true
+## Seconds (Time) of the last hit taken, attack started and death, for FieldAnim.
+var hit_at: float = -100.0
+var atk_at: float = -100.0
+var died_at: float = -100.0
+## What the last draw used, for the field test.
+var last_state: int = 0
+var last_tint: Color = Color.WHITE
 
 
 func _draw() -> void:
@@ -65,8 +72,28 @@ func _draw_hero() -> void:
 	var ring: float = maxf(RING_PX, RING_MIN_SCREEN_PX / px_scale)
 	draw_set_transform(hero_pos + Vector2(0, 1), 0.0, Vector2(1, 0.45))
 	draw_arc(Vector2.ZERO, ring, 0.0, TAU, 28, RING_COL, ring_w)
-	var fw: float = float(tex.get_width()) / float(anim)
-	var step: int = int(fmod(Time.get_ticks_msec() / 125.0, float(anim))) if anim > 1 and hero_moving and hero_alive else 0
+	var now: float = Time.get_ticks_msec() / 1000.0
+	var state: int = FieldAnim.state_of(hero_alive, now - hit_at, now - atk_at, hero_moving)
+	var strip: Texture2D = FieldAnim.strip_for(hero_entry, state)
+	var n: int = anim
+	var t: float = 0.0
+	if strip != null:
+		tex = strip
+		n = 1 if state == FieldAnim.HIT else FieldAnim.ATK_FRAMES
+		if state == FieldAnim.ATTACK:
+			t = now - atk_at
+		elif state == FieldAnim.DIE:
+			n = FieldAnim.DIE_FRAMES
+			t = now - died_at
+	var fw: float = float(tex.get_width()) / float(n)
+	var step: int = 0
+	if strip != null:
+		step = FieldAnim.frame_at(t, FieldAnim.ATK_S if state == FieldAnim.ATTACK else FieldAnim.DIE_S, n) if n > 1 else 0
+	elif anim > 1 and hero_moving and hero_alive:
+		step = int(fmod(now * 8.0, float(anim)))
 	var size := Vector2(fw, tex.get_height()) * sc
-	draw_set_transform(hero_pos, 0.0, Vector2(-1.0 if hero_flip else 1.0, 1.0))
-	draw_texture_rect_region(tex, Rect2(Vector2(-size.x / 2.0, -size.y), size), Rect2(Vector2(fw * step, 0), Vector2(fw, tex.get_height())), Color.WHITE if hero_alive else DEAD_COL)
+	var since_death: float = now - died_at
+	draw_set_transform(hero_pos, FieldAnim.tilt(state, strip != null, since_death, hero_flip), Vector2(-1.0 if hero_flip else 1.0, 1.0))
+	last_state = state
+	last_tint = FieldAnim.tint(state, strip != null, since_death, DEAD_COL)
+	draw_texture_rect_region(tex, Rect2(Vector2(-size.x / 2.0, -size.y), size), Rect2(Vector2(fw * step, 0), Vector2(fw, tex.get_height())), last_tint)
