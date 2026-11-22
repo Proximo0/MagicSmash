@@ -1,0 +1,1 @@
+2026-11-22T16:30:59Z INFO id=261122115407-2604 kind=shell secs=2 power set: profile=performance sleep=never autostart=yes; NOT set: sleep-targets(sudo) lid-action(sudo)
