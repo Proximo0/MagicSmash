@@ -328,6 +328,36 @@ publish_append() {  # $1 = one line, $2 = file: append it to the file on the res
 }
 
 # Watch mode restarts itself when a pull changed this script, so a station always runs the current version.
+# The heartbeat loop, one per station: every STATION_HEARTBEAT_SECS (default 1800) it publishes <machine>-heartbeat.txt.
+# A re-exec runs no EXIT trap, so `restart` stops the loop before every exec. The loop also ends by itself when the
+# station process is gone or a newer loop has written its pid to $STATE.heartbeat (an exec keeps the pid, so the pid
+# alone cannot tell the old station from the new). STATION_HEARTBEAT_LOG (tests) gets "<loop pid> <time>" each round.
+hb_pid=""
+heartbeat_start() {
+  local station=$$
+  (
+    me=$BASHPID
+    echo "$me" >"$STATE.heartbeat"
+    mine() { kill -0 "$station" 2>/dev/null && [ "$(cat "$STATE.heartbeat" 2>/dev/null)" = "$me" ]; }
+    while mine; do
+      [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
+      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null
+      left="${STATION_HEARTBEAT_SECS:-1800}"
+      while [ "$left" -gt 0 ] && mine; do sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
+    done
+  ) &
+  hb_pid=$!
+}
+heartbeat_stop() { [ -z "$hb_pid" ] || kill "$hb_pid" 2>/dev/null; hb_pid=""; }
+# Loops an older version of this script left behind (it exec'd without stopping its loop): children of this pid,
+# killed before this station starts any of its own. Linux ps, else Git Bash's (an optional status letter, PID, PPID).
+heartbeat_reap() {
+  local p
+  for p in $({ ps -e -o pid=,ppid= 2>/dev/null || ps 2>/dev/null | awk 'NR > 1 { if ($1 !~ /^[0-9]+$/) $1 = ""; $0 = $0; print $1, $2 }'; } | awk -v pp=$$ '$2 == pp { print $1 }'); do
+    kill "$p" 2>/dev/null
+  done
+}
+restart() { heartbeat_stop; exec bash tools/station/station.sh "$@"; }
 self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
 run_once() {
@@ -349,7 +379,7 @@ run_once() {
   fi
   git checkout -q --detach "$head"
   # This commit changed the script: restart first, so the commit is tested by its own version (the state is not saved yet).
-  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then exec bash tools/station/station.sh "${ARGS[@]}"; fi
+  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then restart "${ARGS[@]}"; fi
   local start=$SECONDS failed=0 body="" skipped=0 run=() j
   local base changed="" known=0; base=$(cat "$STATE" 2>/dev/null)
   if [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null); then known=1; fi
@@ -383,14 +413,15 @@ run_once() {
 
 if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
-    ( while true; do publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null; sleep 1800; done ) &
-    trap 'kill $! 2>/dev/null' EXIT
+    heartbeat_reap
+    heartbeat_start
+    trap heartbeat_stop EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
   hours_init
   while true; do
     run_once; rc=$?
-    [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
+    [ "$(self_sum)" = "$started" ] || restart "$@"
     if [ $rc != 3 ]; then after_merge=1; hours_mark busy; fi  # a merge was just tested: the next deep pass is published
     if [ $rc = 3 ] && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main: the next job of the work queue, if there is one
       queue_step; qrc=$?
