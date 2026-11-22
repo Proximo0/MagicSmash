@@ -17,6 +17,8 @@ pub struct GatewayClient {
     pub pushes: VecDeque<Resp>,
     /// The address the gateway was reached at (the field host's address when the ticket names none).
     pub peer_ip: String,
+    /// Microseconds each `call` took from sending to its reply (the LAN rehearsal's round trips).
+    pub rtts_us: Vec<u32>,
 }
 
 impl GatewayClient {
@@ -35,7 +37,7 @@ impl GatewayClient {
     pub fn connect_with(addr: &str, tls: Option<&Arc<ClientConfig>>) -> std::io::Result<GatewayClient> {
         let stream = ClientStream::connect(addr, tls)?;
         let peer_ip = stream.tcp().peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();
-        Ok(GatewayClient { stream, buf: Vec::new(), tag: 0, pushes: VecDeque::new(), peer_ip })
+        Ok(GatewayClient { stream, buf: Vec::new(), tag: 0, pushes: VecDeque::new(), peer_ip, rtts_us: Vec::new() })
     }
 
     /// Reads what has arrived, waiting at most `wait`; `Ok(false)` when the server closed the connection.
@@ -77,6 +79,7 @@ impl GatewayClient {
     pub fn call(&mut self, req: Req) -> std::io::Result<Resp> {
         self.tag += 1;
         let tag = self.tag;
+        let sent = Instant::now();
         let (t, body) = req.encode();
         self.stream.write_all(&frame(t, tag, &body))?;
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -84,6 +87,7 @@ impl GatewayClient {
             while let Some((t, got, body)) = self.next_frame()? {
                 let r = Resp::decode(t, &body).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidData, "unreadable reply"))?;
                 if got == tag {
+                    self.rtts_us.push(sent.elapsed().as_micros().min(u32::MAX as u128) as u32);
                     return Ok(r);
                 }
                 self.pushes.push_back(r);

@@ -36,6 +36,12 @@ pub struct BotStats {
     /// After an outing the store did not hold exactly what the gateway reported (coin, xp, level).
     pub mismatches: u64,
     pub errors: Vec<String>,
+    /// Logins the gateway accepted, datagrams the client could not use or ticks whose hash differed, and the
+    /// microseconds of each gateway call (the LAN rehearsal reads these).
+    pub logins: u64,
+    pub bad_datagrams: u64,
+    pub hash_bad: u64,
+    pub rtts_us: Vec<u32>,
 }
 
 impl BotStats {
@@ -57,6 +63,10 @@ impl BotStats {
         self.timeouts += o.timeouts;
         self.mismatches += o.mismatches;
         self.errors.extend(o.errors.iter().cloned());
+        self.logins += o.logins;
+        self.bad_datagrams += o.bad_datagrams;
+        self.hash_bad += o.hash_bad;
+        self.rtts_us.extend(o.rtts_us.iter().copied());
     }
 }
 
@@ -84,7 +94,7 @@ pub type Prep = dyn Fn(&HeroInfo) + Send + Sync;
 pub fn cycle(addr: &str, tls: Option<&Arc<ClientConfig>>, bot: u64, field: u8, play: &PlayOpts, prep: &Prep, stats: &mut BotStats) -> Result<(), String> {
     let mut gw = GatewayClient::connect_with(addr, tls).map_err(io)?;
     match gw.login(&format!("soak-bot-{bot}")).map_err(io)? {
-        Resp::Login { .. } => {}
+        Resp::Login { .. } => stats.logins += 1,
         r => return Err(format!("login: {r:?}")),
     }
     let mut heroes = gw.heroes().map_err(io)?;
@@ -135,6 +145,8 @@ pub fn cycle(addr: &str, tls: Option<&Arc<ClientConfig>>, bot: u64, field: u8, p
     let (host, port, t, key) = ticket.ok_or("the hero stayed busy")?;
     let out: Outcome = play_field(&mut gw, &host, port, t, key, play)?;
     stats.outings += 1;
+    stats.bad_datagrams += out.bad_datagrams;
+    stats.hash_bad += out.hash_bad;
     stats.coin += out.coin;
     stats.xp += out.xp;
     stats.levels += out.levels as u64;
@@ -197,6 +209,7 @@ pub fn cycle(addr: &str, tls: Option<&Arc<ClientConfig>>, bot: u64, field: u8, p
         stats.points_spent += info_after.unspent as u64;
     }
     stats.cycles += 1;
+    stats.rtts_us.extend(gw.rtts_us.iter().copied());
     Ok(())
 }
 

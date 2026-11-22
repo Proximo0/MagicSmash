@@ -84,6 +84,42 @@ window passes); field UDP `flood_udp_rate` datagrams a second. Over a limit the 
 soak and tests, whose bots are all one address, are untouched. Suggested public values (in each setting's text): 20, 10, 100, 400.
 Why 400 UDP/s: a client sends 20 a second per hero, so a household of a few passes; a flood does not.
 
+## LAN rehearsal
+
+Proof that the game works between the home PCs over a real network with TLS: one PC hosts, the others play. Code:
+`tools/station/jobs/lanhost.sh`, `jobs/lanplay.sh`, `lan_lib.sh`, `lan_test.sh`, the bot `realm-lanplay`
+(`gateway/src/lanplay_bin.rs`).
+
+- **Queue it** (host first; players wait up to `wait=180` s for a live host, so the order is forgiving):
+  `queue.sh add kind=shell args="script=lanhost secs=1800" needs=ubuntu timeout_s=3600`, then on the others
+  `queue.sh add kind=shell args="script=lanplay secs=600 bots=4" needs=msi timeout_s=1800` (and `needs=laptop`,
+  `needs=heatherspc`). Each player machine uses its own bot numbers, so heroes do not collide.
+- **Host:** builds the release binaries, starts `realm-gateway --dev-login --dev-cert --public-host=<LAN IP>` on a fresh
+  temp store (fields 0 and 1, one copy each), and publishes `lan/host.txt` on `station-results` at once (the queue
+  publishes a job's art only when the job ends, too late for players); `lanhost.txt` is also the art. The file holds
+  the LAN IP, TCP port (7700), UDP ports (7800-7801), start and end time, and the PUBLIC dev certificate (never a key).
+  At the end it stops the gateway (heroes banked), marks the file `state=ended`, and reports logins, field tickets,
+  peak heroes in fields, errors. Words: `secs`, `port`, `fieldport`.
+- **LAN IP:** `lan_ip` in `lan_lib.sh`: on Linux the source address of the route to the internet (`ip route get`, else
+  `hostname -I`); on Windows (Git Bash) PowerShell's adapter with a default gateway, else the first private address in
+  `ipconfig`. `STATION_LAN_IP=` overrides.
+- **Certificate:** `--dev-cert` makes a self-signed certificate whose names are localhost, 127.0.0.1, ::1 and the
+  `--public-host`, so the LAN IP is a subjectAltName IP entry (the host passes it; it is made again when it changes).
+  The player runs `realm-lanplay --addr=IP:7700 --ca=<published PEM>`: it trusts exactly that file and checks the IP
+  against it. No `--insecure-dev`. The field ticket names the same IP, and its UDP admission key travels over that TLS.
+- **Player:** `lanplay.sh secs=N bots=K` finds the live host (else last line `INFO lanplay: no live host`), runs K
+  bots: login, hero, town, field ticket, field play over UDP, bank, again and again for N s. **PASS** = no handshake
+  or auth failure, no state mismatch, at least one login and outing; the line has logins_ok, cycles_failed,
+  outings, banked, rtt_mean_ms and rtt_p99_ms (gateway calls over TLS), refused_datagrams (client side), hash_bad.
+  **FAIL lanplay: host unreachable (firewall?) IP:PORT** when the TCP port does not answer in 8 s.
+  The tools change no firewall setting: the host PC must let TCP 7700 and UDP 7800-7801 in (Windows asks the first time
+  a program listens; answer yes for private networks), and a router must not isolate Wi-Fi clients.
+- **Whole rehearsal passes** when the host ends `PASS lanhost` with logins and tickets from each player machine and
+  every player job ends `PASS lanplay`. `tools/station/lan_test.sh` (`LAN ok`, about 45 s; also run by `queue_test.sh`
+  when the release binaries exist) proves the pair on one machine, on this machine's real LAN address when it has one.
+- **Not covered:** real Windows hosting, a firewall that drops UDP only, packet loss on Wi-Fi; the clock of the PCs
+  decides when a host file counts as live (a few seconds of skew is fine); vault copies use random UDP ports.
+
 ## Proof
 
 `ops/tests/e2e.rs` runs the real `realm-ops` on a temp folder: package, backup, install, switch, play, rollback, the
