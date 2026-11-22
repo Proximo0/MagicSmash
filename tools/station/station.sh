@@ -13,6 +13,9 @@
 #         ops     Horde & Hearth's operations rehearsal (realm-ops rehearse): a store with play, an online backup with writes going on,
 #                 the live file wrecked and restored, the restore drill, a release, a rollback and the schema-downgrade refusal;
 #                 one line, FAIL when it is not "OPS ok". Also runs inside `deep` at most once a day (the nightly rehearsal).
+#         balance Horde & Hearth's careers 1 to 60 (realm-loadtest balance career, record only): STATION_BALANCE_SEEDS
+#                 (default 1) cohorts of STATION_BALANCE_PER (default 2) careers of each of the ten jobs, alone and in
+#                 parties, every tick played (STATION_BALANCE_FAST=1); one line: hours to 10/20/40/60, worst class, sinks
 #         idle    nothing: the station stays reachable (a role is a commit away) and reports that it is alive
 #         deep    (a role word only) between merges: seeded soaks, reported in <machine>-deep.txt
 #         The three below test Four of Wands, which is stopped; no station runs them now.
@@ -44,7 +47,7 @@ POLL="${STATION_POLL:-120}"
 BRANCH=station-results
 watch=0; push=1; after=""; jobs=(); deep=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|idle) jobs+=("$a") ;; deep) deep=1 ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
@@ -53,7 +56,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|idle) jobs+=("$a") ;; deep) deep=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -170,6 +173,14 @@ job_economy() {  # one line: realm-economy's summary, a longer run than the test
   if [[ "$line" == "ECONOMY ok "* ]]; then echo "JOB economy INFO seed=$seed ${line:8:260}"; else echo "JOB economy INFO seed=$seed $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
+job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md); recorded, never a failure of the merge
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB balance SKIP cargo is not installed on this station"; return 0; }
+  local out line
+  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-86000}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-2}" 20 "${STATION_BALANCE_FAST:-1}" 200 2>&1); line=$(tail -1 <<<"$out")
+  if [[ "$line" == "BALANCE "* ]]; then echo "JOB balance INFO ${line:8:260}"; else echo "JOB balance INFO $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
+  return 0
+}
 job_soak() {  # one line: realm-soak's summary
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB soak FAIL cargo is not installed on this station"; return 1; }
@@ -223,7 +234,7 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
 touched() {
   case "$1" in
     idle) return 0 ;;
-    realm|frames|soak|world|economy|ops) grep -q '^realm/' ;;
+    realm|frames|soak|world|economy|ops|balance) grep -q '^realm/' ;;
     *) grep -qvE '^(realm/|docs/|\.github/|\.claude/|tools/station/|tools/ops_board/|[^/]*\.md$)' ;;
   esac
 }

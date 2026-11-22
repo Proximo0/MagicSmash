@@ -531,14 +531,14 @@ fn job_passives() {
     assert_eq!(f.heroes()[id as usize].threat(), 26);
     let b = add(&mut f, &Sheet::bench(KNIGHT | 8, HUMAN, 40), FIELD / 2, FIELD / 2);
     assert_eq!(f.heroes()[b as usize].threat(), 14);
-    // BERSERKER: +1% per 2% missing.
+    // BERSERKER: +1% per 3% missing (B1, balance.md).
     idle(&mut f, 1);
     let p0 = f.mods(b).unwrap().power;
     let max = f.heroes()[b as usize].max_health;
     f.hero_mut(b).health = max / 2;
     idle(&mut f, 1);
     let p1 = f.mods(b).unwrap().power;
-    assert!(p1 > p0 && (p1 - p0) * 100 / p0 >= 20, "{p0} {p1}");
+    assert!(p1 > p0 && (p1 - p0) * 100 / p0 >= 15, "{p0} {p1}");
     // RANGER: +10% move, pierce 8. SHARPSHOOTER: reach +25%, +30% on ELITES.
     let r = add(&mut f, &Sheet::bench(ARCHER, HUMAN, 40), FIELD / 2, FIELD / 2);
     let s = add(&mut f, &Sheet::bench(ARCHER | 8, HUMAN, 40), FIELD / 2, FIELD / 2);

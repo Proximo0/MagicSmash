@@ -229,14 +229,15 @@ fn upgrades_cost_exactly_and_keep_sockets() {
 	let mut id = e.give_item(spec.clone());
 	e.give(StackKind::rune(0, 3), 1);
 	e.give(StackKind::material(EMBERS), 5_000);
-	e.give(StackKind::COIN, 1_000_000);
+	e.give(StackKind::COIN, 10_000_000);
 	e.smith().socket(e.m(), e.hero, id, 0, StackKind::rune(0, 3)).unwrap();
 	let mut cur = spec.clone();
 	for step in 1..=5u8 {
 		let (emb, coin) = (e.stack(StackKind::material(EMBERS)), e.stack(StackKind::COIN));
 		let cost = upgrade_cost(&cur).unwrap();
 		assert_eq!(cost.embers, (2 + 30 / 3) * step as u64);
-		assert_eq!(cost.coin, 4 * 30 * (step as u64).pow(2));
+		let by_income = realm_loot::sinks::income_per_hour(30) * realm_loot::sinks::SMITH_STEP_BP * (step as u64).pow(2) / 10_000;
+		assert_eq!(cost.coin, (4 * 30 * (step as u64).pow(2)).max(by_income));
 		let up = e.smith().upgrade(e.m(), e.hero, id).unwrap();
 		assert!(up.success, "steps to +5 never fail");
 		assert_eq!(up.plus, step);

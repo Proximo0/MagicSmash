@@ -97,7 +97,10 @@ name = "realm-loadtest"
 version = "0.1.0"
 dependencies = [
  "realm-core",
+ "realm-gateway",
+ "realm-loot",
  "realm-server",
+ "realm-store",
 ]
 
 [[package]]

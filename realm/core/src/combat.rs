@@ -266,13 +266,16 @@ impl Field {
         if m.nofall || h.has_fx(FX_MARTYR) {
             d = d.min(h.health - 1);
         }
+        // Contribution counts half of the hit that came at her, before her own reductions (job B1): a tank who
+        // draws the horde and shrugs it off contributes for what she drew, not less for shrugging.
+        let drawn = (raw.max(d) as u64 * CONTRIB_DRAWN_PCT as u64 / 100) as u32;
         if d < h.health {
             h.health -= d;
-            self.credit(i, d / 2);
+            self.credit(i, drawn);
             return d;
         }
         let taken = h.health;
-        self.credit(i, taken / 2);
+        self.credit(i, drawn);
         let h = &mut self.heroes[i];
         h.health = 0;
         h.downed = DOWNED_TICKS;

@@ -400,6 +400,6 @@ impl Field {
 
     /// The tide target of the spawner: doubled during a tide.
     pub(crate) fn tide_target(&self, target: u32) -> u32 {
-        if self.tide { target.saturating_mul(TIDE_TARGET_MUL) } else { target }
+        if self.tide { (target as u64 * tide_target_pct(self.live.len() as u32) as u64 / 100) as u32 } else { target }
     }
 }

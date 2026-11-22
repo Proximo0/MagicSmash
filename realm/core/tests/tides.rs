@@ -123,26 +123,32 @@ fn the_three_lit_altars_follow_the_seed_and_differ_between_tides() {
 }
 
 #[test]
-fn the_target_doubles_in_a_tide_up_to_the_cap() {
-    let run = |clock: u64, cap: u32| {
+fn the_target_doubles_in_a_tide_of_a_crowd_up_to_the_cap_and_not_for_a_small_party() {
+    let run = |clock: u64, cap: u32, heroes: i32| {
         let mut f = Field::open(0, 5, Config { monsters: cap, threads: 1 });
         f.set_clock(clock);
         let (x, y) = spot(&f, 6);
-        for i in 0..8 {
-            f.join(&Sheet::bench(KNIGHT, HUMAN, 10), &Outing::new(), x + px(i * 20), y);
+        for i in 0..heroes {
+            f.join(&Sheet::bench(KNIGHT, HUMAN, 10), &Outing::new(), x + px(i % 8 * 20), y + px(i / 8 * 20));
         }
         for _ in 0..300 {
             f.step::<u16>(&[]);
         }
         f.monster_count()
     };
-    let calm = run(100, 4_000);
-    let tide = run(tide_start(0, 0) - 2, 4_000);
-    // Eight heroes: 400 + ring weights is about 560 calm.
-    assert!(calm >= 400 && calm <= 700, "calm {calm}");
+    // A crowd of 40 (`TIDE_FULL_AT`): the contract's double.
+    let calm = run(100, 4_000, 40);
+    let tide = run(tide_start(0, 0) - 2, 4_000, 40);
+    assert!(calm >= 400 && calm <= 2_000, "calm {calm}");
     assert!(tide > calm * 17 / 10, "a tide keeps about twice as many: {tide} vs {calm}");
-    let capped = run(tide_start(0, 0) - 2, 600);
+    let capped = run(tide_start(0, 0) - 2, 600, 40);
     assert!(capped <= 600, "never past the cap: {capped}");
+    // A party of four (`TIDE_FULL_FROM`): no more than calm.
+    let (calm4, tide4) = (run(100, 4_000, 4), run(tide_start(0, 0) - 2, 4_000, 4));
+    assert!(tide4 <= calm4 + calm4 / 10, "a small party's tide is not doubled: {tide4} vs {calm4}");
+    assert_eq!(tide_target_pct(TIDE_FULL_FROM), 100);
+    assert_eq!(tide_target_pct(TIDE_FULL_AT), TIDE_TARGET_MUL * 100);
+    assert!(tide_target_pct(22) > 100 && tide_target_pct(22) < TIDE_TARGET_MUL * 100);
 }
 
 #[test]

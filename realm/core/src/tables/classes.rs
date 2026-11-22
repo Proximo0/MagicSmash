@@ -296,8 +296,8 @@ pub const J_TEMPLAR: u8 = 8;
 pub const J_CRUSADER: u8 = 9;
 
 pub const JOBS: [Job; 10] = [
-    Job { name: "WARDEN", class: KNIGHT, ultimate: U_RAMPART, passive: Passive { threat: 26, provoke_pull_px: 40, ..NO } },
-    Job { name: "BERSERKER", class: KNIGHT, ultimate: U_BLOOD_RAGE, passive: Passive { threat: 14, dmg_per_missing: 2, ..NO } },
+    Job { name: "WARDEN", class: KNIGHT, ultimate: U_RAMPART, passive: Passive { threat: 26, provoke_pull_px: 40, weapon_dmg_mul_pct: 200, ..NO } },
+    Job { name: "BERSERKER", class: KNIGHT, ultimate: U_BLOOD_RAGE, passive: Passive { threat: 14, dmg_per_missing: 3, ..NO } },
     Job { name: "ARCHMAGE", class: MAGE, ultimate: U_CATACLYSM, passive: Passive { second_burst_pct: 50, ..NO } },
     // The HEXER's "cursed monsters take 15% more" is `CURSE_TAKEN_PCT`: only PLAGUE curses.
     Job { name: "HEXER", class: MAGE, ultimate: U_PLAGUE, passive: NO },
@@ -305,7 +305,7 @@ pub const JOBS: [Job; 10] = [
     Job { name: "SHARPSHOOTER", class: ARCHER, ultimate: U_DEADEYE, passive: Passive { reach_pct: 25, elite_pct: 30, ..NO } },
     Job { name: "ORACLE", class: PRIEST, ultimate: U_BENEDICTION, passive: Passive { shield_under_pct: 30, ..NO } },
     Job { name: "INQUISITOR", class: PRIEST, ultimate: U_PYRE, passive: Passive { weapon_dmg_mul_pct: 200, heal_mul_pct: 50, ..NO } },
-    Job { name: "TEMPLAR", class: PALADIN, ultimate: U_MARTYR, passive: Passive { aura_pct: 14, aura_px: 140, ..NO } },
+    Job { name: "TEMPLAR", class: PALADIN, ultimate: U_MARTYR, passive: Passive { aura_pct: 14, aura_px: 140, weapon_dmg_mul_pct: 135, ..NO } },
     Job { name: "CRUSADER", class: PALADIN, ultimate: U_CRUSADE, passive: Passive { ally_dmg_pct: 2, ally_dmg_max: 20, ally_px: 100, ..NO } },
 ];
 

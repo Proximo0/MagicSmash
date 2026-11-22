@@ -100,7 +100,8 @@ pub fn run() {
                 None => (0..6).collect(),
             };
             for field in fields {
-                let runs = seeds(n, |s| party(field, s, ticks, 100));
+                let lead = arg(6, 100) as u32;
+                let runs = seeds(n, |s| party(field, s, ticks, lead));
                 summary(FIELDS[field as usize].name, &runs);
             }
         }
@@ -128,6 +129,6 @@ pub fn run() {
                 println!("{:<8} {:<13} {a:>9}   {:<13} {b:>9}   gap {gap}%", CLASSES[c].name, JOBS[jobs[0]].name, JOBS[jobs[1]].name);
             }
         }
-        _ => eprintln!("bots alone SEEDS MINUTES CLASS_LEVEL | party SEEDS TICKS [FIELD] | jobs SEEDS HEROES CLASS_LEVEL TICKS"),
+        _ => eprintln!("bots alone SEEDS MINUTES CLASS_LEVEL | party SEEDS TICKS [FIELD [LEAD]] | jobs SEEDS HEROES CLASS_LEVEL TICKS"),
     }
 }
