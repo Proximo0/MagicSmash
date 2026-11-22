@@ -1,3 +1,3 @@
-STATION machine=laptop time=2026-11-22T03:57Z commit=d43b21d took=17s
-JOB deep FAIL fuzz seed=519629 FAILED:   verify after child 30: ["a parcel holding nothing: 1", "a listing with more than one entry: 1"] STORE fuzz FAILED seed=519629 ops=6916 kills=29 (stmt=11 progress=7 commit=5 aftercommit=3 beforecommi | bench field=2 seed=519629 BENCH 1000x19868 threads=2 ticks=600 wall=5.8s kills=71887 spawns=91755 deaths=101 recycled=0 hash=e608bdcdbd0756cc
-STATION FAIL deep pass
+STATION machine=laptop time=2026-11-22T03:59Z commit=d43b21d took=108s
+JOB deep PASS fuzz seed=489597 STORE fuzz ok seed=489597 ops=50000 kills=200 (stmt=68 progress=39 commit=32 aftercommit=20 beforecommit=41) children=20 | bench field=0 seed=489597 BENCH 1000x20000 threads=2 ticks=600 wall=5.5s kills=74019 spawns=94019 deaths=6 recycled=0 hash=b6c170258e92312b
+STATION PASS deep pass
