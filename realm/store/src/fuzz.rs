@@ -383,6 +383,17 @@ fn generate(seed: u64, idx: u64, w: &World, now: Millis) -> Cmd {
 			let card = if r.chance(80) { r.pick(&pages).copied() } else { None };
 			Cmd::LearnPage { hero: h, card: card.unwrap_or(12 + r.below(18) as u16) }
 		}
+		900..=929 => {
+			// a plundered fall (job R3b): h's lost haul goes to another hero, sometimes herself (refused)
+			let to = r.pick(&w.heroes).map(|x| x.0).unwrap_or(h);
+			Cmd::Plunder {
+				from: h,
+				to,
+				items: (0..r.below(4)).map(|_| rand_spec(&mut r, lvl)).collect(),
+				stacks: (0..r.below(3)).map(|_| (rand_stack_kind(&mut r), 1 + r.below(20))).collect(),
+				coin: r.below(300),
+			}
+		}
 		950..=999 => parcel_op(&mut r, w, h, now, roll),
 		_ => {
 			// actor-checked moves: a player moving its own things, or trying someone else's

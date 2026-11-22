@@ -2,7 +2,7 @@
 //! encoded record of every recent tick. `bench` (no sockets) and the field host (`host.rs`) both drive it.
 
 use crate::bots::{join_spot, Bot};
-use crate::lockstep::{pack_reserving, put_seq_head, seq_head_len, Join, Lockstep, TickRec, HASH_EVERY};
+use crate::lockstep::{pack_reserving, put_seq_head, seq_head_len, Join, Lockstep, TickRec, WarArm, HASH_EVERY};
 use realm_core::{Config, Field, Outing, Phase, Sheet};
 use std::collections::VecDeque;
 use std::time::Instant;
@@ -53,6 +53,8 @@ pub struct JoinReq {
     pub outing: Outing,
     pub x: i32,
     pub y: i32,
+    /// Her guild (0: none): the join's GUILD entry (job R3b).
+    pub guild: u64,
 }
 
 pub struct Sim {
@@ -66,6 +68,8 @@ pub struct Sim {
     pub tick_time: u16,
     /// The realm clock to set before the next tick (it goes into that tick's record, so followers set it too).
     pub next_clock: Option<u64>,
+    /// Wars to arm with the next ticks' records (at most `WARS_MAX` a record), so followers arm them too.
+    pub next_wars: Vec<WarArm>,
 }
 
 impl Sim {
@@ -75,7 +79,7 @@ impl Sim {
             Some((v, seals)) => Field::open_vault(v, seals, opts.seed, cfg),
             None => Field::open(opts.field, opts.seed, cfg),
         };
-        Sim { opts: opts.clone(), field, ls: Lockstep::default(), bots: Vec::new(), rng: opts.seed ^ 0xB07, history: VecDeque::new(), tick_time: 0, next_clock: None }
+        Sim { opts: opts.clone(), field, ls: Lockstep::default(), bots: Vec::new(), rng: opts.seed ^ 0xB07, history: VecDeque::new(), tick_time: 0, next_clock: None, next_wars: Vec::new() }
     }
 
     /// Ids the next joins will get: the lowest free slots after this tick's leaves.
@@ -114,7 +118,7 @@ impl Sim {
                 let rally = (k as u64 * 1000 / self.opts.bots.max(1) as u64) < self.opts.rally_permille as u64;
                 let (class, race, x, y) = join_spot(&mut self.rng, rally);
                 let level = self.bench_level();
-                all.push(JoinReq { sheet: Sheet::bench(class, race, level), outing: Outing::new(), x, y });
+                all.push(JoinReq { sheet: Sheet::bench(class, race, level), outing: Outing::new(), x, y, guild: 0 });
                 new_bots += 1;
             }
         }
@@ -130,8 +134,10 @@ impl Sim {
         let t_bots = Instant::now();
         let mut rec = TickRec { tick: self.field.tick() + 1, leaves: leaves.to_vec(), clock: self.next_clock.take(), ..TickRec::default() };
         for (j, &id) in all.iter().zip(&ids) {
-            rec.joins.push(Join { id, sheet: j.sheet.clone(), outing: j.outing.clone(), x: j.x, y: j.y });
+            rec.joins.push(Join { id, sheet: j.sheet.clone(), outing: j.outing.clone(), x: j.x, y: j.y, guild: j.guild });
         }
+        let n = self.next_wars.len().min(realm_core::pvp::WARS_MAX);
+        rec.wars = self.next_wars.drain(..n).collect();
         let slots = self.field.players().len().max(ids.iter().map(|&i| i as usize + 1).max().unwrap_or(0));
         let mut want = vec![0u16; slots];
         for b in &self.bots {

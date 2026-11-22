@@ -75,7 +75,7 @@ heroes, so a field of unmarked heroes does no extra work.
   `Slain{hero, by}` goes out with the `Down`.
   - If she then FALLS, the coin her haul loses goes to that hero's haul, with the event `Plunder{hero, by, coin}`
     (coin 0 if he has left).
-  - The server must move the haul's lost items by the same event (open question 1).
+  - The server moves the haul's lost items by the same event (job R3b, "Plunder of items" below).
   - Monster downs, duels and vaults never plunder.
 - **Across leaving.** The core carries the mark and `struck_ago` in the outing. That already crossed copies;
   the host now also carries it home:
@@ -98,6 +98,8 @@ heroes, so a field of unmarked heroes does no extra work.
   - `Field::declare_war(id, guild a, guild b, tide)` arms a war for a tide index of this field. It is refused if
     either guild already fights in that tide, or when 32 wars are armed (`WARS_MAX`), so the count fits its byte.
   - The war goes on with the tide (`War{BEGIN}`) and ends with it, won early or lost (`War{END, winner, held}`).
+  - A war armed while its tide runs begins at the next step (`wars_late`, job R3b). Before, `declare_war` pushed
+    its `BEGIN` before the step, which cleared it, so nobody saw the war begin.
 - **Held altar time:** every tick, each lit or held altar with members of one side within its 150 px circle and none
   of the other adds one tick to that side. More ticks wins, and equal is a draw (`WAR_DRAW`). Held altars count too,
   because the fight goes on after an altar is held.
@@ -116,6 +118,52 @@ heroes, so a field of unmarked heroes does no extra work.
   - Kept in the social log (`wdecl`, `wacc`, `woff`, `wend`).
   - `Social::wars_for(field, tide)` and `guild_of_account` are what a field copy needs. `Social::war_result` takes
     the core's END: both guilds hear `WarResult`, and a second copy's report is ignored.
+
+## Wars in the field hosts (job R3b)
+
+- **Guild at admit.** `Entry.guild` is `Social::guild_of_account` of her account: at a ticket (`Gateway::issue`) and
+  when she is moved to another copy (`on_moved`). Vault tickets carry none: no war is fought in a vault. The host puts
+  it in her `Join`, and the record's PvP block carries it (`wire.md`), so the host and every follower call
+  `Field::set_guild` at the same tick. A guild change during an outing counts from her next ticket.
+- **Arming** (`gateway/src/world/wars.rs`, world thread, every 250 ms step):
+  - for each field, the accepted wars of its running or next tide (`Social::wars_for`);
+  - each one goes to every copy of the field that has not had it (`HostCmd::War`);
+  - the host adds it to its next tick's record (`Sim::next_wars`, at most `WARS_MAX` a record) and arms it through
+    `Lockstep::apply`, as followers do;
+  - a copy that opens during the war is armed at its next step and begins the war there at once;
+  - a closing copy is armed too, as its heroes fight until they are moved.
+- **The result.** Each armed copy sends its held ticks (`HostMsg::War`): at `War{END}`, or, when it stops during
+  the war (merged into another copy), what it held until then, sent before `Closed`.
+  - The war's result is the **sum over its copies**, and more held wins. Members of one guild may be spread over
+    several copies, so a single copy's END is not the war's.
+  - It goes to `Social::war_result` when every armed copy has reported or is gone (`Closed`, `Lost`), or 20 s after
+    the tide ends (`WAR_FINISH_GRACE_TICKS`) with what came in. That is inside social's one-minute draw grace.
+  - The bridge is in memory: after a gateway restart, wars are re-armed from social, and what the old copies held
+    is gone with them.
+- **Copies merge only between tides** (the copies planner). A merge during a war is still covered: the closing
+  copy's held ticks count, its moved heroes keep their guild, and the copy they reach already fights the war.
+- **Host counts:** `wars_begun`, `wars_ended`.
+
+## Plunder of items (job R3b)
+
+- **Host.** The core sends `Plunder{hero, by, coin}` right after her `Fallen`. The host's tally keeps a `Plundered`
+  record: which fall of the flush it was, and the hero and ticket of `by`. It keeps one only when `by` is still in
+  the field (as the core reads it) and has a ticket. It goes out in her flush (`Flush.plunders`).
+- **Gateway** (`Gateway::apply`). Each fall halves her haul (`Haul::fall`) as before. What a plundered fall took goes
+  to `by` in **one store transaction**, `Cmd::Plunder{from, to, items, stacks, coin}`:
+  - a `PLUNDER` row: her account to his, with the coin as its count and the hero ids in its data;
+  - for each item, a `MINT` for her (into her mail, as a waypoint inside the transaction), so she stays its origin
+    hero and account. Then a `MOVE` to his bag, or to his mail when the bag is full;
+  - for each material or other stack, a `CREDIT` to her (minted) and a `TRANSFER` to him, his mail when full.
+  - The botter tools therefore count the plunder as hers (`trace`): `trace_forward` follows it to him, and
+    `clawback_plan` finds it with him. Nothing is destroyed: his mail has no limit.
+- **The coin** is moved by the core into his haul and banked with his outing (`haul`). The `PLUNDER` row records it
+  but does not credit it again.
+- **Refused:** a self-found hero on either side, or a trade-locked account. The items are lost as any fall loses
+  them, and the `PLUNDER` row says `refused`.
+- **Once.** Request id `plunder_id(ticket, seq, fall, attempt)`: her ticket, bit 63, the flush and the fall. A
+  flush applied twice moves nothing twice. The transaction is atomic: the crash fuzz has plunders in its stream
+  (3%), and every kill leaves all or nothing.
 
 ## Duels
 
@@ -162,7 +210,8 @@ The rite answers `MARK_FOR_GOOD` to a realm-marked hero. The flag is in the stat
   - The social span's last free requests: `0x5C` WarDeclare(foe, field), `0x5D` WarAnswer(war, accept),
     `0x5E` WarList, `0x5F` Duel(op 0 challenge, 1 accept, 2 decline; other values refused, name).
   - Replies 6 `Wars` and 7 `WarDeclared`. Pushes 9 to 15.
-  - The span reserved for PvP in `proto/ranges.rs` (0x74..0x77, 0x8D, 0xAA) is left free for later.
+  - The span reserved for PvP in `proto/ranges.rs` (0x74..0x77, 0x8D, 0xAA): job R3b takes 0x74 (GUILD) and 0x75
+    (WAR) for the lockstep record's PvP block (`wire.md`). 0x76..0x77, 0x8D and 0xAA stay free.
 - **Interface additions in other owners' files (small):**
   - `server/src/host.rs`: `Flush.mark`, and the tally reads `Mark` and `Struck`.
   - `gateway/src/gateway.rs`: the duel step in the town ticker, town input to the duel, the outing reads the mark
@@ -188,6 +237,9 @@ The rite answers `MARK_FOR_GOOD` to a realm-marked hero. The flag is in the stat
 | `property_the_haul_goes_only_to_the_hero_who_downed_her`: 10 seeds, isolated pairs of marked hunters, 1,500 ticks | Every fall after a hero's blow pays exactly that hero what the fall lost. 6 seeds gave 21 plunders and 30,479 coin. |
 | `property_a_duel_never_strikes_a_third_party`: 18 seeds, 2 duellists and 3 bystanders, 2 of them marked | Every duel ends; no blow outside the pair, no fall, no plunder. |
 | `same_hash_with_hunters_and_a_war_on_1_to_4_threads_and_a_follower`: THE MOON MARSH and THE TOWER, 200 heroes, 600 ticks | Hashes equal every 50 ticks on 1, 2, 3 and 4 threads and on a follower loaded from bytes at tick 200. The existing `hash_gate` still passes. |
+| R3b `server/tests/wars.rs`: a war armed by record on two copies of THE HERMIT'S PEAKS, guilded joins before and during it, a follower | The follower's hash equals the host's every tick through the war's begin and end. Both copies begin and end it; guild 1 alone at the altars wins copy a's held ticks. A copy opened mid-tide begins the war in the arming tick, and a moved hero keeps her guild. |
+| R3b `gateway world::wars` tests: real hosts on a manual realm clock | A war accepted in social is armed on both copies and begins in both. A third copy opened during it begins it, then closes into the first (a merge) and reports. At the tide's end the sum reaches social once. Held ticks are summed over copies, and a copy counts once. |
+| R3b `store/tests/plunder.rs`, `gateway::plunder_tests`, `host::tests` | Items and stacks move once with both ledger sides, the victim stays the origin, and a full bag goes to mail. Self-found and trade-locked heroes are refused. A crash fuzz with plunders (seed 31337, 16 kills) verifies clean. Through the applier, half the haul's items go to the plunderer, and a repeated flush moves nothing more. |
 
 Bench, tick in ms (CPU with 4 cores, load average about 0.6):
 
@@ -204,15 +256,8 @@ Every field is well inside the 50 ms budget, and within about 1 ms of R2's crowd
 
 ## Open questions
 
-1. **Items of a plundered haul.** The core moves the coin; the server should move the lost items to `by` on
-   `Plunder` (`host.rs` and the loot job's `Haul::fall`).
-2. **Wars in the field hosts.** Wars need a bridge that the host and the lockstep wire do not yet carry. The gateway
-   and the core are ready on both ends. The bridge must:
-   - tag heroes at admit with `Field::set_guild` (`Social::guild_of_account`);
-   - arm `declare_war` on every copy of the field before the tide (`Social::wars_for`);
-   - send `War{END}` back (`Social::war_result`).
-   Followers must apply the same calls for the hash, so the Join record needs the guild and a WAR record is needed:
-   a W1 protocol change.
+1. ~~Items of a plundered haul.~~ Closed by R3b ("Plunder of items").
+2. ~~Wars in the field hosts.~~ Closed by R3b ("Wars in the field hosts").
 3. **Duels are run in the gateway with town input only** (direction; the weapon fires on its own, with no skills or
    potions), and clients see only the start and the result.
    - A real yard view needs either a host per duel or yard snapshots in the town push.

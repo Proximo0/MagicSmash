@@ -147,6 +147,13 @@ impl Enc {
 					None => self.w("N"),
 				}
 			}
+			Cmd::Plunder { from, to, items, stacks, coin } => {
+				self.i(*from).i(*to).u(items.len() as u64);
+				for sp in items {
+					self.spec(sp);
+				}
+				self.stacks(stacks).u(*coin)
+			}
 			Cmd::Trade { a, b } => self.side(a).side(b),
 			Cmd::GrantEntitlement { account, kind, count, purchase } => {
 				self.i(*account).u(*kind as u64).u(*count as u64).s(purchase)
@@ -460,6 +467,16 @@ impl<'a> Dec<'a> {
 					_ => return Err(bad("opt")),
 				};
 				Cmd::Outing { hero, delta: OutingDelta { coin, xp, levels, items, stacks, potions_used, waystone } }
+			}
+			"plunder" => {
+				let from = self.i()?;
+				let to = self.i()?;
+				let n = self.count()?;
+				let mut items = Vec::with_capacity(n);
+				for _ in 0..n {
+					items.push(self.spec()?);
+				}
+				Cmd::Plunder { from, to, items, stacks: self.stacks()?, coin: self.u()? }
 			}
 			"trade" => Cmd::Trade { a: self.side()?, b: self.side()? },
 			"grant_entitlement" => Cmd::GrantEntitlement {

@@ -416,6 +416,13 @@ pub enum Cmd {
 	StackDebit { from: Owner, kind: StackKind, count: u64, reason: String },
 	StackTransfer { from: Owner, to: Owner, kind: StackKind, count: u64 },
 	Outing { hero: HeroId, delta: OutingDelta },
+	/// A plundered fall (rules section 14, the server only): what hero `from`'s haul lost goes to hero `to`, who
+	/// downed her. The haul was never in the store, so each item is minted for her (she stays its origin) and moved
+	/// to the winner's bag (her mail when the bag is full); each stack is credited to her and transferred the same
+	/// way. `coin` moved in the field (the core's plunder) and is banked with the winner's outing: the PLUNDER row
+	/// records it. A self-found hero on either side, or a trade-locked account, refuses: the haul is lost as any
+	/// fall loses it, and the PLUNDER row says so.
+	Plunder { from: HeroId, to: HeroId, items: Vec<ItemSpec>, stacks: Vec<(StackKind, u64)>, coin: u64 },
 	Trade { a: TradeSide, b: TradeSide },
 	GrantEntitlement { account: AccountId, kind: EntitlementKind, count: u32, purchase: String },
 	/// Moves things from a hero's bag into escrow as a parcel (the server only; the gateway checks consent). A
@@ -503,6 +510,7 @@ impl Cmd {
 			Cmd::StackDebit { .. } => "stack_debit",
 			Cmd::StackTransfer { .. } => "stack_transfer",
 			Cmd::Outing { .. } => "outing",
+			Cmd::Plunder { .. } => "plunder",
 			Cmd::Trade { .. } => "trade",
 			Cmd::GrantEntitlement { .. } => "grant_entitlement",
 			Cmd::ParcelPut { .. } => "parcel_put",
