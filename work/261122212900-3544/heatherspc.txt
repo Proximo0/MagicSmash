@@ -1,0 +1,1 @@
+2026-11-22T22:42:44Z PASS id=261122212900-3544 kind=shell secs=10 nolock set: display=never sleep=never hibernate=never lid=nothing wake-signin=off screensaver-lock=off away-signin=never dynamic-lock=off autostart=yes
