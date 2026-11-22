@@ -32,3 +32,6 @@ The runner lives on the MSI at `D:\projects\hh_art` (not in this repo) and runs 
 - Log: `D:\projects\hh_art\runner.log`; one-line state: `D:\projects\hh_art\status.txt` (RUNNING / STOPPED / FINISHED / CRASHED)
 - Test without touching the queue state: `venv\Scripts\python.exe runner.py --only HR1.1,BS1.1 --count 2 --out test_x --no-push`
 - Never put the game's, the repository's or a person's name in a prompt.
+
+## Licence gate
+`licences.json` lists every model repo the runner may load, with its licence and `commercial_ok`. `licence_check.py` enforces it: `runner2.main()` calls `check_all(LOADS)` and refuses to start unless every repo is listed and cleared, and every load site (`snap()` in runner.py and ab_klein.py, the two LoRA `hf_hub_download` calls, the SigLIP scorer) calls `allow(repo)` first, so a new model cannot be loaded until it is added here. Pose guides are drawn in code (walk.py); no OpenPose detector weights are used.
