@@ -27,18 +27,18 @@ MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
 POLL="${STATION_POLL:-120}"
 BRANCH=station-results
-watch=0; push=1; after=""; jobs=()
+watch=0; push=1; after=""; jobs=(); deep=0
 for a in "$@"; do
-  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;;
+  case "$a" in --watch) watch=1 ;; --no-push) push=0 ;; --after=*) after="${a#--after=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
     *) echo "station: unknown argument $a" >&2; exit 2 ;; esac
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
-P95=""
+P95=""  # `deep` in a role: between merges, run seeded soaks (job_deep) instead of sleeping
 role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut -d: -f2-)
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; --p95=*) P95="${a#--p95=}" ;; boss|checks|frames|golden|realm|idle) jobs+=("$a") ;; deep) deep=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -112,6 +112,23 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
   return $bad
 }
 job_idle() { echo "JOB idle INFO this station has no job yet"; }
+job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the store and a full-size field bench
+  command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+  command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 0; }
+  local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir
+  dir="${TMPDIR:-/tmp}/station-deep-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
+  ( cd realm && cargo build --release -j2 -q ) >/dev/null 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >/dev/null 2>&1 \
+    || { echo "JOB deep FAIL build"; return 1; }
+  if out=$(timeout 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz" 2>&1); then
+    detail+=" | fuzz seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
+  else bad=$((bad + 1)); detail+=" | fuzz seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  if out=$(timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300 2>&1); then
+    detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
+  else bad=$((bad + 1)); detail+=" | bench field=$field seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-200)"; fi
+  rm -rf "$dir"
+  echo "JOB deep $([ $bad -eq 0 ] && echo PASS || echo FAIL)${detail# |}"
+  return $bad
+}
 
 # A job is skipped for a commit that changed nothing it tests. $1 = job, stdin = the paths changed since this station's
 # last commit. Godot jobs test everything except the realm, the docs and the stations themselves.
@@ -123,7 +140,7 @@ touched() {
   esac
 }
 
-publish() {  # $1 = report text. Adds <machine>.txt to the results branch without touching the work tree.
+publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to the results branch without touching the work tree.
   local blob parent tree commit idx
   for _try in 1 2 3; do
     git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
@@ -131,7 +148,7 @@ publish() {  # $1 = report text. Adds <machine>.txt to the results branch withou
     idx=$(mktemp -u)
     [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
     blob=$(git hash-object -w --stdin <<<"$1")
-    GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo 100644 "$blob" "$MACHINE.txt"
+    GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo 100644 "$blob" "${2:-$MACHINE.txt}"
     tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
     commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $(tail -1 <<<"$1")")
     GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null && return 0
@@ -192,8 +209,14 @@ run_once() {
 
 if [ "$watch" = 1 ]; then
   while true; do
-    run_once
+    run_once; rc=$?
     [ "$(self_sum)" = "$started" ] || exec bash tools/station/station.sh "$@"
+    if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
+      t0=$SECONDS; body=$(job_deep); v=$([[ "$body" == *" PASS"* || "$body" == *" SKIP "* ]] && echo PASS || echo FAIL)
+      rep="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD) took=$((SECONDS - t0))s"$'\n'"$body"$'\n'"STATION $v deep pass"
+      if [ "$push" = 1 ]; then publish "$rep" "$MACHINE-deep.txt" || true; else echo "$rep"; fi
+      continue
+    fi
     sleep "$POLL"
   done
 fi
