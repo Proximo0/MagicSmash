@@ -129,5 +129,69 @@
  "HR8.4": {
   "status": "accepted",
   "rules": []
+ },
+ "HR10.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR10.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR10.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR10.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR9.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR9.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR9.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR9.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR11.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR11.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR11.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR11.4": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR12.1": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR12.2": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR12.3": {
+  "status": "accepted",
+  "rules": []
+ },
+ "HR12.4": {
+  "status": "accepted",
+  "rules": []
  }
 }

@@ -1,0 +1,16 @@
+{
+ "slot": "near_hand",
+ "anchor": [
+  112,
+  232
+ ],
+ "up": [
+  0,
+  -1
+ ],
+ "size": 0.3,
+ "angle": 0,
+ "in_front": false,
+ "guide": "crossbow",
+ "note": "a crossbow seen from the side, drawn upright: the muzzle (the bolt's end) at the top, the stock below, the bow across the top third; the anchor is the grip under the stock. In the game it is carried level at the hip, muzzle forward and a little down"
+}
