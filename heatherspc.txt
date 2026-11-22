@@ -1,3 +1,4 @@
-STATION machine=heatherspc time=2026-11-22T00:35Z commit=6d94fd6 took=1s
+STATION machine=heatherspc time=2026-11-22T01:03Z commit=45dbe6e took=1s
 JOB realm SKIP cargo is not installed on this station
-STATION PASS jobs=1 failed=0 skipped=0
+JOB frames SKIP cargo is not installed on this station
+STATION PASS jobs=2 failed=0 skipped=0
