@@ -1,0 +1,1 @@
+2026-11-23T14:02:56Z INFO id=261123112124-1779 kind=economy secs=4937 economy runs=1 bad=0 seed=477955 ok bots=4000 days=365 secs=4878 sales=175511 tax=4675501 coin_per_bot=1091921 listings=918586 trades=2615 letters=5167 refused=7538
