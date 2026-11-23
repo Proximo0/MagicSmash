@@ -25,6 +25,26 @@ Q_WARNED_FILE="${TMPDIR:-/tmp}/station-queue-warned-${MACHINE//[^A-Za-z0-9_-]/_}
 q_now() { date +%s; }
 q_me() { printf %s "${MACHINE//[^A-Za-z0-9_-]/_}"; }
 q_rand() { echo $(( ((RANDOM << 15) | RANDOM) % 1000000 + 1 )); }
+Q_GD="$(git rev-parse --git-dir 2>/dev/null)"; Q_ATT="$Q_GD/station_attempts"; Q_SPOOL="$Q_GD/station_spool"   # local state: "id count" lines; unsent "id line" lines
+q_disk_gb() { timeout -k 30 20 df -Pk . 2>/dev/null | awk 'NR==2 { print int($4 / 1048576) }'; }   # free GB of the repo filesystem, empty when unknown
+q_prune() {  # delete this station's own work dirs (station-job-<machine>-*, station-<what>-<machine>) under TMPDIR older than 24 h
+  local t="${TMPDIR:-/tmp}" me; me=$(q_me); [ -n "$t" ] && [ -n "$me" ] && [ -d "$t" ] || return 0
+  timeout -k 30 120 find "$t" -maxdepth 1 -mindepth 1 -type d -mmin +1440 \( -name "station-job-${me}-*" -o -name "station-*-${me}" \) -exec rm -rf {} + 2>/dev/null; return 0
+}
+q_att_get() { local i c; [ -f "$Q_ATT" ] && while read -r i c; do [ "$i" = "$1" ] && { echo "${c:-0}"; return; }; done <"$Q_ATT"; echo 0; }
+q_att_set() {  # id count (0 clears); drops ids no longer in the queue (when Q_TREE is known), keeps at most 200 lines
+  local i c tmp; tmp=$(mktemp)
+  { [ -f "$Q_ATT" ] && while read -r i c; do
+      [ "$i" = "$1" ] && continue; [ -z "${Q_TREE:-}" ] || grep -qx "queue/$i.job" <<<"$Q_TREE" || continue; echo "$i $c"; done <"$Q_ATT"
+    [ "$2" -gt 0 ] && echo "$1 $2"; true; } | tail -200 >"$tmp"; mv -f "$tmp" "$Q_ATT"; return 0
+}
+q_spool_flush() {  # try the results that could not be published earlier; a failure leaves the rest for the next step
+  local id line tmp rest=0; [ -s "$Q_SPOOL" ] || return 0; tmp=$(mktemp)
+  while read -r id line; do
+    if [ "$rest" = 0 ] && q_publish_result "$id" "$line" ""; then echo "queue: sent the spooled result of $id"; else rest=1; echo "$id $line" >>"$tmp"; fi
+  done <"$Q_SPOOL"
+  tail -200 "$tmp" >"$Q_SPOOL"; rm -f "$tmp"; return 0
+}
 
 # ---- git branch storage -------------------------------------------------------------------------------------------
 gb_fetch() { git fetch -q origin "+refs/heads/$1:refs/remotes/origin/$1" 2>/dev/null; }   # fails when the branch does not exist yet
@@ -425,17 +445,19 @@ q_publish_result() {  # id line artdir: result line appended to work/<id>/<machi
   rm -f "$tmp"; return 1
 }
 q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
-  local id=$1 me line rc status t0=$SECONDS tmp passes=1 prev; me=$(q_me); Q_FAST_FAIL=0
+  local id=$1 me line rc status t0=$SECONDS tmp passes=1 prev n; me=$(q_me); Q_FAST_FAIL=0
   q_load "$id" || { gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; return 0; }
-  QK=$J_KIND; Q_WD=$(mktemp -d); mkdir -p "$Q_WD/art"; QDEADLINE=$((SECONDS + J_TIMEOUT)); LAST=""
+  QK=$J_KIND; Q_WD=$(mktemp -d "${TMPDIR:-/tmp}/station-job-$me-XXXXXX"); mkdir -p "$Q_WD/art"; QDEADLINE=$((SECONDS + J_TIMEOUT)); LAST=""
   echo "queue: $MACHINE runs $id kind=$J_KIND args='$J_ARGS' repeat=$J_REPEAT"
   # step_run reads these: a merge may kill only a short job; a long one finishes first (a merge used to throw away up to hours of work)
   Q_IN_JOB=1; Q_KILLABLE=0; [ "$J_TIMEOUT" -le "${STATION_QUEUE_KILL_MAX_S:-900}" ] && Q_KILLABLE=1
-  line=$(q_exec "$J_KIND" "$J_ARGS" "$J_REPEAT" 2>"$Q_WD/stderr.log"); rc=$?
+  n=$(q_att_get "$id")   # starts on this machine without a result; the third unfinished start is the last
+  if [ "$n" -ge 3 ]; then line="FAIL parked: started 3 times on this machine without finishing"; rc=0; echo "queue: $id parked"
+  else q_att_set "$id" $((n + 1)); line=$(q_exec "$J_KIND" "$J_ARGS" "$J_REPEAT" 2>"$Q_WD/stderr.log"); rc=$?; fi
   Q_IN_JOB=0; Q_KILLABLE=0
   [ -s "$Q_WD/stderr.log" ] && tail -20 "$Q_WD/stderr.log" >&2
   if [ $rc = 3 ]; then
-    rm -rf "$Q_WD"; gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; echo "queue: job $id interrupted (a merge landed or the GPU was needed); claim released"; return 3
+    q_att_set "$id" "$n"; rm -rf "$Q_WD"; gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; echo "queue: job $id interrupted (a merge landed or the GPU was needed); claim released"; return 3
   fi
   if [ -z "$line" ]; then  # silent death: say how it ended and what it last wrote
     local last; last=$(ls -t "$Q_WD" 2>/dev/null | grep -v '^stderr.log$' | head -1)
@@ -443,7 +465,10 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
   fi
   status=${line%% *}; case "$status" in PASS|FAIL|INFO|SKIP) ;; *) status=FAIL; line="FAIL $line" ;; esac
   line="$(date -u +%Y-%m-%dT%H:%M:%SZ) $status id=$id kind=$J_KIND secs=$((SECONDS - t0)) ${line#* }"
-  q_publish_result "$id" "$line" "$Q_WD/art" || echo "queue: could not publish the result of $id"
+  if ! q_publish_result "$id" "$line" "$Q_WD/art"; then   # keep the line (not the artifacts) for the next step
+    echo "queue: could not publish the result of $id (spooled for the next step)"; echo "$id $line" >>"$Q_SPOOL"; tail -200 "$Q_SPOOL" >"$Q_SPOOL.t" && mv -f "$Q_SPOOL.t" "$Q_SPOOL"
+  fi
+  q_att_set "$id" 0
   tmp=$(mktemp)
   prev=$(gb_cat "$QBRANCH" "done/$id.$me" | sed -n 's/.*passes=\([0-9]*\).*/\1/p'); [ -n "$prev" ] && passes=$((prev + 1))
   echo "machine=$MACHINE time=$(q_now) status=$status passes=$passes" >"$tmp"
@@ -456,6 +481,7 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
 }
 queue_step() {  # one job from the queue. 0 ran one, 1 nothing to do (the caller falls back to deep), 3 interrupted by a merge
   local id tries=0
+  q_prune; q_spool_flush
   while [ $tries -lt 5 ]; do
     q_fetch || return 1
     id=$(q_pick); [ -n "$id" ] || return 1

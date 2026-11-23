@@ -389,7 +389,7 @@ heartbeat_start() {
     mine() { kill -0 "$station" 2>/dev/null && [ "$(cat "$STATE.heartbeat" 2>/dev/null)" = "$me" ]; }
     while mine; do
       [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
-      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ)" "$MACHINE-heartbeat.txt" 2>/dev/null
+      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) disk_free_gb=$(q_disk_gb)" "$MACHINE-heartbeat.txt" 2>/dev/null
       left="${STATION_HEARTBEAT_SECS:-1800}"
       while [ "$left" -gt 0 ] && mine; do keepawake_touch; sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
     done

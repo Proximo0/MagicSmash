@@ -238,4 +238,20 @@ if command -v setsid >/dev/null 2>&1; then
   kill -- -"$(cat "$T/d.pid")" 2>/dev/null; sleep 1
 else echo "  skip the merge-vs-queue-job test: no setsid here"; fi
 
+echo "== a job started 3 times without a result is parked; a result that cannot be pushed is spooled and sent on the next step"
+agd=$(git -C "$T/alpha" rev-parse --absolute-git-dir)
+idp=$(Q alpha add kind=fuzz args="seeds=1" needs=alpha priority=9 | tail -1)
+echo "$idp 3" >"$agd/station_attempts"
+Q alpha step >"$T/o" 2>&1; rc=$?
+check "the 4th start is not run: a parked FAIL line is published and the job counts as done" '[ $rc = 0 ] && rd station-results work/$idp/alpha.txt | grep -q " FAIL id=$idp kind=fuzz .*parked: started 3 times on this machine without finishing" && files station-queue | grep -qx "done/$idp.alpha" && ! grep -q "^$idp " "$agd/station_attempts"'
+idq=$(Q alpha add kind=fuzz args="seeds=1" needs=alpha priority=9 | tail -1)
+printf '#!/bin/sh\n[ -e "%s/nopush" ] && while read -r o n r; do case "$r" in refs/heads/station-results) exit 1 ;; esac; done\nexit 0\n' "$T" >"$T/origin.git/hooks/pre-receive"; chmod +x "$T/origin.git/hooks/pre-receive"
+touch "$T/nopush"; Q alpha step >"$T/o" 2>&1
+check "with the results branch refusing pushes the line is spooled, not lost" 'grep -q "spooled" "$T/o" && grep -q "^$idq .* PASS id=$idq " "$agd/station_spool" && ! rd station-results work/$idq/alpha.txt | grep -q "id=$idq"'
+rm -f "$T/nopush"; Q alpha step >"$T/o" 2>&1
+check "the next step sends the spooled line and empties the spool" 'rd station-results work/$idq/alpha.txt | grep -q " PASS id=$idq " && [ ! -s "$agd/station_spool" ]'
+old="$T/station-job-alpha-OLD"; mkdir "$old"; touch -d '3 days ago' "$old" 2>/dev/null || touch -t 200001010000 "$old"; mkdir "$T/station-job-beta-KEEP"; touch -t 200001010000 "$T/station-job-beta-KEEP"
+Q alpha step >"$T/o" 2>&1
+check "the step prunes this machine's old work dirs and nothing else" '[ ! -e "$old" ] && [ -d "$T/station-job-beta-KEEP" ]'
+
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi

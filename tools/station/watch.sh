@@ -35,6 +35,9 @@ for m in $machines; do
   t=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m-heartbeat.txt" "$m-hours.txt" 2>/dev/null)
   if [ -z "$t" ]; then alert "$m has never reported a heartbeat"
   elif [ $((now - t)) -gt "$silent" ]; then alert "$m has been silent for $(age $((now - t))): is the PC on, signed in, and its station window running?"; fi
+  # Low disk: the heartbeat line carries disk_free_gb=<n> (an older heartbeat has none and never alerts).
+  gb=$(gb_cat "$BRANCH" "$m-heartbeat.txt" | tail -1 | sed -n 's/.*disk_free_gb=\([0-9]\{1,\}\).*/\1/p')
+  [ -z "$gb" ] || [ "$gb" -ge "${STATION_WATCH_DISK_GB:-10}" ] || alert "$m: only $gb GB free disk"
   # On, but doing nothing: no result line of any kind from it for a while, and it holds no job now.
   w=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m.txt" "$m-deep.txt" ":(glob)work/*/$m.txt" 2>/dev/null)
   if [ -n "$t" ] && [ $((now - t)) -le "$silent" ] && [ $((now - ${w:-0})) -gt "$idle" ] \
