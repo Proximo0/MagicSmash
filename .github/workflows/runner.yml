@@ -8,9 +8,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# A run is never cancelled by the next merge (the first one was, 20 minutes in): the running one finishes and GitHub
+# keeps only the newest waiting run, so the PCs always complete a check of a recent main.
 concurrency:
   group: runner-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   linux-pc:
     if: github.repository == 'Proximo0/MagicSmash'
