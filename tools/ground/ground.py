@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Seamless ground tiles for the six fields, made from seeded noise only (no model, no outside art).
-ground.py OUT_DIR  ->  ground_0a.png, ground_0b.png .. ground_5b.png (512 x 512, each wraps on both axes) and the
+ground.py OUT_DIR  ->  ground_0a.png, ground_0b.png .. ground_5b.png and ground_towna/b.png (the town plaza) (512 x 512, each wraps on both axes) and the
 two long-period maps ground_blotch.png (shade) and ground_patch.png (which of a and b shows)."""
 import sys
 from pathlib import Path
@@ -208,6 +208,36 @@ def edge(rng):  # THE EDGE: cracked ash plates; plates with embers in the cracks
     return plates(rng, 90, 0.0), plates(rng, 90, 1.0)
 
 
+def cobbles(rng, count, puddle):
+    """Dark wet cobbles for the town plaza: domed stones, grimy joints, a cold sheen on the upper left of each.
+    puddle > 0 floods the low places with still, dark water (the `b` tile)."""
+    f1, f2, ident = cells_map(rng, count)
+    gap = f2 - f1
+    joint = np.clip(gap / 2.8, 0, 1)
+    dome = np.clip(gap / 9.0, 0, 1) ** 0.7
+    shade = rng.uniform(-1, 1, count)[ident]
+    fine = fbm(rng, 64, 2)
+    v = 0.5 + 0.22 * shade + 0.3 * (fine - 0.5)
+    img = ramp(np.clip(v, 0, 1), [(0, (26, 28, 38)), (0.5, (46, 50, 64)), (1, (74, 79, 98))])
+    img = lit(img, dome, 2.6, 24)
+    sheen = np.clip(emboss(dome, 4.0) - 0.55, 0, 1)
+    img = img + sheen[..., None] * np.array([26.0, 34.0, 52.0])
+    grime = ramp(norm(fbm(rng, 24, 3)), [(0, (14, 16, 18)), (1, (24, 30, 26))])
+    img = img * joint[..., None] + grime * (1 - joint[..., None]) * 0.9
+    if puddle > 0:
+        depth = norm(fbm(rng, 3, 3))
+        w = np.clip((depth - (1 - puddle)) * 9, 0, 1)[..., None]
+        water = ramp(np.clip(0.35 + 0.3 * (fine - 0.5) + 0.5 * dome, 0, 1), [(0, (12, 16, 26)), (1, (34, 46, 68))])
+        glint = (rng.random((N, N)) < 0.003)[..., None]
+        water = np.where(glint, water + 40, water)
+        img = img * (1 - w) + (water * 0.85 + img * 0.15) * w
+    return lit(img, fine, 5.0, 6)
+
+
+def town(rng):  # THE PLAZA: wet dark cobbles; cobbles with standing water between
+    return cobbles(rng, 560, 0.0), cobbles(rng, 560, 0.4)
+
+
 def save(img, path, colours=40):
     im = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
     im = im.quantize(colours, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert("RGB")
@@ -221,6 +251,9 @@ def main():
         a, b = f(np.random.default_rng(7100 + k))
         save(a, out / ("ground_%da.png" % k))
         save(b, out / ("ground_%db.png" % k))
+    a, b = town(np.random.default_rng(7106))
+    save(a, out / "ground_towna.png", 48)
+    save(b, out / "ground_townb.png", 48)
     rng = np.random.default_rng(7199)
     for name in ["ground_blotch.png", "ground_patch.png"]:
         m = fbm(rng, 4, 4)
