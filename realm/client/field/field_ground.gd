@@ -11,6 +11,9 @@ const DIR: String = "res://ground"
 const FULL_DETAIL_SCALE: float = 1.0
 const MIN_DETAIL: float = 0.3
 
+## `field` while the town plaza's tiles (ground_towna.png, ground_townb.png) are shown.
+const TOWN: int = -2
+
 ## The field whose tile is shown, -1 for none.
 var field: int = -1
 
@@ -22,10 +25,19 @@ func _init() -> void:
 
 ## Show `f`'s ground over a field `side` px square. A field with no tiles keeps what was shown.
 func set_field(f: int, side: float) -> void:
-	if f == field:
+	_set_tiles(str(f), f, side)
+
+
+## Show the town plaza's cobbles over a square `side` px. Without the files it keeps what was shown (`field` stays).
+func set_town(side: float) -> void:
+	_set_tiles("town", TOWN, side)
+
+
+func _set_tiles(tag: String, id: int, side: float) -> void:
+	if id == field:
 		return
 	var paths: Dictionary = {
-		"tile_a": "%s/ground_%da.png" % [DIR, f], "tile_b": "%s/ground_%db.png" % [DIR, f],
+		"tile_a": "%s/ground_%sa.png" % [DIR, tag], "tile_b": "%s/ground_%sb.png" % [DIR, tag],
 		"patch": "%s/ground_patch.png" % DIR, "blotch": "%s/ground_blotch.png" % DIR}
 	for key in paths:
 		if not ResourceLoader.exists(paths[key]):
@@ -47,7 +59,7 @@ func set_field(f: int, side: float) -> void:
 	material = m
 	color = Color.WHITE
 	size = Vector2(side, side)
-	field = f
+	field = id
 
 
 ## `px_scale`: screen px per field px (the camera's zoom).
