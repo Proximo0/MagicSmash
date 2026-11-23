@@ -6,3 +6,4 @@
 2026-11-23T03:41:00Z PASS id=261122113649-0393 kind=fuzz secs=98 fuzz seeds_run=1 ops=50000 kills=200 last: STORE fuzz ok seed=227087 ops=50000 kills=200 (stmt=62 progress=44 commit=39 aftercommit=23 beforeco
 2026-11-23T03:44:19Z PASS id=261122113649-0393 kind=fuzz secs=99 fuzz seeds_run=1 ops=50000 kills=200 last: STORE fuzz ok seed=258934 ops=50000 kills=200 (stmt=64 progress=36 commit=38 aftercommit=27 beforeco
 2026-11-23T03:47:35Z PASS id=261122113649-0393 kind=fuzz secs=99 fuzz seeds_run=1 ops=50000 kills=200 last: STORE fuzz ok seed=201810 ops=50000 kills=200 (stmt=56 progress=39 commit=31 aftercommit=33 beforeco
+2026-11-23T03:52:40Z PASS id=261122113649-0393 kind=fuzz secs=100 fuzz seeds_run=1 ops=50000 kills=200 last: STORE fuzz ok seed=202292 ops=50000 kills=200 (stmt=50 progress=47 commit=28 aftercommit=30 beforeco
