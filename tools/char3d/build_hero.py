@@ -279,7 +279,10 @@ def trs(loc, rot=(0, 0, 0), scale=(1, 1, 1)):
 
 
 S = marks["w"]                                   # the body's size against a 1.79 m human
-ex = kit["extras"]
+ex = list(kit["extras"])
+if RACE == "elf" and "helm" not in ex:           # elves go bare-headed with long pale hair, so the race reads at 56 px
+    ex = [e for e in ex if e != "hood"] + ([] if "hair" in ex else ["hair"])
+    kit = dict(kit, hair=(0.75, 0.66, 0.38))
 if "pauldrons" in ex:
     col, r, spikes = kit["pauldron"]
     for s, sg in (("l", 1), ("r", -1)):
@@ -385,6 +388,11 @@ if "hair" in ex:                                 # a cap of hair over the top an
     c, half = (lo + hi) / 2, (hi - lo) / 2
     o = prim("sphere", "hair", kit["hair"])
     hang(o, "head", trs(c + Vector((0, half.y * 0.2, half.z * 0.3)), (-18, 0, 0), (half.x * 1.1, half.y * 1.0, half.z * 0.8)))
+if "hair" in ex and RACE == "elf":                # the long part, down the back to the shoulder blades
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "hair_long", kit["hair"], 0.0, r2=0.7)
+    hang(o, "head", trs(Vector((0, hi.y - half.y * 0.1, c.z - half.z * 0.9)), (8, 0, 0), (half.x * 0.95, half.y * 0.42, half.z * 1.3)))
 if "hood" in ex:                                 # a hood: over the top, sides and back, the face left open
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
