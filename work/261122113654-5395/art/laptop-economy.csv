@@ -1,2 +1,2 @@
 seed,bots,days,status,summary
-256420,4000,180,fail,timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied
+205998,4000,180,fail,timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied
