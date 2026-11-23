@@ -13,3 +13,4 @@
 2026-11-23T14:29Z laptop queue 2026-11-23T14:28:58Z FAIL id=261123122123-0094 kind=balance secs=3 balance cohorts=2 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
 2026-11-23T14:36Z laptop queue 2026-11-23T14:36:22Z FAIL id=261123122125-1924 kind=balance secs=3 balance cohorts=3 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
 2026-11-23T14:46Z laptop queue 2026-11-23T14:46:22Z FAIL id=261123143519-1421 kind=shell secs=27 runnerstart no registered runner folder found (run.cmd beside .runner); runner process now: 0 
+2026-11-23T14:53Z laptop queue 2026-11-23T14:53:38Z FAIL id=261123122127-7813 kind=balance secs=3 balance cohorts=4 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
