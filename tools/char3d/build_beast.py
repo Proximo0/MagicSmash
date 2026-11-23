@@ -36,6 +36,9 @@ KINDS = {
     "wisp": dict(plan="float", rad=0.2, h=1.0, coat=(0.3, 0.9, 0.8), dark=(0.9, 1.0, 1.0), eye=(0.02, 0.05, 0.05), glow=1.2, tails=3),
     "marsh_light": dict(plan="float", rad=0.26, h=0.8, coat=(0.5, 0.95, 0.2), dark=(0.95, 1.0, 0.6), eye=(0.03, 0.06, 0.0), glow=1.2, tails=5),
     "void_eye": dict(plan="float", rad=0.42, h=1.2, coat=(0.1, 0.04, 0.14), dark=(0.85, 0.8, 0.75), eye=(0.9, 0.05, 0.3), glow=0.0, tails=6, iris=True),
+    "carrion_crow": dict(plan="bird", rad=0.17, h=0.75, coat=(0.035, 0.035, 0.05), dark=(0.012, 0.012, 0.02), eye=(1.0, 0.15, 0.05), beak=(0.5, 0.42, 0.25)),
+    "leech": dict(plan="worm", rad=0.14, h=0.14, coat=(0.1, 0.03, 0.05), dark=(0.3, 0.07, 0.08), eye=(0.75, 0.6, 0.5), segs=6),
+    "toadstone": dict(plan="toad", rad=0.34, h=0.3, coat=(0.2, 0.26, 0.12), dark=(0.42, 0.4, 0.3), eye=(1.0, 0.7, 0.1), cap=(0.5, 0.1, 0.08)),
 }
 K = KINDS[kind_name]
 PLAN = K.get("plan", "quad")
@@ -197,6 +200,118 @@ elif PLAN == "float":                            # a drifting light or eye with 
         for tj, tk, ang in ftails:
             tj.rotation_euler = Euler((math.radians(-lean * 1.5 + 12 * math.sin(w + ang)), math.radians(12 * math.cos(w + ang)), 0))
             tk.rotation_euler = Euler((math.radians(16 * math.sin(w + ang + 1.0)), 0, 0))
+
+elif PLAN == "bird":                             # a crow on the wing: it never lands, the wings beat about the spine
+    part("sphere", "trunk", body, coat, (0, 0, 0), (0, 0, 0), (R * 0.75, R * 1.5, R * 0.7))
+    part("sphere", "bhead", body, coat, (0, -R * 1.6, R * 0.35), (0, 0, 0), (R * 0.55, R * 0.6, R * 0.55))
+    part("cone", "beak", body, mat("beak", K["beak"]), (0, -R * 2.5, R * 0.25), (100, 0, 0), (R * 0.2, R * 0.2, R * 0.5))
+    part("cone", "btail", body, dark, (0, R * 2.0, 0), (-80, 0, 0), (R * 0.55, R * 0.12, R * 0.8), r2=0.6)
+    for sg in (1, -1):
+        part("sphere", "beye%d" % sg, body, mat("eye", K["eye"], 4.0), (sg * R * 0.42, -R * 1.85, R * 0.48), (0, 0, 0), (R * 0.13, R * 0.13, R * 0.13))
+    wings = []
+    for sg in (1, -1):
+        wj = joint("wing%d" % sg, body, (sg * R * 0.5, -R * 0.2, R * 0.35))
+        part("cube", "wing_a%d" % sg, wj, coat, (sg * R * 1.0, 0, 0), (0, 0, 0), (R * 1.0, R * 0.8, R * 0.07))
+        wk = joint("wingk%d" % sg, wj, (sg * R * 2.0, 0, 0))
+        part("cube", "wing_b%d" % sg, wk, dark, (sg * R * 0.9, R * 0.15, 0), (0, 0, sg * -12), (R * 0.95, R * 0.6, R * 0.05))
+        wings.append((wj, wk, sg))
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        flap, z, y, pitch, roll = math.sin(w), H + 0.06 * math.cos(w), 0.0, 0.0, 0.0
+        if action == "Walking_A":
+            pitch = 10
+        elif action == "Attack":                 # a stoop: wings folded back, beak first, then up again
+            a = math.sin(math.pi * u)
+            y, z, pitch, flap = -R * 2.5 * a, H - 0.3 * a, 40 * a, flap * (1 - a) - 0.6 * a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            y, pitch, roll = R * 1.5 * a, -30 * a, 25 * a
+        elif action == "Death_A":                # falls out of the air and lies with the wings spread
+            a = min(1.0, u * 1.4)
+            z, roll, flap, pitch = H - (H - R * 0.6) * a * a, 170 * a, 0.9 * (1 - a) - 0.15, 0.0
+        body.location = (0, y, z)
+        body.rotation_euler = Euler((math.radians(-pitch), math.radians(roll), 0))
+        for wj, wk, sg in wings:
+            wj.rotation_euler = Euler((0, math.radians(-sg * 42 * flap), 0))
+            wk.rotation_euler = Euler((0, math.radians(-sg * (22 * flap - 14)), 0))
+
+elif PLAN == "worm":                             # a leech: fat segments that hump along the ground, a pale ring of a mouth
+    segs = []
+    ns_ = K["segs"]
+    for i in range(ns_):
+        t = i / (ns_ - 1)
+        fat = R * (0.75 + 0.5 * math.sin(math.pi * (0.15 + 0.8 * t)))
+        sj = joint("seg%d" % i, root, (0, (i - (ns_ - 1) / 2) * R * 1.25, fat))
+        part("sphere", "seg_m%d" % i, sj, coat if i % 2 == 0 else dark, (0, 0, 0), (0, 0, 0), (fat * 1.05, R * 0.95, fat))
+        segs.append((sj, fat))
+    part("sphere", "mouth", segs[0][0], mat("eye", K["eye"]), (0, -R * 0.75, 0), (0, 0, 0), (R * 0.5, R * 0.3, R * 0.5))
+    part("sphere", "gullet", segs[0][0], mat("pupil", (0.05, 0.0, 0.0)), (0, -R * 0.98, 0), (0, 0, 0), (R * 0.28, R * 0.14, R * 0.28))
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        for i, (sj, fat) in enumerate(segs):
+            y0 = (i - (ns_ - 1) / 2) * R * 1.25
+            z, y, sc_ = fat, y0, 1.0
+            front = 1 - i / (ns_ - 1)
+            if action == "Walking_A":
+                z = fat + R * 0.75 * max(0.0, math.sin(w - i * 1.0))
+                y = y0 - R * 0.25 * math.cos(w - i * 1.0)
+            elif action == "Idle":
+                z = fat + R * 0.12 * math.sin(w - i * 0.8)
+            elif action == "Attack":             # rears up and strikes forward
+                a = math.sin(math.pi * u)
+                z, y = fat + R * 3.2 * a * front * front, y0 - R * 1.6 * a * front * (1.6 * u)
+            elif action == "Hit_A":
+                a = math.sin(math.pi * u)
+                y, z = y0 + R * 0.9 * a, fat + R * 0.5 * a * (1 - front)
+            elif action == "Death_A":            # bursts flat
+                a = min(1.0, u * 1.3)
+                z, sc_ = fat * (1 - 0.6 * a), 1 - 0.55 * a
+            sj.location = (0, y, z)
+            sj.scale = (1.0 + (1 - sc_) * 0.8, 1.0, sc_)
+
+elif PLAN == "toad":                             # a squat toad with toadstools on its back; it hops and spits
+    part("sphere", "trunk", body, coat, (0, R * 0.1, 0), (-12, 0, 0), (R * 1.0, R * 1.15, R * 0.75))
+    part("sphere", "thead", body, coat, (0, -R * 0.85, R * 0.12), (0, 0, 0), (R * 0.8, R * 0.6, R * 0.5))
+    jaw = joint("tjaw", body, (0, -R * 0.6, -R * 0.05))
+    part("sphere", "tjaw_m", jaw, dark, (0, -R * 0.35, -R * 0.12), (0, 0, 0), (R * 0.72, R * 0.55, R * 0.22))
+    for sg in (1, -1):
+        part("sphere", "teye%d" % sg, body, mat("eye", K["eye"], 3.0), (sg * R * 0.45, -R * 0.95, R * 0.5), (0, 0, 0), (R * 0.2, R * 0.2, R * 0.2))
+        part("sphere", "tpupil%d" % sg, body, mat("pupil", (0.0, 0.0, 0.0)), (sg * R * 0.5, -R * 1.1, R * 0.52), (0, 0, 0), (R * 0.07, R * 0.07, R * 0.14))
+    capm = mat("cap", K["cap"])
+    for cx, cy, cs in ((0.0, 0.35, 0.42), (0.45, 0.1, 0.28), (-0.4, 0.55, 0.3), (0.15, 0.85, 0.24)):
+        part("cone", "stalk", body, dark, (cx * R, cy * R, R * 0.75), (0, 0, 0), (cs * R * 0.3, cs * R * 0.3, R * 0.25), r2=0.8)
+        part("sphere", "cap", body, capm, (cx * R, cy * R, R * 1.0), (0, 0, 0), (cs * R, cs * R, cs * R * 0.55))
+    tlegs = []
+    for sg in (1, -1):
+        for fr_, ly in ((True, -0.6), (False, 0.75)):
+            lj = joint("tleg%d%d" % (sg, fr_), body, (sg * R * 0.8, ly * R, -R * 0.2))
+            part("sphere", "tleg_m%d%d" % (sg, fr_), lj, coat, (sg * R * 0.15, 0, -R * 0.3), (0, 0, 0), (R * 0.26, R * (0.3 if fr_ else 0.5), R * 0.36))
+            part("sphere", "tfoot%d%d" % (sg, fr_), lj, dark, (sg * R * 0.22, -R * 0.25, -R * 0.62), (0, 0, 0), (R * 0.24, R * 0.4, R * 0.1))
+            tlegs.append((lj, fr_))
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        z, y, pitch, sq, mouth, kick = H, 0.0, 0.0, 1 + 0.04 * math.sin(w), 0.0, 0.0
+        if action == "Walking_A":                # one hop a cycle
+            a = max(0.0, math.sin(w))
+            z, pitch, kick, sq = H + R * 1.1 * a, 18 * math.cos(w) * (1 if a > 0 else 0), 55 * a, 1 - 0.12 * max(0.0, -math.sin(w))
+        elif action == "Attack":                 # rears back, then spits
+            a = math.sin(math.pi * u)
+            pitch, mouth, y = -28 * a if u < 0.5 else 14 * a, 38 * a, -R * 0.5 * a * (1 if u > 0.5 else 0)
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            y, sq, pitch = R * 0.8 * a, 1 - 0.25 * a, -10 * a
+        elif action == "Death_A":                # sags flat, mouth open
+            a = min(1.0, u * 1.3)
+            sq, mouth, z = 1 - 0.55 * a, 30 * a, H * (1 - 0.45 * a)
+        body.location = (0, y, z)
+        body.scale = (1 + (1 - sq) * 0.6, 1.0, sq)
+        body.rotation_euler = Euler((math.radians(pitch), 0, 0))
+        jaw.rotation_euler = Euler((math.radians(mouth), 0, 0))
+        for lj, fr_ in tlegs:
+            lj.rotation_euler = Euler((math.radians(-kick if not fr_ else kick * 0.4), 0, 0))
 
 else:
     L = K["len"]
