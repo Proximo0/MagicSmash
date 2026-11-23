@@ -1,1 +1,2 @@
 2026-11-23T00:57:07Z INFO id=261122113709-0991 kind=frames secs=140 zooms=16,4 mean_ms=29.98 p99_ms=79.36 monsters_drawn=7581 renderer="AMD RadeonT 610M"
+2026-11-23T15:37:53Z INFO id=261122113709-0991 kind=frames secs=142 zooms=16,4 mean_ms=50.01 p99_ms=120.91 monsters_drawn=6966 renderer="AMD RadeonT 610M"
