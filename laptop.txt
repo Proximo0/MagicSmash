@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-23T00:47Z commit=83f6947 took=0s
-JOB frames SKIP nothing it tests changed since d025eb3
-JOB balance SKIP nothing it tests changed since d025eb3
-STATION PASS jobs=0 failed=0 skipped=2
+STATION machine=laptop time=2026-11-23T01:59Z commit=3b27ebe took=1049s
+JOB frames INFO zooms=16 mean_ms=38.43 p99_ms=69.27 monsters_drawn=14011 renderer="AMD RadeonT 610M"
+JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.15s 
+STATION PASS jobs=2 failed=0 skipped=0
