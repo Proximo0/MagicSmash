@@ -15,7 +15,7 @@ import sys
 
 import bpy
 import bmesh  # noqa: E402 (after bpy)
-from mathutils import Euler, Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 out, kind_name, acts = sys.argv[sys.argv.index("--") + 1:]
 E = os.environ.get
@@ -42,6 +42,11 @@ KINDS = {
     "leech": dict(plan="worm", rad=0.14, h=0.14, coat=(0.1, 0.03, 0.05), dark=(0.3, 0.07, 0.08), eye=(0.75, 0.6, 0.5), segs=6),
     "hanging_tree": dict(plan="tree", rad=0.62, h=0.0, coat=(0.075, 0.052, 0.04), dark=(0.04, 0.03, 0.026), eye=(0.85, 0.95, 0.45),
                          rope=(0.5, 0.4, 0.18), flesh=(0.3, 0.34, 0.36), cloth=(0.13, 0.1, 0.09)),
+    "chandelier": dict(plan="chandelier", rad=1.3, h=1.0, tilt=38, coat=(0.1, 0.1, 0.115), dark=(0.02, 0.02, 0.025), eye=(0.55, 0.9, 1.0),
+                       brass=(0.5, 0.36, 0.1), wax=(0.85, 0.8, 0.62), pale=(0.72, 0.68, 0.6)),
+    "ghostwriter": dict(plan="ghost", rad=0.5, h=1.55, coat=(0.3, 0.46, 0.8), dark=(0.14, 0.24, 0.52), pale=(0.82, 0.92, 1.0), eye=(0.6, 1.0, 1.0), glow=0.12),
+    "death_the_pale_rider": dict(plan="rider", rad=0.5, h=0.0, coat=(0.42, 0.4, 0.36), dark=(0.13, 0.12, 0.12), bone=(0.7, 0.67, 0.56), shroud=(0.26, 0.32, 0.42),
+                  shroud2=(0.5, 0.54, 0.58), eye=(0.5, 0.9, 1.0)),
     "toadstone": dict(plan="toad", rad=0.34, h=0.3, coat=(0.2, 0.26, 0.12), dark=(0.42, 0.4, 0.3), eye=(1.0, 0.7, 0.1), cap=(0.5, 0.1, 0.08)),
 }
 K = KINDS[kind_name]
@@ -652,6 +657,487 @@ elif PLAN == "imp":                              # a small ember imp: coal body,
             hj.rotation_euler = Euler((math.radians(l_ + 25 * tuck), math.radians(-sg * 24), 0))
             sj.rotation_euler = Euler((math.radians(a_), math.radians(-sg * arm_o), 0))
 
+elif PLAN == "chandelier":                       # a fallen iron chandelier that lives: a tilted ring of candles on clawed legs, chains trailing up, a skull hub among pale arms
+    iron, brass, wax = mat("iron", K["coat"]), mat("brass", K["brass"]), mat("wax", K["wax"])
+    pale, pit = mat("pale", K["pale"]), mat("pit", (0.01, 0.01, 0.015))
+    fl_o, fl_i = mat("flame_o", (1.0, 0.35, 0.04), 2.6), mat("flame_i", (1.0, 0.8, 0.3), 4.0)
+    eye = mat("eye", K["eye"], 6.0)
+    TH = math.radians(K["tilt"])
+    ringj = joint("ring", body, (0, 0, 0))
+    ringj.rotation_euler = Euler((0, TH, 0))
+
+    def rod(parent, name, m, p0, p1, r0, r1):
+        """a tapering rod from p0 (radius r0) to p1 (radius r1) in the parent's frame."""
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        ob = part("cone", name, parent, m, tuple((p0 + p1) / 2), (0, 0, 0), (r0, r0, d.length / 2), r2=r1 / r0)
+        ob.rotation_euler = d.to_track_quat("Z", "X" if abs(d.normalized().y) > 0.95 else "Y").to_euler()
+        return ob
+
+    NR = 22
+    for k in range(NR):                          # the outer ring, one iron bar per chord, and a bead at every joint
+        a0, a1 = 2 * math.pi * k / NR, 2 * math.pi * (k + 1) / NR
+        rod(ringj, "ring%d" % k, iron, (R * math.cos(a0), R * math.sin(a0), 0), (R * math.cos(a1), R * math.sin(a1), 0), 0.12, 0.12)
+        part("sphere", "bead%d" % k, ringj, iron, (R * math.cos(a0), R * math.sin(a0), 0), (0, 0, 0), (0.16, 0.16, 0.16))
+    for k in range(14):                          # the inner ring
+        a0, a1 = 2 * math.pi * k / 14, 2 * math.pi * (k + 1) / 14
+        rod(ringj, "in%d" % k, iron, (R * 0.5 * math.cos(a0), R * 0.5 * math.sin(a0), 0.05), (R * 0.5 * math.cos(a1), R * 0.5 * math.sin(a1), 0.05), 0.085, 0.085)
+    for k in range(6):                           # spokes from the hub to the rim, rising a little
+        a = 2 * math.pi * (k + 0.5) / 6
+        rod(ringj, "spoke%d" % k, iron, (0, 0, 0.12), (R * math.cos(a), R * math.sin(a), 0.0), 0.07, 0.06)
+    flames = []
+    for k in range(10):                          # ten candles in brass cups on the rim, six shorter ones on the inner ring
+        a = 2 * math.pi * (k + 0.25) / 10
+        for rr, hh, tag in ((R, 0.3, "o"), (R * 0.5, 0.22, "i")):
+            if tag == "i" and k % 2:
+                continue
+            c = (rr * math.cos(a), rr * math.sin(a))
+            zz = 0.0 if tag == "o" else 0.05
+            part("cone", "cup%s%d" % (tag, k), ringj, brass, (c[0], c[1], zz + 0.07), (0, 0, 0), (0.14, 0.14, 0.08), r2=1.35)
+            part("cone", "cdl%s%d" % (tag, k), ringj, wax, (c[0], c[1], zz + 0.14 + hh / 2), (0, 0, 0), (0.075, 0.075, hh / 2), r2=0.9)
+            fj = joint("fl%s%d" % (tag, k), ringj, (c[0], c[1], zz + 0.14 + hh))
+            part("cone", "flo%s%d" % (tag, k), fj, fl_o, (0, 0, 0.13), (0, 0, 0), (0.07, 0.07, 0.12), r2=0.0)
+            part("cone", "fli%s%d" % (tag, k), fj, fl_i, (0, 0, 0.07), (0, 0, 0), (0.04, 0.04, 0.07), r2=0.0)
+            flames.append((fj, k * 1.7))
+    # the hub: a skull on a brass boss, with pale arms rising round it
+    part("cone", "boss", ringj, brass, (0, 0, 0.1), (0, 0, 0), (0.36, 0.36, 0.12), r2=0.7)
+    hubj = joint("hub", ringj, (0, 0, 0.55))
+    part("sphere", "skull", hubj, pale, (0, 0, 0), (0, 0, 0), (0.3, 0.32, 0.32))
+    for sg in (1, -1):
+        part("sphere", "sock%d" % sg, hubj, pit, (sg * 0.12, -0.24, 0.04), (0, 0, 0), (0.09, 0.07, 0.1))
+        part("sphere", "eye%d" % sg, hubj, eye, (sg * 0.12, -0.28, 0.04), (0, 0, 0), (0.045, 0.03, 0.05))
+    part("cone", "nasal", hubj, pit, (0, -0.31, -0.07), (100, 0, 0), (0.04, 0.04, 0.08), r2=0.3)
+    jawj = joint("jaw", hubj, (0, -0.05, -0.2))
+    part("cube", "jaw", jawj, pale, (0, -0.1, -0.06), (0, 0, 0), (0.17, 0.2, 0.06))
+    for k in range(5):
+        part("cone", "tooth%d" % k, jawj, mat("tooth", (0.85, 0.82, 0.7)), ((k - 2) * 0.07, -0.28, 0.0), (0, 0, 0), (0.02, 0.02, 0.05), r2=0.2)
+    arms = []                                    # (shoulder, elbow, wrist, phase, spread angle)
+    NA = 7
+    for k in range(NA):
+        a = 2 * math.pi * k / NA
+        sj = joint("arm%d" % k, hubj, (0.18 * math.cos(a), 0.18 * math.sin(a), -0.12))
+        ou = Vector((math.cos(a), math.sin(a), 0))
+        up = Vector((0, 0, 1))
+        d1 = (ou * 0.7 + up * 0.7).normalized() * 0.62
+        rod(sj, "ua%d" % k, pale, (0, 0, 0), tuple(d1), 0.065, 0.05)
+        ej = joint("elb%d" % k, sj, tuple(d1))
+        d2 = (ou * 0.35 + up * 0.95).normalized() * 0.6
+        rod(ej, "fa%d" % k, pale, (0, 0, 0), tuple(d2), 0.05, 0.035)
+        wj = joint("wr%d" % k, ej, tuple(d2))
+        part("sphere", "palm%d" % k, wj, pale, (0, 0, 0.05), (0, 0, 0), (0.07, 0.04, 0.08))
+        for f in range(4):                       # four crooked fingers
+            fa = (f - 1.5) * 0.5
+            fd = Vector((math.sin(fa) * 0.6, 0.0, 1.0)).normalized() * 0.2
+            rod(wj, "fg%d_%d" % (k, f), pale, (math.sin(fa) * 0.05, 0, 0.08), tuple(Vector((math.sin(fa) * 0.05, 0, 0.08)) + fd), 0.016, 0.008)
+            rod(wj, "fh%d_%d" % (k, f), pale, tuple(Vector((math.sin(fa) * 0.05, 0, 0.08)) + fd), tuple(Vector((math.sin(fa) * 0.05, 0, 0.08)) + fd + Vector((0, -0.09 * (1 if k % 2 else -1), 0.08))), 0.01, 0.005)
+        arms.append((sj, ej, wj, a))
+    # four iron claw legs under the rim: hip on the rim, knee outv and up, a hooked foot on the ground
+    legs = []
+    cw = Vector((0, 0, H))
+    Rinv = Euler((0, TH, 0)).to_matrix().inverted()
+    for k, a in enumerate((0.35, 1.9, 3.5, 5.0)):
+        rim = Vector((R * math.cos(a), R * math.sin(a), 0))
+        pw = cw + Euler((0, TH, 0)).to_matrix() @ rim
+        outv = Vector((pw.x, pw.y, 0)).normalized() if Vector((pw.x, pw.y, 0)).length > 0.05 else Vector((1, 0, 0))
+        foot_w = Vector((pw.x, pw.y, 0.0)) + outv * 0.45
+        knee_w = (pw + foot_w) / 2 + outv * 0.3 + Vector((0, 0, 0.1))
+        hip = rim
+        knee = Rinv @ (knee_w - cw)
+        foot = Rinv @ (foot_w - cw)
+        hj = joint("hip%d" % k, ringj, tuple(hip))
+        rod(hj, "th%d" % k, iron, (0, 0, 0), tuple(knee - hip), 0.075, 0.06)
+        kj = joint("knee%d" % k, hj, tuple(knee - hip))
+        rod(kj, "sh%d" % k, iron, (0, 0, 0), tuple(foot - knee), 0.06, 0.04)
+        part("sphere", "kn%d" % k, kj, iron, (0, 0, 0), (0, 0, 0), (0.1, 0.1, 0.1))
+        fj_ = joint("ft%d" % k, kj, tuple(foot - knee))
+        for t in range(3):                       # three hooked talons
+            ta = (t - 1) * 0.7 + math.atan2(outv.y, outv.x)
+            td = Vector((math.cos(ta), math.sin(ta), 0))
+            rod(fj_, "tl%d_%d" % (k, t), iron, (0, 0, 0.02), tuple(td * 0.2 + Vector((0, 0, 0.02))), 0.04, 0.012)
+        legs.append((hj, kj))
+    # three chains rising from the rim, going up outv of the picture's middle and ending in a broken link
+    chains = []
+    for k, a in enumerate((2.3, 3.14, 4.0)):
+        rim = Vector((R * math.cos(a), R * math.sin(a), 0.1))
+        cj = joint("ch%d" % k, ringj, tuple(rim))
+        lean = Vector((math.cos(a) * -0.2, math.sin(a) * -0.2, 0))
+        segs = []
+        par = cj
+        for s in range(3):
+            if s:
+                par = joint("ch%d_%d" % (k, s), par, (0, 0, 0.75))
+            for li in range(5):
+                lk = part("cube", "lk%d_%d_%d" % (k, s, li), par, iron, (0, 0, 0.075 + li * 0.15), (0, 90 * (li % 2), 0), (0.11, 0.07, 0.14))
+            segs.append(par)
+        part("cone", "brk%d" % k, segs[-1], iron, (0, 0, 0.88), (0, 0, 0), (0.11, 0.07, 0.16), r2=0.3)
+        chains.append((cj, segs, a))
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        tilt, z, dy, arm_up, arm_out, flame, jaw_o, heave = K["tilt"], H, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0
+        fall = 0.0
+        if action == "Idle":
+            z, jaw_o = H + 0.04 * math.sin(w), 6 + 5 * math.sin(w)
+        elif action == "Walking_A":              # rooted: it heaves and the arms writhe harder
+            z, jaw_o, tilt, arm_up = H + 0.09 * math.sin(w), 14 + 10 * math.sin(w), tilt + 4 * math.sin(w), 10
+        elif action == "Attack":                 # rears the ring back, arms flung wide, then slams it forward and down
+            back = max(0.0, 1 - u * 3.5)
+            a = math.sin(math.pi * u) if u > 0.28 else 0.0
+            tilt, z, arm_out, jaw_o, dy = tilt + 16 * back - 26 * a, H + 0.35 * back - 0.1 * a, 35 * a - 15 * back, 34 * a, -0.25 * a
+            flame = 1 + 0.5 * a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            tilt, z, jaw_o, flame, arm_out = tilt + 14 * a, H + 0.1 * a, 30 * a, 1 - 0.4 * a, -20 * a
+        elif action == "Death_A":                # the flames gutter outv, the arms go limp, the claws fold and the ring settles on the ground
+            fall = min(1.0, u * 1.2)
+            flame = max(0.0, 1 - fall * 1.8)
+            tilt = K["tilt"] * (1 - fall) + 3 * fall
+            z, arm_out, jaw_o = H - (H - 0.12) * fall * fall, 88 * fall, 40 * fall
+        body.location = (0, dy, z)
+        ringj.rotation_euler = Euler((0, math.radians(tilt), 0))
+        for fj, ph in flames:
+            f_ = max(0.001, flame * (1 + 0.16 * math.sin(3 * w + ph)))
+            fj.scale = (f_, f_, f_ * (1 + 0.2 * math.sin(2 * w + ph)) if flame > 0.01 else 0.001)
+        hubj.rotation_euler = Euler((math.radians(4 * math.sin(w)), 0, math.radians(8 * math.sin(w + 1))))
+        jawj.rotation_euler = Euler((math.radians(jaw_o), 0, 0))
+        for sj, ej, wj, a in arms:
+            ph = w + 2 * a
+            ox, oy = math.cos(a), math.sin(a)
+            amp = 16 + arm_up
+            sw = math.sin(ph)
+            # bend about the axis tangent to the circle: tipping outwards = +arm_out
+            sj.rotation_euler = Euler((math.radians((arm_out + amp * sw) * -oy * -1), math.radians((arm_out + amp * sw) * ox), 0))
+            ej.rotation_euler = Euler((math.radians((arm_out * 0.5 + amp * 0.8 * math.sin(ph + 1.0)) * -oy * -1), math.radians((arm_out * 0.5 + amp * 0.8 * math.sin(ph + 1.0)) * ox), 0))
+            wj.rotation_euler = Euler((math.radians(25 * math.sin(ph + 2.0)), math.radians(25 * math.cos(ph + 2.0)), 0))
+        for k, (hj, kj) in enumerate(legs):
+            ph = w + k * 1.6 if action in ("Idle", "Walking_A") else 0.0
+            amp = 5 if action == "Idle" else (11 if action == "Walking_A" else 0)
+            hj.rotation_euler = Euler((math.radians(amp * math.sin(ph)), math.radians(amp * math.cos(ph)), 0))
+            kj.rotation_euler = Euler((math.radians(fall * 35), math.radians(fall * 20), 0))
+        for cj, segs, a in chains:
+            if action == "Death_A":
+                cj.rotation_euler = Quaternion((-math.sin(a), math.cos(a), 0), math.radians(78 * fall)).to_euler()
+            else:
+                cj.rotation_euler = Euler((math.radians(4 * math.sin(w + a)), math.radians(4 * math.cos(w + a * 1.3)), 0))
+            for i, sg_ in enumerate(segs[1:]):
+                if action == "Death_A":
+                    sg_.rotation_euler = Euler((math.radians(-fall * 30 * math.cos(a)), math.radians(fall * 30 * math.sin(a)), 0)) if False else Quaternion((-math.sin(a), math.cos(a), 0), math.radians(18 * fall)).to_euler()
+                else:
+                    sg_.rotation_euler = Euler((math.radians(7 * math.sin(w + a + i + 1)), math.radians(7 * math.cos(w + a + i)), 0))
+
+
+elif PLAN == "ghost":                            # a tall pale-blue spectre scribe hunched over a floating book, quill in a long hand, pages circling; no legs, the robe fades to mist
+    robe, shade, glowc = mat("robe", K["coat"], K["glow"]), mat("shade", K["dark"], K["glow"]), mat("glow", K["pale"], 0.8)
+    hand_m = mat("hand", K["pale"], 0.3)
+    eye = mat("eye", K["eye"], 6.0)
+    pit = mat("pit", (0.02, 0.04, 0.1), 0.3)
+    ink = mat("ink", (0.05, 0.08, 0.2), 0.0)
+    pg_m = mat("page", (0.9, 0.93, 0.8), 0.9)
+    brass = mat("brass", (0.6, 0.45, 0.15), 0.0)
+
+    def rod(parent, name, m, p0, p1, r0, r1):
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        ob = part("cone", name, parent, m, tuple((p0 + p1) / 2), (0, 0, 0), (r0, r0, d.length / 2), r2=r1 / r0)
+        ob.rotation_euler = d.to_track_quat("Z", "X" if abs(d.normalized().y) > 0.95 else "Y").to_euler()
+        return ob
+
+    # the mist: tatters of robe hanging from the waist, shortest to longest, tapering to a point
+    root.scale = (1.2, 1.2, 1.2)
+    waist = joint("waist", body, (0, 0, 0))
+    mist = []
+    for k in range(9):
+        a = 2 * math.pi * k / 9
+        r_ = 0.34 + 0.06 * (k % 2)
+        L_ = 1.05 + 0.4 * ((k * 5) % 3) / 2
+        mj = joint("mist%d" % k, waist, (r_ * math.cos(a), r_ * math.sin(a), 0.1))
+        part("cone", "mt%d" % k, mj, robe if k % 2 else shade, (0, 0, -L_ / 2), (180, 0, 0), (0.24, 0.17, L_ / 2), r2=0.15)
+        mist.append((mj, a))
+    part("cone", "skirt", waist, robe, (0, 0, -0.35), (180, 0, 0), (0.6, 0.5, 0.55), r2=0.55)   # the solid part, tapering into the tatters
+    torso = joint("torso", waist, (0, 0, 0.1))              # hunched: the whole upper body leans over the book
+    part("cone", "chest", torso, robe, (0, 0, 0.55), (0, 0, 0), (0.5, 0.42, 0.62), r2=0.5)
+    part("sphere", "shoulders", torso, robe, (0, 0, 1.08), (0, 0, 0), (0.5, 0.3, 0.2))
+    part("sphere", "hump", torso, shade, (0, 0.22, 0.95), (0, 0, 0), (0.26, 0.22, 0.22))
+    neck = joint("neck", torso, (0, -0.06, 1.12))
+    part("cone", "neck", neck, shade, (0, 0, 0.08), (0, 0, 0), (0.12, 0.12, 0.15), r2=0.8)
+    head = joint("head", neck, (0, 0, 0.18))
+    part("sphere", "skull", head, hand_m, (0, -0.04, 0.08), (0, 0, 0), (0.17, 0.2, 0.2))
+    part("sphere", "face", head, pit, (0, -0.15, 0.06), (0, 0, 0), (0.12, 0.08, 0.14))
+    for sg in (1, -1):
+        part("sphere", "eye%d" % sg, head, eye, (sg * 0.06, -0.21, 0.09), (0, 0, 0), (0.03, 0.02, 0.04))
+    part("cone", "hood", head, shade, (0, 0.04, 0.3), (-20, 0, 0), (0.3, 0.32, 0.36), r2=0.0)          # a tall hood with a point
+    part("cone", "hood_tip", head, shade, (0, 0.2, 0.5), (-60, 0, 0), (0.07, 0.07, 0.2), r2=0.0)
+    part("cone", "chin", head, robe, (0, -0.1, -0.1), (180, 0, 0), (0.1, 0.1, 0.12), r2=0.0)           # a wispy beard of mist
+    arms = {}
+    for sg, nm in ((-1, "r"), (1, "l")):                     # the right (sg -1) holds the quill; the left bears the book up
+        sh = joint("sh_" + nm, torso, (sg * 0.46, -0.05, 0.98))
+        rod(sh, "ua_" + nm, robe, (0, 0, 0), (sg * 0.1, -0.2, -0.55), 0.17, 0.13)
+        el_ = joint("el_" + nm, sh, (sg * 0.1, -0.2, -0.55))
+        rod(el_, "fa_" + nm, robe, (0, 0, 0), (sg * 0.02, -0.42, -0.3), 0.13, 0.07)
+        part("cone", "slv_" + nm, el_, shade, (sg * 0.02, -0.2, -0.45), (180, 0, 0), (0.16, 0.12, 0.35), r2=0.1)
+        hd = joint("hd_" + nm, el_, (sg * 0.02, -0.42, -0.3))
+        part("sphere", "palm_" + nm, hd, hand_m, (0, -0.04, 0), (0, 0, 0), (0.07, 0.1, 0.05))
+        for f in range(4):                                    # the long, bony fingers
+            fx = (f - 1.5) * 0.05
+            rod(hd, "fg%s%d" % (nm, f), hand_m, (fx, -0.1, 0), (fx * 1.3, -0.4 + (0.03 if f in (0, 3) else 0), -0.03), 0.018, 0.008)
+        arms[nm] = (sh, el_, hd)
+    # the quill: a long feather held in the right hand, nib down at the page
+    qj = joint("quill", arms["r"][2], (0, -0.2, 0.0))
+    rod(qj, "shaft", glowc, (0, 0, -0.1), (0, -0.2, 0.55), 0.016, 0.012)
+    part("cone", "vane", qj, glowc, (0, -0.1, 0.5), (-18, 0, 0), (0.02, 0.07, 0.38), r2=0.5)
+    part("cone", "nib", qj, ink, (0, 0.01, -0.12), (190, 0, 0), (0.012, 0.012, 0.06), r2=0.0)
+    # the book, floating open in front of the chest on a glow; a lit page
+    bk = joint("book", body, (0, -0.8, 0.75))
+    part("cube", "cover", bk, brass, (0, 0, -0.04), (0, 0, 0), (0.53, 0.37, 0.03))
+    for sg in (1, -1):
+        part("cube", "leaf%d" % sg, bk, pg_m, (sg * 0.25, 0, 0.0), (0, -sg * 14, 0), (0.25, 0.33, 0.02))
+    part("cube", "spine", bk, ink, (0, 0, 0.0), (0, 0, 0), (0.025, 0.33, 0.04))
+    for k in range(4):                                       # lines of script
+        part("cube", "ln%d" % k, bk, ink, (-0.24, 0.0, 0.04), (0, 12, 0), (0.15, 0.012, 0.004)).location.y = 0.17 - k * 0.09
+    # loose pages circling the body
+    pages = []
+    for k in range(8):
+        pj = joint("pgj%d" % k, body, (0, 0, 0.6 + 0.35 * (k % 4)))
+        part("cube", "pg%d" % k, pj, pg_m, (1.15 + 0.12 * (k % 3), 0, 0), (0, 0, 0), (0.18, 0.012, 0.13))
+        for ln in range(2):
+            part("cube", "pl%d_%d" % (k, ln), pj, ink, (1.15 + 0.12 * (k % 3), -0.014, 0.03 - ln * 0.06), (0, 0, 0), (0.12, 0.003, 0.008))
+        pages.append((pj, 2 * math.pi * k / 8))
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        z, lean, sway, orbit, rad, flare, dy, fall = H + 0.07 * math.sin(w), 12.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0
+        write = 1.0
+        if action == "Walking_A":                # rooted: it drifts in a wider sway
+            z, lean, sway, orbit = H + 0.14 * math.sin(w), 16.0, 7.0, 2.0
+        elif action == "Attack":                 # rears back, then snaps the quill forward in a stab of ink and the pages burst outward
+            back = max(0.0, 1 - u * 3.5)
+            a = math.sin(math.pi * u) if u > 0.28 else 0.0
+            lean, dy, rad, flare, write = 12 - 10 * back + 30 * a, 0.3 * back - 0.4 * a, 1 + 0.45 * a, 1 + 1.2 * a, 4 * a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            lean, dy, rad = 12 - 22 * a, 0.45 * a, 1 - 0.2 * a
+        elif action == "Death_A":                # unwritten: it sinks into a flat pool of mist, the book shut on the ground, the pages fallen
+            fall = min(1.0, u * 1.2)
+            z, lean, rad = H - (H - 0.55) * fall * fall, 12 + 40 * fall, 1 + 0.2 * fall
+        body.location = (0, dy, z)
+        waist.scale = (1 + 0.3 * fall, 1 + 0.3 * fall, max(0.15, 1 - 0.85 * fall))
+        waist.rotation_euler = Euler((math.radians(sway * math.sin(w)), math.radians(sway * 0.5 * math.cos(w)), 0))
+        torso.rotation_euler = Euler((math.radians(lean + 4 * math.sin(w + 1.0)), 0, 0))
+        neck.rotation_euler = Euler((math.radians(-lean * 0.7), 0, 0))
+        head.rotation_euler = Euler((math.radians(-10 + 4 * math.sin(w + 2.0)), math.radians(6 * math.sin(w + 0.5)), math.radians(55)))
+        # the quill hand writes small loops over the page, or stabs
+        sh, el_, hd = arms["r"]
+        sh.rotation_euler = Euler((math.radians(-30 - 55 * (flare - 1) - 6 * math.sin(w * 2)) + math.radians(lean * 0.8), math.radians(10 * math.sin(w * 2 + 0.7)), 0))
+        el_.rotation_euler = Euler((math.radians(-35 + 12 * math.sin(w * 2 + 1.5)), 0, math.radians(-10)))
+        hd.rotation_euler = Euler((math.radians(25 + 12 * math.sin(w * 2) + 30 * (flare - 1)), math.radians(12 * math.cos(w * 2)), 0))
+        sh, el_, hd = arms["l"]
+        sh.rotation_euler = Euler((math.radians(-25 + lean * 0.5 + 5 * math.sin(w + 0.4) + 30 * (flare - 1)), 0, 0))
+        el_.rotation_euler = Euler((math.radians(-30), 0, math.radians(8)))
+        hd.rotation_euler = Euler((math.radians(10), 0, 0))
+        bk.location = (0, (-0.8 - 0.1 * (flare - 1)) * (1 - fall), 0.75 * (1 - fall) + (0.05 - z) * fall + (0.06 * math.sin(w + 0.9)) * (1 - fall))
+        bk.rotation_euler = Euler((math.radians(-50 * (1 - fall) + 6 * math.sin(w)), 0, math.radians(35 + 8 * math.sin(w))))
+        bk.scale = (1 + 0.1 * (flare - 1),) * 3
+        for k, (pj, ph) in enumerate(pages):
+            hk = 0.6 + 0.35 * (k % 4)
+            pj.location = (0, 0, hk * (1 - fall) + (0.03 - z) * fall)
+            pj.rotation_euler = Euler((math.radians(18 * math.sin(w + ph * 2) * (1 - fall) + 88 * fall), 0, ph + w * orbit * (1 - fall) + 0.8 * fall))
+            pj.scale = (rad, rad, 1.0)
+        for mj, a in mist:
+            if action == "Death_A":
+                mj.rotation_euler = Euler((math.radians(-60 * fall * math.cos(a)), math.radians(60 * fall * math.sin(a)), 0))
+                mj.scale = (1, 1, max(0.08, 1 - fall * 0.95))
+            else:
+                mj.rotation_euler = Euler((math.radians(9 * math.sin(w + a * 2)), math.radians(9 * math.cos(w + a * 3)), 0))
+
+elif PLAN == "rider":                            # Death: a skeletal rider in a pale shroud on a pale gaunt horse, a tattered banner on a long spear; one sprite
+    hm, dk = mat("hide", K["coat"]), mat("shade", K["dark"])
+    bone_m, shroud, shroud2 = mat("bone", K["bone"]), mat("shroud", K["shroud"]), mat("shroud2", K["shroud2"])
+    pit = mat("pit", (0.01, 0.015, 0.025))
+    eye = mat("eye", K["eye"], 6.0)
+    steel = mat("steel", (0.55, 0.6, 0.66))
+    gold = mat("sigil", (0.45, 0.4, 0.2))
+
+    def rod(parent, name, m, p0, p1, r0, r1):
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        ob = part("cone", name, parent, m, tuple((p0 + p1) / 2), (0, 0, 0), (r0, r0, d.length / 2), r2=r1 / r0)
+        ob.rotation_euler = d.to_track_quat("Z", "X" if abs(d.normalized().y) > 0.95 else "Y").to_euler()
+        return ob
+
+    root.scale = (1.2, 1.2, 1.2)
+    PY = 0.62                                    # the hind hooves: the horse pitches about this line when it rears
+    hj = joint("horse", body, (0, PY, 0))
+    hb = joint("hb", hj, (0, -PY, 0))            # everything of the horse is built in a frame with its hooves at y 0.62
+    # barrel, chest, rump: a gaunt horse, ribs showing
+    part("sphere", "barrel", hb, hm, (0, 0.05, 1.3), (0, 0, 0), (0.36, 0.82, 0.4))
+    part("sphere", "chest", hb, hm, (0, -0.55, 1.4), (0, 0, 0), (0.3, 0.4, 0.42))
+    part("sphere", "rump", hb, hm, (0, 0.72, 1.35), (0, 0, 0), (0.32, 0.38, 0.38))
+    for sg in (1, -1):
+        for k in range(6):                       # ribs: pale arcs over the flank
+            y_ = -0.4 + k * 0.17
+            part("cone", "rib%d_%d" % (sg, k), hb, bone_m, (sg * 0.3, y_, 1.28), (0, sg * 12, 0), (0.014, 0.014, 0.2), r2=0.6)
+        part("sphere", "hip%d" % sg, hb, bone_m, (sg * 0.27, 0.78, 1.62), (0, 0, 0), (0.07, 0.09, 0.07))
+    for k in range(7):                           # spine knobs
+        part("sphere", "vert%d" % k, hb, bone_m, (0, -0.5 + k * 0.2, 1.7 + (0.04 if k in (0, 1) else 0)), (0, 0, 0), (0.05, 0.06, 0.05))
+    neckj = joint("neck", hb, (0, -0.72, 1.6))
+    rod(neckj, "neckm", hm, (0, 0, -0.12), (0, -0.4, 0.5), 0.2, 0.14)
+    headj = joint("head", neckj, (0, -0.4, 0.5))
+    rod(headj, "skull", bone_m, (0, 0.05, 0.08), (0, -0.55, -0.32), 0.16, 0.09)     # a long bare skull, nose down
+    part("sphere", "muzzle", headj, bone_m, (0, -0.58, -0.35), (0, 0, 0), (0.09, 0.1, 0.09))
+    for sg in (1, -1):
+        part("sphere", "esock%d" % sg, headj, pit, (sg * 0.12, -0.06, 0.1), (0, 0, 0), (0.06, 0.07, 0.07))
+        part("sphere", "eeye%d" % sg, headj, eye, (sg * 0.135, -0.09, 0.1), (0, 0, 0), (0.03, 0.03, 0.035))
+        part("cone", "ear%d" % sg, headj, bone_m, (sg * 0.1, 0.1, 0.3), (-15, sg * 12, 0), (0.04, 0.03, 0.14), r2=0.1)
+    jawj = joint("hjaw", headj, (0, -0.1, -0.05))
+    rod(jawj, "hjaw", bone_m, (0, 0, 0), (0, -0.45, -0.28), 0.07, 0.05)
+    manes = []
+    for k in range(6):                           # a ragged mane
+        mj = joint("mane%d" % k, neckj, (0, -0.04 - 0.07 * k, 0.1 + 0.08 * k))
+        rod(mj, "mn%d" % k, dk, (0, 0, 0), (0, 0.22, -0.3), 0.07, 0.01)
+        manes.append(mj)
+    tail = joint("tail", hb, (0, 1.0, 1.55))
+    tails = []
+    for k in range(3):
+        tj = joint("tl%d" % k, tail, ((k - 1) * 0.05, 0, 0))
+        rod(tj, "tls%d" % k, dk, (0, 0, 0), (0, 0.2, -0.95), 0.06, 0.01)
+        tails.append(tj)
+    legs = {}
+    for fb, y_ in (("f", -0.55), ("b", 0.75)):   # four spindly legs: a thigh, a long shin ending in a hoof
+        for sg, sn in ((1, "l"), (-1, "r")):
+            top = joint("hip_%s%s" % (fb, sn), hb, (sg * 0.2, y_, 1.2))
+            fx = 0.0 if fb == "f" else 0.12
+            rod(top, "up_%s%s" % (fb, sn), hm, (0, 0, 0), (0, fx, -0.62), 0.12 if fb == "b" else 0.1, 0.07)
+            kn = joint("kn_%s%s" % (fb, sn), top, (0, fx, -0.62))
+            part("sphere", "kjt_%s%s" % (fb, sn), kn, bone_m, (0, 0, 0), (0, 0, 0), (0.07, 0.07, 0.07))
+            rod(kn, "lo_%s%s" % (fb, sn), bone_m, (0, 0, 0), (0, -fx * 0.5, -0.58), 0.055, 0.05)
+            part("cone", "hoof_%s%s" % (fb, sn), kn, dk, (0, -fx * 0.5 - 0.02, -0.6), (180, 0, 0), (0.075, 0.09, 0.05), r2=0.7)
+            legs[fb + sn] = (top, kn)
+    # a tattered caparison hanging from the barrel
+    flaps = []
+    for k in range(5):
+        fj = joint("flap%d" % k, hb, (0, -0.35 + k * 0.28, 1.55))
+        for sg in (1, -1):
+            part("cone", "fp%d_%d" % (k, sg), fj, shroud2, (sg * 0.45, 0, -0.35), (0, sg * 8, 0), (0.04, 0.1, 0.38), r2=0.9)
+        flaps.append(fj)
+    # the rider: pelvis on the saddle, a bony torso, shroud over the shoulders, a hood with a skull
+    rj = joint("rider", hb, (0, 0.2, 1.65))
+    rj.scale = (1.3, 1.3, 1.3)
+    spine = joint("spine", rj, (0, 0, 0.05))
+    part("cone", "ribs", spine, bone_m, (0, 0, 0.42), (0, 0, 0), (0.2, 0.14, 0.4), r2=1.1)
+    part("cone", "pelvis", rj, bone_m, (0, 0, 0.0), (0, 0, 0), (0.2, 0.12, 0.08), r2=0.5)
+    for k in range(4):
+        part("cone", "rb%d" % k, spine, shroud2, (0, -0.12, 0.2 + k * 0.17), (90, 0, 0), (0.03, 0.03, 0.12), r2=0.5)
+    nk = joint("rneck", spine, (0, -0.02, 0.9))
+    hd = joint("rhead", nk, (0, 0, 0.12))
+    part("sphere", "rskull", hd, bone_m, (0, -0.02, 0.1), (0, 0, 0), (0.13, 0.15, 0.16))
+    part("sphere", "rface", hd, pit, (0, -0.12, 0.09), (0, 0, 0), (0.09, 0.06, 0.1))
+    for sg in (1, -1):
+        part("sphere", "reye%d" % sg, hd, eye, (sg * 0.05, -0.17, 0.12), (0, 0, 0), (0.025, 0.02, 0.03))
+    part("cone", "hood", hd, shroud, (0, 0.05, 0.18), (-15, 0, 0), (0.2, 0.22, 0.24), r2=0.1)
+    part("cone", "crown", hd, bone_m, (0, -0.06, 0.34), (0, 0, 0), (0.1, 0.1, 0.07), r2=0.3)
+    part("cone", "mantle", spine, shroud, (0, 0.05, 0.72), (0, 0, 0), (0.42, 0.3, 0.22), r2=0.5)    # the shroud over the shoulders
+    cloak = joint("cloak", spine, (0, 0.12, 0.85))
+    cl = []
+    for k in range(5):                           # the shroud streams behind and over the horse's rump in long tatters
+        cj = joint("cl%d" % k, cloak, ((k - 2) * 0.17, 0, 0))
+        rod(cj, "clr%d" % k, shroud, (0, 0, 0), (0, 0.45 + 0.1 * (k % 2), -1.0 - 0.25 * ((k + 1) % 3)), 0.14, 0.02)
+        cl.append(cj)
+    arms = {}
+    for sg, nm in ((1, "l"), (-1, "r")):
+        sh = joint("sh_" + nm, spine, (sg * 0.27, 0, 0.78))
+        rod(sh, "ua_" + nm, bone_m, (0, 0, 0), (sg * 0.06, -0.05, -0.38), 0.06, 0.045)
+        el_ = joint("el_" + nm, sh, (sg * 0.06, -0.05, -0.38))
+        rod(el_, "fa_" + nm, bone_m, (0, 0, 0), (0, -0.34, -0.12), 0.045, 0.035)
+        part("cone", "slv_" + nm, el_, shroud, (sg * 0.02, -0.12, -0.12), (180, 0, 0), (0.12, 0.1, 0.25), r2=0.2)
+        wr = joint("wr_" + nm, el_, (0, -0.34, -0.12))
+        part("sphere", "pm_" + nm, wr, bone_m, (0, -0.03, 0), (0, 0, 0), (0.05, 0.06, 0.04))
+        for f in range(3):
+            rod(wr, "fg%s%d" % (nm, f), bone_m, ((f - 1) * 0.03, -0.06, 0.0), ((f - 1) * 0.03, -0.14, -0.04), 0.012, 0.008)
+        arms[nm] = (sh, el_, wr)
+    for sg, sn in ((1, "l"), (-1, "r")):          # rider's legs: thigh over the saddle, shin hanging down by the ribs
+        hp = joint("rhip_" + sn, rj, (sg * 0.14, 0, 0))
+        rod(hp, "rth_" + sn, bone_m, (0, 0, 0), (sg * 0.2, -0.15, -0.3), 0.07, 0.055)
+        rk = joint("rkn_" + sn, hp, (sg * 0.2, -0.15, -0.3))
+        rod(rk, "rsh_" + sn, bone_m, (0, 0, 0), (sg * 0.06, 0.05, -0.52), 0.05, 0.035)
+        part("cone", "rft_" + sn, rk, bone_m, (sg * 0.06, -0.03, -0.55), (90, 0, 0), (0.04, 0.04, 0.09), r2=0.5)
+    # the banner: a long spear held in the right hand with a ragged pale banner and a skull-and-gold crest
+    SPJ = joint("spear", arms["r"][2], (0, 0, 0))
+    rod(SPJ, "pole", mat("pole", (0.25, 0.2, 0.15)), (0, 0, -0.9), (0, 0, 1.0), 0.03, 0.025)
+    rod(SPJ, "blade", steel, (0, 0, 0.98), (0, 0, 1.4), 0.06, 0.0)
+    part("cube", "bar", SPJ, gold, (0, 0, 0.85), (0, 0, 0), (0.28, 0.03, 0.03))
+    flag = joint("flag", SPJ, (0, 0, 0.8))
+    part("cube", "ban", flag, shroud2, (0, 0.0, -0.45), (0, 0, 0), (0.28, 0.012, 0.45))
+    part("cube", "ban_s", flag, shroud, (0, 0.012, -0.35), (0, 0, 0), (0.12, 0.004, 0.12))
+    for k in range(4):                           # the banner's ragged hem
+        part("cone", "tat%d" % k, flag, shroud2, (-0.21 + k * 0.14, 0.0, -1.0 - 0.06 * (k % 2)), (180, 0, 0), (0.07, 0.01, 0.15), r2=0.0)
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        pitch = rear = lunge = fall = 0.0
+        bob, hit_ = 0.0, 0.0
+        gait = 0.0
+        spear_a, spear_roll = -62.0, 0.0
+        atk = 0.0
+        if action == "Idle":
+            bob = 0.02 * math.sin(w)
+        elif action == "Walking_A":              # rooted: the horse treads in place, head tossing, shroud streaming
+            gait, bob = 1.0, 0.03 * math.sin(2 * w)
+        elif action == "Attack":                 # rears, then the lance comes down and forward
+            back = max(0.0, 1 - u * 3.0)
+            a = math.sin(math.pi * u) if u > 0.33 else 0.0
+            pitch = 28 * min(1.0, u * 3.0) * (1 - max(0.0, (u - 0.6) / 0.4)) if u < 1 else 0.0
+            atk = a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            hit_ = a
+            pitch = -6 * a
+        elif action == "Death_A":                # the horse topples onto its side, rider and banner with it, and lies flat
+            fall = min(1.0, u * 1.15)
+            fall = fall * fall * (3 - 2 * fall)
+        hj.rotation_euler = Euler((math.radians(-pitch), math.radians(90 * fall), 0))
+        hj.location = (0, PY, bob + (0.16 * fall))
+        body.location = (0, 0, H)
+        for k_, (top, kn) in legs.items():
+            fb, sn = k_[0], k_[1]
+            sw = 0.0
+            if gait:
+                ph = w + (0 if (fb == "f") == (sn == "l") else math.pi)
+                sw = 18 * math.sin(ph)
+                lift = max(0.0, math.sin(ph + math.pi / 2))
+                kb = 38 * lift
+            else:
+                kb = 0.0
+            tuck = 0.0
+            if fb == "f":
+                tuck = max(0.0, pitch) * 2.4
+            counter = pitch if fb == "b" else 0.0
+            top.rotation_euler = Euler((math.radians(sw + counter + (tuck * 0.9)), 0, math.radians((8 if sn == "l" else -8) * fall)))
+            kn.rotation_euler = Euler((math.radians(-kb - tuck * (1.4 if fb == "f" else 0) + (22 * fall if fb == "f" else -18 * fall)), 0, 0))
+        neckj.rotation_euler = Euler((math.radians(-pitch * 0.4 - 8 * hit_ + 4 * math.sin(w + 0.5) + (10 * math.sin(2 * w) if gait else 0)), 0, 0))
+        headj.rotation_euler = Euler((math.radians(10 * hit_ + 5 * math.sin(w + 1.0) + 6 * atk), 0, 0))
+        jawj.rotation_euler = Euler((math.radians(10 + 8 * math.sin(w) + 30 * atk + 20 * hit_ + 20 * fall), 0, 0))
+        for k, mj in enumerate(manes):
+            mj.rotation_euler = Euler((math.radians(10 * math.sin(w + k * 0.7) + 14 * pitch / 28), 0, 0))
+        for k, tj in enumerate(tails):
+            tj.rotation_euler = Euler((math.radians(10 * math.sin(w + k) + 15 * pitch / 28), math.radians(8 * math.cos(w + k)), 0))
+        for k, fj in enumerate(flaps):
+            fj.rotation_euler = Euler((0, math.radians(0), 0))
+            fj.scale = (1, 1, 1 + 0.06 * math.sin(w + k))
+        for k, cj in enumerate(cl):
+            cj.rotation_euler = Euler((math.radians(9 * math.sin(w + k * 0.8) + 10 * pitch / 28 - 10 * atk), math.radians(4 * math.cos(w + k)), 0))
+        spine.rotation_euler = Euler((math.radians(-4 * pitch / 28 + 5 * atk - 6 * hit_ + 20 * fall + 1.5 * math.sin(w)), 0, math.radians(-30 * fall)))
+        hd.rotation_euler = Euler((math.radians(6 * hit_ + 4 * math.sin(w + 1.7) + 30 * fall), 0, math.radians(18)))
+        # right arm carries the spear upright; on the attack the lance dips forward
+        sh, el_, wr = arms["r"]
+        sh.rotation_euler = Euler((math.radians(-35 - 30 * atk - 20 * pitch / 28 + 20 * hit_ + 3 * math.sin(w)), math.radians(8), 0))
+        el_.rotation_euler = Euler((math.radians(-40 - 10 * atk), 0, 0))
+        wr.rotation_euler = Euler((math.radians(-10), 0, 0))
+        SPJ.rotation_euler = Euler((math.radians(85 + 135 * atk - 14 * pitch / 28 - 4 * math.sin(w) + 30 * fall), math.radians(-6 + 5 * math.sin(w * 0.5)), 0))
+        flag.rotation_euler = Euler((math.radians(10 * math.sin(w)), math.radians(12 * math.sin(w + 1.0)), 0))
+        sh, el_, wr = arms["l"]
+        sh.rotation_euler = Euler((math.radians(-48 - 5 * atk + 8 * hit_), 0, math.radians(-8)))
+        el_.rotation_euler = Euler((math.radians(-52 + 4 * math.sin(w)), 0, 0))
+
 else:
     L = K["len"]
     leg_len = H - R * 0.6
@@ -766,6 +1252,7 @@ else:
         for k, (hip, knee) in legs.items():
             rx(hip, swing[k])
             rx(knee, -bend[k] if k[0] == "f" else bend[k])
+
 
 
 # ---- camera, lights and the material-ID pass, as in build_hero.py

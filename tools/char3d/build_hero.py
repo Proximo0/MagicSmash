@@ -412,6 +412,57 @@ KITS = {
         extras=["goat", "skirt", "cape", "boots"], boot=LEATHER_D, skirt=(0.04, 0.016, 0.06), skirt_to=0.0, cape=(0.03, 0.012, 0.045), cape_len=1.0, fur=(0.5, 0.46, 0.4), horn=(0.78, 0.7, 0.5),
         weapons={"2H_Staff": ("hand_r", (0.65, 0.65, 0.65), "crook")},
     ),
+    # ---- the other eight bosses of the bosses table (bosses.txt) ----
+    "boss_unmade_king": dict(
+        size=1.3,
+        skin={"*": (0.05, 0.03, 0.09), "head": (0.1, 0.08, 0.12), "neck": (0.05, 0.03, 0.09), "hand": (0.04, 0.03, 0.06), "lowerarm": (0.05, 0.03, 0.09)},
+        bulk={"spine_01": 1.1, "spine_02": 1.2},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm", "thigh", "calf"], 0.045, (0.045, 0.04, 0.05), 1.0, "right"),
+            (["chest"], 0.06, (0.6, 0.42, 0.1), 1.0, "strap"),
+            (["belly"], 0.065, (0.6, 0.42, 0.1), 1.0, "belt"),
+            (["chest", "belly", "hips", "upperarm", "lowerarm", "thigh", "calf"], 0.012, (0.1, 0.03, 0.22), 0.0, "left"),
+        ],
+        extras=["pauldrons", "helm", "gauntlets", "boots", "cape", "shards", "crown"], pauldron=((0.05, 0.045, 0.055), 0.14, True),
+        boot=(0.04, 0.035, 0.045), gauntlet=(0.5, 0.36, 0.1), crest=(0.5, 0.36, 0.1), cape=(0.07, 0.03, 0.12), cape_len=1.1,
+        shard=(0.22, 0.07, 0.42), crownc=(0.8, 0.58, 0.15), hold="2H_Melee_Idle",
+        weapons={"2H_Sword": ("hand_r", (1.25, 1.25, 1.35))},
+    ),
+    "boss_grave_warden": dict(
+        size=1.15,
+        skin={"*": (0.2, 0.25, 0.22), "head": (0.12, 0.15, 0.13), "neck": (0.12, 0.15, 0.13), "hand": (0.1, 0.12, 0.1)},
+        bulk={"spine_01": 1.15, "spine_02": 1.25, "upperarm_l": 1.2, "upperarm_r": 1.2, "thigh_l": 1.15, "thigh_r": 1.15},
+        shells=[
+            (["neck"], 0.03, (0.2, 0.26, 0.23), 1.0, None),
+            (["chest", "belly"], 0.04, (0.26, 0.33, 0.29), 1.0, None),
+            (["hips"], 0.034, (0.17, 0.22, 0.19), 1.0, None),
+            (["belly"], 0.06, LEATHER_D, 0.0, "belt"),
+            (["upperarm", "thigh"], 0.032, (0.17, 0.22, 0.19), 1.0, None),
+            (["lowerarm", "calf"], 0.036, (0.26, 0.33, 0.29), 1.0, None),
+        ],
+        extras=["pauldrons", "helm", "gauntlets", "boots", "knees", "skirt", "keyring", "lantern_pole"],
+        pauldron=((0.3, 0.38, 0.33), 0.15, False), boot=(0.15, 0.19, 0.16), gauntlet=(0.17, 0.22, 0.19), crest=(0.5, 0.36, 0.1),
+        skirt=(0.12, 0.15, 0.12), skirt_to=0.2, lantern=(1.0, 0.85, 0.45), hold="2H_Melee_Idle",
+        weapons={"2H_Sword": ("hand_r", (1.0, 1.0, 1.1), "spade")},
+    ),
+    "boss_trial_warden": dict(
+        size=1.2,
+        skin={"*": (0.75, 0.73, 0.68), "head": (0.7, 0.68, 0.62), "neck": (0.7, 0.68, 0.62), "hand": (0.6, 0.58, 0.5)},
+        bulk={"spine_02": 1.2, "upperarm_l": 1.15, "upperarm_r": 1.15},
+        shells=[
+            (["neck"], 0.03, (0.8, 0.78, 0.72), 0.0, None),
+            (["chest", "belly"], 0.04, (0.86, 0.84, 0.78), 0.0, None),
+            (["hips"], 0.034, (0.7, 0.68, 0.62), 0.0, None),
+            (["chest"], 0.06, GOLD, 1.0, "strap"),
+            (["belly"], 0.062, GOLD, 1.0, "belt"),
+            (["upperarm", "thigh"], 0.03, (0.72, 0.7, 0.64), 0.0, None),
+            (["lowerarm", "calf"], 0.034, (0.86, 0.84, 0.78), 0.0, None),
+        ],
+        extras=["pauldrons", "helm", "gauntlets", "boots", "knees", "skirt", "cross"],
+        pauldron=((0.9, 0.88, 0.82), 0.15, False), boot=(0.7, 0.68, 0.62), gauntlet=(0.8, 0.62, 0.2), crest=(0.8, 0.62, 0.2),
+        skirt=(0.88, 0.86, 0.8), skirt_to=0.2,
+        weapons={"1H_Sword": ("hand_r", (0.9, 0.9, 1.0), "mace"), "Rectangle_Shield": ("hand_l", (1.0, 1.0, 1.0), "tower")},
+    ),
     # ---- the tower's humanoids (field 4) ----
     "bloat": dict(
         skin={"*": (0.22, 0.26, 0.18), "belly": (0.3, 0.33, 0.2), "chest": (0.26, 0.3, 0.2), "head": (0.34, 0.37, 0.27), "hand": (0.2, 0.23, 0.16)},
@@ -493,6 +544,8 @@ KITS = {
     ),
 }
 kit = KITS[kit_name]
+if E("NOHOLD"):
+    kit = dict(kit, hold=None)
 
 
 def material(name, col, metallic=0.0, rough=0.55):
@@ -524,6 +577,10 @@ def dominant_regions(ob):
 
 def face_filter(kind, ob, poly, lo_hi):
     c = poly.center
+    if kind == "right":         # the figure's right half only (the left is x > 0)
+        return c.x < 0.01
+    if kind == "left":
+        return c.x > -0.01
     if kind == "tabard":        # a strip down the middle of the front and the back
         return abs(c.x) < 0.105 * lo_hi["w"]
     if kind == "kilt":          # hips and the top half of the thighs
@@ -636,7 +693,7 @@ def trs(loc, rot=(0, 0, 0), scale=(1, 1, 1)):
     return Matrix.Translation(loc) @ Euler([math.radians(a) for a in rot]).to_matrix().to_4x4() @ Matrix.Diagonal((*scale, 1))
 
 
-S = marks["w"]                                   # the body's size against a 1.79 m human
+S = marks["w"] * kit.get("size", 1.0)           # the body's size against a 1.79 m human (a giant: kit size)
 ex = list(kit["extras"])
 if RACE == "orc" and kit_name != "orc":           # an orc in any class kit: bald, its face and tusks when the head shows
     ex = [e for e in ex if e != "hair"] + ([] if "helm" in ex else ["face", "tusks"])
@@ -1040,6 +1097,62 @@ if "cape" in ex:
     so.thickness = 0.02
     hang(o, "spine_03", trs(Vector((0, back_y + 0.03 * S, top))))
 
+if "crown" in ex:                                # a tall gold crown of spikes over the helm
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "crownband", kit["crownc"], 1.0, r2=1.05)
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z + 0.02 * S)), (0, 0, 0), (half.x * 1.3, half.y * 1.25, 0.05 * S)))
+    for k in range(9):
+        a_ = 2 * math.pi * k / 9
+        o = prim("cone", "spike%d" % k, kit["crownc"], 1.0)
+        hang(o, "head", trs(Vector((c.x + half.x * 1.2 * math.cos(a_), c.y + half.y * 1.15 * math.sin(a_), hi.z + 0.07 * S + 0.03 * S * (k % 2))), (0, 0, 0), (0.04 * S, 0.04 * S, (0.09 + 0.05 * (k % 2)) * S)))
+if "shards" in ex:                               # his left half coming apart: dark shards hanging off the arm, flank and leg
+    spots = [("upperarm_l", (0.12, -0.05, 0.0)), ("upperarm_l", (0.2, 0.08, -0.12)), ("lowerarm_l", (0.12, 0.0, -0.1)),
+             ("lowerarm_l", (0.2, -0.08, 0.0)), ("spine_02", (0.24, 0.0, 0.05)), ("spine_02", (0.3, 0.1, -0.1)), ("spine_01", (0.2, 0.08, -0.1)),
+             ("thigh_l", (0.14, 0.0, 0.0)), ("thigh_l", (0.2, -0.08, -0.15)), ("calf_l", (0.16, 0.05, -0.05)), ("calf_l", (0.1, -0.1, -0.15)),
+             ("clavicle_l", (0.12, 0.0, 0.12)), ("hand_l", (0.1, 0.0, -0.15)), ("hand_l", (0.2, 0.05, 0.0))]
+    for k, (bn_, off) in enumerate(spots):
+        base = bw(bn_)
+        o = prim("cone", "shard%d" % k, kit["shard"], 0.0, r2=0.0)
+        sz = (0.035 + 0.02 * (k % 3), 0.02, 0.1 + 0.05 * (k % 4))
+        hang(o, bn_, trs(base + Vector((off[0] * S, off[1] * S, off[2] * S)), (20 * (k % 3) - 20, 0, 30 * (k % 5) - 60), tuple(v * S for v in sz)))
+        bs = o.data.materials[0].node_tree.nodes["Principled BSDF"]
+        bs.inputs["Emission Color"].default_value = (*kit["shard"], 1)
+        bs.inputs["Emission Strength"].default_value = 1.5
+if "keyring" in ex:                              # a great iron ring of keys at the belt
+    lo, hi = bbox(["belly"])
+    cx_ = hi.x
+    base = Vector((cx_ + 0.02 * S, (lo.y + hi.y) / 2 - 0.02 * S, marks["hip"] + 0.13 * S))
+    for k in range(10):
+        a0, a1 = 2 * math.pi * k / 10, 2 * math.pi * (k + 1) / 10
+        p0 = base + Vector((0.1 * S * math.cos(a0), 0, 0.1 * S * math.sin(a0)))
+        p1 = base + Vector((0.1 * S * math.cos(a1), 0, 0.1 * S * math.sin(a1)))
+        seg("ring%d" % k, "pelvis", p0, p1, 0.016 * S, 0.016 * S, (0.4, 0.42, 0.4), 1.0)
+    for k in range(4):                           # five big keys hanging from it
+        a_ = math.radians(-90 + (k - 1.5) * 28)
+        top_ = base + Vector((0.1 * S * math.cos(a_), 0, 0.1 * S * math.sin(a_)))
+        bot_ = top_ + Vector((0.02 * S * (k - 1.5), 0, -0.2 * S))
+        seg("key%d" % k, "pelvis", top_, bot_, 0.016 * S, 0.014 * S, (0.45, 0.4, 0.2), 1.0)
+        o = prim("cube", "bit%d" % k, (0.45, 0.4, 0.2), 1.0)
+        hang(o, "pelvis", trs(bot_ + Vector((0.025 * S, 0, 0.03 * S)), (0, 0, 0), (0.03 * S, 0.01 * S, 0.025 * S)))
+        o = prim("sphere", "bow%d" % k, (0.45, 0.4, 0.2), 1.0)
+        hang(o, "pelvis", trs(top_, (0, 0, 0), (0.035 * S, 0.012 * S, 0.035 * S)))
+if "lantern_pole" in ex:                         # a long pole on the back that rises over the left shoulder, a lit lantern hanging from a hook at its top
+    base = bw("spine_03") + Vector((0.1 * S, 0.14 * S, -0.15 * S))
+    top = base + Vector((0.05 * S, 0.05 * S, 1.75 * S))
+    seg("lpole", "spine_03", base, top, 0.026 * S, 0.02 * S, LEATHER, 0.0)
+    hook = top + Vector((0.0, -0.2 * S, 0.02 * S))
+    seg("lhook", "spine_03", top, hook, 0.018 * S, 0.014 * S, (0.2, 0.2, 0.22), 1.0)
+    lan = hook + Vector((0.0, 0.0, -0.18 * S))
+    seg("lchain", "spine_03", hook, lan + Vector((0, 0, 0.1 * S)), 0.008 * S, 0.008 * S, (0.2, 0.2, 0.22), 1.0)
+    o = prim("cube", "lcase", (0.15, 0.17, 0.15), 1.0)
+    hang(o, "spine_03", trs(lan + Vector((0, 0, -0.1 * S)), (0, 0, 0), (0.07 * S, 0.07 * S, 0.025 * S)))
+    lit("lflame", "spine_03", kit["lantern"], lan, (0.1 * S, 0.1 * S, 0.13 * S), 5.0)
+    for sx_, sy_ in ((1, 1), (1, -1), (-1, 1), (-1, -1)):
+        seg("lbar%d%d" % (sx_ > 0, sy_ > 0), "spine_03", lan + Vector((0.08 * S * sx_, 0.08 * S * sy_, -0.1 * S)), lan + Vector((0.08 * S * sx_, 0.08 * S * sy_, 0.12 * S)), 0.014 * S, 0.014 * S, (0.12, 0.14, 0.12), 1.0)
+    o = prim("cone", "lcap", (0.15, 0.17, 0.15), 1.0)
+    hang(o, "spine_03", trs(lan + Vector((0, 0, 0.14 * S)), (0, 0, 0), (0.1 * S, 0.1 * S, 0.05 * S)))
+
 if "belly_glow" in ex:                           # the bloat: a huge swollen belly lit from inside, a bright yellow patch on the front
     lo, hi = bbox(["belly"])
     c = (lo + hi) / 2
@@ -1227,7 +1340,59 @@ def _crook():
     return me
 
 
-MESHES = {"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook}
+def _spade():
+    """a gravedigger's spade along +Z, grip at the origin: a long handle with a T grip, a huge flat iron blade at the top."""
+    me = bpy.data.meshes.new("spade")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.05, radius2=0.05, depth=2.0, matrix=Matrix.Translation((0, 0, 0.6)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0, 0, -0.4)) @ Matrix.Diagonal((0.4, 0.07, 0.07, 1)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0, 0, 1.75)) @ Matrix.Diagonal((0.62, 0.035, 0.5, 1)))
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=4, radius1=0.44, radius2=0.0, depth=0.5, matrix=Matrix.Translation((0, 0, 2.25)) @ Matrix.Diagonal((1, 0.1, 1, 1)))
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("spade_shaft", LEATHER))
+    me.materials.append(material("spade_blade", (0.3, 0.36, 0.32), 1.0))
+    for p_ in me.polygons:
+        p_.material_index = 1 if p_.center.z > 1.4 else 0
+    return me
+
+
+def _mace():
+    """a judge's mace along +Z: a gold-bound haft and a flanged white-stone head."""
+    me = bpy.data.meshes.new("mace")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.05, radius2=0.05, depth=1.5, matrix=Matrix.Translation((0, 0, 0.5)))
+    bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.22, matrix=Matrix.Translation((0, 0, 1.45)))
+    for k in range(6):
+        a_ = math.pi * k / 3
+        bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0.26 * math.cos(a_), 0.26 * math.sin(a_), 1.45)) @ Matrix.Rotation(a_, 4, "Z") @ Matrix.Diagonal((0.16, 0.05, 0.22, 1)))
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("mace_haft", GOLD, 1.0))
+    me.materials.append(material("mace_head", (0.85, 0.83, 0.77), 0.0))
+    for p_ in me.polygons:
+        p_.material_index = 1 if p_.center.z > 1.1 else 0
+    return me
+
+
+def _tower():
+    """a tower shield in the pack shield's frame as it is held (the long side along x): white face, gold rim, boss and bar."""
+    me = bpy.data.meshes.new("tower")
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Diagonal((1.3, 0.1, 0.8, 1)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0, -0.05, 0)) @ Matrix.Diagonal((1.14, 0.05, 0.64, 1)))
+    bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.17, matrix=Matrix.Translation((0.1, -0.1, 0)) @ Matrix.Diagonal((1, 0.5, 1, 1)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0, -0.1, 0)) @ Matrix.Diagonal((1.0, 0.04, 0.07, 1)))
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("tower_rim", GOLD, 1.0))
+    me.materials.append(material("tower_face", (0.86, 0.84, 0.78), 0.0))
+    for p_ in me.polygons:
+        p_.material_index = 1 if abs(p_.center.y + 0.075) < 0.004 and abs(p_.center.z) < 0.33 else 0
+    return me
+
+
+MESHES = {"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook, "spade": _spade, "mace": _mace, "tower": _tower}
 held = []                                        # (the pack's weapon on its own rig, our copy, hand bone, palm point, scale)
 for name, ob in weap.items():
     bone, scale = kit["weapons"][name][:2]

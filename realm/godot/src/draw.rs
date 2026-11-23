@@ -49,7 +49,7 @@ fn monster_frame(kind: u8) -> usize {
 
 /// The first field bosses have art slots of their own after the kinds (the client appends them to the atlas in
 /// this order: `FieldArt.boss_entries`); the monster that is the running boss is drawn from its slot.
-pub const BOSS_ART: usize = 4;
+pub const BOSS_ART: usize = 12;
 
 fn boss_frame(f: &Field, slot: usize) -> Option<usize> {
     f.boss().filter(|b| b.slot as usize == slot && usize::from(b.which) < BOSS_ART).map(|b| MONSTER_FRAMES + usize::from(b.which))
@@ -537,7 +537,7 @@ mod tests {
     fn the_running_boss_is_drawn_from_its_own_art_slot() {
         use realm_core::{field_boss_window, tables::field_boss_of, tables::BOSSES};
         let view = |x: i32, y: i32| SubRect { x0: x - 900 * SUB, y0: y - 600 * SUB, x1: x + 900 * SUB, y1: y + 600 * SUB };
-        for field in 0..BOSS_ART as u8 {
+        for field in 0..realm_core::tables::FIELDS.len() as u8 {
             // A field's own boss rising on the clock (rules 8: at the heart, in the step).
             let mut f = Field::open(field, 9, Config { monsters: 400, threads: 1 });
             let (hx, hy) = f.terrain().heart;
@@ -558,8 +558,8 @@ mod tests {
             let buf = DrawState::default().monsters(&g, view(hx, hy));
             assert_eq!(entry_at(&buf, bx, by), Some(MONSTER_FRAMES + which as usize));
         }
-        // A summoned boss (tools) the same; a boss past the art slots is drawn as its carrier kind.
-        for which in [1u8, BOSS_ART as u8] {
+        // A summoned boss (tools) the same, for every boss; one past the art slots would be drawn as its carrier kind.
+        for which in 0..BOSSES.len() as u8 {
             let mut f = Field::new(9, Config { monsters: 400, threads: 1 });
             join(&mut f, 1, 0, FIELD / 2, FIELD / 2);
             f.summon_boss(which, 2_000_000, FIELD / 2 + 90 * SUB, FIELD / 2);
