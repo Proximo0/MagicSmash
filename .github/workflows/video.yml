@@ -44,7 +44,7 @@ jobs:
         run: |
           tools/video/record.sh out
           # A close look at the monsters: few bots, so the horde comes to the recorded hero.
-          BOTS=6 BOSS=5 CLIPS="4 1 14 0 0 4;5 1 14 1 1 6;4 1 14 2 2 8;5 1 14 3 3 11" tools/video/record.sh close
+          BOTS=6 BOSS=5 CLIPS="4 1 14 0 0 9;5 1 14 1 1 10" tools/video/record.sh close
           mv close/video.mp4 out/close.mp4
       - name: stills of every menu and town screen
         continue-on-error: true
