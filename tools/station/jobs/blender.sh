@@ -16,6 +16,9 @@ case "$(uname -s)" in
 esac
 find_exe() { find "$T/blender" -maxdepth 2 -name "$exe" -type f 2>/dev/null | head -1; }
 B="$(find_exe)"
+if [ -n "$B" ] && ! "$B" --version >/dev/null 2>&1; then   # a half-unpacked copy: the program is there but cannot start
+  echo "blender: $B does not start, unpacking again" >&2; rm -rf "$T/blender"; B=""
+fi
 if [ -z "$B" ]; then
   base="https://download.blender.org/release"
   ser=$(curl -fsSL "$base/" | grep -oE 'Blender[0-9]+\.[0-9]+/' | sort -V | uniq | tail -4 | tac)
@@ -31,11 +34,14 @@ if [ -z "$B" ]; then
   sum=$(curl -fsSL "${url%/*}/$(echo "$a" | sed -E 's/^(blender-[0-9.]+)-.*/\1/').sha256" 2>/dev/null | grep -F "$a" | cut -d' ' -f1)
   have=$(sha256sum "$a" | cut -d' ' -f1)
   [ -z "$sum" ] || [ "$sum" = "$have" ] || { rm -f "$a"; echo "FAIL blender checksum of $a does not match the published one"; exit 1; }
-  if [ "$os" = windows ]; then
-    powershell.exe -NoProfile -NonInteractive -Command "Expand-Archive -Force -Path '$(cygpath -w "$a")' -DestinationPath '$(cygpath -w "$PWD")'" >/dev/null 2>&1 || unzip -q -o "$a"
+  if [ "$os" = windows ]; then   # Windows' own tar reads zip and is far faster than Expand-Archive, which stopped part way on the laptop
+    wtar="$(cygpath -u "${SYSTEMROOT:-C:\\Windows}")/System32/tar.exe"
+    if [ -x "$wtar" ]; then "$wtar" -xf "$a" 2>"$art/$m-blender-unpack.txt"; else unzip -q -o "$a" 2>"$art/$m-blender-unpack.txt"; fi
+    urc=$?
   else
-    tar -xf "$a"
+    tar -xf "$a" 2>"$art/$m-blender-unpack.txt"; urc=$?
   fi
+  [ "$urc" = 0 ] || { rm -rf "$T/blender"; echo "FAIL blender unpack of $a ended $urc: $(tail -2 "$art/$m-blender-unpack.txt" | tr '\n' ' ' | cut -c1-200)"; exit 1; }
   rm -f "$a"
   B="$(find_exe)"
   [ -n "$B" ] || { echo "FAIL blender unpacked but $exe not found under $T/blender"; exit 1; }
@@ -70,10 +76,12 @@ EOF
 p() { if [ "$os" = windows ]; then cygpath -w "$1"; else echo "$1"; fi; }
 log="$art/$m-blender.txt"
 "$B" -b --factory-startup --python "$(p "$test_py")" -- "$(p "$T/mpfb2/src")" "$(p "$art/$m-blender-human.png")" >"$log" 2>&1
+rc=$?
 line=$(grep -a "^SELFTEST" "$log" | tail -1 | tr -d '\r')
 gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 | tr -d '\r'); [ -n "$gpu" ] || gpu=none
 if [ -n "$line" ] && [ -s "$art/$m-blender-human.png" ]; then
   echo "PASS blender ${line#SELFTEST } mpfb=$mp archive_checksum=$checked gpu=[$gpu] at=$T"
 else
-  echo "FAIL blender self test: $(grep -aiE 'error|traceback|exception' "$log" | tail -2 | tr '\n' ' ' | cut -c1-300) (log $m-blender.txt)"; exit 1
+  ver=$("$B" --version 2>&1 | head -1 | tr -d '\r')
+  echo "FAIL blender self test exit=$rc version=[$ver] files=$(find "$T/blender" -type f 2>/dev/null | wc -l): $(grep -aiE 'error|traceback|exception' "$log" | tail -2 | tr '\n' ' ' | cut -c1-300) last: $(tail -2 "$log" | tr -d '\r' | tr '\n' ' ' | cut -c1-200)"; exit 1
 fi
