@@ -182,21 +182,33 @@ pub fn hours_at(c: &Career, level: usize) -> Option<f64> {
     (t != u64::MAX).then(|| t as f64 / TICKS_HOUR as f64)
 }
 
-/// Plays cohorts until all are 60 or `max_hours` credited; returns every career.
-pub fn careers(seeds: u64, per: usize, pace: Pace, max_hours: u64, progress: bool) -> Vec<Career> {
+/// Plays cohorts until each is played out (`Cohort::finished`: all 60, or those below 60 have `max_hours` credited);
+/// returns every career. `progress` is called after every round with the seed index and the cohort.
+pub fn careers(seeds: u64, per: usize, pace: Pace, max_hours: u64, mut progress: impl FnMut(u64, &Cohort)) -> Vec<Career> {
     let mut all = Vec::new();
     for s in 0..seeds {
         let mut c = Cohort::new(1_000 + s, per);
-        while !c.done() && c.careers.iter().map(|x| x.ticks).min().unwrap_or(0) < max_hours * TICKS_HOUR {
+        while !c.finished(max_hours) {
             c.round(pace);
-            if progress && c.round % 10 == 0 {
-                let lv: Vec<u8> = c.careers.iter().map(|x| x.level).collect();
-                eprintln!("seed {s} round {} levels {:?}", c.round, lv);
-            }
+            progress(s, &c);
         }
         all.extend(c.careers);
     }
     all
+}
+
+/// One progress line of a cohort (never starting `BALANCE `, the summary's word): round, careers still below 60,
+/// their lowest level and fewest credited hours, and the levels with `levels`.
+pub fn progress_line(s: u64, c: &Cohort, levels: bool) -> String {
+    let live: Vec<&Career> = c.careers.iter().filter(|x| x.level < CLASS_LEVEL_MAX).collect();
+    let low = live.iter().map(|x| x.level).min().unwrap_or(CLASS_LEVEL_MAX);
+    let hours = live.iter().map(|x| x.ticks).min().unwrap_or(0) as f64 / TICKS_HOUR as f64;
+    let mut line = format!("balance progress seed {s} round {} below_60 {}/{} lowest_level {low} fewest_hours {hours:.1}", c.round, live.len(), c.careers.len());
+    if levels {
+        let lv: Vec<u8> = c.careers.iter().map(|x| x.level).collect();
+        line += &format!(" levels {lv:?}");
+    }
+    line
 }
 
 /// The curve targets of rules 2: hours to class level 10, 20, 40, 60.
@@ -448,7 +460,11 @@ pub fn main() {
         Some("career") => {
             let (seeds, per, minutes, fast, hours) = (arg(3, 1), arg(4, 2) as usize, arg(5, 20) as u32, arg(6, 1), arg(7, 200));
             let pace = Pace { ticks: minutes * 60 * TICK_HZ, fast, threads: threads() };
-            let all = careers(seeds, per, pace, hours, std::env::var("BALANCE_PROGRESS").is_ok());
+            // A progress line on stdout every round (a round of 20-minute outings is a minute or two on 2 threads), so a run killed at its time
+            // limit still says how far it got; BALANCE_PROGRESS adds every career's level.
+            let levels = std::env::var("BALANCE_PROGRESS").is_ok();
+            let started = std::time::Instant::now();
+            let all = careers(seeds, per, pace, hours, |s, c| println!("{} secs {:.0}", progress_line(s, c, levels), started.elapsed().as_secs_f64()));
             print_careers(&all);
             let hours = class_hours(&all);
             let (_, _, worst) = band_rates(&all);

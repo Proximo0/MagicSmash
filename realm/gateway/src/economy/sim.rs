@@ -60,6 +60,7 @@ pub struct Config {
     pub db: PathBuf,
     /// Bots whose accounts are TRADE_LOCKED from the start (farms that keep trying).
     pub farms: usize,
+    /// No tables while it runs: one `economy progress day N/DAYS secs S` line every 5 days instead.
     pub quiet: bool,
 }
 
@@ -857,6 +858,9 @@ pub fn run(cfg: &Config) -> Report {
             let row = SupplyRow { day: day + 1, supply: (minted - sunk).max(0) as u64, per_bot: ((minted - sunk).max(0) as u64) / n.max(1) as u64, minted: minted as u64, sunk: sunk as u64 };
             if !cfg.quiet {
                 println!("  day {:>3}: supply {:>11} coin ({:>6} a bot), sales so far {}, {:.0} s", row.day, row.supply, row.per_bot, sim.eco.totals().sales, started.elapsed().as_secs_f64());
+            } else {
+                // Quiet still leaves one short line every 5 days, so a run killed at its time limit says how far it got.
+                println!("economy progress day {}/{} secs {:.0}", row.day, cfg.days, started.elapsed().as_secs_f64());
             }
             report.supply.push(row);
         }

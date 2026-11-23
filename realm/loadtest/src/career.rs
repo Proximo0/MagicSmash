@@ -773,6 +773,13 @@ impl Cohort {
         self.careers.iter().all(|c| c.level >= CLASS_LEVEL_MAX)
     }
 
+    /// Played out: every career is 60, or every career still below 60 has `max_hours` credited. Only those below 60
+    /// count: one that reached 60 early stops playing, so her hours stop growing (counting her, a career that never
+    /// reaches 60 made the cohort play forever).
+    pub fn finished(&self, max_hours: u64) -> bool {
+        self.careers.iter().filter(|c| c.level < CLASS_LEVEL_MAX).all(|c| c.ticks >= max_hours * crate::balance::TICKS_HOUR)
+    }
+
     /// One round: every career below 60 plays one outing; instances on threads, applied in order.
     pub fn round(&mut self, pace: Pace) {
         let live: Vec<usize> = (0..self.careers.len()).filter(|&i| self.careers[i].level < CLASS_LEVEL_MAX).collect();
