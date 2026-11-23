@@ -78,7 +78,7 @@ case "$cmd" in
       fw economy "bots=4000 days=180 $r" "$m" 2 forever 14400 0
       i=$((i + 1))
     done
-    fw balance "seeds=1 per=2 minutes=20" any 2 forever 43200 21600
+    fw balance "seeds=1 per=2 minutes=10 fast=16 hours=160" any 2 forever 14400 21600
     fw package "target=linux" linux 8 forever 7200 86400
     fw package "target=windows" windows 8 forever 7200 86400
     fw frames "zooms=16,4 secs=60" gpu 6 forever 1800 43200

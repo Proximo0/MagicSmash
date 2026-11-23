@@ -1,0 +1,66 @@
+# The station watchdog (tools/station/watch.sh): every 30 minutes, with no station and no person involved, it
+# checks that each of the four PCs has reported in the last 2 hours and that no job has been held over 5 hours,
+# releases such a job so the stations pick it up again, and keeps ONE issue open while anything is wrong
+# (assigned to the owner, so GitHub mails him); the issue is closed by the first clean run.
+name: station-watch
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: station-watch
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: watch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          TITLE: "Station watch: a test PC needs attention"
+        run: |
+          out=$(bash tools/station/watch.sh --heal) && ok=1 || ok=0
+          echo "$out"
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+          body=$(printf '%s\n\n```\n%s\n```\n\n%s\n' "The station watchdog (tools/station/watch.sh, run every 30 minutes by .github/workflows/station-watch.yml) found:" "$(grep '^ALERT' <<<"$out")" "A silent PC usually needs to be switched on or signed in, with its station window running (tools/station). Jobs held too long are released automatically. This issue closes itself when a run is clean.")
+          if [ "$ok" = 1 ]; then
+            [ -n "$open" ] && gh issue close "$open" --comment "All stations are reporting again and no job is held too long."
+            exit 0
+          fi
+          if [ -z "$open" ]; then
+            gh issue create --title "$TITLE" --body "$body" --assignee "$OWNER"
+          elif [ "$(gh issue view "$open" --json body --jq .body | grep '^ALERT' | sed 's/ for [0-9]*h[0-9]*m.*//' | sort)" != "$(grep '^ALERT' <<<"$out" | sed 's/ for [0-9]*h[0-9]*m.*//' | sort)" ]; then
+            gh issue edit "$open" --body "$body"
+            gh issue comment "$open" --body "The list of problems changed; see the description above."
+          fi
+      # Every job a PC failed in the last 2 days, kept in ONE issue with its rerun line, so a found fault is never lost
+      # in the results branch. Not assigned (the hourly lead check reads it); closed when the list is empty.
+      - name: failures
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Station failures: jobs that failed on a test PC"
+        run: |
+          git fetch -q origin station-results station-queue || true
+          since=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M)
+          fails=$(bash tools/station/queue.sh digest 2>/dev/null | awk '/^-- FAIL lines/ { f=1; next } /^-- / { f=0 } f && $1 != "none"' | awk -v s="$since" '$2 >= s' | cut -c1-400)
+          echo "$fails"
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+          if [ -z "$fails" ]; then
+            [ -n "$open" ] && gh issue close "$open" --comment "No job has failed on a test PC in the last 2 days."
+            exit 0
+          fi
+          body=$(printf '%s\n\n```\n%s\n```\n\n%s\n' "Jobs that failed on a test PC in the last 2 days (machine, time, job id, kind, detail with its seed or rerun line), newest first:" "$fails" "Each line needs a cause: a real fault gets a fix and a test, a station fault gets a station fix. Full detail: tools/station/queue.sh digest and branch station-results (work/<id>/).")
+          key() { grep -o 'id=[0-9-]* kind=[a-z]*' | sort -u; }
+          if [ -z "$open" ]; then
+            gh issue create --title "$TITLE" --body "$body"
+          elif [ "$(gh issue view "$open" --json body --jq .body | key)" != "$(key <<<"$fails")" ]; then
+            gh issue edit "$open" --body "$body"
+            gh issue comment "$open" --body "The list of failed jobs changed; see the description above."
+          fi

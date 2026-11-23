@@ -1,0 +1,63 @@
+# Checks that run on Curtis's own PCs (GitHub self-hosted runners), after a merge to main or by hand.
+# Never add a pull_request trigger here: the repo is public, and a fork's pull request must not reach these machines.
+name: runner
+on:
+  push:
+    branches: [main]
+    paths: ["realm/**", ".github/workflows/runner.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+# A run is never cancelled by the next merge (the first one was, 20 minutes in): the running one finishes and GitHub
+# keeps only the newest waiting run, so the PCs always complete a check of a recent main.
+concurrency:
+  group: runner-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux-pc:
+    if: github.repository == 'Proximo0/MagicSmash'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 60
+    steps:
+      # clean: false keeps realm/target between runs: the first Ubuntu run rebuilt everything (32 minutes).
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: machine
+        run: |
+          echo "host=$(hostname) cores=$(nproc) ram_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo --version; command -v godot || echo "godot is not on the runner's PATH"
+      - name: realm/check.sh
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          time realm/check.sh
+      - name: realm/store/check.sh
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          time realm/store/check.sh
+  windows-pc:
+    if: github.repository == 'Proximo0/MagicSmash'
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 60
+    defaults:
+      run:
+        # Git's bash by its full path: plain `bash` found the WSL launcher (WindowsApps\bash.EXE) first on the MSI.
+        # The short path has no space: the runner takes everything up to the first space as the program, quotes or not.
+        shell: 'C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}'
+    steps:
+      # clean: false keeps realm/target between runs: the first Ubuntu run rebuilt everything (32 minutes).
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+      - name: machine
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "host=$(hostname) cores=${NUMBER_OF_PROCESSORS}"
+          cargo --version
+          command -v godot || echo "godot is not on the runner's PATH"
+          command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || echo "no nvidia-smi"
+      - name: realm tests (release)
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd realm && time cargo test --release --workspace

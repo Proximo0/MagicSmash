@@ -353,13 +353,13 @@ KITS = {
         weapons={"1H_Sword": ("hand_r", (0.5, 0.6, 0.74))},
     ),
     "flesh_choir": dict(
-        skin={"*": (0.5, 0.2, 0.18), "head": (0.6, 0.4, 0.36), "belly": (0.56, 0.26, 0.22), "hand": (0.3, 0.1, 0.1)},
-        bulk={"spine_01": 1.35, "spine_02": 1.4},
+        skin={"*": (0.27, 0.05, 0.055), "head": (0.5, 0.38, 0.36), "belly": (0.31, 0.07, 0.065), "hand": (0.16, 0.04, 0.04)},
+        bulk={"spine_01": 1.6, "spine_02": 1.75},
         shells=[
             (["hips", "thigh"], 0.04, (0.2, 0.05, 0.06), 0.0, "kilt"),
             (["chest"], 0.03, (0.25, 0.07, 0.07), 0.0, "strap"),
         ],
-        extras=["heads", "face", "skirt"], heads=(0.6, 0.4, 0.36), brow=(0.3, 0.1, 0.1), jaw=(0.06, 0.0, 0.0), skirt=(0.2, 0.05, 0.06), skirt_to=0.25,
+        extras=["heads", "skirt"], choir=True, heads=(0.58, 0.45, 0.42), flesh=(0.12, 0.02, 0.03), flesh2=(0.1, 0.017, 0.025), skirt=(0.2, 0.05, 0.06), skirt_to=0.25,
         weapons={},
     ),
     "the_unmade": dict(
@@ -722,7 +722,58 @@ if "halo" in ex:                                # a dull gold disc standing behi
     c, half = (lo + hi) / 2, (hi - lo) / 2
     o = prim("cone", "halo", kit["halo"], 1.0, r2=1.0)
     hang(o, "head", trs(Vector((0, hi.y + half.y * 0.5, c.z + half.z * 0.5)), (90, 0, 0), (half.x * 1.9, half.x * 1.9, 0.012 * S)))
-if "heads" in ex:                               # the choir: two more heads on the shoulders, mouths open
+if "heads" in ex and kit.get("choir"):          # the choir: one bloated body, three pale heads on short thick necks, dark open mouths
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    PIT = (0.012, 0.0, 0.0)
+    clo, chi = bbox(["chest"])
+    blo, bhi = bbox(["belly"])
+    ycm = (clo.y + chi.y) / 2                                # chest mid-depth (y: -front, +back)
+
+    def mass(name, bone, centre, radii, col, rot=(0, 0, 0)):
+        o = prim("sphere", name, col)
+        hang(o, bone, trs(centre, rot, radii))
+
+    # the bloated, fused body: a belly, a heavy shoulder yoke (long front to back: the necks grow out of its ends), back lumps
+    belly = Vector(((blo.x + bhi.x) / 2, (blo.y + bhi.y) / 2 - 0.1 * S, (blo.z + bhi.z) / 2 + 0.01 * S))
+    belly_r = (0.27 * S, 0.25 * S, 0.15 * S)
+    mass("belly", "spine_01", belly, belly_r, kit["flesh"])
+    yoke = Vector((0, ycm - 0.03 * S, clo.z + (chi.z - clo.z) * 0.72))
+    yoke_r = (0.25 * S, 0.35 * S, 0.15 * S)
+    mass("yoke", "spine_03", yoke, yoke_r, kit["flesh"])
+    mass("lump", "spine_03", Vector((-0.1 * S, chi.y + 0.1 * S, clo.z + (chi.z - clo.z) * 0.45)), (0.17 * S, 0.17 * S, 0.17 * S), kit["flesh2"])
+    mass("lump2", "spine_03", Vector((0.12 * S, chi.y + 0.14 * S, clo.z + (chi.z - clo.z) * 0.75)), (0.11 * S, 0.12 * S, 0.11 * S), kit["flesh"])
+    for i, (bone, cen, rad, f, tilt) in enumerate((("spine_01", belly, belly_r, 1.04, -12), ("spine_01", belly - Vector((0, 0, 0.09 * S)), belly_r, 0.8, 10),
+                                                    ("spine_03", yoke, yoke_r, 1.03, 8))):
+        o = prim("cone", "seam%d" % i, (0.02, 0.0, 0.0), 0.0, r2=1.0)     # a dark stitched seam ringing a mass where the bodies join
+        hang(o, bone, trs(cen, (tilt, 0, 0), (rad[0] * f, rad[1] * f, 0.011 * S)))
+
+    def sing(name, bone, at, rot, size, tint, neck=False):
+        """a pale head (an ellipsoid of `size`) at `at`, turned by `rot`, with a big dark open mouth and two eye pits on its face."""
+        base = trs(at, rot)
+        o = prim("sphere", name, tint)
+        hang(o, bone, base @ Matrix.Diagonal((*size, 1)))
+        hx, hy, hz = size
+        o = prim("sphere", name + "_mouth", PIT)
+        hang(o, bone, base @ trs(Vector((0, -hy * 0.86, -hz * 0.3)), (0, 0, 0), (hx * 0.72, hy * 0.28, hz * 0.62)))
+        for sg in (1, -1):
+            o = prim("sphere", "%s_eye%d" % (name, sg), PIT)
+            hang(o, bone, base @ trs(Vector((sg * hx * 0.5, -hy * 0.84, hz * 0.5)), (0, 0, 0), (hx * 0.22, hy * 0.22, hz * 0.17)))
+        if neck:                                   # a short, thick stump between the shoulder mass and the head
+            o = prim("cone", name + "_neck", kit["flesh2"], 0.0, r2=0.85)
+            hang(o, bone, trs(at + Vector((0, 0, -hz * 0.95)), (0, rot[1], 0), (hx * 0.72, hx * 0.72, hz * 0.62)))
+
+    sing("head0", "head", c + Vector((0, half.y * 0.04, half.z * 0.1)), (-16, 0, 30), (half.x * 1.12, half.y * 1.05, half.z * 1.08), kit["heads"])
+    for sg in (1, -1):
+        # the camera looks from +x and a little forward, so heads spread along x alone would stack in depth: the near one
+        # (x+) sits forward and the far one (x-) back on the long shoulder yoke, so the three clear each other on the screen
+        px, py = sg * 0.1 * S, yoke.y - sg * 0.31 * S
+        k = 1 - (px / yoke_r[0]) ** 2 - ((py - yoke.y) / yoke_r[1]) ** 2
+        top = yoke.z + yoke_r[2] * math.sqrt(max(k, 0.0))      # the yoke's surface under the head
+        hz_ = half.z * 1.05
+        at = Vector((px, py, top + hz_ * 0.55 + hz_ * 0.95 + (0.04 * S if sg < 0 else -0.01 * S)))
+        sing("head%d" % sg, "spine_03", at, (-20, sg * 18, 30), (half.x * 1.05, half.y * 1.05, hz_), (kit["heads"][0] + sg * 0.03, kit["heads"][1], kit["heads"][2]), True)
+elif "heads" in ex:                               # the old choir: two more heads on the shoulders, mouths open
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
     for sg in (1, -1):
