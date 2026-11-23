@@ -29,7 +29,10 @@ func _check(cond: bool, what: String) -> void:
 func _art() -> void:
 	_check(RealmLink.kind_count() == 42, "the core has 42 kinds, got %d" % RealmLink.kind_count())
 	_check(FieldArt.kind_key("plague rat") == "enemy_plague_rat", "kind key of a two-word name")
+	_check(FieldArt.boss_key("THE GOAT PROPHET") == "boss_goat_prophet" and FieldArt.boss_key("MOTHER OF LEECHES") == "boss_mother_of_leeches", "a boss's art key is its slug")
 	var kinds: Array[Dictionary] = FieldArt.monster_entries()
+	var bosses: Array[Dictionary] = FieldArt.boss_entries(kinds)
+	_check(bosses.size() == FieldArt.BOSS_ART and int(bosses[0]["anim"]) == 8 and bosses[0]["art"] == "walk", "each of the first bosses has art: its own or its carrier's")
 	_check(kinds.size() == 42, "42 monster entries, got %d" % kinds.size())
 	var sum: Dictionary = FieldArt.art_summary(kinds)
 	# The Tower's eight are drawn; every other kind has a stand-in until its picture arrives.

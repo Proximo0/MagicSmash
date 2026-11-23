@@ -47,6 +47,14 @@ fn monster_frame(kind: u8) -> usize {
     usize::from(kind).min(MONSTER_FRAMES - 1)
 }
 
+/// The first field bosses have art slots of their own after the kinds (the client appends them to the atlas in
+/// this order: `FieldArt.boss_entries`); the monster that is the running boss is drawn from its slot.
+pub const BOSS_ART: usize = 4;
+
+fn boss_frame(f: &Field, slot: usize) -> Option<usize> {
+    f.boss().filter(|b| b.slot as usize == slot && usize::from(b.which) < BOSS_ART).map(|b| MONSTER_FRAMES + usize::from(b.which))
+}
+
 /// Kinds that stand off and throw (the core's SPITTER and LOBBER): their attack strip follows their throw timer.
 fn ranged(kind: u8) -> bool {
     use realm_core::tables::kinds::{LOBBER, SPITTER};
@@ -142,7 +150,7 @@ struct Seen {
 struct Ghost {
     x: i32,
     y: i32,
-    kind: u8,
+    frame: usize,
     scale: f32,
     face: f32,
     born: u32,
@@ -182,6 +190,8 @@ pub struct DrawState {
     players: Seen,
     order: Vec<(i32, u32)>,
     ghosts: Vec<Ghost>,
+    /// The running boss's slot and art frame, kept so its ghost is drawn with its own art after it dies.
+    boss_at: Option<(usize, usize)>,
 }
 
 /// One figure into a draw buffer. The shader moves vertices before the instance's transform scales them, so
@@ -208,12 +218,21 @@ impl DrawState {
         self.monsters.begin(m.hp.len());
         let now = self.monsters.now;
         let n = m.hp.len();
+        if let Some(b) = f.boss() {
+            self.boss_at = boss_frame(f, b.slot as usize).map(|fr| (b.slot as usize, fr));
+        } else if self.boss_at.is_some_and(|(slot, _)| slot < n && m.hp[slot] > 0 && !m.is_boss(slot)) {
+            self.boss_at = None; // the slot was taken by an ordinary monster
+        }
         // Deaths since the last call, from where they stood.
         for i in 0..n {
             if m.hp[i] == 0 && self.monsters.call[i] != 0 && self.monsters.call[i] + 1 == now {
                 let (x, y) = (self.monsters.x[i], self.monsters.y[i]);
                 let s = if m.is_champion(i) { CHAMP_SCALE } else if m.is_elite(i) { ELITE_SCALE } else { 1.0 };
-                self.ghosts.push(Ghost { x, y, kind: m.kind[i], scale: s, face: self.monsters.face[i], born: now });
+                let frame = match self.boss_at {
+                    Some((slot, fr)) if slot == i => fr,
+                    _ => monster_frame(m.kind[i]),
+                };
+                self.ghosts.push(Ghost { x, y, frame, scale: s, face: self.monsters.face[i], born: now });
             }
         }
         self.ghosts.retain(|g| now - g.born < DIE_TICKS + FADE_TICKS);
@@ -239,7 +258,7 @@ impl DrawState {
                 let age = now - g.born;
                 let fade = age.saturating_sub(DIE_TICKS) as f32 / FADE_TICKS as f32;
                 let tint = [0.8, 0.8, 0.8, 1.0 - fade];
-                put_state(&mut out, g.x, g.y, g.scale * g.face, g.scale, tint, (0.0, 0.0), monster_frame(g.kind), ST_DIE, 0, age);
+                put_state(&mut out, g.x, g.y, g.scale * g.face, g.scale, tint, (0.0, 0.0), g.frame, ST_DIE, 0, age);
                 continue;
             }
             let (elite, champ) = (m.is_elite(i), m.is_champion(i));
@@ -280,7 +299,7 @@ impl DrawState {
             } else {
                 (ST_WALK, 0)
             };
-            put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), state, bob, age);
+            put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, boss_frame(f, i).unwrap_or_else(|| monster_frame(m.kind[i])), state, bob, age);
         }
         out
     }

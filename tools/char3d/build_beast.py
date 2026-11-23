@@ -40,6 +40,8 @@ KINDS = {
     "cinderling": dict(plan="imp", rad=0.19, h=0.35, coat=(0.008, 0.008, 0.009), dark=(0.5, 0.4, 0.33), eye=(1.0, 0.85, 0.2), amb=0.25, key=3.0, rim=1.5),
     "carrion_crow": dict(plan="bird", rad=0.17, h=0.75, coat=(0.035, 0.035, 0.05), dark=(0.012, 0.012, 0.02), eye=(1.0, 0.15, 0.05), beak=(0.5, 0.42, 0.25)),
     "leech": dict(plan="worm", rad=0.14, h=0.14, coat=(0.1, 0.03, 0.05), dark=(0.3, 0.07, 0.08), eye=(0.75, 0.6, 0.5), segs=6),
+    "hanging_tree": dict(plan="tree", rad=0.62, h=0.0, coat=(0.075, 0.052, 0.04), dark=(0.04, 0.03, 0.026), eye=(0.85, 0.95, 0.45),
+                         rope=(0.5, 0.4, 0.18), flesh=(0.3, 0.34, 0.36), cloth=(0.13, 0.1, 0.09)),
     "toadstone": dict(plan="toad", rad=0.34, h=0.3, coat=(0.2, 0.26, 0.12), dark=(0.42, 0.4, 0.3), eye=(1.0, 0.7, 0.1), cap=(0.5, 0.1, 0.08)),
 }
 K = KINDS[kind_name]
@@ -390,6 +392,114 @@ elif PLAN == "worm":                             # a leech: fat segments that hu
                 z, sc_ = fat * (1 - 0.6 * a), 1 - 0.55 * a
             sj.location = (0, y, z)
             sj.scale = (1.0 + (1 - sc_) * 0.8, 1.0, sc_)
+
+elif PLAN == "tree":                             # a dead, rooted tree with a face in the trunk and hanged bodies and nooses on its boughs
+    ropec, fleshm, clothm = mat("rope", K["rope"]), mat("flesh", K["flesh"]), mat("cloth", K["cloth"])
+
+    def limb(parent, name, m, p0, p1, r0, r1):
+        """a tapering rod from p0 (radius r0) to p1 (radius r1) in the parent's frame."""
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        ob = part("cone", name, parent, m, tuple((p0 + p1) / 2), (0, 0, 0), (r0, r0, d.length / 2), r2=r1 / r0)
+        ob.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
+        return ob
+
+    mid = joint("mid", body, (0, 0, 1.5))
+    top = joint("top", mid, (0, 0, 1.3))
+    limb(body, "trunk0", coat, (0, 0, 0), (0, 0, 1.5), R, R * 0.8)
+    limb(mid, "trunk1", coat, (0, 0, 0), (0, 0, 1.3), R * 0.8, R * 0.62)
+    limb(top, "trunk2", dark, (0, 0, 0), (0, 0.05, 1.1), R * 0.62, R * 0.12)
+    for k in range(7):                           # roots splayed over the ground (they stay when the tree falls)
+        ang = 2 * math.pi * (k + 0.3) / 7
+        limb(root, "root%d" % k, dark, (math.cos(ang) * 0.3, math.sin(ang) * 0.3, 0.55), (math.cos(ang) * 1.5, math.sin(ang) * 1.3, 0.04), 0.2, 0.05)
+    fj = joint("face", mid, (0, 0, -0.1))
+    fj.scale = (1.35, 1.0, 1.35)        # the face, turned a little towards the camera
+    fj.rotation_euler = Euler((0, 0, math.radians(float(E("FACE", "40")))))
+    eye = mat("eye", K["eye"], 7.0)
+    pit = mat("pit", (0.01, 0.005, 0.005))
+    part("cube", "brow", fj, dark, (0, -R * 0.74, 0.46), (-15, 0, 0), (0.36, 0.07, 0.07))
+    for sg in (1, -1):
+        part("sphere", "socket%d" % sg, fj, pit, (sg * 0.17, -R * 0.74, 0.32), (0, 0, 0), (0.1, 0.07, 0.085))
+        part("sphere", "eye%d" % sg, fj, eye, (sg * 0.17, -R * 0.74 - 0.04, 0.32), (0, 0, 0), (0.055, 0.04, 0.05))
+    part("cone", "nose", fj, dark, (0, -R * 0.74 - 0.04, 0.12), (100, 0, 0), (0.07, 0.07, 0.16), r2=0.4)
+    part("sphere", "mouth", fj, pit, (0, -R * 0.74 - 0.02, -0.14), (0, 0, 0), (0.13, 0.07, 0.24))
+    for sg in (1, -1):
+        part("cone", "fang%d" % sg, fj, mat("bone", BONE), (sg * 0.07, -R * 0.74 - 0.08, -0.02), (-90, 0, 0), (0.025, 0.025, 0.07), r2=0.3)
+
+    swing = []                                   # (joint, phase, axis weights) of everything that hangs and swings
+
+    def rope(parent, name, at, length, phase, body_on):
+        rj = joint(name, parent, at)
+        limb(rj, name + "_rope", ropec, (0, 0, 0), (0, 0, -length), 0.028, 0.028)
+        bj = joint(name + "_end", rj, (0, 0, -length))
+        bj.scale = (1.5, 1.5, 1.5)
+        if body_on:                               # a hanged body: head tipped to one side, trunk, two arms, two legs
+            part("sphere", name + "_head", bj, fleshm, (0.02, 0, -0.14), (0, 14, 0), (0.1, 0.1, 0.12))
+            limb(bj, name + "_torso", clothm, (0, 0, -0.2), (0, 0, -0.76), 0.13, 0.1)
+            for sg in (1, -1):
+                limb(bj, name + "_arm%d" % sg, fleshm, (sg * 0.14, 0, -0.27), (sg * 0.2, 0, -0.74), 0.04, 0.03)
+                limb(bj, name + "_leg%d" % sg, clothm, (sg * 0.06, 0, -0.74), (sg * 0.07, 0, -1.26), 0.06, 0.04)
+            part("cone", name + "_noose", bj, ropec, (0.0, 0, -0.18), (0, 0, 0), (0.115, 0.115, 0.02), r2=1.0)
+        else:                                     # an empty noose: a ring of knots
+            for k in range(8):
+                a_ = 2 * math.pi * k / 8
+                part("sphere", "%s_knot%d" % (name, k), bj, ropec, (0.14 * math.cos(a_), 0.0, -0.14 + 0.14 * math.sin(a_)), (0, 0, 0), (0.035, 0.035, 0.035))
+        swing.append((rj, phase))
+        return rj
+
+    def bough(name, p0, p1, p2, r0, hang_at):
+        """two limbs from the crown (p0 to p1 to p2) with a twig fork at the end; returns the joints that sway."""
+        b1 = joint(name, top, p0)
+        limb(b1, name + "_a", dark, (0, 0, 0), tuple(Vector(p1) - Vector(p0)), r0, r0 * 0.6)
+        b2 = joint(name + "_2", b1, tuple(Vector(p1) - Vector(p0)))
+        e = Vector(p2) - Vector(p1)
+        limb(b2, name + "_b", dark, (0, 0, 0), tuple(e), r0 * 0.6, r0 * 0.25)
+        for k, (dx, dy, dz) in enumerate(((0.0, 0.5, 0.5), (0.0, 0.3, -0.45))):      # two twigs
+            limb(b2, "%s_twig%d" % (name, k), dark, tuple(e * 0.6), tuple(e * 0.6 + Vector((0, math.copysign(1, e.y or 1) * dy * 0.9, dz * 0.9))), r0 * 0.25, 0.015)
+        return b1, b2
+
+    bf1, bf1b = bough("bf", (0, -0.1, 0.5), (0, -1.5, 1.2), (0, -2.6, 1.15), 0.2, None)
+    bb1, bb1b = bough("bb", (0, 0.1, 0.4), (0, 1.5, 1.0), (0, 2.6, 1.3), 0.2, None)
+    bu1, bu1b = bough("bu", (0, 0.0, 0.8), (0.0, -0.4, 1.4), (0.0, -0.2, 2.0), 0.14, None)
+    bs1, bs1b = bough("bs", (0, 0.0, 0.9), (0.0, 0.9, 1.7), (0.0, 1.5, 2.3), 0.1, None)
+    rope(bf1b, "h1", (0, -0.5, 0.0), 1.0, 0.0, True)
+    rope(bf1, "h2", (0, -1.2, 0.0), 0.7, 1.6, False)
+    rope(bb1b, "h3", (0, 0.9, 0.0), 1.2, 3.1, True)
+    rope(bb1, "h4", (0, 0.7, 0.0), 0.8, 4.4, False)
+    
+    def pose(action, u):
+        w = 2 * math.pi * u
+        lean = fall = 0.0
+        sway, amp, rp = 2.0, 1.0, 5.0
+        bow = 0.0
+        if action == "Walking_A":                # rooted: it sways harder in the wind
+            sway, amp, rp = 4.0, 2.0, 11.0
+        elif action == "Attack":                 # rears back, then lashes forward and the forward bough whips down
+            back = max(0.0, 1 - u * 4)
+            a = math.sin(math.pi * u) if u > 0.25 else 0.0
+            lean, bow, rp = -7 * back + 14 * a, 40 * a, 9.0
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            lean, rp = -7 * a, 9 + 8 * a
+        elif action == "Death_A":                # topples away from the camera and lies flat, the hanged shaken loose
+            a = min(1.0, u * 1.25)
+            fall = a * a
+            lean, rp = 3 * math.sin(math.pi * a), 9 + 8 * a
+        mid.rotation_euler = Euler((math.radians(lean * 0.4 + sway * 0.5 * math.sin(w)), 0, 0))
+        top.rotation_euler = Euler((math.radians(lean * 0.6 + sway * math.sin(w + 0.8)), math.radians(amp * math.sin(w)), 0))
+        bf1.rotation_euler = Euler((math.radians(bow + 4 * amp * math.sin(w + 0.3)), 0, 0))
+        bf1b.rotation_euler = Euler((math.radians(bow * 0.6 + 5 * amp * math.sin(w + 1.1)), 0, 0))
+        bb1.rotation_euler = Euler((math.radians(-bow * 0.3 + 4 * amp * math.sin(w + 2.0)), 0, 0))
+        bb1b.rotation_euler = Euler((math.radians(5 * amp * math.sin(w + 2.5)), 0, 0))
+        bu1.rotation_euler = Euler((math.radians(3 * amp * math.sin(w + 1.0)), 0, 0))
+        bs1.rotation_euler = Euler((math.radians(3 * amp * math.sin(w + 3.0)), 0, 0))
+        for rj, ph in swing:
+            rj.rotation_euler = Euler((math.radians(rp * math.sin(w + ph)), math.radians(rp * 0.5 * math.cos(w + ph)), 0))
+        keep = max(0.001, 1 - fall * 1.6)
+        for rj, ph in swing:                     # the ropes, bodies and nooses vanish into the dust of the fall
+            rj.scale = (keep, keep, keep)
+        body.rotation_euler = Euler((0, math.radians(-90 * fall), 0))
+        body.location = (0, 0, H + 0.5 * fall)
 
 elif PLAN == "toad":                             # a squat toad with toadstools on its back; it hops and spits
     part("sphere", "trunk", body, coat, (0, R * 0.1, 0), (-12, 0, 0), (R * 1.0, R * 1.15, R * 0.75))
