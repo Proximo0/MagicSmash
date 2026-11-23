@@ -173,7 +173,7 @@ func fill_items(list: ItemList, items: Array, icon: int = 28) -> void:
 	list.clear()
 	list.fixed_icon_size = Vector2i(icon, icon)
 	for it in items:
-		var i: int = list.add_item(item_label(it), UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), icon))
+		var i: int = list.add_item(item_label(it), UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), icon, int(it.get("base", -1))))
 		list.set_item_metadata(i, int(it["id"]))
 		list.set_item_custom_fg_color(i, GameNames.rarity_colour(int(it["rarity"])))
 		list.set_item_tooltip(i, item_tip_text(it))
