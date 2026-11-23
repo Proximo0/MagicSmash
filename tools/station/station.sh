@@ -187,7 +187,7 @@ job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB balance SKIP cargo is not installed on this station"; return 0; }
   local out line
-  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-900}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-1}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-1800}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-16}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
   if [[ "$line" == "BALANCE "* ]]; then echo "JOB balance INFO ${line:8:260}"; else echo "JOB balance INFO $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }

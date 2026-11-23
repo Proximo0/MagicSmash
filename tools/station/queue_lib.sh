@@ -145,7 +145,9 @@ q_load() {  # $1 = id: read and validate queue/<id>.job into J_*; 0 usable here
     local s; s=$(q_tok "$J_ARGS" script ""); re='^[A-Za-z0-9_-]+$'
     [[ "$s" =~ $re ]] && [ -f "tools/station/jobs/$s.sh" ] || { q_warn "$1" "skipped: no script tools/station/jobs/${s:-?}.sh here"; return 1; }
   fi
-  [ "$J_TIMEOUT" -ge 60 ] || J_TIMEOUT=60; [ "$J_TIMEOUT" -le 172800 ] || J_TIMEOUT=172800
+  [ "$J_TIMEOUT" -ge 60 ] || J_TIMEOUT=60
+  # No job holds a station longer than this, whatever its file says (a 12 hour job once ran to its limit and recorded nothing).
+  [ "$J_TIMEOUT" -le "${STATION_QUEUE_MAX_S:-14400}" ] || J_TIMEOUT="${STATION_QUEUE_MAX_S:-14400}"
   return 0
 }
 # q_eligible id: after q_load. Sets Q_KEY for ordering: finite (once) jobs first by priority, then the forever jobs, oldest
@@ -297,11 +299,12 @@ qk_bench() {  # args: fields=0,1 threads=1,2 monsters=5000,20000 bots=N ticks=N 
   done; done; done
   echo "$([ $bad = 0 ] && echo PASS || echo FAIL) bench seed=$seed runs=$n bad=$bad${detail} last: ${LAST:-none}"
 }
-qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=0|1 hours=N. realm-loadtest balance career; record only
+qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=K hours=N. fast is the compression k of career.rs (an outing counts k
+  # times as long), 16 as in balance.md, never 0 or 1 here: uncompressed careers take days and print nothing. realm-loadtest balance career; record only
   local args=$1 n per mins fast hours rc line
   q_cargo || { echo "FAIL cargo is not installed on this station"; return 0; }
   n=$(q_int "$(q_tok "$args" seeds)" 1 1 50); per=$(q_int "$(q_tok "$args" per)" 2 1 20); mins=$(q_int "$(q_tok "$args" minutes)" 20 1 600)
-  fast=$(q_int "$(q_tok "$args" fast)" 1 0 1); hours=$(q_int "$(q_tok "$args" hours)" 200 1 2000)
+  fast=$(q_int "$(q_tok "$args" fast)" 16 2 64); hours=$(q_int "$(q_tok "$args" hours)" 200 1 2000)
   q_build realm -p realm-loadtest || { echo "FAIL build $(q_tail "$Q_WD/build.log")"; return 0; }
   BOT_THREADS="${STATION_BALANCE_THREADS:-2}" q_run "$Q_WD/balance.out" timeout "$(q_left)" realm/target/release/realm-loadtest balance career "$n" "$per" "$mins" "$fast" "$hours"; rc=$?
   [ $rc = 99 ] && return 3
