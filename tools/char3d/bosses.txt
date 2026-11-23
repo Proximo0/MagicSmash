@@ -1,0 +1,4 @@
+boss_harvester Knight Idle:4,Walking_B:8,2H_Melee_Attack_Chop:8,Hit_A:4,Death_A:8 RES=1656 ORTHO=6.0 CAMZ=1.6 YAW=-35
+boss_mother_of_leeches Barbarian Idle:4,Walking_B:8,Unarmed_Melee_Attack_Punch_B:8,Hit_A:4,Death_B:8 RES=1268 ORTHO=4.6 CAMZ=1.0
+boss_goat_prophet Mage Idle:8,Spellcast_Raise:8,Hit_A:4,Death_A:8 RES=1380 ORTHO=5.0 CAMZ=1.5
+boss_hanging_tree - Idle:4,Walking_A:8,Attack:8,Hit_A:4,Death_A:8 RES=1672 ORTHO=7.6 CAMZ=2.4

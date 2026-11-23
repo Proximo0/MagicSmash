@@ -8,7 +8,7 @@
 //! Units: positions handed to GDScript are px (floats).
 
 use godot::prelude::*;
-use realm_core::tables::{Act, CARDS, KINDS, POTIONS, SKILLS};
+use realm_core::tables::{Act, BOSSES, CARDS, KINDS, POTIONS, SKILLS};
 use realm_core::{input, CLASSES, FIELD_PX, SUB};
 use realm_server::client::LockstepClient;
 use realm_server::PROTO_BP;
@@ -358,6 +358,17 @@ impl RealmLink {
             d.set("beh", i32::from(k.beh));
             d.set("health", k.health as i32);
             d.set("speed", k.speed as i32);
+        }
+        d
+    }
+
+    /// A boss row's `name` and `carrier` (the monster kind it is born from and drawn as when it has no art of its own).
+    #[func]
+    fn boss_info(which: i32) -> VarDictionary {
+        let mut d = VarDictionary::new();
+        if let Some(b) = BOSSES.get(which.max(0) as usize) {
+            d.set("name", &(GString::from(b.name)).to_variant());
+            d.set("carrier", i32::from(b.carrier));
         }
         d
     }

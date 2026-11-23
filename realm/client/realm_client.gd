@@ -153,7 +153,9 @@ func _ready() -> void:
 	_fx_under.z_index = 0
 	_world.add_child(_fx_under)
 	var kinds: Array[Dictionary] = FieldArt.monster_entries()
-	_monsters = RealmBatch.new(_world, kinds, 1, false, true)
+	var atlas: Array[Dictionary] = kinds.duplicate()
+	atlas.append_array(FieldArt.boss_entries(kinds))
+	_monsters = RealmBatch.new(_world, atlas, 1, false, true)
 	var heroes: Array[Dictionary] = FieldArt.hero_entries()
 	_players = RealmBatch.new(_world, heroes, 2)
 	_art = {"monsters": FieldArt.art_summary(kinds), "heroes": FieldArt.art_summary(heroes)}

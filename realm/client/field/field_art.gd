@@ -35,6 +35,8 @@ const FIELD_COLOURS: Array[Color] = [
 	Color(0.62, 0.52, 0.36), Color(0.36, 0.5, 0.34), Color(0.3, 0.52, 0.5),
 	Color(0.62, 0.7, 0.8), Color(0.62, 0.4, 0.62), Color(0.72, 0.34, 0.26)]
 ## Behaviour bits of the core (realm/core tables/kinds.rs).
+## Field bosses with an art slot after the kinds (godot/src/draw.rs BOSS_ART).
+const BOSS_ART: int = 4
 const B_SWARM: int = 1 << 1
 const B_RUNNER: int = 1 << 2
 const B_BRUTE: int = 1 << 3
@@ -100,6 +102,34 @@ static func entry_for(key: String, dir: String = "res://art") -> Dictionary:
 			var n: int = maxi(int(side.get(suffix + "_frames", STRIP_FRAMES[suffix])), 1)
 			e[suffix + "_n"] = n if t.get_width() % n == 0 else int(STRIP_FRAMES[suffix])
 	return e
+
+
+## The file key of a boss: "boss_" and its name in lower case, without a leading "the ", spaces to underscores and
+## punctuation dropped ("THE GOAT PROPHET" is "boss_goat_prophet").
+static func boss_key(name: String) -> String:
+	var n: String = name.to_lower().strip_edges()
+	if n.begins_with("the "):
+		n = n.substr(4)
+	var out: String = ""
+	for c in n:
+		if c == " ":
+			out += "_"
+		elif (c >= "a" and c <= "z") or (c >= "0" and c <= "9") or c == "_":
+			out += c
+	return "boss_" + out
+
+
+## The art of the first BOSS_ART field bosses, after the kinds in the atlas (the core draws the running boss from
+## slot kind_count + its row): its own boss_<slug> art, else its carrier's entry from `kinds`.
+static func boss_entries(kinds: Array[Dictionary]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i in BOSS_ART:
+		var info: Dictionary = RealmLink.boss_info(i)
+		var e: Dictionary = entry_for(boss_key(String(info.get("name", ""))))
+		if e.is_empty():
+			e = kinds[clampi(int(info.get("carrier", 0)), 0, kinds.size() - 1)]
+		out.append(e)
+	return out
 
 
 ## The 42 monster kinds in the core's order.

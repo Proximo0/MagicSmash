@@ -47,6 +47,14 @@ fn monster_frame(kind: u8) -> usize {
     usize::from(kind).min(MONSTER_FRAMES - 1)
 }
 
+/// The first field bosses have art slots of their own after the kinds (the client appends them to the atlas in
+/// this order: `FieldArt.boss_entries`); the monster that is the running boss is drawn from its slot.
+pub const BOSS_ART: usize = 4;
+
+fn boss_frame(f: &Field, slot: usize) -> Option<usize> {
+    f.boss().filter(|b| b.slot as usize == slot && usize::from(b.which) < BOSS_ART).map(|b| MONSTER_FRAMES + usize::from(b.which))
+}
+
 /// Kinds that stand off and throw (the core's SPITTER and LOBBER): their attack strip follows their throw timer.
 fn ranged(kind: u8) -> bool {
     use realm_core::tables::kinds::{LOBBER, SPITTER};
@@ -142,7 +150,7 @@ struct Seen {
 struct Ghost {
     x: i32,
     y: i32,
-    kind: u8,
+    frame: usize,
     scale: f32,
     face: f32,
     born: u32,
@@ -182,6 +190,8 @@ pub struct DrawState {
     players: Seen,
     order: Vec<(i32, u32)>,
     ghosts: Vec<Ghost>,
+    /// The running boss's slot and art frame, kept so its ghost is drawn with its own art after it dies.
+    boss_at: Option<(usize, usize)>,
 }
 
 /// One figure into a draw buffer. The shader moves vertices before the instance's transform scales them, so
@@ -208,12 +218,21 @@ impl DrawState {
         self.monsters.begin(m.hp.len());
         let now = self.monsters.now;
         let n = m.hp.len();
+        if let Some(b) = f.boss() {
+            self.boss_at = boss_frame(f, b.slot as usize).map(|fr| (b.slot as usize, fr));
+        } else if self.boss_at.is_some_and(|(slot, _)| slot < n && m.hp[slot] > 0 && !m.is_boss(slot)) {
+            self.boss_at = None; // the slot was taken by an ordinary monster
+        }
         // Deaths since the last call, from where they stood.
         for i in 0..n {
             if m.hp[i] == 0 && self.monsters.call[i] != 0 && self.monsters.call[i] + 1 == now {
                 let (x, y) = (self.monsters.x[i], self.monsters.y[i]);
                 let s = if m.is_champion(i) { CHAMP_SCALE } else if m.is_elite(i) { ELITE_SCALE } else { 1.0 };
-                self.ghosts.push(Ghost { x, y, kind: m.kind[i], scale: s, face: self.monsters.face[i], born: now });
+                let frame = match self.boss_at {
+                    Some((slot, fr)) if slot == i => fr,
+                    _ => monster_frame(m.kind[i]),
+                };
+                self.ghosts.push(Ghost { x, y, frame, scale: s, face: self.monsters.face[i], born: now });
             }
         }
         self.ghosts.retain(|g| now - g.born < DIE_TICKS + FADE_TICKS);
@@ -239,7 +258,7 @@ impl DrawState {
                 let age = now - g.born;
                 let fade = age.saturating_sub(DIE_TICKS) as f32 / FADE_TICKS as f32;
                 let tint = [0.8, 0.8, 0.8, 1.0 - fade];
-                put_state(&mut out, g.x, g.y, g.scale * g.face, g.scale, tint, (0.0, 0.0), monster_frame(g.kind), ST_DIE, 0, age);
+                put_state(&mut out, g.x, g.y, g.scale * g.face, g.scale, tint, (0.0, 0.0), g.frame, ST_DIE, 0, age);
                 continue;
             }
             let (elite, champ) = (m.is_elite(i), m.is_champion(i));
@@ -280,7 +299,7 @@ impl DrawState {
             } else {
                 (ST_WALK, 0)
             };
-            put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), state, bob, age);
+            put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, boss_frame(f, i).unwrap_or_else(|| monster_frame(m.kind[i])), state, bob, age);
         }
         out
     }
@@ -504,5 +523,51 @@ mod tests {
         let b = d.players(&f, ALL, Some(0));
         assert_eq!(b.len(), 5 * STRIDE);
         assert!(b.chunks(STRIDE).all(|c| (c[14] as usize) < HERO_FRAMES));
+    }
+
+    /// The entry the shader draws an instance from: its frame without the state (draw.rs `put_state`).
+    fn entry_at(buf: &[f32], x: i32, y: i32) -> Option<usize> {
+        let (fx, fy) = (x as f32 / SUB as f32, y as f32 / SUB as f32);
+        buf.chunks(STRIDE).find(|c| (c[3] - fx).abs() < 1e-3 && (c[7] - fy).abs() < 1e-3).map(|c| c[14] as usize % STATE_STEP)
+    }
+
+    /// The running boss is drawn from its art slot after the kinds, the same for a boss the realm clock raised in the
+    /// step (how every peer gets one), for a hero who joined from the state while it is up, and for a summoned one.
+    #[test]
+    fn the_running_boss_is_drawn_from_its_own_art_slot() {
+        use realm_core::{field_boss_window, tables::field_boss_of, tables::BOSSES};
+        let view = |x: i32, y: i32| SubRect { x0: x - 900 * SUB, y0: y - 600 * SUB, x1: x + 900 * SUB, y1: y + 600 * SUB };
+        for field in 0..BOSS_ART as u8 {
+            // A field's own boss rising on the clock (rules 8: at the heart, in the step).
+            let mut f = Field::open(field, 9, Config { monsters: 400, threads: 1 });
+            let (hx, hy) = f.terrain().heart;
+            join(&mut f, 1, 0, hx, hy);
+            f.set_clock(field_boss_window(field, 3).0 - 2);
+            for _ in 0..5 {
+                f.step(&[0u16]);
+            }
+            let which = f.boss().map(|b| b.which).expect("the clock raised the boss");
+            assert_eq!(which, field_boss_of(field, 0));
+            let (bx, by) = f.boss_pos().unwrap();
+            let mut d = DrawState::default();
+            let buf = d.monsters(&f, view(hx, hy));
+            assert_eq!(entry_at(&buf, bx, by), Some(MONSTER_FRAMES + which as usize), "{} from its slot", BOSSES[which as usize].name);
+            // A hero who joins now gets the field's bytes: the boss is in them and drawn the same.
+            let g = Field::from_bytes(&f.to_bytes(), 1).expect("state");
+            assert_eq!(g.boss(), f.boss());
+            let buf = DrawState::default().monsters(&g, view(hx, hy));
+            assert_eq!(entry_at(&buf, bx, by), Some(MONSTER_FRAMES + which as usize));
+        }
+        // A summoned boss (tools) the same; a boss past the art slots is drawn as its carrier kind.
+        for which in [1u8, BOSS_ART as u8] {
+            let mut f = Field::new(9, Config { monsters: 400, threads: 1 });
+            join(&mut f, 1, 0, FIELD / 2, FIELD / 2);
+            f.summon_boss(which, 2_000_000, FIELD / 2 + 90 * SUB, FIELD / 2);
+            f.step(&[0u16]);
+            let (bx, by) = f.boss_pos().unwrap();
+            let buf = DrawState::default().monsters(&f, view(FIELD / 2, FIELD / 2));
+            let want = if usize::from(which) < BOSS_ART { MONSTER_FRAMES + usize::from(which) } else { usize::from(BOSSES[which as usize].carrier) };
+            assert_eq!(entry_at(&buf, bx, by), Some(want));
+        }
     }
 }
