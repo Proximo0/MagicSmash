@@ -19,6 +19,8 @@ pub struct GatewayClient {
     pub peer_ip: String,
     /// Microseconds each `call` took from sending to its reply (the LAN rehearsal's round trips).
     pub rtts_us: Vec<u32>,
+    /// How long `call` waits for its reply (30 s; tests shorten it with `set_call_deadline`).
+    call_deadline: Duration,
 }
 
 impl GatewayClient {
@@ -37,7 +39,13 @@ impl GatewayClient {
     pub fn connect_with(addr: &str, tls: Option<&Arc<ClientConfig>>) -> std::io::Result<GatewayClient> {
         let stream = ClientStream::connect(addr, tls)?;
         let peer_ip = stream.tcp().peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();
-        Ok(GatewayClient { stream, buf: Vec::new(), tag: 0, pushes: VecDeque::new(), peer_ip, rtts_us: Vec::new() })
+        Ok(GatewayClient { stream, buf: Vec::new(), tag: 0, pushes: VecDeque::new(), peer_ip, rtts_us: Vec::new(), call_deadline: Duration::from_secs(30) })
+    }
+
+    /// Test hook: how long `call` waits for a reply before `TimedOut` (default 30 s).
+    #[doc(hidden)]
+    pub fn set_call_deadline(&mut self, d: Duration) {
+        self.call_deadline = d;
     }
 
     /// Reads what has arrived, waiting at most `wait`; `Ok(false)` when the server closed the connection.
@@ -82,7 +90,7 @@ impl GatewayClient {
         let sent = Instant::now();
         let (t, body) = req.encode();
         self.stream.write_all(&frame(t, tag, &body))?;
-        let deadline = Instant::now() + Duration::from_secs(30);
+        let deadline = Instant::now() + self.call_deadline;
         loop {
             while let Some((t, got, body)) = self.next_frame()? {
                 let r = Resp::decode(t, &body).ok_or_else(|| std::io::Error::new(ErrorKind::InvalidData, "unreadable reply"))?;
