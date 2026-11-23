@@ -1,0 +1,1 @@
+2026-11-23T11:24:40Z PASS id=261123000432-1582 kind=shell secs=70 blender version=5.0.1 human_verts=19158 bones=53 render_s=1.7 mpfb=650c5c5 archive_checksum=installed gpu=[NVIDIA GeForce RTX 5050 Laptop GPU] at=/c/Program Files/Blender Foundation/Blender 5.0/blender.exe
