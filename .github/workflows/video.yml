@@ -48,6 +48,6 @@ jobs:
           path: out
       - name: push to the branch video-out
         run: |
-          cd out && rm -f list.txt && git init -q -b video-out && git add -A
+          cd out && rm -f list.txt clip*.mp4 && git init -q -b video-out && git add -A
           git -c user.name=video -c user.email=video@users.noreply.github.com commit -qm "gameplay clips of ${GITHUB_SHA::7}"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" video-out
