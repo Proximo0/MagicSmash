@@ -1,0 +1,1 @@
+2026-11-23T17:09:45Z PASS id=261123112128-2211 kind=shell secs=10810 world secs=10800 WORLD ok days=7.00 secs=10803 heroes=200 cycles=29461 outings=29461 vault_runs=694 vault_joins=690 queued=28065 queue_max=140 admitted=28017 copies_opened=32 merges=31 moved=322 moved_bots=0 peak_copies=9 peak_heroes=1
