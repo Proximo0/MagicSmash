@@ -230,6 +230,30 @@ q_run() {
   if declare -F step_run >/dev/null; then step_run "$f" "$@"; return $?; fi
   "$@" >"$f" 2>&1
 }
+fail_detail() {  # stdin = a check's output; one compact line (about 600 characters) naming the failed tests and each first panic
+  tr -d '\r' | awk '
+    /^test .* \.\.\. FAILED/ { n = $2; if (!(n in seen)) { seen[n] = 1; names = names (names ? " " : "") n } }
+    /^---- .* stdout ----/ { n = $2; if (!(n in seen)) { seen[n] = 1; names = names (names ? " " : "") n } }
+    /to rerun pass/ { r = $0; sub(/.*to rerun pass `/, "", r); sub(/`.*/, "", r); rerun = r }
+    /^(REALM|STORE) failed:/ { fin = $0 }
+    want { m = $0; sub(/^ +/, "", m); panics = panics " " where ": " m ";"; want = 0; next }
+    /panicked at / {
+      if (np >= 3) next; np++
+      t = $0; w = $0; sub(/.*panicked at /, "", w)
+      c = substr(w, 1, 1)
+      if (c == sprintf("%c", 39) || c == "\"") {   # old style: panicked at (quote)msg(quote), file:line:col
+        f = w; sub(/.*, /, "", f); m = w; sub(/, [^ ]+$/, "", m); panics = panics " " f ": " m ";"
+      } else { sub(/:$/, "", w); sub(/:[0-9]+$/, "", w); where = w; want = 1 }
+    }
+    END {
+      o = ""
+      if (names != "") o = "failed tests: " names
+      if (panics != "") o = o (o ? " | " : "") "panic:" panics
+      if (rerun != "") o = o (o ? " | " : "") "rerun " rerun
+      if (fin != "") o = o (o ? " | " : "") fin
+      if (o != "") print o
+    }' | tr '\n' ' ' | cut -c1-600
+}
 q_tail() { tail -3 "$1" | tr -d '\r' | tr '\n' ' ' | cut -c1-1500; }   # a failure's last lines: long enough to hold the cause
 
 qk_fuzz() {  # args: seeds=A-B ops=N kills=N. realm-store fuzz per seed.

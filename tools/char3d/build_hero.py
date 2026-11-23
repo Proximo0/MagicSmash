@@ -310,6 +310,69 @@ KITS = {
         extras=["capirote", "skirt", "cross"], capirote=(0.22, 0.015, 0.02), skirt=(0.22, 0.015, 0.02), skirt_to=0.1,
         weapons={"2H_Staff": ("hand_r", (0.6, 0.6, 0.8))},
     ),
+    # ---- the last humanoids: marsh brute, peaks, world's edge ----
+    "corpse_barge": dict(
+        skin={"*": (0.36, 0.42, 0.3), "belly": (0.46, 0.5, 0.34), "chest": (0.42, 0.46, 0.32), "hand": (0.2, 0.26, 0.2), "foot": (0.2, 0.26, 0.2)},
+        bulk={"spine_01": 1.7, "spine_02": 1.35},
+        shells=[
+            (["hips", "thigh"], 0.05, (0.1, 0.09, 0.07), 0.0, "kilt"),
+            (["chest"], 0.035, (0.16, 0.13, 0.08), 0.0, "strap"),
+            (["belly"], 0.05, STRAW, 0.0, "belt"),
+        ],
+        extras=["face", "noose"], weapons={},
+    ),
+    "cliff_harpy": dict(
+        skin={"*": (0.5, 0.4, 0.38), "lowerarm": (0.2, 0.16, 0.14), "hand": (0.1, 0.08, 0.07), "calf": (0.5, 0.4, 0.12), "foot": (0.5, 0.4, 0.12)},
+        shells=[
+            (["chest", "belly", "hips"], 0.03, (0.24, 0.18, 0.15), 0.0, None),
+            (["thigh"], 0.04, (0.2, 0.15, 0.12), 0.0, None),
+        ],
+        extras=["wings", "hair", "face"], wing=(0.36, 0.26, 0.2), wing_tip=(0.55, 0.47, 0.38), brow=(0.06, 0.05, 0.05), jaw=(0.5, 0.4, 0.12), hair=(0.06, 0.05, 0.05),
+        weapons={},
+    ),
+    "stone_anchorite": dict(
+        skin={"*": (0.3, 0.3, 0.28), "head": (0.38, 0.38, 0.35), "hand": (0.22, 0.22, 0.2)},
+        bulk={"spine_02": 1.4, "spine_01": 1.2},
+        shells=[
+            (["chest", "belly", "hips", "upperarm"], 0.035, (0.2, 0.19, 0.17), 0.0, None),
+            (["belly"], 0.05, STRAW, 0.0, "belt"),
+            (["lowerarm", "calf"], 0.04, (0.36, 0.36, 0.33), 0.0, None),
+        ],
+        extras=["pauldrons", "hood", "skirt", "face"], pauldron=((0.4, 0.4, 0.37), 0.15, False), brow=(0.12, 0.12, 0.11), jaw=(0.2, 0.2, 0.18),
+        hood=(0.2, 0.19, 0.17), skirt=(0.2, 0.19, 0.17), skirt_to=0.15,
+        weapons={"Spike_Shield": ("hand_l", (0.6, 0.6, 0.64)), "1H_Sword": ("hand_r", (0.5, 0.5, 0.6), "hammer")},
+    ),
+    "hollow_angel": dict(
+        skin={"*": (0.5, 0.5, 0.52), "head": (0.015, 0.015, 0.02), "neck": (0.015, 0.015, 0.02)},
+        shells=[
+            (["chest", "belly", "hips", "upperarm"], 0.03, (0.46, 0.45, 0.42), 0.0, None),
+            (["belly"], 0.045, (0.5, 0.38, 0.1), 1.0, "belt"),
+        ],
+        extras=["wings", "halo", "hood", "skirt"], wing=(0.42, 0.42, 0.44), wing_tip=(0.16, 0.16, 0.18), halo=(0.75, 0.55, 0.12),
+        hood=(0.46, 0.45, 0.42), skirt=(0.46, 0.45, 0.42), skirt_to=0.1,
+        weapons={"1H_Sword": ("hand_r", (0.5, 0.6, 0.74))},
+    ),
+    "flesh_choir": dict(
+        skin={"*": (0.5, 0.2, 0.18), "head": (0.6, 0.4, 0.36), "belly": (0.56, 0.26, 0.22), "hand": (0.3, 0.1, 0.1)},
+        bulk={"spine_01": 1.35, "spine_02": 1.4},
+        shells=[
+            (["hips", "thigh"], 0.04, (0.2, 0.05, 0.06), 0.0, "kilt"),
+            (["chest"], 0.03, (0.25, 0.07, 0.07), 0.0, "strap"),
+        ],
+        extras=["heads", "face", "skirt"], heads=(0.6, 0.4, 0.36), brow=(0.3, 0.1, 0.1), jaw=(0.06, 0.0, 0.0), skirt=(0.2, 0.05, 0.06), skirt_to=0.25,
+        weapons={},
+    ),
+    "the_unmade": dict(
+        skin={"*": (0.05, 0.03, 0.08), "head": (0.1, 0.05, 0.14), "hand": (0.45, 0.12, 0.03), "lowerarm": (0.16, 0.05, 0.1), "foot": (0.02, 0.01, 0.03)},
+        bulk={"spine_02": 1.5, "spine_01": 1.15},
+        shells=[
+            (["chest"], 0.04, (0.45, 0.12, 0.03), 0.0, "strap"),
+            (["hips", "thigh"], 0.04, (0.02, 0.01, 0.03), 0.0, "kilt"),
+            (["calf"], 0.04, (0.12, 0.1, 0.12), 1.0, None),
+        ],
+        extras=["pauldrons", "horns", "face"], pauldron=((0.12, 0.1, 0.12), 0.16, True), brow=(0.02, 0.01, 0.03), jaw=(0.45, 0.12, 0.03),
+        weapons={},
+    ),
     "orc": dict(
         skin={"*": (0.1, 0.2, 0.06), "head": (0.13, 0.25, 0.07)},
         bulk={"spine_02": 1.3, "head": 1.0},
@@ -549,7 +612,7 @@ if "face" in ex:                                 # features that survive at 8 px
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
     eye_z = c.z + half.z * 0.1
-    o = prim("cube", "brow", (0.03, 0.07, 0.02))
+    o = prim("cube", "brow", kit.get("brow", (0.03, 0.07, 0.02)))
     hang(o, "head", trs(Vector((0, lo.y + half.y * 0.42, eye_z + half.z * 0.2)), (10, 0, 0), (half.x * 1.04, half.y * 0.5, half.z * 0.1)))
     for sg in (1, -1):
         o = prim("sphere", "eye%d" % sg, (1.0, 0.25, 0.05))
@@ -559,7 +622,7 @@ if "face" in ex:                                 # features that survive at 8 px
         hang(o, "head", trs(Vector((sg * half.x * 0.78, lo.y + half.y * 0.5, eye_z)), (0, 0, 0), (half.x * 0.3, half.y * 0.22, half.z * 0.11)))
         e = prim("cone", "ear%d" % sg, kit["skin"].get("head", kit["skin"]["*"]))
         hang(e, "head", trs(Vector((sg * half.x * 1.1, c.y + half.y * 0.25, eye_z + half.z * 0.05)), (-55, sg * 25, 0), (half.x * 0.16, half.y * 0.1, half.z * 0.34)))
-    o = prim("cube", "jaw", (0.07, 0.15, 0.04))
+    o = prim("cube", "jaw", kit.get("jaw", (0.07, 0.15, 0.04)))
     hang(o, "head", trs(Vector((0, lo.y + half.y * 0.3, c.z - half.z * 0.5)), (0, 0, 0), (half.x * 0.8, half.y * 0.5, half.z * 0.2)))
 if "tusks" in ex:
     lo, hi = bbox(["head"])
@@ -646,6 +709,28 @@ if "quiver" in ex:
     hang(o, "spine_03", trs(Vector((-0.07 * S, back_y + 0.05 * S, marks["chest"] - 0.02 * S)), (0, 28, 0), (0.05 * S, 0.05 * S, 0.24 * S)))
     o = prim("cone", "arrows", BONE, 0.0, r2=0.9)
     hang(o, "spine_03", trs(Vector((-0.2 * S, back_y + 0.05 * S, marks["chest"] + 0.23 * S)), (0, 28, 0), (0.04 * S, 0.04 * S, 0.05 * S)))
+if "wings" in ex:                               # two feathered wings from the shoulder blades, swept up and back
+    back_y = max((body.matrix_world @ v.co).y for v, r in zip(body.data.vertices, regs) if r == "chest")
+    top = bw("neck_01").z - 0.06 * S
+    for sg in (1, -1):
+        for part, col, sc, rot, off in (("wing", kit["wing"], (0.3, 0.06, 0.6), (30, sg * 40, sg * 20), (0.28, 0.16, 0.22)),
+                                        ("wingtip", kit["wing_tip"], (0.2, 0.05, 0.6), (30, sg * 95, sg * 20), (0.75, 0.3, 0.02))):
+            o = prim("cone", "%s%d" % (part, sg), col)
+            hang(o, "spine_03", trs(Vector((sg * off[0] * S, back_y + off[1] * S, top + off[2] * S)), rot, tuple(k * S for k in sc)))
+if "halo" in ex:                                # a dull gold disc standing behind the head
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "halo", kit["halo"], 1.0, r2=1.0)
+    hang(o, "head", trs(Vector((0, hi.y + half.y * 0.5, c.z + half.z * 0.5)), (90, 0, 0), (half.x * 1.9, half.x * 1.9, 0.012 * S)))
+if "heads" in ex:                               # the choir: two more heads on the shoulders, mouths open
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    for sg in (1, -1):
+        o = prim("sphere", "head%d" % sg, kit["heads"])
+        at = Vector((sg * half.x * 2.3, c.y + half.y * 0.1, lo.z - half.z * 0.1))
+        hang(o, "spine_03", trs(at, (0, 0, 0), (half.x * 0.8, half.y * 0.85, half.z * 0.85)))
+        o = prim("sphere", "mouth%d" % sg, (0.03, 0.0, 0.0))
+        hang(o, "spine_03", trs(at + Vector((0, -half.y * 0.75, -half.z * 0.25)), (0, 0, 0), (half.x * 0.32, half.y * 0.2, half.z * 0.36)))
 if "cape" in ex:
     o = prim("grid", "cape", kit["cape"])
     back_y = max((body.matrix_world @ v.co).y for v, r in zip(body.data.vertices, regs) if r == "chest")

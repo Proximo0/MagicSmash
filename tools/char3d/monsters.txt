@@ -16,3 +16,9 @@ bone_piper Mage Idle:4,Walking_B:8,Spellcast_Raise:8,Hit_A:4,Death_B:8
 frost_revenant Knight Idle:4,Walking_C:8,2H_Melee_Attack_Chop:8,Hit_A:4,Death_A:8
 ash_legionary Knight Idle:4,Walking_A:8,1H_Melee_Attack_Chop:8,Hit_A:4,Death_B:8
 blood_priest Mage Idle:4,Walking_B:8,Spellcast_Raise:8,Hit_A:4,Death_A:8
+corpse_barge Barbarian Idle:4,Walking_C:8,Unarmed_Melee_Attack_Punch_B:8,Hit_A:4,Death_B:8 ORTHO=3.6
+cliff_harpy Rogue Idle:4,Walking_A:8,Unarmed_Melee_Attack_Punch_A:8,Hit_A:4,Death_A:8
+stone_anchorite Knight Idle:4,Walking_C:8,1H_Melee_Attack_Chop:8,Hit_A:4,Death_B:8 ORTHO=3.7
+hollow_angel Knight Idle:4,Walking_A:8,1H_Melee_Attack_Slice_Diagonal:8,Hit_A:4,Death_A:8 ORTHO=4.3
+flesh_choir Mage Idle:4,Walking_C:8,Spellcast_Raise:8,Hit_A:4,Death_B:8 ORTHO=3.9
+the_unmade Barbarian Idle:4,Walking_C:8,Unarmed_Melee_Attack_Punch_A:8,Hit_A:4,Death_A:8 ORTHO=3.5

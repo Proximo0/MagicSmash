@@ -11,7 +11,7 @@ const STRIDE: int = 16
 ## Clear texels around each picture, so smoothed sampling does not bleed in a neighbour.
 const PAD: int = 1
 ## The shader's entry table size (figures.gdshader MAX_FRAMES).
-const MAX_FRAMES: int = 64
+const MAX_FRAMES: int = 256
 ## A shelf of the atlas is at most this wide (a texture is at most 16,384 px a side).
 const ATLAS_W: int = 4096
 ## The item's culling rectangle is not computed from the buffer: cover the whole field and beyond.
@@ -53,10 +53,24 @@ static func layout(sizes: Array[Vector2i], max_w: int = ATLAS_W) -> Dictionary:
 ## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px), `fps` (frames a second, 8). `z` is the draw layer.
 ## The atlas is one texture of shelves (see `layout`), so 42 strips of 8 frames of 150 x 93 fit. `bob_stills`: a
 ## moving figure with a still picture bobs (the players' batch); the monsters' does not.
-func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = true) -> void:
+## `strips`: also pack each entry's `atk`, `hit` and `die` strips (`atk_n` etc. frames) as extra entries after the
+## main ones, entry `entries.size() + 3 * kind + (0 atk, 1 hit, 2 die)`, where the shader finds them by the
+## instance's state; a missing strip is an entry of anims 0 (the shader falls back to the walk strip).
+func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = true, strips: bool = false) -> void:
 	var cell := Vector2i.ZERO
+	var all: Array[Dictionary] = entries.duplicate()
+	if strips:
+		for e in entries:
+			for suffix in ["atk", "hit", "die"]:
+				if e.has(suffix):
+					all.append({"tex": e[suffix], "anim": int(e[suffix + "_n"]), "scale": e["scale"], "fps": e["fps"]})
+				else:
+					all.append({})
 	var sizes: Array[Vector2i] = []
-	for e in entries:
+	for e in all:
+		if e.is_empty():
+			sizes.append(Vector2i.ZERO)
+			continue
 		var t: Texture2D = e["tex"]
 		cell = cell.max(Vector2i(t.get_width() / int(e["anim"]), t.get_height()))
 		sizes.append(Vector2i(t.get_width(), t.get_height()))
@@ -73,19 +87,23 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 	scales.resize(MAX_FRAMES)
 	var rates := PackedFloat32Array()
 	rates.resize(MAX_FRAMES)
-	anims.fill(1.0)
 	scales.fill(1.0)
 	rates.fill(FieldArt.WALK_FPS)
+	anims.fill(0.0 if strips else 1.0)
 	for i in entries.size():
-		var src: Image = (entries[i]["tex"] as Texture2D).get_image()
+		anims[i] = 1.0
+	for i in all.size():
+		if all[i].is_empty():
+			continue
+		var src: Image = (all[i]["tex"] as Texture2D).get_image()
 		src.convert(Image.FORMAT_RGBA8)
 		var at: Vector2i = places[i]
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), at)
-		var n: int = int(entries[i]["anim"])
+		var n: int = int(all[i]["anim"])
 		rects[i] = Vector4(at.x, at.y, src.get_width() / n, src.get_height())
 		anims[i] = float(n)
-		scales[i] = float(entries[i]["scale"])
-		rates[i] = float(entries[i].get("fps", FieldArt.WALK_FPS))
+		scales[i] = float(all[i]["scale"])
+		rates[i] = float(all[i].get("fps", FieldArt.WALK_FPS))
 	img.generate_mipmaps()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(cell)
@@ -95,6 +113,7 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 	material.set_shader_parameter("bob_stills", 1.0 if bob_stills else 0.0)
 	material.set_shader_parameter("cell", Vector2(cell))
 	material.set_shader_parameter("atlas", Vector2(atlas_size))
+	material.set_shader_parameter("extra_base", entries.size() if strips else 0)
 	material.set_shader_parameter("rects", rects)
 	material.set_shader_parameter("anims", anims)
 	material.set_shader_parameter("scales", scales)

@@ -87,7 +87,12 @@ func _check_reads() -> void:
 
 ## Called on the frames after the whole-field view was set: the buffers then cover everything.
 func _verify_whole() -> void:
-	var drawn: int = _link.monster_buffer().size() / 16
+	# The dead stay in the buffer as ghosts on their death strip (state 3 in float 14, draw.rs): only the living count.
+	var buf: PackedFloat32Array = _link.monster_buffer()
+	var drawn: int = 0
+	for i in range(0, buf.size(), 16):
+		if floori((buf[i + 14] + 0.5) / 64.0) != 3:
+			drawn += 1
 	if drawn != _link.monster_count():
 		_problems.append("monster_buffer drew %d of %d" % [drawn, _link.monster_count()])
 	var others: int = _link.player_buffer().size() / 16
