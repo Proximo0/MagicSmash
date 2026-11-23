@@ -54,7 +54,7 @@ func _art() -> void:
 	var novice: Dictionary = FieldArt.hero_entry(0, 0)
 	_check(novice["art"] == "walk", "human novice is a walk strip")
 	_check(int(FieldArt.art_summary(heroes)["walk"]) == 24, "all 24 heroes have walk strips")
-	var old_style: Dictionary = FieldArt.entry_for("enemy_guard")
+	var old_style: Dictionary = FieldArt.entry_for("ground_0a", "res://ground")
 	_check(not old_style.has("atk_n") and old_style["art"] == "still", "art without strips keeps the old defaults")
 	var scare: Dictionary = FieldArt.entry_for(FieldArt.kind_key("scarecrow"))
 	_check(scare["art"] == "walk" and int(scare["anim"]) == 8 and is_equal_approx(float(scare["fps"]), 12.0), "the scarecrow is an 8-frame walk strip at 12 fps")
