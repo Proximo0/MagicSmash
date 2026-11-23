@@ -79,11 +79,11 @@ func _draw_hero() -> void:
 	var t: float = 0.0
 	if strip != null:
 		tex = strip
-		n = 1 if state == FieldAnim.HIT else FieldAnim.ATK_FRAMES
+		n = int(hero_entry.get("hit_n", 1)) if state == FieldAnim.HIT else int(hero_entry.get("atk_n", FieldAnim.ATK_FRAMES))
 		if state == FieldAnim.ATTACK:
 			t = now - atk_at
 		elif state == FieldAnim.DIE:
-			n = FieldAnim.DIE_FRAMES
+			n = int(hero_entry.get("die_n", FieldAnim.DIE_FRAMES))
 			t = now - died_at
 	var fw: float = float(tex.get_width()) / float(n)
 	var step: int = 0

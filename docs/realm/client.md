@@ -40,12 +40,10 @@ server (UDP) -> worker thread (realm/godot/src/worker.rs)          main thread (
 - **The 42 kinds, by name.** `FieldArt` loads `enemy_<kind>.png` (the core's name with underscores:
   `enemy_plague_rat.png`), `hero_<race>_<class>.png` (class: novice knight mage archer priest paladin) and
   `<name>_walk.png` (four frames side by side, drawn at 0.5, 2 texture px per world px) from `realm/client/art/`,
-  strips first, then stills, then stand-ins. In this commit: the Tower's 8 monster stills; hero stills for 5 classes
-  x 4 races and walk strips for six heroes (human and elf novice, human, elf, dwarf and orc knight, copied from the
-  finished set); 34 monster kinds and 2 hero slots are stand-ins. A monster stand-in is flat, drawn in code: its
+  strips first, then stills, then stand-ins. In this commit: the Tower's 8 monster stills; all 24 heroes are the char3d sprite sets (`tools/char3d/import_heroes.py`: 8 walk frames at 12 fps, `_atk` 8, `_hit` 4, `_die` 8, a still; scale 0.4667 in the sidecar, so a human is 28 world px tall as before; the frame is centred on the body and its bottom edge is the feet, as `RealmLayer._draw_hero` draws it). The sidecar `<name>_walk.json` may also say `atk_frames`, `hit_frames`, `die_frames` (defaults 3, 1, 3, so monsters are unchanged); 34 monster kinds are stand-ins. A monster stand-in is flat, drawn in code: its
   field's colour, its size from its health (14 to 34 px, `sqrt(health) * 1.2 + 14`), and a mark per behaviour
   (bursters orange belly, spitters and lobbers an open mouth, runners lean, brutes broad, shielded ones a grey plate,
-  casters a pale crown). A hero with no picture borrows her race's knight (a dwarf or orc NOVICE today). Dropping a
+  casters a pale crown). A hero with no picture borrows her race's knight. Dropping a
   file with the right name into `art/` is all a new picture needs. The shader takes a per-entry frame count and scale
   (`figures.gdshader`): a moving figure with a strip steps through four frames at 8 a second, a still one bobs.
 - **Skills and effects for every class** (`FieldFx`, from effect rows the worker builds, `frame.rs`): the weapon of

@@ -17,3 +17,8 @@ animations, every hero is the same body dressed differently.
 race. About 20 s a hero on a cloud CPU. Never name a script `inspect.py` next to bpy.
 
 Before showing or importing: zoom in and count arms, hands, legs and feet in every strip.
+
+**Import into the game**: `python3 tools/char3d/import_heroes.py <heroes24 dir> realm/client/art` crops every frame of a
+hero with one shared box (symmetric about the body centre, bottom edge 1 px under the feet, no resampling) and writes
+`hero_<race>_<class>_walk|atk|hit|die.png`, a still and `_walk.json` (frame counts, 12 fps, scale 0.4667). Godot makes the
+`.import` files the first time the editor opens the folder.
