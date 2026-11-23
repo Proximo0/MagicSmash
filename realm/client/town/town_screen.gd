@@ -7,7 +7,13 @@ extends UiScreen
 
 const ZOOM: float = 1.5
 const SNAP_S: float = 0.1
-const HERO_BOX: float = 40.0
+const HERO_BOX: float = 64.0
+## World px per px of a station's picture: the heroes' (HERO_BOX over the 142 px hero frame), so every pixel in the
+## town is the same size and a building stands as tall against a hero as the art was made to.
+const PIC_K: float = HERO_BOX / 142.0
+## A picture's bottom edge lies this far south of the station's point (world px); the hearth's likewise.
+const PIC_BASE: float = 24.0
+const HEARTH_BASE: float = 34.0
 const CHAT_LINES: int = 7
 const CHAT_SHOW_S: float = 25.0
 const SAY_S: float = 6.0
@@ -35,6 +41,8 @@ var stations: Array[Dictionary] = []
 ## Which floor of her house is drawn (0 or 1).
 var floor_no: int = 0
 var _rest_poll: float = 0.0
+## The plaza's cobbles (tools/ground/ground.py `town`), a child drawn behind this screen's own drawing.
+var _soil: FieldGround = null
 
 
 func opened() -> void:
@@ -42,6 +50,13 @@ func opened() -> void:
 	var t: Dictionary = shell.town
 	stations = HomeMap.stations_for(shell.place, shell.street_plots)
 	size_px = float(t.get("size", 4096))
+	if int(shell.place[0]) == HomeMap.PLAZA:
+		_soil = FieldGround.new()
+		_soil.show_behind_parent = true
+		add_child(_soil)
+		_soil.set_town(size_px)
+		_soil.scale = Vector2(ZOOM, ZOOM)
+		_soil.set_scale_px(ZOOM)
 	me = int(t.get("me", -1))
 	for m in t.get("members", []):
 		_add_member(m)
@@ -102,6 +117,8 @@ func _process(delta: float) -> void:
 	_send_direction()
 	_prompt = TownMap.near(shown(me), TownMap.USE_PX, stations) if members.has(me) else {}
 	_poll_rest(delta)
+	if _soil != null:
+		_soil.position = w2s(Vector2.ZERO)
 
 
 func _send_direction() -> void:
@@ -136,7 +153,19 @@ func _hash(x: int, y: int) -> int:
 	return absi(h) & 0xFFFF
 
 
+## True when the plaza stands on its cobble tiles (they are there and loaded); else the flat tiles below are drawn.
+func _cobbled() -> bool:
+	return _soil != null and _soil.field == FieldGround.TOWN and int(shell.place[0]) == HomeMap.PLAZA
+
+
 func _ground() -> void:
+	if _cobbled():
+		# The plaza's edge over the cobbles, then the rim of the square.
+		draw_arc(w2s(TownMap.CENTRE), TownMap.PLAZA_R * ZOOM, 0.0, TAU, 160, Color(0, 0, 0, 0.5), 6.0)
+		draw_arc(w2s(TownMap.CENTRE), (TownMap.PLAZA_R - 5.0) * ZOOM, 0.0, TAU, 160, Color(UiKit.GOLD_DIM, 0.3), 1.5)
+		draw_rect(Rect2(w2s(Vector2.ZERO), Vector2(size_px, size_px) * ZOOM), UiKit.BLOOD, false, 3.0)
+		_hearth()
+		return
 	draw_rect(Rect2(0, 0, UiKit.W, UiKit.H), Color(0.04, 0.035, 0.045))
 	var half := Vector2(UiKit.W, UiKit.H) / (2.0 * ZOOM)
 	var tile: int = 64
@@ -177,8 +206,20 @@ func _ground() -> void:
 	# The hearth in the middle of the plaza.
 	if int(shell.place[0]) != HomeMap.PLAZA:
 		return
+	_hearth()
+
+
+## The hearth: its picture on the plaza's middle (a warm glow round it, breathing with the fire), else a few circles.
+func _hearth() -> void:
 	var hc: Vector2 = w2s(TownMap.CENTRE)
 	var fl: float = 0.85 + 0.15 * sin(_clock * 8.0)
+	if UiArt.has_file("town_hearth"):
+		draw_circle(hc, 150.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.05))
+		draw_circle(hc, 95.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.06))
+		var tex: Texture2D = UiArt.texture("town_hearth", 96)
+		var hs: Vector2 = tex.get_size() * PIC_K * ZOOM
+		draw_texture_rect(tex, Rect2(Vector2(hc.x - hs.x / 2.0, hc.y + HEARTH_BASE * ZOOM - hs.y), hs), false)
+		return
 	draw_circle(hc, 44.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.07))
 	draw_circle(hc, 20.0 * ZOOM, Color(0.1, 0.08, 0.08))
 	draw_arc(hc, 20.0 * ZOOM, 0.0, TAU, 24, UiKit.GOLD_DIM, 1.5)
@@ -191,15 +232,20 @@ func _stations() -> void:
 		var at: Vector2 = s["at"]
 		var sz: Vector2 = (s["size"] as Vector2) * ZOOM
 		var c: Vector2 = w2s(at)
-		if c.x < -200 or c.x > UiKit.W + 200 or c.y < -200 or c.y > UiKit.H + 200:
+		if c.x < -400 or c.x > UiKit.W + 400 or c.y < -400 or c.y > UiKit.H + 400:
 			continue
 		var r := Rect2(c - sz / 2.0, sz)
 		var id: String = "st:" + String(s["id"])
-		hit(id, r)
 		var near_it: bool = not _prompt.is_empty() and _prompt["id"] == s["id"]
 		if UiArt.has_file("town_" + String(s["id"])):
-			draw_texture_rect(UiArt.texture("town_" + String(s["id"]), 96), r, false)
+			# The picture at its own size (a pixel as big as a hero's), standing on the station's point.
+			var tex: Texture2D = UiArt.texture("town_" + String(s["id"]), 96)
+			var ps: Vector2 = tex.get_size() * PIC_K * ZOOM
+			r = Rect2(Vector2(c.x - ps.x / 2.0, c.y + PIC_BASE * ZOOM - ps.y), ps)
+			hit(id, r)
+			draw_texture_rect(tex, r, false, Color(1.3, 1.25, 1.15) if (near_it or hover_id == id) else Color.WHITE)
 		else:
+			hit(id, r)
 			var col: Color = s["col"]
 			draw_rect(r, col.darkened(0.55))
 			draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.34)), col)

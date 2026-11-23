@@ -67,6 +67,8 @@ for a, fr in rows.items():
     Image.fromarray(strip).save(os.path.join(out, "%s_%s.png" % (name, a.lower())))
     info[a] = {"frames": len(fs), "frame_px": list(fs[0].shape[:2][::-1]), "colours": len(np.unique(strip.reshape(-1, 4), axis=0))}
 json.dump(info, open(os.path.join(out, name + ".json"), "w"), indent=1)
+if os.environ.get("NOSHEET"):                                        # build_town.py: one still, not square, no sheet
+    sys.exit(0)
 sc = 6
 strips = {a: np.asarray(Image.open(os.path.join(out, "%s_%s.png" % (name, a.lower())))) for a in info}
 fw = next(iter(info.values()))["frame_px"][0]
