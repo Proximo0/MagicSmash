@@ -17,8 +17,12 @@ const ATLAS_W: int = 4096
 ## The item's culling rectangle is not computed from the buffer: cover the whole field and beyond.
 const FIELD_RECT: Rect2 = Rect2(-512, -512, 17408, 17408)
 const SHADER: Shader = preload("res://figures.gdshader")
+const SHADOW_SHADER: Shader = preload("res://figures_shadow.gdshader")
 
 var material: ShaderMaterial = ShaderMaterial.new()
+## The blob shadow's material when some entry hovers, else null (figures_shadow.gdshader); `_shadows` are its nodes.
+var shadow_material: ShaderMaterial = null
+var _shadows: Array[MultiMeshInstance2D] = []
 ## Figures in the last buffer.
 var count: int = 0
 var _nodes: Array[MultiMeshInstance2D] = []
@@ -122,6 +126,14 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 		info[i] = Vector4(anims[i], scales[i], rates[i], float(all[i].get("hover", 0.0)) if i < all.size() else 0.0)
 	material.set_shader_parameter("info", info)
 	var tex := ImageTexture.create_from_image(img)
+	var floats: bool = false
+	for i in entries.size():
+		floats = floats or float(entries[i].get("hover", 0.0)) > 0.0
+	if floats:
+		# The same MultiMesh buffers drawn again one layer lower by a shader that squashes the quad to a blob at the feet.
+		shadow_material = ShaderMaterial.new()
+		shadow_material.shader = SHADOW_SHADER
+		shadow_material.set_shader_parameter("info", info)
 	for k in 2:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_2D
@@ -137,6 +149,15 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 		parent.add_child(node)
 		RenderingServer.canvas_item_set_custom_rect(node.get_canvas_item(), true, FIELD_RECT)
 		_nodes.append(node)
+		if floats:
+			var sh := MultiMeshInstance2D.new()
+			sh.multimesh = mm
+			sh.material = shadow_material
+			sh.z_index = z - 1
+			sh.visible = k == _front
+			parent.add_child(sh)
+			RenderingServer.canvas_item_set_custom_rect(sh.get_canvas_item(), true, FIELD_RECT)
+			_shadows.append(sh)
 
 
 ## Takes a buffer from RealmLink (`monster_buffer` or `player_buffer`).
@@ -153,12 +174,17 @@ func fill(buf: PackedFloat32Array) -> void:
 	mm.visible_instance_count = count
 	_nodes[back].visible = true
 	_nodes[_front].visible = false
+	if not _shadows.is_empty():
+		_shadows[back].visible = true
+		_shadows[_front].visible = false
 	_front = back
 
 
 ## 0 at a tick's arrival to 1 a tick later: how far each figure has glided from its previous position.
 func set_blend(a: float) -> void:
 	material.set_shader_parameter("blend", a)
+	if shadow_material != null:
+		shadow_material.set_shader_parameter("blend", a)
 
 
 ## Nearest texels when a picture's texel covers at least a screen pixel, smoothed (mipmaps) when smaller.
