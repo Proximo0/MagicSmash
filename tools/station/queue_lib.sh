@@ -250,8 +250,14 @@ q_run() {
     case " $* " in *=666\ *|*=666) echo "stub failure" >>"$f"; return 1 ;; esac
     return 0
   fi
-  if declare -F step_run >/dev/null; then step_run "$f" "$@"; return $?; fi
-  "$@" >"$f" 2>&1
+  # Windows can refuse to start a program it is still scanning right after a build ("Permission denied", status 126;
+  # seen on the laptop after merges): wait and try again, up to 4 starts.
+  local try rc
+  for try in 1 2 3 4; do
+    if declare -F step_run >/dev/null; then step_run "$f" "$@"; rc=$?; else "$@" >"$f" 2>&1; rc=$?; fi
+    [ "$rc" = 126 ] && [ "$try" -lt 4 ] && grep -q "Permission denied" "$f" 2>/dev/null || return "$rc"
+    echo "queue: could not start $QK (Permission denied), trying again in ${STATION_QUEUE_EXEC_WAIT:-20} s" >&2; sleep "${STATION_QUEUE_EXEC_WAIT:-20}"
+  done
 }
 fail_detail() {  # stdin = a check's output; one compact line (about 600 characters) naming the failed tests and each first panic
   tr -d '\r' | awk '
