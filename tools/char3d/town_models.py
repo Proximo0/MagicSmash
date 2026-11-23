@@ -129,19 +129,26 @@ def trainer():
     prim("box", P["slate"], (-3.0, 2.8, 3.4), (6.0, 3.0, 0.22), rot=(14, 0, 0))
     box(P["wd"], -3.0, 1.45, 3.0, 5.6, 0.25, 0.25)
     point(-3.0, 1.0, 2.2, 260, (1.0, 0.6, 0.3), 0.4)
-    # weapon rack against the back wall
-    box(P["wd"], -4.4, 3.5, 0.12, 0.2, 0.2, 1.7)
-    box(P["wd"], -1.5, 3.5, 0.12, 0.2, 0.2, 1.7)
-    box(P["wd"], -2.95, 3.5, 0.55, 3.0, 0.2, 0.14)
-    box(P["wd"], -2.95, 3.5, 1.35, 3.0, 0.2, 0.14)
-    for k, x in enumerate([-4.0, -3.5, -3.0, -2.5, -2.0]):
-        tilt = (-7, 7, -4, 6, -5)[k]
-        if k in (0, 2, 4):                                            # spears
-            box(P["wl"], x, 3.3, 0.3, 0.09, 0.09, 2.3, rot=(0, tilt, 0))
-            cone(P["steel"], x + math.sin(math.radians(tilt)) * -1.2, 3.3, 2.55, 0.18, 0.5, seg=4)
-        else:                                                         # swords
-            box(P["steel"], x, 3.3, 0.9, 0.12, 0.06, 1.3, rot=(0, tilt, 0))
-            box(P["gold"], x, 3.3, 0.78, 0.4, 0.08, 0.08)
+    # a weapon rack standing in front of the back wall: two tiers, swords, spears and axes, all in the light
+    rx, ry = -3.0, 2.7
+    for x in (-1.8, 1.8):
+        box(P["wd"], rx + x, ry, 0.12, 0.24, 0.24, 2.1)
+    for z in (0.55, 1.5, 2.2):
+        box(P["wd"], rx, ry, z, 3.9, 0.22, 0.16)
+    bright = mat("steel_b", (176, 184, 204), rough=0.35)
+    for k in range(7):
+        x = rx - 1.5 + k * 0.5
+        tilt = (k - 3) * 2.5
+        if k % 3 == 0:                                                # spears
+            box(P["wl"], x, ry - 0.15, 0.3, 0.1, 0.1, 2.3, rot=(0, tilt, 0))
+            cone(bright, x - math.sin(math.radians(tilt)) * 1.1, ry - 0.15, 2.5, 0.24, 0.55, seg=4)
+        elif k % 3 == 1:                                              # swords
+            box(bright, x, ry - 0.15, 0.7, 0.17, 0.06, 1.4, rot=(0, tilt, 0))
+            box(P["gold"], x, ry - 0.15, 0.62, 0.5, 0.09, 0.1)
+            box(P["wd"], x, ry - 0.15, 0.2, 0.1, 0.1, 0.45)
+        else:                                                         # axes
+            box(P["wl"], x, ry - 0.15, 0.3, 0.1, 0.1, 1.7, rot=(0, tilt, 0))
+            box(bright, x + 0.2, ry - 0.15, 1.55, 0.5, 0.08, 0.42)
     for x in (-4.6, -1.3):                                            # shields on the wall
         cyl(P["crim"], x, 3.65, 2.1, 1.0, 0.1, seg=10).rotation_euler = (math.pi / 2, 0, 0)
         sph(P["steel"], x, 3.6, 2.6, 0.3, 0.2, 0.3)
@@ -170,6 +177,13 @@ def trainer():
     for bx, by in [(-4.6, -2.6), (-3.4, -2.8)]:
         box(ds, bx, by, 0.12, 1.1, 0.7, 0.6)
     flame(-5.3, -3.9, 1.62, 0.5)
+    rope = mat("rope", (176, 150, 100))
+    for k in range(6):                                                # sparring ring
+        a0, a1 = k * math.tau / 6, (k + 1) * math.tau / 6
+        px0, py0 = 0.2 + 1.7 * math.cos(a0), -1.9 + 1.2 * math.sin(a0)
+        px1, py1 = 0.2 + 1.7 * math.cos(a1), -1.9 + 1.2 * math.sin(a1)
+        box(P["wd"], px0, py0, 0.12, 0.2, 0.2, 1.0)
+        prim("box", rope, ((px0 + px1) / 2, (py0 + py1) / 2, 0.85), (math.hypot(px1 - px0, py1 - py0), 0.07, 0.07), rot=(0, 0, math.degrees(math.atan2(py1 - py0, px1 - px0))))
     return dict(res=(1700, 1000), cz=2.0, turn=32, amb=0.8)
 
 
@@ -420,13 +434,25 @@ def market():
         box(P["st"], sx * 6.2, 0, 0.14, 0.7, 4.6, h)
     box(P["sd"], 0, 0, 0.14, 12.0, 4.2, 0.1)
     box(P["sd"], 0, -2.2, 0.14 + h, 13.4, 1.0, 0.35)
-    gable(P["tile"], 0, 0, 0.14 + h + 0.2, 14.0, 6.0, 2.2)
+    gable(mat("tile_m", (40, 22, 30), (76, 40, 46), tex="roof", scale=7.0), 0, 0, 0.14 + h + 0.2, 14.0, 6.0, 2.2)
     box(P["sd"], 0, 0, 0.14 + h + 2.4, 14.2, 0.35, 0.22)
-    # a bell cupola on the ridge
-    box(P["wd"], 0, 0, 6.55, 1.5, 1.5, 0.9)
-    box(P["black"], 0, -0.78, 6.75, 0.8, 0.1, 0.55)
-    pyramid(P["slate"], 0, 0, 7.45, 1.9, 1.9, 1.2)
-    box(P["gold"], 0, -0.3, 6.75, 0.3, 0.3, 0.4)
+    # a clock turret on the ridge, a chimney and hanging signs
+    box(P["st"], 0, 0, 6.55, 1.9, 1.9, 1.4)
+    cyl(P["bone"], 0, -0.98, 6.9, 1.1, 0.1, seg=14).rotation_euler = (math.pi / 2, 0, 0)
+    box(P["black"], 0, -1.06, 7.45, 0.08, 0.05, 0.4)
+    box(P["black"], 0.2, -1.06, 7.45, 0.35, 0.05, 0.08)
+    for sx in (-1, 1):
+        box(P["black"], sx * 0.5, -0.9, 7.8, 0.3, 0.08, 0.5)
+    pyramid(P["slate"], 0, 0, 7.95, 2.3, 2.3, 1.5)
+    box(P["gold"], 0, 0, 9.4, 0.14, 0.14, 0.5)
+    box(P["st"], -4.6, 0.8, 5.6, 0.9, 0.9, 1.6)
+    box(P["sd"], -4.6, 0.8, 7.2, 1.2, 1.2, 0.2)
+    for sx, kind in ((-3.6, "coin"), (3.6, "scale")):
+        box(P["iron"], sx, -2.95, 3.55, 0.08, 0.9, 0.08)
+        box(P["iron"], sx, -3.3, 3.0, 0.05, 0.05, 0.55)
+        box(P["wl"], sx, -3.4, 2.1, 1.1, 0.1, 0.95)
+        box(P["gold"], sx, -3.47, 2.2, 0.7, 0.05, 0.7) if kind == "coin" else box(P["bone"], sx, -3.47, 2.2, 0.7, 0.05, 0.7)
+        box(P["crim"], sx, -3.52, 2.45, 0.3, 0.04, 0.3)
     for ax in xs:                                                     # keystones and stalls in the bays
         box(P["sl"], ax, -2.62, 0.14 + 3.2 + 0.1, 0.5, 0.2, 0.6)
         box(P["wd"], ax, -1.5, 0.14, 1.5, 0.7, 1.0)
@@ -521,7 +547,7 @@ def post():
 # ---------------------------------------------------------------- the trade table
 def trade():
     P = palette()
-    cyl(P["fl"], 0, 0, 0, 9.2, 0.14, seg=16)
+    cyl(P["fl"], 0, 0, 0, 10.0, 0.14, seg=16)
     cyl(P["sd"], 0, 0, 0.14, 2.0, 1.0, top=0.8, seg=10)
     cyl(P["sl"], 0, 0, 1.14, 4.0, 0.5, seg=14)
     cyl(P["st"], 0, 0, 1.64, 3.7, 0.12, seg=14)
@@ -534,13 +560,13 @@ def trade():
         box(P["st"], 0, sy * 3.0, 0.59, 3.2, 0.75, 0.2)
     for sx in (-4.0, 4.0):
         pass
-    for px in (-3.5, 3.5):
-        for py in (-3.5, 3.5):
-            box(P["wd"], px, py, 0.14, 0.28, 0.28, 4.0)
+    for px in (-3.3, 3.3):
+        for py in (-3.3, 3.3):
+            box(P["wd"], px, py, 0.14, 0.28, 0.28, 5.2)
     cl1, cl2 = mat("can1", (100, 28, 40)), mat("can2", (46, 40, 60))
-    can = cone(cl1, 0, 0, 4.0, 9.0, 2.2, seg=8, tip=0.02)
+    can = cone(cl1, 0, 0, 5.2, 9.8, 1.9, seg=8, tip=0.02)
     alt_faces(can, cl2, 8)
-    cyl(P["gold"], 0, 0, 6.2, 0.4, 0.4, seg=8, top=0.5)
+    cyl(P["gold"], 0, 0, 7.05, 0.4, 0.4, seg=8, top=0.5)
     # goods on the table
     for gx, gy in [(-1.0, -0.3), (1.0, 0.3)]:
         cyl(P["gold"], gx, gy, 1.76, 0.3, 0.35, top=1.4, seg=8)
@@ -549,11 +575,11 @@ def trade():
     for k, (cx_, cy_) in enumerate([(-0.4, -1.0), (-0.2, -1.1), (-0.3, -0.9)]):
         cyl(P["gold"], cx_, cy_, 1.76 + k * 0.05, 0.3, 0.05, seg=8)
     box(P["bone"], 0.7, -0.9, 1.76, 0.6, 0.45, 0.03, rot=(0, 0, 20))
-    for lx, ly in [(-3.5, -3.7), (3.5, -3.7)]:
-        box(P["iron"], lx, ly + 0.3, 3.2, 0.04, 0.04, 0.8)
-        lantern(lx, ly + 0.25, 2.55, 1.0, 100)
-    point(0, -0.5, 3.2, 500, (1.0, 0.65, 0.3), 0.8)
-    return dict(res=(1250, 1180), cz=3.0, turn=30, amb=0.8)
+    for lx, ly in [(-3.3, -3.3), (3.3, -3.3)]:
+        box(P["iron"], lx, ly + 0.2, 4.4, 0.04, 0.04, 0.8)
+        lantern(lx, ly + 0.2, 3.5, 1.0, 100)
+    point(0, -0.5, 3.4, 600, (1.0, 0.65, 0.3), 0.8)
+    return dict(res=(1400, 1500), cz=3.4, turn=30, amb=0.8)
 
 
 # ---------------------------------------------------------------- the world board
@@ -648,5 +674,20 @@ def trial():
     return dict(res=(2000, 1380), cz=3.6, turn=22, amb=0.75, key=4.4)
 
 
+# ---------------------------------------------------------------- a brazier: a fire to sit at
+def brazier():
+    P = palette()
+    cyl(P["fl"], 0, 0, 0, 2.4, 0.14, seg=10)
+    for k in range(3):
+        a = k * math.tau / 3 + 0.4
+        prim("box", P["iron"], (0.4 * math.cos(a), 0.4 * math.sin(a), 0.4), (0.12, 0.12, 0.8), rot=(0, 0, 0))
+    cyl(P["iron"], 0, 0, 0.75, 1.0, 0.4, top=1.5, seg=9)
+    cyl(P["steel"], 0, 0, 1.12, 1.55, 0.07, seg=9)
+    cyl(mat("embers", (170, 50, 14), emit=1.0), 0, 0, 1.1, 1.25, 0.04, seg=9)
+    flame(0, 0, 1.12, 1.0)
+    point(0, -0.6, 1.8, 200, (1.0, 0.5, 0.2), 0.4)
+    return dict(res=(520, 560), cz=1.3, turn=30, amb=0.7)
+
+
 BUILDERS = {"hearth": hearth, "gate": gate, "trainer": trainer, "bank": bank, "smith": smith, "merchants": merchants,
-            "reader": reader, "market": market, "post": post, "trade": trade, "board": board, "trial": trial}
+            "reader": reader, "market": market, "post": post, "trade": trade, "board": board, "trial": trial, "brazier": brazier}
