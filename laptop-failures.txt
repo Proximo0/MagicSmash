@@ -21,3 +21,4 @@
 2026-11-23T15:30Z laptop queue 2026-11-23T15:29:49Z FAIL id=261123122136-8583 kind=balance secs=67 balance cohorts=8 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
 2026-11-23T15:33Z laptop queue 2026-11-23T15:33:14Z FAIL id=261122113707-1919 kind=package secs=67 package: realm-ops package: timeout: failed to run command ‘realm/target/release/realm-ops.exe’: Permission denied  
 2026-11-23T15:48Z laptop queue 2026-11-23T15:47:54Z FAIL id=261122135940-2187 kind=shell secs=466 wirefuzz iters=2000000 seed=158695 (rerun: WIRE_FUZZ_ITERS=2000000 WIRE_FUZZ_SEED=158695 cargo test --release --lib fuzz in realm/) 
+2026-11-23T16:01Z laptop queue 2026-11-23T16:00:52Z FAIL id=261122113651-9566 kind=soak secs=66 soak seed=241342 secs=1800 timeout: failed to run command ‘realm/target/release/realm-soak’: Permission denied  
