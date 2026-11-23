@@ -1,0 +1,2 @@
+realm-server: udp 7835 field=5 seed=1 bots=300 monsters=8000 rally=300/1000 threads=2
+players x mon thr   tick | tick ms m/p99 |        flow        move        grid       fight       spawn       input        bots       encA0       encA1        encB |  A0 B/s m/p99  A1 B/s m/p99   B B/s m/p99 |  mon view  ply view |  join B |   follow ms | hash
