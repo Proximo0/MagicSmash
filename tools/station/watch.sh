@@ -8,6 +8,7 @@
 # running station pushes it about every half hour, also during a long job); a claim older than
 # STATION_WATCH_CLAIM_S (default 5 h: no job may run longer than STATION_QUEUE_MAX_S, 4 h); a station that reports
 # its hours but has published no result of any kind for STATION_WATCH_IDLE_S (default 5 h) and holds no job.
+# a machine whose last 6 queue result lines (work/*/<machine>.txt) are all FAIL.
 # Machines come from tools/station/roles.txt. STATION_WATCH_NOW=<epoch> replaces the clock (tests).
 set -u
 cd "$(dirname "$0")/../.."
@@ -39,6 +40,11 @@ for m in $machines; do
   if [ -n "$t" ] && [ $((now - t)) -le "$silent" ] && [ $((now - ${w:-0})) -gt "$idle" ] \
     && ! git ls-tree -r --name-only "refs/remotes/origin/$QBRANCH" claims/ 2>/dev/null | grep -q "\.$m\$"; then
     alert "$m is on but has finished no job for $(age $((now - ${w:-0}))) and holds none: its station may be stuck between jobs"
+  fi
+  # Every one of its last 6 queue results FAIL: a broken job spinning (the commit adds one result line each).
+  last6=$(git log -6 --format=%x01 -p -U0 "refs/remotes/origin/$BRANCH" -- ":(glob)work/*/$m.txt" 2>/dev/null | sed -n -E 's/^\+[0-9T:Z-]+ (PASS|FAIL|INFO|SKIP) .*/\1/p')
+  if [ "$(grep -c . <<<"$last6")" -ge 6 ] && [ "$(head -6 <<<"$last6" | grep -vc '^FAIL$')" = 0 ]; then
+    alert "$m: its last 6 queue results are all FAIL: a job may be failing in a loop"
   fi
 done
 

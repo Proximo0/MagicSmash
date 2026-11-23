@@ -4,7 +4,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-export STATION_QUEUE_STUB=1 STATION_QUEUE_RETRY_SLEEP=1 TMPDIR="$T" GIT_TERMINAL_PROMPT=0 STATION_FREE_MB=100000   # the RAM gate sees plenty unless a test says otherwise
+export STATION_QUEUE_FAIL_SLEEP=0 STATION_QUEUE_STUB=1 STATION_QUEUE_RETRY_SLEEP=1 TMPDIR="$T" GIT_TERMINAL_PROMPT=0 STATION_FREE_MB=100000   # the RAM gate sees plenty unless a test says otherwise
 fails=0
 ok() { echo "  ok   $1"; }
 bad() { echo "  FAIL $1"; fails=$((fails + 1)); }
