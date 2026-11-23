@@ -12,7 +12,11 @@ for w in "$@"; do case "$w" in iters=*) iters="${w#iters=}" ;; secs=*) secs="${w
 seed="${STATION_JOB_SEED:-1}"
 re='^[0-9]+$'; [[ "$iters" =~ $re && "$secs" =~ $re && "$tick" =~ $re ]] || { echo "FAIL wirefuzz bad words: iters=$iters secs=$secs"; exit 1; }
 cd "$(dirname "$0")/../../../realm" || { echo "FAIL no realm directory"; exit 1; }
+command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 command -v cargo >/dev/null 2>&1 || { echo "FAIL cargo is not installed"; exit 1; }
+# In a station lane (STATION_BIN set) the tests build into their own target dir, never into realm/target, whose programs the station
+# builds once per commit for every lane. One dir per machine; run it in one lane at a time (max_per_machine=1).
+[ -n "${STATION_BIN:-}" ] && export CARGO_TARGET_DIR="${STATION_TARGETS:-$HOME/station-targets}/wirefuzz"
 tag="wirefuzz iters=$iters seed=$seed"
 rerun="(rerun: WIRE_FUZZ_ITERS=$iters WIRE_FUZZ_SEED=$seed cargo test --release --lib fuzz in realm/)"
 log=$(mktemp); pid=""; t0=$SECONDS

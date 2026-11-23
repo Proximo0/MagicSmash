@@ -31,12 +31,12 @@ done
 ip=$(lan_field ip <"$work/host.txt"); port=$(lan_field tcp_port <"$work/host.txt"); host=$(lan_field machine <"$work/host.txt")
 sed -n '/^-----BEGIN CERTIFICATE-----/,/^-----END CERTIFICATE-----/p' "$work/host.txt" >"$work/host-cert.pem"
 [ -s "$work/host-cert.pem" ] && [ -n "$ip" ] && [ -n "$port" ] || { echo "FAIL lanplay: the host info is incomplete"; exit 1; }
-if [ -z "${STATION_LAN_SKIP_BUILD:-}" ]; then
+if [ -z "${STATION_LAN_SKIP_BUILD:-}" ] && [ -z "${STATION_BIN:-}" ]; then   # STATION_BIN: a station lane, the station built this commit
 	( cd "$here/../../../realm" && cargo build --release -j2 -p realm-gateway --bin realm-lanplay >"$work/build.log" 2>&1 ) || { tail -5 "$work/build.log"; echo "FAIL lanplay: build failed"; exit 1; }
 fi
 left=$(( $(lan_field end_epoch <"$work/host.txt") - $(date +%s) - 10 )); [ "$left" -lt "$secs" ] && secs=$left
 me=$(q_me); base=$(( ($(printf %s "$me" | cksum | cut -d' ' -f1) % 900 + 1) * 1000 ))   # bot numbers differ per machine: no shared hero names
-"$here/../../../realm/target/release/realm-lanplay" --addr="$ip:$port" --ca="$work/host-cert.pem" --bots="$bots" --secs="$secs" --base="$base" --field=0,1 >"$work/out.log" 2>"$work/err.log"
+"${STATION_BIN:-$here/../../../realm/target/release}/realm-lanplay" --addr="$ip:$port" --ca="$work/host-cert.pem" --bots="$bots" --secs="$secs" --base="$base" --field=0,1 >"$work/out.log" 2>"$work/err.log"
 rc=$?
 cp "$work/out.log" "$art/lanplay.txt"; head -20 "$work/err.log" >>"$art/lanplay.txt"
 line=$(tail -1 "$work/out.log")
