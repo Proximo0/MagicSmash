@@ -135,6 +135,9 @@ Each is now refused.
   and then from each party it sent that kind to (up to what was sent). Coin is fungible, so the plan takes coin a
   buyer held whatever its source, and a one-hop plan does not reach value passed on to a second hop (use
   `trace_forward` to build a wider list).
+- **By hand.** The operator's commands over these (`realm-ops trace|plan|clawback|flag|wave`, the console's `rug`)
+  are in ops.md "Pulling the rug"; `read::seq_before(time)` turns a time into the `since_seq` of a plan. Only an
+  operator command makes the realm call `clawback` or `apply_flags` (the economy sim and tests call them directly).
 - Tests: `tests/flags.rs`. A farm mints, trades to three buyers who pass value on (one through a guild bank).
   Trace finds all of it; `trace_forward` finds it at depth 2 and 3 and does not follow a buyer's own item. The
   clawback removes exactly the farm's items, and `verify` passes. A TRADE_LOCKED account is refused on all 16

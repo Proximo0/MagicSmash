@@ -9,7 +9,8 @@
 //!
 //! Commands: `silence NAME SPAN [reason]`, `unsilence NAME`, `kick NAME [reason]`, `ban NAME SPAN [reason]`,
 //! `unban NAME`, `flag NAME FLAGS` (comma list of trade_locked, shadowed, drops_reduced, watched, or `none`; with
-//! `drops=PCT`), `banwave FLAG SPAN [reason]`, `reports [all] [N]`, `resolve ID`, `who NAME`, `log [N]`, `help`.
+//! `drops=PCT`), `banwave FLAG SPAN [reason]`, `reports [all] [N]`, `resolve ID`, `who NAME`, `log [N]`, `help`,
+//! and `rug trace|plan|clawback|flag|wave ...` (`realm_ops::rug`: pulling the rug on farms, by hand only).
 //! NAME is a hero's name or `#ACCOUNT`; SPAN is `30m`, `2h`, `7d` or `perm` (minutes for a silence, hours for a ban
 //! when there is no unit).
 
@@ -225,6 +226,18 @@ impl Console<'_> {
                     !self.social.heroes_of(id).is_empty()
                 ))
             }),
+            // Pulling the rug (realm_ops::rug), by hand only: trace, plan, clawback, flag, wave. `realm-ops` sends
+            // these here when the realm is running, since the store has one writer.
+            Some("rug") => {
+                let meta = || self.social.meta(0);
+                realm_ops::rug::Rug { store: self.store, meta: &meta, op: &self.op, now }.run(&rest(1)).map(|d| {
+                    if let Some(l) = &d.log {
+                        self.social.log_admin(now, &self.op, l);
+                    }
+                    let removed: usize = d.banned.iter().map(|a| self.throw_out(*a, "You have been banned.")).sum();
+                    if removed > 0 { format!("{}\n{removed} hero(es) removed", d.text) } else { d.text }
+                })
+            }
             Some("log") => {
                 let n = w.get(1).and_then(|x| x.parse::<usize>().ok()).unwrap_or(20);
                 let l = self.social.admin_log(n);
@@ -246,6 +259,7 @@ flag NAME FLAGS [drops=PCT]  FLAGS: trade_locked,shadowed,drops_reduced,watched 
 banwave FLAG SPAN [reason]   ban every account carrying FLAG
 reports [all] [N]            resolve ID        who NAME        log [N]
 kill WHAT | revive WHAT      WHAT: login | trade | market | field N | all     switches (shows them)
+rug trace|plan|clawback|flag|wave ...   pulling the rug on farms by hand (realm-ops help; docs/realm/ops.md)
 NAME is a hero's name or #ACCOUNT.";
 
 fn rand64(salt: u64) -> u64 {
@@ -292,7 +306,8 @@ pub fn serve(gw: Arc<Gateway>, port: u16, token: String) -> std::io::Result<Sock
 fn answer(gw: &Gateway, token: &str, s: TcpStream) {
     let _ = s.set_read_timeout(Some(std::time::Duration::from_secs(10)));
     let Ok(mut w) = s.try_clone() else { return };
-    let mut r = BufReader::new(s.take(4096));
+    // a rug clawback or wave carries its plan or account list inline: up to 1 MiB
+    let mut r = BufReader::new(s.take(1 << 20));
     let (mut head, mut cmd) = (String::new(), String::new());
     if r.read_line(&mut head).is_err() || r.read_line(&mut cmd).is_err() {
         return;
@@ -381,5 +396,28 @@ mod tests {
         assert_eq!(parse_span("0m", 'h'), None);
         assert_eq!(parse_span("x", 'h'), None);
         assert_eq!(parse_span("5w", 'h'), None);
+    }
+
+    /// The running realm's path for `realm-ops trace|plan|clawback|flag|wave`: the console's `rug` line, logged.
+    #[test]
+    fn rug_through_the_console() {
+        let db = std::env::temp_dir().join(format!("realm-console-rug-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = realm_store::SqliteStore::open(&db).unwrap();
+        let social = Social::default();
+        let a = store.account_by_steam(social.meta(0), 77).unwrap();
+        let c = Console { store: &store, social: &social, live: None, op: "curtis".into() };
+        let dry = c.run(&format!("rug flag #{a} lock --reason=farm"));
+        assert!(dry.contains("dry run") && store.account(a).unwrap().unwrap().flags == 0, "{dry}");
+        let out = c.run(&format!("rug flag #{a} lock --yes --reason=farm ring"));
+        assert!(out.contains("applied"), "{out}");
+        assert_eq!(store.account(a).unwrap().unwrap().flags, flags::TRADE_LOCKED);
+        assert!(social.admin_log(5).iter().any(|(_, op, l)| op == "curtis" && l.contains(&format!("rug lock accounts {a}: farm ring"))));
+        assert!(c.run(&format!("rug plan #{a}")).starts_with(&format!("plan for #{a}: 0 item(s)")));
+        assert!(c.run("rug nonsense").starts_with("error:"));
+        store.close();
+        for s in ["", "-wal", "-shm"] {
+            let _ = std::fs::remove_file(format!("{}{s}", db.display()));
+        }
     }
 }

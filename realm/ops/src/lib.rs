@@ -21,3 +21,5 @@ pub mod release;
 pub mod supervise;
 #[cfg(feature = "store")]
 pub mod rehearse;
+#[cfg(feature = "store")]
+pub mod rug;

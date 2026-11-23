@@ -95,7 +95,7 @@ fi
 pids+=($!)
 for _ in $(seq 1 50); do grep -q LISTEN "$work/gateway.log" && break; sleep 0.2; done
 gw_addr=$(grep -m1 -o "tcp=[^ ]*" "$work/gateway.log" | cut -d= -f2)
-[ -n "$gw_addr" ] || fail "the gateway did not start"
+[ -n "$gw_addr" ] || { echo "gateway.log:"; tail -20 "$work/gateway.log" | cut -c1-300; fail "the gateway did not start"; }
 grep -q "tls=on" "$work/gateway.log" || fail "the gateway is not on TLS"
 shell_runner=()
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then shell_runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi

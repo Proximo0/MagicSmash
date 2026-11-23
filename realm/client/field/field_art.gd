@@ -5,8 +5,18 @@ extends RefCounted
 ##   hero_<race>_<class>.png   a hero: race human elf dwarf orc, class novice knight mage archer priest paladin
 ##   <name>_walk.png       four frames side by side for that picture (a strip: 2 texture px per world px)
 ##   <name>_walk.json      optional, next to the strip: {"frames": 8, "fps": 16, "scale": 0.25}; defaults 4, 8, 0.5
-##   <name>_atk.png (3 frames), <name>_hit.png (1), <name>_die.png (3): optional, same 2 px per world px; the entry
-##   gets `atk`, `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks).
+##   <name>_atk.png, <name>_hit.png, <name>_die.png: optional, same scale as the walk strip; the entry gets `atk`,
+##   `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks). Their frame counts
+##   default to 3, 1, 3 and come from the walk sidecar's "atk_frames", "hit_frames", "die_frames" (the entry's
+##   `atk_n`, `hit_n`, `die_n`).
+##   The 10 monsters of the Hollow set (scarecrow, bloated pilgrim, penitent, gravedigger, hanged man, wood witch, bark
+##   wight, lumberer, drowned, goat cultist) are tools/char3d/import_sprites.py output of the same shape and scale as
+##   the heroes (8 walk frames at 12 fps, 8 / 4 / 8 atk, hit, die, scale 0.4667, frames 94 to 150 px wide). The
+##   monster batch (RealmBatch, a shelf-packed atlas) steps the walk strip while a monster moves and draws frame 0 when it stands;
+##   atk, hit and die are loaded into the entry but not drawn for monsters.
+##   The 24 heroes are tools/char3d/import_sprites.py heroes output: 8 walk frames at 12 fps, 8 attack, 4 hit, 8 death
+##   frames, one crop per hero (centre of the frame = body centre, bottom edge = feet), scale 0.4667 so a human
+##   stands 28 world px tall as the old human knight did.
 ## A strip wins over the still picture. A monster with neither gets a flat stand-in drawn here from its field,
 ## its health and its behaviour; a hero with neither borrows the same race's knight.
 ## An entry is {tex, anim (frames), fps, scale, art}: `art` is "walk", "still" or "stand-in".
@@ -18,6 +28,8 @@ const WALK_FRAMES: int = 4
 const WALK_SCALE: float = 0.5
 ## A walk strip steps this many frames a second unless its sidecar says otherwise.
 const WALK_FPS: float = 8.0
+## Frames of the atk, hit and die strips unless the sidecar says otherwise.
+const STRIP_FRAMES: Dictionary = {"atk": 3, "hit": 1, "die": 3}
 ## Ground colour of each field's stand-ins: road, wood, marsh, peaks, tower, edge.
 const FIELD_COLOURS: Array[Color] = [
 	Color(0.62, 0.52, 0.36), Color(0.36, 0.5, 0.34), Color(0.3, 0.52, 0.5),
@@ -74,9 +86,18 @@ static func entry_for(key: String, dir: String = "res://art") -> Dictionary:
 		e = {"tex": _load(key, dir), "anim": 1, "fps": WALK_FPS, "scale": 1.0, "art": "still"}
 	else:
 		return e
+	var side: Dictionary = {}
+	var path: String = "%s/%s_walk.json" % [dir, key]
+	if FileAccess.file_exists(path):
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if d is Dictionary:
+			side = d
 	for suffix in ["atk", "hit", "die"]:
 		if _exists(key + "_" + suffix, dir):
-			e[suffix] = _load(key + "_" + suffix, dir)
+			var t: Texture2D = _load(key + "_" + suffix, dir)
+			e[suffix] = t
+			var n: int = maxi(int(side.get(suffix + "_frames", STRIP_FRAMES[suffix])), 1)
+			e[suffix + "_n"] = n if t.get_width() % n == 0 else int(STRIP_FRAMES[suffix])
 	return e
 
 
