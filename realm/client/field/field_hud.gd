@@ -4,7 +4,8 @@ extends Control
 ## three potions, the haul and field level, the draw on offer (the deck's picks), the tide's clock, a boss's
 ## bar, and the downed and raising screens. It reads the dictionary `RealmLink.hero_view()` and `world()`.
 ## Cards offered are picked with Z X C V or a click; skills Space (1), E (2), R (the ultimate); F holds
-## interact (banking); potions 4 5 6.
+## interact (banking), G the BLOOD MARK's rite at a waystone (both rebindable); potions 4 5 6. A hero who carries
+## the mark sees it by her health; standing at a waystone shows what holding does there.
 
 const W: float = 480.0
 const H: float = 270.0
@@ -16,6 +17,9 @@ const TICKS_PER_S: float = 20.0
 const TIDE_EVERY_TICKS: int = 30 * 60 * 20
 const TIDE_LEN_TICKS: int = 5 * 60 * 20
 const BANK_HOLD_TICKS: float = 60.0
+## The BLOOD MARK's rite is held this long (realm/core pvp.rs MARK_HOLD, 5 s).
+const MARK_HOLD_TICKS: float = 100.0
+const MARK_RED: Color = Color(0.85, 0.08, 0.1)
 const SKILL_KEYS: Array[String] = ["SPACE", "E", "R"]
 const POTION_KEYS: Array[String] = ["4", "5", "6"]
 const PICK_KEYS: Array[String] = ["Z", "X", "C", "V"]
@@ -34,6 +38,9 @@ var show_debug: bool = true
 ## Screenshots and tests: show a tide or a boss the core has not made yet.
 var fake_tide: bool = false
 var fake_boss: bool = false
+## The waystone she stands at (0..6, -1 none), and whether the rite's key is held (the hold bar is the rite's).
+var near_stone: int = -1
+var rite_held: bool = false
 ## Where the offered cards were drawn this frame (Rect2 each), for clicks.
 var card_rects: Array[Rect2] = []
 var _font: Font = ThemeDB.fallback_font
@@ -109,6 +116,7 @@ func _draw() -> void:
 	_draw_haul()
 	_draw_offer()
 	_draw_banking()
+	_draw_mark()
 
 
 func _draw_vitals() -> void:
@@ -217,9 +225,36 @@ func _draw_offer() -> void:
 
 func _draw_banking() -> void:
 	var hold: int = int(hero["hold"])
-	if hold > 0:
+	if hold > 0 and rite_held:
+		_bar(Rect2(W / 2.0 - 30, H / 2.0 + 24, 60, 5), float(hold) / MARK_HOLD_TICKS, MARK_RED)
+		_ctxt(W / 2.0, H / 2.0 + 17, "THE RITE OF THE BLOOD MARK", MARK_RED, FONT_SMALL)
+	elif hold > 0:
 		_bar(Rect2(W / 2.0 - 30, H / 2.0 + 24, 60, 5), float(hold) / BANK_HOLD_TICKS, Color(1.0, 0.85, 0.3))
 		_ctxt(W / 2.0, H / 2.0 + 17, "BANKING", Color(1.0, 0.85, 0.3), FONT_SMALL)
+	elif near_stone >= 0 and bool(hero["alive"]):
+		var bank: String = "HOLD %s: BANK AND LEAVE" % _key("interact")
+		var rite: String = "HOLD %s: %s THE BLOOD MARK" % [_key("mark"), "PUT DOWN" if marked() else "TAKE"]
+		_box(Rect2(W / 2.0 - 70, H / 2.0 + 14, 140, 18))
+		_ctxt(W / 2.0, H / 2.0 + 15, bank, TEXT, FONT_SMALL)
+		_ctxt(W / 2.0, H / 2.0 + 23, rite, MARK_RED if not marked() else DIM, FONT_SMALL)
+
+
+## Is she carrying the BLOOD MARK?
+func marked() -> bool:
+	return bool(hero.get("marked", false))
+
+
+static func _key(action: String) -> String:
+	return ShellSettings.key_label(ShellSettings.key(action))
+
+
+## The mark she carries: a red seal by her health, seen at a glance.
+func _draw_mark() -> void:
+	if not marked():
+		return
+	var r := Rect2(3, H - 53, 74, 11)
+	_box(r, Color(0.3, 0.02, 0.03, 0.85), MARK_RED)
+	_txt(r.position + Vector2(4, 2), "BLOOD MARKED", Color(1.0, 0.75, 0.72), FONT_SMALL)
 
 
 func _draw_downed() -> void:

@@ -15,12 +15,14 @@ const W_BOT_TICKET: u8 = 3;
 const W_RECALL: u8 = 4;
 const W_VAULT_OPEN: u8 = 5;
 const W_VAULT_JOIN: u8 = 6;
+const W_TRIAL: u8 = 7;
 
 const WR_BOARD: u8 = 1;
 const WR_QUEUED: u8 = 2;
 const WR_VAULT: u8 = 3;
 const WR_MOVED: u8 = 4;
 const WR_NEWS: u8 = 5;
+const WR_TRIAL: u8 = 6;
 
 /// `WResp::News` kinds.
 pub const NEWS_FIELD_BOSS: u8 = 1;
@@ -41,6 +43,9 @@ pub enum WReq {
     VaultOpen { hero: i64, vault: u8, seals: u8, drive_ticks: u32 },
     /// Enters an open vault by the code its leader was given (her party).
     VaultJoin { hero: i64, code: u64, drive_ticks: u32 },
+    /// THE CLASS TRIAL as the trainer tells it to this hero (`WResp::Trial`). She enters it with `VaultOpen`
+    /// (vault 5, no seals, no key).
+    Trial { hero: i64 },
 }
 
 /// One field's line on the board.
@@ -67,6 +72,9 @@ pub enum WResp {
     /// Announced to the realm: a field boss rises (`NEWS_FIELD_BOSS`, ten minutes before) or the world boss rides
     /// (`NEWS_WORLD_BOSS`, thirty minutes before) in a field, in this many ticks.
     News { kind: u8, field: u8, boss: u8, in_ticks: u32 },
+    /// THE CLASS TRIAL for a hero: the class level it asks (`level`), whether she has passed it, her job (15 none),
+    /// the class level of a job and what the trainer asks for one at her level now. Also pushed when she passes.
+    Trial { hero: i64, level: u16, passed: bool, job: u8, job_level: u16, job_price: u64 },
 }
 
 impl WReq {
@@ -99,6 +107,10 @@ impl WReq {
                 put_u64(w, *code);
                 put_u32(w, *drive_ticks);
             }
+            WReq::Trial { hero } => {
+                w.push(W_TRIAL);
+                put_u64(w, *hero as u64);
+            }
         }
     }
 
@@ -111,6 +123,7 @@ impl WReq {
             W_RECALL => WReq::Recall { hero: hero(r)? },
             W_VAULT_OPEN => WReq::VaultOpen { hero: hero(r)?, vault: r.u8()?, seals: r.u8()?, drive_ticks: r.u32()? },
             W_VAULT_JOIN => WReq::VaultJoin { hero: hero(r)?, code: r.u64()?, drive_ticks: r.u32()? },
+            W_TRIAL => WReq::Trial { hero: hero(r)? },
             _ => return None,
         })
     }
@@ -170,6 +183,14 @@ impl WResp {
                 w.extend_from_slice(&[*kind, *field, *boss]);
                 put_u32(w, *in_ticks);
             }
+            WResp::Trial { hero, level, passed, job, job_level, job_price } => {
+                w.push(WR_TRIAL);
+                put_u64(w, *hero as u64);
+                put_u16(w, *level);
+                w.extend_from_slice(&[*passed as u8, *job]);
+                put_u16(w, *job_level);
+                put_u64(w, *job_price);
+            }
         }
     }
 
@@ -190,6 +211,7 @@ impl WResp {
             WR_VAULT => WResp::Vault { code: r.u64()?, vault: r.u8()?, seals: r.u8()?, host: read_str(r)?, port: r.u16()?, ticket: r.u64()?, key: realm_server::TicketKey(r.bytes(16)?.try_into().ok()?) },
             WR_MOVED => WResp::Moved { hero: r.u64()? as i64, field: r.u8()?, copy: r.u8()?, host: read_str(r)?, port: r.u16()?, ticket: r.u64()?, key: realm_server::TicketKey(r.bytes(16)?.try_into().ok()?) },
             WR_NEWS => WResp::News { kind: r.u8()?, field: r.u8()?, boss: r.u8()?, in_ticks: r.u32()? },
+            WR_TRIAL => WResp::Trial { hero: r.u64()? as i64, level: r.u16()?, passed: r.flag()?, job: r.u8()?, job_level: r.u16()?, job_price: r.u64()? },
             _ => return None,
         })
     }
@@ -208,6 +230,7 @@ mod tests {
             WReq::Recall { hero: 7 },
             WReq::VaultOpen { hero: 8, vault: 2, seals: 4, drive_ticks: 0 },
             WReq::VaultJoin { hero: 9, code: u64::MAX - 3, drive_ticks: 12 },
+            WReq::Trial { hero: 10 },
         ];
         for q in reqs {
             let mut w = Vec::new();
@@ -230,6 +253,7 @@ mod tests {
             WResp::Vault { code: 99, vault: 1, seals: 8, host: "h".into(), port: 7801, ticket: 5, key: realm_server::TicketKey([3; 16]) },
             WResp::Moved { hero: 3, field: 0, copy: 1, host: String::new(), port: 7802, ticket: 6, key: realm_server::TicketKey([4; 16]) },
             WResp::News { kind: NEWS_WORLD_BOSS, field: 5, boss: 7, in_ticks: 36_000 },
+            WResp::Trial { hero: 3, level: 10, passed: true, job: 15, job_level: 40, job_price: 1_447_133 },
         ];
         for p in resps {
             let mut w = Vec::new();

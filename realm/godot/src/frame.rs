@@ -78,6 +78,8 @@ pub struct HeroView {
     pub y: f32,
     pub facing_left: bool,
     pub moving: bool,
+    /// She carries the BLOOD MARK (rules section 14).
+    pub marked: bool,
 }
 
 /// The field's own state that is not a figure.
@@ -144,6 +146,7 @@ fn hero_view(h: &Hero, id: u16) -> HeroView {
         y: px(h.y),
         facing_left: h.facing_left,
         moving: h.moving,
+        marked: h.marked,
         ..HeroView::default()
     };
     for slot in 0..3 {
@@ -312,6 +315,8 @@ fn event_row(f: &Field, e: &Event) -> [i32; EV_STRIDE] {
         Event::Bank { hero, coin, waystone } => (i32::from(hero), coin.min(i32::MAX as u32) as i32, i32::from(waystone), 0, at(hero)),
         Event::Kill { kind, level, flags, x, y, .. } => (-1, i32::from(kind), i32::from(level), i32::from(flags), (x / SUB, y / SUB)),
         Event::Xp { hero, amount } => (i32::from(hero), amount.min(i32::MAX as u32) as i32, 0, 0, at(hero)),
+        // The BLOOD MARK's rite at a waystone: `a` is the outcome (`realm_core::pvp::MARK_*`).
+        Event::Mark { hero, state } => (i32::from(hero), i32::from(state), 0, 0, at(hero)),
         // Events the tide and boss jobs add: the rank alone, for the client to learn about.
         #[allow(unreachable_patterns)]
         _ => (-1, 0, 0, 0, (0, 0)),

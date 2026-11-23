@@ -722,6 +722,9 @@ pub fn who_may(c: &Cmd) -> Who {
 		Cmd::ApplyFlags { .. } => Who::Server,
 		Cmd::Clawback { .. } => Who::Server,
 		Cmd::GrantEntitlement { .. } => Who::Server,
+		Cmd::BuyEntitlement { .. } => Who::Server,
+		Cmd::HeroFeat { .. } => Who::Server,
+		Cmd::TakeJob { .. } => Who::Server,
 		Cmd::Mint { .. } => Who::Server,
 		Cmd::StackCredit { .. } => Who::Server,
 		Cmd::StackDebit { .. } => Who::Server,
@@ -1166,6 +1169,62 @@ pub fn apply(t: &mut Tx) -> Result<Reply> {
 				..Default::default()
 			})?;
 			Ok(Reply::Granted { new: true, total })
+		}
+		Cmd::BuyEntitlement { hero, kind, have, price, reason } => {
+			check_reason(reason)?;
+			let h = t.live_hero(*hero)?;
+			let now_have = t.entitlement(h.account, *kind)?;
+			if now_have != *have {
+				return Err(inv(format!("she has {now_have} of that, not {have}")));
+			}
+			if *kind == EntitlementKind::BankTab && FREE_BANK_TABS + now_have >= BANK_TABS_MAX {
+				return Err(Error::Full(format!("{BANK_TABS_MAX} bank tabs is the most")));
+			}
+			if *price > 0 {
+				let o = Owner::bag(*hero);
+				t.stack_sub(&o, StackKind::COIN, *price)?;
+				t.debit_row("DEBIT", &o, Party::Account(h.account), StackKind::COIN, *price, reason)?;
+			}
+			let total = now_have + 1;
+			t.exec(
+				"INSERT INTO entitlements (account, kind, count) VALUES (?1, ?2, ?3) \
+				ON CONFLICT (account, kind) DO UPDATE SET count = excluded.count",
+				params![h.account, *kind as i64, total],
+			)?;
+			t.ledger(Row {
+				op: "ENTITLE",
+				to_acct: Some(h.account),
+				count: 1,
+				reason,
+				data: format!("kind {} hero {hero} price {price} total {total}", *kind as i64),
+				..Default::default()
+			})?;
+			Ok(Reply::Granted { new: true, total })
+		}
+		Cmd::HeroFeat { hero, feat } => {
+			let h = t.live_hero(*hero)?;
+			if *feat == 0 {
+				return Err(inv("feat"));
+			}
+			if t.one("SELECT 1 FROM feats WHERE hero = ?1 AND feat = ?2", params![hero, feat], |r| r.get::<_, i64>(0))?.is_none() {
+				t.exec("INSERT INTO feats (hero, feat, time) VALUES (?1, ?2, ?3)", params![hero, feat, now])?;
+				t.ledger(Row { op: "FEAT", to_acct: Some(h.account), data: format!("hero {hero} feat {feat}"), ..Default::default() })?;
+			}
+			Ok(Reply::Done)
+		}
+		Cmd::TakeJob { hero, job, price } => {
+			let h = t.live_hero(*hero)?;
+			if *job >= 16 {
+				return Err(inv("job"));
+			}
+			if *price > 0 {
+				let o = Owner::bag(*hero);
+				t.stack_sub(&o, StackKind::COIN, *price)?;
+				t.debit_row("DEBIT", &o, Party::Account(h.account), StackKind::COIN, *price, "job")?;
+			}
+			t.exec("UPDATE heroes SET job = ?2 WHERE id = ?1", params![hero, job])?;
+			t.ledger(Row { op: "JOB", to_acct: Some(h.account), data: format!("hero {hero} job {job} price {price}"), ..Default::default() })?;
+			Ok(Reply::Done)
 		}
 		Cmd::Clawback { items, stacks, reason } => clawback(t, items, stacks, reason),
 		Cmd::ParcelPut { kind, from, to, items, stacks, price, fee, expires, text } => {

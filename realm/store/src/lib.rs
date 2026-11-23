@@ -64,6 +64,8 @@ pub trait Store: Send + Sync {
 	fn stack(&self, owner: Owner, kind: StackKind) -> Result<u64>;
 	fn stacks(&self, owner: Owner) -> Result<Vec<(StackKind, u64)>>;
 	fn entitlements(&self, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>>;
+	/// The feats a hero has earned (`types::feats`: 1 THE CLASS TRIAL), ascending.
+	fn feats(&self, hero: HeroId) -> Result<Vec<u8>>;
 	/// The cards the account has learned from pages (the shell lists a hero's deck cards with it).
 	fn owned_cards(&self, account: AccountId) -> Result<Vec<u16>>;
 	/// Everything the account minted and where it is, and per stack kind minted, spent, sent, received, held.
@@ -223,6 +225,20 @@ pub trait Store: Send + Sync {
 			Reply::Granted { new, total } => Ok((new, total)),
 			r => Err(unexpected(r)),
 		}
+	}
+	/// A hero buys one more of an entitlement for coin (a bank tab); returns the new total.
+	fn buy_entitlement(&self, m: Meta, hero: HeroId, kind: EntitlementKind, have: u32, price: u64, reason: &str) -> Result<u32> {
+		match self.run(m, Cmd::BuyEntitlement { hero, kind, have, price, reason: reason.into() })? {
+			Reply::Granted { total, .. } => Ok(total),
+			r => Err(unexpected(r)),
+		}
+	}
+	fn hero_feat(&self, m: Meta, hero: HeroId, feat: u8) -> Result<()> {
+		self.run(m, Cmd::HeroFeat { hero, feat }).map(|_| ())
+	}
+	/// Debits `price` coin from her bag and sets her job, in one transaction.
+	fn take_job(&self, m: Meta, hero: HeroId, job: u8, price: u64) -> Result<()> {
+		self.run(m, Cmd::TakeJob { hero, job, price }).map(|_| ())
 	}
 	/// Operator: removes items wherever they are and debits stacks (to zero at most; then from sockets).
 	fn clawback(&self, m: Meta, plan: ClawbackPlan, reason: &str) -> Result<(Vec<ItemId>, Vec<ItemId>, Vec<(Owner, StackKind, u64)>)> {

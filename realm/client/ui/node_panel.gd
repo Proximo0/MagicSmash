@@ -146,11 +146,14 @@ func label(text: String, at: Vector2, size: int = 14, col: Color = UiKit.BONE, w
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	if width > 0.0:
-		l.size = Vector2(width, 0)
-		l.custom_minimum_size = Vector2(width, 0)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(width, 0)
+		l.size = Vector2(width, 0)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	(parent if parent != null else body).add_child(l)
+	if width > 0.0:
+		# A wrapping label keeps its width (set again once in the tree, where the theme's font sizes it).
+		l.size = Vector2(width, l.get_minimum_size().y)
 	return l
 
 

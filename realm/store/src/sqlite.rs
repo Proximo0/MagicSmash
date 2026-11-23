@@ -404,6 +404,9 @@ impl Store for SqliteStore {
 	fn entitlements(&self, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>> {
 		self.with_read(|c| read::entitlements(c, account))
 	}
+	fn feats(&self, hero: HeroId) -> Result<Vec<u8>> {
+		self.with_read(|c| read::feats(c, hero))
+	}
 	fn trace(&self, account: AccountId) -> Result<Trace> {
 		self.with_read(|c| read::trace(c, account))
 	}

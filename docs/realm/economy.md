@@ -244,6 +244,18 @@ change of either offer (`CONFIRM_DELAY_MS`: no swap at the last click); an open 
 have confirmed the same version the store does it in one transaction (`Store::trade`); nothing moves on a half confirm, and
 a failure (a full bag, an item gone) cancels with a reason and leaves everything where it was. Origin is kept through the move.
 
+## Bank tabs for coin (job trial-sinks)
+
+- The account's bank has one free tab; tabs 2 to 8 are bought at the bank for coin from the hero's bag
+  (`economy/tabs.rs`): ECON `BankTabs` says how many it owns, the most and the next one's price; `BankTabBuy{owned}`
+  buys the next. Prices rise (`realm_loot::sinks::BANK_TAB_PRICE`, balance.md: 3,000 to 12,000,000). The store debits
+  and opens the tab in one transaction (`Cmd::BuyEntitlement`: a DEBIT row "bank tab", an ENTITLE row) and refuses a
+  count already passed, so a doubled click buys one tab. The coin is destroyed (`Totals::tabs`). A Steam purchase (P1)
+  grants the same entitlement, so a tab bought either way counts once.
+- The merchant screen (shell) now calls these merchant subs: list, buy (potions, embers, gear), sell (items and stacks
+  by the piece), buy back. The shell's older `T_BUY`/`T_SELL` (fixed prices) are still served but no screen sends them;
+  two merchants with different prices is a question for E1: remove them or make them the same.
+
 ## The market
 
 - List: item or stack, a price, 12 / 24 / 48 hours. The item leaves her bag into escrow (a `parcels` row, items in place

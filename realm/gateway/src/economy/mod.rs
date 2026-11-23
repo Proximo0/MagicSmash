@@ -12,6 +12,7 @@ pub mod market;
 pub mod merchant;
 pub mod prices;
 pub mod sim;
+pub mod tabs;
 pub mod trade;
 pub mod wire;
 /// Its messages on the gateway wire and its dispatch (`proto::WireModule`).
@@ -54,6 +55,8 @@ pub struct Totals {
     pub tax: u64,
     pub fees: u64,
     pub postage: u64,
+    /// Coin destroyed for bank tabs.
+    pub tabs: u64,
     /// Coin the merchants paid for items and materials (new coin: it enters the game here) and took for stock.
     pub npc_paid: u64,
     pub npc_took: u64,
@@ -238,6 +241,8 @@ impl Economy {
             EReq::LetterTake { hero, letter } => self.letter_take(account, hero, letter, now),
             EReq::LetterRefuse { hero, letter } => self.letter_refuse(account, hero, letter, now),
             EReq::LetterRecall { hero, letter } => self.letter_recall(account, hero, letter, now),
+            EReq::BankTabs { hero } => self.bank_tabs(account, hero, now),
+            EReq::BankTabBuy { hero, owned } => self.bank_tab_buy(account, hero, owned, now),
         }
     }
 

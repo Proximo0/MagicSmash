@@ -1,13 +1,15 @@
 class_name TrainerPanel
 extends PanelBase
 ## The trainer: her skills (skill 1 at level 10, skill 2 at 25, the ultimate at 40; each rank adds 15%, one rank
-## every ten levels), her stat points (one a level) and, at level 40, the choice of the class's two jobs.
+## every ten levels), her stat points (one a level) and, at level 40, the choice of the class's two jobs: after
+## THE CLASS TRIAL (its own station) and for coin (the gateway's price, `job_change_cost`, shown before the click).
 
 var last_result: String = ""
 
 
 func opened() -> void:
 	title = "THE TRAINER"
+	shell.refresh_trial()
 
 
 func paint_body(inner: Rect2) -> void:
@@ -39,10 +41,17 @@ func paint_body(inner: Rect2) -> void:
 	# The job.
 	var jy: float = y + 78 + skills.size() * 52.0 + 8
 	if cls != 0 and job == GameNames.NO_JOB:
-		UiKit.text(self, Vector2(x, jy), "JOB (at level %d, for good)" % GameNames.JOB_LEVEL, 13, UiKit.GOLD)
+		var t: Dictionary = shell.trial
+		var passed: bool = bool(t.get("passed", false))
+		var price: int = int(t.get("job_price", 0))
+		var need: String = "JOB (at level %d, for good)" % GameNames.JOB_LEVEL
+		if not t.is_empty():
+			need = "JOB: LEVEL %d, %s, %s COIN" % [GameNames.JOB_LEVEL, "THE CLASS TRIAL PASSED" if passed else "AFTER THE CLASS TRIAL", GameNames.commas(price)]
+		UiKit.text(self, Vector2(x, jy), need, 13, UiKit.GOLD)
 		var jobs: Array[int] = GameNames.class_jobs(cls)
 		for i in jobs.size():
 			var jr := Rect2(x + i * 202.0, jy + 22, 196, 62)
+			# The trainer says in words why not (the trial, the coin): the button only waits for the level.
 			var can: bool = level >= GameNames.JOB_LEVEL and not busy
 			button("job:%d" % jobs[i], jr, GameNames.JOBS[jobs[i]], can, false, 14)
 			UiKit.paragraph(self, jr.position + Vector2(4, 64), GameNames.JOB_NOTES[jobs[i]], 190.0, 10, UiKit.BONE_DIM)
@@ -75,5 +84,5 @@ func press_body(id: String) -> void:
 	elif id.begins_with("job:"):
 		var j: int = int(id.trim_prefix("job:"))
 		var r2: Dictionary = await do(GwWire.choose_job(shell.hero_id(), j), "SHE IS NOW A %s" % GameNames.JOBS[j])
-		if int(r2["t"]) == GwWire.R_OK:
-			last_result = "A %s, FOR GOOD" % GameNames.JOBS[j]
+		if int(r2["t"]) == GwWire.R_SMITH:
+			last_result = "A %s, FOR GOOD: %s COIN TO THE TRAINER" % [GameNames.JOBS[j], GameNames.commas(int(r2["amount"]))]

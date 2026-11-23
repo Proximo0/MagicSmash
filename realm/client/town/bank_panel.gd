@@ -2,9 +2,9 @@ class_name BankPanel
 extends NodePanel
 ## The bank: the account's chest, shared by every hero (100 slots a tab; the gateway's BANK_DEPOSIT and
 ## BANK_WITHDRAW take the tab). Choose a thing in the bag or the bank, then MOVE (or press it twice). Stacks
-## (coin, embers, runes, potions) move 1, 10 or all at a time. The server does not say how many tabs the account
-## owns: the strip shows every tab that holds something, the first empty one after them, and one more; moving
-## into a tab the account has not got is refused in words.
+## (coin, embers, runes, potions) move 1, 10 or all at a time. The tab strip shows the tabs the account owns and,
+## locked, the ones it may still buy (ECON BankTabs: owned, the most, the next one's price); BUY buys the next for
+## coin from her bag (ECON BankTabBuy, a coin sink; the price rises with each tab, realm/loot sinks.rs).
 
 const TAB_MAX: int = 8
 
@@ -22,6 +22,12 @@ var move_btn: Button
 var qty_btns: Array[Button] = []
 var info: Label
 var coin_label: Label
+var buy_btn: Button
+var tab_note: Label
+## The account's tabs as the gateway last said: owned (the free one counted), the most, the next one's price.
+var tabs_owned: int = 1
+var tabs_max: int = TAB_MAX
+var tab_price: int = 0
 
 
 func opened() -> void:
@@ -34,14 +40,25 @@ func build() -> void:
 	bag_items = item_list(Vector2(0, 24), Vector2(400, 150))
 	bag_items.max_columns = 1
 	bag_stacks = item_list(Vector2(0, 182), Vector2(400, 128))
-	label("THE BANK", Vector2(420, 0), 14, UiKit.GOLD)
+	label("THE BANK: TAB", Vector2(420, 0), 14, UiKit.GOLD)
 	tab_bar = TabBar.new()
-	tab_bar.position = Vector2(500, 0)
+	tab_bar.position = Vector2(540, 0)
 	tab_bar.focus_mode = Control.FOCUS_ALL
-	tab_bar.custom_minimum_size = Vector2(320, 34)
+	tab_bar.custom_minimum_size = Vector2(292, 34)
 	tab_bar.clip_tabs = false
 	tab_bar.tab_changed.connect(_tab_changed)
+	# A locked tab is dark and dim, unlike the ones she owns.
+	tab_bar.add_theme_color_override("font_disabled_color", Color(UiKit.BONE_DIM, 0.35))
+	var locked := StyleBoxFlat.new()
+	locked.bg_color = Color(0.02, 0.018, 0.022)
+	locked.border_color = Color(UiKit.GOLD_DIM, 0.25)
+	locked.set_border_width_all(1)
+	locked.set_content_margin_all(8)
+	tab_bar.add_theme_stylebox_override("tab_disabled", locked)
 	body.add_child(tab_bar)
+	tab_note = label("", Vector2(520, 388), 12, UiKit.BONE_DIM, 312)
+	tab_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	buy_btn = add_button("BUY A TAB", "buy_tab", func() -> void: buy_tab(), body, Vector2(582, 322), Vector2(250, 32))
 	bank_items = item_list(Vector2(420, 34), Vector2(412, 140))
 	bank_stacks = item_list(Vector2(420, 182), Vector2(412, 128))
 	bag_items.item_selected.connect(func(i: int) -> void: _chose(GameNames.PLACE_BAG, bag_items, i, true))
@@ -62,6 +79,7 @@ func build() -> void:
 	coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	shell.data_changed.connect(refill)
 	refill()
+	read_tabs.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -69,24 +87,48 @@ func _exit_tree() -> void:
 		shell.data_changed.disconnect(refill)
 
 
-func _tabs_shown() -> int:
-	var top: int = -1
-	for it in shell.items_at(GameNames.PLACE_BANK):
-		top = maxi(top, int(it["tab"]))
-	return clampi(top + 2, 2, TAB_MAX)
+## Asks the gateway how many tabs the account owns and what the next costs.
+func read_tabs() -> void:
+	var r: Dictionary = await shell.link.call_req(EconWire.hero_only(EconWire.Q_BANK_TABS, shell.hero_id()))
+	if is_instance_valid(self):
+		_took_tabs(r)
+
+
+func _took_tabs(r: Dictionary) -> void:
+	if int(r["t"]) != EconWire.R_ECON or int(r.get("k", -1)) != EconWire.K_BANK_TABS:
+		return
+	tabs_owned = int(r["owned"])
+	tabs_max = int(r["max"])
+	tab_price = int(r["price"])
+	refill()
+
+
+## Buys the next tab for coin. Returns the gateway's reply.
+func buy_tab() -> Dictionary:
+	var next: int = tabs_owned + 1
+	var r: Dictionary = await do(EconWire.bank_tab_buy(shell.hero_id(), tabs_owned), "TAB %d IS YOURS: %s COIN TO THE BANK" % [next, GameNames.commas(tab_price)])
+	if is_instance_valid(self):
+		_took_tabs(r)
+		if tabs_owned >= next:
+			_set_tab(next - 1)
+	return r
 
 
 func refill() -> void:
 	if not is_instance_valid(bag_items):
 		return
-	var n: int = _tabs_shown()
+	var n: int = tabs_max
 	tab_bar.set_block_signals(true)
 	while tab_bar.tab_count < n:
 		var idx: int = tab_bar.tab_count
 		reg("tab:%d" % idx, tab_bar, _set_tab.bind(idx))
-		tab_bar.add_tab("TAB %d" % (idx + 1))
+		tab_bar.add_tab(str(idx + 1))
+	# Owned tabs are numbers to choose; the rest are greyed (locked) until bought.
+	for i in tab_bar.tab_count:
+		tab_bar.set_tab_disabled(i, i >= tabs_owned)
+		tab_bar.set_tab_tooltip(i, "TAB %d" % (i + 1) if i < tabs_owned else "TAB %d: NOT YET YOURS" % (i + 1))
 	tab_bar.set_block_signals(false)
-	tab = mini(tab, n - 1)
+	tab = mini(tab, maxi(tabs_owned - 1, 0))
 	if tab_bar.current_tab != tab:
 		tab_bar.set_block_signals(true)
 		tab_bar.current_tab = tab
@@ -183,6 +225,14 @@ func _update_bar() -> void:
 		info.text = ("%s: %s" % [GameNames.stack_name(sel_kind), "CHOOSE HOW MANY"]) if sel_kind >= 0 else "BAG ON THE LEFT, CHEST TAB %d ON THE RIGHT" % (tab + 1)
 		info.add_theme_color_override("font_color", UiKit.BONE_DIM)
 	coin_label.text = "%s COIN carried" % GameNames.commas(shell.coin())
+	if tab_price > 0 and tabs_owned < tabs_max:
+		buy_btn.text = "BUY TAB %d: %s COIN" % [tabs_owned + 1, GameNames.commas(tab_price)]
+		buy_btn.disabled = busy
+		tab_note.text = "YOU OWN %d OF %d TABS" % [tabs_owned, tabs_max]
+	else:
+		buy_btn.text = "EVERY TAB IS YOURS"
+		buy_btn.disabled = true
+		tab_note.text = "YOU OWN ALL %d TABS" % tabs_max
 
 
 ## Moves what is chosen to the other side. Returns the gateway's reply.

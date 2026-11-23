@@ -73,6 +73,17 @@ What goes between a player and the realm, every number chosen and why. Code: `re
 - Social calls (job T1): requests 0x40..0x5B, reply 0x90, push 0xB0, error `MUTED` 17; see `social.md`. A connection's writer
   ends on an empty frame (the moderators' "end this session").
 
+- Job trial-sinks (no new type byte; new sub-bytes inside each module's own tag):
+  - ECON `0x33` subs `0x40 BankTabs{hero}` and `0x41 BankTabBuy{hero, u32 owned}` -> ECON reply kind `10 BankTabs{u32
+    owned, u32 max, u64 price}` (price 0: every tab owned). The merchant subs `0x01..0x05` are now what the shell's
+    merchant screen calls (core `T_BUY`/`T_SELL` 0x31/0x32 stay served, no screen sends them).
+  - WORLD `0x60` sub `7 Trial{hero}` -> WORLD kind `6 Trial{u64 hero, u16 level, u8 passed, u8 job, u16 job_level, u64
+    job_price}`, also pushed (`0xB1`) the moment she wins it. Sub `5 VaultOpen` with vault 5 enters THE CLASS TRIAL.
+  - `CHOOSE_JOB` (0x19) now answers `SMITH{amount}` (the coin the trainer took) instead of `OK`.
+  - SOCIAL `0x5F` Duel and pushes `0xB0` kinds 12 to 15 are read by the shell (`GwWire.soc_duel`, `_social_push`).
+  - Field input: the BLOOD MARK's rite is `IN_MARK` (0x4000) with interact; `RealmLink.send_input` bit 7 (128) sends
+    it, and `RealmLink.input_word` shows the word for a check.
+
 ## Transport security
 
 Code: `gateway/src/tls.rs`, `gateway/src/conn.rs`, the field checks in `server/src/host.rs`; tests `gateway/tests/tls.rs`.

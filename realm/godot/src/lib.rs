@@ -34,6 +34,8 @@ const BTN_ULT: i32 = 4;
 const BTN_INTERACT: i32 = 8;
 /// Bits 4, 5 and 6: potion slots 1 to 3.
 const BTN_POTION_SHIFT: i32 = 4;
+/// Bit 7: the BLOOD MARK's rite (`IN_MARK`, input byte 1 bit 6), held with interact at a waystone.
+const BTN_MARK: i32 = 128;
 
 /// The core's two-byte input from the GDScript form: direction 0..8, button bits, a card pick 0..4.
 fn core_input(direction: i32, buttons: i32, pick: i32) -> u16 {
@@ -43,7 +45,8 @@ fn core_input(direction: i32, buttons: i32, pick: i32) -> u16 {
         | if buttons & BTN_ULT != 0 { 0x40 } else { 0 }
         | if buttons & BTN_INTERACT != 0 { 0x80 } else { 0 };
     let potions = ((buttons >> BTN_POTION_SHIFT) & 7) as u8;
-    input(b0, pick.clamp(0, 4) as u8 | potions << 3)
+    let mark = if buttons & BTN_MARK != 0 { (realm_core::IN_MARK >> 8) as u8 } else { 0 };
+    input(b0, pick.clamp(0, 4) as u8 | potions << 3 | mark)
 }
 
 /// One lockstep player's connection to a realm server, for GDScript.
@@ -127,7 +130,8 @@ impl RealmLink {
     }
 
     /// Sends this tick's input: `direction` 0 none, 1 E, 2 SE, 3 S, 4 SW, 5 W, 6 NW, 7 N, 8 NE; `buttons`
-    /// bit 0 skill 1, 1 skill 2, 2 the ultimate, 3 interact, 4 to 6 potion slots 1 to 3; `pick` a card 1..4
+    /// bit 0 skill 1, 1 skill 2, 2 the ultimate, 3 interact, 4 to 6 potion slots 1 to 3, 7 the BLOOD MARK's rite
+    /// (with interact, at a waystone); `pick` a card 1..4
     /// from the draw on offer (0 none). Call it 20 times a second; the worker predicts the hero at once.
     #[func]
     fn send_input(&mut self, direction: i32, buttons: i32, pick: i32) {
@@ -317,6 +321,12 @@ impl RealmLink {
     }
 
     /// Monster kinds the core has (42).
+    /// The core's two-byte input word `send_input` sends for these arguments (for the client's checks).
+    #[func]
+    fn input_word(direction: i32, buttons: i32, pick: i32) -> i32 {
+        i32::from(core_input(direction, buttons, pick))
+    }
+
     #[func]
     fn kind_count() -> i32 {
         KINDS.len() as i32
@@ -405,7 +415,7 @@ fn hero_dict(h: &HeroView) -> VarDictionary {
     for (k, v) in ints {
         d.set(k, v);
     }
-    for (k, v) in [("alive", h.alive), ("banked", h.banked), ("phoenix_used", h.phoenix_used), ("facing_left", h.facing_left), ("moving", h.moving)] {
+    for (k, v) in [("alive", h.alive), ("banked", h.banked), ("phoenix_used", h.phoenix_used), ("facing_left", h.facing_left), ("moving", h.moving), ("marked", h.marked)] {
         d.set(k, v);
     }
     d.set("x", h.x);
@@ -440,5 +450,9 @@ mod tests {
         assert_eq!(core_input(8, BTN_SKILL1 | BTN_SKILL2 | BTN_ULT | BTN_INTERACT, 0), input(8 | 0xF0, 0));
         assert_eq!(core_input(0, 2 << BTN_POTION_SHIFT, 4), input(0, 4 | 2 << 3));
         assert_eq!(core_input(99, 0, 99), input(8, 4));
+        // The BLOOD MARK's rite: interact and IN_MARK together, nothing else changed.
+        let rite = core_input(0, BTN_INTERACT | BTN_MARK, 0);
+        assert_eq!(rite, input(0x80, 0) | realm_core::IN_MARK);
+        assert_eq!(rite & realm_core::IN_INTERACT, realm_core::IN_INTERACT);
     }
 }

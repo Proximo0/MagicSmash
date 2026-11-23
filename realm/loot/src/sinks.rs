@@ -38,6 +38,28 @@ pub const TRAVEL_MIN: u64 = 20;
 /// item's level, x s^2 (`smith::upgrade_cost`): +1 to +5 is 0.8 hours of income a piece.
 pub const SMITH_STEP_BP: u64 = 150;
 
+/// Taking a job at the trainer (rules section 3, after THE CLASS TRIAL): this many hundredths of a percent of an
+/// hour's income at her class level, half an hour's. A one-off sink at level 40, where the glut begins: about
+/// 1.4 million coin at level 40, which a career mints in 20 to 40 minutes there (balance.md, the coin book).
+pub const JOB_CHANGE_BP: u64 = 5_000;
+
+/// The price of the 2nd to the 8th bank tab (the first is free; the account owns them, so the price does not
+/// follow a hero's level). Each about four times the last: the 2nd is two hours of THE FOOL'S ROAD's income, a
+/// first goal; the 8th is about two and a half hours of THE WORLD'S EDGE's. All seven are 16.3 million, about a
+/// tenth of what a career mints, nearly all of it at the top where coin piles up (economy.md, the coin glut).
+pub const BANK_TAB_PRICE: [u64; 7] = [3_000, 12_000, 50_000, 200_000, 800_000, 3_200_000, 12_000_000];
+
+/// The trainer's price for a job at a class level.
+pub fn job_change_cost(level: u16) -> u64 {
+	income_per_hour(level) * JOB_CHANGE_BP / 10_000
+}
+
+/// The price of the next bank tab for an account that owns `owned` tabs (the free one counted), or None when it
+/// has every tab there is.
+pub fn bank_tab_price(owned: u32) -> Option<u64> {
+	BANK_TAB_PRICE.get((owned as usize).checked_sub(1)?).copied()
+}
+
 /// The field a level belongs to for prices: the last whose bottom level it has reached.
 pub fn price_field(level: u16) -> usize {
 	(0..FIELDS.len()).rev().find(|&f| FIELDS[f].bottom as u16 <= level).unwrap_or(0)
@@ -96,6 +118,18 @@ mod tests {
 		assert_eq!(price_field(60), 5);
 		assert_eq!(income_per_hour(35), INCOME_PER_HOUR[3]);
 		assert!(income_per_hour(39) > income_per_hour(31));
+	}
+
+	#[test]
+	fn the_job_and_the_bank_tabs_cost_what_balance_md_says() {
+		let job = job_change_cost(40);
+		assert!((1_000_000..2_000_000).contains(&job), "a job at 40 costs {job}");
+		assert!(BANK_TAB_PRICE.windows(2).all(|w| w[1] > w[0]), "each tab dearer than the last");
+		assert_eq!(bank_tab_price(1), Some(3_000));
+		assert_eq!(bank_tab_price(7), Some(12_000_000));
+		assert_eq!(bank_tab_price(8), None);
+		assert_eq!(bank_tab_price(0), None);
+		assert_eq!(BANK_TAB_PRICE.len() as u32 + 1, realm_store::types::limits::BANK_TABS_MAX);
 	}
 
 	#[test]

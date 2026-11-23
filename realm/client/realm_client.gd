@@ -31,6 +31,14 @@ const BTN_SKILL2: int = 2
 const BTN_ULT: int = 4
 const BTN_INTERACT: int = 8
 const BTN_POTION_SHIFT: int = 4
+## The BLOOD MARK's rite (rules section 14): held with interact at a waystone; the mark key sends both.
+const BTN_MARK: int = 128
+## Within this many px of a waystone the rite and banking can be held (realm/core WAYSTONE_PX).
+const WAYSTONE_PX: float = 48.0
+## The rite's outcomes (realm/core pvp.rs MARK_*), the Mark event's `a`.
+const EV_MARK: int = 17
+const MARK_WORDS: Array[String] = ["", "YOU TAKE THE BLOOD MARK: HEROES WHO CARRY IT CAN STRIKE YOU", "YOU PUT THE BLOOD MARK DOWN",
+	"THE BLOOD MARK IS FROM CLASS LEVEL 20", "YOU STRUCK A HERO: THE MARK STAYS FOR TEN MINUTES AFTER", "THIS REALM MARKS YOU FOR GOOD", "THE REALM MARKS YOU"]
 const KEY_ZOOMS: Array[int] = [1, 2, 4]
 const MAX_ZOOM: int = 32
 ## The project's base size: zoom 1 shows this much of the field.
@@ -281,6 +289,16 @@ func _quit(code: int) -> void:
 	get_tree().quit(code)
 
 
+## Her own rite's outcome, in words on the HUD.
+func _mark_events(ev: PackedInt32Array) -> void:
+	var me: int = link.hero_id()
+	for i in range(0, ev.size() - 7, 8):
+		if ev[i] == EV_MARK and ev[i + 1] == me:
+			var state: int = ev[i + 2]
+			if state > 0 and state < MARK_WORDS.size():
+				warn(MARK_WORDS[state])
+
+
 ## A line on the HUD for a few seconds (the shell's warning before leaving by Esc).
 func warn(text: String) -> void:
 	_warn_text = text
@@ -314,6 +332,8 @@ func _process(delta: float) -> void:
 		_hud_t = now
 		_debug_text = _debug_lines()
 	_hud.notice = _warn_text if _now() < _warn_until else ""
+	_hud.near_stone = stone_near(_world_info.get("sites", PackedFloat32Array()), hero) if not _info.is_empty() else -1
+	_hud.rite_held = (_buttons & BTN_MARK) != 0
 	_hud.set_state(_info, _world_info, _debug_text)
 	if _rec:
 		_rec_frames.append(delta * 1000.0)
@@ -338,6 +358,7 @@ func _on_frame() -> void:
 	_fx_over.ingest(rows)
 	_fx_over.events(ev)
 	_sound.from_events(ev, link.hero_id())
+	_mark_events(ev)
 	if not _info.is_empty():
 		var hp: int = int(_info["health"])
 		var now_s: float = Time.get_ticks_msec() / 1000.0
@@ -418,16 +439,35 @@ func _read_keys(now: float) -> void:
 		var dx: int = int(ShellSettings.held("right")) - int(ShellSettings.held("left"))
 		var dy: int = int(ShellSettings.held("down")) - int(ShellSettings.held("up"))
 		_move = _dir_code(dx, dy)
-		_buttons = (BTN_SKILL1 if ShellSettings.held("skill1") else 0) \
-			| (BTN_SKILL2 if ShellSettings.held("skill2") else 0) \
-			| (BTN_ULT if ShellSettings.held("ult") else 0) \
-			| (BTN_INTERACT if ShellSettings.held("interact") else 0)
+		_buttons = held_buttons(func(a: String) -> bool: return ShellSettings.held(a))
 	if script_move >= 0:
 		_move = script_move
 	if _move in [4, 5, 6]:
 		_hero.hero_flip = true
 	elif _move in [1, 2, 8]:
 		_hero.hero_flip = false
+
+
+## The button bits of the actions `held` says are down (a Callable taking an action name): the rite's key holds
+## interact and the mark together, which is what the core asks at a waystone.
+static func held_buttons(held: Callable) -> int:
+	var b: int = (BTN_SKILL1 if held.call("skill1") else 0) \
+		| (BTN_SKILL2 if held.call("skill2") else 0) \
+		| (BTN_ULT if held.call("ult") else 0) \
+		| (BTN_INTERACT if held.call("interact") else 0)
+	if held.call("mark"):
+		b |= BTN_INTERACT | BTN_MARK
+	return b
+
+
+## The nearest waystone within WAYSTONE_PX of `at` (0..6), or -1. `sites` is the world's px pairs: the gate, the
+## heart, then the seven waystones.
+static func stone_near(sites: PackedFloat32Array, at: Vector2) -> int:
+	for i in 7:
+		var k: int = (2 + i) * 2
+		if k + 1 < sites.size() and Vector2(sites[k], sites[k + 1]).distance_to(at) <= WAYSTONE_PX:
+			return i
+	return -1
 
 
 func _bot_choices(now: float) -> void:

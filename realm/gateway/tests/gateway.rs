@@ -269,7 +269,7 @@ fn the_shells_calls_cards_merchants_and_the_dev_kit() {
     let h = make_hero(&mut ann, "Annie", 1);
     // The kit: coin, embers, runes, two draughts and three items of level 1.
     let inv = ann.inventory(h).unwrap();
-    assert_eq!((inv.stack(1, 1), inv.stack(1, 1000), inv.stack(1, 2001), inv.stack(1, 100)), (3500, 30, 4, 2));
+    assert_eq!((inv.stack(1, 1), inv.stack(1, 1000), inv.stack(1, 2001), inv.stack(1, 100)), (6500, 30, 4, 2));
     assert_eq!(inv.items.len(), 3);
     assert!(inv.items.iter().all(|i| i.level == 1 && i.kind == PlaceKind::Bag as u8 && i.plus == 0));
     // No kit without the flag.

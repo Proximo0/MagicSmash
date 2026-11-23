@@ -260,6 +260,7 @@ func _hud() -> void:
 	button("guild", Rect2(UiKit.W - 170, 44, 76, 26), "GUILD", true, false, 12)
 	button("social", Rect2(UiKit.W - 90, 44, 80, 26), "CHAT" + (" *" if not shell.invites.is_empty() else ""), true, false, 12)
 	_place_hud()
+	_duel_hud()
 	if not _prompt.is_empty():
 		var s: String = "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(_prompt["name"])]
 		var w: float = UiKit.text_width(s, 18) + 30.0
@@ -267,6 +268,23 @@ func _hud() -> void:
 		hit("prompt", pr)
 		UiKit.frame(self, pr, UiKit.GOLD, Color(0.1, 0.04, 0.04, 0.95))
 		UiKit.text(self, pr.position + Vector2(w / 2.0, 6), s, 18, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## A duel running or a challenge waiting shows under the hero's card; a challenge is answered on THE DUEL RING's
+## screen (it opens by itself; the banner is a way back to it).
+func _duel_hud() -> void:
+	var s: String = ""
+	if not shell.duel.is_empty():
+		s = "DUEL WITH %s: WALK TO FIGHT" % String(shell.duel["name"]).to_upper()
+	elif not shell.duel_offer.is_empty():
+		s = "%s CHALLENGES YOU: ANSWER" % String(shell.duel_offer["name"]).to_upper()
+	if s.is_empty():
+		return
+	var w: float = UiKit.text_width(s, 14) + 24.0
+	var r := Rect2(10, 86, w, 26)
+	hit("duel_banner", r)
+	UiKit.frame(self, r, UiKit.BAD, Color(0.14, 0.03, 0.03, 0.95))
+	UiKit.text(self, r.position + Vector2(12, 4), s, 14, UiKit.BONE)
 
 
 func _chat() -> void:
@@ -334,6 +352,9 @@ func on_press(id: String) -> void:
 			shell.leave_town()
 		"places":
 			_open_home("PlacesPanel", PlacesPanel)
+		"duel_banner":
+			if shell.duel.is_empty():
+				_open_home("DuelPanel", DuelPanel)
 		"house":
 			_open_home("HousePanel", HousePanel)
 		"street":
@@ -380,6 +401,8 @@ func open_station(sid: String) -> void:
 				p = StallsPanel.new()
 			"YardPanel":
 				p = YardPanel.new()
+			"DuelPanel":
+				p = DuelPanel.new()
 			"GuildPanel":
 				p = GuildPanel.new()
 			"StreetPanel":
@@ -409,6 +432,8 @@ func open_station(sid: String) -> void:
 				p = TradePanel.new()
 			"board":
 				p = BoardPanel.new()
+			"trial":
+				p = TrialPanel.new()
 	if p != null and shell.top() == self:
 		shell.open_panel(p)
 

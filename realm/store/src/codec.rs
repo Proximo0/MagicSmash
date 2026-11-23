@@ -166,6 +166,11 @@ impl Enc {
 			Cmd::GrantEntitlement { account, kind, count, purchase } => {
 				self.i(*account).u(*kind as u64).u(*count as u64).s(purchase)
 			}
+			Cmd::BuyEntitlement { hero, kind, have, price, reason } => {
+				self.i(*hero).u(*kind as u64).u(*have as u64).u(*price).s(reason)
+			}
+			Cmd::HeroFeat { hero, feat } => self.i(*hero).u(*feat as u64),
+			Cmd::TakeJob { hero, job, price } => self.i(*hero).u(*job as u64).u(*price),
 			Cmd::ParcelPut { kind, from, to, items, stacks, price, fee, expires, text } => {
 				self.u(*kind as u64).i(*from).opt_i(*to);
 				self.u(items.len() as u64);
@@ -501,6 +506,15 @@ impl<'a> Dec<'a> {
 				count: self.u32()?,
 				purchase: self.s()?,
 			},
+			"buy_entitlement" => Cmd::BuyEntitlement {
+				hero: self.i()?,
+				kind: EntitlementKind::from_i64(self.i()?).ok_or_else(|| bad("entitlement"))?,
+				have: self.u32()?,
+				price: self.u()?,
+				reason: self.s()?,
+			},
+			"hero_feat" => Cmd::HeroFeat { hero: self.i()?, feat: self.u8()? },
+			"take_job" => Cmd::TakeJob { hero: self.i()?, job: self.u8()?, price: self.u()? },
 			"parcel_put" => {
 				let kind = ParcelKind::from_i64(self.i()?).ok_or_else(|| bad("parcel kind"))?;
 				let from = self.i()?;

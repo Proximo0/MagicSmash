@@ -120,6 +120,7 @@ static func stations_for(place: Array, street_plots: Array = []) -> Array[Dictio
 		YARD:
 			out.append(_door("to_plaza", "OUT TO THE PLAZA", Vector2(2048, 3000), [PLAZA, 0], "", Color(0.2, 0.2, 0.26)))
 			out.append(_panel("dummy", "THE DUMMY", Vector2(2048, 1600), "YardPanel", "strike it, read your damage a second", Color(0.4, 0.3, 0.16)))
+			out.append(_panel("duel", "THE DUEL RING", Vector2(2448, 2200), "DuelPanel", "challenge a hero, answer a challenge", Color(0.42, 0.12, 0.12)))
 		GUILD_HALL:
 			out.append(_door("to_plaza", "OUT TO THE PLAZA", Vector2(2048, 3000), [PLAZA, 0], "", Color(0.2, 0.2, 0.26)))
 			out.append(_panel("guild", "THE GUILD BOARD", Vector2(2048, 1500), "GuildPanel", "members, board, bank", Color(0.3, 0.22, 0.4)))

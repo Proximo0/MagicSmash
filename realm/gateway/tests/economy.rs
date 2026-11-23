@@ -471,3 +471,44 @@ fn a_listing_may_not_ask_more_than_ten_times_the_value() {
     w.ok(a, EReq::MarketList { hero: h, what: Thing::Stack(1000, 10), price: each * 100, hours: 24 });
     w.verify();
 }
+
+/// Bank tabs: the account owns one free; each next is bought for coin at the bank, dearer each time
+/// (`realm_loot::sinks::BANK_TAB_PRICE`); the coin is destroyed with a ledger row and the tab opens at once. A stale
+/// count buys nothing, a poor hero is told the price in words, and the eighth is the last.
+#[test]
+fn bank_tabs_are_bought_for_rising_coin_and_open_at_once() {
+    use realm_loot::sinks::BANK_TAB_PRICE;
+    use realm_store::types::limits::BANK_TABS_MAX;
+    let w = world("tabs");
+    let a = w.account("teller");
+    let h = w.hero(a, "Teller", 5, false);
+    assert_eq!(w.ok(a, EReq::BankTabs { hero: h }), EResp::BankTabs { owned: 1, max: BANK_TABS_MAX, price: BANK_TAB_PRICE[0] });
+    // Poor: refused in words, nothing moves.
+    w.coin(h, BANK_TAB_PRICE[0] - 1);
+    match w.call(a, EReq::BankTabBuy { hero: h, owned: 1 }) {
+        Resp::Err { code: code::BAD_REQUEST, msg } => assert!(msg.contains("costs") && msg.contains("carries"), "{msg}"),
+        r => panic!("{r:?}"),
+    }
+    assert_eq!(w.have(h), BANK_TAB_PRICE[0] - 1);
+    let total: u64 = BANK_TAB_PRICE.iter().sum();
+    w.coin(h, total);
+    assert_eq!(w.ok(a, EReq::BankTabBuy { hero: h, owned: 1 }), EResp::BankTabs { owned: 2, max: BANK_TABS_MAX, price: BANK_TAB_PRICE[1] });
+    assert_eq!(w.have(h), total - 1);
+    // The same click again (it saw one tab): nothing more is bought.
+    assert_eq!(w.code(a, EReq::BankTabBuy { hero: h, owned: 1 }), code::BAD_REQUEST);
+    assert_eq!(w.have(h), total - 1);
+    // The new tab takes an item.
+    let it = w.item(h, 5, 0);
+    w.store.move_item(Meta::new(0xEC1 << 100, a, 1), it, Dest::bank(a, 1)).unwrap();
+    for n in 2..BANK_TABS_MAX {
+        assert!(matches!(w.ok(a, EReq::BankTabBuy { hero: h, owned: n }), EResp::BankTabs { owned, .. } if owned == n + 1));
+    }
+    assert_eq!(w.ok(a, EReq::BankTabs { hero: h }), EResp::BankTabs { owned: BANK_TABS_MAX, max: BANK_TABS_MAX, price: 0 });
+    assert_eq!(w.code(a, EReq::BankTabBuy { hero: h, owned: BANK_TABS_MAX }), code::BAD_REQUEST);
+    assert_eq!(w.have(h), BANK_TAB_PRICE[0] - 1, "every price paid, nothing more");
+    assert_eq!(w.eco.totals().tabs, total);
+    let flows = w.store.coin_flows().unwrap();
+    let sunk: i64 = flows.iter().filter(|f| f.0 == "DEBIT" && f.1 == "bank tab").map(|f| f.4).sum();
+    assert_eq!(sunk as u64, total, "every tab's coin is a traced DEBIT");
+    assert!(w.store.verify().unwrap().problems.is_empty());
+}

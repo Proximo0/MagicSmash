@@ -68,15 +68,17 @@ untouched (`Main` decides).
 
 | Station | What it shows | Gateway calls |
 |---|---|---|
-| Bank | her bag (40 slots), the account's bank (100 slots a tab, tabs in a strip), stacks; deposit, withdraw, 1/10/all | `BANK_DEPOSIT`, `BANK_WITHDRAW` (with the tab) |
+| Bank | her bag (40 slots), the account's bank (100 slots a tab; the strip shows owned tabs and the locked rest), stacks; deposit, withdraw, 1/10/all; BUY the next tab (its price on the button) | `BANK_DEPOSIT`, `BANK_WITHDRAW` (with the tab), `ECON` BankTabs, BankTabBuy |
 | Market | BROWSE (filter slot, rarity, price; BUY), SELL (item or stack, price, 12/24/48 h), MINE (cancel) | `ECON` market search, buy, list, mine, cancel (`ui/econ_wire.gd`) |
 | Post | INBOX (take, pay cash on delivery, refuse), WRITE (text, 1 to 8 things, coin, a price), SENT (recall), SHELF (what came back) | `ECON` letters, `MAIL_TAKE` |
 | Trade table | invite by name, accept, lay items and coin, confirm the seen version, cancel; the invitation opens the table by itself | `ECON` trade, pushes `P_ECON` |
 | World board | six fields' tide and boss countdowns, the world boss's ride, heroes in copies, queue, vaults (read every 5 s) | `WORLD` board (`ui/world_wire.gd`) |
 | Smith | SALVAGE, UPGRADE, REROLL, SOCKET (set in, take out), FUSE; the price before the click | `SALVAGE`, `UPGRADE`, `REROLL`, `SOCKET`, `UNSOCKET`, `FUSE` |
-| Merchants | BUY potions, SELL items, the BELT (three slots) | `BUY`, `SELL` (new), `SET_BELT` |
+| Merchants | BUY potions, embers and gear (daily stock), SELL items and embers or materials by the piece, BUY BACK, the BELT | `ECON` merchant list, buy, sell, buyback; `SET_BELT` |
 | Card reader | the 30 cards (owned or not, why), the deck of up to 20 as a row of cards, learn a page | `CARDS` (new), `SET_DECK`, `LEARN_PAGE` |
-| Trainer | skills with ranks, stat points (+1, +5), the job at level 40 | `SPEND_POINT`, `CHOOSE_JOB` |
+| Trainer | skills with ranks, stat points (+1, +5), the job at level 40 (after THE CLASS TRIAL, its price shown) | `SPEND_POINT`, `CHOOSE_JOB`, `WORLD` Trial |
+| The class trial | what it asks (level 10, alone, no key), passed or not, the job's price; ENTER; back from it, how it went | `WORLD` Trial, VaultOpen (vault 5) |
+| The duel ring (yard) | a challenge waiting (ACCEPT, REFUSE), challenge by name or from the heroes near her, the last result | `SOCIAL` Duel 0x5F, pushes 12 to 15 |
 | Gates | six fields with levels and bosses | `FIELD_TICKET` |
 | Sheet (H) | portrait, stats (spent, race, gear, total), skills, deck, belt | none (reads) |
 | Bag (I) | bag, stacks, six worn slots; wear (the worn one goes to the bag first) and take off | `EQUIP`, `UNEQUIP` |
@@ -102,7 +104,7 @@ label.
   gear. Why these numbers: potions priced to the coin a kill pays (about 10 at level 30) against the draught's 35%;
   items so low that coin stays the smith's binding cost (`economy.md`, sinks). E1 owns merchants: replace these two
   calls and the client's `GwWire.buy`/`T_SELL` follow.
-- `--dev-grant` (with `--dev-login`): a new hero gets 500 coin, 30 embers, 4 runes of MIGHT I, 2 healing draughts and a
+- `--dev-grant` (with `--dev-login`): a new hero gets 500 coin (and 3,000 for the homes and 3,000 for a bank tab), 30 embers, 4 runes of MIGHT I, 2 healing draughts and a
   rare, an uncommon and a common item of level 1, so a day-one player can try every station. Test:
   `gateway/tests/gateway.rs::the_shells_calls_cards_merchants_and_the_dev_kit`.
 
@@ -134,16 +136,15 @@ bag, 19 settings in town, 20 gates, 21 the field, 22 back in town; `zoom*.png` a
    plaza belong to the town room.
 4. **Stand-ins everywhere** (the art list above). The portraits are the field's tiny sprites scaled; a real card face
    per class (`ui_card_<class>.png`) is the first picture to ask for.
-5. **Not built here**: Steam login (the gateway answers DISABLED), hero rename, the class trial vault (needs a party, a
-   vault key and the `VAULT` ticket path), duels (the `Duel` request and its pushes 12 to 15 are not decoded by the
-   shell yet), the Blood Mark (a field rite: hold interact at a waystone with `IN_MARK`; the gateway has no request for
-   it). The bank does not learn how many tabs the account owns: the strip shows every tab with things in it, the next
-   one and one more, and a tab the account has not got is refused in words.
+5. **Not built here**: Steam login (the gateway answers DISABLED), hero rename. Built by job trial-sinks: the class
+   trial (station, ticket, result), duels, the BLOOD MARK's key and HUD, bank tabs owned and bought, the economy's
+   merchant. Not reached by any screen: the keyed vaults 0 to 4 and joining one by code (needs the party to carry the
+   code, world.md open question 4), and the shell's older `T_BUY`/`T_SELL`.
 
 **Node-built screens.** Bank, market, post, trade table and world board are `NodePanel`s (`ui/node_panel.gd`): real
 `Button`, `ItemList`, `Tree`, `TabBar`, `LineEdit`, `SpinBox`, `OptionButton` under one shared `UiTheme` (`ui/ui_theme.gd`:
 dark ground, bone text, a gold focus frame), all focusable, so the arrows, the D-pad and accept work, and Esc or the
 controller's B (`ui_cancel`) closes. `press(id)` clicks the control registered under an id, so tests drive the nodes.
-The dev gateway's `--dev-grant` also gives each account one extra bank tab.
+The dev gateway's `--dev-grant` kit carries 3,000 more coin, the second bank tab's price, so the bank's BUY is tried.
 6. **Sound.** The shell has no sounds yet (`FieldSound` has the hooks for the field only); volume and mute are wired
    to the master bus.

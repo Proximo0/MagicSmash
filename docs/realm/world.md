@@ -73,7 +73,7 @@ opens within a quarter second).
 
 - `WReq::VaultOpen { hero, vault, seals }`: the leader pays one VAULT KEY of the vault's field (row `field`: keys of
   THE MOON MARSH open THE MIRE CRYPT, and so on), debited by the server with a ledger row. The class trial (row 5)
-  needs no key and is from class level 10. A vault host opens (its own seed, `vault_monsters` = **4,000**, one
+  needs no key and is from class level 10 (job trial-sinks, below). A vault host opens (its own seed, `vault_monsters` = **4,000**, one
   thread) and she gets `WResp::Vault { code, ticket, port }`. The party joins with `WReq::VaultJoin { code }` while
   the run goes on and there is room (`party_max`, 8); the code is the invitation (T1's parties will send it).
 - At most `vault_max` = **64** open at once (64 x 8 = 512 heroes, about an eighth of the box).
@@ -85,6 +85,19 @@ opens within a quarter second).
 - The chest (`R_VAULT_CHEST`): the loot crate has no vault source, so a vault chest is THE ARCHLICH's boss chest
   (rolls from RARE, the card and trophy rolls) once for each two of `chest_rolls(seals)` (2 and one a seal): 1 to 5
   rounds. The first round carries the Archlich's first kill. A lost vault pays its coin in the field (the haul).
+
+## THE CLASS TRIAL (job trial-sinks)
+
+- Rules section 3 makes the trial a solo vault of the trainer's at level 10; rules 10 says it is a vault row for one
+  hero; neither names a key, so it takes none. A hero of class level 10 enters it alone from the town's CLASS TRIAL
+  station (`VaultOpen{vault 5, seals 0}`); being in a party does not stop her (the party waits: `party_max` 1).
+- Her win (the host's VAULT CHEST reward for row 5) is kept for good as a feat (`feats::CLASS_TRIAL`, store version 4)
+  and pushed to her (`WResp::Trial`). It pays **no chest**: the trial costs nothing to enter, so a chest would be a
+  free faucet every five minutes. Once passed she cannot enter it again. A loss pays the core's coin for the minutes.
+- Since heroes are made as a class (open question 1), the trial's win cannot be "the class": it is what the trainer
+  asks before he gives a job at 40, for coin (`job_change_cost`, balance.md). `WReq::Trial{hero}` tells the station
+  and the trainer: the level asked, passed, her job, the job's level and price.
+- Test: `gateway/tests/world.rs::the_class_trial_is_entered_alone_and_its_win_lets_the_trainer_sell_a_job`.
 
 ## Chests
 
@@ -174,9 +187,9 @@ world_bosses=53 host_killed=1 tickets_lost=18 doubled=0/8904 coin_mismatch=0 kil
 ## Open questions
 
 1. **NOVICE below level 10.** Heroes are made as a class (the shell's builder) but rules section 3 makes them NOVICEs
-   until 10, and the class trial vault is built (row 5, keyless) but no call turns its win into anything. Either the
-   core drops the NOVICE rule for heroes made as a class, or the builder makes NOVICEs and the trial's win sets the
-   class. Not changed here (the core is not this job's).
+   until 10. The class trial's win is now the feat the trainer asks before a job (job trial-sinks, above), not the
+   class. Either the core drops the NOVICE rule for heroes made as a class, or the builder makes NOVICEs and the
+   trial's win also sets the class. Not changed here (the core is not this job's).
 2. **The Godot client and `WResp::Moved`.** The realm client (C1/C2) does not yet follow a move: until it does, a
    player whose copy closes is banked as a disconnect after 30 s. `bot.rs` shows the handling (HELLO the new port with
    the same ticket).

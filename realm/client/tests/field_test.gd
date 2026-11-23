@@ -173,3 +173,18 @@ func _hud() -> void:
 func _input() -> void:
 	_check(RealmClient._dir_code(0, 0) == 0 and RealmClient._dir_code(1, 0) == 1 and RealmClient._dir_code(0, 1) == 3, "direction codes")
 	_check(RealmClient._dir_code(-1, -1) == 6 and RealmClient._dir_code(1, -1) == 8, "diagonal direction codes")
+	# The BLOOD MARK's rite (rules section 14): its key holds interact and the mark, and the module sends the core's
+	# IN_INTERACT (0x80) and IN_MARK (0x4000) in the one input word; plain interact sends no mark.
+	var rite: int = RealmClient.held_buttons(func(a: String) -> bool: return a == "mark")
+	_check(rite == RealmClient.BTN_INTERACT | RealmClient.BTN_MARK, "the rite's key holds interact and the mark: %d" % rite)
+	var word: int = RealmLink.input_word(0, rite, 0)
+	_check(word & 0x4000 != 0 and word & 0x80 != 0, "the input word carries IN_MARK and interact: %x" % word)
+	var bank: int = RealmLink.input_word(0, RealmClient.held_buttons(func(a: String) -> bool: return a == "interact"), 0)
+	_check(bank & 0x80 != 0 and bank & 0x4000 == 0, "plain interact sends no mark: %x" % bank)
+	_check(ShellSettings.key("mark") == KEY_G and ShellSettings.key("interact") == KEY_F, "the rite has its own rebindable key")
+	var sites := PackedFloat32Array([0, 0, 500, 500, 100, 100, 900, 900])
+	_check(RealmClient.stone_near(sites, Vector2(130, 120)) == 0 and RealmClient.stone_near(sites, Vector2(300, 300)) == -1, "a waystone is near within 48 px")
+	var hud := FieldHud.new()
+	hud.hero = {"marked": true}
+	_check(hud.marked(), "the HUD reads the mark from the hero view")
+	hud.free()
