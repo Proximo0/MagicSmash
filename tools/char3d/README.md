@@ -33,5 +33,13 @@ body centre, bottom edge 1 px under the feet, no resampling) and writes `<key>_w
 - pack `-`: a plan of `build_beast.py` (`tree`, `chandelier`, `ghost`, `rider`), all shapes moved by code;
 - a KayKit adventurers pack name: the human body in a `build_hero.py` kit (`boss_*`), re-posed from the pack's clips;
 - `skel:Skeleton_Warrior` (set `SKELS` to the KayKit Skeletons `Characters/gltf` dir): `build_skel.py`, the skeleton's own rig and
-  clips with props on its bones (`bone_regent`, `archlich`). The skeleton is a big-skulled chibi: it reads cute, not grim.
+  clips. It is a big-skulled chibi and reads cute: no boss uses it any more.
+- Robed tall figures (`boss_bone_regent`, `boss_archlich`): the human body in a `build_hero.py` kit with the parts of
+  `boss_extras.py` (exec'd inside build_hero: `skull`, `ribs`, `mantle`, `mitre`, `phylactery`, held `sceptre` and `lichstaff`
+  meshes). Kit keys `nolegs` (no legs under the robe), `float` (m, lifted, not in Death), `bulk` values may be a per-axis tuple.
+  View: bone regent YAW=-15 (the skull face shows; at -70 the head is a tube in profile).
+Horse for the rider plan: looked for a CC0 rigged horse (Quaternius animal packs) on 23 Nov 2026; quaternius.com, poly.pizza,
+opengameart.org, itch.io answered 403 from the build proxy and the GitHub search API 502, and nothing on disk has one (only Rigify's
+horse metarig, a rig without a mesh). Nothing was downloaded. `boss_death_the_pale_rider` stays unimported: the hand-built `rider`
+horse still reads low-poly (see work_review/). A rigged horse glb would be the right next step if one can be fetched.
 A rooted boss lists `Idle` and `Walking_A` (a sway) and no legs move; its walk strip is the sway. `review_bosses.py` makes the contact sheets.
