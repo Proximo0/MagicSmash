@@ -49,7 +49,7 @@ fn monster_frame(kind: u8) -> usize {
 
 /// The first field bosses have art slots of their own after the kinds (the client appends them to the atlas in
 /// this order: `FieldArt.boss_entries`); the monster that is the running boss is drawn from its slot.
-pub const BOSS_ART: usize = 4;
+pub const BOSS_ART: usize = 12;
 
 fn boss_frame(f: &Field, slot: usize) -> Option<usize> {
     f.boss().filter(|b| b.slot as usize == slot && usize::from(b.which) < BOSS_ART).map(|b| MONSTER_FRAMES + usize::from(b.which))
