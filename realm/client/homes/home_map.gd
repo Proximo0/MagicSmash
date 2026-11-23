@@ -55,9 +55,19 @@ static func thing_name(base: int) -> String:
 	return FURNITURE[clampi(base - FURNITURE_BASE, 0, FURNITURE.size() - 1)]
 
 
-## Names a flat stand-in picture of a thing is filed under: furniture by its name, plaques by "plaque".
+## The name a thing's picture is filed under (`ui_<name>.png`, built by tools/char3d/build_town.py): furniture by its name
+## (home_chair), a plaque by its boss (home_plaque_0 .. 7). Without that file the thing is drawn as the flat stand-in
+## "home_plaque" / the furniture's own name (see `HomeDraw.draw_thing`).
 static func thing_art(base: int) -> String:
-	return "home_plaque" if base >= TROPHY_BASE else "home_" + FURNITURE[clampi(base - FURNITURE_BASE, 0, FURNITURE.size() - 1)].to_lower().replace(" ", "_").replace("'", "")
+	if base >= TROPHY_BASE:
+		var pn: String = "home_plaque_%d" % clampi(base - TROPHY_BASE, 0, 7)
+		return pn if UiArt.has_file(pn) else "home_plaque"
+	return "home_" + FURNITURE[clampi(base - FURNITURE_BASE, 0, FURNITURE.size() - 1)].to_lower().replace(" ", "_").replace("'", "")
+
+
+## A rug lies on the floor: drawn under everything, not in the depth order.
+static func is_flat(base: int) -> bool:
+	return base == FURNITURE_BASE + 2 or base == FURNITURE_BASE + 12
 
 
 static func cell_of(room: int, x: int, y: int) -> int:
@@ -169,6 +179,8 @@ static func fires_here(place: Array, house_items: Array = []) -> Array[Vector2]:
 ## Every picture name the homes ask of `UiArt` (the art list): doors, boards, furniture and plaques.
 static func art_names() -> Array[String]:
 	var out: Array[String] = ["home_door", "home_door_free", "home_board", "home_plaque", "home_fire", "home_dummy"]
+	for b in 8:
+		out.append("home_plaque_%d" % b)
 	for n in FURNITURE:
 		out.append("home_" + n.to_lower().replace(" ", "_").replace("'", ""))
 	return out

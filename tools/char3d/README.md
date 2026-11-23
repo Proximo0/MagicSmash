@@ -35,3 +35,12 @@ body centre, bottom edge 1 px under the feet, no resampling) and writes `<key>_w
 - `skel:Skeleton_Warrior` (set `SKELS` to the KayKit Skeletons `Characters/gltf` dir): `build_skel.py`, the skeleton's own rig and
   clips with props on its bones (`bone_regent`, `archlich`). The skeleton is a big-skulled chibi: it reads cute, not grim.
 A rooted boss lists `Idle` and `Walking_A` (a sway) and no legs move; its walk strip is the sway. `review_bosses.py` makes the contact sheets.
+
+## Home furniture and plaques (`home_models.py`)
+One 3D model per piece in the town_models style, rendered by `build_town.py` (same camera and pixel density as the town
+pictures; each model is shrunk by `SCALE` so it stands right beside a hero). Files: `realm/client/art/ui_home_<name>.png`,
+`<name>` = the furniture's name lower-cased, spaces to `_`, no `'` (`home_chair`, `home_saints_screen` ...), and
+`home_plaque_0..7` by boss. Rebuild: `HOME=1 python3 -I build_town.py -- <scratch dir> realm/client/art [home_chair ...]`
+(bpy as a python module; about 3 s a picture). Contact sheet at 2x on the house floor with a hero: `home_sheet.py <art> <png>`.
+The client (`HomeDraw.draw_thing` / `thing_picture`, `HomeMap.thing_art`) uses a file when it exists and the flat stand-in
+when it does not; pictured things are drawn in the town's depth order (rugs under everything).

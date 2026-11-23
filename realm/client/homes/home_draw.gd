@@ -1,7 +1,11 @@
 class_name HomeDraw
 extends RefCounted
 ## What the town screen draws for a place other than the plaza: the floor's colour, the fires, a house's furniture.
-## Drawn by code in the dark frame style; every picture is a flat stand-in (`UiArt.texture("home_...")`).
+## Furniture and plaques use their rendered pictures (ui_home_*.png, see HomeMap.thing_art) and fall back to flat stand-ins
+## drawn by code in the dark frame style (`UiArt.texture("home_...")`) where a file is missing.
+
+## Picture pixels south of a cell's centre that a standing thing's bottom edge sits (its depth key too).
+const THING_BASE: float = 30.0
 
 
 ## The tint of the floor tile at `wp` for a place, or null for the plaza (which the town screen draws itself).
@@ -57,6 +61,8 @@ static func _fire(t: TownScreen, at: Vector2) -> void:
 static func fire_picture(t: TownScreen, at: Vector2) -> void:
 	if not UiArt.has_file("town_brazier"):
 		return
+	if int(t.shell.place[0]) == HomeMap.HOUSE and UiArt.has_file("home_hearth"):
+		return		# a house's fire is its hearth's own picture
 	var tex: Texture2D = UiArt.texture("town_brazier", 96)
 	var ps: Vector2 = tex.get_size() * TownScreen.PIC_K * TownScreen.ZOOM
 	var c: Vector2 = t.w2s(at)
@@ -76,11 +82,50 @@ static func _house(t: TownScreen) -> void:
 		var slot: int = int(it["slot"])
 		if slot / (HomeMap.GRID * HomeMap.GRID) != floor_no:
 			continue
-		draw_thing(t, int(it["base"]), int(it["rarity"]), t.w2s(HomeMap.cell_px(slot)), cell * 0.78)
+		var base: int = int(it["base"])
+		if UiArt.has_file(HomeMap.thing_art(base)):
+			if HomeMap.is_flat(base):
+				thing_picture(t, it)
+			continue		# the rest are drawn with the heroes, by depth (`depth_things`)
+		draw_thing(t, base, int(it["rarity"]), t.w2s(HomeMap.cell_px(slot)), cell * 0.78)
 
 
-## One piece of furniture or a plaque, centred at `c`, `s` px on a side.
+## The house's pictured things (not rugs) on this floor as [ground y, item], for the town's depth-ordered list.
+static func depth_things(t: TownScreen) -> Array:
+	var out: Array = []
+	if int(t.shell.place[0]) != HomeMap.HOUSE:
+		return out
+	for it in t.shell.house.get("items", []):
+		var slot: int = int(it["slot"])
+		var base: int = int(it["base"])
+		if slot / (HomeMap.GRID * HomeMap.GRID) != t.floor_no or HomeMap.is_flat(base) or not UiArt.has_file(HomeMap.thing_art(base)):
+			continue
+		out.append([HomeMap.cell_px(slot).y + THING_BASE, it])
+	return out
+
+
+## A thing's picture at its own size (a pixel as big as a hero's), standing on its cell's centre, a rarity bar under it.
+static func thing_picture(t: TownScreen, it: Dictionary) -> void:
+	var base: int = int(it["base"])
+	var tex: Texture2D = UiArt.texture(HomeMap.thing_art(base), 96)
+	var ps: Vector2 = tex.get_size() * TownScreen.PIC_K * TownScreen.ZOOM
+	var c: Vector2 = t.w2s(HomeMap.cell_px(int(it["slot"])))
+	var bottom: float = c.y + THING_BASE * TownScreen.ZOOM
+	t.draw_texture_rect(tex, Rect2(Vector2(c.x - ps.x / 2.0, bottom - ps.y), ps), false)
+	t.draw_line(Vector2(c.x - ps.x / 4.0, bottom + 2.0), Vector2(c.x + ps.x / 4.0, bottom + 2.0), GameNames.rarity_colour(int(it["rarity"])), 2.0)
+
+
+## One piece of furniture or a plaque, centred at `c`, fitted in `s` px (the panel's cells and list). Its picture when
+## the file is there, else the flat stand-in with a rarity frame.
 static func draw_thing(ci: CanvasItem, base: int, rarity: int, c: Vector2, s: float) -> void:
+	var name: String = HomeMap.thing_art(base)
+	if UiArt.has_file(name):
+		var tex: Texture2D = UiArt.texture(name, 96)
+		var k: float = minf(2.0, minf(s / tex.get_width(), s / tex.get_height()))
+		var ps: Vector2 = tex.get_size() * k
+		ci.draw_texture_rect(tex, Rect2(c - ps / 2.0, ps), false)
+		ci.draw_line(Vector2(c.x - s / 4.0, c.y + s / 2.0 - 1.0), Vector2(c.x + s / 4.0, c.y + s / 2.0 - 1.0), GameNames.rarity_colour(rarity), 2.0)
+		return
 	var r := Rect2(c - Vector2(s, s) / 2.0, Vector2(s, s))
-	ci.draw_texture_rect(UiArt.texture(HomeMap.thing_art(base), 48, GameNames.rarity_colour(rarity).darkened(0.35)), r, false)
+	ci.draw_texture_rect(UiArt.texture(name, 48, GameNames.rarity_colour(rarity).darkened(0.35)), r, false)
 	ci.draw_rect(r, GameNames.rarity_colour(rarity), false, 1.0)
