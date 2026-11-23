@@ -23,7 +23,7 @@ for c in "${clips[@]}"; do
 	godot --path realm/client -- --server=127.0.0.1:$port --bot --zoom="$zoom" --class="$class" --race="$race" --window="${W}x${H}" --debug=0 --mute >"$out/client$n.log" 2>&1 &
 	cl=$!
 	sleep 12  # join and settle
-	ffmpeg -loglevel error -y -f x11grab -draw_mouse 0 -framerate "$FPS" -video_size "${W}x${H}" -i :97 -t "$secs" -c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p "$out/clip$n.mp4"
+	ffmpeg -loglevel error -y -f x11grab -draw_mouse 0 -framerate "$FPS" -video_size "${W}x${H}" -i :97 -t "$secs" -c:v libx264 -preset veryfast -crf 24 -maxrate 3500k -bufsize 7M -pix_fmt yuv420p "$out/clip$n.mp4"
 	kill "$cl" "$sv" 2>/dev/null; wait "$cl" "$sv" 2>/dev/null
 	echo "file 'clip$n.mp4'" >>"$out/list.txt"
 	grep -ciE "error" "$out/client$n.log" | sed "s/^/clip $n client error lines: /"
