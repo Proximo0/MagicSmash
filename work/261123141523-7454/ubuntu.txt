@@ -1,0 +1,1 @@
+2026-11-23T20:35:14Z PASS id=261123141523-7454 kind=shell secs=1 stationstart at_boot=yes launcher=/home/curtis/projects/stations/MagicSmash/tools/station/start_station.sh name=ubuntu
