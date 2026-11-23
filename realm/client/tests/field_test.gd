@@ -88,10 +88,12 @@ func _sidecar() -> void:
 	var holder := Node.new()
 	var mixed: Array[Dictionary] = [
 		{"tex": ImageTexture.create_from_image(img), "anim": 4, "fps": 8.0, "scale": 0.5, "art": "walk"},
-		{"tex": ImageTexture.create_from_image(img), "anim": 8, "fps": 16.0, "scale": 0.25, "art": "walk"}]
+		{"tex": ImageTexture.create_from_image(img), "anim": 8, "fps": 16.0, "scale": 0.25, "art": "walk", "hover": 10.0}]
 	var b := RealmBatch.new(holder, mixed, 1)
 	var info: PackedVector4Array = b.material.get_shader_parameter("info")
 	_check(info[0].x == 4.0 and info[1].x == 8.0 and info[0].z == 8.0 and info[1].z == 16.0, "one batch holds strips of 4 and 8 frames with their own fps")
+	_check(info[0].w == 0.0 and info[1].w == 10.0, "a floating kind's hover reaches the shader")
+	_check(float(FieldArt.entry_for("enemy_carrion_crow").get("hover", 0.0)) > 0.0 and float(FieldArt.entry_for("enemy_plague_rat").get("hover", 1.0)) == 0.0, "the crow's sidecar says it floats, the rat's does not")
 	holder.free()
 	# With strips: entry 0 has a die strip of 2 frames, entry 1 none; they sit after the main entries (2 + 3 * kind + 2 for die).
 	var with_die: Array[Dictionary] = [

@@ -50,7 +50,7 @@ static func layout(sizes: Array[Vector2i], max_w: int = ATLAS_W) -> Dictionary:
 
 ## `entries` are the pictures in atlas order (the numbers RealmLink writes), each a Dictionary: `tex` (a
 ## picture, or a strip of `anim` frames side by side), `anim` (frames in the strip, 1 for a still picture) and
-## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px), `fps` (frames a second, 8). `z` is the draw layer.
+## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px), `fps` (frames a second, 8), `hover` (px a floating kind is drawn above its spot, 0). `z` is the draw layer.
 ## The atlas is one texture of shelves (see `layout`), so 42 strips of 8 frames of 150 x 93 fit. `bob_stills`: a
 ## moving figure with a still picture bobs (the players' batch); the monsters' does not.
 ## `strips`: also pack each entry's `atk`, `hit` and `die` strips (`atk_n` etc. frames) as extra entries after the
@@ -115,11 +115,11 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 	material.set_shader_parameter("atlas", Vector2(atlas_size))
 	material.set_shader_parameter("extra_base", entries.size() if strips else 0)
 	material.set_shader_parameter("rects", rects)
-	# One vec4 an entry (frames, scale, fps): see figures.gdshader `info`.
+	# One vec4 an entry (frames, scale, fps, hover px): see figures.gdshader `info`.
 	var info := PackedVector4Array()
 	info.resize(MAX_FRAMES)
 	for i in MAX_FRAMES:
-		info[i] = Vector4(anims[i], scales[i], rates[i], 0.0)
+		info[i] = Vector4(anims[i], scales[i], rates[i], float(all[i].get("hover", 0.0)) if i < all.size() else 0.0)
 	material.set_shader_parameter("info", info)
 	var tex := ImageTexture.create_from_image(img)
 	for k in 2:
