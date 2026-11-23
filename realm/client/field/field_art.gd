@@ -4,7 +4,7 @@ extends RefCounted
 ##   enemy_<kind>.png      a monster kind: its name with spaces as underscores (enemy_plague_rat.png)
 ##   hero_<race>_<class>.png   a hero: race human elf dwarf orc, class novice knight mage archer priest paladin
 ##   <name>_walk.png       four frames side by side for that picture (a strip: 2 texture px per world px)
-##   <name>_walk.json      optional, next to the strip: {"frames": 8, "fps": 16, "scale": 0.25}; defaults 4, 8, 0.5
+##   <name>_walk.json      optional, next to the strip: {"frames": 8, "fps": 16, "scale": 0.25, "hover": 10}; defaults 4, 8, 0.5, 0 (hover: px a floating kind is drawn above its spot)
 ##   <name>_atk.png, <name>_hit.png, <name>_die.png: optional, same scale as the walk strip; the entry gets `atk`,
 ##   `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks). Their frame counts
 ##   default to 3, 1, 3 and come from the walk sidecar's "atk_frames", "hit_frames", "die_frames" (the entry's
@@ -92,6 +92,7 @@ static func entry_for(key: String, dir: String = "res://art") -> Dictionary:
 		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 		if d is Dictionary:
 			side = d
+	e["hover"] = maxf(float(side.get("hover", 0.0)), 0.0)
 	for suffix in ["atk", "hit", "die"]:
 		if _exists(key + "_" + suffix, dir):
 			var t: Texture2D = _load(key + "_" + suffix, dir)

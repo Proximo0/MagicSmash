@@ -13,6 +13,8 @@ shader_type canvas_item;
 const int MAX_FRAMES = 256;
 const float BOB_PX = 1.5;
 const float BOB_RATE = 14.0;
+const float HOVER_SWAY_PX = 1.5;
+const float HOVER_RATE = 2.5;
 // custom.z = kind + STATE_STEP * state, custom.w = bob + BOB_STEP * age in ticks (draw.rs). States: 0 walk, 1 atk, 2 hit, 3 die.
 const float STATE_STEP = 64.0;
 const float BOB_STEP = 32.0;
@@ -28,9 +30,16 @@ uniform vec2 cell = vec2(32.0, 32.0);
 // Per entry: the first frame's top left in the atlas and its size, in texels.
 uniform vec4 rects[MAX_FRAMES];
 // Per entry: frames in the strip, and the scale it is drawn at.
+<<<<<<< HEAD
 // Per entry: x the frames of the strip, y the scale it is drawn at, z its frames a second. One vec4 array, not
 // three float arrays: a float in a uniform block takes 16 bytes, and three arrays of 256 with `rects` would pass
 // the 16 KB a block is promised.
+=======
+// Per entry: x the frames of the strip, y the scale it is drawn at, z its frames a second, w its hover. One vec4 array, not
+// three float arrays: a float in a uniform block takes 16 bytes, and three arrays of 256 with `rects` would pass
+// the 16 KB a block is promised.
+// w: how many px a floating kind (a crow, a wisp) is drawn above its spot; it sways there and sinks as it dies.
+>>>>>>> origin/monster-hover
 uniform vec4 info[MAX_FRAMES];
 // Where the atk, hit, die strips of kind k start: entry extra_base + 3 * k + state - 1 (their rect width 0: none).
 uniform int extra_base = 0;
@@ -63,6 +72,18 @@ void vertex() {
 	float step_x = 0.0;
 	// The quad spans x -cell.x/2..cell.x/2 and y -cell.y..0 (feet at the origin): shrink it to the picture.
 	VERTEX = VERTEX * (r.zw / cell) * info[e].y * shown + INSTANCE_CUSTOM.xy * (1.0 - blend);
+<<<<<<< HEAD
+=======
+	float lift = info[e].w;
+	if (lift > 0.0) {
+		if (state > 2.5) {
+			lift *= 1.0 - clamp((age + blend) / STRIP_TICKS.z, 0.0, 1.0);
+		} else {
+			lift += sin(TIME * HOVER_RATE + bob) * HOVER_SWAY_PX;
+		}
+		VERTEX.y -= lift * shown;
+	}
+>>>>>>> origin/monster-hover
 	if (state > 0.5) {
 		// A strip of a state plays once over its ticks, then holds its last frame.
 		float len = STRIP_TICKS.x;

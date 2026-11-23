@@ -47,6 +47,12 @@ fn monster_frame(kind: u8) -> usize {
     usize::from(kind).min(MONSTER_FRAMES - 1)
 }
 
+/// Kinds that stand off and throw (the core's SPITTER and LOBBER): their attack strip follows their throw timer.
+fn ranged(kind: u8) -> bool {
+    use realm_core::tables::kinds::{LOBBER, SPITTER};
+    realm_core::KINDS.get(usize::from(kind)).is_some_and(|k| k.beh & (SPITTER | LOBBER) != 0)
+}
+
 fn hero_frame(class: u8, race: u8) -> usize {
     usize::from(class).min(HERO_CLASSES - 1) * HERO_RACES + usize::from(race).min(HERO_RACES - 1)
 }
@@ -263,6 +269,9 @@ impl DrawState {
             let since_hit = now - self.monsters.hit_at[i];
             let (state, age) = if self.monsters.hit_at[i] != 0 && since_hit < HIT_TICKS {
                 (ST_HIT, since_hit)
+            } else if m.stun[i] == 0 && ranged(m.kind[i]) && back == (0.0, 0.0) && (1..ATK_PERIOD as u8).contains(&m.timer[i]) {
+                // A spitter or lobber standing to throw: its strip ends on the tick it lets go (its timer at 0).
+                (ST_ATK, ATK_PERIOD - m.timer[i] as u32)
             } else if m.stun[i] == 0 && heroes.iter().any(|&(hx, hy)| {
                 let (dx, dy) = ((hx - m.x[i]) as i64, (hy - m.y[i]) as i64);
                 dx * dx + dy * dy <= reach * reach
@@ -417,6 +426,24 @@ mod tests {
         let a = states(&d.monsters(&f, ALL));
         assert_eq!((a[0].0, a[0].1), (ST_ATK, 0));
         assert!(a[0].2 < ATK_PERIOD);
+    }
+
+    #[test]
+    fn a_spitter_standing_to_throw_winds_up_to_the_tick_it_lets_go() {
+        let (mut f, _) = lone(None);
+        let mut d = DrawState::default();
+        let spitter = realm_core::KINDS.iter().position(|k| k.beh & realm_core::tables::kinds::SPITTER != 0).unwrap() as u8;
+        let m = f.monsters_mut();
+        (m.kind[0], m.timer[0]) = (spitter, 30);
+        d.monsters(&f, ALL);
+        assert_eq!(states(&d.monsters(&f, ALL))[0].0, ST_WALK, "far from its next throw it only stands");
+        f.monsters_mut().timer[0] = 3;
+        assert_eq!(states(&d.monsters(&f, ALL))[0], (ST_ATK, usize::from(spitter), ATK_PERIOD - 3));
+        f.monsters_mut().timer[0] = 1;
+        assert_eq!(states(&d.monsters(&f, ALL))[0], (ST_ATK, usize::from(spitter), ATK_PERIOD - 1));
+        f.monsters_mut().kind[0] = 0;
+        assert_eq!(realm_core::KINDS[0].beh & realm_core::tables::kinds::SPITTER, 0);
+        assert_eq!(states(&d.monsters(&f, ALL))[0].0, ST_WALK, "a kind that does not throw ignores the timer");
     }
 
     #[test]
