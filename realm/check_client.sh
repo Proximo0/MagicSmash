@@ -101,12 +101,15 @@ shell_runner=()
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then shell_runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
 shell_shots="${SHELL_SHOTS_DIR:-$work/shell_shots}"
 if [ -n "${DISPLAY:-}" ] || [ ${#shell_runner[@]} -gt 0 ]; then
-	shell_line=$(timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" --shots="$shell_shots" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+	timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" --shots="$shell_shots" >"$work/shell.log" 2>&1; echo "exit=$?" >>"$work/shell.log"
 else
-	shell_line=$(timeout 240 "$GODOT" --headless --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" 2>&1 | grep -E "^SHELL_TEST|^  FAILED" | tr '\n' ' ')
+	timeout 240 "$GODOT" --headless --path client -s res://tests/shell_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" >"$work/shell.log" 2>&1; echo "exit=$?" >>"$work/shell.log"
 fi
+shell_line=$(grep -E "^SHELL_TEST|^  FAILED" "$work/shell.log" | tr '\n' ' ')
 if [[ "$shell_line" != *"SHELL_TEST ok"* ]]; then
 	echo "${shell_line:-SHELL_TEST printed nothing}"
+	# Why: the exit code (124 is the 240 s timeout), Godot's errors, and the last lines it and the gateway printed.
+	echo "shell test $(tail -1 "$work/shell.log") | $(grep -E "ERROR|error|refused|Segmentation|crash" "$work/shell.log" | grep -v ALSA | head -4 | cut -c1-200 | tr '\n' ';') | last: $(grep -v "^exit=" "$work/shell.log" | tail -3 | cut -c1-200 | tr '\n' ';') | gateway: $(tail -2 "$work/gateway.log" | cut -c1-200 | tr '\n' ';')"
 	fail "shell test"
 fi
 
