@@ -103,11 +103,19 @@ func _anim() -> void:
 	# The hero layer draws with the fallbacks: a hit hero flashes, a dead one fades and tilts.
 	var layer := RealmLayer.new()
 	layer.is_ground = false
-	layer.hero_entry = FieldArt.hero_entry(1, 1)
+	var with_strips: Dictionary = FieldArt.hero_entry(1, 1)
 	var now: float = Time.get_ticks_msec() / 1000.0
+	layer.hero_entry = with_strips
 	layer.hit_at = now
 	layer._draw_hero()
-	_check(layer.last_state == A.HIT and layer.last_tint.r > 1.0, "a hit hero draws with the flash")
+	_check(layer.last_state == A.HIT and layer.last_tint == Color.WHITE, "a hit hero with a hit strip draws it, no flash")
+	var bare: Dictionary = with_strips.duplicate()
+	for k in ["atk", "hit", "die", "atk_n", "hit_n", "die_n"]:
+		bare.erase(k)
+	layer.hero_entry = bare
+	layer.hit_at = now
+	layer._draw_hero()
+	_check(layer.last_state == A.HIT and layer.last_tint.r > 1.0, "a hit hero with no strip draws with the flash")
 	layer.hit_at = -100.0
 	layer.hero_alive = false
 	layer.died_at = -100.0

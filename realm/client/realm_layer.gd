@@ -80,7 +80,9 @@ func _draw_hero() -> void:
 	if strip != null:
 		tex = strip
 		n = int(hero_entry.get("hit_n", 1)) if state == FieldAnim.HIT else int(hero_entry.get("atk_n", FieldAnim.ATK_FRAMES))
-		if state == FieldAnim.ATTACK:
+		if state == FieldAnim.HIT:
+			t = now - hit_at
+		elif state == FieldAnim.ATTACK:
 			t = now - atk_at
 		elif state == FieldAnim.DIE:
 			n = int(hero_entry.get("die_n", FieldAnim.DIE_FRAMES))
@@ -88,7 +90,7 @@ func _draw_hero() -> void:
 	var fw: float = float(tex.get_width()) / float(n)
 	var step: int = 0
 	if strip != null:
-		step = FieldAnim.frame_at(t, FieldAnim.ATK_S if state == FieldAnim.ATTACK else FieldAnim.DIE_S, n) if n > 1 else 0
+		step = FieldAnim.frame_at(t, FieldAnim.HIT_S if state == FieldAnim.HIT else (FieldAnim.ATK_S if state == FieldAnim.ATTACK else FieldAnim.DIE_S), n) if n > 1 else 0
 	elif anim > 1 and hero_moving and hero_alive:
 		step = int(fmod(now * float(hero_entry.get("fps", FieldArt.WALK_FPS)), float(anim)))
 	var size := Vector2(fw, tex.get_height()) * sc

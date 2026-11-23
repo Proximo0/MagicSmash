@@ -48,13 +48,14 @@ static func frame_at(t: float, len: float, n: int) -> int:
 	return clampi(int(t / len * float(n)), 0, n - 1)
 
 
-## The colour to draw with: a white flash while hit and the art has no hit strip, a fade from white to `base` (the dead colour) when dead.
+## The colour to draw with: a white flash while hit and the art has no hit strip, a fade from white to `base` (the
+## dead colour) when dead (with a die strip too, so a corpse reads as one), plain white otherwise.
 static func tint(state: int, has_strip: bool, since_death: float, base: Color) -> Color:
 	if state == HIT and not has_strip:
 		return FLASH
-	if state == DIE and not has_strip:
+	if state == DIE:
 		return Color.WHITE.lerp(base, clampf(since_death / DIE_S, 0.0, 1.0))
-	return base
+	return Color.WHITE
 
 
 ## The tilt (radians) of a dead figure with no die strip: falls over once, then holds.
