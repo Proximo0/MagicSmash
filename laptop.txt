@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-23T12:34Z commit=43457ab took=604s
-JOB frames INFO zooms=16 mean_ms=46.34 p99_ms=90.83 monsters_drawn=14035 renderer="AMD RadeonT 610M"
-JOB balance INFO careers=10 h10=0.27 h20=3.0 h40=25.8 h60=NaN worst_class=-33% sunk=91%
+STATION machine=laptop time=2026-11-23T14:05Z commit=54ba73e took=149s
+JOB frames INFO zooms=16 mean_ms=58.56 p99_ms=126.59 monsters_drawn=14413 renderer="AMD RadeonT 610M"
+JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.14s timeout: failed to run command ‘target/release/realm-loadtest’: Permission denied 
 STATION PASS jobs=2 failed=0 skipped=0
