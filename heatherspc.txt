@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-23T14:06Z commit=5a98216 took=0s
-JOB economy SKIP nothing it tests changed since 54ba73e
-STATION PASS jobs=0 failed=0 skipped=1
+STATION machine=heatherspc time=2026-11-23T17:00Z commit=3f8bc11 took=287s
+JOB economy INFO seed=748247 ok bots=1000 days=30 secs=180 sales=3654 tax=64813 coin_per_bot=50438 listings=17160 trades=88 letters=181 refused=153
+STATION PASS jobs=1 failed=0 skipped=0
