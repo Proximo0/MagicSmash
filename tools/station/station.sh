@@ -152,7 +152,7 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
     [ -f "$c" ] || continue
     out=$(timeout "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
-    else bad=$((bad + 1)); detail+=" | $c: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
+    else bad=$((bad + 1)); detail+=" | $c: $(fail_detail <<<"$out") $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   done
   if [ "$(uname -s)" = Linux ] && command -v "$GODOT" >/dev/null 2>&1 && [ -f realm/check_client.sh ]; then  # the client against a real server, on Linux machines with Godot
     local runner=(); [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && runner=(xvfb-run -a)
@@ -461,6 +461,9 @@ run_once() {
       printf '%s\n' "$report" >"$STATE.unpushed"
       if publish "$report"; then echo "$sig" >"$STATE.report"; rm -f "$STATE.unpushed"
       else echo "station: report kept, the push will be retried; the jobs are not run again" >&2; fi
+    fi
+    if [ $failed -gt 0 ]; then  # the failed jobs' lines (test names, first panics) stay in the history too
+      publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${head:0:7} $(grep '^JOB .* FAIL' <<<"$body" | tr '\n' ' ' | cut -c1-1500)" "$MACHINE-failures.txt" || true
     fi
     echo "$head" >"$STATE"; tail -1 <<<"$report"
   else echo "$head" >"$STATE"; echo "$report"; fi

@@ -22,7 +22,7 @@ fi
 # no test target needed (a no-op otherwise) and its warnings are checked with the tests' own.
 if ! cargo test --release -j"$jobs" -q "${skip[@]}" >"$log" 2>&1; then
 	# the two lines after "panicked" hold the assertion's values, the part a red CI run needs to be diagnosed
-	grep -A2 -E "panicked|FAILED|error(\[|:)" "$log" | cut -c1-600 | head -40
+	grep -A2 -E "^---- |panicked|FAILED|error(\[|:)" "$log" | cut -c1-600 | head -40
 	echo "REALM failed: cargo test"
 	exit 1
 fi
