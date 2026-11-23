@@ -3,6 +3,7 @@
 # "timeout: failed to run command 'realm/target/release/realm-soak': Permission denied".) Reads only; changes nothing,
 # and touches no security setting. The full report is published as <machine>-exediag.txt.
 #   queue.sh add kind=shell args=script=exediag needs=<machine> priority=9
+# station-sac: ok   (this diagnosis is meant to run where Smart App Control is on; q_ownbin lets it)
 art="${STATION_JOB_ART:-${TMPDIR:-/tmp}}"; m="${MACHINE:-${STATION_NAME:-$(hostname)}}"; out="$art/$m-exediag.txt"
 mkdir -p "$art" 2>/dev/null
 ok=0; bad=0; first=""

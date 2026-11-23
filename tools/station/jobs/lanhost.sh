@@ -19,10 +19,10 @@ art="${STATION_JOB_ART:-$(mktemp -d)}"; mkdir -p "$art"
 work=$(mktemp -d); gw_pid=""
 cleanup() { [ -n "$gw_pid" ] && kill "$gw_pid" 2>/dev/null; rm -rf "$work"; }
 trap cleanup EXIT
-if [ -z "${STATION_LAN_SKIP_BUILD:-}" ]; then
+if [ -z "${STATION_LAN_SKIP_BUILD:-}" ] && [ -z "${STATION_BIN:-}" ]; then   # STATION_BIN: a station lane, the station built this commit
 	( cd "$here/../../../realm" && cargo build --release -j2 -p realm-gateway --bin realm-gateway --bin realm-lanplay >"$work/build.log" 2>&1 ) || { tail -5 "$work/build.log"; echo "FAIL lanhost: build failed"; exit 1; }
 fi
-bin="$here/../../../realm/target/release/realm-gateway"
+bin="${STATION_BIN:-$here/../../../realm/target/release}/realm-gateway"
 ngw=2
 "$bin" --db="$work/realm.db" --dev-login --dev-cert --public-host="$ip" --bind=0.0.0.0 --port="$port" --fields=0,1 --field-port="$fieldport" \
 	--max-copies=1 --monsters=1500 --seed="${STATION_JOB_SEED:-1}" --secs="$secs" >"$work/out.log" 2>"$work/err.log" &

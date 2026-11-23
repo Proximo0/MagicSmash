@@ -6,7 +6,11 @@ iters=2000000
 for w in "$@"; do case "$w" in iters=*) iters="${w#iters=}" ;; esac; done
 seed="${STATION_JOB_SEED:-1}"
 cd "$(dirname "$0")/../../../realm" || { echo "FAIL no realm directory"; exit 1; }
+command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 command -v cargo >/dev/null 2>&1 || { echo "FAIL cargo is not installed"; exit 1; }
+# In a station lane (STATION_BIN set) the tests build into their own target dir, never into realm/target, whose programs the station
+# builds once per commit for every lane. One dir per machine; run it in one lane at a time (max_per_machine=1).
+[ -n "${STATION_BIN:-}" ] && export CARGO_TARGET_DIR="${STATION_TARGETS:-$HOME/station-targets}/wirefuzz"
 log=$(mktemp); trap 'rm -f "$log"' EXIT
 if WIRE_FUZZ_ITERS="$iters" WIRE_FUZZ_SEED="$seed" cargo test --release -j2 -p realm-core -p realm-server -p realm-gateway --lib fuzz >"$log" 2>&1; then
 	echo "PASS wirefuzz iters=$iters seed=$seed $(grep -c '^test .* ok$' "$log") tests"

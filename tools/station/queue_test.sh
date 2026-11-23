@@ -61,7 +61,7 @@ idc=$(Q alpha add kind=soak args="secs=5" priority=9 | tail -1)
 ( cd "$T/beta" && . tools/station/queue_lib.sh && MACHINE=beta
   gb_hook() { unset -f gb_hook; ( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha && q_fetch && q_claim "$idc" ) ; }
   q_claim "$idc" ) ; rc=$?
-check "a claim whose push is rejected loses (rc=1) and only alpha holds the claim" '[ $rc = 1 ] && [ "$(files station-queue | grep -c "^claims/$idc\.")" = 1 ] && files station-queue | grep -qx "claims/$idc.alpha"'
+check "a claim whose push is rejected loses (rc=1) and only alpha holds the claim" '[ $rc = 1 ] && [ "$(files station-queue | grep -c "^claims/$idc\.")" = 1 ] && files station-queue | grep -qx "claims/$idc.alpha-0"'
 Q beta step >"$T/o" 2>&1; rc=$?
 check "beta sees the live claim and takes nothing" '[ $rc = 1 ]'
 
@@ -104,11 +104,13 @@ Q alpha step >"$T/o" 2>&1; check "a shell job without its script file is skipped
 Q alpha list >"$T/o" 2>&1; check "list shows states and ends with QUEUE jobs=" 'grep -q "^QUEUE jobs=" "$T/o" && grep -q "done" "$T/o"'
 # station hours: one line a day on the results branch
 ( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha && hours_init && sleep 2 && hours_mark busy && hours_mark idle && hours_flush )
-check "hours file has a line for today" 'rd station-results alpha-hours.txt | grep -q "^$(date -u +%F) busy_h=[0-9.]* idle_h=[0-9.]*$"'
+check "hours file has a line for today" 'rd station-results alpha-hours.txt | grep -q "^$(date -u +%F) busy_h=[0-9.]* idle_h=[0-9.]* lane_h=[0-9.]* lanes=[0-9]*$"'
 Q alpha digest --since=2 >"$T/o" 2>&1
 check "digest has per-machine jobs, hours, the FAIL with its seed, and a summary line" 'grep -q "jobs=" "$T/o" && grep -q "alpha " "$T/o" && grep -q "seed=666" "$T/o" && grep -q "^DIGEST jobs=[0-9]* fail=[1-9]" "$T/o" && grep -q "busy=" "$T/o"'
 Q alpha fill-week >"$T/o" 2>&1; n1=$(grep -c '^added' "$T/o"); Q alpha fill-week >"$T/o" 2>&1; n2=$(grep -c '^added' "$T/o")
 check "fill-week loads jobs for both machines and is idempotent" '[ "$n1" -ge 12 ] && [ "$n2" = 0 ]'
+fz=$(files station-queue | grep '^queue/' | while read -r f; do rd station-queue "$f" | grep -q "^kind=fuzz" && rd station-queue "$f" | grep -q "^needs=alpha" && echo "$f"; done | tail -1)
+check "fill-week gives the seeded forever kinds several lanes and the agreed priority (fuzz: 4 lanes, priority 4)" 'rd station-queue "$fz" | grep -qx "max_lanes=4" && rd station-queue "$fz" | grep -qx "priority=4"'
 
 echo "== the world soak: short on a merge, long from the queue; wirefuzz is a queue job"
 git clone -q "$T/origin.git" "$T/gamma"
@@ -160,7 +162,7 @@ idr2=$(Q alpha add kind=soak args="secs=5 seeds=4" needs=any priority=9 | tail -
   eval "$(declare -f q_load | sed '1s/q_load/q_load_orig/')"
   q_load() { q_load_orig "$@"; local lrc=$?; if [ -z "${raced:-}" ]; then raced=1; ( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha && q_fetch && q_claim "$idr2" ); fi; return $lrc; }
   q_claim "$idr2" ); rc=$?
-check "alpha claims after beta looked but before beta pushed: beta loses, one claim" '[ $rc = 1 ] && [ "$(files station-queue | grep -c "^claims/$idr2\.")" = 1 ] && files station-queue | grep -qx "claims/$idr2.alpha"'
+check "alpha claims after beta looked but before beta pushed: beta loses, one claim" '[ $rc = 1 ] && [ "$(files station-queue | grep -c "^claims/$idr2\.")" = 1 ] && files station-queue | grep -qx "claims/$idr2.alpha-0"'
 cancel_all
 
 echo "== the resource gate: RAM and the GPU"
@@ -186,6 +188,60 @@ ids2=$(Q alpha add kind=soak args="secs=5 seeds=9" needs=alpha | tail -1)
   q_fetch && q_run_job "$ids2" ) >"$T/o" 2>&1
 check "the FAIL line has exit 7 and the stderr text, not just 'printed nothing'" 'rd station-results work/$ids2/alpha.txt | grep -q " FAIL id=$ids2 .*job printed nothing (exit 7; stderr: boom on stderr"'
 
+echo "== lanes: several queue jobs at once on one machine"
+cancel_all
+LQ() { ( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha && eval "$1" ); }   # queue_lib as alpha's station
+waitlanes() { for _ in $(seq 1 90); do [ "$(LQ 'lanes_busy')" = 0 ] && break; sleep 1; done; }
+claims() { files station-queue | grep "^claims/$1\." | grep -c .; }
+check "lane count: STATION_LANES, else the roles.txt line, else from cores" '[ "$(cd "$T/alpha" && STATION_LANES=2 bash -c ". tools/station/queue_lib.sh; MACHINE=alpha; q_lane_total")" = 2 ] && [ "$(cd "$T/alpha" && echo "lanes: alpha 7" >>tools/station/roles.txt && bash -c ". tools/station/queue_lib.sh; MACHINE=alpha; q_lane_total"; git checkout -q tools/station/roles.txt)" = 7 ] && [ "$(LQ q_lane_total)" -ge 1 ]'
+idA=$(Q alpha add kind=fuzz args="seeds=1-99999 ops=500" needs=alpha repeat=forever priority=9 max_lanes=3 | tail -1)
+idB=$(Q alpha add kind=soak args="secs=5 seeds=1-99999" needs=alpha repeat=forever priority=1 | tail -1)
+idC=$(Q alpha add kind=soak args="secs=5 seeds=8" needs=alpha priority=9 | tail -1)
+check "the job file carries max_lanes" 'rd station-queue queue/$idA.job | grep -qx "max_lanes=3"'
+LQ 'Q_NLANES=6 STATION_QUEUE_STUB_SLEEP=25; q_build_all; lanes_fill; echo "started=$Q_STARTED busy=$(lanes_busy)"' >"$T/l1" 2>&1
+check "6 lanes, a once job, a max_lanes=3 forever job and a max_lanes=1 one: 5 lanes start, the 6th finds nothing" 'grep -q "^started=5 busy=5" "$T/l1"'
+check "the max_lanes=3 job runs in 3 lanes, the others in one each" '[ "$(claims $idA)" = 3 ] && [ "$(claims $idB)" = 1 ] && [ "$(claims $idC)" = 1 ]'
+check "every claim names its lane, and no lane holds two claims" '[ "$(files station-queue | grep "^claims/" | sed "s/.*\.alpha-//" | sort -u | grep -c "^[1-6]$")" = 5 ]'
+LQ 'Q_NLANES=6; q_build_all; lanes_fill; echo "again started=$Q_STARTED"' >"$T/l2" 2>&1
+check "a second fill while they run starts nothing: two lanes never take one claim" 'grep -q "^again started=0" "$T/l2" && [ "$(claims $idA)" = 3 ]'
+waitlanes
+check "when the lanes end: 3 result lines of the max_lanes job, the once job done, no claim left" '[ "$(rd station-results work/$idA/alpha.txt | grep -c " PASS id=$idA ")" = 3 ] && files station-queue | grep -qx "done/$idC.alpha" && ! files station-queue | grep -qE "^claims/($idA|$idB|$idC)\\."'
+cancel_all
+idD=$(Q alpha add kind=soak args="secs=5 seeds=11" priority=9 timeout_s=60 | tail -1)
+idE=$(Q alpha add kind=soak args="secs=5 seeds=12" priority=9 | tail -1)
+printf 'machine=beta lane=2 time=%s\n' "$(( $(date +%s) - 10800 ))" >"$T/st1"; printf 'machine=alpha lane=4 time=%s\n' "$(date +%s)" >"$T/st2"
+( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha gb_put station-queue "lane claims" "+claims/$idD.beta-2:$T/st1" "+claims/$idE.alpha-4:$T/st2" )
+Q beta step >"$T/o" 2>&1; rc=$?
+check "another machine respects a live lane claim (alpha-4, fresh) and takes the stale one (beta-2) only as a takeover" '[ $rc = 0 ] && rd station-results work/$idD/beta.txt | grep -q " PASS id=$idD " && ! rd station-results work/$idE/beta.txt | grep -q .'
+LQ 'Q_NLANES=2; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/l3" 2>&1; waitlanes
+check "a lane claim of this machine whose lane is not running (a crash) is taken over by a lane" 'grep -q "^started=1" "$T/l3" && rd station-results work/$idE/alpha.txt | grep -q " PASS id=$idE " && ! files station-queue | grep -q "^claims/$idE\."'
+cancel_all
+
+echo "== Smart App Control: jobs that run programs built here are skipped, signed ones run"
+idF=$(Q alpha add kind=fuzz args="seeds=5" needs=alpha priority=9 | tail -1)
+idG=$(Q alpha add kind=economy args="seeds=5" needs=alpha priority=9 | tail -1)
+idH=$(Q alpha add kind=shell args="script=selftest sac" needs=alpha priority=5 | tail -1)
+idX=$(Q alpha add kind=shell args="script=exediag" needs=alpha priority=1 | tail -1)
+LQ 'STATION_SAC=1; Q_NLANES=3; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/s1" 2>&1; waitlanes
+LQ 'STATION_SAC=1; Q_NLANES=3; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/s2" 2>&1; waitlanes
+check "the signed-program job runs (selftest), and exediag (marked station-sac: ok)" 'rd station-results work/$idH/alpha.txt | grep -q " INFO id=$idH .*selftest ok" && rd station-results work/$idX/alpha.txt | grep -q "id=$idX"'
+check "fuzz and economy are not run, no FAIL, nothing published for them" '! rd station-results work/$idF/alpha.txt | grep -q . && ! rd station-results work/$idG/alpha.txt | grep -q . && ! files station-queue | grep -q "^done/$idF\."'
+check "one SKIP line in half an hour for them, not one per job or per pick" '[ "$(cat "$T/s1" "$T/s2" | grep -c "^SKIP queue job own-binaries: 2 job(s) run programs built here and Smart App Control")" = 1 ] && ! grep -q "SKIP queue job $idF" "$T/s1"'
+check "a SAC station builds nothing for the lanes" '! grep -q "building" "$T/s1"'
+check "the jobs that need our programs are recognised (frames needs our GDExtension DLL; wirefuzz, worldlong, lanhost, lanplay, sizepick run cargo or realm/target)" '( cd "$T/alpha" && . tools/station/queue_lib.sh && for k in fuzz soak bench balance economy frames package; do J_KIND=$k; J_OWNBIN=; q_ownbin || exit 1; done; for sc in wirefuzz worldlong lanhost lanplay sizepick; do J_KIND=shell J_ARGS="script=$sc"; q_ownbin || exit 1; done; for sc in selftest blender charbody exediag sysinfo; do J_KIND=shell J_ARGS="script=$sc"; q_ownbin && exit 1; done; exit 0 )'
+
+echo "== the build: once per commit, and no lane starts a job that runs our programs while it builds"
+agd2=$(git -C "$T/alpha" rev-parse --absolute-git-dir); rm -rf "$agd2/station_bin"
+( cd "$T/alpha" && . tools/station/queue_lib.sh && MACHINE=alpha STATION_QUEUE_STUB_BUILD_SLEEP=6 q_build_all >"$T/b1" 2>&1 ) & bp=$!
+for _ in $(seq 1 20); do [ -d "$agd2/station_build.lock" ] && break; sleep 0.5; done
+LQ 'Q_NLANES=2; Q_SNAP=$(q_snap_dir); lanes_fill; echo "started=$Q_STARTED"' >"$T/b2" 2>&1
+check "during the build no lane starts the fuzz and economy jobs (one SKIP line)" '[ -d "$agd2/station_build.lock" ] && grep -q "^started=0" "$T/b2" && grep -q "SKIP queue job build-running" "$T/b2"'
+wait $bp
+check "the build made one copy of the programs for this commit" 'grep -q "building" "$T/b1" && ls "$agd2"/station_bin/*/.ok >/dev/null 2>&1 && [ ! -d "$agd2/station_build.lock" ]'
+LQ 'Q_NLANES=2; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/b3" 2>&1; waitlanes
+check "after the build the lanes start them, and the build is not run again" 'grep -q "^started=2" "$T/b3" && ! grep -q building "$T/b3" && rd station-results work/$idF/alpha.txt | grep -q " PASS id=$idF "'
+cancel_all
+
 echo "== the real station loop: queue job first, deep only when the queue is empty"
 if command -v setsid >/dev/null 2>&1; then
   Q alpha list | awk '$1 ~ /^[0-9]/ { print $1 }' | while read -r i; do Q alpha cancel "$i" >/dev/null; done
@@ -209,13 +265,14 @@ if command -v setsid >/dev/null 2>&1; then
   ( cd "$T/seed" && echo "# re-exec" >>tools/station/roles.txt && git -c user.name=t -c user.email=t@t commit -qam reexec && git push -q origin HEAD:main )  # a merge that changes the script's inputs
   for _ in $(seq 1 40); do grep -qv "^$first " "$hb" && break; sleep 1; done
   sleep 3; : >"$hb"; sleep 4
+  check "the heartbeat line reports lanes busy/total" 'rd station-results alpha-heartbeat.txt | grep -Eq "lanes_busy=[0-9]+/[0-9]+"'
   check "after a re-exec exactly one heartbeat loop runs, the new one" '[ -n "$first" ] && [ "$(awk "{ print \$1 }" "$hb" | sort -u | wc -l)" = 1 ] && ! grep -q "^$first " "$hb"'
   kill -9 "$(cat "$T/hb.pid")" 2>/dev/null; sleep 3; : >"$hb"; sleep 3
   check "the heartbeat loop ends by itself when its station process is gone" '[ ! -s "$hb" ]'
   kill -- -"$(cat "$T/hb.pid")" 2>/dev/null; sleep 1
 else echo "  skip the heartbeat test: no setsid here"; fi
 
-echo "== a merge lands while a queue job runs: a long job finishes, then the commit is tested; a short one is cut"
+echo "== a merge lands while a queue job runs: the merge is tested at once, a long job finishes in its lane; a short one is cut"
 if command -v setsid >/dev/null 2>&1; then
   cancel_all
   ( cd "$T/seed" && printf '#!/usr/bin/env bash\nsleep "${1#secs=}"; echo "PASS sleepy done"\n' >tools/station/jobs/sleepy.sh && echo "delta: world queue" >>tools/station/roles.txt \
@@ -228,8 +285,9 @@ if command -v setsid >/dev/null 2>&1; then
   for _ in $(seq 1 30); do grep -q "delta runs $idL" "$T/d.log" && break; sleep 1; done
   mh=$(merge long)
   for _ in $(seq 1 60); do [ "$(cat "$dgd/station_last" 2>/dev/null)" = "$mh" ] && break; sleep 1; done
+  check "with lanes the merge is tested while the long job still runs in its lane" '[ "$(cat "$dgd/station_last")" = "$mh" ] && ! rd station-results work/$idL/delta.txt | grep -q "sleepy done"'
+  for _ in $(seq 1 40); do rd station-results work/$idL/delta.txt | grep -q "sleepy done" && break; sleep 1; done
   check "long job (timeout 3600 s): not interrupted, its PASS is published" '! grep -q "interrupted" "$T/d.log" && rd station-results work/$idL/delta.txt | grep -q " PASS id=$idL .*sleepy done"'
-  check "and the station then tested the merge" '[ "$(cat "$dgd/station_last")" = "$mh" ]'
   idS=$(Q alpha add kind=shell args="script=sleepy secs=40" needs=delta timeout_s=60 | tail -1)
   for _ in $(seq 1 30); do grep -q "delta runs $idS" "$T/d.log" && break; sleep 1; done
   mh2=$(merge short)

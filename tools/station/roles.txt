@@ -14,3 +14,10 @@ heatherspc: economy queue deep
 # `--ci-covered` (flag, optional per machine): the `realm` job is skipped unless the merge touched Windows-only paths CI does not test (README, "CI overlap").
 # `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with tools/station/queue.sh,
 # see README) and falls back to `deep` only when the queue has nothing for this machine. A merge still comes first and interrupts a long job.
+# Lanes (station.sh, queue_lib.sh lanes_fill): how many queue jobs a machine runs at the same time, one line per machine
+# "lanes: <machine> N" (not a role word, so a station still running the code from before lanes reads this file without error).
+# STATION_LANES overrides; without a line: cores/2 capped at total RAM / 1.5 GB. Each lane still needs its job's free RAM to start.
+lanes: msi 10
+lanes: laptop 1
+lanes: heatherspc 1
+lanes: ubuntu 3

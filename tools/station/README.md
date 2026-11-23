@@ -60,6 +60,21 @@ Reports: a failed job keeps up to 1500 characters of its last lines; a failed `d
 prints nothing reports its exit code, stderr and last output. A finished report whose push fails is kept (`station_last.unpushed` in `.git`)
 and only the push is retried every poll; the jobs are not run again.
 
+Lanes (24 Nov 2026: "all four at max"): a watching station runs several queue jobs at once, one per lane. Lanes per machine: the line
+`lanes: <machine> N` in `roles.txt` (msi 10, laptop 4, heatherspc 3, ubuntu 3), else `STATION_LANES`, else cores/2 capped at RAM/1.5 GB.
+The station loop stays free while lanes work: it tests each merge as it lands, then builds the commit ONCE (realm and the store, the same
+command as the merge jobs) and copies the programs to `.git/station_bin/<commit>/`; lanes run from that copy (`STATION_BIN` for shell
+scripts), so no lane builds and no build replaces a program a lane runs; while the build runs no job that needs our programs starts.
+A lane claims `claims/<id>.<machine>-<lane>`; a lane claim is live while that lane's process runs (else this machine retakes it) and for
+others until 2 x timeout_s. A forever job runs in at most `max_lanes` lanes at once (all machines; default 1) and `max_per_machine` on one;
+a once job runs once. Every job gets its own TMPDIR inside its work dir; `wirefuzz` builds in `~/station-targets/wirefuzz`. A lane whose job
+FAILs within a minute rests STATION_QUEUE_FAIL_SLEEP. RAM gate per lane: free RAM less what lanes started in the last 5 minutes asked for.
+`deep` runs only when every lane is idle. Heartbeat: `lanes_busy=B/N`; hours: `busy_h` (any lane busy), `lane_h` (lane-hours), `lanes=N`.
+Smart App Control: a Windows PC where it is On (read only, `Get-MpComputerStatus`; or the build's test start is refused, 126) skips every
+job that runs programs built here (all built-in kinds, `frames` for realm-server and the realm_godot DLL, and shell scripts that name
+`cargo`, `realm/target` or `STATION_BIN` unless marked `# station-sac: ok`) with one SKIP line per half hour, never a FAIL; merge jobs
+SKIP too. Its lanes take shell jobs that run signed programs (Blender, Godot, Python). No security setting is touched.
+
 LAN rehearsal: players wait up to 900 s for a FRESH host file (the host rewrites `lan/host.txt` with `updated_epoch` every 90 s and writes
 `state=ended` when killed); a host that served and saw no login reports `FAIL lanhost: no player connected`. A host job is long, so a merge no longer kills it.
 
@@ -70,7 +85,7 @@ the owner decides which one.
 
 How it is stored (git branch `station-queue`, written and read without a work tree, like `publish`; never main):
 `queue/<id>.job` (one job: `kind args needs priority repeat timeout_s added`, optional `every_s` = at least that many seconds
-between two runs of a forever job), `claims/<id>.<machine>` and `done/<id>.<machine>`. A station claims a job by pushing the
+between two runs of a forever job, `max_lanes`, `max_per_machine`, `own_bin`), `claims/<id>.<machine>-<lane>` and `done/<id>.<machine>`. A station claims a job by pushing the
 claim file in a commit; the push is the lock, and a rejected push means somebody else won: refetch and pick again. A claim with
 no done after `timeout_s` x 2 is stale and may be taken over. Results go to `station-results` as `work/<id>/<machine>.txt`
 (one line a pass; `repeat=forever` jobs never run out, take a fresh seed every pass and append a line) plus artifacts
@@ -102,8 +117,10 @@ is a fresh seed) and queue `kind=shell args=script=<name>`. A job whose script i
 with a line. For a built-in kind write a `qk_<kind>` function in `queue_lib.sh` and add the name to `Q_KINDS` and `q_exec`.
 
 The lead's tool, `tools/station/queue.sh` (run from any clone): `add kind=.. args=".." [needs=..] [priority=..] [repeat=..]
-[timeout_s=..] [every_s=..]`, `list`, `cancel <id>`, `fill-week` (forever fuzz, soak, bench, economy per machine with their own
-seed ranges, one balance sweep, a daily Linux and Windows package, frames on the GPU machines every 12 hours; safe to repeat),
+[timeout_s=..] [every_s=..] [max_lanes=..] [max_per_machine=..]`, `list`, `cancel <id>`, `fill-week` or `fill-month` (the same: forever
+jobs run until cancelled. Per machine with its own seed ranges: economy 7 (2 lanes), soak 6 (3), worldlong 6, bench 5, fuzz 4 (4 lanes),
+wirefuzz 4; one balance sweep 7, a daily Linux and Windows package 8, frames on the GPU machines every 12 hours 8; priorities 9 = once-off
+lead jobs, 3 = lan play. Safe to repeat: existing jobs get the current priority and lane limits),
 `step` (run one job here now) and `digest [--since=DAYS]`.
 
 **The owner or whoever returns reads one command: `tools/station/queue.sh digest`** (add `--since=3`). It prints jobs done per machine,
