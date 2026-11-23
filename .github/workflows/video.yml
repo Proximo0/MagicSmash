@@ -1,0 +1,47 @@
+# A gameplay clip of the field client for Curtis: pushed to a video-* branch, it plays the bot hero against the
+# server's horde under Xvfb, records the screen with ffmpeg and uploads video.mp4 as an artifact.
+name: video
+
+on:
+  push:
+    branches: ["video-*"]
+
+permissions:
+  contents: read
+
+env:
+  RUST_TOOLCHAIN: "1.97.0"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_RELEASE_DEBUG: "0"
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GODOT_VERSION: "4.7.2"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust ${{ env.RUST_TOOLCHAIN }}
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
+      - uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: |
+            realm
+            realm/godot
+            realm/store
+          save-if: false
+      - uses: ./.github/actions/setup-godot
+      - name: ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+      - name: build
+        run: |
+          (cd realm/godot && cargo build --release -q) && cp realm/godot/target/release/librealm_godot.so realm/client/bin/
+          (cd realm && cargo build --release -q)
+          godot --headless --path realm/client --import >/dev/null 2>&1 || godot --headless --path realm/client --import >/dev/null 2>&1 || true
+      - name: record
+        run: tools/video/record.sh out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gameplay-video
+          path: out
