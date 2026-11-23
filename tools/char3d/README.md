@@ -18,7 +18,9 @@ race. About 20 s a hero on a cloud CPU. Never name a script `inspect.py` next to
 
 Before showing or importing: zoom in and count arms, hands, legs and feet in every strip.
 
-**Import into the game**: `python3 tools/char3d/import_heroes.py <heroes24 dir> realm/client/art` crops every frame of a
-hero with one shared box (symmetric about the body centre, bottom edge 1 px under the feet, no resampling) and writes
-`hero_<race>_<class>_walk|atk|hit|die.png`, a still and `_walk.json` (frame counts, 12 fps, scale 0.4667). Godot makes the
-`.import` files the first time the editor opens the folder.
+**Import into the game**: `python3 tools/char3d/import_sprites.py heroes|monsters <source dir> realm/client/art`
+(`import_heroes.py <dir> <art>` still works) crops every frame of a character with one shared box (symmetric about the
+body centre, bottom edge 1 px under the feet, no resampling) and writes `<key>_walk|atk|hit|die.png`, a still and
+`_walk.json` (frame counts, 12 fps, scale 0.4667). Heroes are `hero_<race>_<class>`; monsters `enemy_<name>` from
+`enemy_<name>_<action>.png` (walk = any `walking_*`, death = any `death_*`, attack = the remaining action). Keys in
+`art/locked.txt` are skipped. Godot makes the `.import` files the first time the editor opens the folder.

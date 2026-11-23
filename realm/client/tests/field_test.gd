@@ -52,7 +52,16 @@ func _art() -> void:
 	_check(novice["art"] == "walk", "human novice is a walk strip")
 	_check(int(FieldArt.art_summary(heroes)["walk"]) == 24, "all 24 heroes have walk strips")
 	var old_style: Dictionary = FieldArt.entry_for("enemy_guard")
-	_check(not old_style.has("atk_n"), "art without strips keeps the old defaults")
+	_check(not old_style.has("atk_n") and old_style["art"] == "still", "art without strips keeps the old defaults")
+	var scare: Dictionary = FieldArt.entry_for(FieldArt.kind_key("scarecrow"))
+	_check(scare["art"] == "walk" and int(scare["anim"]) == 8 and is_equal_approx(float(scare["fps"]), 12.0), "the scarecrow is an 8-frame walk strip at 12 fps")
+	_check(is_equal_approx(float(scare["scale"]), 0.4667), "monsters are drawn at the heroes' scale")
+	_check(int(scare["atk_n"]) == 8 and int(scare["hit_n"]) == 4 and int(scare["die_n"]) == 8, "a monster's atk, hit and die counts come from its sidecar")
+	var scare_tex: Texture2D = scare["tex"]
+	_check(scare_tex.get_width() % 8 == 0 and scare_tex.get_width() / 8 > 100, "monster frames are wider than the old stills")
+	for m in ["bloated pilgrim", "penitent", "gravedigger", "hanged man", "wood witch", "bark wight", "lumberer", "drowned", "goat cultist"]:
+		var me: Dictionary = FieldArt.entry_for(FieldArt.kind_key(m))
+		_check(me.get("art", "") == "walk" and int(me.get("anim", 0)) == 8, "%s is an 8-frame walk strip" % m)
 	# The batch builds an atlas from these.
 	var holder := Node.new()
 	var batch := RealmBatch.new(holder, kinds, 1)
@@ -84,6 +93,54 @@ func _sidecar() -> void:
 	var rates: PackedFloat32Array = b.material.get_shader_parameter("rates")
 	var anims: PackedFloat32Array = b.material.get_shader_parameter("anims")
 	_check(anims[0] == 4.0 and anims[1] == 8.0 and rates[0] == 8.0 and rates[1] == 16.0, "one batch holds strips of 4 and 8 frames with their own fps")
+	holder.free()
+	_atlas()
+
+
+## The atlas is shelves: 42 strips of 8 frames of 150 x 93 fit in one texture, every rect inside it, none overlapping.
+func _atlas() -> void:
+	var sizes: Array[Vector2i] = []
+	for i in 42:
+		sizes.append(Vector2i(8 * 150, 93))
+	var lay: Dictionary = RealmBatch.layout(sizes)
+	var size: Vector2i = lay["size"]
+	var at: Array[Vector2i] = []
+	at.assign(lay["at"])
+	_check(at.size() == 42, "a place for every strip")
+	_check(size.x <= 16384 and size.y <= 16384, "42 strips of 8 x 150 x 93 fit the texture limit: %s" % size)
+	var bounds := Rect2i(Vector2i.ZERO, size)
+	var ok_inside: bool = true
+	var overlaps: int = 0
+	for i in at.size():
+		var r := Rect2i(at[i], sizes[i])
+		if not bounds.encloses(r):
+			ok_inside = false
+		for j in range(i + 1, at.size()):
+			if r.intersects(Rect2i(at[j], sizes[j])):
+				overlaps += 1
+	_check(ok_inside, "every strip lies inside the atlas")
+	_check(overlaps == 0, "no two strips overlap, got %d" % overlaps)
+	# A strip wider than a shelf gets a shelf of its own; stills pack side by side as before.
+	var odd_sizes: Array[Vector2i] = [Vector2i(30, 20), Vector2i(5000, 10), Vector2i(30, 20)]
+	var odd: Dictionary = RealmBatch.layout(odd_sizes, 4096)
+	var odd_at: Array[Vector2i] = []
+	odd_at.assign(odd["at"])
+	_check(odd_at[1].y > odd_at[0].y and odd_at[2].y > odd_at[1].y, "a wide strip stands on its own shelf")
+	var still_sizes: Array[Vector2i] = [Vector2i(20, 24), Vector2i(26, 28)]
+	var stills: Dictionary = RealmBatch.layout(still_sizes)
+	var still_size: Vector2i = stills["size"]
+	_check(still_size == Vector2i(20 + 26 + 4, 30), "stills sit in one shelf, 1 px apart: %s" % still_size)
+	# A batch of all 42 builds with the monsters' settings and keeps each strip's frame count.
+	var img := Image.create(8 * 150, 93, false, Image.FORMAT_RGBA8)
+	var entries: Array[Dictionary] = []
+	for i in 42:
+		entries.append({"tex": ImageTexture.create_from_image(img), "anim": 8, "fps": 12.0, "scale": 0.4667, "art": "walk"})
+	var holder := Node.new()
+	var b := RealmBatch.new(holder, entries, 1, false)
+	var anims: PackedFloat32Array = b.material.get_shader_parameter("anims")
+	var rects: PackedVector4Array = b.material.get_shader_parameter("rects")
+	_check(anims[41] == 8.0 and rects[41].z == 150.0 and rects[41].w == 93.0, "the last of 42 strips keeps 8 frames of 150 x 93")
+	_check(float(b.material.get_shader_parameter("bob_stills")) == 0.0, "the monsters' batch does not bob stills")
 	holder.free()
 
 

@@ -9,7 +9,12 @@ extends RefCounted
 ##   `hit`, `die` textures when they exist (FieldAnim plays them, else draws code fallbacks). Their frame counts
 ##   default to 3, 1, 3 and come from the walk sidecar's "atk_frames", "hit_frames", "die_frames" (the entry's
 ##   `atk_n`, `hit_n`, `die_n`).
-##   The 24 heroes are tools/char3d/import_heroes.py output: 8 walk frames at 12 fps, 8 attack, 4 hit, 8 death
+##   The 10 monsters of the Hollow set (scarecrow, bloated pilgrim, penitent, gravedigger, hanged man, wood witch, bark
+##   wight, lumberer, drowned, goat cultist) are tools/char3d/import_sprites.py output of the same shape and scale as
+##   the heroes (8 walk frames at 12 fps, 8 / 4 / 8 atk, hit, die, scale 0.4667, frames 94 to 150 px wide). The
+##   monster batch (RealmBatch, a shelf-packed atlas) steps the walk strip while a monster moves and draws frame 0 when it stands;
+##   atk, hit and die are loaded into the entry but not drawn for monsters.
+##   The 24 heroes are tools/char3d/import_sprites.py heroes output: 8 walk frames at 12 fps, 8 attack, 4 hit, 8 death
 ##   frames, one crop per hero (centre of the frame = body centre, bottom edge = feet), scale 0.4667 so a human
 ##   stands 28 world px tall as the old human knight did.
 ## A strip wins over the still picture. A monster with neither gets a flat stand-in drawn here from its field,

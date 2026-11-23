@@ -223,6 +223,93 @@ KITS = {
         extras=["hood", "horns", "skirt"], hood=(0.07, 0.05, 0.07), skirt=(0.07, 0.05, 0.07), skirt_to=0.12,
         weapons={"Knife": ("hand_r", (0.5, 0.5, 0.6))},
     ),
+    # ---- marsh, peaks and edge humanoids ----
+    "eel_knight": dict(
+        skin={"*": (0.05, 0.12, 0.12), "head": (0.2, 0.36, 0.36), "neck": (0.2, 0.36, 0.36), "hand": (0.05, 0.1, 0.1)},
+        shells=[
+            (["chest", "belly"], 0.03, (0.1, 0.2, 0.18), 1.0, None),
+            (["hips"], 0.03, (0.05, 0.1, 0.1), 1.0, None),
+            (["upperarm", "thigh"], 0.02, (0.05, 0.1, 0.1), 1.0, None),
+            (["lowerarm", "calf"], 0.024, (0.1, 0.2, 0.18), 1.0, None),
+            (["belly"], 0.05, (0.3, 0.34, 0.1), 0.0, "belt"),
+        ],
+        extras=["pauldrons", "helm", "knees", "gauntlets", "boots"], pauldron=((0.1, 0.2, 0.18), 0.11, True),
+        boot=(0.05, 0.1, 0.1), gauntlet=(0.05, 0.1, 0.1), crest=(0.3, 0.34, 0.1),
+        weapons={"2H_Sword": ("hand_r", (0.5, 0.6, 0.74))},
+    ),
+    "bog_hag": dict(
+        skin={"*": (0.1, 0.11, 0.05), "head": (0.3, 0.36, 0.16), "neck": (0.3, 0.36, 0.16), "hand": (0.3, 0.36, 0.16), "lowerarm": (0.3, 0.36, 0.16)},
+        shells=[
+            (["chest", "belly", "hips", "upperarm"], 0.03, (0.12, 0.13, 0.06), 0.0, None),
+            (["belly"], 0.05, BONE, 0.0, "belt"),
+        ],
+        extras=["hood", "skirt", "face"], hood=(0.12, 0.13, 0.06), skirt=(0.12, 0.13, 0.06), skirt_to=0.1,
+        weapons={"1H_Wand": ("hand_r", (0.7, 0.7, 0.9))},
+    ),
+    "flagellant": dict(
+        skin={"*": PALLID, "chest": (0.42, 0.3, 0.28), "belly": (0.42, 0.3, 0.28)},
+        shells=[
+            (["hips", "thigh"], 0.03, (0.14, 0.1, 0.08), 0.0, "kilt"),
+            (["chest"], 0.03, (0.3, 0.02, 0.03), 0.0, "strap"),
+            (["belly"], 0.04, STRAW, 0.0, "belt"),
+        ],
+        extras=["sack", "skirt"], skirt=(0.14, 0.1, 0.08),
+        weapons={"1H_Sword": ("hand_r", (0.5, 0.5, 0.6), "hammer")},
+    ),
+    "rune_carver": dict(
+        skin={"*": (0.1, 0.12, 0.16), "head": PALLID, "neck": PALLID, "hand": PALLID},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.13, 0.16, 0.22), 0.0, None),
+            (["chest", "belly"], 0.045, (0.3, 0.6, 0.7), 0.0, "tabard"),
+            (["belly"], 0.055, LEATHER_D, 0.0, "belt"),
+            (["calf"], 0.03, LEATHER_D, 0.0, None),
+        ],
+        extras=["hood", "skirt", "boots"], hood=(0.13, 0.16, 0.22), skirt=(0.13, 0.16, 0.22), boot=LEATHER_D,
+        weapons={"Knife": ("hand_r", (0.5, 0.5, 0.6))},
+    ),
+    "bone_piper": dict(
+        skin={"*": BONE},
+        shells=[
+            (["chest", "belly", "hips", "upperarm"], 0.03, (0.2, 0.05, 0.12), 0.0, None),
+            (["belly"], 0.05, GOLD, 1.0, "belt"),
+            (["thigh"], 0.02, (0.1, 0.03, 0.06), 0.0, None),
+        ],
+        extras=["witchhat", "cape", "face"], hat=(0.2, 0.05, 0.12), cape=(0.2, 0.05, 0.12), cape_len=0.7,
+        weapons={"1H_Wand": ("hand_r", (0.7, 0.7, 0.9))},
+    ),
+    "frost_revenant": dict(
+        skin={"*": (0.45, 0.6, 0.7), "head": (0.6, 0.75, 0.85)},
+        shells=[
+            (["chest", "belly"], 0.03, (0.2, 0.3, 0.4), 1.0, None),
+            (["hips", "thigh"], 0.04, (0.12, 0.18, 0.26), 0.0, "kilt"),
+            (["lowerarm", "calf"], 0.026, (0.2, 0.3, 0.4), 1.0, None),
+        ],
+        extras=["pauldrons", "face", "cape"], pauldron=((0.7, 0.85, 0.95), 0.12, True), cape=(0.12, 0.18, 0.26), cape_len=0.8,
+        weapons={"2H_Sword": ("hand_r", (0.5, 0.6, 0.74))},
+    ),
+    "ash_legionary": dict(
+        skin={"*": (0.1, 0.1, 0.1), "head": (0.3, 0.3, 0.3), "neck": (0.3, 0.3, 0.3), "hand": (0.06, 0.06, 0.06)},
+        shells=[
+            (["chest", "belly"], 0.03, (0.16, 0.15, 0.15), 1.0, None),
+            (["hips"], 0.03, (0.08, 0.08, 0.08), 1.0, None),
+            (["chest", "belly"], 0.045, (0.5, 0.16, 0.04), 0.0, "tabard"),
+            (["upperarm", "thigh"], 0.02, (0.08, 0.08, 0.08), 1.0, None),
+            (["lowerarm", "calf"], 0.024, (0.16, 0.15, 0.15), 1.0, None),
+        ],
+        extras=["pauldrons", "helm", "knees", "gauntlets", "boots", "skirt"], pauldron=((0.16, 0.15, 0.15), 0.11, False),
+        boot=(0.08, 0.08, 0.08), gauntlet=(0.08, 0.08, 0.08), skirt=(0.5, 0.16, 0.04), crest=(0.9, 0.35, 0.05),
+        weapons={"1H_Sword": ("hand_r", (0.42, 0.6, 0.74)), "Spike_Shield": ("hand_l", (0.52, 0.52, 0.56))},
+    ),
+    "blood_priest": dict(
+        skin={"*": (0.16, 0.01, 0.02), "head": PALLID, "neck": PALLID, "hand": PALLID},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.22, 0.015, 0.02), 0.0, None),
+            (["chest", "belly"], 0.045, (0.04, 0.03, 0.04), 0.0, "tabard"),
+            (["belly"], 0.055, GOLD, 1.0, "belt"),
+        ],
+        extras=["capirote", "skirt", "cross"], capirote=(0.22, 0.015, 0.02), skirt=(0.22, 0.015, 0.02), skirt_to=0.1,
+        weapons={"2H_Staff": ("hand_r", (0.6, 0.6, 0.8))},
+    ),
     "orc": dict(
         skin={"*": (0.1, 0.2, 0.06), "head": (0.13, 0.25, 0.07)},
         bulk={"spine_02": 1.3, "head": 1.0},

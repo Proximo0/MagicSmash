@@ -12,6 +12,8 @@ const STRIDE: int = 16
 const PAD: int = 1
 ## The shader's entry table size (figures.gdshader MAX_FRAMES).
 const MAX_FRAMES: int = 64
+## A shelf of the atlas is at most this wide (a texture is at most 16,384 px a side).
+const ATLAS_W: int = 4096
 ## The item's culling rectangle is not computed from the buffer: cover the whole field and beyond.
 const FIELD_RECT: Rect2 = Rect2(-512, -512, 17408, 17408)
 const SHADER: Shader = preload("res://figures.gdshader")
@@ -24,18 +26,45 @@ var _caps: PackedInt32Array = PackedInt32Array([0, 0])
 var _front: int = 0
 
 
+## Where each picture goes in the atlas: shelf packing, strips left to right in entry order, a new shelf (row) when
+## the next strip would pass `max_w`. `sizes` are the strips' sizes in texels (without PAD); returns {at: the top
+## left of each picture (inside its PAD), size: the atlas size}. A strip wider than `max_w` gets a shelf of its own.
+static func layout(sizes: Array[Vector2i], max_w: int = ATLAS_W) -> Dictionary:
+	var at: Array[Vector2i] = []
+	var x: int = 0
+	var y: int = 0
+	var shelf_h: int = 0
+	var width: int = 0
+	for sz in sizes:
+		var w: int = sz.x + 2 * PAD
+		if x > 0 and x + w > max_w:
+			y += shelf_h
+			x = 0
+			shelf_h = 0
+		at.append(Vector2i(x + PAD, y + PAD))
+		x += w
+		shelf_h = maxi(shelf_h, sz.y + 2 * PAD)
+		width = maxi(width, x)
+	return {"at": at, "size": Vector2i(maxi(width, 1), maxi(y + shelf_h, 1))}
+
+
 ## `entries` are the pictures in atlas order (the numbers RealmLink writes), each a Dictionary: `tex` (a
 ## picture, or a strip of `anim` frames side by side), `anim` (frames in the strip, 1 for a still picture) and
 ## `scale` (the size it is drawn at: 0.5 for a strip with 2 texture px per world px), `fps` (frames a second, 8). `z` is the draw layer.
-func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
+## The atlas is one texture of shelves (see `layout`), so 42 strips of 8 frames of 150 x 93 fit. `bob_stills`: a
+## moving figure with a still picture bobs (the players' batch); the monsters' does not.
+func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = true) -> void:
 	var cell := Vector2i.ZERO
+	var sizes: Array[Vector2i] = []
 	for e in entries:
 		var t: Texture2D = e["tex"]
 		cell = cell.max(Vector2i(t.get_width() / int(e["anim"]), t.get_height()))
-	var total: int = 0
-	for e in entries:
-		total += (e["tex"] as Texture2D).get_width() + 2 * PAD
-	var img := Image.create(total, cell.y + 2 * PAD, false, Image.FORMAT_RGBA8)
+		sizes.append(Vector2i(t.get_width(), t.get_height()))
+	var lay: Dictionary = layout(sizes)
+	var atlas_size: Vector2i = lay["size"]
+	var places: Array[Vector2i] = []
+	places.assign(lay["at"])
+	var img := Image.create(atlas_size.x, atlas_size.y, false, Image.FORMAT_RGBA8)
 	var rects := PackedVector4Array()
 	rects.resize(MAX_FRAMES)
 	var anims := PackedFloat32Array()
@@ -47,26 +76,25 @@ func _init(parent: Node, entries: Array[Dictionary], z: int) -> void:
 	anims.fill(1.0)
 	scales.fill(1.0)
 	rates.fill(FieldArt.WALK_FPS)
-	var x: int = 0
 	for i in entries.size():
 		var src: Image = (entries[i]["tex"] as Texture2D).get_image()
 		src.convert(Image.FORMAT_RGBA8)
-		var at := Vector2i(x + PAD, PAD)
+		var at: Vector2i = places[i]
 		img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), at)
 		var n: int = int(entries[i]["anim"])
 		rects[i] = Vector4(at.x, at.y, src.get_width() / n, src.get_height())
 		anims[i] = float(n)
 		scales[i] = float(entries[i]["scale"])
 		rates[i] = float(entries[i].get("fps", FieldArt.WALK_FPS))
-		x += src.get_width() + 2 * PAD
 	img.generate_mipmaps()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(cell)
 	# The figure's feet at the instance's position: the quad sits above it (the shader shrinks it to each picture).
 	quad.center_offset = Vector3(0.0, -cell.y / 2.0, 0.0)
 	material.shader = SHADER
+	material.set_shader_parameter("bob_stills", 1.0 if bob_stills else 0.0)
 	material.set_shader_parameter("cell", Vector2(cell))
-	material.set_shader_parameter("atlas", Vector2(img.get_size()))
+	material.set_shader_parameter("atlas", Vector2(atlas_size))
 	material.set_shader_parameter("rects", rects)
 	material.set_shader_parameter("anims", anims)
 	material.set_shader_parameter("scales", scales)
