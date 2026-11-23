@@ -18,6 +18,14 @@ const USAGE: &str = "realm-ops <command> [--root=DIR]      (--root defaults to t
   releases | install DIR | switch VERSION | rollback [--restore-pre-switch] [--force]
   package --bins=DIR --out=DIR --version=V [--host=DIR]
                             --host: a whole host folder (config, scripts, the release); without: just a release
+  trace TARGET [--depth N] [--json]          TARGET: ACCOUNT, #ACCOUNT, hero:NAME|ID, item:ID: where its coin and
+                            items came from and went
+  plan ACCOUNT [--since T] [--origin FARM]   the clawback plan, changing nothing (T: 2026-11-20[T18:00], 7d, seq:N)
+  clawback ACCOUNT --reason TEXT [--plan-file FILE] [--since T] [--origin FARM] [--yes]
+  flag ACCOUNT lock|shadow|ban|clear --reason TEXT [--yes]
+  wave FILE lock|shadow|ban|clear --reason TEXT [--yes]    one account per line
+                            by hand only; without --yes nothing changes. Through the running realm's admin port, or
+                            --db=FILE for a stopped realm or a backup copy (docs/realm/ops.md, Pulling the rug)
   config-template           print ops.conf with every setting documented
   rehearse [--dir=DIR]      backup, wreck, restore, drill, release, rollback on a scratch folder (prints OPS ok ...)";
 
@@ -44,6 +52,84 @@ fn root_of(args: &[String]) -> PathBuf {
 
 fn load(root: &Path) -> Result<Conf, String> {
     Conf::load(&root.join("ops.conf"))
+}
+
+/// One command line to the running realm's admin console (loopback port, token in `<db>.admin`).
+fn admin(root: &Path, line: &str) -> Result<String, String> {
+    let c = load(root)?;
+    let port = c.num("admin_port");
+    if port == 0 {
+        return Err("admin_port is 0 (off) in ops.conf".into());
+    }
+    let token = std::fs::read_to_string(realm_ops::sides::side(&c.path(root, "db"), realm_ops::sides::ADMIN)).map_err(|e| format!("admin token: {e}"))?;
+    let mut s = std::net::TcpStream::connect(("127.0.0.1", port as u16)).map_err(|e| format!("the realm's admin port {port} does not answer: {e}"))?;
+    std::io::Write::write_all(&mut s, format!("{}\tops\n{line}\n", token.trim()).as_bytes()).map_err(|e| e.to_string())?;
+    let mut out = String::new();
+    let _ = std::io::Read::read_to_string(&mut s, &mut out);
+    if out.starts_with("error:") { Err(out.trim().to_string()) } else { Ok(out.trim().to_string()) }
+}
+
+/// trace, plan, clawback, flag, wave (`realm_ops::rug`): with `--db=FILE` on that store (a stopped realm or a
+/// backup copy), else through the running realm's admin console. Files are read here and sent inline.
+fn rug(args: &[String], root: &Path, now: i64) -> Result<String, String> {
+    const VALUED: [&str; 7] = ["reason", "since", "origin", "plan-file", "depth", "db", "root"];
+    let (mut pos, mut opts, mut flags) = (Vec::new(), Vec::<(String, String)>::new(), Vec::new());
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.strip_prefix("--") {
+            Some(o) => match o.split_once('=') {
+                Some((k, v)) => opts.push((k.to_string(), v.to_string())),
+                None if VALUED.contains(&o) => opts.push((o.to_string(), it.next().ok_or(format!("--{o} needs a value"))?.clone())),
+                None => flags.push(o.to_string()),
+            },
+            None => pos.push(a.clone()),
+        }
+    }
+    let opt = |k: &str| opts.iter().rev().find(|(n, _)| n == k).map(|(_, v)| v.clone());
+    let mut words: Vec<String> = Vec::new();
+    if pos[0] == "wave" {
+        let (Some(file), Some(action)) = (pos.get(1), pos.get(2)) else { return Err("wave FILE lock|shadow|ban|clear --reason TEXT [--yes]".into()) };
+        let text = std::fs::read_to_string(file).map_err(|e| format!("{file}: {e}"))?;
+        words.extend(["wave".to_string(), action.clone(), format!("--lines={}", realm_ops::rug::wave_lines(&text))]);
+    } else {
+        words.extend(pos.iter().cloned());
+    }
+    if let Some(f) = opt("plan-file") {
+        let text = std::fs::read_to_string(&f).map_err(|e| format!("{f}: {e}"))?;
+        words.push(realm_ops::rug::plan_words(&realm_ops::rug::parse_plan(&text)?));
+    }
+    for k in ["since", "origin", "depth"] {
+        if let Some(v) = opt(k) {
+            words.push(format!("--{k}={v}"));
+        }
+    }
+    words.extend(flags.iter().map(|f| format!("--{f}")));
+    if let Some(r) = opt("reason") {
+        words.push(format!("--reason={}", r.replace(['\n', '\r'], " ")));
+    }
+    let line = words.join(" ");
+    let Some(db) = opt("db").map(PathBuf::from) else { return admin(root, &format!("rug {line}")) };
+    if release::running(root) {
+        if let Ok(c) = load(root) {
+            let live = c.path(root, "db");
+            if std::fs::canonicalize(&live).ok() == std::fs::canonicalize(&db).ok() {
+                return Err("the realm is running on this store: leave out --db to go through its admin port".into());
+            }
+        }
+    }
+    if !db.exists() {
+        return Err(format!("no store at {}", db.display()));
+    }
+    let store = realm_store::SqliteStore::open(&db).map_err(|e| format!("open {}: {e}", db.display()))?;
+    let n = std::cell::Cell::new(0u128);
+    let meta = || {
+        n.set(n.get() + 1);
+        realm_store::Meta::system(((now as u128) << 64) | (1 << 62) | (u128::from(std::process::id()) << 24) | n.get(), time::now_ms())
+    };
+    let op = std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_else(|_| "ops".into());
+    let r = realm_ops::rug::Rug { store: &store, meta: &meta, op: &op, now }.run(&line);
+    store.close();
+    r.map(|d| d.text)
 }
 
 fn go(args: &[String]) -> Result<String, String> {
@@ -113,19 +199,10 @@ fn go(args: &[String]) -> Result<String, String> {
             runtime::fetch(SocketAddr::from(([127, 0, 0, 1], port)), "/status").map_err(|e| format!("the realm is not answering on 127.0.0.1:{port}: {e}"))
         }
         "kill" | "revive" | "switches" => {
-            let c = load(&root)?;
-            let port = c.num("admin_port");
-            if port == 0 {
-                return Err("admin_port is 0 (off) in ops.conf".into());
-            }
-            let token = std::fs::read_to_string(realm_ops::sides::side(&c.path(&root, "db"), realm_ops::sides::ADMIN)).map_err(|e| format!("admin token: {e}"))?;
-            let mut s = std::net::TcpStream::connect(("127.0.0.1", port as u16)).map_err(|e| format!("the realm's admin port {port} does not answer: {e}"))?;
             let words: Vec<&str> = args.iter().filter(|a| !a.starts_with("--")).map(|a| a.as_str()).collect();
-            std::io::Write::write_all(&mut s, format!("{}\tops\n{}\n", token.trim(), words.join(" ")).as_bytes()).map_err(|e| e.to_string())?;
-            let mut out = String::new();
-            let _ = std::io::Read::read_to_string(&mut s, &mut out);
-            if out.starts_with("error:") { Err(out.trim().to_string()) } else { Ok(out.trim().to_string()) }
+            admin(&root, &words.join(" "))
         }
+        "trace" | "plan" | "clawback" | "flag" | "wave" => rug(args, &root, now),
         "backup" => {
             let c = load(&root)?;
             let m = backup::backup_now(&c.path(&root, "db"), &c.path(&root, "backup_dir"), c.num("backup_keep") as usize, c.num("backup_daily_keep") as usize, now)?;
