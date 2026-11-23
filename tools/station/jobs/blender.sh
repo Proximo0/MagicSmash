@@ -64,7 +64,7 @@ dest = os.path.join(bpy.utils.user_resource("EXTENSIONS", path="user_default", c
 if not os.path.isdir(dest):
     shutil.copytree(os.path.join(src, "mpfb"), dest)
 M = "bl_ext.user_default.mpfb"
-addon_utils.enable(M, default_set=False)
+addon_utils.enable(M, default_set=True)  # the generator reads its own entry in the preferences while it registers
 HumanService = importlib.import_module(M + ".services.humanservice").HumanService
 h = HumanService.create_human()
 rig = HumanService.add_builtin_rig(h, "game_engine")
