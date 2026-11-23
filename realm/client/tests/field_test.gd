@@ -94,6 +94,17 @@ func _sidecar() -> void:
 	var anims: PackedFloat32Array = b.material.get_shader_parameter("anims")
 	_check(anims[0] == 4.0 and anims[1] == 8.0 and rates[0] == 8.0 and rates[1] == 16.0, "one batch holds strips of 4 and 8 frames with their own fps")
 	holder.free()
+	# With strips: entry 0 has a die strip of 2 frames, entry 1 none; they sit after the main entries (2 + 3 * kind + 2 for die).
+	var with_die: Array[Dictionary] = [
+		{"tex": ImageTexture.create_from_image(img), "anim": 4, "fps": 8.0, "scale": 0.5, "art": "walk", "die": ImageTexture.create_from_image(img), "die_n": 2},
+		{"tex": ImageTexture.create_from_image(img), "anim": 8, "fps": 16.0, "scale": 0.25, "art": "walk"}]
+	var holder2 := Node.new()
+	var bs := RealmBatch.new(holder2, with_die, 1, false, true)
+	var sr: PackedVector4Array = bs.material.get_shader_parameter("rects")
+	var sa: PackedFloat32Array = bs.material.get_shader_parameter("anims")
+	_check(int(bs.material.get_shader_parameter("extra_base")) == 2, "extra strips start after the main entries")
+	_check(sa[2 + 2] == 2.0 and sr[2 + 2].z == 40.0 and sr[2 + 0].z == 0.0 and sr[2 + 3 + 2].z == 0.0, "a die strip is packed for the kind that has one, none for the rest")
+	holder2.free()
 	_atlas()
 
 

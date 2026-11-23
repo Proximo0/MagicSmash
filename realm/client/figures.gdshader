@@ -10,9 +10,14 @@
 // software renderer has to fill to the picture itself.
 shader_type canvas_item;
 
-const int MAX_FRAMES = 64;
+const int MAX_FRAMES = 256;
 const float BOB_PX = 1.5;
 const float BOB_RATE = 14.0;
+// custom.z = kind + STATE_STEP * state, custom.w = bob + BOB_STEP * age in ticks (draw.rs). States: 0 walk, 1 atk, 2 hit, 3 die.
+const float STATE_STEP = 64.0;
+const float BOB_STEP = 32.0;
+// How many ticks each strip's frames are spread over (draw.rs HIT_TICKS, DIE_TICKS; the attack 6).
+const vec3 STRIP_TICKS = vec3(6.0, 3.0, 12.0);
 
 uniform float blend = 1.0;
 // 1: a moving figure with a still picture bobs; 0: it stays put (the monsters' batch).
@@ -27,19 +32,52 @@ uniform float anims[MAX_FRAMES];
 uniform float scales[MAX_FRAMES];
 // Per entry: frames a second of a strip.
 uniform float rates[MAX_FRAMES];
+// Where the atk, hit, die strips of kind k start: entry extra_base + 3 * k + state - 1 (their rect width 0: none).
+uniform int extra_base = 0;
 
 void vertex() {
-	int e = clamp(int(INSTANCE_CUSTOM.z + 0.5), 0, MAX_FRAMES - 1);
-	vec4 r = rects[e];
-	float n = anims[e];
+	float zc = INSTANCE_CUSTOM.z + 0.5;
+	float state = floor(zc / STATE_STEP);
+	int e = clamp(int(zc - state * STATE_STEP), 0, MAX_FRAMES - 1);
+	float bob = mod(INSTANCE_CUSTOM.w + 0.5, BOB_STEP) - 0.5;
+	float age = floor((INSTANCE_CUSTOM.w + 0.5) / BOB_STEP);
+	int s = e;
+	if (state > 0.5 && extra_base > 0) {
+		s = clamp(extra_base + 3 * e + int(state + 0.5) - 1, 0, MAX_FRAMES - 1);
+		if (rects[s].z <= 0.0) {
+			s = e;
+			// A kind with no die strip leaves no corpse.
+			if (state > 2.5) {
+				COLOR.a = 0.0;
+				s = -1;
+			}
+			state = 0.0;
+			age = 0.0;
+		}
+	}
+	if (s < 0) {
+		VERTEX = vec2(0.0);
+		return;
+	}
+	vec4 r = rects[s];
+	float n = anims[s];
 	float step_x = 0.0;
 	// The quad spans x -cell.x/2..cell.x/2 and y -cell.y..0 (feet at the origin): shrink it to the picture.
 	VERTEX = VERTEX * (r.zw / cell) * scales[e] + INSTANCE_CUSTOM.xy * (1.0 - blend);
-	if (INSTANCE_CUSTOM.w > 0.0) {
+	if (state > 0.5) {
+		// A strip of a state plays once over its ticks, then holds its last frame.
+		float len = STRIP_TICKS.x;
+		if (state > 2.5) {
+			len = STRIP_TICKS.z;
+		} else if (state > 1.5) {
+			len = STRIP_TICKS.y;
+		}
+		step_x = floor(clamp((age + blend) / len, 0.0, 0.999) * n);
+	} else if (bob > 0.0) {
 		if (n > 1.5) {
-			step_x = floor(mod(TIME * rates[e] + INSTANCE_CUSTOM.w * 0.7, n));
+			step_x = floor(mod(TIME * rates[e] + bob * 0.7, n));
 		} else if (bob_stills > 0.5) {
-			VERTEX.y -= abs(sin(TIME * BOB_RATE + INSTANCE_CUSTOM.w)) * BOB_PX;
+			VERTEX.y -= abs(sin(TIME * BOB_RATE + bob)) * BOB_PX;
 		}
 	}
 	// A QuadMesh is built for 3D (y up): in 2D its texture would stand on its head.
