@@ -126,7 +126,7 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   fi
   kill "$server" 2>/dev/null; wait "$server" 2>/dev/null
   rm -rf "$dir"
-  [ -n "$line" ] || { echo "JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died)"; return 1; }
+  [ -n "$line" ] || { echo "JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died): $(grep -aE 'ERROR|error|panic|Aborted|timed out' <<<"$out" | grep -av ALSA | tail -3 | tr '\n' ' ' | cut -c1-240) last: $(tail -1 <<<"$out" | cut -c1-120)"; return 1; }
   [[ "$line" == "CLIENT_FRAMES ok"* ]] || { echo "JOB frames FAIL ${line#CLIENT_FRAMES }"; return 1; }
   local p99; p99=$(sed -E 's/.* p99_ms=([0-9.]+).*/\1/' <<<"$line")
   if [ "$limit" = 0 ]; then

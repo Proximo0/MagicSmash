@@ -11,7 +11,8 @@ log=$(mktemp); trap 'rm -f "$log"' EXIT
 if WIRE_FUZZ_ITERS="$iters" WIRE_FUZZ_SEED="$seed" cargo test --release -j2 -p realm-core -p realm-server -p realm-gateway --lib fuzz >"$log" 2>&1; then
 	echo "PASS wirefuzz iters=$iters seed=$seed $(grep -c '^test .* ok$' "$log") tests"
 else
-	grep -E "panicked|assertion|ask for|FAILED|error(\[|:)" "$log" | head -8
+	# No test line at all (the build or the launch failed): the log's end says why.
+	grep -E "panicked|assertion|ask for|FAILED|error(\[|:)" "$log" | head -8 | grep . || tail -4 "$log" | cut -c1-200
 	echo "FAIL wirefuzz iters=$iters seed=$seed (rerun: WIRE_FUZZ_ITERS=$iters WIRE_FUZZ_SEED=$seed cargo test --release --lib fuzz in realm/)"
 	exit 1
 fi
