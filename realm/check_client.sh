@@ -153,6 +153,12 @@ if [ -n "${DISPLAY:-}" ] || [ ${#runner[@]} -gt 0 ]; then
 		fail "scripted client"
 	fi
 	for z in 1 2 4; do [ -s "$shots_dir/zoom$z.png" ] || fail "no screenshot at zoom $z"; done
+	# A shader that does not compile still draws (with Godot's fallback: every figure the whole atlas) and still
+	# counts its figures, so the run passes on numbers alone: the log has to be clean of shader and script errors.
+	if grep -qE "SHADER ERROR|Shader compilation failed|SCRIPT ERROR" "$work/shots.log"; then
+		grep -E -B4 "SHADER ERROR|SCRIPT ERROR" "$work/shots.log" | head -12
+		fail "the scripted client logged a shader or script error"
+	fi
 	shots="zoom 1/2/4 $(grep -m1 -Eo 'monsters_drawn=[0-9]+' "$work/shots.log")"
 fi
 
