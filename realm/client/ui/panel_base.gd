@@ -78,7 +78,7 @@ func item_grid(prefix: String, items: Array[Dictionary], origin: Vector2, cols: 
 		var id: String = prefix + str(int(it["id"]))
 		hit(id, r)
 		var col: Color = GameNames.rarity_colour(int(it["rarity"]))
-		draw_texture_rect(UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 32), r.grow(-2), false)
+		draw_texture_rect(UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 32, int(it.get("base", -1))), r.grow(-2), false)
 		draw_rect(r, col if int(it["id"]) != selected else UiKit.GOLD, false, 2.0 if int(it["id"]) == selected else 1.0)
 		if int(it.get("plus", 0)) > 0:
 			UiKit.text(self, r.end - Vector2(3, 13), "+%d" % int(it["plus"]), 10, UiKit.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)

@@ -34,7 +34,7 @@ func paint_body(inner: Rect2) -> void:
 		if worn.has(s):
 			var it: Dictionary = worn[s]
 			hit("wornit:%d" % int(it["id"]), Rect2(r.position + Vector2(70, 0), Vector2(250, 36)))
-			draw_texture_rect(UiArt.item_icon(s, int(it["rarity"]), 28), Rect2(r.position + Vector2(72, 4), Vector2(28, 28)), false)
+			draw_texture_rect(UiArt.item_icon(s, int(it["rarity"]), 28, int(it.get("base", -1))), Rect2(r.position + Vector2(72, 4), Vector2(28, 28)), false)
 			UiKit.text(self, r.position + Vector2(108, 9), GameNames.item_name(it), 13, GameNames.rarity_colour(int(it["rarity"])))
 			button("off:%d" % int(it["id"]), Rect2(r.end.x - 90, r.position.y + 4, 84, 28), "TAKE OFF", not busy, false, 11)
 		else:

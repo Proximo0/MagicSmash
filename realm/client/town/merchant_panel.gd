@@ -109,7 +109,7 @@ func _buy(inner: Rect2) -> void:
 		var r := Rect2(rx, ry, col_w, 42)
 		draw_rect(r, Color(0.07, 0.058, 0.066))
 		draw_rect(r, Color(UiKit.GOLD_DIM, 0.4), false, 1.0)
-		var icon: Texture2D = UiArt.item_icon(int(o["item"]["gear_slot"]), 0, 30) if gear else UiArt.stack_icon(int(o["stack"]), 30)
+		var icon: Texture2D = UiArt.item_icon(int(o["item"]["gear_slot"]), 0, 30, int(o["item"].get("base", -1))) if gear else UiArt.stack_icon(int(o["stack"]), 30)
 		draw_texture_rect(icon, Rect2(rx + 6, ry + 6, 30, 30), false)
 		if gear:
 			hit("offer:%d" % int(o["id"]), Rect2(rx + 6, ry + 6, 30, 30))
@@ -171,7 +171,7 @@ func _back(inner: Rect2) -> void:
 		var r := Rect2(x, ry, inner.size.x, 40)
 		draw_rect(r, Color(0.07, 0.058, 0.066))
 		draw_rect(r, Color(UiKit.GOLD_DIM, 0.4), false, 1.0)
-		draw_texture_rect(UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 30), Rect2(x + 6, ry + 5, 30, 30), false)
+		draw_texture_rect(UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 30, int(it.get("base", -1))), Rect2(x + 6, ry + 5, 30, 30), false)
 		UiKit.text(self, Vector2(x + 44, ry + 4), GameNames.item_name(it), 14, GameNames.rarity_colour(int(it["rarity"])))
 		UiKit.text(self, Vector2(x + 44, ry + 22), "%s LEFT" % NodePanel.span_text(int(b["secs_left"])), 11, UiKit.BONE_DIM)
 		UiKit.text(self, Vector2(r.end.x - 150, ry + 12), "%s COIN" % GameNames.commas(int(b["price"])), 14, UiKit.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
