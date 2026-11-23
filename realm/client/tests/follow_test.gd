@@ -70,7 +70,7 @@ func _process(delta: float) -> bool:
 		if not _checked_reads and applied - _joined_at >= 40:
 			_checked_reads = true
 			_check_reads()
-		_check_prediction(c)
+		_check_prediction()
 	if _joined_at >= 0 and applied - _joined_at >= _ticks:
 		_finish("")
 	elif (Time.get_ticks_usec() - _start_us) / 1000000.0 > _timeout_s:
@@ -106,15 +106,16 @@ func _verify_whole() -> void:
 	_checked_whole = true
 
 
-func _check_prediction(c: Dictionary) -> void:
-	var h: Dictionary = _link.hero_view()
-	if h.is_empty() or not bool(h["alive"]):
+## Reads the prediction and what it was made from in one call: the frame (`hero_view`) and the counters are
+## published at other moments, and after a stall a burst of late ticks or queued inputs lies between them.
+func _check_prediction() -> void:
+	var p: Dictionary = _link.prediction()
+	if p.is_empty() or not bool(p["alive"]):
 		return
-	var confirmed := Vector2(float(h["x"]), float(h["y"]))
-	var lead: float = _link.predicted_position().distance_to(confirmed)
-	var allowed: float = (int(c.get("unconfirmed_inputs", 0)) + 3) * LEAD_PX_PER_INPUT * 1.5
+	var lead: float = (p["predicted"] as Vector2).distance_to(p["confirmed"] as Vector2)
+	var allowed: float = (int(p["unconfirmed"]) + 3) * LEAD_PX_PER_INPUT * 1.5
 	if lead > allowed and _problems.size() < 8:
-		_problems.append("predicted hero %.1f px from the confirmed one (allowed %.1f)" % [lead, allowed])
+		_problems.append("predicted hero %.1f px from the confirmed one at tick %d (allowed %.1f)" % [lead, int(p["tick"]), allowed])
 
 
 func _finish(error: String) -> void:
