@@ -29,8 +29,8 @@ uniform vec2 cell = vec2(32.0, 32.0);
 uniform vec4 rects[MAX_FRAMES];
 // Per entry: frames in the strip, and the scale it is drawn at.
 // Per entry: x the frames of the strip, y the scale it is drawn at, z its frames a second. One vec4 array, not
-// three float arrays: a float in a uniform block takes 16 bytes, and three arrays of 256 with `rects` passed the
-// 16 KB a block is promised (the figures then drew as garbage on the software renderer).
+// three float arrays: a float in a uniform block takes 16 bytes, and three arrays of 256 with `rects` would pass
+// the 16 KB a block is promised.
 uniform vec4 info[MAX_FRAMES];
 // Where the atk, hit, die strips of kind k start: entry extra_base + 3 * k + state - 1 (their rect width 0: none).
 uniform int extra_base = 0;
@@ -55,15 +55,14 @@ void vertex() {
 			age = 0.0;
 		}
 	}
-	if (s < 0) {
-		VERTEX = vec2(0.0);
-		return;
-	}
+	// A hidden figure (s < 0) is a quad of no size; the shader language allows no `return` in vertex().
+	float shown = s < 0 ? 0.0 : 1.0;
+	s = max(s, 0);
 	vec4 r = rects[s];
 	float n = info[s].x;
 	float step_x = 0.0;
 	// The quad spans x -cell.x/2..cell.x/2 and y -cell.y..0 (feet at the origin): shrink it to the picture.
-	VERTEX = VERTEX * (r.zw / cell) * info[e].y + INSTANCE_CUSTOM.xy * (1.0 - blend);
+	VERTEX = VERTEX * (r.zw / cell) * info[e].y * shown + INSTANCE_CUSTOM.xy * (1.0 - blend);
 	if (state > 0.5) {
 		// A strip of a state plays once over its ticks, then holds its last frame.
 		float len = STRIP_TICKS.x;
