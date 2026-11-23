@@ -29,8 +29,9 @@ PAD = 1
 
 
 def frames_of(img: Image.Image):
-    n = img.width // FRAME
-    return [img.crop((i * FRAME, 0, (i + 1) * FRAME, FRAME)) for i in range(n)]
+    fr = img.height                      # square frames: 144 px, or larger for a monster rendered with extra room (flesh_choir)
+    n = img.width // fr
+    return [img.crop((i * fr, 0, (i + 1) * fr, fr)) for i in range(n)]
 
 
 def load_actions(src: Path, key: str):
@@ -62,7 +63,8 @@ def box_of(acts, keep, walk):
             if b:
                 mids.append((b[0] + b[2]) / 2.0)
     centre = sorted(mids)[len(mids) // 2]
-    half, bottom, top = 0.0, 0, FRAME
+    frame = acts["idle"][0].height
+    half, bottom, top = 0.0, 0, frame
     for a in keep:
         for f in acts[a]:
             b = f.getchannel("A").getbbox()
@@ -72,7 +74,7 @@ def box_of(acts, keep, walk):
                 top = min(top, b[1])
     half = int(half + 0.999) + PAD
     c = int(round(centre))
-    return c - half, c + half, max(top - PAD, 0), min(bottom + PAD, FRAME)
+    return c - half, c + half, max(top - PAD, 0), min(bottom + PAD, frame)
 
 
 def strip(frames, x0, x1, y0, y1):
