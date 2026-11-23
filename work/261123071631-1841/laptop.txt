@@ -1,0 +1,1 @@
+2026-11-23T08:03:22Z INFO id=261123071631-1841 kind=shell secs=4 sysinfo ram=14069MB free=4332MB page=1997MB page_used=339MB cores=8 disk_free_gb=C:34 gpu=[none-or-not-nvidia] top3=[svchost:1829 claude:1803 chrome:1095]
