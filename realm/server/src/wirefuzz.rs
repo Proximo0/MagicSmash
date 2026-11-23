@@ -113,7 +113,11 @@ fn tick_records_and_the_datagram_layers_survive_hostile_bytes() {
 }
 
 fn view(rng: &mut Rng) -> View {
-    let mut v = View { tick: 1 + rng.below(1000) as u32, ox: rng.next() as i32 >> 8, oy: rng.next() as i32 >> 8, me_x: rng.below(2000) as u16, me_y: rng.below(2000) as u16, health: rng.next() as u16, level: rng.below(60) as u16, field_players: rng.below(500) as u32, field_monsters: rng.below(9000) as u32, tick_time: rng.next() as u16, ..View::default() };
+    // Invariant (view::build): the origin is clamped into the field, 0 <= ox, oy < FIELD_PX, so a monster's
+    // world px never wraps a u16, and every monster is inside the box, ox <= x < ox + w and oy <= y < oy + h
+    // with w, h at most 2 048 and 1 208: the 12 and 11 bits of a full monster always hold its offset.
+    let fp = realm_core::FIELD_PX as usize;
+    let mut v = View { tick: 1 + rng.below(1000) as u32, ox: rng.below(fp) as i32, oy: rng.below(fp) as i32, me_x: rng.below(2000) as u16, me_y: rng.below(2000) as u16, health: rng.next() as u16, level: rng.below(60) as u16, field_players: rng.below(500) as u32, field_monsters: rng.below(9000) as u32, tick_time: rng.next() as u16, ..View::default() };
     let mut id = 0u16;
     for _ in 0..rng.below(8) {
         id = id.saturating_add(1 + rng.below(40) as u16);
@@ -141,12 +145,13 @@ fn snapshots_round_trip_and_survive_hostile_parts() {
         encode_v1(&v, None, &mut p1);
         assert_eq!(decode(&p1, None).as_ref(), Ok(&v));
         // A v1 against a base, decoded against a (maybe wrong) base.
-        // (a delta carries at most 8 px a tick, so the next view is the last one nudged)
+        // (a delta carries at most 8 px a tick, so the next view is the last one nudged; a nudged monster stays
+        // inside the window from the origin, as `build` keeps it: it never goes above oy, x stays below ox + 4 096)
         let mut v2 = v.clone();
         v2.tick = v.tick + 1;
         for m in v2.monsters.iter_mut() {
-            m.x = m.x.wrapping_add(rng.below(8) as u16);
-            m.y = m.y.wrapping_sub(rng.below(8) as u16);
+            m.x += rng.below(8) as u16;
+            m.y -= (rng.below(8) as u16).min(m.y - v.oy as u16);
         }
         for p in v2.players.iter_mut() {
             p.x = p.x.wrapping_add(rng.below(8) as u16);

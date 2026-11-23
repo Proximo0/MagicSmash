@@ -91,7 +91,18 @@ impl Parts<'_> {
     }
 }
 
+/// A full monster is 12 and 11 bits from the view's origin; `view::build` only sends monsters inside its box
+/// (at most 2 048 by 1 208 px), so an offset outside that window is a bug upstream that would decode elsewhere.
 fn mon_v0(m: &MRec, v: &View, w: &mut Vec<u8>) {
+    debug_assert!(
+        (0..0x1000).contains(&(m.x as i32 - v.ox)) && (0..0x800).contains(&(m.y as i32 - v.oy)),
+        "monster {} at ({}, {}) is outside the 12/11-bit window from origin ({}, {})",
+        m.id,
+        m.x,
+        m.y,
+        v.ox,
+        v.oy
+    );
     let dx = (m.x as i32 - v.ox) as u32 & 0xFFF;
     let dy = (m.y as i32 - v.oy) as u32 & 0x7FF;
     let packed = dx | dy << 12 | (m.hurt as u32) << 23;
@@ -391,5 +402,35 @@ mod tests {
         }
         let last = views.last().unwrap();
         assert!(last.monsters.len() > 50 && last.players.len() > 20, "{} {}", last.monsters.len(), last.players.len());
+    }
+
+    fn mon(id: u32, x: u16, y: u16) -> MRec {
+        MRec { id, x, y, attrs: 26, hurt: true }
+    }
+
+    /// Monsters at the window's corners, moved by the widest deltas, and one moved too far for a delta.
+    #[test]
+    fn monsters_at_the_window_edges_round_trip_against_a_base() {
+        let (ox, oy) = (16_384 - 2_048, 0);
+        let base = View { tick: 9, ox, oy, monsters: vec![mon(1, ox as u16, 7), mon(2, ox as u16 + 4_088, 2_040), mon(3, ox as u16 + 500, 300)], ..View::default() };
+        let next = View { tick: 10, ox, oy, monsters: vec![mon(1, ox as u16 + 7, 0), mon(2, ox as u16 + 4_095, 2_047), mon(3, ox as u16, 2_047)], ..View::default() };
+        let mut parts = Vec::new();
+        encode_v1(&next, Some(&base), &mut parts);
+        assert_eq!(decode(&parts, Some(&base)), Ok(next.clone()));
+        encode_v1(&next, None, &mut parts);
+        assert_eq!(decode(&parts, None), Ok(next));
+    }
+
+    /// Fuzz seeds 689518 and 422455 (2M iterations): the fuzz view had an origin of oy = 7 798 784 (0 mod 65 536),
+    /// a monster at y = 2, then nudged to y = 65 532 (4 px above the origin). The u16 wrap made the delta big, so the
+    /// monster went full and its negative 11-bit offset decoded as y = 2 044. `build` never makes such a view; the
+    /// encoder now says so in a debug build rather than send it.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "outside the 12/11-bit window")]
+    fn a_monster_above_the_origin_is_refused_by_the_encoder() {
+        let base = View { tick: 1, ox: -3_916_321, oy: 7_798_784, monsters: vec![mon(47, 17_916, 2)], ..View::default() };
+        let next = View { tick: 2, monsters: vec![mon(47, 17_921, 65_532)], ..base.clone() };
+        encode_v1(&next, Some(&base), &mut Vec::new());
     }
 }
