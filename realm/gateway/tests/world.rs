@@ -116,7 +116,9 @@ fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
 
 #[test]
 fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
-    let rules = CopyRules { cap: 50, open_at: 40, merge_under: 10, max_copies: 2, merge_grace_ms: 3_000 };
+    // The grace runs on the wall clock from the realm's start: 3 s of it ran out during the logins below on a starved
+    // Windows CI box, copy 1 was already closing and the player was placed in copy 0. 12 s leaves the set-up room.
+    let rules = CopyRules { cap: 50, open_at: 40, merge_under: 10, max_copies: 2, merge_grace_ms: 12_000 };
     let r = realm("move", quick(rules), 2);
     let mut a = login(&r, "drover");
     let ha = hero(&mut a, "Drover", 1);
@@ -135,9 +137,9 @@ fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
         r => panic!("{r:?}"),
     };
     assert!(matches!(b.call(Req::World(WReq::BotTicket { hero: hb, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { copy: 0, .. }));
-    // She fights well past the merge (3 s of grace is 600 ticks here), then banks and leaves from the new copy.
+    // She fights well past the merge (12 s of grace is 2,400 ticks here), then banks and leaves from the new copy.
     // The walk to a waystone is slow in host ticks when the box starves the bot (its inputs come every 50 ms).
-    let play = PlayOpts { fight_ticks: 2_000, max_ticks: 24_000, ..PlayOpts::default() };
+    let play = PlayOpts { fight_ticks: 3_600, max_ticks: 30_000, ..PlayOpts::default() };
     let out = play_field(&mut p, &host, port, ticket, key, &play).unwrap_or_else(|e| panic!("{e}: {:?} {:?}", r.gw.host_loads(), r.gw.world.stats()));
     assert_eq!(out.moves, 1, "{out:?}");
     assert_eq!(out.fresh_keys, 1, "the new copy admitted her with a fresh key, sent over TLS: {out:?}");
