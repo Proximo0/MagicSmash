@@ -237,7 +237,7 @@ func _fill_tree(t: Tree, rows: Array, prefix: String) -> void:
 		if not (l["item"] as Dictionary).is_empty():
 			var it: Dictionary = l["item"]
 			ti.set_text(0, item_label(it))
-			ti.set_icon(0, UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 22))
+			ti.set_icon(0, UiArt.item_icon(int(it["gear_slot"]), int(it["rarity"]), 22, int(it.get("base", -1))))
 			ti.set_custom_color(0, GameNames.rarity_colour(int(it["rarity"])))
 			ti.set_tooltip_text(0, item_tip_text(it))
 		else:

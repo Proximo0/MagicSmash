@@ -1,0 +1,56 @@
+# Item and stack icons, 32x32 px PNG with transparent background -> realm/client/art/ui_<name>.png
+# Rebuild all of them, the contact sheet and the bag mock with one command:
+#   tools/char3d/build_icons.sh
+# (python3 + Pillow + numpy; KayKit Adventurers CC0 gltf dir defaults to /home/claude/kaykit-game-assets/...)
+# The rarity frame is not in the files: ui_art.gd draws it. Each line below: name, how made (see build_icons.py).
+# Lookup in ui_art.gd: item_<slot>_<variant> (variant = GEAR_VARIANTS, lower case) then item_<slot>; stacks by kind
+# (potion_<0..5>, material_<1..6>, trophy, rune_<stat> with grade pips drawn in code), then the group's name.
+# Not covered: home_* furniture pictures, ui_card_<class>, ui_title, ui_town_*, ui_ground (no caller asks for them as icons).
+item_weapon_dirk             gltf dagger.gltf
+item_weapon_cleaver          gltf axe_1handed.gltf, mirrored
+item_weapon_staff            gltf staff.gltf
+item_weapon_longbow          draw: wood limb arc, string, nocked arrow
+item_weapon_censer           draw: three chains, gold bowl with lid and holes, smoke
+item_weapon_mace             draw: wood haft, flanged iron head
+item_head_cowl               draw: plum hood with dark face opening
+item_head_helm               draw: steel helm, visor slit, crest
+item_head_crown              draw: gold circlet, three points, red gem
+item_body_robe               draw: long plum robe, gold sash, wide sleeves
+item_body_mail               draw: steel hauberk, ring rows, belt
+item_body_coat               draw: long leather coat, open front, buttons
+item_hands_gloves            draw: leather glove, four fingers, thumb, cuff
+item_hands_gauntlets         draw: steel gauntlet, knuckle plates, flared cuff
+item_hands_wraps             draw: pale cloth wraps, diagonal bands, trailing end
+item_feet_boots              draw: leather boot, tall shaft, sole, cuff
+item_feet_greaves            draw: steel greave over shin, knee plate, foot
+item_feet_sandals            draw: bare sole, straps, tied round the ankle
+item_charm_talisman          draw: bone disc on cord, red eye rune
+item_charm_ring              draw: gold band seen at an angle, cut gem
+item_charm_amulet            draw: gold chain, teardrop pendant with violet stone
+stack_coin                   draw: stack of three gold coins, one leaning
+stack_embers                 draw: three glowing coals with flame tips
+stack_potion_0               draw: round flask of red draught
+stack_potion_1               draw: triangle flask of grey smoke, a wisp
+stack_potion_2               draw: round flask of amber oil with a whetstone
+stack_potion_3               draw: inkwell with a quill
+stack_potion_4               draw: gold coin with a red die
+stack_potion_5               draw: ash urn with a flame and a feather
+stack_potion                 draw: alias of stack_potion_0 (any other potion)
+stack_material_1             draw: plague linen, a rolled cloth with stained end
+stack_material_2             draw: gallows oak, two crossed logs with a rope
+stack_material_3             draw: bog iron, a dark pitted ingot with green slime
+stack_material_4             draw: rune slate, tablet with carved glyph
+stack_material_5             draw: stained glass shards, red blue gold
+stack_material_6             draw: ash glass, pale shards with a black core
+stack_material               draw: alias of stack_material_3 (any other material)
+stack_trophy                 draw: horned boss skull on gold plate
+stack_rune_might             draw: dark stone, might glyph in red
+stack_rune_focus             draw: dark stone, focus glyph in slate
+stack_rune_swift             draw: dark stone, swift glyph in moss
+stack_rune_vigor             draw: dark stone, vigor glyph in ember
+stack_rune_ward              draw: dark stone, ward glyph in violet
+stack_rune_fortune           draw: dark stone, fortune glyph in gold
+stack_rune                   draw: alias of stack_rune_might (fallback)
+stack_key                    draw: iron vault key, ring bow, toothed bit
+stack_page                   draw: torn page with text lines and a seal
+stack_card                   draw: tarot-style monster card, plum back with gold sigil
