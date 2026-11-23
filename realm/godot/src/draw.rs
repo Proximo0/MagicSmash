@@ -187,7 +187,10 @@ impl DrawState {
                 WHITE
             };
             let back = self.monsters.back(i, m.x[i], m.y[i]);
-            put(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), 0);
+            // A monster that moved since the last call steps through its walk frames, out of step with its
+            // neighbours by its slot; one standing still shows frame 0.
+            let bob = if back != (0.0, 0.0) { 1 + i % BOB_SEEDS } else { 0 };
+            put(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), bob);
         }
         out
     }
@@ -272,6 +275,9 @@ mod tests {
         let next = d.monsters(&f, ALL);
         let now = monsters_in(&f, ALL);
         let mut blended = 0;
+        // A monster steps its walk frames (a bob seed) exactly when it has an offset back to blend from.
+        assert!(next.chunks(STRIDE).all(|c| (c[15] > 0.0) == (c[12] != 0.0 || c[13] != 0.0) && c[15] <= BOB_SEEDS as f32));
+        assert!(first.chunks(STRIDE).all(|c| c[15] == 0.0), "standing monsters show frame 0");
         // Depth order: feet lower on screen come later.
         assert!(next.chunks(STRIDE).zip(next.chunks(STRIDE).skip(1)).all(|(a, b)| a[7] <= b[7]));
         for m in now.chunks(5) {

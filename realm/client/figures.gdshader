@@ -3,7 +3,8 @@
 // the 50 ms between ticks, so the figure glides from where it was to where it is.
 // An atlas entry is a strip of `anims` frames side by side (1 for a still picture, 4 for a walk strip unless its sidecar says more) drawn
 // at `scales` (a walk strip has 2 texture px per world px: 0.5). A moving figure with a strip steps through
-// its frames; a still picture bobs instead.
+// its frames (the bob seed is also its phase, so a crowd does not march in step); a still picture bobs instead.
+// The atlas is shelves of strips: each entry's rect says where its first frame is.
 // VERTEX here is in mesh space (before the instance's transform), so offsets are divided by the instance's
 // scale on the CPU side and the quad is shrunk to the frame's own picture, which keeps the pixels a
 // software renderer has to fill to the picture itself.
@@ -14,6 +15,8 @@ const float BOB_PX = 1.5;
 const float BOB_RATE = 14.0;
 
 uniform float blend = 1.0;
+// 1: a moving figure with a still picture bobs; 0: it stays put (the monsters' batch).
+uniform float bob_stills = 1.0;
 // The atlas size and the quad size (the largest picture), in texels.
 uniform vec2 atlas = vec2(256.0, 34.0);
 uniform vec2 cell = vec2(32.0, 32.0);
@@ -35,7 +38,7 @@ void vertex() {
 	if (INSTANCE_CUSTOM.w > 0.0) {
 		if (n > 1.5) {
 			step_x = floor(mod(TIME * rates[e] + INSTANCE_CUSTOM.w * 0.7, n));
-		} else {
+		} else if (bob_stills > 0.5) {
 			VERTEX.y -= abs(sin(TIME * BOB_RATE + INSTANCE_CUSTOM.w)) * BOB_PX;
 		}
 	}
