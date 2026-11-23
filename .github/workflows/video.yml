@@ -44,7 +44,7 @@ jobs:
         run: |
           tools/video/record.sh out
           # A close look at the monsters: few bots, so the horde comes to the recorded hero.
-          BOTS=6 CLIPS="0 1 8 0 0;1 1 8 2 1;2 1 8 0 0;3 1 8 3 0;4 1 8 0 2;5 1 8 2 3;0 2 8 0 0;3 2 8 0 0" tools/video/record.sh close
+          BOTS=6 CLIPS="4 2 8 0 0;4 3 8 2 1;5 2 8 0 0;5 3 8 2 3;2 2 8 0 0;0 2 8 0 0" tools/video/record.sh close
           mv close/video.mp4 out/close.mp4
       - uses: actions/upload-artifact@v4
         with:
