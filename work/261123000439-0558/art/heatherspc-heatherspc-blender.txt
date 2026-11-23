@@ -1,0 +1,27 @@
+Traceback (most recent call last):
+  File "C:\Users\heath\hh_tools\blender_selftest.py", line 6, in <module>
+    mpfb.register()
+    ~~~~~~~~~~~~~^^
+  File "C:\Users\heath\hh_tools\mpfb2\src\mpfb\__init__.py", line 198, in register
+    from .services import LogService  # This will also cascade import the other services
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heath\hh_tools\mpfb2\src\mpfb\services\__init__.py", line 11, in <module>
+    from .locationservice import LocationService
+  File "C:\Users\heath\hh_tools\mpfb2\src\mpfb\services\locationservice.py", line 381, in <module>
+    LocationService = _LocationService()  # pylint: disable=C0103
+  File "C:\Users\heath\hh_tools\mpfb2\src\mpfb\services\locationservice.py", line 29, in __init__
+    self._user_home: str = bpy.utils.extension_path_user(MPFB_CONTEXTUAL_INFORMATION["__package__"])
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heath\hh_tools\blender\blender-5.3.0-windows-x64\5.3\scripts\modules\bpy\utils\__init__.py", line 976, in extension_path_user
+    repo_module, pkg_idname = _extension_module_name_decompose(package)
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\heath\hh_tools\blender\blender-5.3.0-windows-x64\5.3\scripts\modules\addon_utils.py", line 1463, in _extension_module_name_decompose
+    raise ValueError("The \"package\" does not name an extension")
+ValueError: The "package" does not name an extension
+The 'mpfb' addon does not exist!?
+Could not read preference mpfb_user_data
+Log config does not exist. Creating empty template.
+Will rewrite log config C:\Users\heath\AppData\Roaming\Blender Foundation\Blender\5.3\mpfb\config\log_levels.json
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:33:43)
+
+Blender quit
