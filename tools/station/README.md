@@ -31,6 +31,9 @@ which the store's bundled SQLite needs). A station without it reports `JOB realm
    On Windows a portable Git works (PortableGit from git-for-windows, no admin); the Startup folder can start it.
 3. Start the command above at boot or logon (Linux: a systemd user service or `@reboot` in crontab; Windows: Task
    Scheduler, "at log on", running Git Bash). `STATION_NAME` overrides the host name.
+   Linux launcher: `tools/station/start_station.sh` (one copy by flock, restarts the station 60 s after it exits, log
+   `~/station_restarts.log`; name from `STATION_NAME` or `~/.station_name`). The queue job `script=stationstart` adds its
+   `@reboot` crontab line (Windows: `start_station.cmd`); `frames` at boot has no desktop, so it runs under xvfb-run.
 
 ## When a stage fails
 The fix happens on the machine that failed, where the failure reproduces: start one helper there with the failed
