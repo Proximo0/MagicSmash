@@ -1,0 +1,1 @@
+2026-11-23T02:11:15Z FAIL id=261123013640-2824 kind=shell secs=9 charbody Traceback (most recent call last):     raise ValueError("I don't seem to exist") ValueError: I don't seem to exist 

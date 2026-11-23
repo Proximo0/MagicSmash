@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+    raise ValueError("I don't seem to exist")
+ValueError: I don't seem to exist
+Traceback (most recent call last):
+    raise ValueError("I don't seem to exist")
+ValueError: I don't seem to exist
