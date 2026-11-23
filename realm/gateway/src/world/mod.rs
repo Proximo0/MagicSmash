@@ -715,8 +715,14 @@ impl Gateway {
                 }
                 let k = s.handle.status.counts.lock().unwrap().clone();
                 add_counts(&mut self.world.state.lock().unwrap().retired, &k);
-                // Anyone still holding a ticket to it (a ticket refused as it closed) is freed.
-                self.host_lost(id);
+                // Anyone still holding a ticket to it was let in after its last read of its orders (a vault closes
+                // itself without the gateway's `stopping`): the host never saw her, so her ticket went unused, through
+                // the applier as a host's own `Unused` (a moved hero's haul banked as a disconnect). The slot is gone,
+                // so no ticket can be issued to it any more; a dead host's outings were given up in `on_reap`.
+                let left: Vec<(u64, u64)> = self.tickets.lock().unwrap().iter().filter(|(_, t)| t.host == id).map(|(k, t)| (t.hero as u64, *k)).collect();
+                for (hero, ticket) in left {
+                    let _ = self.msgs.send(realm_server::host::HostMsg::Unused { hero, ticket });
+                }
                 if let Some(v) = &s.vault {
                     self.world.count(|w| w.vaults_closed += 1);
                     if s.handle.status.counts.lock().unwrap().joined == 0 {
@@ -994,6 +1000,60 @@ mod tests {
         assert!(gone(), "the closed copy is reaped");
         let s = gw.world.stats();
         assert_eq!((s.hosts_lost, s.tickets_lost), (0, 0), "a clean close is not a lost host");
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
+    }
+
+    /// A host that closes by itself (a vault: its run over, nobody came, everyone gone) is not marked `stopping`
+    /// by the gateway, so a ticket can still be issued to it after its last read of its orders: its Admit is never
+    /// answered. The week once counted such a hero LOST (`tickets_lost=1` with no host killed on a starved Windows
+    /// runner) when the cleanly closed host was reaped. She never got in: her ticket went unused.
+    #[test]
+    fn a_ticket_to_a_host_that_closed_by_itself_goes_unused_not_lost() {
+        let db = std::env::temp_dir().join(format!("realm-late-admit-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, ..Config::default() });
+        let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+        gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
+        let mut c = GatewayClient::connect_plain(&l.addr.to_string()).unwrap();
+        assert!(matches!(c.login("late").unwrap(), Resp::Login { .. }));
+        let hero = match c.call(Req::CreateHero { name: "Late".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
+            Resp::HeroCreated(id) => id,
+            r => panic!("{r:?}"),
+        };
+        let d = OutingDelta { xp: crate::sheet::xp_to_reach(12), levels: 11, waystone: Some((0, 0)), ..OutingDelta::default() };
+        store.apply_outing(Meta::system(0x1A7E << 64 | hero as u128, 1), hero, d).unwrap();
+        // The host stops by itself (the gateway's `stopping` stays unset, as for a vault closing itself); the
+        // applier is slow to apply its Closed, so the reaper keeps the ended slot while the ticket is issued.
+        gw.applier_pause_ms.store(2_500, Ordering::Relaxed);
+        let (id, status) = {
+            let hosts = gw.hosts.lock().unwrap();
+            let h = hosts.iter().find(|h| h.vault.is_none()).unwrap();
+            h.handle.cmds.send(HostCmd::Stop).unwrap();
+            (h.id, h.handle.status.clone())
+        };
+        let t = std::time::Instant::now();
+        while !status.ended.load(Ordering::Acquire) && t.elapsed() < Duration::from_secs(5) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(status.ended.load(Ordering::Acquire), "the host closed");
+        let ticket = match c.call(Req::FieldTicket { hero, field: 0 }).unwrap() {
+            Resp::Ticket { ticket, .. } => ticket,
+            r => panic!("{r:?}"),
+        };
+        assert_eq!(gw.tickets.lock().unwrap()[&ticket].host, id, "the ticket went to the host that had closed");
+        let told = c.wait_push(Duration::from_secs(10), |r| match r {
+            Resp::Outing { left, .. } => Some(*left),
+            _ => None,
+        });
+        assert_eq!(told.unwrap(), Some(crate::gateway::LEFT_UNUSED), "she never got in: her ticket went unused");
+        let s = gw.world.stats();
+        assert_eq!((s.hosts_lost, s.tickets_lost), (0, 0), "a clean close loses nobody");
+        assert_eq!(gw.ticket_count(), 0);
+        assert!(!gw.is_placed(hero), "she is free again");
+        drop(l);
         gw.shutdown();
         let _ = std::fs::remove_file(&db);
     }
