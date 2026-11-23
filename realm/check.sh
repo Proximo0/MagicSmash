@@ -6,6 +6,10 @@ set -u
 command -v sccache >/dev/null 2>&1 && export RUSTC_WRAPPER=sccache
 cd "$(dirname "$0")"
 log=$(mktemp)
+# Open files: gateway/tests/world.rs puts 1000 heroes in a field at once (two sockets each and more); the usual
+# soft limit of 1024 fails it with "Too many open files". Raise it as far as the hard limit allows, up to 16384.
+hard=$(ulimit -Hn); [ "$hard" = unlimited ] && hard=16384
+[ "$(ulimit -Sn)" != unlimited ] && [ "$(ulimit -Sn)" -lt 16384 ] && ulimit -Sn $(( hard < 16384 ? hard : 16384 )) 2>/dev/null
 trap 'rm -f "$log"' EXIT
 
 # Jobs: CARGO_BUILD_JOBS if set, else every core on CI, else 2 (local and station PCs stay responsive).
