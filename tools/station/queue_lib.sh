@@ -74,12 +74,15 @@ gb_has() { git rev-parse -q --verify "refs/remotes/origin/$1" >/dev/null 2>&1; }
 # freshly fetched branch; returns 1 when the push is rejected (somebody else got there first). gb_hook, when defined, runs
 # between building the commit and pushing it (tests use it to make a race happen). GB_BASE=<commit> builds on that commit
 # without fetching again, so a push is rejected when anybody pushed after the caller looked (q_claim: check and lock on one view).
+gb_sha_ok() { [[ "${1:-}" =~ ^[0-9a-f]{40,64}$ ]]; }   # a real object name, never empty (an empty one in a push deletes the branch)
 gb_put() {
   local br=$1 msg=$2 parent idx blob tree commit op p f; shift 2
   if [ -n "${GB_BASE:-}" ]; then parent=$GB_BASE
   else gb_fetch "$br"; parent=$(git rev-parse -q --verify "refs/remotes/origin/$br" || true); fi
   idx=$(mktemp -u)
-  [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
+  # A failed read-tree would commit a tree without the branch's files; an empty $commit would make the push below
+  # ":refs/heads/<branch>", which DELETES the branch (23 Nov: station-results was deleted that way once lanes pushed at once).
+  if [ -n "$parent" ] && ! GIT_INDEX_FILE="$idx" git read-tree "$parent"; then rm -f "$idx"; return 1; fi
   for op in "$@"; do
     case "$op" in
       +*) p=${op#+}; f=${p#*:}; p=${p%%:*}; blob=$(git hash-object -w "$f")
@@ -89,6 +92,7 @@ gb_put() {
   done
   tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
   commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$msg")
+  gb_sha_ok "$tree" && gb_sha_ok "$commit" || return 1
   declare -F gb_hook >/dev/null && gb_hook
   GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$br" 2>/dev/null
 }

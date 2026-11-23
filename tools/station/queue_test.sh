@@ -312,4 +312,9 @@ old="$T/station-job-alpha-OLD"; mkdir "$old"; touch -d '3 days ago' "$old" 2>/de
 Q alpha step >"$T/o" 2>&1
 check "the step prunes this machine's old work dirs and nothing else" '[ ! -e "$old" ] && [ -d "$T/station-job-beta-KEEP" ]'
 
+echo "== a failed commit never deletes a branch (23 Nov: an empty commit in the push deleted station-results)"
+before=$(git -C "$T/origin.git" rev-parse -q --verify refs/heads/station-results)
+( cd "$T/alpha" && MACHINE=alpha && . tools/station/queue_lib.sh && echo x >"$T/x" && GB_BASE=0123456789012345678901234567890123456789 gb_put station-results "bad base" "+x.txt:$T/x" ); rc=$?
+check "gb_put on a base it cannot read returns 1 and leaves the branch as it was" '[ $rc = 1 ] && [ "$(git -C "$T/origin.git" rev-parse -q --verify refs/heads/station-results)" = "$before" ]'
+
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi

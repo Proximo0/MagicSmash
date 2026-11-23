@@ -308,12 +308,12 @@ publish() {  # $1 = report text, $2 = file (default <machine>.txt). Adds it to t
     git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
     parent=$(git rev-parse -q --verify "refs/remotes/origin/$BRANCH" || true)
     idx=$(mktemp -u)
-    [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
+    if [ -n "$parent" ] && ! GIT_INDEX_FILE="$idx" git read-tree "$parent"; then rm -f "$idx"; sleep "${STATION_PUBLISH_SLEEP:-5}"; continue; fi
     blob=$(git hash-object -w --stdin <<<"$1")
     GIT_INDEX_FILE="$idx" git update-index --add --cacheinfo 100644 "$blob" "${2:-$MACHINE.txt}"
     tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
     commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $(tail -1 <<<"$1")")
-    GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null && return 0
+    gb_sha_ok "$tree" && gb_sha_ok "$commit" && GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null && return 0
     sleep "${STATION_PUBLISH_SLEEP:-5}"
   done
   echo "station: could not push the report" >&2; return 1
@@ -324,7 +324,7 @@ publish_shots() {  # $1 = a folder of zoom<N>.png: adds them to the results bran
   git fetch -q origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null
   parent=$(git rev-parse -q --verify "refs/remotes/origin/$BRANCH" || true)
   idx=$(mktemp -u)
-  [ -n "$parent" ] && GIT_INDEX_FILE="$idx" git read-tree "$parent"
+  if [ -n "$parent" ] && ! GIT_INDEX_FILE="$idx" git read-tree "$parent"; then rm -f "$idx"; return 1; fi
   for f in "$1"/zoom*.png; do
     [ -s "$f" ] || continue
     blob=$(git hash-object -w "$f")
@@ -333,6 +333,7 @@ publish_shots() {  # $1 = a folder of zoom<N>.png: adds them to the results bran
   [ "$n" -gt 0 ] || { rm -f "$idx"; return 1; }
   tree=$(GIT_INDEX_FILE="$idx" git write-tree); rm -f "$idx"
   commit=$(git -c user.name="station $MACHINE" -c user.email="station@localhost" commit-tree "$tree" ${parent:+-p "$parent"} -m "$MACHINE: $n crowd screenshots")
+  gb_sha_ok "$tree" && gb_sha_ok "$commit" || return 1
   GIT_TERMINAL_PROMPT=0 git push -q origin "$commit:refs/heads/$BRANCH" 2>/dev/null
 }
 
