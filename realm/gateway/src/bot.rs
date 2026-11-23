@@ -353,10 +353,11 @@ mod tests {
                 let _ = host.send_to(&[7u8; 600], to);
             }
         });
-        while bot.peek(&mut [0u8; 1]).is_err() {
+        // A whole-datagram buffer: on Windows a peek into a smaller one is an error (WSAEMSGSIZE) for ever.
+        let mut buf = [0u8; 2048];
+        while bot.peek(&mut buf).is_err() {
             std::thread::sleep(Duration::from_millis(1));
         }
-        let mut buf = [0u8; 2048];
         let t0 = Instant::now();
         let n = drain(&bot, &mut buf, Duration::from_millis(50), |_| std::thread::sleep(Duration::from_millis(1)));
         let took = t0.elapsed();
