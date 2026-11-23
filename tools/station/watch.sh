@@ -26,7 +26,7 @@ age() { local s=$1; printf '%dh%02dm' $((s / 3600)) $((s % 3600 / 60)); }
 gb_fetch "$BRANCH" || alert "the results branch $BRANCH cannot be fetched"
 gb_fetch "$QBRANCH" || alert "the queue branch $QBRANCH cannot be fetched"
 
-machines=$(sed -n 's/^\([A-Za-z0-9_-]\{1,\}\):.*/\1/p' tools/station/roles.txt)
+machines=$(sed -n 's/^\([A-Za-z0-9_-]\{1,\}\):.*/\1/p' tools/station/roles.txt | grep -vx lanes)   # "lanes: <machine> N" lines are not machines
 n=0
 for m in $machines; do
   n=$((n + 1))
