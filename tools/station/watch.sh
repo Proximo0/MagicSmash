@@ -4,7 +4,7 @@
 #   watch.sh           one ALERT line per problem, then "WATCH ok machines=N" or "WATCH alerts=N"; exit 1 with alerts
 #   watch.sh --heal    also releases every claim older than the limit (deletes claims/<id>.<machine> on the queue
 #                      branch), so the job is free again for that station's next pick or for another station
-# Problems: a station whose <machine>-hours.txt has not been pushed for STATION_WATCH_SILENT_S (default 2 h: a
+# Problems: a station whose <machine>-heartbeat.txt (or -hours.txt) has not been pushed for STATION_WATCH_SILENT_S (default 2 h: a
 # running station pushes it about every half hour, also during a long job); a claim older than
 # STATION_WATCH_CLAIM_S (default 5 h: no job may run longer than STATION_QUEUE_MAX_S, 4 h); a station that reports
 # its hours but has published no result of any kind for STATION_WATCH_IDLE_S (default 5 h) and holds no job.
@@ -29,8 +29,10 @@ machines=$(sed -n 's/^\([A-Za-z0-9_-]\{1,\}\):.*/\1/p' tools/station/roles.txt)
 n=0
 for m in $machines; do
   n=$((n + 1))
-  t=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m-hours.txt" 2>/dev/null)
-  if [ -z "$t" ]; then alert "$m has never reported its hours"
+  # Alive = its newest heartbeat or hours push (the hours file changes only when a job ends: a PC two hours into a
+  # soak was reported silent while its heartbeat was 20 minutes old).
+  t=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m-heartbeat.txt" "$m-hours.txt" 2>/dev/null)
+  if [ -z "$t" ]; then alert "$m has never reported a heartbeat"
   elif [ $((now - t)) -gt "$silent" ]; then alert "$m has been silent for $(age $((now - t))): is the PC on, signed in, and its station window running?"; fi
   # On, but doing nothing: no result line of any kind from it for a while, and it holds no job now.
   w=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m.txt" "$m-deep.txt" ":(glob)work/*/$m.txt" 2>/dev/null)
