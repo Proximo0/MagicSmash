@@ -145,7 +145,9 @@ q_load() {  # $1 = id: read and validate queue/<id>.job into J_*; 0 usable here
     local s; s=$(q_tok "$J_ARGS" script ""); re='^[A-Za-z0-9_-]+$'
     [[ "$s" =~ $re ]] && [ -f "tools/station/jobs/$s.sh" ] || { q_warn "$1" "skipped: no script tools/station/jobs/${s:-?}.sh here"; return 1; }
   fi
-  [ "$J_TIMEOUT" -ge 60 ] || J_TIMEOUT=60; [ "$J_TIMEOUT" -le 172800 ] || J_TIMEOUT=172800
+  [ "$J_TIMEOUT" -ge 60 ] || J_TIMEOUT=60
+  # No job holds a station longer than this, whatever its file says (a 12 hour job once ran to its limit and recorded nothing).
+  [ "$J_TIMEOUT" -le "${STATION_QUEUE_MAX_S:-14400}" ] || J_TIMEOUT="${STATION_QUEUE_MAX_S:-14400}"
   return 0
 }
 # q_eligible id: after q_load. Sets Q_KEY for ordering: finite (once) jobs first by priority, then the forever jobs, oldest

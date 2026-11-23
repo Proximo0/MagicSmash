@@ -1,0 +1,41 @@
+# The station watchdog (tools/station/watch.sh): every 30 minutes, with no station and no person involved, it
+# checks that each of the four PCs has reported in the last 2 hours and that no job has been held over 5 hours,
+# releases such a job so the stations pick it up again, and keeps ONE issue open while anything is wrong
+# (assigned to the owner, so GitHub mails him); the issue is closed by the first clean run.
+name: station-watch
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: station-watch
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: watch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          TITLE: "Station watch: a test PC needs attention"
+        run: |
+          out=$(bash tools/station/watch.sh --heal) && ok=1 || ok=0
+          echo "$out"
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+          body=$(printf '%s\n\n```\n%s\n```\n\n%s\n' "The station watchdog (tools/station/watch.sh, run every 30 minutes by .github/workflows/station-watch.yml) found:" "$(grep '^ALERT' <<<"$out")" "A silent PC usually needs to be switched on or signed in, with its station window running (tools/station). Jobs held too long are released automatically. This issue closes itself when a run is clean.")
+          if [ "$ok" = 1 ]; then
+            [ -n "$open" ] && gh issue close "$open" --comment "All stations are reporting again and no job is held too long."
+            exit 0
+          fi
+          if [ -z "$open" ]; then
+            gh issue create --title "$TITLE" --body "$body" --assignee "$OWNER"
+          elif [ "$(gh issue view "$open" --json body --jq .body | grep '^ALERT' | sed 's/ for [0-9]*h[0-9]*m.*//' | sort)" != "$(grep '^ALERT' <<<"$out" | sed 's/ for [0-9]*h[0-9]*m.*//' | sort)" ]; then
+            gh issue edit "$open" --body "$body"
+            gh issue comment "$open" --body "The list of problems changed; see the description above."
+          fi
