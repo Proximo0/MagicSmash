@@ -51,7 +51,7 @@ server (UDP) -> worker thread (realm/godot/src/worker.rs)          main thread (
   circle), every skill and ultimate by its act (rings for NOVA, HAMMERFALL, SANCTUARY and the group effects, fans of
   arrows for VOLLEY, dash streaks for CHARGE and TUMBLE, METEOR and CATACLYSM as drop circles that fill as they land,
   zones for TUMBLE, CONSECRATE, RAMPART, HAIL and PYRE), 16 status halos for the hero effects, monster bolts and lobbed
-  circles, bursts when something dies, "LEVEL n", "DOWN", "RAISED", "FALLEN", "BANKED n" and the potion's name as
+  circles (thin outlines at alpha 0.65, fills 0.05 to 0.12, set by the constants at the top of `field_fx.gd`), bursts when something dies, "LEVEL n", "DOWN", "RAISED", "FALLEN", "BANKED n" and the potion's name as
   floating words. One-tick swings and bolts are kept 0.22 s (`LIFE_S`) and fade. Aim is the nearest monster in the
   weapon's reach by the monster grid (`MAX_AIMED` 300 heroes a view get aimed effects; beyond that they use their
   facing). Effect rows are capped at 6,000 a frame, transient effects at 900 alive.

@@ -42,6 +42,12 @@ const ELITE: int = 1
 const CHAMPION: int = 2
 ## A hero stands within this many px of a downed ally to raise her.
 const RAISE_PX: float = 40.0
+# Look of the area telegraphs: thin crisp outlines, faint fills (never above FILL_ALPHA_MAX). Tune here.
+const FILL_ALPHA: float = 0.08        # zone and lobbed-circle fills, under the figures
+const FILL_ALPHA_MAX: float = 0.12    # a drop circle's fill when it lands
+const OVER_FILL_ALPHA: float = 0.05   # fills of effects drawn over the figures (swings, rings, bursts)
+const EDGE_ALPHA: float = 0.65        # the outline of every area
+const EDGE_ALPHA_SOFT: float = 0.35   # inner, secondary arcs
 
 ## Class colours: novice, knight, mage, archer, priest, paladin.
 const CLASS_COL: Array[Color] = [
@@ -188,16 +194,16 @@ func _draw_ground(wall: float, w: float) -> void:
 				var col: Color = ZONE_COL[clampi(int(rows[o + 4]), 0, ZONE_COL.size() - 1)]
 				var left: float = rows[o + 5]
 				var fade: float = clampf(left / 20.0, 0.0, 1.0)
-				draw_circle(p, r, Color(col.r, col.g, col.b, 0.14 * fade))
-				draw_arc(p, r, wall * 0.6, wall * 0.6 + TAU, 40, Color(col.r, col.g, col.b, 0.7 * fade), 1.5 * w, true)
-				draw_arc(p, r * 0.6, -wall * 0.9, -wall * 0.9 + TAU * 0.75, 28, Color(col.r, col.g, col.b, 0.35 * fade), 1.0 * w, true)
+				draw_circle(p, r, Color(col.r, col.g, col.b, FILL_ALPHA * fade))
+				draw_arc(p, r, wall * 0.6, wall * 0.6 + TAU, 40, Color(col.r, col.g, col.b, EDGE_ALPHA * fade), 1.5 * w, true)
+				draw_arc(p, r * 0.6, -wall * 0.9, -wall * 0.9 + TAU * 0.75, 28, Color(col.r, col.g, col.b, EDGE_ALPHA_SOFT * fade), 1.0 * w, true)
 			FX_DROP:
 				var r2: float = rows[o + 3]
 				var left2: float = rows[o + 4]
 				var k: float = clampf(1.0 - left2 / 30.0, 0.0, 1.0)
-				draw_circle(p, r2, Color(1.0, 0.35, 0.1, 0.08 + 0.22 * k))
-				draw_arc(p, r2, 0.0, TAU, 36, Color(1.0, 0.6, 0.25, 0.9), 1.5 * w, true)
-				draw_arc(p, r2 * k, 0.0, TAU, 28, Color(1.0, 0.85, 0.5, 0.8), 1.0 * w, true)
+				draw_circle(p, r2, Color(1.0, 0.35, 0.1, lerpf(0.05, FILL_ALPHA_MAX, k)))
+				draw_arc(p, r2, 0.0, TAU, 36, Color(1.0, 0.6, 0.25, EDGE_ALPHA), 1.5 * w, true)
+				draw_arc(p, r2 * k, 0.0, TAU, 28, Color(1.0, 0.85, 0.5, EDGE_ALPHA), 1.0 * w, true)
 			FX_RAISE:
 				var prog: float = rows[o + 3]
 				draw_arc(p, RAISE_PX, 0.0, TAU, 28, Color(0.5, 1.0, 0.65, 0.25), 1.0 * w, true)
@@ -215,8 +221,8 @@ func _draw_state(wall: float, w: float) -> void:
 			var r: float = rows[o + 3]
 			if r > 0.0:
 				# A lobbed circle: landing soon.
-				draw_arc(p, r, 0.0, TAU, 28, Color(0.95, 0.4, 0.3, 0.9), 1.5 * w, true)
-				draw_circle(p, r, Color(0.95, 0.3, 0.2, 0.12))
+				draw_arc(p, r, 0.0, TAU, 28, Color(0.95, 0.4, 0.3, EDGE_ALPHA), 1.5 * w, true)
+				draw_circle(p, r, Color(0.95, 0.3, 0.2, FILL_ALPHA))
 			else:
 				var v := Vector2(rows[o + 5], rows[o + 6])
 				draw_line(p - v * 2.5, p, Color(0.8, 0.5, 1.0, 0.55), 2.0 * w)
@@ -247,8 +253,8 @@ func _draw_item(it: Dictionary, f: float, w: float) -> void:
 			for s in 11:
 				var a: float = ang - half + 2.0 * half * s / 10.0
 				pts.append(p + Vector2(cos(a), sin(a)) * r * (0.55 + 0.45 * minf(f * 3.0, 1.0)))
-			draw_colored_polygon(pts, Color(col.r, col.g, col.b, 0.16 * fade))
-			draw_arc(p, r * (0.55 + 0.45 * minf(f * 3.0, 1.0)), ang - half, ang + half, 14, Color(col.r, col.g, col.b, 0.95 * fade), 2.0 * w, true)
+			draw_colored_polygon(pts, Color(col.r, col.g, col.b, OVER_FILL_ALPHA * fade))
+			draw_arc(p, r * (0.55 + 0.45 * minf(f * 3.0, 1.0)), ang - half, ang + half, 14, Color(col.r, col.g, col.b, EDGE_ALPHA * fade), 2.0 * w, true)
 		FX_RING:
 			var sk: int = int(float(it["b"]))
 			var rr: float = float(it["a"]) * (0.25 + 0.75 * minf(f * 2.5, 1.0))
@@ -263,8 +269,8 @@ func _draw_item(it: Dictionary, f: float, w: float) -> void:
 				c2 = CLASS_COL[clampi(int(float(it["c"])), 0, CLASS_COL.size() - 1)]
 			else:
 				c2 = _col_of_skill(sk)
-			draw_circle(p, rr, Color(c2.r, c2.g, c2.b, 0.12 * fade))
-			draw_arc(p, rr, 0.0, TAU, 36, Color(c2.r, c2.g, c2.b, 0.95 * fade), (2.5 if sk >= 0 else 1.5) * w, true)
+			draw_circle(p, rr, Color(c2.r, c2.g, c2.b, OVER_FILL_ALPHA * fade))
+			draw_arc(p, rr, 0.0, TAU, 36, Color(c2.r, c2.g, c2.b, EDGE_ALPHA * fade), (2.5 if sk >= 0 else 1.5) * w, true)
 		FX_BOLT:
 			var cls2: int = clampi(int(float(it["c"])), 0, CLASS_COL.size() - 1)
 			var col2: Color = CLASS_COL[cls2]
@@ -273,8 +279,8 @@ func _draw_item(it: Dictionary, f: float, w: float) -> void:
 			draw_line(p, to, Color(1, 1, 1, 0.6 * fade), 0.8 * w)
 			var burst: float = float(it["d"])
 			if burst > 0.0:
-				draw_circle(to, burst * minf(f * 2.0 + 0.3, 1.0), Color(col2.r, col2.g, col2.b, 0.25 * fade))
-				draw_arc(to, burst * minf(f * 2.0 + 0.3, 1.0), 0.0, TAU, 24, Color(1.0, 0.8, 0.4, 0.8 * fade), 1.5 * w, true)
+				draw_circle(to, burst * minf(f * 2.0 + 0.3, 1.0), Color(col2.r, col2.g, col2.b, OVER_FILL_ALPHA * fade))
+				draw_arc(to, burst * minf(f * 2.0 + 0.3, 1.0), 0.0, TAU, 24, Color(1.0, 0.8, 0.4, EDGE_ALPHA * fade), 1.5 * w, true)
 		FX_DASH:
 			var to2 := Vector2(float(it["a"]), float(it["b"]))
 			draw_line(p, to2, Color(0.85, 0.92, 1.0, 0.7 * fade), 6.0 * fade * w + 1.0 * w)
