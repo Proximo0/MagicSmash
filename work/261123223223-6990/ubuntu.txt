@@ -1,0 +1,1 @@
+2026-11-23T23:11:05Z INFO id=261123223223-6990 kind=shell secs=1 shell fetchasset: fetchasset ok name=quaternius-home bytes=82613 sha256=24a34481e49c45de
