@@ -1,0 +1,1 @@
+2026-11-23T11:28:56Z PASS id=261123001214-8503 kind=shell secs=4 charbody made=1 race=dwarf verts=19158 bones=53 height=1.494 bytes=766884 modifiers=ARMATURE,MASK;
