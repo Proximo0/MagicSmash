@@ -1,26 +1,26 @@
 ram_total_mb=8013
-ram_free_mb=3448
+ram_free_mb=3091
 page_mb=512
-page_used_mb=93
+page_used_mb=104
 page_peak_mb=115
 commit_limit_mb=8525
-commit_free_mb=2737
+commit_free_mb=2174
 cores=4
 disk_free_gb=C:89
 --- top programs by memory (MB)
-    954  10x claude
-    880  86x svchost
-    350   1x MsMpEng
-    289   1x Memory Compression
-    279   9x chrome
-    173   1x explorer
+    977  10x claude
+    890  87x svchost
+    494  12x chrome
+    389   1x MsMpEng
+    368   1x Memory Compression
+    276   1x BackgroundDownload
+    181   1x explorer
+    152   2x powershell
     144   1x PhoneExperienceHost
-     93   6x msedgewebview2
+    139   6x msedgewebview2
      85   4x Poe
-     85   2x tailscaled
-     82   1x powershell
-     67   5x RuntimeBroker
+     83   5x RuntimeBroker
+     82   2x tailscaled
      64   7x bash
-     57   1x vctip
-     57   1x OneDrive
+     64   1x SearchHost
 gpu=none-or-not-nvidia
