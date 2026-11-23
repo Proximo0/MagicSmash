@@ -10,8 +10,8 @@ const float BOB_STEP = 32.0;
 // The ghost's die strip length in ticks (figures.gdshader STRIP_TICKS.z).
 const float DIE_TICKS = 12.0;
 // The shadow's size in field px at a figure scale of 1, and its darkest alpha.
-const vec2 SHADOW_PX = vec2(14.0, 6.0);
-const float SHADOW_ALPHA = 0.35;
+const vec2 SHADOW_PX = vec2(20.0, 9.0);
+const float SHADOW_ALPHA = 0.6;
 
 uniform float blend = 1.0;
 // Same table as figures.gdshader `info` (x frames, y scale, z fps, w hover); only y and w are read.
@@ -37,5 +37,5 @@ void vertex() {
 
 void fragment() {
 	float d = length((UV - vec2(0.5)) * 2.0);
-	COLOR = vec4(0.0, 0.0, 0.0, SHADOW_ALPHA * strength * (1.0 - smoothstep(0.0, 1.0, d)));
+	COLOR = vec4(0.0, 0.0, 0.0, SHADOW_ALPHA * strength * (1.0 - smoothstep(0.55, 1.0, d)));
 }
