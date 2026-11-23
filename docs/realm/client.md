@@ -106,6 +106,16 @@ constants. `FieldHud` already draws a boss bar from `world["boss"]` and the alta
 
 ## Proof and numbers
 
+The ground (`field/field_ground.gd`, `field/ground.gdshader`): each field has two seamless 512 px tiles in
+`realm/client/ground/`, two texture px to a field px: `a` its common ground and `b` the ground that shows in
+patches (road: earth with pebbles, cobbles; wood: leaf litter, moss; marsh: mud with reeds, standing water; peaks:
+snow, bare rock; tower: flagstones, broken paving; edge: ash plates, plates with embers in the cracks). The
+shader repeats both and picks between them with a soft map sampled at periods of 1291 and 433 px, shades all of it
+with another of 1777 px, so no repeat shows, and gives the patches a ragged, dark-rimmed border; zoomed out
+past one screen px per field px the tiles fade toward their mean colours so they do not shimmer. The pictures are
+made by `tools/ground/ground.py OUT_DIR` from seeded noise alone (numpy and Pillow; no model and no outside art,
+so nothing to license): the same seeds give the same files. The field number comes from `RealmLink.world().field`.
+
 `realm/check_client.sh` prints `REALM_CLIENT ok field_test_checks=112 shots: zoom 1/2/4 ... | server 300x8000
 direct: hashes passed=20 failed=0 ... | relay 5% loss 80+-20 ms: hashes passed=20 failed=0 ...`. Screenshots at zoom
 1, 2 and 4 (software rendering, Mesa llvmpipe in xvfb, 1440 x 810): `/home/claude/c1_shots` (an archer, `--fake=tide,boss`).

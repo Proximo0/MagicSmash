@@ -87,6 +87,7 @@ var _fake: PackedStringArray = PackedStringArray()
 
 var _world: Node2D = Node2D.new()
 var _camera: Camera2D = Camera2D.new()
+var _soil: FieldGround = FieldGround.new()
 var _ground: RealmLayer = RealmLayer.new()
 var _sites: FieldWorld = FieldWorld.new()
 var _fx_under: FieldFx = FieldFx.new()
@@ -144,6 +145,7 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(BG)
 	_t0_us = Time.get_ticks_usec()
 	add_child(_world)
+	_world.add_child(_soil)
 	_ground.is_ground = true
 	_world.add_child(_ground)
 	_world.add_child(_sites)
@@ -349,6 +351,7 @@ func _process(delta: float) -> void:
 func _on_frame() -> void:
 	_info = link.hero_view()
 	_world_info = link.world()
+	_soil.set_field(int(_world_info.get("field", -1)), float(RealmLink.field_size()))
 	_monsters.fill(link.monster_buffer())
 	_players.fill(link.player_buffer())
 	var rows: PackedFloat32Array = link.fx_rows()
@@ -502,6 +505,7 @@ func _place(hero: Vector2) -> void:
 	var view := Rect2(_camera.position - half, half * 2.0)
 	_ground.view = view
 	_ground.px_scale = s
+	_soil.set_scale_px(s)
 	_ground.queue_redraw()
 	_sites.view = view
 	_sites.px_scale = s
