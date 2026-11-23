@@ -1,0 +1,1 @@
+2026-11-23T01:07:03Z PASS id=261122184607-7341 kind=shell secs=7205 lanhost ip=192.168.12.22 secs=7200 logins=154 tickets=154 peak_in_fields=20 errors=0
