@@ -75,3 +75,21 @@ class Retarget:
             m.translation = loc
             pb.matrix = inv_w @ m
             vl.update()
+
+    def apply_only(self, names):
+        """Pose only these target bones like the source's current pose, leaving the rest as they are (an upper body from
+        one clip on the legs of another). The bones keep the world direction the source gives them."""
+        src, dst = self.src, self.dst
+        vl = bpy.context.view_layer
+        vl.update()
+        src_w = {s: (src.matrix_world @ src.pose.bones[s].matrix).copy() for s, d in self.pairs if d in names}
+        inv_w = dst.matrix_world.inverted()
+        for s, d in self.pairs:
+            if d not in names:
+                continue
+            pb = dst.pose.bones[d]
+            sr_inv, cdr = self.rest[d]
+            m = ((src_w[s].to_3x3() @ sr_inv) @ cdr).to_4x4()
+            m.translation = (dst.matrix_world @ pb.matrix).translation
+            pb.matrix = inv_w @ m
+            vl.update()

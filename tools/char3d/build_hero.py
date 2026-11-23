@@ -375,17 +375,18 @@ KITS = {
     ),
     # ---- field bosses: the same bodies, rendered at 2.2x the pixels (bosses.txt) ----
     "boss_harvester": dict(
-        skin={"*": (0.07, 0.06, 0.06), "head": (0.012, 0.012, 0.016), "neck": (0.012, 0.012, 0.016), "hand": (0.5, 0.48, 0.4), "lowerarm": (0.09, 0.07, 0.06)},
-        bulk={"spine_02": 1.4, "spine_01": 1.25, "head": 1.1},
+        skin={"*": (0.035, 0.03, 0.032), "head": (0.004, 0.004, 0.006), "neck": (0.004, 0.004, 0.006), "hand": (0.55, 0.52, 0.44)},
+        bulk={"spine_01": 0.93, "spine_02": 0.95, "head": 1.12},
         shells=[
-            (["chest", "belly", "hips", "upperarm"], 0.045, (0.11, 0.085, 0.06), 0.0, None),
-            (["belly"], 0.06, STRAW, 0.0, "belt"),
-            (["chest"], 0.06, (0.05, 0.04, 0.035), 0.0, "strap"),
-            (["thigh", "calf"], 0.03, (0.06, 0.05, 0.05), 0.0, None),
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.04, (0.045, 0.04, 0.042), 0.0, None),
+            (["chest", "belly"], 0.055, (0.02, 0.018, 0.02), 0.0, "tabard"),
+            (["belly"], 0.06, (0.25, 0.2, 0.1), 0.0, "belt"),
+            (["thigh", "calf"], 0.03, (0.03, 0.028, 0.03), 0.0, None),
         ],
-        extras=["cowl", "lanterns", "bonesack", "boots", "skirt"], hood=(0.1, 0.08, 0.06), lantern=(0.8, 1.0, 0.7), cape=(0.09, 0.07, 0.055), cape_len=1.0,
-        boot=LEATHER_D, skirt=(0.1, 0.08, 0.06), skirt_to=0.1, pauldron=((0.08, 0.065, 0.05), 0.15, False), sack=(0.2, 0.15, 0.09),
-        weapons={"2H_Sword": ("hand_r", (0.95, 0.95, 1.0), "scythe")},
+        extras=["cowl", "lanterns", "skirt", "tatters", "beltbones", "boots"], hood=(0.04, 0.035, 0.038), lantern=(0.8, 1.0, 0.7), boot=LEATHER_D,
+        skirt=(0.04, 0.035, 0.038), skirt_to=0.0, skirt_w=1.5, skirt_r2=0.4,
+        hold="2H_Melee_Idle", yaw={"Death_A": -70}, unbake=True,
+        weapons={"2H_Sword": ("hand_r", (1.0, 1.0, 1.05), "scythe")},
     ),
     "boss_mother_of_leeches": dict(
         skin={"*": (0.03, 0.045, 0.05), "belly": (0.1, 0.11, 0.06), "head": (0.05, 0.06, 0.06), "neck": (0.05, 0.06, 0.06), "hand": (0.02, 0.03, 0.03)},
@@ -697,7 +698,7 @@ if "skirt" in ex:                                # the surcoat's skirt: a flared
     lo, hi = bbox(["hips", "thigh"])
     top = marks["hip"] + 0.12 * S
     bot = marks["knee"] + 0.14 * S if "skirt_to" not in kit else kit["skirt_to"] * S
-    o = prim("cone", "skirt", kit["skirt"], 0.0, r2=0.72)
+    o = prim("cone", "skirt", kit["skirt"], 0.0, r2=kit.get("skirt_r2", 0.72))
     hang(o, "pelvis", trs(Vector((0, (lo.y + hi.y) / 2, (top + bot) / 2)), (0, 0, 0),
                           ((hi.x - lo.x) * 0.62 * kit.get("skirt_w", 1.0), (hi.y - lo.y) * 0.85 * kit.get("skirt_w", 1.0), (top - bot) / 2)))
 if "cross" in ex:                                # a gold cross on the chest of the surcoat
@@ -902,20 +903,50 @@ def lit(name, bone, col, loc, size, strength=7.0):
     hang(o, bone, trs(loc, (0, 0, 0), size))
 
 
-if "cowl" in ex:                                 # a deep reaper's cowl: a tall hood that shadows the face, a long tail down the back
+if "cowl" in ex:                                 # a deep pointed hood that overhangs the face: inside, only darkness
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
     o = prim("sphere", "cowl", kit["hood"])
-    hang(o, "head", trs(c + Vector((0, half.y * 0.5, half.z * 0.2)), (-8, 0, 0), (half.x * 1.5, half.y * 1.3, half.z * 1.3)))
-    o = prim("cone", "cowl_peak", kit["hood"])
-    hang(o, "head", trs(c + Vector((0, half.y * 1.1, half.z * 1.0)), (-120, 0, 0), (half.x * 0.6, half.y * 0.5, half.z * 0.6)))
-    o = prim("cone", "cowl_front", (0.01, 0.01, 0.012))      # the dark hollow the face sits in
-    hang(o, "head", trs(c + Vector((0, -half.y * 0.2, -half.z * 0.05)), (90, 0, 0), (half.x * 1.0, half.z * 1.0, half.y * 0.9)))
+    hang(o, "head", trs(c + Vector((0, half.y * 0.45, half.z * 0.25)), (-6, 0, 0), (half.x * 1.5, half.y * 1.35, half.z * 1.4)))
+    o = prim("cone", "cowl_peak", kit["hood"])                    # the tall point, leaning back
+    hang(o, "head", trs(c + Vector((0, half.y * 0.8, half.z * 2.1)), (-14, 0, 0), (half.x * 1.1, half.y * 1.0, half.z * 1.3)))
+    o = prim("cone", "cowl_brow", kit["hood"])                    # the hood's lip, jutting out over the face
+    hang(o, "head", trs(c + Vector((0, -half.y * 0.95, half.z * 0.72)), (-100, 0, 0), (half.x * 1.25, half.z * 0.7, half.y * 0.9)))
+    for sg in (1, -1):                                            # and down the sides, so the face is a tunnel
+        o = prim("sphere", "cowl_cheek%d" % sg, kit["hood"])
+        hang(o, "head", trs(c + Vector((sg * half.x * 1.05, -half.y * 0.25, -half.z * 0.1)), (0, 0, 0), (half.x * 0.5, half.y * 1.0, half.z * 1.0)))
+    o = prim("sphere", "cowl_void", (0.0, 0.0, 0.0))              # the dark inside
+    hang(o, "head", trs(c + Vector((0, -half.y * 0.15, -half.z * 0.05)), (0, 0, 0), (half.x * 0.92, half.y * 0.85, half.z * 0.95)))
 if "lanterns" in ex:                             # two pale lantern eyes in the dark of the hood
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
     for sg in (1, -1):
-        lit("lantern%d" % sg, "head", kit["lantern"], Vector((sg * half.x * 0.5, lo.y + half.y * 0.2, c.z + half.z * 0.1)), (half.x * 0.24, half.y * 0.2, half.z * 0.2), 9.0)
+        lit("lantern%d" % sg, "head", kit["lantern"], Vector((sg * half.x * 0.42, lo.y + half.y * 0.12, c.z - half.z * 0.02)), (half.x * 0.22, half.y * 0.18, half.z * 0.17), 10.0)
+if "tatters" in ex:                              # a ragged hem: dark tongues of cloth round the foot of the robe
+    lo, hi = bbox(["hips", "thigh"])
+    w_ = kit.get("skirt_w", 1.0)
+    rx_, ry_ = (hi.x - lo.x) * 0.62 * w_, (hi.y - lo.y) * 0.85 * w_
+    cy_ = (lo.y + hi.y) / 2
+    zb = kit["skirt_to"] * S
+    for k in range(11):
+        th = 2 * math.pi * (k + 0.5 * (k % 2)) / 11
+        ln_ = (0.2 + 0.1 * ((k * 5) % 3)) * S
+        o = prim("cone", "tatter%d" % k, kit["skirt"])
+        hang(o, "pelvis", trs(Vector((rx_ * math.cos(th), cy_ + ry_ * math.sin(th), zb + 0.05 * S - ln_ * 0.35)), (180, 0, 0), (0.075 * S, 0.03 * S, ln_ * 0.55)))
+if "beltbones" in ex:                            # a few small skulls and bones hung from the belt on short cords
+    lo, hi = bbox(["belly"])
+    bz = marks["hip"] + 0.07 * S
+    for k, (sx, yo, ln_, skull) in enumerate(((1, -0.02, 0.2, True), (-1, 0.0, 0.26, True), (1, 0.1, 0.18, False), (-1, -0.1, 0.18, False))):
+        at = Vector((sx * (hi.x - lo.x) * 0.52, (lo.y + hi.y) / 2 + yo * S, bz))
+        seg("beltcord%d" % k, "spine_01", at, at + Vector((0, 0, -ln_ * 0.6 * S)), 0.012 * S, 0.012 * S, (0.05, 0.04, 0.03))
+        end = at + Vector((0, 0, -ln_ * 0.6 * S))
+        if skull:
+            o = prim("sphere", "beltskull%d" % k, BONE)
+            hang(o, "spine_01", trs(end + Vector((0, 0, -0.05 * S)), (0, 0, 0), (0.05 * S, 0.055 * S, 0.055 * S)))
+            o = prim("cube", "beltskull_jaw%d" % k, (0.02, 0.015, 0.012))
+            hang(o, "spine_01", trs(end + Vector((0, -0.04 * S, -0.075 * S)), (0, 0, 0), (0.03 * S, 0.012 * S, 0.012 * S)))
+        else:
+            seg("beltbone%d" % k, "spine_01", end, end + Vector((0, 0, -0.18 * S)), 0.02 * S, 0.016 * S, BONE)
 if "bonesack" in ex:                             # a sack of bones on the back: femurs and a skull poking out of the neck
     clo, chi = bbox(["chest"])
     top = marks["chest"] + 0.12 * S
@@ -1163,7 +1194,7 @@ def _scythe():
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(me)
     bm.free()
-    me.transform(Matrix.Rotation(math.radians(float(E("SC_DEG", "90"))), 4, E("SC_AX", "Y")))
+    me.transform(Matrix.Rotation(math.radians(float(E("SC_DEG", "-90"))), 4, E("SC_AX", "X")))
     me.materials.append(material("scythe_shaft", LEATHER))
     me.materials.append(material("scythe_blade", (0.5, 0.52, 0.56), 1.0))
     for p_ in me.polygons:
@@ -1212,11 +1243,16 @@ for name, ob in weap.items():
     held.append((ob, cp, bone, palm, tuple(k * S for k in scale)))
 
 
+WROT = Matrix.Identity(4)                         # a turn about the world z axis, round the hand (a dropped scythe laid beside the body)
+WFIX = Matrix.Identity(4)                         # turns a weapon in its own frame (the scythe's baked hold turn, undone for a fall)
+
+
 def place_weapons():
     """each weapon turns exactly as the pack's animator turned it, and sits in our hand."""
     vl.update()
     for ob, cp, bone, palm, scale in held:
-        m = ob.matrix_world.to_3x3().normalized().to_4x4() @ Matrix.Diagonal((*scale, 1))
+        m = ob.matrix_world.to_3x3().normalized().to_4x4() @ Matrix.Diagonal((*scale, 1)) @ WFIX
+        m = WROT @ m
         m.translation = dst.matrix_world @ dst.pose.bones[bone].matrix @ palm
         cp.matrix_world = m
 
@@ -1317,11 +1353,26 @@ for spec in acts.split(","):
     if getattr(a, "slots", None):
         ad.action_slot = a.slots[0]
     f0, f1 = a.frame_range
+    pivot.rotation_euler = (0, 0, -math.radians(kit.get("yaw", {}).get(name, float(E("YAW", "-70")))))    # a clip seen from another side (a fall along the screen, not into it)
+    WFIX = Matrix.Rotation(math.radians(float(E("UNBAKE_TURN", "0"))), 4, "Z") @ Matrix.Rotation(-math.radians(float(E("SC_DEG", "-90"))), 4, E("SC_AX", "X")) if kit.get("unbake") and name.startswith("Death") else Matrix.Identity(4)
+    WROT = Matrix.Rotation(math.radians(float(E("DEATH_YAW", "-150"))), 4, "Z") if kit.get("unbake") and name.startswith("Death") else Matrix.Identity(4)
     loop = name.startswith(("Walking", "Running", "Idle"))
     for i in range(n):
         t = f0 + (f1 - f0) * (i / n if loop else i / (n - 1))
+        if kit.get("hold"):                      # restore this clip after a hold pose borrowed the previous frame's source pose
+            ad.action = a
+            if getattr(a, "slots", None):
+                ad.action_slot = a.slots[0]
         sc.frame_set(int(t), subframe=t - int(t))
         ret.apply()
+        if kit.get("hold") and name.startswith(("Walking", "Idle")):      # both hands on the weapon: the arms (and the weapon) from a 2H idle
+            ha = bpy.data.actions[kit["hold"]]
+            ad.action = ha
+            if getattr(ha, "slots", None):
+                ad.action_slot = ha.slots[0]
+            th = ha.frame_range[0] + (ha.frame_range[1] - ha.frame_range[0]) * (i / n)
+            sc.frame_set(int(th), subframe=th - int(th))
+            ret.apply_only({"upperarm_l", "lowerarm_l", "hand_l", "upperarm_r", "lowerarm_r", "hand_r"})
         curl_fingers()
         for bn_, deg_ in kit.get("pose", {}).items():     # an arm raised: turned about its own joint, about the world x axis
             vl.update()
