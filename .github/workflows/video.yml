@@ -1,5 +1,6 @@
 # A gameplay clip of the field client for Curtis: pushed to a video-* branch, it plays the bot hero against the
-# server's horde under Xvfb, records the screen with ffmpeg and uploads video.mp4 as an artifact.
+# server's horde under Xvfb, records the screen with ffmpeg and uploads video.mp4 as an artifact and to the
+# branch video-out (one commit, replaced each run).
 name: video
 
 on:
@@ -7,7 +8,7 @@ on:
     branches: ["video-*"]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   RUST_TOOLCHAIN: "1.97.0"
@@ -45,3 +46,8 @@ jobs:
         with:
           name: gameplay-video
           path: out
+      - name: push to the branch video-out
+        run: |
+          cd out && rm -f list.txt && git init -q -b video-out && git add -A
+          git -c user.name=video -c user.email=video@users.noreply.github.com commit -qm "gameplay clips of ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" video-out
