@@ -171,22 +171,26 @@ fn a_duel_is_challenged_declined_accepted_and_fought_to_a_result_for_both() {
     // They walk at each other (east and west) and fight; the steps are run here as well as by the town's ticker.
     assert_eq!(ann.c.call(Req::TownInput { dir: 3 }).unwrap(), Resp::Ok);
     assert_eq!(bob.c.call(Req::TownInput { dir: 7 }).unwrap(), Resp::Ok);
+    // The town's ticker steps the same duels and lifts them out of the book while it does, so "not in a duel" does
+    // not mean the end. The end is the result she is sent: step until it arrives.
     let mut result = None;
-    for _ in 0..realm_core::pvp::DUEL_TICKS {
+    let mut ra = None;
+    let deadline = std::time::Instant::now() + Duration::from_secs(120);
+    let mut n = 0u32;
+    while ra.is_none() && std::time::Instant::now() < deadline {
         if let Some(r) = w.gw.social.run_duels().into_iter().next() {
             result = Some(r);
-            break;
         }
-        // The town's ticker lifts the duels out of the book while it steps them, so one "not in a duel" can be
-        // that moment and not the end: look twice before believing it.
-        if !w.gw.social.in_duel(ha) {
-            std::thread::sleep(Duration::from_millis(5));
-            if !w.gw.social.in_duel(ha) {
-                break;
-            }
+        n += 1;
+        if result.is_none() && n % 64 != 0 {
+            continue; // the ticker may have ended it instead: look for her result now and then
         }
+        ra = ann.c.wait_push(Duration::from_millis(if result.is_some() { 3000 } else { 2 }), |r| match r {
+            Resp::SocialPush(SPush::DuelResult { duel, winner, loser, draw }) => Some((*duel, *winner, *loser, *draw)),
+            _ => None,
+        }).unwrap();
     }
-    let ra = push_of(&mut ann, |p| if let SPush::DuelResult { duel, winner, loser, draw } = p { Some((*duel, *winner, *loser, *draw)) } else { None }).expect("a result for her");
+    let ra = ra.expect("a result for her");
     let rb = push_of(&mut bob, |p| if let SPush::DuelResult { duel, winner, loser, draw } = p { Some((*duel, *winner, *loser, *draw)) } else { None }).expect("a result for him");
     assert_eq!(ra, rb);
     assert_eq!(ra.0, sa.0);
