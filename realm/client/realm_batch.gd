@@ -115,19 +115,11 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 	material.set_shader_parameter("atlas", Vector2(atlas_size))
 	material.set_shader_parameter("extra_base", entries.size() if strips else 0)
 	material.set_shader_parameter("rects", rects)
-<<<<<<< HEAD
-	# One vec4 an entry (frames, scale, fps): see figures.gdshader `info`.
-	var info := PackedVector4Array()
-	info.resize(MAX_FRAMES)
-	for i in MAX_FRAMES:
-		info[i] = Vector4(anims[i], scales[i], rates[i], 0.0)
-=======
 	# One vec4 an entry (frames, scale, fps, hover px): see figures.gdshader `info`.
 	var info := PackedVector4Array()
 	info.resize(MAX_FRAMES)
 	for i in MAX_FRAMES:
 		info[i] = Vector4(anims[i], scales[i], rates[i], float(all[i].get("hover", 0.0)) if i < all.size() else 0.0)
->>>>>>> origin/monster-hover
 	material.set_shader_parameter("info", info)
 	var tex := ImageTexture.create_from_image(img)
 	for k in 2:
