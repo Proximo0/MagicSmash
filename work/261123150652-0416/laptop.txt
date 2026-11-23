@@ -1,0 +1,1 @@
+2026-11-23T15:18:03Z FAIL id=261123150652-0416 kind=shell secs=7 exediag started=1 blocked=3 first=[realm-loadtest rc=126] SmartAppControlState:On antivirus=Windows Defender log_lines=12 (report laptop-exediag.txt)
