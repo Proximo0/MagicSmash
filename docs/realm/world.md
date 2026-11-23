@@ -132,7 +132,9 @@ A dead copy lists nobody from the moment it is given up, before its heroes are f
 (`a_dead_copy_lists_nobody_once_its_heroes_are_freed`), and the gateway logs which host ended without closing, with the
 panic message when its thread panicked. Its tickets are dropped: banked coin, XP and kept
 drops are already in the store; the haul is lost, as when the whole server is killed (W1's rule). The planner opens
-a new copy at once when the field has none.
+a new copy at once when the field has none. A ticket still held to a host when its slot is removed was issued after
+the host's last read of its orders (a vault closes itself without the gateway's `stopping`): it goes unused (7, a moved
+hero's haul banked as a disconnect), never lost (`a_ticket_to_a_host_that_closed_by_itself_goes_unused_not_lost`).
 
 ## Wire
 

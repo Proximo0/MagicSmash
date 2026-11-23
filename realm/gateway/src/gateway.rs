@@ -1216,6 +1216,8 @@ impl Gateway {
 
     /// A host is gone: its outings are given up on the applier thread, after every message it sent (a flush in
     /// flight still banks what it says; one applied while the outings were dropped would be coin nobody was told of).
+    /// (The world gives up a dead host in `on_reap`; tests ask for it here.)
+    #[cfg(test)]
     pub(crate) fn host_lost(&self, host_id: u32) {
         let _ = self.msgs.send(HostMsg::Lost { host: host_id });
     }
