@@ -1,0 +1,1 @@
+2026-11-23T02:05:03Z FAIL id=261123012050-9171 kind=shell secs=33 blender self test exit=0 version=[Blender 5.3.0] files=6946: ValueError: I don't seem to exist Exception in module register(): C:\Users\heath\AppData\Roaming\Blender Foundation\Blender\5.3\extensions\user_default\mpfb\__init__.py  last
