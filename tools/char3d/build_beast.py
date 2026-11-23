@@ -44,9 +44,9 @@ KINDS = {
                          rope=(0.5, 0.4, 0.18), flesh=(0.3, 0.34, 0.36), cloth=(0.13, 0.1, 0.09)),
     "chandelier": dict(plan="chandelier", rad=1.3, h=1.0, tilt=38, coat=(0.1, 0.1, 0.115), dark=(0.02, 0.02, 0.025), eye=(0.55, 0.9, 1.0),
                        brass=(0.5, 0.36, 0.1), wax=(0.85, 0.8, 0.62), pale=(0.72, 0.68, 0.6)),
-    "ghostwriter": dict(plan="ghost", rad=0.5, h=1.55, coat=(0.3, 0.46, 0.8), dark=(0.14, 0.24, 0.52), pale=(0.82, 0.92, 1.0), eye=(0.6, 1.0, 1.0), glow=0.12),
-    "death_the_pale_rider": dict(plan="rider", rad=0.5, h=0.0, coat=(0.42, 0.4, 0.36), dark=(0.13, 0.12, 0.12), bone=(0.7, 0.67, 0.56), shroud=(0.26, 0.32, 0.42),
-                  shroud2=(0.5, 0.54, 0.58), eye=(0.5, 0.9, 1.0)),
+    "ghostwriter": dict(plan="ghost", rad=0.5, h=1.55, coat=(0.012, 0.014, 0.06), dark=(0.003, 0.003, 0.009), pale=(0.6, 0.56, 0.48), eye=(0.75, 0.85, 1.0), glow=0.0),
+    "death_the_pale_rider": dict(plan="rider", rad=0.5, h=0.0, coat=(0.2, 0.185, 0.17), dark=(0.05, 0.045, 0.045), bone=(0.5, 0.47, 0.4), shroud=(0.07, 0.07, 0.08),
+                  shroud2=(0.13, 0.13, 0.14), eye=(0.6, 0.85, 1.0)),
     "toadstone": dict(plan="toad", rad=0.34, h=0.3, coat=(0.2, 0.26, 0.12), dark=(0.42, 0.4, 0.3), eye=(1.0, 0.7, 0.1), cap=(0.5, 0.1, 0.08)),
 }
 K = KINDS[kind_name]
@@ -661,7 +661,7 @@ elif PLAN == "chandelier":                       # a fallen iron chandelier that
     iron, brass, wax = mat("iron", K["coat"]), mat("brass", K["brass"]), mat("wax", K["wax"])
     pale, pit = mat("pale", K["pale"]), mat("pit", (0.01, 0.01, 0.015))
     fl_o, fl_i = mat("flame_o", (1.0, 0.35, 0.04), 2.6), mat("flame_i", (1.0, 0.8, 0.3), 4.0)
-    eye = mat("eye", K["eye"], 6.0)
+    eye = mat("eye", K["eye"], 3.0)
     TH = math.radians(K["tilt"])
     ringj = joint("ring", body, (0, 0, 0))
     ringj.rotation_euler = Euler((0, TH, 0))
@@ -827,13 +827,13 @@ elif PLAN == "chandelier":                       # a fallen iron chandelier that
 
 
 elif PLAN == "ghost":                            # a tall pale-blue spectre scribe hunched over a floating book, quill in a long hand, pages circling; no legs, the robe fades to mist
-    robe, shade, glowc = mat("robe", K["coat"], K["glow"]), mat("shade", K["dark"], K["glow"]), mat("glow", K["pale"], 0.8)
-    hand_m = mat("hand", K["pale"], 0.3)
+    robe, shade, glowc = mat("robe", K["coat"], K["glow"]), mat("shade", K["dark"], K["glow"]), mat("glow", (0.5, 0.5, 0.52), 0.1)
+    hand_m = mat("hand", (0.42, 0.38, 0.31), 0.0)
     eye = mat("eye", K["eye"], 6.0)
-    pit = mat("pit", (0.02, 0.04, 0.1), 0.3)
-    ink = mat("ink", (0.05, 0.08, 0.2), 0.0)
-    pg_m = mat("page", (0.9, 0.93, 0.8), 0.9)
-    brass = mat("brass", (0.6, 0.45, 0.15), 0.0)
+    pit = mat("pit", (0.0, 0.0, 0.01), 0.0)
+    ink = mat("ink", (0.015, 0.012, 0.02), 0.0)
+    pg_m = mat("page", (0.3, 0.26, 0.17), 0.0)
+    brass = mat("brass", (0.07, 0.035, 0.03), 0.0)
 
     def rod(parent, name, m, p0, p1, r0, r1):
         p0, p1 = Vector(p0), Vector(p1)
@@ -846,31 +846,32 @@ elif PLAN == "ghost":                            # a tall pale-blue spectre scri
     root.scale = (1.2, 1.2, 1.2)
     waist = joint("waist", body, (0, 0, 0))
     mist = []
-    for k in range(9):
-        a = 2 * math.pi * k / 9
-        r_ = 0.34 + 0.06 * (k % 2)
-        L_ = 1.05 + 0.4 * ((k * 5) % 3) / 2
+    for k in range(14):
+        a = 2 * math.pi * k / 14
+        r_ = 0.27 + 0.06 * (k % 2)
+        L_ = 0.9 + 0.55 * ((k * 5) % 4) / 3
         mj = joint("mist%d" % k, waist, (r_ * math.cos(a), r_ * math.sin(a), 0.1))
-        part("cone", "mt%d" % k, mj, robe if k % 2 else shade, (0, 0, -L_ / 2), (180, 0, 0), (0.24, 0.17, L_ / 2), r2=0.15)
+        part("cone", "mt%d" % k, mj, robe if k % 2 else shade, (0, 0, -L_ / 2), (180, 0, 0), (0.15, 0.06, L_ / 2), r2=0.0)
         mist.append((mj, a))
-    part("cone", "skirt", waist, robe, (0, 0, -0.35), (180, 0, 0), (0.6, 0.5, 0.55), r2=0.55)   # the solid part, tapering into the tatters
+    part("cone", "skirt", waist, robe, (0, 0, -0.35), (180, 0, 0), (0.42, 0.34, 0.55), r2=0.6)   # the solid part, tapering into the tatters
     torso = joint("torso", waist, (0, 0, 0.1))              # hunched: the whole upper body leans over the book
-    part("cone", "chest", torso, robe, (0, 0, 0.55), (0, 0, 0), (0.5, 0.42, 0.62), r2=0.5)
-    part("sphere", "shoulders", torso, robe, (0, 0, 1.08), (0, 0, 0), (0.5, 0.3, 0.2))
-    part("sphere", "hump", torso, shade, (0, 0.22, 0.95), (0, 0, 0), (0.26, 0.22, 0.22))
+    part("cone", "chest", torso, robe, (0, 0, 0.55), (0, 0, 0), (0.36, 0.28, 0.62), r2=0.55)
+    part("sphere", "shoulders", torso, shade, (0, 0, 1.08), (0, 0, 0), (0.42, 0.26, 0.17))
+    part("sphere", "hump", torso, shade, (0, 0.14, 0.92), (0, 0, 0), (0.18, 0.15, 0.2))
     neck = joint("neck", torso, (0, -0.06, 1.12))
     part("cone", "neck", neck, shade, (0, 0, 0.08), (0, 0, 0), (0.12, 0.12, 0.15), r2=0.8)
     head = joint("head", neck, (0, 0, 0.18))
-    part("sphere", "skull", head, hand_m, (0, -0.04, 0.08), (0, 0, 0), (0.17, 0.2, 0.2))
+    part("sphere", "skull", head, shade, (0, -0.04, 0.08), (0, 0, 0), (0.17, 0.2, 0.2))
     part("sphere", "face", head, pit, (0, -0.15, 0.06), (0, 0, 0), (0.12, 0.08, 0.14))
     for sg in (1, -1):
         part("sphere", "eye%d" % sg, head, eye, (sg * 0.06, -0.21, 0.09), (0, 0, 0), (0.03, 0.02, 0.04))
-    part("cone", "hood", head, shade, (0, 0.04, 0.3), (-20, 0, 0), (0.3, 0.32, 0.36), r2=0.0)          # a tall hood with a point
-    part("cone", "hood_tip", head, shade, (0, 0.2, 0.5), (-60, 0, 0), (0.07, 0.07, 0.2), r2=0.0)
+    part("sphere", "hood", head, shade, (0, 0.05, 0.08), (0, 0, 0), (0.27, 0.3, 0.3))
+    part("cone", "hood_brow", head, shade, (0, -0.14, 0.2), (-100, 0, 0), (0.2, 0.14, 0.12), r2=0.5)          # a tall hood with a point
+    part("cone", "hood_tip", head, shade, (0, 0.3, 0.3), (-120, 0, 0), (0.1, 0.1, 0.3), r2=0.0)
     part("cone", "chin", head, robe, (0, -0.1, -0.1), (180, 0, 0), (0.1, 0.1, 0.12), r2=0.0)           # a wispy beard of mist
     arms = {}
     for sg, nm in ((-1, "r"), (1, "l")):                     # the right (sg -1) holds the quill; the left bears the book up
-        sh = joint("sh_" + nm, torso, (sg * 0.46, -0.05, 0.98))
+        sh = joint("sh_" + nm, torso, (sg * 0.38, -0.05, 0.98))
         rod(sh, "ua_" + nm, robe, (0, 0, 0), (sg * 0.1, -0.2, -0.55), 0.17, 0.13)
         el_ = joint("el_" + nm, sh, (sg * 0.1, -0.2, -0.55))
         rod(el_, "fa_" + nm, robe, (0, 0, 0), (sg * 0.02, -0.42, -0.3), 0.13, 0.07)
@@ -887,7 +888,7 @@ elif PLAN == "ghost":                            # a tall pale-blue spectre scri
     part("cone", "vane", qj, glowc, (0, -0.1, 0.5), (-18, 0, 0), (0.02, 0.07, 0.38), r2=0.5)
     part("cone", "nib", qj, ink, (0, 0.01, -0.12), (190, 0, 0), (0.012, 0.012, 0.06), r2=0.0)
     # the book, floating open in front of the chest on a glow; a lit page
-    bk = joint("book", body, (0, -0.8, 0.75))
+    bk = joint("book", body, (0, -0.8, 0.55))
     part("cube", "cover", bk, brass, (0, 0, -0.04), (0, 0, 0), (0.53, 0.37, 0.03))
     for sg in (1, -1):
         part("cube", "leaf%d" % sg, bk, pg_m, (sg * 0.25, 0, 0.0), (0, -sg * 14, 0), (0.25, 0.33, 0.02))
@@ -905,7 +906,7 @@ elif PLAN == "ghost":                            # a tall pale-blue spectre scri
 
     def pose(action, u):
         w = 2 * math.pi * u
-        z, lean, sway, orbit, rad, flare, dy, fall = H + 0.07 * math.sin(w), 12.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0
+        z, lean, sway, orbit, rad, flare, dy, fall = H + 0.07 * math.sin(w), 5.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0
         write = 1.0
         if action == "Walking_A":                # rooted: it drifts in a wider sway
             z, lean, sway, orbit = H + 0.14 * math.sin(w), 16.0, 7.0, 2.0
@@ -936,7 +937,7 @@ elif PLAN == "ghost":                            # a tall pale-blue spectre scri
         hd.rotation_euler = Euler((math.radians(10), 0, 0))
         bk.location = (0, (-0.8 - 0.1 * (flare - 1)) * (1 - fall), 0.75 * (1 - fall) + (0.05 - z) * fall + (0.06 * math.sin(w + 0.9)) * (1 - fall))
         bk.rotation_euler = Euler((math.radians(-50 * (1 - fall) + 6 * math.sin(w)), 0, math.radians(35 + 8 * math.sin(w))))
-        bk.scale = (1 + 0.1 * (flare - 1),) * 3
+        bk.scale = (0.85 + 0.1 * (flare - 1),) * 3
         for k, (pj, ph) in enumerate(pages):
             hk = 0.6 + 0.35 * (k % 4)
             pj.location = (0, 0, hk * (1 - fall) + (0.03 - z) * fall)
@@ -952,8 +953,9 @@ elif PLAN == "ghost":                            # a tall pale-blue spectre scri
 elif PLAN == "rider":                            # Death: a skeletal rider in a pale shroud on a pale gaunt horse, a tattered banner on a long spear; one sprite
     hm, dk = mat("hide", K["coat"]), mat("shade", K["dark"])
     bone_m, shroud, shroud2 = mat("bone", K["bone"]), mat("shroud", K["shroud"]), mat("shroud2", K["shroud2"])
-    pit = mat("pit", (0.01, 0.015, 0.025))
-    eye = mat("eye", K["eye"], 6.0)
+    pit = mat("pit", (0.0, 0.0, 0.0))
+    shade_b = mat("rskullm", (0.3, 0.28, 0.23))
+    eye = mat("eye", K["eye"], 2.0)
     steel = mat("steel", (0.55, 0.6, 0.66))
     gold = mat("sigil", (0.45, 0.4, 0.2))
 
@@ -970,71 +972,84 @@ elif PLAN == "rider":                            # Death: a skeletal rider in a 
     hb = joint("hb", hj, (0, -PY, 0))            # everything of the horse is built in a frame with its hooves at y 0.62
     # barrel, chest, rump: a gaunt horse, ribs showing
     part("sphere", "barrel", hb, hm, (0, 0.05, 1.3), (0, 0, 0), (0.36, 0.82, 0.4))
-    part("sphere", "chest", hb, hm, (0, -0.55, 1.4), (0, 0, 0), (0.3, 0.4, 0.42))
+    part("sphere", "chest", hb, hm, (0, -0.5, 1.32), (0, 0, 0), (0.27, 0.34, 0.38))
     part("sphere", "rump", hb, hm, (0, 0.72, 1.35), (0, 0, 0), (0.32, 0.38, 0.38))
+    part("sphere", "belly", hb, dk, (0, 0.1, 1.12), (0, 0, 0), (0.3, 0.7, 0.28))             # a sunken, shadowed belly under the barrel
     for sg in (1, -1):
-        for k in range(6):                       # ribs: pale arcs over the flank
-            y_ = -0.4 + k * 0.17
-            part("cone", "rib%d_%d" % (sg, k), hb, bone_m, (sg * 0.3, y_, 1.28), (0, sg * 12, 0), (0.014, 0.014, 0.2), r2=0.6)
-        part("sphere", "hip%d" % sg, hb, bone_m, (sg * 0.27, 0.78, 1.62), (0, 0, 0), (0.07, 0.09, 0.07))
+        part("sphere", "hip%d" % sg, hb, bone_m, (sg * 0.27, 0.78, 1.62), (0, 0, 0), (0.06, 0.08, 0.06))
+        part("sphere", "shb%d" % sg, hb, hm, (sg * 0.2, -0.45, 1.5), (0, 0, 0), (0.09, 0.15, 0.12))    # the shoulder
+        for k in range(4):                       # only a hint of ribs, low on the flank
+            part("cone", "rib%d_%d" % (sg, k), hb, bone_m, (sg * 0.33, -0.2 + k * 0.2, 1.12), (0, sg * 24, 0), (0.012, 0.012, 0.11), r2=0.5)
     for k in range(7):                           # spine knobs
         part("sphere", "vert%d" % k, hb, bone_m, (0, -0.5 + k * 0.2, 1.7 + (0.04 if k in (0, 1) else 0)), (0, 0, 0), (0.05, 0.06, 0.05))
     neckj = joint("neck", hb, (0, -0.72, 1.6))
-    rod(neckj, "neckm", hm, (0, 0, -0.12), (0, -0.4, 0.5), 0.2, 0.14)
-    headj = joint("head", neckj, (0, -0.4, 0.5))
-    rod(headj, "skull", bone_m, (0, 0.05, 0.08), (0, -0.55, -0.32), 0.16, 0.09)     # a long bare skull, nose down
-    part("sphere", "muzzle", headj, bone_m, (0, -0.58, -0.35), (0, 0, 0), (0.09, 0.1, 0.09))
+    rod(neckj, "neckm", hm, (0, 0.12, -0.25), (0, -0.26, 0.62), 0.27, 0.12)          # a deep, arched neck: thick at the withers, narrow at the poll
+    part("sphere", "crest", neckj, hm, (0, 0.0, 0.3), (0, 0, 0), (0.1, 0.2, 0.3))
+    headj = joint("head", neckj, (0, -0.26, 0.62))
+    part("sphere", "cranium", headj, hm, (0, 0.04, 0.0), (0, 0, 0), (0.13, 0.17, 0.15))
+    rod(headj, "skull", hm, (0, 0.0, 0.04), (0, -0.4, -0.46), 0.09, 0.055)    # the long face, a flat plane to the nose
+    part("sphere", "muzzle", headj, bone_m, (0, -0.44, -0.52), (0, 0, 0), (0.065, 0.08, 0.075))
+    part("sphere", "nostril1", headj, pit, (0.04, -0.49, -0.54), (0, 0, 0), (0.025, 0.03, 0.03))
+    part("sphere", "nostril2", headj, pit, (-0.04, -0.49, -0.54), (0, 0, 0), (0.025, 0.03, 0.03))
+    part("sphere", "jowl", headj, hm, (0, 0.08, -0.14), (0, 0, 0), (0.13, 0.13, 0.15))     # the cheek and jaw
     for sg in (1, -1):
-        part("sphere", "esock%d" % sg, headj, pit, (sg * 0.12, -0.06, 0.1), (0, 0, 0), (0.06, 0.07, 0.07))
-        part("sphere", "eeye%d" % sg, headj, eye, (sg * 0.135, -0.09, 0.1), (0, 0, 0), (0.03, 0.03, 0.035))
-        part("cone", "ear%d" % sg, headj, bone_m, (sg * 0.1, 0.1, 0.3), (-15, sg * 12, 0), (0.04, 0.03, 0.14), r2=0.1)
-    jawj = joint("hjaw", headj, (0, -0.1, -0.05))
-    rod(jawj, "hjaw", bone_m, (0, 0, 0), (0, -0.45, -0.28), 0.07, 0.05)
+        part("sphere", "esock%d" % sg, headj, pit, (sg * 0.115, -0.04, 0.05), (0, 0, 0), (0.045, 0.05, 0.05))
+        part("sphere", "eeye%d" % sg, headj, eye, (sg * 0.135, -0.06, 0.05), (0, 0, 0), (0.016, 0.016, 0.018))
+        part("cone", "ear%d" % sg, headj, hm, (sg * 0.08, 0.12, 0.22), (-12, sg * 10, 0), (0.035, 0.025, 0.12), r2=0.1)
+    jawj = joint("hjaw", headj, (0, -0.06, -0.1))
+    rod(jawj, "hjaw", bone_m, (0, 0, 0), (0, -0.3, -0.36), 0.055, 0.045)
     manes = []
-    for k in range(6):                           # a ragged mane
-        mj = joint("mane%d" % k, neckj, (0, -0.04 - 0.07 * k, 0.1 + 0.08 * k))
-        rod(mj, "mn%d" % k, dk, (0, 0, 0), (0, 0.22, -0.3), 0.07, 0.01)
+    for k in range(9):                           # a ragged mane along the crest
+        mj = joint("mane%d" % k, neckj, (0, 0.06 - 0.045 * k, 0.1 + 0.06 * k))
+        rod(mj, "mn%d" % k, dk, (0, 0, 0), (0, 0.26 + 0.06 * (k % 3), -0.3 - 0.1 * (k % 2)), 0.07, 0.01)
         manes.append(mj)
     tail = joint("tail", hb, (0, 1.0, 1.55))
     tails = []
-    for k in range(3):
-        tj = joint("tl%d" % k, tail, ((k - 1) * 0.05, 0, 0))
-        rod(tj, "tls%d" % k, dk, (0, 0, 0), (0, 0.2, -0.95), 0.06, 0.01)
+    for k in range(5):
+        tj = joint("tl%d" % k, tail, ((k - 2) * 0.04, 0, 0))
+        rod(tj, "tls%d" % k, dk, (0, 0, 0), (0, 0.18 + 0.04 * (k % 2), -0.75 - 0.18 * ((k * 2) % 3)), 0.05, 0.006)
         tails.append(tj)
     legs = {}
-    for fb, y_ in (("f", -0.55), ("b", 0.75)):   # four spindly legs: a thigh, a long shin ending in a hoof
+    for fb, y_ in (("f", -0.55), ("b", 0.75)):   # four legs with the right joints: fore leg straight under the shoulder, hind leg with a backward hock
         for sg, sn in ((1, "l"), (-1, "r")):
-            top = joint("hip_%s%s" % (fb, sn), hb, (sg * 0.2, y_, 1.2))
-            fx = 0.0 if fb == "f" else 0.12
-            rod(top, "up_%s%s" % (fb, sn), hm, (0, 0, 0), (0, fx, -0.62), 0.12 if fb == "b" else 0.1, 0.07)
-            kn = joint("kn_%s%s" % (fb, sn), top, (0, fx, -0.62))
-            part("sphere", "kjt_%s%s" % (fb, sn), kn, bone_m, (0, 0, 0), (0, 0, 0), (0.07, 0.07, 0.07))
-            rod(kn, "lo_%s%s" % (fb, sn), bone_m, (0, 0, 0), (0, -fx * 0.5, -0.58), 0.055, 0.05)
-            part("cone", "hoof_%s%s" % (fb, sn), kn, dk, (0, -fx * 0.5 - 0.02, -0.6), (180, 0, 0), (0.075, 0.09, 0.05), r2=0.7)
+            top = joint("hip_%s%s" % (fb, sn), hb, (sg * 0.2, y_, 1.25))
+            hind = fb == "b"
+            fx = 0.2 if hind else 0.0             # the hock sits behind the hip
+            rod(top, "up_%s%s" % (fb, sn), hm, (0, 0, 0), (0, fx, -0.6), 0.17 if hind else 0.12, 0.065)
+            kn = joint("kn_%s%s" % (fb, sn), top, (0, fx, -0.6))
+            part("sphere", "kjt_%s%s" % (fb, sn), kn, bone_m, (0, 0.02 if hind else -0.01, 0), (0, 0, 0), (0.06, 0.07, 0.07))
+            if hind:
+                part("cone", "hock_%s%s" % (fb, sn), kn, bone_m, (0, 0.08, 0.04), (-90, 0, 0), (0.035, 0.035, 0.06), r2=0.4)     # the point of the hock
+            rod(kn, "lo_%s%s" % (fb, sn), bone_m, (0, 0, 0), (0, -fx * 0.8, -0.5), 0.045, 0.04)                              # the cannon bone
+            part("sphere", "fet_%s%s" % (fb, sn), kn, hm, (0, -fx * 0.8, -0.5), (0, 0, 0), (0.05, 0.05, 0.05))
+            rod(kn, "pas_%s%s" % (fb, sn), bone_m, (0, -fx * 0.8, -0.5), (0, -fx * 0.8 - 0.06, -0.62), 0.04, 0.036)
+            part("cone", "hoof_%s%s" % (fb, sn), kn, dk, (0, -fx * 0.8 - 0.075, -0.65), (180, 0, 0), (0.065, 0.08, 0.045), r2=0.8)
             legs[fb + sn] = (top, kn)
     # a tattered caparison hanging from the barrel
     flaps = []
-    for k in range(5):
-        fj = joint("flap%d" % k, hb, (0, -0.35 + k * 0.28, 1.55))
+    for k in range(4):
+        fj = joint("flap%d" % k, hb, (0, 0.0 + k * 0.17, 1.58))
         for sg in (1, -1):
-            part("cone", "fp%d_%d" % (k, sg), fj, shroud2, (sg * 0.45, 0, -0.35), (0, sg * 8, 0), (0.04, 0.1, 0.38), r2=0.9)
+            part("cone", "fp%d_%d" % (k, sg), fj, shroud2, (sg * 0.36, 0, -0.2 - 0.05 * (k % 2)), (180, sg * 8, 0), (0.035, 0.07, 0.2 + 0.05 * (k % 2)), r2=0.0)
         flaps.append(fj)
     # the rider: pelvis on the saddle, a bony torso, shroud over the shoulders, a hood with a skull
     rj = joint("rider", hb, (0, 0.2, 1.65))
-    rj.scale = (1.3, 1.3, 1.3)
+    rj.scale = (1.1, 1.1, 1.1)
     spine = joint("spine", rj, (0, 0, 0.05))
-    part("cone", "ribs", spine, bone_m, (0, 0, 0.42), (0, 0, 0), (0.2, 0.14, 0.4), r2=1.1)
+    part("cone", "ribs", spine, bone_m, (0, 0, 0.42), (0, 0, 0), (0.15, 0.11, 0.4), r2=1.0)
+    part("cone", "robe_body", spine, shroud, (0, 0.0, 0.4), (0, 0, 0), (0.24, 0.19, 0.5), r2=0.6)
+    part("cone", "rskirt", rj, shroud, (0, 0.02, -0.28), (180, 0, 0), (0.45, 0.28, 0.34), r2=0.45)
     part("cone", "pelvis", rj, bone_m, (0, 0, 0.0), (0, 0, 0), (0.2, 0.12, 0.08), r2=0.5)
     for k in range(4):
         part("cone", "rb%d" % k, spine, shroud2, (0, -0.12, 0.2 + k * 0.17), (90, 0, 0), (0.03, 0.03, 0.12), r2=0.5)
     nk = joint("rneck", spine, (0, -0.02, 0.9))
     hd = joint("rhead", nk, (0, 0, 0.12))
-    part("sphere", "rskull", hd, bone_m, (0, -0.02, 0.1), (0, 0, 0), (0.13, 0.15, 0.16))
-    part("sphere", "rface", hd, pit, (0, -0.12, 0.09), (0, 0, 0), (0.09, 0.06, 0.1))
+    part("sphere", "rskull", hd, shade_b, (0, -0.02, 0.1), (0, 0, 0), (0.11, 0.13, 0.14))
+    part("sphere", "rface", hd, pit, (0, -0.1, 0.09), (0, 0, 0), (0.1, 0.08, 0.12))
     for sg in (1, -1):
-        part("sphere", "reye%d" % sg, hd, eye, (sg * 0.05, -0.17, 0.12), (0, 0, 0), (0.025, 0.02, 0.03))
-    part("cone", "hood", hd, shroud, (0, 0.05, 0.18), (-15, 0, 0), (0.2, 0.22, 0.24), r2=0.1)
-    part("cone", "crown", hd, bone_m, (0, -0.06, 0.34), (0, 0, 0), (0.1, 0.1, 0.07), r2=0.3)
+        part("sphere", "reye%d" % sg, hd, eye, (sg * 0.05, -0.17, 0.12), (0, 0, 0), (0.014, 0.012, 0.016))
+    part("cone", "hood", hd, shroud, (0, 0.0, 0.17), (-8, 0, 0), (0.19, 0.2, 0.22), r2=0.12)
+    part("cone", "hood_brow", hd, shroud, (0, -0.12, 0.2), (-100, 0, 0), (0.15, 0.12, 0.1), r2=0.5)
     part("cone", "mantle", spine, shroud, (0, 0.05, 0.72), (0, 0, 0), (0.42, 0.3, 0.22), r2=0.5)    # the shroud over the shoulders
     cloak = joint("cloak", spine, (0, 0.12, 0.85))
     cl = []
