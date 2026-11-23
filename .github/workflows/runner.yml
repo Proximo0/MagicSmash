@@ -37,7 +37,8 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        shell: bash
+        # Git's bash by its full path: plain `bash` found the WSL launcher (WindowsApps\bash.EXE) first on the MSI.
+        shell: '"C:\Program Files\Git\bin\bash.exe" --noprofile --norc -e -o pipefail {0}'
     steps:
       - uses: actions/checkout@v4
       - name: machine
