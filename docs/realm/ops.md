@@ -80,6 +80,46 @@ and browse still work). Field N stopped: no new tickets (`NO_FIELD`); heroes ins
 switch and all six fields. They are atomics (`switches.rs`) saved to `<db>.switches`, so a restart in an incident does not
 quietly reopen what was closed, and every change is in the moderators' admin log.
 
+## Pulling the rug (bot and farm accounts, by hand only)
+
+Curtis's tool for farms: trace, lock, shadow, claw back, ban waves. Nothing in the realm runs these on its own; there
+are no automatic bans. `realm-ops` (code `realm/ops/src/rug.rs`) uses the store's own operations as the server
+(`trace`, `trace_forward`, `clawback_plan`, `clawback`, `apply_flags`), so every change leaves its ledger rows (CLAWBACK
+rows with `clawback #A by OP: REASON`, one FLAGS row per account with `rug ACTION by OP: REASON`). Every change is a
+dry run that prints what it would do until you add `--yes`.
+
+How it reaches the store. The store has one writer, the running gateway (it keeps the ledger's next seq in memory),
+so another process must never write a live store. While the realm runs, `realm-ops` sends the line to the gateway's
+admin console over the loopback admin port (`admin_port` in ops.conf, token in `data/realm.db.admin`, as `kill` does);
+the console runs it as `rug ...`, writes it to the moderators' admin log, and throws a banned account's heroes out.
+Files (a plan file, a wave file) are read by `realm-ops` and sent inline. With `--db=FILE` it opens that store itself:
+a stopped realm, or a backup copy to look at in peace (`realm-ops` refuses `--db` on the live store while `running`
+exists). From the console itself: `rug trace 12`, `rug plan 12 --since=7d`, and so on (`--key=value` form, reason last).
+
+```
+realm-ops trace 12                     # account 12 (or #12): items it minted and who holds them, per stack kind
+                                       # minted/spent/held, received from and sent to whom, items it holds that
+                                       # were minted for others, onward moves (--depth 3); --json for a tool
+realm-ops trace hero:Farmer            # the hero's account;  trace item:5  one item's owner and path
+realm-ops plan 12 --since 7d           # what a clawback would take (items, stacks, totals); changes nothing
+realm-ops plan 40 --origin 12          # only the part of farm 12's plan that buyer 40 holds now
+realm-ops plan 12 > farm12.plan        # the output is a plan file: edit out lines you do not want taken
+realm-ops clawback 12 --plan-file farm12.plan --reason "gold farm, ticket 88"          # dry run
+realm-ops clawback 12 --plan-file farm12.plan --reason "gold farm, ticket 88" --yes    # removed, missing, shortfall
+realm-ops flag 12 lock --reason "gold farm" --yes      # lock | shadow | ban (forever) | clear (flags and ban)
+realm-ops wave ring.txt ban --reason "farm ring" --yes # one account per line (12, #12 or a hero name); one line
+                                                       # per account, bad lines named, a total; one transaction
+```
+
+`--since` takes `seq:N`, a UTC date (`2026-11-20`, `2026-11-20T18:00`), unix ms, or a span back from now (`7d`,
+`12h`, `30m`); it becomes the last ledger seq before that time (`read::seq_before`). The order that works: `trace`
+the farm, `wave FILE lock` the farm and its buyers (value stops moving), `plan` and keep the file, `clawback` it,
+then `wave FILE ban` or `clear` on review. A plan reaches one hop for coin (see store.md); widen it by hand from
+`trace --depth`. `realm-gateway admin --db=...` has the older moderator words (`flag NAME FLAGS`, `banwave FLAG SPAN`).
+Proof: `realm/ops/tests/rug.rs` (a farm mints and trades to a buyer who banks some: trace, plan, dry run digest
+unchanged, clawback with ledger rows, flags set and cleared, a wave of three with one bad line) and the console test
+`rug_through_the_console` in `realm/gateway/src/social/admin.rs`.
+
 ## Release and rollback
 
 `install DIR` copies a release folder to `releases/V` (a version is never overwritten). `switch V` writes the two pointer

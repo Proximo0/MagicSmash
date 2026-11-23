@@ -729,6 +729,12 @@ fn forward_inner(c: &Connection, account: AccountId, depth: u32) -> Result<Vec<H
 	Ok(hops)
 }
 
+/// The last ledger row written before `time` (the request's clock, unix ms), 0 when there is none: the `since_seq`
+/// of a clawback plan that takes what was minted from `time` on (`realm-ops plan --since`).
+pub fn seq_before(c: &Connection, time: Millis) -> Result<i64> {
+	Ok(c.query_row("SELECT coalesce(max(seq), 0) FROM ledger WHERE time < ?1", params![time], |r| r.get(0))?)
+}
+
 /// A clawback list for what an account minted after `since_seq`: its items that still exist, wherever they are;
 /// for each stack kind, up to the amount minted, taken first from the account's own holdings, then from each
 /// party it sent that kind to (up to what it sent).
