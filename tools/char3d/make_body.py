@@ -12,7 +12,8 @@ import sys
 import bpy
 
 mpfb_src, out_dir, races = sys.argv[sys.argv.index("--") + 1:][:3]
-sys.path.insert(0, mpfb_src)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mpfb_ext  # noqa: E402
 
 # sliders 0..1 as the generator names them; extra = (target file under data/targets, weight)
 RACES = {
@@ -29,10 +30,9 @@ RACES = {
 
 
 def make(race):
-    from mpfb.services.humanservice import HumanService
-    from mpfb.services.targetservice import TargetService
     spec = RACES[race]
-    bpy.ops.wm.read_factory_settings(use_empty=True)
+    for o in list(bpy.data.objects):            # not a factory reset: that would switch the generator off again
+        bpy.data.objects.remove(o, do_unlink=True)
     macro = TargetService.get_default_macro_info_dict()
     macro.update(spec["macro"])
     body = HumanService.create_human(macro_detail_dict=macro)
@@ -55,9 +55,8 @@ def make(race):
     print("BONES race=%s %s" % (race, " ".join(b.name for b in rig.data.bones)))
 
 
-import mpfb  # noqa: E402
-
-mpfb.register()
+bpy.ops.wm.read_factory_settings(use_empty=True)
+HumanService, TargetService = mpfb_ext.load(mpfb_src)
 os.makedirs(out_dir, exist_ok=True)
 for r in races.split(","):
     if r not in RACES:
