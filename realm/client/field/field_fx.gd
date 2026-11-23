@@ -78,6 +78,8 @@ var my_id: int = -1
 ## Effects alive, by kind, and their count for the HUD.
 var drawn_items: int = 0
 var _items: Array[Dictionary] = []
+## Circles already filled this draw (x, y, radius): fills that overlap most of one are skipped so alpha never piles up.
+var _filled: PackedVector3Array = PackedVector3Array()
 var _skill_col: Dictionary = {}
 
 
@@ -167,6 +169,7 @@ func _draw() -> void:
 	var now: float = Time.get_ticks_usec() / 1000000.0
 	var w: float = 1.0 / px_scale
 	var wall: float = float(Time.get_ticks_msec()) / 1000.0
+	_filled.clear()
 	if under_figures:
 		_draw_ground(wall, w)
 		return
@@ -183,6 +186,16 @@ func _draw() -> void:
 	drawn_items = _items.size()
 
 
+## Fills a telegraph circle unless one of about the same place and size was filled this draw: ten shots at one spot
+## must not add up to a solid disc.
+func _fill_once(p: Vector2, r: float, col: Color) -> void:
+	for f in _filled:
+		if Vector2(f.x, f.y).distance_to(p) < 0.5 * maxf(r, f.z):
+			return
+	_filled.append(Vector3(p.x, p.y, r))
+	draw_circle(p, r, col)
+
+
 func _draw_ground(wall: float, w: float) -> void:
 	for i in rows.size() / STRIDE:
 		var o: int = i * STRIDE
@@ -194,14 +207,14 @@ func _draw_ground(wall: float, w: float) -> void:
 				var col: Color = ZONE_COL[clampi(int(rows[o + 4]), 0, ZONE_COL.size() - 1)]
 				var left: float = rows[o + 5]
 				var fade: float = clampf(left / 20.0, 0.0, 1.0)
-				draw_circle(p, r, Color(col.r, col.g, col.b, FILL_ALPHA * fade))
+				_fill_once(p, r, Color(col.r, col.g, col.b, FILL_ALPHA * fade))
 				draw_arc(p, r, wall * 0.6, wall * 0.6 + TAU, 40, Color(col.r, col.g, col.b, EDGE_ALPHA * fade), 1.5 * w, true)
 				draw_arc(p, r * 0.6, -wall * 0.9, -wall * 0.9 + TAU * 0.75, 28, Color(col.r, col.g, col.b, EDGE_ALPHA_SOFT * fade), 1.0 * w, true)
 			FX_DROP:
 				var r2: float = rows[o + 3]
 				var left2: float = rows[o + 4]
 				var k: float = clampf(1.0 - left2 / 30.0, 0.0, 1.0)
-				draw_circle(p, r2, Color(1.0, 0.35, 0.1, lerpf(0.05, FILL_ALPHA_MAX, k)))
+				_fill_once(p, r2, Color(1.0, 0.35, 0.1, lerpf(0.05, FILL_ALPHA_MAX, k)))
 				draw_arc(p, r2, 0.0, TAU, 36, Color(1.0, 0.6, 0.25, EDGE_ALPHA), 1.5 * w, true)
 				draw_arc(p, r2 * k, 0.0, TAU, 28, Color(1.0, 0.85, 0.5, EDGE_ALPHA), 1.0 * w, true)
 			FX_RAISE:
@@ -222,7 +235,7 @@ func _draw_state(wall: float, w: float) -> void:
 			if r > 0.0:
 				# A lobbed circle: landing soon.
 				draw_arc(p, r, 0.0, TAU, 28, Color(0.95, 0.4, 0.3, EDGE_ALPHA), 1.5 * w, true)
-				draw_circle(p, r, Color(0.95, 0.3, 0.2, FILL_ALPHA))
+				_fill_once(p, r, Color(0.95, 0.3, 0.2, FILL_ALPHA))
 			else:
 				var v := Vector2(rows[o + 5], rows[o + 6])
 				draw_line(p - v * 2.5, p, Color(0.8, 0.5, 1.0, 0.55), 2.0 * w)
