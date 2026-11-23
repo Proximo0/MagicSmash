@@ -57,7 +57,7 @@ done
 P95=""  # `deep` in a role: between merges, run seeded soaks (job_deep) instead of sleeping
 role_ok() {  # $1 = a roles.txt line's words: 0 when every word is known (the start-up check, also run on a new tree before a restart)
   local a; for a in $1; do
-    case "$a" in --after=*|--ci-covered|--p95=*|--p99=*|boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle|deep|queue) ;;
+    case "$a" in --after=*|--ci-covered|--p95=*|--p99=*|lanes=[0-9]*|boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle|deep|queue) ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; return 1 ;; esac
   done
 }
@@ -66,7 +66,7 @@ role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut 
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
-    case "$a" in --after=*) after="${a#--after=}" ;; --ci-covered) ci_covered=1 ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
+    case "$a" in --after=*) after="${a#--after=}" ;; lanes=[0-9]*) : "${STATION_LANES:=${a#lanes=}}" ;; --ci-covered) ci_covered=1 ;; --p95=*) P95="${a#--p95=}" ;; --p99=*) P95="${a#--p99=}" ;; boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle) jobs+=("$a") ;; deep) deep=1 ;; queue) queue=1 ;;
       *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; exit 2 ;; esac
   done
 fi
@@ -112,13 +112,15 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   local limit="${P95:-${STATION_FRAME_P99_MS:-0}}" dir port="${STATION_FRAMES_PORT:-7811}" lib out line server runner=()
   dir="${TMPDIR:-/tmp}/station-frames-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) lib=realm_godot.dll ;; Darwin) lib=librealm_godot.dylib ;; *) lib=librealm_godot.so ;; esac
-  ( cd realm && timeout -k 30 3600 cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/godot && timeout -k 30 3600 cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
+  # Needs programs built here: realm-server and our GDExtension module ($lib), so a Smart App Control PC skips it (q_ownbin).
+  # In a lane realm-server comes from the commit's one build ($Q_RBIN = Q_SNAP); the Godot module has its own target dir.
+  { [ -n "${Q_SNAP:-}" ] || ( cd realm && timeout -k 30 3600 cargo build --release -j2 -q ) >"$dir/build.log" 2>&1; } && ( cd realm/godot && timeout -k 30 3600 cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
     && cp "realm/godot/target/release/$lib" realm/client/bin/ || { echo "JOB frames FAIL build: $(tail -2 "$dir/build.log" | tr '\n' ' ' | cut -c1-160)"; return 1; }
   # A fresh clone's first import does its work and then aborts while quitting: the second is clean.
   ( timeout -k 30 180 "$GODOT" --headless --path realm/client --import || timeout -k 30 180 "$GODOT" --headless --path realm/client --import ) >"$dir/import.log" 2>&1 || true
   if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
   # 1,200 bots, 25,000 monsters, half the bots rallied at the heart: a screen at zoom 16 holds 10,000 and more.
-  realm/target/release/realm-server --port="$port" --bots=1200 --monsters=25000 --rally=0.5 --threads=2 --report=600 >"$dir/server.log" 2>&1 &
+  "$Q_RBIN"/realm-server --port="$port" --bots=1200 --monsters=25000 --rally=0.5 --threads=2 --report=600 >"$dir/server.log" 2>&1 &
   server=$!
   sleep 5
   kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
@@ -217,11 +219,12 @@ job_idle() { echo "JOB idle INFO this station has no job yet"; }
 # Deep steps must not make a merge wait: pending_merge says a commit has landed on main that changes something one of this
 # station's jobs tests (STATION_MAIN_REF overrides origin/main for a dry run); step_run runs a command in the background,
 # polls that every STATION_DEEP_POLL seconds (default 60) and kills the command when it is true (returns 99).
+# Inside a lane the station's own loop fetches (every STATION_POLL), and the base is the commit the lane's job started on.
 pending_merge() {
   local ref="${STATION_MAIN_REF:-origin/main}" head base changed j
-  git fetch -q origin main 2>/dev/null
+  [ "${Q_IN_LANE:-0}" = 1 ] || git fetch -q origin main 2>/dev/null
   head=$(git rev-parse -q --verify "$ref") || return 1
-  base=$(cat "$STATE" 2>/dev/null)
+  base=${Q_LANE_BASE:-$(cat "$STATE" 2>/dev/null)}
   [ "$head" = "$base" ] && return 1
   [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null) || return 0
   for j in "${jobs[@]}"; do touched "$j" <<<"$changed" && return 0; done
@@ -389,7 +392,7 @@ heartbeat_start() {
     mine() { kill -0 "$station" 2>/dev/null && [ "$(cat "$STATE.heartbeat" 2>/dev/null)" = "$me" ]; }
     while mine; do
       [ -z "${STATION_HEARTBEAT_LOG:-}" ] || echo "$me $(date +%s)" >>"$STATION_HEARTBEAT_LOG"
-      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) disk_free_gb=$(q_disk_gb)" "$MACHINE-heartbeat.txt" 2>/dev/null
+      publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) disk_free_gb=$(q_disk_gb) lanes_busy=$(lanes_busy)/${Q_NLANES:-1}$(q_sac && echo " sac=on")" "$MACHINE-heartbeat.txt" 2>/dev/null
       left="${STATION_HEARTBEAT_SECS:-1800}"
       while [ "$left" -gt 0 ] && mine; do keepawake_touch; sleep $((left < 10 ? left : 10)); left=$((left - 10)); done
     done
@@ -454,6 +457,8 @@ run_once() {
   for j in "${jobs[@]}"; do
     if [ $known = 1 ] && ! touched "$j" <<<"$changed"; then
       body+="JOB $j SKIP nothing it tests changed since ${base:0:7}"$'\n'; skipped=$((skipped + 1))
+    elif [ "$j" != idle ] && [ "$j" != boss ] && [ "$j" != checks ] && [ "$j" != golden ] && q_sac; then   # every realm merge job runs programs built here
+      body+="JOB $j SKIP Smart App Control refuses programs built on this PC (security settings untouched)"$'\n'; skipped=$((skipped + 1))
     elif [ "$j" = realm ] && [ "$ci_covered" = 1 ] && ! grep -qE "${STATION_REALM_OWN_PATHS:-\.(ps1|cmd|bat)$|^realm/ops/host/|^tools/station/start_station}" <<<"$changed"; then
       body+="JOB realm SKIP CI tests this commit (role flag --ci-covered); only Windows-only paths run here"$'\n'; skipped=$((skipped + 1))
     else run+=("$j"); fi
@@ -496,16 +501,29 @@ if [ "$watch" = 1 ]; then
     trap 'heartbeat_stop; rm -f "$STATE.awake"' EXIT
   fi
   after_merge=1; last_pub=0; deep_n=0; deep_cut=0; deep_seeds=""
+  # Lanes: the queue jobs run in the background, Q_NLANES at a time (q_lane_total: STATION_LANES, a "lanes: <machine> N" line of
+  # roles.txt, else from cores and RAM). This loop stays free: it tests every merge as it lands (a lane's short job is cut by a merge
+  # that touches what it tests, a long one finishes on its own build), builds once per commit for all lanes (q_build_all; no job that
+  # runs our programs starts during the build), then fills the free lanes. A restart (exec) leaves running lanes alone: their pid
+  # files in $Q_LD let the new process count them. deep runs only when no lane is busy and the queue has nothing for this machine.
+  Q_NLANES=$(q_lane_total); [ "$queue" = 1 ] && echo "station: $MACHINE runs up to $Q_NLANES queue job(s) at once (lanes)"
   hours_init
   while true; do
     run_once; rc=$?
     [ "$(self_sum)" = "$started" ] || ! self_ok || restart "$@"
-    if [ $rc != 3 ]; then after_merge=1; hours_mark busy; fi  # a merge was just tested: the next deep pass is published
-    if { [ $rc = 3 ] || [ $rc = 2 ]; } && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main (or a fetch failed / a dirty clone): the next job of the work queue, if there is one
-      Q_FAST_FAIL=0; queue_step; qrc=$?
-      [ "${Q_FAST_FAIL:-0}" = 1 ] && { echo "station: the queue job failed within a minute; waiting ${STATION_QUEUE_FAIL_SLEEP:-300} s"; sleep "${STATION_QUEUE_FAIL_SLEEP:-300}"; }
-      if [ $qrc = 0 ] || [ $qrc = 3 ]; then hours_mark busy; continue; fi  # ran one (or a merge cut it short): look at main again
+    if [ $rc != 3 ]; then after_merge=1; hours_mark busy "$(lanes_busy)"; fi  # a merge was just tested: the next deep pass is published
+    if [ "$queue" = 1 ] && [ "$push" = 1 ]; then
+      q_prune; q_spool_flush; q_build_all; lanes_fill
+      nb=$(lanes_busy)
+      if [ "$nb" -gt 0 ]; then  # wait up to STATION_POLL, less when a lane comes free
+        t0=$SECONDS
+        while [ $((SECONDS - t0)) -lt "$POLL" ]; do
+          sleep "${STATION_LANE_TICK:-5}"; n2=$(lanes_busy); hours_mark busy "$nb"; [ "$n2" -lt "$nb" ] && break; nb=$n2
+        done
+        continue
+      fi
     fi
+    if [ $rc = 3 ] && [ "$deep" = 1 ] && q_sac; then sleep "$POLL"; hours_mark idle; continue; fi  # deep runs programs built here
     if [ $rc = 3 ] && [ "$deep" = 1 ] && ! deep_has_room; then echo "SKIP deep pass: needs ${STATION_DEEP_FREE_MB:-2048} MB free RAM, only $Q_FREE_MB MB free" >&2; sleep "$POLL"; hours_mark idle; continue; fi
     if [ $rc = 3 ] && [ "$deep" = 1 ]; then  # nothing new on main: one deep pass instead of sleeping
       t0=$SECONDS; body=$(job_deep); drc=$?
