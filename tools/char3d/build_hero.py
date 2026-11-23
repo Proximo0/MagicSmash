@@ -388,6 +388,39 @@ KITS = {
         hold="2H_Melee_Idle", yaw={"Death_A": -70}, unbake=True,
         weapons={"2H_Sword": ("hand_r", (1.0, 1.0, 1.05), "scythe")},
     ),
+    "boss_bone_regent": dict(
+        size=1.22,
+        skin={"*": (0.02, 0.018, 0.025), "head": (0.42, 0.38, 0.3), "neck": (0.32, 0.29, 0.24), "hand": (0.42, 0.38, 0.3),
+              "upperarm": (0.36, 0.33, 0.27), "lowerarm": (0.36, 0.33, 0.27), "thigh": (0.04, 0.03, 0.05), "calf": (0.04, 0.03, 0.05)},
+        bulk={"head": 1.3, "spine_01": (0.85, 1, 0.85), "spine_02": (0.88, 1, 0.9), "upperarm_l": (0.62, 1, 0.62), "upperarm_r": (0.62, 1, 0.62),
+              "lowerarm_l": (0.8, 1, 0.8), "lowerarm_r": (0.8, 1, 0.8), "thigh_l": (0.7, 1, 0.7), "thigh_r": (0.7, 1, 0.7)},
+        shells=[
+            (["chest", "belly"], 0.04, (0.025, 0.022, 0.03), 1.0, "left"),
+            (["belly"], 0.06, (0.35, 0.25, 0.08), 1.0, "belt"),
+        ],
+        extras=["pauldrons", "skull", "ribs", "mantle", "crown", "skirt", "tatters"], pauldron=((0.03, 0.026, 0.035), 0.08, False), crown_h=0.38,
+        bonec=(0.42, 0.38, 0.3), bonec2=(0.34, 0.3, 0.24), teeth=(0.6, 0.56, 0.46), crownc=(0.45, 0.32, 0.08),
+        mantle=(0.15, 0.03, 0.2), mantle_trim=(0.55, 0.4, 0.12), mantle_to=0.08, fur=(0.05, 0.04, 0.05),
+        skirt=(0.025, 0.014, 0.035), skirt_to=0.0, skirt_w=1.1, skirt_r2=0.5, nolegs=True, float=0.06,
+        hold="2H_Melee_Idle", yaw={"Death_A": -70}, unbake=True,
+        weapons={"2H_Sword": ("hand_r", (1.0, 1.0, 1.0), "sceptre")},
+    ),
+    "boss_archlich": dict(
+        size=1.2,
+        skin={"*": (0.008, 0.024, 0.028), "head": (0.42, 0.38, 0.3), "neck": (0.02, 0.04, 0.045), "hand": (0.42, 0.38, 0.3)},
+        bulk={"head": 1.15, "spine_01": (0.88, 1, 0.88), "spine_02": (0.9, 1, 0.92), "upperarm_l": (0.75, 1, 0.75), "upperarm_r": (0.75, 1, 0.75)},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.045, (0.009, 0.03, 0.034), 0.0, None),
+            (["chest", "belly"], 0.06, (0.2, 0.15, 0.045), 1.0, "tabard"),
+            (["belly"], 0.065, (0.3, 0.22, 0.06), 1.0, "belt"),
+            (["lowerarm"], 0.055, (0.4, 0.3, 0.08), 1.0, "belt"),
+        ],
+        extras=["hood", "skull", "mitre", "pauldrons", "mantle", "skirt", "tatters", "phylactery"], pauldron=((0.008, 0.026, 0.03), 0.085, False),
+        hood=(0.008, 0.026, 0.03), trim=(0.36, 0.27, 0.07), bonec=(0.42, 0.38, 0.3), bonec2=(0.34, 0.3, 0.24), teeth=(0.6, 0.56, 0.46),
+        mantle=(0.006, 0.02, 0.024), mantle_trim=(0.36, 0.27, 0.07), mantle_to=0.1, mantle_flare=1.6, fur=(0.006, 0.02, 0.024),
+        skirt=(0.008, 0.026, 0.03), skirt_to=0.0, skirt_w=1.25, skirt_r2=0.5, nolegs=True, float=0.1,
+        weapons={"2H_Staff": ("hand_r", (0.65, 0.65, 0.65), "lichstaff")},
+    ),
     "boss_mother_of_leeches": dict(
         skin={"*": (0.03, 0.045, 0.05), "belly": (0.1, 0.11, 0.06), "head": (0.05, 0.06, 0.06), "neck": (0.05, 0.06, 0.06), "hand": (0.02, 0.03, 0.03)},
         bulk={"spine_01": 1.45, "spine_02": 1.25, "head": 1.2},
@@ -1101,11 +1134,11 @@ if "crown" in ex:                                # a tall gold crown of spikes o
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
     o = prim("cone", "crownband", kit["crownc"], 1.0, r2=1.05)
-    hang(o, "head", trs(Vector((c.x, c.y, hi.z + 0.02 * S)), (0, 0, 0), (half.x * 1.3, half.y * 1.25, 0.05 * S)))
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z + 0.02 * S)), (0, 0, 0), (half.x * 1.3, half.y * 1.25, 0.05 * S * kit.get("crown_h", 1.0))))
     for k in range(9):
         a_ = 2 * math.pi * k / 9
         o = prim("cone", "spike%d" % k, kit["crownc"], 1.0)
-        hang(o, "head", trs(Vector((c.x + half.x * 1.2 * math.cos(a_), c.y + half.y * 1.15 * math.sin(a_), hi.z + 0.07 * S + 0.03 * S * (k % 2))), (0, 0, 0), (0.04 * S, 0.04 * S, (0.09 + 0.05 * (k % 2)) * S)))
+        hang(o, "head", trs(Vector((c.x + half.x * 1.2 * math.cos(a_), c.y + half.y * 1.15 * math.sin(a_), hi.z + 0.07 * S + 0.03 * S * (k % 2))), (0, 0, 0), (0.04 * S, 0.04 * S, (0.09 + 0.05 * (k % 2)) * S * kit.get("crown_h", 1.0))))
 if "shards" in ex:                               # his left half coming apart: dark shards hanging off the arm, flank and leg
     spots = [("upperarm_l", (0.12, -0.05, 0.0)), ("upperarm_l", (0.2, 0.08, -0.12)), ("lowerarm_l", (0.12, 0.0, -0.1)),
              ("lowerarm_l", (0.2, -0.08, 0.0)), ("spine_02", (0.24, 0.0, 0.05)), ("spine_02", (0.3, 0.1, -0.1)), ("spine_01", (0.2, 0.08, -0.1)),
@@ -1238,6 +1271,18 @@ if "coffin" in ex:                               # the brute: the body is a tall
     for nm, c_, sc_ in (("cross_v", (0, 1.38), (0.06, 0.5)), ("cross_h", (0, 1.65), (0.22, 0.06))):   # a bone-pale cross on the lid
         o = prim("cube", nm, trim)
         hang(o, "pelvis", Matrix.Translation(at(c_[0] * S, -dep - 0.02 * S, c_[1] * S)) @ Rz.to_4x4() @ Matrix.Diagonal((sc_[0] * S, 0.018 * S, sc_[1] * S, 1)))
+
+if kit.get("nolegs"):                            # a robed, floating boss: no legs under the robe (they would only poke through it)
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    bm.faces.ensure_lookup_table()
+    gone = [f for f in bm.faces if max(set(regs[v.index] for v in f.verts), key=[regs[v.index] for v in f.verts].count) in ("thigh", "calf", "foot")]
+    bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
+    bm.to_mesh(body.data)
+    bm.free()
+EXTRA_MESHES = {}                                # held-weapon meshes of boss_extras.py
+if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "boss_extras.py")):
+    exec(compile(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "boss_extras.py")).read(), "boss_extras.py", "exec"), globals())
 
 # ---- poses from the pack's rig; weapons re-hung on the body's hands
 ret = rt.Retarget(src, dst, rt.KAYKIT_TO_GAME)
@@ -1392,7 +1437,7 @@ def _tower():
     return me
 
 
-MESHES = {"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook, "spade": _spade, "mace": _mace, "tower": _tower}
+MESHES = dict(EXTRA_MESHES, **{"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook, "spade": _spade, "mace": _mace, "tower": _tower})
 held = []                                        # (the pack's weapon on its own rig, our copy, hand bone, palm point, scale)
 for name, ob in weap.items():
     bone, scale = kit["weapons"][name][:2]
@@ -1556,7 +1601,9 @@ for spec in acts.split(","):
                     R_ = Matrix.Translation(h_) @ Matrix.Rotation(math.radians(deg_), 4, ax_) @ Matrix.Translation(-h_)
                     pb_.matrix = dst.matrix_world.inverted() @ R_ @ dst.matrix_world @ pb_.matrix
         for bn, k in dict(kit.get("bulk", {}), **({"spine_02": 1.2} if RACE == "dwarf" else {})).items():
-            dst.pose.bones[bn].scale = (k, k, k)
+            dst.pose.bones[bn].scale = tuple(k) if isinstance(k, (tuple, list)) else (k, k, k)
+        if kit.get("float") and not name.startswith("Death"):                     # a floating boss: the whole body lifted off the ground
+            dst.pose.bones[kit.get("float_bone", "pelvis")].location.z += kit["float"] / dst.matrix_world.to_scale().z
         place_weapons()
         vl.update()
         place_dangle()
