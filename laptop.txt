@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-23T04:58Z commit=d22b866 took=980s
-JOB frames INFO zooms=16 mean_ms=38.59 p99_ms=72.68 monsters_drawn=13896 renderer="AMD RadeonT 610M"
-JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.14s 
-STATION PASS jobs=2 failed=0 skipped=0
+STATION machine=laptop time=2026-11-23T06:17Z commit=f26ab31 took=1222s
+JOB frames FAIL no CLIENT_FRAMES line (no display, or the client died)
+JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.18s 
+STATION FAIL jobs=2 failed=1 skipped=0
