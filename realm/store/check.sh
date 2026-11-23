@@ -22,7 +22,7 @@ if grep -q "^warning" "$log"; then
 	exit 1
 fi
 if ! cargo test --release -j"$jobs" -q -- --test-threads=2 >"$log" 2>&1; then
-	grep -E "panicked|FAILED|error(\[|:)" "$log" | head -20
+	grep -A2 -E "^---- |panicked|FAILED|error(\[|:)" "$log" | cut -c1-600 | head -40
 	echo "STORE failed: cargo test"
 	exit 1
 fi
