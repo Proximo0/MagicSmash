@@ -1,0 +1,18 @@
+00:07.508  render           | Saved: '/tmp/tmp.22ES0SJP6a/art/ubuntu-blender-human.png'
+Log config does not exist. Creating empty template.
+Will rewrite log config /home/curtis/.config/blender/5.3/mpfb/config/log_levels.json
+[WARN ] services.locationservice ...............: User home directory does not exist /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb
+[INFO ] services.locationservice ...............: Not adding link to MakeHuman user data, since neither explicit path nor auto-discovery is set in preferences.
+[INFO ] services.locationservice ...............: Creating relevant directory: /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb
+[INFO ] services.locationservice ...............: Creating relevant directory: /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb/data
+[INFO ] services.locationservice ...............: Creating relevant directory: /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb/config
+[INFO ] services.locationservice ...............: Creating relevant directory: /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb/cache
+[INFO ] services.locationservice ...............: Creating relevant directory: /home/curtis/.config/blender/5.3/extensions/.user/user_default/mpfb/logs
+[INFO ] mpfb.init ..............................: Build info FROM_SOURCE
+[INFO ] mpfb.init ..............................: Online access preference is not enabled. Not checking if MakeHuman is online.
+[INFO ] mpfb.init ..............................: MPFB initialization has finished.
+SELFTEST version=5.3.0 human_verts=19158 bones=53 render_s=1.6
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)
+OBJ import of 'base.obj' took 21.81 ms
+
+Blender quit

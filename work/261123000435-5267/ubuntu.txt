@@ -1,0 +1,1 @@
+2026-11-23T03:22:04Z PASS id=261123000435-5267 kind=shell secs=53 blender version=5.3.0 human_verts=19158 bones=53 render_s=1.6 mpfb=650c5c5 archive_checksum=yes gpu=[none] at=/home/curtis/hh_tools
