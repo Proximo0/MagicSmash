@@ -373,6 +373,70 @@ KITS = {
         extras=["pauldrons", "horns", "face"], pauldron=((0.12, 0.1, 0.12), 0.16, True), brow=(0.02, 0.01, 0.03), jaw=(0.45, 0.12, 0.03),
         weapons={},
     ),
+    # ---- the tower's humanoids (field 4) ----
+    "bloat": dict(
+        skin={"*": (0.22, 0.26, 0.18), "belly": (0.3, 0.33, 0.2), "chest": (0.26, 0.3, 0.2), "head": (0.34, 0.37, 0.27), "hand": (0.2, 0.23, 0.16)},
+        bulk={"spine_01": 1.15, "spine_02": 1.4, "neck_01": 0.35, "head": 1.05},
+        shells=[
+            (["hips", "thigh"], 0.04, (0.1, 0.09, 0.07), 0.0, "kilt"),
+            (["calf"], 0.02, (0.16, 0.18, 0.12), 0.0, None),
+            (["upperarm", "lowerarm"], 0.035, (0.26, 0.3, 0.2), 0.0, None),
+        ],
+        extras=["belly_glow"], glow=(1.0, 0.8, 0.08), flesh=(0.3, 0.34, 0.2),
+        weapons={},
+    ),
+    "censor": dict(
+        skin={"*": (0.14, 0.045, 0.03), "head": (0.01, 0.007, 0.008), "neck": (0.01, 0.007, 0.008), "hand": (0.4, 0.34, 0.28)},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.035, (0.17, 0.055, 0.035), 0.0, None),
+            (["chest", "belly"], 0.05, (0.06, 0.025, 0.02), 0.0, "tabard"),
+            (["belly"], 0.058, GOLD, 1.0, "belt"),
+            (["thigh", "calf"], 0.03, (0.08, 0.035, 0.03), 0.0, None),
+        ],
+        extras=["hood", "skirt", "boots", "censer"], hood=(0.17, 0.055, 0.035), skirt=(0.17, 0.055, 0.035), skirt_to=0.1, boot=LEATHER_D,
+        pose={"upperarm_r": -50}, weapons={},
+    ),
+    "guard": dict(
+        skin={"*": (0.2, 0.21, 0.24), "head": SKIN, "neck": (0.15, 0.16, 0.18), "hand": LEATHER_D},
+        bulk={"spine_02": 1.1},
+        shells=[
+            (["neck"], 0.030, STEEL_D, 1.0, None),
+            (["chest", "belly"], 0.032, (0.3, 0.31, 0.35), 1.0, None),
+            (["hips"], 0.03, STEEL_D, 1.0, None),
+            (["belly"], 0.058, LEATHER_D, 0.0, "belt"),
+            (["upperarm", "thigh"], 0.022, STEEL_D, 1.0, None),
+            (["lowerarm", "calf"], 0.026, (0.3, 0.31, 0.35), 1.0, None),
+        ],
+        extras=["pauldrons", "helm", "gauntlets", "boots"], pauldron=((0.34, 0.35, 0.4), 0.11, False), boot=STEEL_D, gauntlet=STEEL_D,
+        crest=(0.3, 0.1, 0.08),
+        weapons={"1H_Sword": ("hand_r", (0.42, 0.6, 0.45)), "Rectangle_Shield": ("hand_l", (1.5, 0.9, 0.72))},
+    ),
+    "swords": dict(
+        skin={"*": (0.035, 0.04, 0.1), "head": (0.02, 0.02, 0.05), "hand": (0.03, 0.025, 0.07)},
+        shells=[
+            (["neck"], 0.030, (0.07, 0.06, 0.14), 1.0, None),
+            (["chest", "belly"], 0.032, (0.07, 0.07, 0.17), 1.0, None),
+            (["hips"], 0.03, (0.03, 0.03, 0.07), 1.0, None),
+            (["upperarm", "thigh"], 0.022, (0.03, 0.03, 0.08), 1.0, None),
+            (["lowerarm", "calf"], 0.026, (0.08, 0.06, 0.18), 1.0, None),
+            (["belly"], 0.056, (0.3, 0.1, 0.5), 0.0, "belt"),
+        ],
+        extras=["pauldrons", "helm", "gauntlets", "boots", "backblades"], pauldron=((0.1, 0.08, 0.2), 0.12, True), boot=(0.03, 0.03, 0.07),
+        gauntlet=(0.03, 0.03, 0.07), crest=(0.4, 0.15, 0.7), blades=(0.55, 0.57, 0.72),
+        weapons={"1H_Sword": ("hand_r", (0.42, 0.6, 0.85)), "1H_Sword_Offhand": ("hand_l", (0.42, 0.6, 0.85))},
+    ),
+    "coffin": dict(
+        skin={"*": (0.1, 0.09, 0.08), "head": (0.1, 0.09, 0.08), "hand": (0.3, 0.27, 0.22)},
+        bulk={"upperarm_l": 1.3, "upperarm_r": 1.3, "thigh_l": 1.3, "thigh_r": 1.3},
+        shells=[
+            (["upperarm", "lowerarm"], 0.06, (0.24, 0.2, 0.16), 0.0, None),
+            (["thigh", "calf"], 0.06, (0.07, 0.06, 0.05), 0.0, None),
+            (["hand"], 0.03, (0.3, 0.27, 0.22), 0.0, None),
+        ],
+        extras=["coffin"], coffin=((0.1, 0.05, 0.025), (0.85, 0.8, 0.66)),
+        armout={"upperarm_l": [("Y", -35), ("X", 80)], "upperarm_r": [("Y", 35), ("X", 80)], "lowerarm_l": [], "lowerarm_r": [], "hand_l": [], "hand_r": []},
+        weapons={},
+    ),
     "orc": dict(
         skin={"*": (0.1, 0.2, 0.06), "head": (0.13, 0.25, 0.07)},
         bulk={"spine_02": 1.3, "head": 1.0},
@@ -794,6 +858,92 @@ if "cape" in ex:
     so.thickness = 0.02
     hang(o, "spine_03", trs(Vector((0, back_y + 0.03 * S, top))))
 
+if "belly_glow" in ex:                           # the bloat: a huge swollen belly lit from inside, a bright yellow patch on the front
+    lo, hi = bbox(["belly"])
+    c = (lo + hi) / 2
+    o = prim("sphere", "bellymass", kit["flesh"])
+    hang(o, "spine_01", trs(Vector((c.x, c.y - 0.1 * S, c.z - 0.03 * S)), (0, 0, 0), (0.3 * S, 0.3 * S, 0.27 * S)))
+    nlo, nhi = bbox(["neck"])
+    o = prim("sphere", "collar", kit["flesh"])                     # a thick collar of flesh that swallows the neck: the head sits in the shoulders
+    hang(o, "spine_03", trs(Vector((0, (nlo.y + nhi.y) / 2, nlo.z - 0.015 * S)), (0, 0, 0), (0.2 * S, 0.16 * S, 0.07 * S)))
+    o = prim("sphere", "bellyglow_side", kit["glow"])              # a second patch turned toward the camera (front and +x)
+    bs = o.data.materials[0].node_tree.nodes["Principled BSDF"]
+    bs.inputs["Emission Color"].default_value = (*kit["glow"], 1)
+    bs.inputs["Emission Strength"].default_value = 2.2
+    hang(o, "spine_01", trs(Vector((c.x + 0.16 * S, c.y - 0.33 * S, c.z - 0.03 * S)), (0, 0, 30), (0.15 * S, 0.07 * S, 0.2 * S)))
+    for nm, rad, dz, st in (("bellyglow", (0.2, 0.09, 0.22), 0.0, 2.2), ("bellyglow2", (0.09, 0.06, 0.1), 0.0, 3.5)):
+        o = prim("sphere", nm, kit["glow"])
+        bs = o.data.materials[0].node_tree.nodes["Principled BSDF"]
+        bs.inputs["Emission Color"].default_value = (*kit["glow"], 1)
+        bs.inputs["Emission Strength"].default_value = st
+        hang(o, "spine_01", trs(Vector((c.x, c.y - (0.37 if dz == 0 and nm == "bellyglow" else 0.4) * S, c.z - 0.03 * S)), (0, 0, 0), tuple(k * S for k in rad)))
+dangle = []                                      # (object, offset below the hand, scale): hung in the world, always straight down
+if "censer" in ex:                               # a censer on a short rigid chain from the right hand; the arm is raised by kit["pose"]
+    chain = 0.17 * S
+    r_ = 0.065 * S
+    for nm, col, metal, em, kind, off, sc_ in (
+            ("chain", STEEL_D, 1.0, 0, "cube", -chain / 2, (0.008 * S, 0.008 * S, chain / 2)),
+            ("censer_lid", STEEL, 1.0, 0, "cone", -chain - 0.01 * S, (0.07 * S, 0.07 * S, 0.035 * S)),
+            ("censer_ball", (1.0, 0.4, 0.06), 0.0, 2.2, "sphere", -chain - r_ - 0.03 * S, (r_, r_, r_)),
+            ("censer_base", STEEL_D, 1.0, 0, "cone", -chain - 2 * r_ - 0.04 * S, (0.04 * S, 0.04 * S, 0.02 * S))):
+        o = prim(kind, nm, col, metal)
+        if em:
+            bs = o.data.materials[0].node_tree.nodes["Principled BSDF"]
+            bs.inputs["Emission Color"].default_value = (1.0, 0.45, 0.08, 1)
+            bs.inputs["Emission Strength"].default_value = em
+        dangle.append((o, off, sc_))
+
+
+def place_dangle():
+    pb = dst.pose.bones["hand_r"]
+    p0 = dst.matrix_world @ ((pb.head + pb.tail) / 2)
+    for o, off, sc_ in dangle:
+        o.matrix_world = Matrix.Translation(p0 + Vector((0, 0, off))) @ Matrix.Diagonal((*sc_, 1))
+
+
+if "backblades" in ex:                           # blades fixed fan-like on the back, points up
+    back_y = max((body.matrix_world @ v.co).y for v, r in zip(body.data.vertices, regs) if r == "chest")
+    base = Vector((0, back_y + 0.05 * S, marks["chest"] - 0.3 * S))
+    for k, (ax, ay, ln) in enumerate(((-0.85, -0.3, 1.3), (0.0, -0.6, 1.6), (0.85, -0.3, 1.3))):
+        d = Vector((ax, ay, 1.0)).normalized()
+        o = prim("cone", "backblade%d" % k, kit["blades"], 1.0, r2=0.3)
+        hang(o, "spine_03", Matrix.Translation(base + d * ln * S / 2) @ d.to_track_quat("Z", "Y").to_matrix().to_4x4() @ Matrix.Diagonal((0.15 * S, 0.045 * S, ln * S / 2, 1)))
+if "coffin" in ex:                               # the brute: the body is a tall tapered coffin that holds torso and head; legs and arms stick out
+    wood, trim = kit["coffin"]
+    clo, chi = bbox(["chest"])
+    yc = (clo.y + chi.y) / 2 - 0.02 * S
+    PHI = math.radians(48)                       # turned 48 degrees toward the camera (which sees the front only at 1/3 width)
+    Rz = Matrix.Rotation(PHI, 3, "Z")
+    pts = [(-0.2, 0.5), (0.2, 0.5), (0.32, 1.45), (0.22, 1.98), (-0.22, 1.98), (-0.32, 1.45)]   # front outline (x, z) in S
+    dep = 0.27 * S
+
+    def at(x, y, z):                             # local (x right, y back, z up) to the rest-pose world, turned by PHI about the box centre
+        v = Rz @ Vector((x, y, 0))
+        return Vector((v.x, yc + v.y, z))
+
+    me = bpy.data.meshes.new("coffin")
+    bm = bmesh.new()
+    fr = [bm.verts.new(at(x * S, -dep, z * S)) for x, z in pts]
+    bk = [bm.verts.new(at(x * S, dep, z * S)) for x, z in pts]
+    bm.faces.new(fr[::-1])
+    bm.faces.new(bk)
+    for i in range(6):
+        j = (i + 1) % 6
+        bm.faces.new((fr[i], fr[j], bk[j], bk[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new("coffin", me)
+    bpy.context.scene.collection.objects.link(o)
+    me.materials.append(material("coffin", wood))
+    hang(o, "pelvis", Matrix.Identity(4))
+    for nm, z_, hw in (("band0", 0.72, 0.245), ("band1", 1.08, 0.28), ("band2", 1.82, 0.235)):    # near-black iron straps round the box
+        o = prim("cube", nm, (0.025, 0.025, 0.03), 1.0)
+        hang(o, "pelvis", Matrix.Translation(at(0, 0, z_ * S)) @ Rz.to_4x4() @ Matrix.Diagonal(((hw + 0.012) * S, dep + 0.014 * S, 0.04 * S, 1)))
+    for nm, c_, sc_ in (("cross_v", (0, 1.38), (0.06, 0.5)), ("cross_h", (0, 1.65), (0.22, 0.06))):   # a bone-pale cross on the lid
+        o = prim("cube", nm, trim)
+        hang(o, "pelvis", Matrix.Translation(at(c_[0] * S, -dep - 0.02 * S, c_[1] * S)) @ Rz.to_4x4() @ Matrix.Diagonal((sc_[0] * S, 0.018 * S, sc_[1] * S, 1)))
+
 # ---- poses from the pack's rig; weapons re-hung on the body's hands
 ret = rt.Retarget(src, dst, rt.KAYKIT_TO_GAME)
 for m_ in {sl.material for ob in weap.values() for sl in ob.material_slots if sl.material}:
@@ -962,10 +1112,27 @@ for spec in acts.split(","):
         sc.frame_set(int(t), subframe=t - int(t))
         ret.apply()
         curl_fingers()
+        for bn_, deg_ in kit.get("pose", {}).items():     # an arm raised: turned about its own joint, about the world x axis
+            vl.update()
+            pb_ = dst.pose.bones[bn_]
+            h_ = dst.matrix_world @ pb_.head
+            R_ = Matrix.Translation(h_) @ Matrix.Rotation(math.radians(deg_), 4, "X") @ Matrix.Translation(-h_)
+            pb_.matrix = dst.matrix_world.inverted() @ R_ @ dst.matrix_world @ pb_.matrix
+        if kit.get("armout") and name.startswith(("Walking", "Idle")):    # arms held out of the box's sides, not swinging across the lid
+            for bn_ in kit["armout"]:
+                dst.pose.bones[bn_].matrix_basis = Matrix()
+            for bn_, steps_ in kit["armout"].items():
+                for ax_, deg_ in steps_:
+                    vl.update()
+                    pb_ = dst.pose.bones[bn_]
+                    h_ = dst.matrix_world @ pb_.head
+                    R_ = Matrix.Translation(h_) @ Matrix.Rotation(math.radians(deg_), 4, ax_) @ Matrix.Translation(-h_)
+                    pb_.matrix = dst.matrix_world.inverted() @ R_ @ dst.matrix_world @ pb_.matrix
         for bn, k in dict(kit.get("bulk", {}), **({"spine_02": 1.2} if RACE == "dwarf" else {})).items():
             dst.pose.bones[bn].scale = (k, k, k)
         place_weapons()
         vl.update()
+        place_dangle()
         sc.render.filepath = os.path.join(out, "%s_%02d.png" % (name, i))
         bpy.ops.render.render(write_still=True)
         id_mode(True)

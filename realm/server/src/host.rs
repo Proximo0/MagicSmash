@@ -639,6 +639,11 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         let now = Instant::now();
         if due > now {
             std::thread::sleep(due - now);
+        } else {
+            // Behind schedule: the ticks run back to back. Let every other ready thread go first each time, or a box
+            // with more late hosts than cores starves the threads that answer players (on Windows a starved thread
+            // waits seconds for its turn: a login reply took over 30 s on the 4-core check runner, 23 Nov 2026).
+            std::thread::yield_now();
         }
         inbox.extend(rx.try_iter().filter(|(_, m)| !m.is_empty()));
         received += inbox.len() as u64;

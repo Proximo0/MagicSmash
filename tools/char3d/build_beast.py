@@ -36,6 +36,8 @@ KINDS = {
     "wisp": dict(plan="float", rad=0.2, h=1.0, coat=(0.3, 0.9, 0.8), dark=(0.9, 1.0, 1.0), eye=(0.02, 0.05, 0.05), glow=1.2, tails=3),
     "marsh_light": dict(plan="float", rad=0.26, h=0.8, coat=(0.5, 0.95, 0.2), dark=(0.95, 1.0, 0.6), eye=(0.03, 0.06, 0.0), glow=1.2, tails=5),
     "void_eye": dict(plan="float", rad=0.42, h=1.2, coat=(0.1, 0.04, 0.14), dark=(0.85, 0.8, 0.75), eye=(0.9, 0.05, 0.3), glow=0.0, tails=6, iris=True),
+    "shard": dict(plan="crystal", rad=0.2, h=0.78, coat=(0.1, 0.28, 0.9), dark=(0.28, 0.55, 1.0), eye=(0.45, 0.85, 1.0), amb=0.3),
+    "cinderling": dict(plan="imp", rad=0.19, h=0.35, coat=(0.008, 0.008, 0.009), dark=(0.5, 0.4, 0.33), eye=(1.0, 0.85, 0.2), amb=0.25, key=3.0, rim=1.5),
     "carrion_crow": dict(plan="bird", rad=0.17, h=0.75, coat=(0.035, 0.035, 0.05), dark=(0.012, 0.012, 0.02), eye=(1.0, 0.15, 0.05), beak=(0.5, 0.42, 0.25)),
     "leech": dict(plan="worm", rad=0.14, h=0.14, coat=(0.1, 0.03, 0.05), dark=(0.3, 0.07, 0.08), eye=(0.75, 0.6, 0.5), segs=6),
     "toadstone": dict(plan="toad", rad=0.34, h=0.3, coat=(0.2, 0.26, 0.12), dark=(0.42, 0.4, 0.3), eye=(1.0, 0.7, 0.1), cap=(0.5, 0.1, 0.08)),
@@ -85,6 +87,26 @@ def part(kind, name, parent, m, loc=(0, 0, 0), rot=(0, 0, 0), scale=(1, 1, 1), r
         bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=1.0)
     elif kind == "cone":                         # along Z, base at -1, tip at +1
         bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=1.0, radius2=r2, depth=2.0)
+    elif kind in ("gem", "gemU", "gemL"):         # hexagonal prism with a point: tips at +-1, rings at +-0.4; U / L = one half, flat cut
+        def ring(z):
+            return [bm.verts.new((math.cos(k * math.pi / 3), math.sin(k * math.pi / 3), z)) for k in range(6)]
+        zs = {"gem": (-0.4, 0.4), "gemU": (0.0, 0.4), "gemL": (-0.4, 0.0)}[kind]
+        ra, rb = ring(zs[0]), ring(zs[1])
+        for k in range(6):
+            bm.faces.new((ra[k], ra[(k + 1) % 6], rb[(k + 1) % 6], rb[k]))
+        if kind != "gemL":
+            tip = bm.verts.new((0, 0, 1.0))
+            for k in range(6):
+                bm.faces.new((rb[k], rb[(k + 1) % 6], tip))
+        else:
+            bm.faces.new(rb[::-1])
+        if kind != "gemU":
+            tip = bm.verts.new((0, 0, -1.0))
+            for k in range(6):
+                bm.faces.new((ra[(k + 1) % 6], ra[k], tip))
+        else:
+            bm.faces.new(ra)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     else:
         bmesh.ops.create_cube(bm, size=2.0)
     bm.to_mesh(me)
@@ -201,6 +223,104 @@ elif PLAN == "float":                            # a drifting light or eye with 
             tj.rotation_euler = Euler((math.radians(-lean * 1.5 + 12 * math.sin(w + ang)), math.radians(12 * math.cos(w + ang)), 0))
             tk.rotation_euler = Euler((math.radians(16 * math.sin(w + ang + 1.0)), 0, 0))
 
+elif PLAN == "crystal":                          # a living crystal: two halves of one faceted prism, a glowing core, orbiting shards
+    cm = mat("crys", K["coat"], 0.25)
+    sm = mat("shd", K["dark"], 0.3)
+    km = mat("core", K["eye"], 4.0)
+    CL = 0.5
+    halves = []
+    for nm, kd, sg in (("U", "gemU", 1), ("L", "gemL", -1)):
+        hj = joint("half" + nm, body, (0, 0, 0))
+        part(kd and "gem" + nm, "crys" + nm, hj, cm, (0, 0, 0), (0, 0, 0), (R, R, CL))
+        part("gem" + nm, "core" + nm, hj, km, (0, 0, 0), (0, 0, 0), (R * 0.45, R * 0.45, CL * 1.22))
+        part("gem" + nm, "band" + nm, hj, km, (0, 0, 0), (0, 0, 0), (R * 1.12, R * 1.12, 0.1))
+        halves.append((hj, sg))
+    pU, pL = halves[0][0], halves[1][0]
+    debris = []
+    for i in range(3):
+        dj = joint("deb%d" % i, body, (0, 0, 0))
+        part("gem", "debm%d" % i, dj, cm, (0, 0, 0), (0, 0, 0), (0.07, 0.07, 0.16))
+        dj.scale = (0, 0, 0)
+        debris.append(dj)
+    shards = []
+    for i in range(3):
+        sj = joint("sh%d" % i, body, (0, 0, 0))
+        part("gem", "shm%d" % i, sj, sm, (0, 0, 0), (0, 0, 0), (0.09, 0.09, 0.22))
+        shards.append((sj, 2 * math.pi * i / 3, (0.38, 0.1, -0.16)[i], (0.5, -0.1, 0.0)[i]))
+    # where the small shards come to rest, and where the debris lands (body-space, body at z 0 at the end)
+    rest = [((0.62, -0.32, 0.08), 70, 30), ((-0.55, -0.4, 0.07), 80, -50), ((0.1, 0.55, 0.08), 85, 100)]
+    deb_rest = [((0.0, -0.3, 0.06), 80, 10), ((0.3, 0.25, 0.05), 85, -60), ((-0.25, 0.2, 0.06), 78, 130)]
+    CM = [cm, sm]
+
+    def aim(ob, d):
+        ob.rotation_euler = Vector(d).normalized().to_track_quat("Z", "Y").to_euler()
+
+    def smooth(x):
+        x = max(0.0, min(1.0, x))
+        return x * x * (3 - 2 * x)
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        z, y, lean, flash, spread, sep = H + 0.06 * math.sin(w), 0.0, 0.0, 1.0, 1.0, 0.0
+        atk = 0.0
+        if action == "Walking_A":
+            z, lean = H + 0.07 * math.sin(2 * w), 9
+        elif action == "Attack":
+            a = math.sin(math.pi * u)
+            atk, lean, y, z = a, 24 * a, -0.15 * a, H - 0.05 * a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            y, lean, flash, spread, z = 0.28 * a, -16 * a, 1 + 12 * a, 1 + 0.6 * a, H + 0.04 * a
+        elif action == "Death_A":
+            sep = min(1.0, u * 1.3)
+            flash = 1 + 10 * math.sin(math.pi * min(1.0, u * 4)) * (1 if u < 0.25 else 0)
+        for m_ in CM:
+            m_.node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = (0.25 if m_ is cm else 0.3) * flash * (1 - 0.75 * smooth(sep * 1.2 - 0.2))
+        km.node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 4.0 * (1 + flash * 0.3) * (1 - 0.85 * smooth(sep * 1.2 - 0.3))
+        g = sep * sep
+        body.location = (0, y, H * 0.0 + z - (z * g if action == "Death_A" else 0))
+        body.rotation_euler = Euler((math.radians(lean), 0, 0))
+        s_ = smooth(sep * 1.4 - 0.1)
+        for hj, sg in halves:
+            hj.location = (sg * 0.12 * s_ * (1 if sg > 0 else -1) * 0.0 + (0.12 if sg > 0 else -0.12) * s_, 0.04 * sg * s_, 0)
+            hj.rotation_euler = Euler((0, 0, 0))
+        if action == "Death_A":
+            ty = smooth(sep * 1.15 - 0.1)
+            pU.location = (0.16 * ty, 0.14 * ty, 0.18 * ty)
+            pU.rotation_euler = Euler((0, math.radians(88 * ty), math.radians(22 * ty)))
+            pL.location = (-0.16 * ty, -0.14 * ty, 0.18 * ty)
+            pL.rotation_euler = Euler((0, math.radians(88 * ty), math.radians(-28 * ty)))
+            for dj, (dp, dpitch, dyaw) in zip(debris, deb_rest):
+                t_ = smooth(sep * 1.6 - 0.1)
+                dj.scale = (t_, t_, t_)
+                dj.location = (dp[0] * t_, dp[1] * t_, 0.1 + (dp[2] - 0.1) * t_ + 0.35 * math.sin(math.pi * t_) * 0.6)
+                dj.rotation_euler = Euler((math.radians(dpitch * t_), 0, math.radians(dyaw * t_)))
+        for i, (sj, ph, rr, hh) in enumerate(shards):
+            ang = w * (1.0 if action != "Idle" else 1.0) + ph
+            rr_ = rr + 0.1
+            orb = Vector((math.cos(ang) * rr_ * spread * 1.0, math.sin(ang) * rr_ * spread, hh + 0.07 * math.sin(2 * w + ph) + 0.08 * (i - 1)))
+            outward = Vector((math.cos(ang), math.sin(ang), 0))
+            d = outward * 0.55 + Vector((0, 0, 1))
+            if action == "Walking_A":
+                d = outward * 0.45 + Vector((-math.sin(ang), math.cos(ang), 0)) * 0.5 + Vector((0, 0, 1))
+            p = orb
+            if atk > 0:
+                t_ = smooth(atk * 1.7)
+                fwd = Vector(((i - 1) * 0.22, -(0.38 + 0.62 * atk), -0.05 + 0.2 * (i - 1) * (1 if i != 1 else 0) + 0.1))
+                p = orb.lerp(fwd, t_)
+                d = d.lerp(Vector(((i - 1) * 0.2, -1, 0)), t_)
+            if action == "Death_A":
+                t_ = smooth(sep * 1.5 - 0.1)
+                rp, rpitch, ryaw = rest[i]
+                p = orb.lerp(Vector(rp), t_)
+                p.z = orb.z * (1 - t_) + rp[2] * t_ - (body.location.z - 0.0) * t_ * 0.0
+                if t_ > 0:
+                    sj.location = p
+                    sj.rotation_euler = Euler((0, math.radians(rpitch * t_), math.radians(ryaw * t_)))
+                    continue
+            sj.location = p
+            aim(sj, d)
+
 elif PLAN == "bird":                             # a crow on the wing: it never lands, the wings beat about the spine
     part("sphere", "trunk", body, coat, (0, 0, 0), (0, 0, 0), (R * 0.75, R * 1.5, R * 0.7))
     part("sphere", "bhead", body, coat, (0, -R * 1.6, R * 0.35), (0, 0, 0), (R * 0.55, R * 0.6, R * 0.55))
@@ -312,6 +432,115 @@ elif PLAN == "toad":                             # a squat toad with toadstools 
         jaw.rotation_euler = Euler((math.radians(mouth), 0, 0))
         for lj, fr_ in tlegs:
             lj.rotation_euler = Euler((math.radians(-kick if not fr_ else kick * 0.4), 0, 0))
+
+elif PLAN == "imp":                              # a small ember imp: coal body, glowing cracks and belly, a flame for a head
+    root.rotation_euler = Euler((0, 0, math.radians(float(E("TURN", "35")))))   # three-quarter view: legs and eyes read
+    cm_ = mat("coal", K["coat"])
+    lm = mat("limb", K["dark"])
+    em_ = mat("ember", (1.0, 0.2, 0.02), 1.5)
+    fo_ = mat("flame_o", (1.0, 0.25, 0.02), 1.7)
+    fi_ = mat("flame_i", (1.0, 0.7, 0.2), 3.0)
+    ey_ = mat("eye", (1.0, 0.95, 0.6), 4.0)
+    EMS = [(em_, 1.5), (fo_, 1.7), (fi_, 3.0), (ey_, 4.0)]
+    torso = joint("torso", body, (0, 0, 0))
+    part("sphere", "tbody", torso, cm_, (0, 0, 0), (0, 0, 0), (R * 1.0, R * 0.96, R * 0.96))
+    part("sphere", "belly", torso, em_, (0, -R * 0.78, -R * 0.38), (0, 0, 0), (R * 0.55, R * 0.36, R * 0.4))
+    for t_, zz in ((-58, 0.3), (58, 0.25), (150, 0.15), (-150, 0.3)):
+        a_ = math.radians(t_)
+        part("sphere", "crack", torso, em_, (math.sin(a_) * R * 0.93, -math.cos(a_) * R * 0.9, R * zz), (0, 0, t_ * 0.0 + (15 if t_ > 0 else -15)), (R * 0.15, R * 0.15, R * 0.6))
+    for sg in (1, -1):
+        part("cone", "horn%d" % sg, torso, lm, (sg * R * 0.55, 0, R * 0.88), (0, sg * 28, 0), (R * 0.2, R * 0.2, R * 0.32), r2=0.0)
+    eyes = []
+    for sg in (1, -1):
+        ej = joint("eyej%d" % sg, body, (sg * R * 0.42, -R * 0.84, R * 0.36))
+        part("sphere", "eye%d" % sg, ej, ey_, (0, 0, 0), (0, 0, 0), (R * 0.26, R * 0.15, R * 0.2))
+        eyes.append(ej)
+    fj = joint("flame", body, (0, 0, R * 0.9))
+    part("sphere", "fbase", fj, fo_, (0, 0, R * 0.12), (0, 0, 0), (R * 0.4, R * 0.4, R * 0.35))
+    tongues = []
+    for i, (tx, ty_, th, col_) in enumerate(((0.0, 0.0, 0.15, fo_), (0.4, 0.1, 0.1, fo_), (-0.4, -0.05, 0.11, fo_), (0.0, -0.05, 0.1, fi_))):
+        tj = joint("tongue%d" % i, fj, (tx * R * 0.6, ty_ * R, R * 0.12))
+        part("cone", "tongue%d" % i, tj, col_, (0, 0, th), (0, 0, 0), (R * (0.4 if i < 3 else 0.26), R * (0.4 if i < 3 else 0.26), th), r2=0.0)
+        tongues.append((tj, i))
+    limbs = []
+    for sg in (1, -1):
+        sj = joint("shoulder%d" % sg, body, (sg * R * 0.98, 0, R * 0.12))
+        part("cone", "arm%d" % sg, sj, lm, (0, 0, -0.08), (180, 0, 0), (0.065, 0.065, 0.09), r2=0.7)
+        part("sphere", "hand%d" % sg, sj, lm, (0, 0, -0.17), (0, 0, 0), (0.06, 0.06, 0.06))
+        hj = joint("hip%d" % sg, body, (sg * R * 0.9, 0, -R * 0.7))
+        part("cone", "leg%d" % sg, hj, lm, (0, 0, -0.07), (180, 0, 0), (0.06, 0.06, 0.08), r2=0.7)
+        part("sphere", "foot%d" % sg, hj, lm, (0, -0.04, -0.14), (0, 0, 0), (0.08, 0.13, 0.055))
+        limbs.append((sj, hj, sg))
+
+    def smooth(x):
+        x = max(0.0, min(1.0, x))
+        return x * x * (3 - 2 * x)
+
+    def pose(action, u):
+        w = 2 * math.pi * u
+        fl = 8 * w if action in ("Walking_A", "Idle") else 5 * w + 1.7
+        z, y, pitch, roll = H + 0.012 * math.sin(w), 0.0, 0.0, 0.0
+        sw = 0.0          # leg swing
+        arm_f, arm_o = 0.0, 0.0   # arm forward, arm out
+        flash, sq, tuck, fscale, eyes_on, ground, dim = 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0
+        if action == "Walking_A":
+            sw = 48 * math.sin(w)
+            z, pitch, roll = H - 0.01 + 0.035 * abs(math.sin(w)), 14, 7 * math.sin(w)
+            arm_f, arm_o = 0, 75
+        elif action == "Idle":
+            arm_f, arm_o = 0, 75
+        elif action == "Attack":
+            a = math.sin(math.pi * u)
+            crouch = max(0.0, 1 - u * 4)
+            z, y, pitch = H - 0.07 * crouch + 0.16 * a * (1 if u > 0.2 else 0), -0.3 * a * (1 if u > 0.2 else 0), 20 * a - 12 * crouch
+            arm_f, arm_o = -95 * a + 40 * crouch, 75 - 55 * a
+            sw = 35 * a
+            tuck = a
+        elif action == "Hit_A":
+            a = math.sin(math.pi * u)
+            y, pitch, flash, z = 0.16 * a, -20 * a, 1 + 1.2 * a, H + 0.02 * a
+            arm_f, arm_o = 30 * a, 75 + 20 * a
+            sw = -20 * a
+        elif action == "Death_A":
+            a = min(1.0, u * 1.35)
+            g = smooth(a)
+            z = H - (H - R * 0.5) * g * g if a < 1 else R * 0.5
+            sq, pitch = 1 - 0.5 * g, 25 * g
+            fscale = max(0.0, 1 - a * 1.6)
+            eyes_on = max(0.0, 1 - a * 2.5)
+            ground, dim = g, 1 - 0.8 * g
+        for m_, base in EMS:
+            m_.node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = base * flash * (dim if m_ is not ey_ else 1)
+        body.location = (0, y, z)
+        body.rotation_euler = Euler((math.radians(pitch), math.radians(roll), 0))
+        torso.scale = (1 + (1 - sq) * 0.6, 1 + (1 - sq) * 0.6, sq)
+        for ej in eyes:
+            ej.scale = (eyes_on,) * 3
+        fj.location = (0, 0, R * 0.9 * (sq * 0.5 + 0.5))
+        fj.scale = (fscale, fscale, fscale)
+        for tj, i in tongues:
+            ph = fl + i * 2.1
+            sc2 = 1 + 0.35 * math.sin(ph) + 0.12 * math.sin(2.3 * ph)
+            tj.scale = (1 - 0.15 * math.sin(ph), 1 - 0.15 * math.sin(ph), sc2)
+            tj.rotation_euler = Euler((math.radians(18 * math.sin(ph + 1.0)), math.radians(18 * math.cos(ph)), 0))
+        for sj, hj, sg in limbs:
+            if ground:
+                gg = ground
+                sj.location = (sg * R * (0.98 + 0.25 * gg), 0.0, R * 0.12 * (1 - gg) - 0.1 * gg)
+                sj.rotation_euler = Euler((0, math.radians(-sg * 78 * gg), math.radians(sg * 25 * gg)))
+                hj.location = (sg * R * (0.45 + 0.35 * gg), 0.0, -R * 0.75 * (1 - gg) - 0.1 * gg)
+                hj.rotation_euler = Euler((0, math.radians(-sg * 80 * gg), math.radians(sg * 40 * gg)))
+                continue
+            sj.location = (sg * R * 0.98, 0, R * 0.12)
+            hj.location = (sg * R * 0.9, 0, -R * 0.7)
+            side = 1 if sg > 0 else -1
+            ph = math.pi if sg > 0 else 0.0
+            if action == "Walking_A":
+                l_, a_ = sw * sg, -30 * math.sin(w) * sg
+            else:
+                l_, a_ = sw, arm_f
+            hj.rotation_euler = Euler((math.radians(l_ + 25 * tuck), math.radians(-sg * 24), 0))
+            sj.rotation_euler = Euler((math.radians(a_), math.radians(-sg * arm_o), 0))
 
 else:
     L = K["len"]
@@ -464,13 +693,13 @@ def sun(name, rot, power, colr):
     col.objects.link(l)
 
 
-sun("key", (50, 0, 35), float(E("KEY", "6.0")), (1.0, 0.93, 0.85))
-sun("rim", (60, 0, 200), float(E("RIM", "4.5")), (0.55, 0.65, 1.0))
+sun("key", (50, 0, 35), float(E("KEY", str(K.get("key", 6.0)))), (1.0, 0.93, 0.85))
+sun("rim", (60, 0, 200), float(E("RIM", str(K.get("rim", 4.5)))), (0.55, 0.65, 1.0))
 wd = bpy.data.worlds.new("w")
 sc.world = wd
 wd.use_nodes = True
 wd.node_tree.nodes["Background"].inputs[0].default_value = (0.3, 0.3, 0.36, 1)
-wd.node_tree.nodes["Background"].inputs[1].default_value = float(E("AMB", "0.7"))
+wd.node_tree.nodes["Background"].inputs[1].default_value = float(E("AMB", str(K.get("amb", 0.7))))
 
 ID_MATS = [m_ for m_ in bpy.data.materials if m_.use_nodes and m_.users]
 for k_, m_ in enumerate(ID_MATS):

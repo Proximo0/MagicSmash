@@ -53,9 +53,20 @@ fn quick(copies: CopyRules) -> WorldConfig {
 }
 
 fn login(r: &Realm, name: &str) -> GatewayClient {
-    let mut c = GatewayClient::connect_plain(&r.addr).unwrap();
-    assert!(matches!(c.login(name).unwrap(), Resp::Login { .. }));
-    c
+    // A login went unanswered for 30 s once on the Windows check (23 Nov 2026) and nothing said where it was lost:
+    // a failure here now says how long each step took and whether the gateway counted the login (it answered, and
+    // the reply was lost on the way) or never saw it.
+    let (t0, before) = (Instant::now(), r.gw.logins.load(std::sync::atomic::Ordering::Relaxed));
+    let mut c = GatewayClient::connect_plain(&r.addr).unwrap_or_else(|e| panic!("login {name}: connect failed after {:?}: {e}", t0.elapsed()));
+    let connected = t0.elapsed();
+    match c.login(name) {
+        Ok(Resp::Login { .. }) => c,
+        other => panic!(
+            "login {name}: {other:?} after {:?} (connected in {connected:?}); the gateway counted {} login(s) meanwhile",
+            t0.elapsed(),
+            r.gw.logins.load(std::sync::atomic::Ordering::Relaxed) - before
+        ),
+    }
 }
 
 fn hero(c: &mut GatewayClient, name: &str, class: u8) -> i64 {
