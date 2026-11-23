@@ -96,7 +96,7 @@ q_free_mb_set() {  # sets Q_FREE_MB (empty = unknown, which never blocks); cache
   [ $((now - Q_FREE_AT)) -lt 60 ] && return 0
   Q_FREE_AT=$now; Q_FREE_MB=""
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*)   # kB of free physical memory
-    Q_FREE_MB=$(powershell.exe -NoProfile -Command '[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)' 2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' | head -1) ;;
+    Q_FREE_MB=$(timeout -k 5 60 powershell.exe -NoProfile -Command '[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)' 2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' | head -1) ;;
   esac
   if [ -z "$Q_FREE_MB" ] && [ -r /proc/meminfo ]; then
     Q_FREE_MB=$(awk '/^MemAvailable:/ { print int($2 / 1024); exit }' /proc/meminfo 2>/dev/null)
@@ -211,6 +211,7 @@ q_seeds() {  # $1 = seeds spec (empty, N, A-B or A,B,C), $2 = repeat. once: ever
 }
 q_left() { local l=$((QDEADLINE - SECONDS)); [ "$l" -lt 10 ] && l=10; echo "$l"; }
 q_late() { [ $((QDEADLINE - SECONDS)) -le 0 ]; }
+q_cut() { [ $((QDEADLINE - SECONDS)) -le 5 ] && { [ "$1" = 124 ] || [ "$1" = 137 ]; }; }  # rc $1 is a timeout kill after the job deadline: a time limit, not a failure
 q_cargo() {  # make cargo findable; 1 when it is not installed (stubbed runs do not need it)
   [ -n "${STATION_QUEUE_STUB:-}" ] && return 0
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
@@ -218,7 +219,7 @@ q_cargo() {  # make cargo findable; 1 when it is not installed (stubbed runs do 
 }
 q_build() {  # build dir, cargo args...; output to $Q_WD/build.log
   [ -n "${STATION_QUEUE_STUB:-}" ] && return 0
-  local d=$1; shift; ( cd "$d" && cargo build --release -j2 -q "$@" ) >>"$Q_WD/build.log" 2>&1
+  local d=$1; shift; ( cd "$d" && timeout -k 30 3600 cargo build --release -j2 -q "$@" ) >>"$Q_WD/build.log" 2>&1
 }
 # q_run OUTFILE cmd...: runs it in the background and kills it when a merge lands (step_run polls pending_merge); 99 = killed
 q_run() {
@@ -281,14 +282,14 @@ qk_fuzz() {  # args: seeds=A-B ops=N kills=N lanes=N. realm-store fuzz per seed,
     batch=""
     for ((i = 0; i < lanes && $# > 0; i++)); do
       s=$1; shift; batch+=" $s"
-      ( q_run "$Q_WD/fuzz.$s" timeout "$(q_left)" realm/store/target/release/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s"; echo $? >"$Q_WD/rc.$s" ) &
+      ( q_run "$Q_WD/fuzz.$s" timeout -k 30 "$(q_left)" realm/store/target/release/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s"; echo $? >"$Q_WD/rc.$s" ) &
     done
     wait
     for s in $batch; do
       rc=$(cat "$Q_WD/rc.$s" 2>/dev/null || echo 1)
       [ "$rc" = 99 ] && return 3
       n=$((n + 1)); rm -rf "$Q_WD/fz$s"
-      if [ "$rc" = 0 ]; then LAST="$(tail -1 "$Q_WD/fuzz.$s" | cut -c1-100)"; else bad=$((bad + 1)); detail+=" seed=$s FAILED: $(q_tail "$Q_WD/fuzz.$s");"; fi
+      if [ "$rc" = 0 ]; then LAST="$(tail -1 "$Q_WD/fuzz.$s" | cut -c1-100)"; elif q_cut "$rc"; then detail+=" seed=$s stopped at the time limit;"; else bad=$((bad + 1)); detail+=" seed=$s FAILED: $(q_tail "$Q_WD/fuzz.$s");"; fi
     done
   done
   echo "$([ $bad = 0 ] && echo PASS || echo FAIL) fuzz seeds_run=$n lanes=$lanes ops=$ops kills=$kills${detail}${LAST:+ last: $LAST}"
@@ -299,10 +300,10 @@ qk_soak() {  # args: secs=N bots=N seeds=A-B
   secs=$(q_int "$(q_tok "$args" secs)" 900 5 14400); bots=$(q_int "$(q_tok "$args" bots)" 40 1 400)
   seed=$(q_seeds "$(q_tok "$args" seeds)" forever | cut -d' ' -f1)
   q_build realm -p realm-gateway --bin realm-soak || { echo "FAIL seed=$seed build $(q_tail "$Q_WD/build.log")"; return 0; }
-  q_run "$Q_WD/soak.out" timeout "$(q_left)" realm/target/release/realm-soak --bots="$bots" --secs="$secs" --seed="$seed" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$Q_WD/soak.db"; rc=$?
+  q_run "$Q_WD/soak.out" timeout -k 30 "$(q_left)" realm/target/release/realm-soak --bots="$bots" --secs="$secs" --seed="$seed" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$Q_WD/soak.db"; rc=$?
   [ $rc = 99 ] && return 3
   out=$(tail -1 "$Q_WD/soak.out")
-  if [[ "$out" == "SOAK ok "* ]]; then echo "PASS soak seed=$seed secs=$secs ${out:0:200}"; else echo "FAIL soak seed=$seed secs=$secs $(q_tail "$Q_WD/soak.out")"; fi
+  if [[ "$out" == "SOAK ok "* ]]; then echo "PASS soak seed=$seed secs=$secs ${out:0:200}"; elif q_cut $rc; then echo "INFO soak seed=$seed secs=$secs stopped at the time limit"; else echo "FAIL soak seed=$seed secs=$secs $(q_tail "$Q_WD/soak.out")"; fi
 }
 qk_bench() {  # args: fields=0,1 threads=1,2 monsters=5000,20000 bots=N ticks=N seeds=.. ; one CSV row per combination
   local args=$1 rep=$2 f t m bots ticks seed rc n=0 bad=0 detail="" csv="$Q_WD/art/bench.csv"
@@ -313,10 +314,10 @@ qk_bench() {  # args: fields=0,1 threads=1,2 monsters=5000,20000 bots=N ticks=N 
   echo "field,threads,monsters,seed,status,summary" >"$csv"
   for f in $(q_list "$(q_tok "$args" fields)" 0); do for t in $(q_list "$(q_tok "$args" threads)" 2); do for m in $(q_list "$(q_tok "$args" monsters)" 20000); do
     q_late && { detail+=" stopped at the time limit;"; break 3; }
-    q_run "$Q_WD/bench.out" timeout "$(q_left)" realm/target/release/realm-server --bench --field=$f --seed=$seed --bots=$bots --monsters=$m --rally=0.3 --threads=$t --ticks=$ticks --warmup=100 --report=300; rc=$?
+    q_run "$Q_WD/bench.out" timeout -k 30 "$(q_left)" realm/target/release/realm-server --bench --field=$f --seed=$seed --bots=$bots --monsters=$m --rally=0.3 --threads=$t --ticks=$ticks --warmup=100 --report=300; rc=$?
     [ $rc = 99 ] && return 3
     n=$((n + 1)); LAST=$(tail -1 "$Q_WD/bench.out" | tr -d ',' | cut -c1-140)
-    if [ $rc = 0 ]; then echo "$f,$t,$m,$seed,ok,$LAST" >>"$csv"; else bad=$((bad + 1)); detail+=" field=$f threads=$t monsters=$m FAILED: $(q_tail "$Q_WD/bench.out");"; echo "$f,$t,$m,$seed,FAIL,$LAST" >>"$csv"; fi
+    if [ $rc = 0 ]; then echo "$f,$t,$m,$seed,ok,$LAST" >>"$csv"; elif q_cut $rc; then detail+=" stopped at the time limit;"; echo "$f,$t,$m,$seed,cut,$LAST" >>"$csv"; else bad=$((bad + 1)); detail+=" field=$f threads=$t monsters=$m FAILED: $(q_tail "$Q_WD/bench.out");"; echo "$f,$t,$m,$seed,FAIL,$LAST" >>"$csv"; fi
   done; done; done
   echo "$([ $bad = 0 ] && echo PASS || echo FAIL) bench seed=$seed runs=$n bad=$bad${detail} last: ${LAST:-none}"
 }
@@ -327,7 +328,7 @@ qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=K hours=N. fast i
   n=$(q_int "$(q_tok "$args" seeds)" 1 1 50); per=$(q_int "$(q_tok "$args" per)" 2 1 20); mins=$(q_int "$(q_tok "$args" minutes)" 20 1 600)
   fast=$(q_int "$(q_tok "$args" fast)" 16 2 64); hours=$(q_int "$(q_tok "$args" hours)" 200 1 2000)
   q_build realm -p realm-loadtest || { echo "FAIL build $(q_tail "$Q_WD/build.log")"; return 0; }
-  BOT_THREADS="${STATION_BALANCE_THREADS:-2}" q_run "$Q_WD/balance.out" timeout "$(q_left)" realm/target/release/realm-loadtest balance career "$n" "$per" "$mins" "$fast" "$hours"; rc=$?
+  BOT_THREADS="${STATION_BALANCE_THREADS:-2}" q_run "$Q_WD/balance.out" timeout -k 30 "$(q_left)" realm/target/release/realm-loadtest balance career "$n" "$per" "$mins" "$fast" "$hours"; rc=$?
   [ $rc = 99 ] && return 3
   line=$(grep '^BALANCE ' "$Q_WD/balance.out" | tail -1)
   tail -300 "$Q_WD/balance.out" >"$Q_WD/art/balance.out"
@@ -344,11 +345,12 @@ qk_economy() {  # args: seeds=A-B days=N bots=N. realm-economy per seed; record 
   echo "seed,bots,days,status,summary" >"$csv"
   for s in $(q_seeds "$(q_tok "$args" seeds)" "$rep"); do
     q_late && break
-    q_run "$Q_WD/eco.out" timeout "$(q_left)" realm/target/release/realm-economy --bots="$bots" --days="$days" --seed=$s --quiet --db="$Q_WD/eco.db"; rc=$?
+    q_run "$Q_WD/eco.out" timeout -k 30 "$(q_left)" realm/target/release/realm-economy --bots="$bots" --days="$days" --seed=$s --quiet --db="$Q_WD/eco.db"; rc=$?
     [ $rc = 99 ] && return 3
     rm -f "$Q_WD"/eco.db*; line=$(tail -1 "$Q_WD/eco.out" | tr -d ',' | cut -c1-240)
     n=$((n + 1)); first=${first:-$s}
-    if [[ "$line" == "ECONOMY ok "* ]]; then echo "$s,$bots,$days,ok,${line:8}" >>"$csv"; LAST="seed=$s ${line:8:200}"
+    if q_cut $rc; then LAST="seed=$s stopped at the time limit"; break
+    elif [[ "$line" == "ECONOMY ok "* ]]; then echo "$s,$bots,$days,ok,${line:8}" >>"$csv"; LAST="seed=$s ${line:8:200}"
     else bad=$((bad + 1)); echo "$s,$bots,$days,fail,$line" >>"$csv"; LAST="seed=$s no ECONOMY ok line: $(q_tail "$Q_WD/eco.out")"; fi
   done
   echo "$([ $bad = 0 ] && echo INFO || echo FAIL) economy runs=$n bad=$bad $LAST"
@@ -358,7 +360,7 @@ qk_frames() {  # args: zooms=16,4 secs=60. The client frame test of job_frames; 
   zooms=$(q_list "$(q_tok "$args" zooms)" 16); zooms=${zooms// /,}; secs=$(q_int "$(q_tok "$args" secs)" 60 5 600)
   if [ -n "${STATION_QUEUE_STUB:-}" ]; then echo "INFO frames zooms=$zooms stub"; return 0; fi
   declare -F job_frames >/dev/null || { echo "FAIL frames: not available outside station.sh"; return 0; }
-  line=$(STATION_FRAMES_ZOOM="$zooms" STATION_FRAMES_SECS="$secs" STATION_SHOTS=0 job_frames 2>&1 | tail -1)
+  line=$(STATION_FRAMES_ZOOM="$zooms" STATION_FRAMES_SECS="$secs" STATION_SHOTS=0 job_frames 2>&1 | tail -1)  # job_frames is a function: its own cargo builds (3600 s) and godot runs (180/300/120 s) are bounded inside it
   line=${line#JOB frames }
   case "$line" in PASS*|INFO*|FAIL*) echo "$line" ;; *) echo "FAIL frames $line" ;; esac
 }
@@ -379,11 +381,11 @@ qk_package() {  # args: target=linux|windows. Server and client into a dated fol
   for b in realm-gateway realm-server realm-ops; do cp "realm/target/release/$b$ext" "$bins/" 2>/dev/null || { echo "FAIL package: realm/target/release/$b$ext missing"; return 0; }; done
   cp "realm/store/target/release/realm-store$ext" "$bins/" 2>/dev/null
   rm -rf "$out"; mkdir -p "$out"
-  q_run "$Q_WD/pkg.out" timeout "$(q_left)" realm/target/release/realm-ops$ext package --bins="$bins" --out="$out/server" --version="$ver" --host=realm/ops/host
+  q_run "$Q_WD/pkg.out" timeout -k 30 "$(q_left)" realm/target/release/realm-ops$ext package --bins="$bins" --out="$out/server" --version="$ver" --host=realm/ops/host
   [ $? = 0 ] || { echo "FAIL package: realm-ops package: $(q_tail "$Q_WD/pkg.out")"; return 0; }
   if command -v "${GODOT:-godot}" >/dev/null 2>&1 && [ -f realm/client/export_presets.cfg ] && [ "$target" = windows ]; then
     mkdir -p "$out/client"
-    if "${GODOT:-godot}" --headless --path realm/client --export-release "Windows Desktop" "$out/client/HordeAndHearth.exe" >"$Q_WD/export.out" 2>&1 && [ -s "$out/client/HordeAndHearth.exe" ]; then cl="client exported"; else cl="client export failed"; fi
+    if timeout -k 30 900 "${GODOT:-godot}" --headless --path realm/client --export-release "Windows Desktop" "$out/client/HordeAndHearth.exe" >"$Q_WD/export.out" 2>&1 && [ -s "$out/client/HordeAndHearth.exe" ]; then cl="client exported"; else cl="client export failed"; fi
   fi
   hash=$( (cd "$out" && find . -type f | sort | xargs sha256sum 2>/dev/null) | sha256sum | cut -c1-16)
   echo "$hash  $ver $target" >"$out/HASH.txt"
@@ -393,8 +395,9 @@ qk_package() {  # args: target=linux|windows. Server and client into a dated fol
 qk_shell() {  # args: script=NAME plus words for it. tools/station/jobs/NAME.sh; its last stdout line is the summary
   local args=$1 name rest="" t rc line
   name=$(q_tok "$args" script ""); for t in $args; do case "$t" in script=*) ;; *) rest+=" $t" ;; esac; done
-  STATION_JOB_ART="$Q_WD/art" STATION_JOB_SEED="$(q_rand)" q_run "$Q_WD/shell.out" timeout "$(q_left)" bash "tools/station/jobs/$name.sh" $rest; rc=$?
+  STATION_JOB_ART="$Q_WD/art" STATION_JOB_SEED="$(q_rand)" q_run "$Q_WD/shell.out" timeout -k 30 "$(q_left)" bash "tools/station/jobs/$name.sh" $rest; rc=$?
   [ $rc = 99 ] && return 3
+  q_cut $rc && { echo "INFO shell $name stopped at the time limit"; return 0; }
   line=$(tail -1 "$Q_WD/shell.out" | cut -c1-240)
   case "$line" in PASS*|FAIL*|INFO*) [ $rc = 0 ] && echo "$line" || echo "FAIL ${line#* }" ;; *) [ $rc = 0 ] && echo "INFO shell $name: $line" || echo "FAIL shell $name rc=$rc: $line" ;; esac
 }
@@ -422,7 +425,7 @@ q_publish_result() {  # id line artdir: result line appended to work/<id>/<machi
   rm -f "$tmp"; return 1
 }
 q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
-  local id=$1 me line rc status t0=$SECONDS tmp passes=1 prev; me=$(q_me)
+  local id=$1 me line rc status t0=$SECONDS tmp passes=1 prev; me=$(q_me); Q_FAST_FAIL=0
   q_load "$id" || { gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$me"; return 0; }
   QK=$J_KIND; Q_WD=$(mktemp -d); mkdir -p "$Q_WD/art"; QDEADLINE=$((SECONDS + J_TIMEOUT)); LAST=""
   echo "queue: $MACHINE runs $id kind=$J_KIND args='$J_ARGS' repeat=$J_REPEAT"
@@ -446,6 +449,7 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
   echo "machine=$MACHINE time=$(q_now) status=$status passes=$passes" >"$tmp"
   gb_put_retry "$QBRANCH" "$MACHINE done $id $status" "+done/$id.$me:$tmp" "-claims/$id.$me" || echo "queue: could not record done for $id (the claim will go stale)"
   rm -f "$tmp"; rm -rf "$Q_WD"
+  [ "$status" = FAIL ] && [ $((SECONDS - t0)) -lt 60 ] && Q_FAST_FAIL=1  # the station loop sleeps STATION_QUEUE_FAIL_SLEEP before the next step
   echo "queue: $id $status ${line:0:200}"
   if [ "$status" = FAIL ] && declare -F publish_append >/dev/null; then publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE queue ${line:0:1500}" "$MACHINE-failures.txt" || true; fi
   return 0

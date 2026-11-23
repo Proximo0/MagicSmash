@@ -41,6 +41,7 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 main() {  # the whole script is one function, so bash has read all of it before a checkout can change the file
 ARGS=("$@")
+export GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60  # no git fetch or push waits for a prompt or a dead connection
 GODOT="${GODOT:-godot}"
 MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
@@ -54,7 +55,14 @@ for a in "$@"; do
 done
 # tools/station/roles.txt decides what a watching station does, so changing a machine's job is a commit, not a visit.
 P95=""  # `deep` in a role: between merges, run seeded soaks (job_deep) instead of sleeping
+role_ok() {  # $1 = a roles.txt line's words: 0 when every word is known (the start-up check, also run on a new tree before a restart)
+  local a; for a in $1; do
+    case "$a" in --after=*|--ci-covered|--p95=*|--p99=*|boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle|deep|queue) ;;
+      *) echo "station: roles.txt: unknown word $a for $MACHINE" >&2; return 1 ;; esac
+  done
+}
 role=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut -d: -f2-)
+[ "$watch" = 1 ] && [ -n "$role" ] && { role_ok "$role" || exit 2; }
 if [ "$watch" = 1 ] && [ -n "$role" ]; then
   after=""; jobs=()
   for a in $role; do
@@ -70,7 +78,7 @@ job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error,
   # At most one run per core at a time: a 4-core Celeron takes 17 min for one seed, and five at once would time out.
   local n=0 cores; cores=$(nproc 2>/dev/null || echo 2)
   for s in $SEEDS; do
-    ( timeout "${STATION_BOSS_TIMEOUT:-3600}" "$GODOT" --headless --path . -s tools/full_run.gd -- --wizards=4 "--seed=$s" >"$out/$s.log" 2>&1 ) &
+    ( timeout -k 30 "${STATION_BOSS_TIMEOUT:-3600}" "$GODOT" --headless --path . -s tools/full_run.gd -- --wizards=4 "--seed=$s" >"$out/$s.log" 2>&1 ) &
     n=$((n + 1)); (( n % cores == 0 )) && wait
   done
   wait
@@ -104,23 +112,23 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   local limit="${P95:-${STATION_FRAME_P99_MS:-0}}" dir port="${STATION_FRAMES_PORT:-7811}" lib out line server runner=()
   dir="${TMPDIR:-/tmp}/station-frames-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) lib=realm_godot.dll ;; Darwin) lib=librealm_godot.dylib ;; *) lib=librealm_godot.so ;; esac
-  ( cd realm && cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/godot && cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
+  ( cd realm && timeout -k 30 3600 cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/godot && timeout -k 30 3600 cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
     && cp "realm/godot/target/release/$lib" realm/client/bin/ || { echo "JOB frames FAIL build: $(tail -2 "$dir/build.log" | tr '\n' ' ' | cut -c1-160)"; return 1; }
   # A fresh clone's first import does its work and then aborts while quitting: the second is clean.
-  ( timeout 180 "$GODOT" --headless --path realm/client --import || timeout 180 "$GODOT" --headless --path realm/client --import ) >"$dir/import.log" 2>&1 || true
+  ( timeout -k 30 180 "$GODOT" --headless --path realm/client --import || timeout -k 30 180 "$GODOT" --headless --path realm/client --import ) >"$dir/import.log" 2>&1 || true
   if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1; then runner=(xvfb-run -a -s "-screen 0 1440x810x24"); fi
   # 1,200 bots, 25,000 monsters, half the bots rallied at the heart: a screen at zoom 16 holds 10,000 and more.
   realm/target/release/realm-server --port="$port" --bots=1200 --monsters=25000 --rally=0.5 --threads=2 --report=600 >"$dir/server.log" 2>&1 &
   server=$!
   sleep 5
   kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
-  out=$(timeout "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
+  out=$(timeout -k 30 "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
   line=$(grep '^CLIENT_FRAMES ' <<<"$out" | tail -1)
   # Pictures for Curtis, at most once in 20 hours a machine: the same battle at zoom 16 (already saved), 4 and 2,
   # pushed to the results branch as shots/<machine>-zoom<N>.png (overwritten, so the branch holds only the newest).
   local stamp="${TMPDIR:-/tmp}/station-shots-stamp-$MACHINE"
   if [ "$push" = 1 ] && [ "${STATION_SHOTS:-1}" = 1 ] && [[ "$line" == "CLIENT_FRAMES ok"* ]] && [ -z "$(find "$stamp" -mmin -1200 2>/dev/null)" ]; then
-    timeout 120 "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots_near" --secs=3 --zooms=4,2 --mute >/dev/null 2>&1 || true
+    timeout -k 30 120 "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots_near" --secs=3 --zooms=4,2 --mute >/dev/null 2>&1 || true
     cp "$dir"/shots_near/zoom*.png "$dir/shots/" 2>/dev/null
     publish_shots "$dir/shots" && touch "$stamp"
   fi
@@ -150,13 +158,13 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
   local c out line bad=0 detail=""
   for c in realm/check.sh realm/store/check.sh; do
     [ -f "$c" ] || continue
-    out=$(timeout "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
+    out=$(timeout -k 30 "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
     else bad=$((bad + 1)); detail+=" | $c: $(fail_detail <<<"$out") $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   done
   if [ "$(uname -s)" = Linux ] && command -v "$GODOT" >/dev/null 2>&1 && [ -f realm/check_client.sh ]; then  # the client against a real server, on Linux machines with Godot
     local runner=(); [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null 2>&1 && runner=(xvfb-run -a)
-    out=$(GODOT="$GODOT" timeout "${STATION_REALM_TIMEOUT:-3600}" "${runner[@]}" bash realm/check_client.sh 2>&1); line=$(tail -1 <<<"$out")
+    out=$(GODOT="$GODOT" timeout -k 30 "${STATION_REALM_TIMEOUT:-3600}" "${runner[@]}" bash realm/check_client.sh 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == "REALM_CLIENT ok "* ]]; then detail+=" | ${line:0:120}"
     else bad=$((bad + 1)); detail+=" | realm/check_client.sh: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   fi
@@ -167,7 +175,7 @@ job_ops() {  # one line: realm-ops rehearse on this machine's own disk
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB ops FAIL cargo is not installed on this station"; return 1; }
   local out line dir="${TMPDIR:-/tmp}/station-ops-$MACHINE"
-  out=$(cd realm && cargo build --release -j2 -p realm-ops --bin realm-ops 2>&1 && timeout 600 target/release/realm-ops rehearse --dir="$dir" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && timeout -k 30 3600 cargo build --release -j2 -p realm-ops --bin realm-ops 2>&1 && timeout -k 30 600 target/release/realm-ops rehearse --dir="$dir" 2>&1); line=$(tail -1 <<<"$out")
   rm -rf "$dir"
   if [[ "$line" == "OPS ok "* ]]; then echo "JOB ops PASS ${line:7:300}"; return 0; fi
   echo "JOB ops FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; return 1
@@ -177,7 +185,7 @@ job_economy() {  # one line: realm-economy's summary; recorded, never a failure 
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB economy FAIL cargo is not installed on this station"; return 1; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout "${STATION_ECONOMY_TIMEOUT:-900}" target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-1000}" --days="${STATION_ECONOMY_DAYS:-30}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && timeout -k 30 3600 cargo build --release -j2 -p realm-gateway --bin realm-economy 2>&1 && timeout -k 30 "${STATION_ECONOMY_TIMEOUT:-900}" target/release/realm-economy --bots="${STATION_ECONOMY_BOTS:-1000}" --days="${STATION_ECONOMY_DAYS:-30}" --seed=$seed --quiet --db="${TMPDIR:-/tmp}/station-economy.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-economy.db*
   if [[ "$line" == "ECONOMY ok "* ]]; then echo "JOB economy INFO seed=$seed ${line:8:260}"; else echo "JOB economy INFO seed=$seed $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
@@ -187,7 +195,7 @@ job_balance() {  # one line: the careers' BALANCE summary (docs/realm/balance.md
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB balance SKIP cargo is not installed on this station"; return 0; }
   local out line
-  out=$(cd realm && cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout "${STATION_BALANCE_TIMEOUT:-1800}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-16}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && timeout -k 30 3600 cargo build --release -j2 -p realm-loadtest 2>&1 && BOT_THREADS="${STATION_BALANCE_THREADS:-2}" timeout -k 30 "${STATION_BALANCE_TIMEOUT:-1800}" target/release/realm-loadtest balance career "${STATION_BALANCE_SEEDS:-1}" "${STATION_BALANCE_PER:-1}" "${STATION_BALANCE_MINUTES:-5}" "${STATION_BALANCE_FAST:-16}" "${STATION_BALANCE_HOURS:-40}" 2>&1); line=$(tail -1 <<<"$out")
   if [[ "$line" == "BALANCE "* ]]; then echo "JOB balance INFO ${line:8:260}"; else echo "JOB balance INFO $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-260)"; fi
   return 0
 }
@@ -195,7 +203,7 @@ job_soak() {  # one line: realm-soak's summary
   command -v cargo >/dev/null 2>&1 || PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
   command -v cargo >/dev/null 2>&1 || { echo "JOB soak FAIL cargo is not installed on this station"; return 1; }
   local secs="${STATION_SOAK_SECS:-7200}" out line
-  out=$(cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout $((secs + 900)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$secs" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="${TMPDIR:-/tmp}/station-soak.db" 2>&1); line=$(tail -1 <<<"$out")
+  out=$(cd realm && timeout -k 30 3600 cargo build --release -j2 -p realm-gateway --bin realm-soak 2>&1 && timeout -k 30 $((secs + 900)) target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$secs" --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="${TMPDIR:-/tmp}/station-soak.db" 2>&1); line=$(tail -1 <<<"$out")
   rm -f "${TMPDIR:-/tmp}"/station-soak.db*
   if [[ "$line" == "SOAK ok "* ]]; then echo "JOB soak PASS ${line:0:300}"; return 0; fi
   echo "JOB soak FAIL $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; return 1
@@ -245,17 +253,17 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
   command -v cargo >/dev/null 2>&1 || { echo "JOB deep SKIP cargo is not installed on this station"; return 2; }
   local seed=$(( (RANDOM << 15 | RANDOM) % 1000000 + 1 )) field=$(( RANDOM % 6 )) out bad=0 detail="" dir rc
   dir="${TMPDIR:-/tmp}/station-deep-$MACHINE"; rm -rf "$dir"; mkdir -p "$dir"
-  ( cd realm && cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/store && cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
+  ( cd realm && timeout -k 30 3600 cargo build --release -j2 -q ) >"$dir/build.log" 2>&1 && ( cd realm/store && timeout -k 30 3600 cargo build --release -j2 -q ) >>"$dir/build.log" 2>&1 \
     || { echo "JOB deep FAIL build, last 40 lines:"; tail -40 "$dir/build.log" | tr -d '\r' | cut -c1-300 | sed 's/^/  /'; rm -rf "$dir"; return 1; }
   interrupted() { rm -rf "$dir"; echo "JOB deep INTERRUPTED a merge landed (seed=$seed)"; return 3; }
   pending_merge && { interrupted; return 3; }
-  step_run "$dir/fuzz.out" timeout 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz"; rc=$?
+  step_run "$dir/fuzz.out" timeout -k 30 1800 realm/store/target/release/realm-store fuzz --seed=$seed --ops="${STATION_DEEP_OPS:-50000}" --kills=200 --dir="$dir/fuzz"; rc=$?
   [ $rc = 99 ] && { interrupted; return 3; }
   out=$(cat "$dir/fuzz.out")
   if [ $rc = 0 ]; then detail+=" | fuzz seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
   else bad=$((bad + 1)); detail+=" | fuzz seed=$seed FAILED: $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   pending_merge && { interrupted; return 3; }
-  step_run "$dir/bench.out" timeout 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300; rc=$?
+  step_run "$dir/bench.out" timeout -k 30 1800 realm/target/release/realm-server --bench --field=$field --seed=$seed --bots=1000 --monsters=20000 --rally=0.3 --threads=2 --ticks="${STATION_DEEP_TICKS:-600}" --warmup=100 --report=300; rc=$?
   [ $rc = 99 ] && { interrupted; return 3; }
   out=$(cat "$dir/bench.out")
   if [ $rc = 0 ]; then detail+=" | bench field=$field seed=$seed $(tail -1 <<<"$out" | cut -c1-140)"
@@ -263,8 +271,8 @@ job_deep() {  # between merges: a fresh seed each pass; a big crash fuzz of the 
   local ssecs="${STATION_DEEP_SOAK_SECS:-900}"  # a time-boxed soak with a fresh seed (0 = none); the per-merge soak job is gone from roles.txt
   if [ "$ssecs" -gt 0 ]; then
     pending_merge && { interrupted; return 3; }
-    ( cd realm && cargo build --release -j2 -p realm-gateway --bin realm-soak ) >"$dir/soakbuild.out" 2>&1
-    step_run "$dir/soak.out" timeout $((ssecs + 600)) realm/target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$ssecs" --seed=$seed --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$dir/soak.db"; rc=$?
+    ( cd realm && timeout -k 30 3600 cargo build --release -j2 -p realm-gateway --bin realm-soak ) >"$dir/soakbuild.out" 2>&1
+    step_run "$dir/soak.out" timeout -k 30 $((ssecs + 600)) realm/target/release/realm-soak --bots="${STATION_SOAK_BOTS:-40}" --secs="$ssecs" --seed=$seed --fields=0,1,2,3,4,5 --monsters=3000 --progress=0 --fast --db="$dir/soak.db"; rc=$?
     [ $rc = 99 ] && { interrupted; return 3; }
     out=$(cat "$dir/soak.out")
     if [[ "$(tail -1 <<<"$out")" == "SOAK ok "* ]]; then detail+=" | soak seed=$seed $(tail -1 <<<"$out" | cut -c1-120)"
@@ -398,6 +406,16 @@ heartbeat_reap() {
   done
 }
 restart() { heartbeat_stop; exec bash tools/station/station.sh "$@"; }
+SELF_WARN=""
+self_ok() {  # the new tree must parse before it is exec'd; on a bad tree keep the loaded code (started = what is on disk now, so the next good commit differs)
+  local f bad="" r
+  for f in tools/station/station.sh tools/station/queue_lib.sh tools/station/jobs/*.sh; do bash -n "$f" 2>/dev/null || bad+=" $f"; done
+  r=$(grep -i "^$MACHINE:" tools/station/roles.txt 2>/dev/null | head -1 | cut -d: -f2-)
+  [ -z "$r" ] || { role_ok "$r" 2>/dev/null && grep -qwE 'boss|checks|frames|golden|realm|soak|world|economy|ops|balance|idle' <<<"$r"; } || bad+=" roles.txt"  # unknown word, or no job named: both stop a starting station
+  [ -z "$bad" ] && return 0
+  SELF_WARN="station: NOT restarting, the new commit has a broken script:$bad; running the loaded code"
+  echo "$SELF_WARN" >&2; started=$(self_sum); return 1
+}
 self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
 deep_has_room() { q_free_mb_set; [ -z "$Q_FREE_MB" ] || [ "$Q_FREE_MB" -ge "${STATION_DEEP_FREE_MB:-2048}" ]; }  # the same RAM gate the queue has
@@ -429,8 +447,8 @@ run_once() {
   fi
   git checkout -q --detach "$head"
   # This commit changed the script: restart first, so the commit is tested by its own version (the state is not saved yet).
-  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ]; then restart "${ARGS[@]}"; fi
-  local start=$SECONDS failed=0 body="" skipped=0 run=() j
+  if [ "$watch" = 1 ] && [ "$(self_sum)" != "$started" ] && self_ok; then restart "${ARGS[@]}"; fi
+  local start=$SECONDS failed=0 body="${SELF_WARN:+$SELF_WARN$'\n'}" skipped=0 run=() j
   local base changed="" known=0; base=$(cat "$STATE" 2>/dev/null)
   if [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null); then known=1; fi
   for j in "${jobs[@]}"; do
@@ -481,10 +499,11 @@ if [ "$watch" = 1 ]; then
   hours_init
   while true; do
     run_once; rc=$?
-    [ "$(self_sum)" = "$started" ] || restart "$@"
+    [ "$(self_sum)" = "$started" ] || ! self_ok || restart "$@"
     if [ $rc != 3 ]; then after_merge=1; hours_mark busy; fi  # a merge was just tested: the next deep pass is published
-    if [ $rc = 3 ] && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main: the next job of the work queue, if there is one
-      queue_step; qrc=$?
+    if { [ $rc = 3 ] || [ $rc = 2 ]; } && [ "$queue" = 1 ] && [ "$push" = 1 ]; then  # nothing new on main (or a fetch failed / a dirty clone): the next job of the work queue, if there is one
+      Q_FAST_FAIL=0; queue_step; qrc=$?
+      [ "${Q_FAST_FAIL:-0}" = 1 ] && { echo "station: the queue job failed within a minute; waiting ${STATION_QUEUE_FAIL_SLEEP:-300} s"; sleep "${STATION_QUEUE_FAIL_SLEEP:-300}"; }
       if [ $qrc = 0 ] || [ $qrc = 3 ]; then hours_mark busy; continue; fi  # ran one (or a merge cut it short): look at main again
     fi
     if [ $rc = 3 ] && [ "$deep" = 1 ] && ! deep_has_room; then echo "SKIP deep pass: needs ${STATION_DEEP_FREE_MB:-2048} MB free RAM, only $Q_FREE_MB MB free" >&2; sleep "$POLL"; hours_mark idle; continue; fi
