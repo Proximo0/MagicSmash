@@ -41,7 +41,11 @@ jobs:
           (cd realm && cargo build --release -q)
           godot --headless --path realm/client --import >/dev/null 2>&1 || godot --headless --path realm/client --import >/dev/null 2>&1 || true
       - name: record
-        run: tools/video/record.sh out
+        run: |
+          tools/video/record.sh out
+          # A close look at the monsters: few bots, so the horde comes to the recorded hero.
+          BOTS=6 CLIPS="0 1 20 0 0;2 1 20 2 1" tools/video/record.sh close
+          mv close/video.mp4 out/close.mp4
       - uses: actions/upload-artifact@v4
         with:
           name: gameplay-video
