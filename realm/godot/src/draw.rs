@@ -99,6 +99,25 @@ pub const CHAMP_SCALE: f32 = 1.6;
 const DEAD: [f32; 4] = [0.55, 0.55, 0.6, 0.45];
 /// Bob seeds run 1..=BOB_SEEDS so neighbours bob out of step.
 const BOB_SEEDS: usize = 31;
+/// Instance float 14 is `kind + STATE_STEP * state` and float 15 is `bob + BOB_STEP * age` (age in ticks since
+/// the state began; heroes are always state 0, age 0). The shader (figures.gdshader) decodes both.
+pub const STATE_STEP: usize = 64;
+pub const BOB_STEP: usize = 32;
+/// States: the walk strip (or a still), the attack, hit and die strips.
+pub const ST_WALK: usize = 0;
+pub const ST_ATK: usize = 1;
+pub const ST_HIT: usize = 2;
+pub const ST_DIE: usize = 3;
+/// Ticks a hit strip plays (FieldAnim.HIT_S 0.15 s at 20 a second), an attack strip 6 (ATK_S 0.3), a die strip
+/// (DIE_S 0.6): the shader spreads the strip's frames over them.
+pub const HIT_TICKS: u32 = 3;
+pub const DIE_TICKS: u32 = 12;
+/// A corpse holds the die strip's last frame this many ticks more, fading out.
+pub const FADE_TICKS: u32 = 8;
+/// The core keeps no attack timer for monsters: one within this many px of a living hero is attacking (the
+/// core's contact reach is 20 px), repeating its strip every ATK_PERIOD ticks (the core's contact cadence).
+const ATTACK_PX: i32 = 24;
+const ATK_PERIOD: u32 = 10;
 
 /// Where each id stood at the last call, and in which call.
 #[derive(Default)]
@@ -108,7 +127,19 @@ struct Seen {
     call: Vec<u32>,
     /// Which way each id last moved sideways: -1 left, 1 right (a monster is drawn mirrored by it).
     face: Vec<f32>,
+    /// The call at which each id was last hurt (monsters only).
+    hit_at: Vec<u32>,
     now: u32,
+}
+
+/// A monster that died in view: drawn playing its die strip where it fell, until it has faded.
+struct Ghost {
+    x: i32,
+    y: i32,
+    kind: u8,
+    scale: f32,
+    face: f32,
+    born: u32,
 }
 
 impl Seen {
@@ -119,6 +150,7 @@ impl Seen {
             self.y.resize(ids, 0);
             self.call.resize(ids, 0);
             self.face.resize(ids, 1.0);
+            self.hit_at.resize(ids, 0);
         }
     }
 
@@ -143,32 +175,67 @@ pub struct DrawState {
     monsters: Seen,
     players: Seen,
     order: Vec<(i32, u32)>,
+    ghosts: Vec<Ghost>,
 }
 
 /// One figure into a draw buffer. The shader moves vertices before the instance's transform scales them, so
 /// the offset back to the previous position goes in divided by the scale (a figure facing left has -1).
 fn put(out: &mut Vec<f32>, x: i32, y: i32, sx: f32, sy: f32, tint: [f32; 4], back: (f32, f32), frame: usize, bob: usize) {
+    put_state(out, x, y, sx, sy, tint, back, frame, ST_WALK, bob, 0);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn put_state(out: &mut Vec<f32>, x: i32, y: i32, sx: f32, sy: f32, tint: [f32; 4], back: (f32, f32), frame: usize, state: usize, bob: usize, age: u32) {
     let (fx, fy) = (x as f32 / SUB as f32, y as f32 / SUB as f32);
     out.extend_from_slice(&[sx, 0.0, 0.0, fx, 0.0, sy, 0.0, fy]);
     out.extend_from_slice(&tint);
-    out.extend_from_slice(&[back.0 / sx, back.1 / sy, frame as f32, bob as f32]);
+    out.extend_from_slice(&[back.0 / sx, back.1 / sy, (frame + STATE_STEP * state) as f32, (bob + BOB_STEP * age as usize) as f32]);
 }
 
 impl DrawState {
-    /// Every live monster in `r`, deepest first: frame = kind, elites larger and gold, hurt ones red.
+    /// Every live monster in `r`, deepest first: frame = kind, elites larger and gold, hurt ones red. A monster
+    /// hurt in the last HIT_TICKS calls shows its hit strip, one within reach of a living hero its attack strip,
+    /// and one that was drawn at the previous call but is dead now stays as a ghost on its die strip (all read
+    /// from the field; the field keeps no clock for them, so this buffer does).
     pub fn monsters(&mut self, f: &Field, r: SubRect) -> Vec<f32> {
         let m = f.monsters();
         self.monsters.begin(m.hp.len());
+        let now = self.monsters.now;
+        let n = m.hp.len();
+        // Deaths since the last call, from where they stood.
+        for i in 0..n {
+            if m.hp[i] == 0 && self.monsters.call[i] != 0 && self.monsters.call[i] + 1 == now {
+                let (x, y) = (self.monsters.x[i], self.monsters.y[i]);
+                let s = if m.is_champion(i) { CHAMP_SCALE } else if m.is_elite(i) { ELITE_SCALE } else { 1.0 };
+                self.ghosts.push(Ghost { x, y, kind: m.kind[i], scale: s, face: self.monsters.face[i], born: now });
+            }
+        }
+        self.ghosts.retain(|g| now - g.born < DIE_TICKS + FADE_TICKS);
+        let heroes: Vec<(i32, i32)> = f.players().iter().filter(|p| p.present && p.alive()).map(|p| (p.x, p.y)).collect();
+        let reach = ATTACK_PX as i64 * SUB as i64;
         self.order.clear();
-        for i in 0..m.hp.len() {
+        for i in 0..n {
             if m.hp[i] > 0 && r.contains(m.x[i], m.y[i]) {
                 self.order.push((m.y[i], i as u32));
+            }
+        }
+        for (k, g) in self.ghosts.iter().enumerate() {
+            if r.contains(g.x, g.y) {
+                self.order.push((g.y, (n + k) as u32));
             }
         }
         self.order.sort_unstable();
         let mut out = Vec::with_capacity(self.order.len() * STRIDE);
         for &(_, id) in &self.order {
             let i = id as usize;
+            if i >= n {
+                let g = &self.ghosts[i - n];
+                let age = now - g.born;
+                let fade = age.saturating_sub(DIE_TICKS) as f32 / FADE_TICKS as f32;
+                let tint = [0.8, 0.8, 0.8, 1.0 - fade];
+                put_state(&mut out, g.x, g.y, g.scale * g.face, g.scale, tint, (0.0, 0.0), monster_frame(g.kind), ST_DIE, 0, age);
+                continue;
+            }
             let (elite, champ) = (m.is_elite(i), m.is_champion(i));
             let s = if champ { CHAMP_SCALE } else if elite { ELITE_SCALE } else { 1.0 };
             let tint = if m.hurt[i] != 0 {
@@ -187,10 +254,24 @@ impl DrawState {
                 WHITE
             };
             let back = self.monsters.back(i, m.x[i], m.y[i]);
+            if m.hurt[i] != 0 {
+                self.monsters.hit_at[i] = now;
+            }
             // A monster that moved since the last call steps through its walk frames, out of step with its
             // neighbours by its slot; one standing still shows frame 0.
             let bob = if back != (0.0, 0.0) { 1 + i % BOB_SEEDS } else { 0 };
-            put(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), bob);
+            let since_hit = now - self.monsters.hit_at[i];
+            let (state, age) = if self.monsters.hit_at[i] != 0 && since_hit < HIT_TICKS {
+                (ST_HIT, since_hit)
+            } else if m.stun[i] == 0 && heroes.iter().any(|&(hx, hy)| {
+                let (dx, dy) = ((hx - m.x[i]) as i64, (hy - m.y[i]) as i64);
+                dx * dx + dy * dy <= reach * reach
+            }) {
+                (ST_ATK, (now + i as u32) % ATK_PERIOD)
+            } else {
+                (ST_WALK, 0)
+            };
+            put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, monster_frame(m.kind[i]), state, bob, age);
         }
         out
     }
@@ -276,8 +357,9 @@ mod tests {
         let now = monsters_in(&f, ALL);
         let mut blended = 0;
         // A monster steps its walk frames (a bob seed) exactly when it has an offset back to blend from.
-        assert!(next.chunks(STRIDE).all(|c| (c[15] > 0.0) == (c[12] != 0.0 || c[13] != 0.0) && c[15] <= BOB_SEEDS as f32));
-        assert!(first.chunks(STRIDE).all(|c| c[15] == 0.0), "standing monsters show frame 0");
+        let walking = |c: &[f32]| c[14] < STATE_STEP as f32;
+        assert!(next.chunks(STRIDE).filter(|c| walking(c)).all(|c| (c[15] > 0.0) == (c[12] != 0.0 || c[13] != 0.0) && c[15] <= BOB_SEEDS as f32));
+        assert!(first.chunks(STRIDE).filter(|c| walking(c)).all(|c| c[15] == 0.0), "standing monsters show frame 0");
         // Depth order: feet lower on screen come later.
         assert!(next.chunks(STRIDE).zip(next.chunks(STRIDE).skip(1)).all(|(a, b)| a[7] <= b[7]));
         for m in now.chunks(5) {
@@ -311,6 +393,81 @@ mod tests {
         let b = d.players(&f, ALL, Some(0));
         assert_eq!(b[0], -1.0);
         assert!((b[12] * b[0] - walked).abs() < 1e-3, "{}", b[12]);
+    }
+
+    fn lone(hero_at: Option<i32>) -> (Field, usize) {
+        let mut f = Field::new(9, Config { monsters: 1, threads: 1 });
+        join(&mut f, 1, 0, hero_at.unwrap_or(100) * SUB, 100 * SUB);
+        let m = f.monsters_mut();
+        (m.x[0], m.y[0], m.hp[0]) = (2000 * SUB, 2000 * SUB, 50);
+        (f, 0)
+    }
+
+    fn states(b: &[f32]) -> Vec<(usize, usize, u32)> {
+        b.chunks(STRIDE).map(|c| (c[14] as usize / STATE_STEP, c[14] as usize % STATE_STEP, c[15] as u32 / BOB_STEP as u32)).collect()
+    }
+
+    #[test]
+    fn a_monster_far_from_heroes_walks_and_one_in_reach_attacks() {
+        let (mut f, _) = lone(None);
+        let mut d = DrawState::default();
+        assert_eq!(states(&d.monsters(&f, ALL)), vec![(ST_WALK, 0, 0)], "no strips needed for the old look");
+        let m = f.monsters_mut();
+        (m.x[0], m.y[0]) = (110 * SUB, 100 * SUB);
+        let a = states(&d.monsters(&f, ALL));
+        assert_eq!((a[0].0, a[0].1), (ST_ATK, 0));
+        assert!(a[0].2 < ATK_PERIOD);
+    }
+
+    #[test]
+    fn a_hit_plays_for_a_few_calls() {
+        let (mut f, _) = lone(None);
+        let mut d = DrawState::default();
+        d.monsters(&f, ALL);
+        f.monsters_mut().hurt[0] = 1;
+        assert_eq!(states(&d.monsters(&f, ALL))[0], (ST_HIT, 0, 0));
+        f.monsters_mut().hurt[0] = 0;
+        assert_eq!(states(&d.monsters(&f, ALL))[0], (ST_HIT, 0, 1));
+        assert_eq!(states(&d.monsters(&f, ALL))[0], (ST_HIT, 0, 2));
+        assert_eq!(states(&d.monsters(&f, ALL))[0].0, ST_WALK, "back to walking after HIT_TICKS");
+    }
+
+    #[test]
+    fn a_death_leaves_one_ghost_that_fades_and_expires() {
+        let (mut f, _) = lone(None);
+        let mut d = DrawState::default();
+        assert_eq!(d.monsters(&f, ALL).len(), STRIDE);
+        f.monsters_mut().hp[0] = 0;
+        let b = d.monsters(&f, ALL);
+        assert_eq!(b.len(), STRIDE, "the corpse stays");
+        assert_eq!(states(&b)[0], (ST_DIE, 0, 0));
+        assert_eq!((b[3], b[7]), (2000.0, 2000.0));
+        assert_eq!(b[11], 1.0);
+        let mut calls = 1;
+        let mut last = b;
+        loop {
+            let b = d.monsters(&f, ALL);
+            if b.is_empty() {
+                break;
+            }
+            assert_eq!(b.len(), STRIDE, "once, not again");
+            assert_eq!(states(&b)[0].2, calls);
+            last = b;
+            calls += 1;
+            assert!(calls < 100);
+        }
+        assert_eq!(calls, DIE_TICKS + FADE_TICKS);
+        assert!(last[11] < 0.2, "faded by the end: {}", last[11]);
+        assert!(d.monsters(&f, ALL).is_empty(), "never again");
+    }
+
+    #[test]
+    fn a_monster_that_left_the_view_alive_leaves_no_ghost() {
+        let (f, _) = lone(None);
+        let mut d = DrawState::default();
+        d.monsters(&f, ALL);
+        let away = SubRect { x0: 0, y0: 0, x1: 500 * SUB, y1: 500 * SUB };
+        assert!(d.monsters(&f, away).is_empty());
     }
 
     #[test]
