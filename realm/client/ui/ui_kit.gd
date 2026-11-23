@@ -31,9 +31,23 @@ const RUNES: Array = [
 	[[0.1, 0.0, 0.5, 0.5], [0.5, 0.5, 0.9, 0.0], [0.5, 0.5, 0.5, 1.0]]]
 
 static var _font: Font = null
+static var _display: Font = null
+## The fonts shipped with the game (ui/fonts, licences beside them), so every computer shows the same text.
+const FONT_BODY: String = "res://ui/fonts/DejaVuSerif.ttf"
+const FONT_DISPLAY: String = "res://ui/fonts/IMFellDWPica.ttf"
 
 
+## The shipped font file, or null when it has not been imported (then a system serif stands in).
+static func _shipped(path: String) -> Font:
+	if ResourceLoader.exists(path):
+		return load(path) as Font
+	return null
+
+
+## The text font: the shipped serif, else the first system serif of FONT_NAMES.
 static func font() -> Font:
+	if _font == null:
+		_font = _shipped(FONT_BODY)
 	if _font == null:
 		var sf := SystemFont.new()
 		sf.font_names = FONT_NAMES
@@ -42,13 +56,22 @@ static func font() -> Font:
 	return _font
 
 
-static func text_width(s: String, size: int) -> float:
-	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+## The display font for the game's name and screen titles (old print letters; its numerals are old style, so
+## never use it for numbers).
+static func display_font() -> Font:
+	if _display == null:
+		_display = _shipped(FONT_DISPLAY)
+	if _display == null:
+		_display = font()
+	return _display
 
 
-## Text with its top-left at `pos`. `align` LEFT, CENTER (pos.x is the middle), RIGHT (pos.x is the right edge).
-static func text(ci: CanvasItem, pos: Vector2, s: String, size: int = 14, col: Color = BONE, align: int = HORIZONTAL_ALIGNMENT_LEFT, shadow: bool = true) -> void:
-	var f: Font = font()
+static func text_width(s: String, size: int, f: Font = null) -> float:
+	return (f if f != null else font()).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+static func text(ci: CanvasItem, pos: Vector2, s: String, size: int = 14, col: Color = BONE, align: int = HORIZONTAL_ALIGNMENT_LEFT, shadow: bool = true, with: Font = null) -> void:
+	var f: Font = with if with != null else font()
 	var w: float = f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var x: float = pos.x
 	if align == HORIZONTAL_ALIGNMENT_CENTER:
@@ -111,8 +134,9 @@ static func rune(ci: CanvasItem, at: Vector2, idx: int, size: float, col: Color 
 
 ## A rune each side of a title, and a rule under it.
 static func title(ci: CanvasItem, centre: Vector2, s: String, size: int = 26, col: Color = BONE) -> void:
-	text(ci, centre, s, size, col, HORIZONTAL_ALIGNMENT_CENTER)
-	var w: float = text_width(s, size)
+	var f: Font = display_font()
+	text(ci, centre, s, size, col, HORIZONTAL_ALIGNMENT_CENTER, true, f)
+	var w: float = text_width(s, size, f)
 	var y: float = centre.y + size * 0.1
 	rune(ci, Vector2(centre.x - w / 2.0 - size * 1.2, y), 0, size * 0.8, GOLD)
 	rune(ci, Vector2(centre.x + w / 2.0 + size * 0.4, y), 3, size * 0.8, GOLD)
