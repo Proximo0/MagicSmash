@@ -19,6 +19,22 @@ B="$(find_exe)"
 if [ -n "$B" ] && ! "$B" --version >/dev/null 2>&1; then   # a half-unpacked copy: the program is there but cannot start
   echo "blender: $B does not start, unpacking again" >&2; rm -rf "$T/blender"; B=""
 fi
+installed() {   # a Blender the owner already installed (4.2 or newer: the body generator needs extensions), newest first
+  local c v
+  { command -v blender 2>/dev/null
+    ls -d "/c/Program Files/Blender Foundation"/Blender*/blender.exe "/c/Program Files (x86)/Steam/steamapps/common/Blender/blender.exe" \
+      "/c/Program Files/Steam/steamapps/common/Blender/blender.exe" /opt/blender*/blender /snap/bin/blender 2>/dev/null | sort -rV
+  } | while read -r c; do
+    v=$("$c" --version 2>/dev/null | tr -d '\r' | sed -nE '1s/^Blender ([0-9]+)\.([0-9]+).*/\1 \2/p')
+    set -- $v
+    [ -n "${1:-}" ] && { [ "$1" -gt 4 ] || { [ "$1" = 4 ] && [ "$2" -ge 2 ]; }; } && { echo "$c"; break; }
+  done
+}
+rm -f "$T/blender_path"
+if [ -z "$B" ]; then
+  B="$(installed)"
+  [ -n "$B" ] && { echo "$B" >"$T/blender_path"; checked=installed; }
+fi
 if [ -z "$B" ]; then
   base="https://download.blender.org/release"
   ser=$(curl -fsSL "$base/" | grep -oE 'Blender[0-9]+\.[0-9]+/' | sort -V | uniq | tail -4 | tac)
@@ -47,7 +63,7 @@ if [ -z "$B" ]; then
   [ -n "$B" ] || { echo "FAIL blender unpacked but $exe not found under $T/blender"; exit 1; }
   checked=$([ -n "$sum" ] && echo yes || echo no-list)
 else
-  checked=kept
+  checked=${checked:-kept}
 fi
 if [ ! -d "$T/mpfb2/src/mpfb" ]; then
   git clone -q --depth 1 https://github.com/makehumancommunity/mpfb2 "$T/mpfb2" 2>"$art/$m-mpfb.txt" || { echo "FAIL blender mpfb clone: $(tail -1 "$art/$m-mpfb.txt" | cut -c1-120)"; exit 1; }
@@ -84,7 +100,7 @@ rc=$?
 line=$(grep -a "^SELFTEST" "$log" | tail -1 | tr -d '\r')
 gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1 | tr -d '\r'); [ -n "$gpu" ] || gpu=none
 if [ -n "$line" ] && [ -s "$art/$m-blender-human.png" ]; then
-  echo "PASS blender ${line#SELFTEST } mpfb=$mp archive_checksum=$checked gpu=[$gpu] at=$T"
+  echo "PASS blender ${line#SELFTEST } mpfb=$mp archive_checksum=$checked gpu=[$gpu] at=$B"
 else
   ver=$("$B" --version 2>&1 | head -1 | tr -d '\r')
   echo "FAIL blender self test exit=$rc version=[$ver] files=$(find "$T/blender" -type f 2>/dev/null | wc -l): $(grep -aiE 'error|traceback|exception' "$log" | tail -2 | tr '\n' ' ' | cut -c1-300) last: $(tail -2 "$log" | tr -d '\r' | tr '\n' ' ' | cut -c1-200)"; exit 1
