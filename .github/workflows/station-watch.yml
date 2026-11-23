@@ -39,3 +39,28 @@ jobs:
             gh issue edit "$open" --body "$body"
             gh issue comment "$open" --body "The list of problems changed; see the description above."
           fi
+      # Every job a PC failed in the last 2 days, kept in ONE issue with its rerun line, so a found fault is never lost
+      # in the results branch. Not assigned (the hourly lead check reads it); closed when the list is empty.
+      - name: failures
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Station failures: jobs that failed on a test PC"
+        run: |
+          git fetch -q origin station-results station-queue || true
+          since=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M)
+          fails=$(bash tools/station/queue.sh digest 2>/dev/null | awk '/^-- FAIL lines/ { f=1; next } /^-- / { f=0 } f && $1 != "none"' | awk -v s="$since" '$2 >= s' | cut -c1-400)
+          echo "$fails"
+          open=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+          if [ -z "$fails" ]; then
+            [ -n "$open" ] && gh issue close "$open" --comment "No job has failed on a test PC in the last 2 days."
+            exit 0
+          fi
+          body=$(printf '%s\n\n```\n%s\n```\n\n%s\n' "Jobs that failed on a test PC in the last 2 days (machine, time, job id, kind, detail with its seed or rerun line), newest first:" "$fails" "Each line needs a cause: a real fault gets a fix and a test, a station fault gets a station fix. Full detail: tools/station/queue.sh digest and branch station-results (work/<id>/).")
+          key() { grep -o 'id=[0-9-]* kind=[a-z]*' | sort -u; }
+          if [ -z "$open" ]; then
+            gh issue create --title "$TITLE" --body "$body"
+          elif [ "$(gh issue view "$open" --json body --jq .body | key)" != "$(key <<<"$fails")" ]; then
+            gh issue edit "$open" --body "$body"
+            gh issue comment "$open" --body "The list of failed jobs changed; see the description above."
+          fi
