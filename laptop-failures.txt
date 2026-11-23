@@ -40,3 +40,4 @@
 2026-11-23T19:47Z laptop queue 2026-11-23T19:47:15Z FAIL id=261123161439-1636 kind=shell secs=1299 wirefuzz iters=6000000 seed=336714 (rerun: WIRE_FUZZ_ITERS=6000000 WIRE_FUZZ_SEED=336714 cargo test --release --lib fuzz in realm/) 
 2026-11-23T19:47Z laptop 86fd336 JOB frames FAIL build: For more information about this error, try `rustc --explain E0463`. error: could not compile `realm-godot` (lib) due to 1 previous error   
 2026-11-23T19:57Z laptop queue 2026-11-23T19:57:16Z FAIL id=261122113654-5395 kind=economy secs=67 economy runs=1 bad=1 seed=205998 no ECONOMY ok line: timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied  
+2026-11-23T20:22Z laptop queue 2026-11-23T20:21:59Z FAIL id=261122113651-9566 kind=soak secs=67 soak seed=279425 secs=1800 timeout: failed to run command ‘realm/target/release/realm-soak’: Permission denied  
