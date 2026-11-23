@@ -7,6 +7,8 @@ Same camera as build_hero.py / build_beast.py (orthographic, ELEV 20, 125.5 px p
 = 31.4 px per metre, the heroes' density), same material-ID pass and post.py. Each building is turned toward the camera
 by its own `turn` (degrees off face-on). The picture is cropped to the building, symmetric about the building's centre
 (that column is the ground point), the bottom edge is the lowest pixel, 2 px of clear border all round.
+Home furniture and plaques (home_models.py) take their ids too (home_chair ... home_plaque_7; env HOME=1 = all of
+them) and are written as <art dir>/ui_<id>.png, same camera and density.
 Writes <art dir>/ui_town_<id>.png.  env: SAMPLES (48), KEY, AMB
 """
 import math
@@ -21,6 +23,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import town_lib as L  # noqa: E402
 import town_models as M  # noqa: E402
+import home_models as H  # noqa: E402
 
 E = os.environ.get
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -103,7 +106,7 @@ def render(spec, raw):
 
 def finish(spec, bid, outdir, art):
     raw = os.path.join(outdir, "raw_" + bid)
-    name = "town_" + bid
+    name = bid if bid.startswith("home_") else "town_" + bid
     subprocess.run([sys.executable, os.path.join(HERE, "post.py"), raw, os.path.join(outdir, name), name], check=True,
                    stdout=subprocess.DEVNULL, env=dict(os.environ, NOSHEET="1"))
     a = np.asarray(Image.open(os.path.join(outdir, name, name + "_still.png")).convert("RGBA"))
@@ -121,9 +124,12 @@ def finish(spec, bid, outdir, art):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     outdir, art, ids = argv[0], argv[1], argv[2:] or list(M.BUILDERS)
+    builders = dict(M.BUILDERS, **H.BUILDERS)
+    if not argv[2:] and E("HOME"):
+        ids = list(H.BUILDERS)
     for bid in ids:
         L.reset()
-        spec = M.BUILDERS[bid]()
+        spec = builders[bid]()
         raw = os.path.join(outdir, "raw_" + bid)
         render(spec, raw)
         finish(spec, bid, outdir, art)

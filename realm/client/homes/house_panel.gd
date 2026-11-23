@@ -98,7 +98,8 @@ func _mine_side(rx: float, y: float, rw: float) -> void:
 		var sel: bool = not in_house and int(it["id"]) == selected
 		draw_rect(r, Color(0.1, 0.06, 0.06) if sel else Color(0.07, 0.06, 0.07))
 		draw_rect(r, UiKit.GOLD if sel else Color(UiKit.GOLD_DIM, 0.3), false, 1.0)
-		UiKit.text(self, r.position + Vector2(6, 3), HomeMap.thing_name(int(it["base"])), 11, UiKit.BONE)
+		HomeDraw.draw_thing(self, int(it["base"]), int(it["rarity"]), r.position + Vector2(14, 11), 20.0)
+		UiKit.text(self, r.position + Vector2(28, 3), HomeMap.thing_name(int(it["base"])), 11, UiKit.BONE)
 	if things.is_empty():
 		UiKit.text(self, Vector2(rx, y + 20), "NONE: THE CARPENTER MAKES SOME", 11, UiKit.BONE_DIM)
 	button("pickup", Rect2(rx + rw - 150, y + 70, 150, 24), "PICK UP", in_house and selected != 0 and not busy, false, 12)
