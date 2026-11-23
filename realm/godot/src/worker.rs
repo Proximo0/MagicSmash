@@ -43,11 +43,18 @@ pub enum Cmd {
     Close,
 }
 
-/// The own hero at the latest input: where to draw her, and the plain prediction (px).
+/// The own hero at the latest input: where to draw her, and the plain prediction (px), with what the
+/// prediction was made from, all from one moment: the confirmed hero (px) at `tick` and the inputs replayed on
+/// top. Read these together; the frame and the counters are published at other moments.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Pose {
     pub shown: (f32, f32),
     pub predicted: (f32, f32),
+    pub confirmed: (f32, f32),
+    pub tick: u32,
+    pub unconfirmed: u32,
+    /// The hero is in the field and alive at `tick`.
+    pub alive: bool,
     /// Counts up on every change, so the main thread notices a new target.
     pub version: u32,
 }
@@ -168,10 +175,28 @@ impl Rates {
     }
 }
 
-fn pose_of(c: &LockstepClient) -> (f32, f32, f32, f32) {
+/// The pose now (`version` left 0).
+fn pose_of(c: &LockstepClient) -> Pose {
     let px = |p: Option<(i32, i32)>| p.map_or((0.0, 0.0), |(x, y)| (x as f32 / realm_core::SUB as f32, y as f32 / realm_core::SUB as f32));
-    let (s, p) = (px(c.predictor().shown()), px(c.predictor().predicted()));
-    (s.0, s.1, p.0, p.1)
+    let pr = c.predictor();
+    Pose {
+        shown: px(pr.shown()),
+        predicted: px(pr.predicted()),
+        confirmed: px(c.hero_player().map(|h| (h.x, h.y))),
+        tick: c.tick(),
+        unconfirmed: pr.unconfirmed() as u32,
+        alive: c.hero_player().is_some_and(|h| h.alive()),
+        version: 0,
+    }
+}
+
+/// Publishes the pose; the version counts up when anything in it changed.
+fn publish(shared: &Shared, now: Pose) {
+    let mut p = lock(&shared.pose);
+    let same = (p.shown, p.predicted, p.confirmed, p.tick, p.unconfirmed, p.alive) == (now.shown, now.predicted, now.confirmed, now.tick, now.unconfirmed, now.alive);
+    if !same {
+        *p = Pose { version: p.version + 1, ..now };
+    }
 }
 
 fn counters(c: &LockstepClient, r: &Rates) -> Counters {
@@ -217,9 +242,7 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
                     if client.welcomed() {
                         let d = client.input_word(input);
                         send(&sock, &mut rates, &d);
-                        let (sx, sy, px, py) = pose_of(&client);
-                        let mut p = lock(&shared.pose);
-                        *p = Pose { shown: (sx, sy), predicted: (px, py), version: p.version + 1 };
+                        publish(&shared, pose_of(&client));
                     }
                 }
                 Ok(Cmd::Close) | Err(TryRecvError::Disconnected) => break 'main,
@@ -256,13 +279,7 @@ fn run(sock: UdpSocket, mut client: LockstepClient, shared: Arc<Shared>, rx: Rec
             let t0 = Instant::now();
             let f = frame::build(&client, shared.view(), &mut draw);
             rates.build_ms = t0.elapsed().as_secs_f64() * 1000.0;
-            let (sx, sy, px, py) = pose_of(&client);
-            {
-                let mut p = lock(&shared.pose);
-                if p.shown != (sx, sy) || p.predicted != (px, py) {
-                    *p = Pose { shown: (sx, sy), predicted: (px, py), version: p.version + 1 };
-                }
-            }
+            publish(&shared, pose_of(&client));
             *lock(&shared.frame) = Some(f);
             shared.applied.fetch_add(n, Ordering::AcqRel);
         }
@@ -306,5 +323,116 @@ mod tests {
             }
         }
         assert!(got_bye, "a BYE on drop");
+    }
+
+    /// A server in miniature for one lockstep player (id 0): a field, its inputs, every encoded record.
+    struct Mini {
+        field: realm_core::Field,
+        ls: realm_server::lockstep::Lockstep,
+        recs: Vec<(u32, Vec<u8>)>,
+        sock: UdpSocket,
+    }
+
+    impl Mini {
+        fn tick(&mut self, joins: Vec<realm_server::lockstep::Join>, want: u16) {
+            use realm_server::lockstep::{TickRec, HASH_EVERY};
+            let mut rec = TickRec { tick: self.field.tick() + 1, joins, ..TickRec::default() };
+            rec.changes = self.ls.changes(&rec, &[want]);
+            assert!(self.ls.apply(&mut self.field, &rec, |_| {}));
+            if rec.tick.is_multiple_of(HASH_EVERY) {
+                rec.hash = Some(self.field.hash());
+            }
+            let mut b = Vec::new();
+            rec.encode(&mut b);
+            self.recs.push((rec.tick, b));
+        }
+
+        /// The records after `ack`, the player's input seq 0 in force at each (she sends none).
+        fn send(&self, ack: u32) {
+            use realm_server::lockstep::{pack_reserving, put_seq_head, seq_head_len};
+            let recs: Vec<(u32, &[u8])> = self.recs.iter().filter(|(t, _)| *t > ack).map(|(t, b)| (*t, b.as_slice())).collect();
+            let seqs = vec![0u32; recs.len()];
+            let mut out = Vec::new();
+            pack_reserving(&recs, seq_head_len(seqs.len()), &mut out);
+            put_seq_head(ack + 1, &seqs, &mut out[0]);
+            for d in out {
+                self.sock.send(&d).unwrap();
+            }
+        }
+    }
+
+    fn wait_for(what: &str, mut ok: impl FnMut() -> bool) {
+        let t0 = Instant::now();
+        while !ok() {
+            assert!(t0.elapsed() < Duration::from_secs(10), "waited 10 s for {what}");
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    #[test]
+    fn the_predicted_and_confirmed_hero_are_read_from_one_moment_after_a_stall() {
+        use realm_server::lockstep::{state_parts, Join, Lockstep};
+        let s = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let server = UdpSocket::bind("127.0.0.1:0").unwrap();
+        s.connect(server.local_addr().unwrap()).unwrap();
+        server.connect(s.local_addr().unwrap()).unwrap();
+        s.set_nonblocking(true).unwrap();
+        let mut m = Mini { field: realm_core::Field::new(5, realm_core::Config { monsters: 0, threads: 1 }), ls: Lockstep::default(), recs: Vec::new(), sock: server };
+        m.tick(vec![Join::bench(0, 1, 2, 1, FIELD / 2, FIELD / 2)], 0);
+        let w = Worker::start(s, LockstepClient::new(realm_server::PROTO_BP, 1, 2, 1));
+        m.sock.send(&realm_server::welcome(0, 1, None)).unwrap();
+        for p in state_parts(1, &m.ls.state_bytes(&m.field)) {
+            m.sock.send(&p).unwrap();
+        }
+        // The hero walks east on the server: 3 px a tick, all confirmed (she sends no input).
+        let east = 1;
+        for _ in 0..10 {
+            m.tick(Vec::new(), east);
+        }
+        m.send(1);
+        // The game's frame takes the newest frame (tick 11)...
+        let mut frame = None;
+        wait_for("tick 11", || {
+            if let Some((f, _)) = w.take() {
+                frame = Some(f);
+            }
+            frame.as_ref().is_some_and(|f| f.tick == 11)
+        });
+        let held = frame.unwrap();
+        let version = w.pose().version;
+        // ...then a stall ends: five late ticks arrive at once and the worker applies them before the game's
+        // frame reads the prediction.
+        for _ in 0..5 {
+            m.tick(Vec::new(), east);
+        }
+        m.send(11);
+        wait_for("the late ticks", || w.pose().tick == 16);
+        // The frame the game holds is still at tick 11, the prediction from tick 16: read apart they are five
+        // steps apart with nothing unconfirmed (the station's "15.0 px, allowed 13.5"). The pose holds the
+        // confirmed hero it was predicted from: no lead.
+        let px = |v: i32| v as f32 / realm_core::SUB as f32;
+        let hero = &m.field.players()[0];
+        let p = w.pose();
+        let h = held.hero.as_ref().unwrap();
+        let apart = ((p.predicted.0 - h.x).powi(2) + (p.predicted.1 - h.y).powi(2)).sqrt();
+        assert!(apart > 13.5, "the held frame is five steps behind the prediction, not {apart:.1} px");
+        assert_eq!((p.confirmed, p.unconfirmed), ((px(hero.x), px(hero.y)), 0));
+        assert_eq!(p.predicted, p.confirmed);
+        // Then six inputs during a gap with no ticks (the CI's case: the counters, refreshed every 100 ms,
+        // still say fewer): the pose counts every one, and the prediction leads by at most a step each.
+        for _ in 0..6 {
+            w.send(east);
+        }
+        wait_for("six inputs", || w.pose().unconfirmed == 6);
+        let p = w.pose();
+        let lead = ((p.predicted.0 - p.confirmed.0).powi(2) + (p.predicted.1 - p.confirmed.1).powi(2)).sqrt();
+        assert_eq!(p.tick, 16);
+        assert!(lead > 0.0, "the inputs moved the prediction");
+        // Exactly the confirmed hero with the six inputs replayed (her speed: 20 px here, not 6 x 3).
+        let (mut x, mut y) = (hero.x, hero.y);
+        for _ in 0..6 {
+            (x, y) = m.field.walk(0, x, y, east);
+        }
+        assert_eq!(p.predicted, (px(x), px(y)), "lead {lead:.1} px with {} unconfirmed", p.unconfirmed);
     }
 }

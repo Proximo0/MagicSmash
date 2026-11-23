@@ -191,6 +191,22 @@ impl RealmLink {
         })
     }
 
+    /// The prediction with what it was made from, all from one moment of the worker (the frame, `hero_view`
+    /// and `counters` are published at other moments: after a stall they can be ticks apart). Keys: `tick`
+    /// (the confirmed tick), `confirmed` (the hero there, px), `alive`, `predicted` (px, as
+    /// `predicted_position`) and `unconfirmed` (the inputs replayed on top). Empty before the first input or tick.
+    #[func]
+    fn prediction(&self) -> VarDictionary {
+        let mut d = VarDictionary::new();
+        let Some(p) = self.worker.as_ref().map(Worker::pose).filter(|p| p.version > 0) else { return d };
+        d.set("tick", i64::from(p.tick));
+        d.set("confirmed", Vector2::new(p.confirmed.0, p.confirmed.1));
+        d.set("alive", p.alive);
+        d.set("predicted", Vector2::new(p.predicted.0, p.predicted.1));
+        d.set("unconfirmed", i64::from(p.unconfirmed));
+        d
+    }
+
     /// Where to draw the hero after the latest input (px): the prediction with corrections smoothed out.
     #[func]
     fn shown_position(&self) -> Vector2 {
