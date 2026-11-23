@@ -10,6 +10,7 @@ case "$race" in *[!a-z,]*) echo "FAIL charbody bad race '$race'"; exit 1 ;; esac
 T="${HH_TOOLS:-$HOME/hh_tools}"; art="${STATION_JOB_ART:-${TMPDIR:-/tmp}}"; mkdir -p "$art"
 case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) exe=blender.exe; p() { cygpath -w "$1"; } ;; *) exe=blender; p() { echo "$1"; } ;; esac
 B=$(find "$T/blender" -maxdepth 2 -name "$exe" -type f 2>/dev/null | head -1)
+[ -n "$B" ] || { [ -s "$T/blender_path" ] && B=$(head -1 "$T/blender_path"); }   # the owner's own Blender, found by jobs/blender.sh
 [ -n "$B" ] && [ -d "$T/mpfb2/src/mpfb" ] || { echo "FAIL charbody Blender or MPFB missing under $T (run script=blender first)"; exit 1; }
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"; tmp=$(mktemp -d); log="$art/charbody-$race.txt"
 "$B" -b --factory-startup --python "$(p "$repo/tools/char3d/make_body.py")" -- "$(p "$T/mpfb2/src")" "$(p "$tmp")" "$race" >"$tmp/log.txt" 2>&1
