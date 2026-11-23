@@ -255,6 +255,77 @@ fn vaults_take_a_key_a_party_by_code_and_close_cleanly() {
     assert!(v.problems.is_empty(), "{:?}", v.problems);
 }
 
+/// THE CLASS TRIAL (rules section 3, vault row 5): a hero of class level 10 enters it alone with no key; her win is
+/// kept as a feat (no chest: it is free to enter), she cannot enter it again, and from level 40 the trainer gives her
+/// a job for coin (`job_change_cost`, a traced DEBIT), refusing in words before the trial and when she is short.
+#[test]
+fn the_class_trial_is_entered_alone_and_its_win_lets_the_trainer_sell_a_job() {
+    use realm_gateway::world::TRIAL_VAULT;
+    let mut w = quick(CopyRules::default());
+    w.ticket_ttl = Duration::from_secs(2);
+    let r = realm("trial", w, 1);
+    let mut c = login(&r, "trier");
+    let h = hero(&mut c, "Trier", 1);
+    let msg_of = |resp: Resp| match resp {
+        Resp::Err { msg, .. } => msg,
+        r => panic!("expected a refusal: {r:?}"),
+    };
+    let trial = |c: &mut GatewayClient| match c.call(Req::World(WReq::Trial { hero: h })).unwrap() {
+        Resp::World(WResp::Trial { level, passed, job, job_level, job_price, .. }) => (level, passed, job, job_level, job_price),
+        r => panic!("{r:?}"),
+    };
+    assert_eq!(trial(&mut c), (10, false, realm_gateway::gateway::NO_JOB, 40, realm_loot::sinks::job_change_cost(40)));
+    let open = Req::World(WReq::VaultOpen { hero: h, vault: TRIAL_VAULT, seals: 0, drive_ticks: 0 });
+    let m = msg_of(c.call(open.clone()).unwrap());
+    assert!(m.contains("from class level 10"), "{m}");
+    level_up(&r, h, 40);
+    let job = CLASSES[1].jobs[0];
+    let m = msg_of(c.call(Req::ChooseJob { hero: h, job }).unwrap());
+    assert!(m.contains("CLASS TRIAL"), "{m}");
+    // She enters alone, with no key in her bag.
+    let ticket = match c.call(open.clone()).unwrap() {
+        Resp::World(WResp::Vault { vault, ticket, .. }) => {
+            assert_eq!(vault, TRIAL_VAULT);
+            ticket
+        }
+        r => panic!("{r:?}"),
+    };
+    // The trial's last boss falls: the host's VAULT CHEST reward for her ticket.
+    let items = |r: &Realm| r.store.items_at(PlaceKind::Bag, h).unwrap().len();
+    let before = items(&r);
+    let cr = Credited { hero: h as u64, ticket, slot: 0, luck: 0 };
+    r.gw.on_reward(RewardBatch { host: 1, field_seed: 5, tick: 900, index: 1, kind: R_VAULT_CHEST, source: 0, level: 10, seals: 0, boss: 0, vault: TRIAL_VAULT, heroes: vec![(cr, 0)] });
+    assert_eq!(items(&r), before, "the trial pays no chest");
+    assert_eq!(r.gw.world.stats().trials_passed, 1);
+    let pushed = c.wait_push(Duration::from_secs(STALL_SECS), |p| match p {
+        Resp::WorldPush(WResp::Trial { passed, .. }) => Some(*passed),
+        _ => None,
+    });
+    assert_eq!(pushed.unwrap(), Some(true), "her client is told she passed");
+    assert!(trial(&mut c).1);
+    // Short of coin: told the price in words; then she pays and is a job.
+    let price = realm_loot::sinks::job_change_cost(40);
+    let m = msg_of(c.call(Req::ChooseJob { hero: h, job }).unwrap());
+    assert!(m.contains("trainer asks") && m.contains("carries"), "{m}");
+    r.store.stack_credit(Meta::system(0x7E1A3 << 64, 1), Owner::bag(h), StackKind::COIN, price + 7, true, "grant").unwrap();
+    assert!(matches!(c.call(Req::ChooseJob { hero: h, job }).unwrap(), Resp::Smith { amount, .. } if amount == price));
+    assert_eq!(r.store.hero(h).unwrap().unwrap().progress.job, job);
+    assert_eq!(r.store.stack(Owner::bag(h), StackKind::COIN).unwrap(), 7);
+    let m = msg_of(c.call(Req::ChooseJob { hero: h, job }).unwrap());
+    assert!(m.contains("already"), "{m}");
+    let flows = r.store.coin_flows().unwrap();
+    assert!(flows.iter().any(|f| f.0 == "DEBIT" && f.1 == "job" && f.4 as u64 == price), "{flows:?}");
+    // Once passed, the trial is not entered again (it is free: no farming it).
+    let _ = c.wait_push(Duration::from_secs(STALL_SECS), |p| match p {
+        Resp::Outing { hero, left, .. } if *hero == h && *left != 255 => Some(*left),
+        _ => None,
+    });
+    assert!(wait_until(STALL_SECS, || r.gw.where_is(h) == 0), "she is back in town once the empty trial closes");
+    let m = msg_of(c.call(open).unwrap());
+    assert!(m.contains("passed THE CLASS TRIAL already"), "{m}");
+    assert!(r.store.verify().unwrap().problems.is_empty());
+}
+
 #[test]
 fn a_reward_rolls_a_chest_for_each_hero_with_a_ticket() {
     let r = realm("chest", quick(CopyRules::default()), 1);
@@ -315,7 +386,10 @@ fn heroes_play_their_own_class_level_job_and_gear() {
     let h = hero(&mut c, "Priestess", PRIEST);
     level_up(&r, h, 45);
     let job = CLASSES[PRIEST as usize].jobs[1];
-    assert_eq!(c.call(Req::ChooseJob { hero: h, job }).unwrap(), Resp::Ok);
+    r.store.hero_feat(Meta::system(0x7E1A1 << 64, 1), h, feats::CLASS_TRIAL).unwrap();
+    let price = realm_loot::sinks::job_change_cost(45);
+    r.store.stack_credit(Meta::system(0x7E1A2 << 64, 1), Owner::bag(h), StackKind::COIN, price, true, "grant").unwrap();
+    assert!(matches!(c.call(Req::ChooseJob { hero: h, job }).unwrap(), Resp::Smith { amount, .. } if amount == price));
     let spec = ItemSpec { base: 1, gear_slot: 2, item_level: 40, rarity: 2, lines: vec![(3, 9), (1, 4)], sockets: 0, plus: 0, bound: false };
     let item = match r.store.run(Meta::system(0x17E << 64, 1), Cmd::Mint { to: Dest::bag(h), spec, reason: "grant".into() }).unwrap() {
         Reply::Item(id, _) => id,

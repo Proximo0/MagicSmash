@@ -181,6 +181,9 @@ pub enum EResp {
     Prices(Vec<ClassPrice>),
     /// A push: `kind` (see `notice`), a number (listing, letter or session), an amount of coin, a name or text.
     Notice { kind: u8, a: i64, b: u64, text: String },
+    /// The account's bank tabs: how many it owns (the free one counted), the most there are, and the price of the
+    /// next (0 when it owns them all).
+    BankTabs { owned: u32, max: u32, price: u64 },
 }
 
 impl EResp {
@@ -292,6 +295,12 @@ impl EResp {
                 put_u64(w, *b);
                 put_str(w, text);
             }
+            EResp::BankTabs { owned, max, price } => {
+                w.push(10);
+                put_u32(w, *owned);
+                put_u32(w, *max);
+                put_u64(w, *price);
+            }
         }
     }
 
@@ -362,6 +371,7 @@ impl EResp {
                 EResp::Prices((0..n).map(|_| Some(ClassPrice { rarity: r.u8()?, band: r.u8()?, median: r.u64()?, n: r.u32()? })).collect::<Option<_>>()?)
             }
             9 => EResp::Notice { kind: r.u8()?, a: r.u64()? as i64, b: r.u64()?, text: read_str(r)? },
+            10 => EResp::BankTabs { owned: r.u32()?, max: r.u32()?, price: r.u64()? },
             _ => return None,
         })
     }
@@ -397,6 +407,11 @@ pub enum EReq {
     LetterRefuse { hero: i64, letter: i64 },
     /// The sender takes back a letter nobody has opened.
     LetterRecall { hero: i64, letter: i64 },
+    /// How many bank tabs her account owns and what the next costs.
+    BankTabs { hero: i64 },
+    /// Buys the next bank tab for coin from her bag; `owned` is the count she saw (a stale or doubled click buys
+    /// nothing).
+    BankTabBuy { hero: i64, owned: u32 },
 }
 
 impl EReq {
@@ -529,6 +544,15 @@ impl EReq {
                 h(w, hero);
                 put_u64(w, *letter as u64);
             }
+            EReq::BankTabs { hero } => {
+                w.push(0x40);
+                h(w, hero);
+            }
+            EReq::BankTabBuy { hero, owned } => {
+                w.push(0x41);
+                h(w, hero);
+                put_u32(w, *owned);
+            }
         }
     }
 
@@ -574,6 +598,8 @@ impl EReq {
             0x33 => EReq::LetterTake { hero, letter: r.u64()? as i64 },
             0x34 => EReq::LetterRefuse { hero, letter: r.u64()? as i64 },
             0x35 => EReq::LetterRecall { hero, letter: r.u64()? as i64 },
+            0x40 => EReq::BankTabs { hero },
+            0x41 => EReq::BankTabBuy { hero, owned: r.u32()? },
             _ => return None,
         })
     }

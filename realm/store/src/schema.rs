@@ -3,7 +3,7 @@
 
 use rusqlite::{Connection, OptionalExtension};
 
-pub const LATEST: i64 = 3;
+pub const LATEST: i64 = 4;
 
 pub const V1: &str = r#"
 CREATE TABLE schema_version (version INTEGER NOT NULL);
@@ -186,7 +186,18 @@ CREATE INDEX parcels_price ON parcels (price) WHERE kind = 1;
 UPDATE schema_version SET version = 3;
 "#;
 
-pub const STEPS: [&str; 3] = [V1, V2, V3];
+/// Version 4 (additive): feats, what a hero has done for good (`Cmd::HeroFeat`; 1: she passed THE CLASS TRIAL).
+pub const V4: &str = r#"
+CREATE TABLE feats (
+	hero INTEGER NOT NULL REFERENCES heroes(id),
+	feat INTEGER NOT NULL,
+	time INTEGER NOT NULL,
+	PRIMARY KEY (hero, feat)
+) WITHOUT ROWID;
+UPDATE schema_version SET version = 4;
+"#;
+
+pub const STEPS: [&str; 4] = [V1, V2, V3, V4];
 
 pub fn version(c: &Connection) -> rusqlite::Result<i64> {
 	let has: Option<String> = c

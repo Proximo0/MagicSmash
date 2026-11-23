@@ -72,6 +72,8 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
         EReq::LetterTake { hero: 1, letter: 2 },
         EReq::LetterRefuse { hero: 1, letter: 2 },
         EReq::LetterRecall { hero: 1, letter: 2 },
+        EReq::BankTabs { hero: 1 },
+        EReq::BankTabBuy { hero: 1, owned: 2 },
     ];
     let trade = TradeView {
         session: 9,
@@ -101,6 +103,7 @@ fn examples() -> (Vec<Req>, Vec<Resp>) {
         EResp::Letters(vec![letter]),
         EResp::Prices(vec![ClassPrice { rarity: 2, band: 1, median: 300, n: 12 }]),
         EResp::Notice { kind: notice::SOLD, a: 4, b: 70, text: "Bo".into() },
+        EResp::BankTabs { owned: 2, max: 8, price: 12_000 },
     ];
     let mut out: Vec<Resp> = resps.iter().cloned().map(Resp::Econ).collect();
     out.extend(resps.into_iter().map(Resp::EconPush));

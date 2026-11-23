@@ -206,6 +206,19 @@ pub fn err(e: Error) -> Resp {
     Resp::Err { code, msg }
 }
 
+/// A number with its thousands grouped, for words a player reads.
+pub(crate) fn commas(n: u64) -> String {
+    let d = n.to_string();
+    let mut out = String::new();
+    for (i, c) in d.chars().enumerate() {
+        if i > 0 && (d.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub(crate) fn bad(msg: &str) -> Resp {
     Resp::Err { code: code::BAD_REQUEST, msg: msg.into() }
 }
@@ -433,7 +446,7 @@ impl Gateway {
                     self.player(account, Cmd::HeroSave { hero: id, progress: p })?;
                 }
                 if self.cfg.dev_grant && self.cfg.dev_login {
-                    self.dev_kit(account, id);
+                    self.dev_kit(id);
                 }
                 Ok(Resp::HeroCreated(id))
             }
@@ -496,16 +509,7 @@ impl Gateway {
                 p.belt = kinds;
                 self.player(account, Cmd::HeroSave { hero, progress: p }).map(|_| Resp::Ok)
             }
-            Req::ChooseJob { hero, job } => {
-                let h = self.own_hero(account, hero)?;
-                let ok = JOBS.get(job as usize).is_some_and(|j| j.class == h.class) && h.progress.class_level >= JOB_LEVEL as u16;
-                if !ok {
-                    return Ok(bad("that job is not hers to choose yet"));
-                }
-                let mut p = h.progress;
-                p.job = job;
-                self.player(account, Cmd::HeroSave { hero, progress: p }).map(|_| Resp::Ok)
-            }
+            Req::ChooseJob { hero, job } => self.choose_job(account, hero, job),
             Req::LearnPage { hero, card } => {
                 self.own_hero(account, hero)?;
                 self.player(account, Cmd::LearnPage { hero, card }).map(|_| Resp::Ok)
@@ -718,6 +722,30 @@ impl Gateway {
         Some((slot.handle.addr.port(), slot.copy, ticket, key))
     }
 
+    /// The trainer gives a job (rules section 3): one of her class's two, from `JOB_LEVEL`, once she has passed THE
+    /// CLASS TRIAL, for `job_change_cost` coin (a sink, `realm_loot::sinks`). The store debits the coin and sets the
+    /// job in one transaction. Each refusal says why.
+    fn choose_job(&self, account: i64, hero: i64, job: u8) -> Result<Resp> {
+        let h = self.own_hero(account, hero)?;
+        let Some(row) = JOBS.get(job as usize).filter(|j| j.class == h.class) else { return Ok(bad("that job is not of her class")) };
+        if h.progress.class_level < JOB_LEVEL as u16 {
+            return Ok(bad(&format!("a job is from class level {JOB_LEVEL}")));
+        }
+        if h.progress.job == job {
+            return Ok(bad(&format!("she is already a {}", row.name)));
+        }
+        if !self.store.feats(hero)?.contains(&feats::CLASS_TRIAL) {
+            return Ok(bad("she must pass THE CLASS TRIAL first"));
+        }
+        let price = realm_loot::sinks::job_change_cost(h.progress.class_level);
+        let carried = self.store.stack(Owner::bag(hero), StackKind::COIN)?;
+        if carried < price {
+            return Ok(bad(&format!("the trainer asks {} coin for the job and she carries {}", commas(price), commas(carried))));
+        }
+        self.server(Cmd::TakeJob { hero, job, price })?;
+        Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: price })
+    }
+
     /// The deck cards the hero may use: the novice twelve, one more at each even class level to 24 (the store's
     /// `card_owned`), and the pages the account has learned.
     fn cards(&self, account: i64, hero: i64) -> Result<Resp> {
@@ -763,14 +791,14 @@ impl Gateway {
         Ok(Resp::Smith { item: 0, plus: 0, success: true, amount: price })
     }
 
-    /// The `--dev-grant` kit: 3,500 coin (500, and 3,000 for the homes), 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
+    /// The `--dev-grant` kit: 6,500 coin (500, 3,000 for the second bank tab and 3,000 for the homes), 30 embers, four runes of MIGHT I, two healing draughts, and a rare, an
     /// uncommon and a common item of level 1 from The Fool's Road.
-    fn dev_kit(&self, account: i64, hero: i64) {
-        // One extra bank tab (granted once per account), so the bank screen's tabs can be tried.
-        let _ = self.server(Cmd::GrantEntitlement { account, kind: EntitlementKind::BankTab, count: 1, purchase: format!("dev-bank-tab-{account}") });
+    fn dev_kit(&self, hero: i64) {
         let mut rng = realm_loot::rng::Rng::new(hero as u64 ^ 0xD3F_0001);
         let bag = Owner::bag(hero);
-        for (kind, count) in [(StackKind::COIN, 500u64), (StackKind::material(0), 30), (StackKind::rune(0, 1), 4), (StackKind::potion(0), 2)] {
+        // 500 coin, and the price of the second bank tab, so the bank's BUY can be tried.
+        let tab = realm_loot::sinks::BANK_TAB_PRICE[0];
+        for (kind, count) in [(StackKind::COIN, 500u64 + tab), (StackKind::material(0), 30), (StackKind::rune(0, 1), 4), (StackKind::potion(0), 2)] {
             let _ = self.server(Cmd::StackCredit { to: bag, kind, count, minted: true, reason: "grant".into() });
         }
         for (kind, count) in crate::homes::DEV_KIT {

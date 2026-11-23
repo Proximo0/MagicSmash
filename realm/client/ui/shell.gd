@@ -61,6 +61,15 @@ var trade: Dictionary = {}
 var trade_invite: Dictionary = {}
 ## A field the party's leader called us to (-1: none).
 var field_call: int = -1
+## Duels in the training yard (pvp.md): a challenge waiting for her answer {"from", "name"} ({} none), the duel she
+## is in {"duel", "foe", "name"} ({} none) and the last result {"won", "draw", "name"}.
+var duel_offer: Dictionary = {}
+var duel: Dictionary = {}
+var duel_result: Dictionary = {}
+## THE CLASS TRIAL as the gateway last told it (WorldWire K_TRIAL; {} until asked), and whether the field she is
+## in now is the trial.
+var trial: Dictionary = {}
+var in_trial: bool = false
 
 var base: UiScreen = null
 var panels: Array[UiScreen] = []
@@ -384,11 +393,18 @@ func refresh_house() -> void:
 
 ## Leaves the town room (the gateway frees the hero) and returns to the hero list.
 func leave_town() -> void:
+	# A duellist who leaves the town forfeits (pvp.md); the gateway no longer reaches her there, so she is told here.
+	var forfeit: Dictionary = {}
+	if not duel.is_empty():
+		forfeit = {"won": false, "draw": false, "name": String(duel["name"])}
 	await link.call_req(GwWire.plain(GwWire.T_LEAVE_TOWN))
 	town = {}
 	reset_social()
+	duel_result = forfeit
 	await refresh_heroes()
 	show_base(HeroListScreen.new(), "hero_list")
+	if not forfeit.is_empty():
+		base.say("YOU LEFT THE TOWN AND FORFEIT THE DUEL WITH %s" % String(forfeit["name"]).to_upper(), true)
 
 
 func logout() -> void:
@@ -466,6 +482,12 @@ func _on_econ(m: Dictionary) -> void:
 
 func _on_world(m: Dictionary) -> void:
 	var t: UiScreen = top()
+	if int(m.get("k", -1)) == WorldWire.K_TRIAL:
+		trial = m
+		if bool(m["passed"]) and in_field and field_client != null and field_client.has_method("warn"):
+			field_client.warn("THE CLASS TRIAL IS PASSED: THE TRAINER WILL GIVE YOU A JOB AT LEVEL %d" % int(m["job_level"]))
+		data_changed.emit()
+		return
 	if t == null or int(m.get("k", -1)) != WorldWire.K_NEWS:
 		return
 	var f: int = int(m["field"])
@@ -504,6 +526,9 @@ func reset_social() -> void:
 	trade = {}
 	trade_invite = {}
 	field_call = -1
+	duel_offer = {}
+	duel = {}
+	duel_result = {}
 	social_changed.emit()
 
 
@@ -569,7 +594,49 @@ func _on_social(m: Dictionary) -> void:
 			var t2: UiScreen = top()
 			if t2 != null:
 				t2.say(String(m["text"]).to_upper(), true)
+		12, 13, 14, 15:
+			_on_duel(m)
 	social_changed.emit()
+
+
+## The duel pushes: a challenge (the answer prompt opens over the town), a refusal, the start and the result.
+func _on_duel(m: Dictionary) -> void:
+	var t: UiScreen = top()
+	match int(m["k"]):
+		12:
+			duel_offer = {"from": int(m["from"]), "name": String(m["name"])}
+			if t != null:
+				t.say("%s CHALLENGES YOU TO A DUEL" % String(m["name"]).to_upper())
+			if base is TownScreen and t == base and panel_of("DuelPanel") == null:
+				open_panel(DuelPanel.new())
+		13:
+			if t != null:
+				t.say("%s WILL NOT DUEL YOU" % String(m["name"]).to_upper(), true)
+		14:
+			duel_offer = {}
+			duel_result = {}
+			duel = {"duel": int(m["duel"]), "foe": int(m["foe"]), "name": String(m["name"])}
+			# The fight is steered with the town's walking keys: the panels step aside.
+			if base is TownScreen:
+				close_panels()
+			var t3: UiScreen = top()
+			if t3 != null:
+				t3.say("THE DUEL WITH %s BEGINS: WALK TO CLOSE IN, YOUR WEAPON SWINGS BY ITSELF" % String(m["name"]).to_upper())
+		15:
+			var foe: String = String(duel.get("name", "YOUR FOE"))
+			var won: bool = int(m["winner"]) == hero_id() and not bool(m["draw"])
+			duel_result = {"won": won, "draw": bool(m["draw"]), "name": foe}
+			duel = {}
+			if t != null:
+				t.say(duel_result_text(duel_result))
+
+
+static func duel_result_text(r: Dictionary) -> String:
+	if r.is_empty():
+		return ""
+	if bool(r["draw"]):
+		return "THE DUEL WITH %s IS A DRAW" % String(r["name"]).to_upper()
+	return ("YOU WON THE DUEL WITH %s" if bool(r["won"]) else "YOU LOST THE DUEL WITH %s") % String(r["name"]).to_upper()
 
 
 ## A social request: errors are shown, then what she sees of the social state is read again.
@@ -580,6 +647,7 @@ func social(req: Array, ok_text: String = "") -> Dictionary:
 
 
 func _on_lost(_why: String) -> void:
+	in_trial = false
 	if in_field:
 		_close_field()
 	if base_name != "title" and base_name != "login":
@@ -596,11 +664,37 @@ func go_field(field: int) -> String:
 		return error_text(r)
 	close_panels()
 	town = {}
+	in_trial = false
 	var host: String = String(r["host"])
 	if host.is_empty():
 		host = gateway_host
 	_open_field(host, int(r["port"]), int(r["ticket"]), r["key"] as PackedByteArray, field)
 	return ""
+
+
+## Enters THE CLASS TRIAL (a vault for her alone, no key) and hands over to the field client. Returns "" or the
+## refusal in words.
+func go_trial() -> String:
+	var r: Dictionary = await link.call_req(WorldWire.vault_open(hero_id(), WorldWire.TRIAL_VAULT, 0))
+	if int(r["t"]) != WorldWire.R_WORLD or int(r.get("k", -1)) != WorldWire.K_VAULT:
+		return error_text(r)
+	close_panels()
+	town = {}
+	var host: String = String(r["host"])
+	if host.is_empty():
+		host = gateway_host
+	in_trial = true
+	_open_field(host, int(r["port"]), int(r["ticket"]), r["key"] as PackedByteArray, 0)
+	return ""
+
+
+## Reads THE CLASS TRIAL for her (requirements, passed, the job's price) into `trial`.
+func refresh_trial() -> Dictionary:
+	var r: Dictionary = await link.call_req(WorldWire.trial(hero_id()))
+	if int(r["t"]) == WorldWire.R_WORLD and int(r.get("k", -1)) == WorldWire.K_TRIAL:
+		trial = r
+		data_changed.emit()
+	return r
 
 
 func _open_field(host: String, port: int, ticket: int, key: PackedByteArray, field: int) -> void:
@@ -668,6 +762,13 @@ func _back_from_field() -> void:
 		return
 	var o: Dictionary = last_outing
 	base.say("BACK FROM THE FIELD: %s COIN, %s XP%s" % [GameNames.commas(int(o["coin"])), GameNames.commas(int(o["xp"])), ", LEVEL UP!" if int(o["levels"]) > 0 else ""])
+	if in_trial:
+		# Back from THE CLASS TRIAL: its station shows how it went.
+		in_trial = false
+		var tp := TrialPanel.new()
+		tp.back_from = o
+		open_panel(tp)
+		return
 	var s := OutingPanel.new()
 	s.outing = o
 	open_panel(s)

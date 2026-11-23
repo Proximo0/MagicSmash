@@ -63,6 +63,9 @@ fn case_name(c: &Cmd) -> &'static str {
 		| Cmd::Plunder { .. }
 		| Cmd::Trade { .. }
 		| Cmd::GrantEntitlement { .. }
+		| Cmd::BuyEntitlement { .. }
+		| Cmd::HeroFeat { .. }
+		| Cmd::TakeJob { .. }
 		| Cmd::ParcelPut { .. }
 		| Cmd::ParcelTake { .. }
 		| Cmd::ParcelReturn { .. }
@@ -70,7 +73,7 @@ fn case_name(c: &Cmd) -> &'static str {
 	}
 }
 
-const VARIANTS: usize = 25;
+const VARIANTS: usize = 28;
 
 /// One command of every kind, each aimed at y's things.
 fn cases(w: &W) -> Vec<Cmd> {
@@ -109,6 +112,9 @@ fn cases(w: &W) -> Vec<Cmd> {
 			b: TradeSide { hero: w.hy, items: vec![w.iy], stacks: vec![(StackKind::COIN, 500)] },
 		},
 		Cmd::GrantEntitlement { account: w.y, kind: EntitlementKind::HeroSlot, count: 5, purchase: "invented".into() },
+		Cmd::BuyEntitlement { hero: w.hy, kind: EntitlementKind::BankTab, have: 0, price: 5, reason: "bank tab".into() },
+		Cmd::HeroFeat { hero: w.hy, feat: feats::CLASS_TRIAL },
+		Cmd::TakeJob { hero: w.hy, job: 2, price: 5 },
 		Cmd::Clawback { items: vec![w.iy], stacks: vec![(Owner::bag(w.hy), StackKind::COIN, 500)], reason: "grief".into() },
 		Cmd::ParcelPut { kind: ParcelKind::Listing, from: w.hy, to: None, items: vec![w.iy], stacks: vec![], price: 50, fee: 0, expires: FAR, text: String::new() },
 		Cmd::ParcelTake { parcel: 1, hero: w.hy, tax: 4 },

@@ -198,6 +198,22 @@ steps in the bank) and its weapon cap (+7). A lower reserve or a higher cap woul
 short test holds each band's forced sinks (falls, potions, repair, fares) to at least `FORCED_SINK_MIN_PCT` =
 40% of an outing's mint. The market moved 18k coin between players.
 
+### The trainer's job and the bank's tabs (job trial-sinks)
+
+Two one-off coin sinks a player meets in town, numbers in `realm/loot/src/sinks.rs` (test
+`the_job_and_the_bank_tabs_cost_what_balance_md_says`):
+- **A job** costs `JOB_CHANGE_BP` = 5,000, half an hour of `income_per_hour` at her class level, on top of passing THE
+  CLASS TRIAL: **1,447,133 coin at level 40**, 1.6 million at 45, 2.5 million at 60. Why half an hour: the job is the
+  one great choice of a career and should be felt, but a career at 40-49 mints 32.6 million (the coin book above), so
+  20 to 40 minutes of her own play pays it and nobody is held back from the jobs gate; priced by income, it bites the
+  same whenever she takes it. Refused in words when she cannot pay ("the trainer asks ... and she carries ...").
+- **Bank tabs** 2 to 8 cost `BANK_TAB_PRICE` = 3,000, 12,000, 50,000, 200,000, 800,000, 3,200,000, 12,000,000 coin
+  (about four times the last each): the 2nd is two hours of THE FOOL'S ROAD (a first goal), the 8th about 2.5 hours of
+  THE WORLD'S EDGE. All seven are 16.3 million, about a tenth of a career's mint, nearly all of it bought where coin
+  piles up (economy.md, the glut). The account owns the tabs (not the hero), so the price follows the tab, not a level.
+  The free first tab and the most (8) are the store's `FREE_BANK_TABS` and `BANK_TABS_MAX`.
+Not yet in the careers' coin book (`realm-loadtest balance career`): a bot buys neither, so run 4's 91% is unchanged.
+
 ## Rule changes (numbers in `realm/core` beyond tables, each named)
 
 1. **The tide's doubling scales with the heroes up** (`TIDE_FULL_FROM` 4, `TIDE_FULL_AT` 40, `tide.rs`).

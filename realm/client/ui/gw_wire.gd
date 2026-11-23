@@ -74,6 +74,10 @@ const T_SOC_FRIEND_REMOVE := 0x58
 const T_SOC_IGNORE := 0x59
 const T_SOC_LISTS := 0x5A
 const T_SOC_REPORT := 0x5B
+const T_SOC_DUEL := 0x5F
+const DUEL_CHALLENGE := 0
+const DUEL_ACCEPT := 1
+const DUEL_DECLINE := 2
 # replies
 const R_OK := 0x80
 const R_ERR := 0x81
@@ -351,6 +355,15 @@ static func soc_id(t: int, hero: int, id: int) -> Array:
 	return [t, b.data_array]
 
 
+## A duel in the training yard: challenge the hero `name`, accept or decline her challenge (DUEL_*).
+static func soc_duel(hero: int, op: int, name: String) -> Array:
+	var b := _buf()
+	b.put_u64(hero)
+	b.put_u8(op)
+	put_str(b, name)
+	return [T_SOC_DUEL, b.data_array]
+
+
 ## Answers an invitation: party (the inviter's hero), guild (the guild id) or friend (the account).
 static func soc_answer(t: int, hero: int, id: int, accept: bool) -> Array:
 	var b := _buf()
@@ -525,6 +538,21 @@ static func _social_push(b: StreamPeerBuffer, d: Dictionary) -> void:
 			d["place"] = b.get_u8()
 		8:
 			d["text"] = get_str(b)
+		12:
+			d["from"] = b.get_64()
+			d["name"] = get_str(b)
+		13:
+			d["name"] = get_str(b)
+		14:
+			d["duel"] = b.get_64()
+			d["foe"] = b.get_64()
+			d["name"] = get_str(b)
+			d["seed"] = b.get_64()
+		15:
+			d["duel"] = b.get_64()
+			d["winner"] = b.get_64()
+			d["loser"] = b.get_64()
+			d["draw"] = b.get_u8() != 0
 
 
 
@@ -545,7 +573,9 @@ static func _hero(b: StreamPeerBuffer) -> Dictionary:
 	h["name"] = get_str(b)
 	h["race"] = b.get_u8()
 	h["class"] = b.get_u8()
-	h["job"] = b.get_u8()
+	# The hero record says no job with core's NONE (255); the client's word for it is NO_JOB.
+	var job: int = b.get_u8()
+	h["job"] = job if job < GameNames.JOBS.size() else GameNames.NO_JOB
 	h["self_found"] = b.get_u8() != 0
 	h["deleted"] = b.get_u8() != 0
 	h["look"] = b.get_u32()

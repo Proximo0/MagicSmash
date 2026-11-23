@@ -211,7 +211,7 @@ func _run() -> void:
 	await _frames(3)
 	var town: TownScreen = _shell.base as TownScreen
 	_check(town.me >= 0 and town.members.has(town.me), "she is a member of the room")
-	_check(_shell.coin() == 3500 and _shell.items_at(GameNames.PLACE_BAG).size() == 3, "the dev grant gave coin and three items")
+	_check(_shell.coin() == 6500 and _shell.items_at(GameNames.PLACE_BAG).size() == 3, "the dev grant gave coin and three items")
 	_check(await _until(func() -> bool: return town.snapshots >= 3), "snapshots arrive")
 	var p0: Vector2 = town.shown(town.me)
 	_shell.link.send_only(GwWire.town_input(1))
@@ -269,7 +269,7 @@ func _run() -> void:
 	await _press("qty:10")
 	await _press("move")
 	_check(await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_BANK, 1) == 10), "10 coin are in the bank")
-	_check(_shell.coin() == 3490, "and 3490 are in the bag")
+	_check(_shell.coin() == 6490, "and 6490 are in the bag")
 	var bank: BankPanel = _shell.panel_of("BankPanel") as BankPanel
 	var common: Dictionary = {}
 	for it in _shell.items_at(GameNames.PLACE_BAG):
@@ -397,12 +397,19 @@ func _run() -> void:
 	await _press("close")
 	await _frames(2)
 
-	# Merchants.
+	# Merchants (the economy's merchant of her field: potions, embers and gear, selling, buying back, the belt).
 	await town.open_station("merchants")
+	var merch: MerchantPanel = _shell.panel_of("MerchantPanel") as MerchantPanel
+	_check(await _until(func() -> bool: return merch.offers.size() == 13), "the merchant lists six potions, embers and six pieces of gear")
 	await _frames(3)
 	var coin0: int = _shell.coin()
+	var draught: int = int(merch.offers[0]["price"])
 	await _press("buy:0:5")
-	_check(await _until(func() -> bool: return _shell.coin() == coin0 - 100 and _shell.stack_count(GameNames.PLACE_BAG, 100) == 7), "five healing draughts bought for 100")
+	_check(await _until(func() -> bool: return _shell.coin() == coin0 - 5 * draught and _shell.stack_count(GameNames.PLACE_BAG, 100) == 7), "five healing draughts bought for %d" % (5 * draught))
+	_check(await _until(func() -> bool: return int(merch.offers[0]["left"]) == 15), "his stock of draughts for today is 5 less")
+	var embers_m: int = _shell.stack_count(GameNames.PLACE_BAG, GameNames.KIND_EMBERS)
+	await _press("buy:6:1")
+	_check(await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_BAG, GameNames.KIND_EMBERS) == embers_m + 1), "an ember bought")
 	await _shot("12_merchants")
 	await _press("tab:1")
 	var sellable: Dictionary = {}
@@ -411,9 +418,19 @@ func _run() -> void:
 			sellable = it
 	await _press("it:%d" % int(sellable["id"]))
 	await _shot("13_merchants_sell")
+	var coin1: int = _shell.coin()
 	await _press("sell")
 	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BAG).size() == 1), "the common item is sold")
+	_check(_shell.coin() == coin1 + MerchantPanel.pays_for(sellable), "for a quarter of its value (%d)" % (_shell.coin() - coin1))
+	await _press("stk:%d" % GameNames.KIND_EMBERS)
+	var coin2: int = _shell.coin()
+	await _press("sellstk:1")
+	_check(await _until(func() -> bool: return _shell.coin() == coin2 + MerchantPanel.EMBER_SELL and _shell.stack_count(GameNames.PLACE_BAG, GameNames.KIND_EMBERS) == embers_m), "an ember sold back by the piece")
 	await _press("tab:2")
+	_check(await _until(func() -> bool: return merch.buybacks.size() == 1), "what she sold can be bought back")
+	await _frames(2)
+	await _shot("13b_merchants_buyback")
+	await _press("tab:3")
 	await _press("slot:1")
 	await _press("pot:100")
 	_check(await _until(func() -> bool: return int(_shell.hero["belt"][1]) == 100), "the belt holds the draught in slot 2")
@@ -440,8 +457,25 @@ func _run() -> void:
 	# Trainer, sheet, bag.
 	await town.open_station("trainer")
 	await _frames(3)
+	_check(await _until(func() -> bool: return not _shell.trial.is_empty()), "the trainer reads THE CLASS TRIAL for the job's terms")
+	await _frames(2)
 	await _shot("16_trainer")
 	_check(_shell.panel_of("TrainerPanel") != null, "the trainer opens")
+	_check(int(_shell.hero.get("job", -1)) == GameNames.NO_JOB and int(_shell.hero.get("class", 0)) != 0, "a new hero has a class and no job, so the trainer shows the job's terms: job %d class %d" % [int(_shell.hero.get("job", -1)), int(_shell.hero.get("class", 0))])
+	await _press("close")
+	await _frames(2)
+	# THE CLASS TRIAL's station: what it asks, where she stands, and ENTER waits for class level 10.
+	await town.open_station("trial")
+	var trial: TrialPanel = _shell.panel_of("TrialPanel") as TrialPanel
+	_check(trial != null, "the class trial's station opens")
+	_check(await _until(func() -> bool: return not _shell.trial.is_empty() and not trial.busy), "it reads the trial for her")
+	_check(int(_shell.trial["level"]) == 10 and not bool(_shell.trial["passed"]), "the trial asks class level 10 and she has not passed it")
+	_check(trial.level_label.text == "YOU ARE LEVEL 1: COME BACK AT LEVEL 10" and trial.enter_btn.disabled, "a level-1 hero is told to come back at 10: " + trial.level_label.text)
+	_check(trial.job_label.text.contains("THE TRAINER ASKS") and trial.job_label.text.contains("COIN"), "the job's price is shown: " + trial.job_label.text)
+	var refused: Dictionary = await _shell.act(WorldWire.vault_open(_shell.hero_id(), WorldWire.TRIAL_VAULT, 0))
+	_check(Shell.error_text(refused).contains("FROM CLASS LEVEL 10"), "the gateway refuses her in words too: " + Shell.error_text(refused))
+	await _frames(2)
+	await _shot("16b_trial")
 	await _press("close")
 	await _frames(2)
 	town.open_sheet()
@@ -510,26 +544,33 @@ func _focused_in(panel: Control) -> bool:
 
 func _bank_tabs(bank: BankPanel, item: Dictionary) -> void:
 	_check(_focused_in(bank), "the bank has keyboard focus on a control")
-	_check(bank.tab_bar.tab_count == 2, "the bank shows two tabs (the first and the one the dev kit gave)")
+	# The gateway says how many tabs the account owns: one, the other seven locked, the second for 3,000 coin.
+	_check(await _until(func() -> bool: return bank.tab_price > 0), "the bank reads the account's tabs")
+	_check(bank.tabs_owned == 1 and bank.tabs_max == 8 and bank.tab_bar.tab_count == 8, "one tab owned of eight: %d of %d" % [bank.tabs_owned, bank.tabs_max])
+	_check(bank.tab_bar.is_tab_disabled(1) and not bank.tab_bar.is_tab_disabled(0), "tab 2 is locked")
+	_check(bank.buy_btn.text == "BUY TAB 2: 3,000 COIN", "the buy button names the price: " + bank.buy_btn.text)
+	await _frames(2)
+	await _shot("28a_bank_tab_locked")
+	var coin0: int = _shell.coin()
+	await _press("buy_tab")
+	_check(await _until(func() -> bool: return bank.tabs_owned == 2), "tab 2 is bought: " + bank.toast_text)
+	_check(await _until(func() -> bool: return _shell.coin() == coin0 - 3000), "for 3,000 coin from her bag (%d)" % _shell.coin())
+	_check(not bank.tab_bar.is_tab_disabled(1) and bank.tab_bar.is_tab_disabled(2), "tab 2 opens, tab 3 stays locked")
+	_check(bank.buy_btn.text == "BUY TAB 3: 12,000 COIN", "the next tab is dearer: " + bank.buy_btn.text)
+	await _press("buy_tab")
+	_check(await _until(func() -> bool: return bank.toast_text.contains("COSTS 12,000 COIN")), "a tab she cannot pay for is refused in words: " + bank.toast_text)
+	_check(bank.tabs_owned == 2 and _shell.coin() == coin0 - 3000, "and nothing is bought")
 	await _press("tab:1")
 	_check(bank.tab == 1, "tab two is chosen")
 	await _press("bagit:%d" % int(item["id"]))
 	await _press("move")
 	_check(await _until(func() -> bool: var b: Array[Dictionary] = _shell.items_at(GameNames.PLACE_BANK); return b.size() == 1 and int(b[0]["tab"]) == 1), "an item goes into tab 2: " + bank.toast_text)
-	_check(await _until(func() -> bool: return bank.tab_bar.tab_count == 3), "a third tab is offered after it")
 	await _press("tab:0")
 	_check(bank.bank_items.item_count == 0, "tab 1 does not list it")
 	await _press("tab:1")
 	_check(bank.bank_items.item_count == 1, "tab 2 lists it")
 	await _frames(2)
 	await _shot("28_bank_tabs")
-	await _press("tab:2")
-	var other: Dictionary = _bag_of(_shell, 1)
-	await _press("bagit:%d" % int(other["id"]))
-	await _press("move")
-	_check(await _until(func() -> bool: return bank.toast_text.contains("NOT YET YOURS")), "a tab she does not own is refused in words: " + bank.toast_text)
-	_check(_shell.items_at(GameNames.PLACE_BANK).size() == 1, "nothing moved into it")
-	await _press("tab:1")
 	await _press("bankit:%d" % int(item["id"]))
 	await _press("move")
 	_check(await _until(func() -> bool: return _shell.items_at(GameNames.PLACE_BANK).is_empty() and _shell.items_at(GameNames.PLACE_BAG).size() == 3), "and she takes it out of tab 2 again")
@@ -787,9 +828,51 @@ func _economy() -> void:
 	cancel.pressed = true
 	Input.parse_input_event(cancel)
 	_check(await _until(func() -> bool: return _shell.panel_of("BoardPanel") == null, 3.0), "the cancel action closes the board")
+	await _duels(mate, pname, mname)
 	mate.link.close()
 	mate.queue_free()
 	await _frames(2)
+
+
+## Duels in the training yard (pvp.md): the mate challenges her by name and she is asked at once over the town; she
+## refuses and he is told. Then she challenges him from the heroes standing near her, he accepts, the duel begins for
+## both (the town shows it), and his leaving the town forfeits it: both are told she won.
+func _duels(mate: Shell, pname: String, mname: String) -> void:
+	_check(_shell.top() is TownScreen and mate.top() is TownScreen, "both stand in the plaza with no screen open")
+	mate.open_panel(DuelPanel.new())
+	await _frames(2)
+	var md: DuelPanel = mate.panel_of("DuelPanel") as DuelPanel
+	md.name_edit.text = pname
+	await _press("challenge", mate)
+	_check(await _until(func() -> bool: return String(_shell.duel_offer.get("name", "")) == mname), "she is challenged: %s" % str(_shell.duel_offer))
+	_check(await _until(func() -> bool: return _shell.panel_of("DuelPanel") != null), "the duel ring opens over her town with the challenge")
+	var dp: DuelPanel = _shell.panel_of("DuelPanel") as DuelPanel
+	_check(dp.offer_label.text == "%s CHALLENGES YOU TO A DUEL" % mname.to_upper() and not dp.accept_btn.disabled and not dp.refuse_btn.disabled, "it names him, with ACCEPT and REFUSE: " + dp.offer_label.text)
+	await _frames(2)
+	await _shot("38_duel_challenged")
+	await _press("refuse")
+	_check(await _until(func() -> bool: return md.toast_text.contains("WILL NOT DUEL YOU")), "he is told she refused: " + md.toast_text)
+	_check(_shell.duel_offer.is_empty() and dp.accept_btn.disabled, "the challenge is answered")
+	await _press("close", mate)
+	# Her turn: from the heroes near her.
+	_check(await _until(func() -> bool: return dp.has_hit("near:" + mname)), "he is in the list of heroes near her")
+	await _press("near:" + mname)
+	_check(await _until(func() -> bool: return String(mate.duel_offer.get("name", "")) == pname), "he is asked at once: " + str(mate.duel_offer))
+	_check(await _until(func() -> bool: return mate.panel_of("DuelPanel") != null), "his duel ring opens by itself")
+	await _press("accept", mate)
+	_check(await _until(func() -> bool: return not _shell.duel.is_empty() and not mate.duel.is_empty()), "the duel begins for both")
+	_check(String(_shell.duel["name"]) == mname and _shell.top() is TownScreen, "she fights him from the town, her screens set aside")
+	await _frames(3)
+	await _shot("39_duel_on")
+	mate.leave_town()
+	_check(await _until(func() -> bool: return not _shell.duel_result.is_empty(), 15.0), "the duel ends when he leaves the town")
+	_check(bool(_shell.duel_result["won"]) and not bool(_shell.duel_result["draw"]) and _shell.duel.is_empty(), "she won: he forfeits by leaving")
+	_check(Shell.duel_result_text(_shell.duel_result) == "YOU WON THE DUEL WITH %s" % mname.to_upper(), "the result in words: " + Shell.duel_result_text(_shell.duel_result))
+	_check(await _until(func() -> bool: return not mate.duel_result.is_empty() and not bool(mate.duel_result["won"])), "and he is told he lost")
+	_shell.open_panel(DuelPanel.new())
+	await _frames(3)
+	await _shot("40_duel_result")
+	await _press("close")
 
 
 func _key(code: int) -> InputEventKey:

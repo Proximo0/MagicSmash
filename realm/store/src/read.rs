@@ -131,6 +131,12 @@ pub fn owned_cards(c: &Connection, account: AccountId) -> Result<Vec<u16>> {
 	Ok(st.query_map([account], |r| r.get::<_, u16>(0))?.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// The feats a hero has earned (`types::feats`), ascending.
+pub fn feats(c: &Connection, hero: HeroId) -> Result<Vec<u8>> {
+	let mut st = c.prepare_cached("SELECT feat FROM feats WHERE hero = ?1 ORDER BY feat")?;
+	Ok(st.query_map([hero], |r| r.get::<_, u8>(0))?.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 pub fn entitlements(c: &Connection, account: AccountId) -> Result<Vec<(EntitlementKind, u32)>> {
 	let mut st = c.prepare_cached("SELECT kind, count FROM entitlements WHERE account = ?1 ORDER BY kind")?;
 	let v = st

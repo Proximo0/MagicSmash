@@ -9,6 +9,7 @@ const PATH: String = "user://settings.cfg"
 const ACTIONS: Array = [
 	["up", "MOVE UP", KEY_W], ["down", "MOVE DOWN", KEY_S], ["left", "MOVE LEFT", KEY_A], ["right", "MOVE RIGHT", KEY_D],
 	["skill1", "SKILL 1", KEY_SPACE], ["skill2", "SKILL 2", KEY_E], ["ult", "ULTIMATE", KEY_R], ["interact", "INTERACT", KEY_F],
+	["mark", "BLOOD MARK RITE", KEY_G],
 	["potion1", "POTION 1", KEY_4], ["potion2", "POTION 2", KEY_5], ["potion3", "POTION 3", KEY_6],
 	["pick1", "CARD 1", KEY_Z], ["pick2", "CARD 2", KEY_X], ["pick3", "CARD 3", KEY_C], ["pick4", "CARD 4", KEY_V],
 	["sheet", "HERO SHEET", KEY_H], ["bag", "BAG", KEY_I]]

@@ -108,6 +108,7 @@ pub struct WorldStats {
     pub tickets_lost: u64,
     pub news: u64,
     pub chests: u64,
+    pub trials_passed: u64,
 }
 
 /// A hero waiting for a place.
@@ -347,6 +348,42 @@ impl Gateway {
             }
             WReq::VaultOpen { hero, vault, seals, drive_ticks } => self.vault_open(s, account, hero, vault, seals, drive_ticks),
             WReq::VaultJoin { hero, code, drive_ticks } => self.vault_join(s, account, hero, code, drive_ticks),
+            WReq::Trial { hero } => {
+                let h = self.own_hero(account, hero)?;
+                Ok(Resp::World(self.trial_view(&h)?))
+            }
+        }
+    }
+
+    /// THE CLASS TRIAL as the trainer tells it to her.
+    fn trial_view(&self, h: &realm_store::Hero) -> realm_store::Result<WResp> {
+        Ok(WResp::Trial {
+            hero: h.id,
+            level: VAULTS[TRIAL_VAULT as usize].level as u16,
+            passed: self.store.feats(h.id)?.contains(&realm_store::feats::CLASS_TRIAL),
+            job: h.progress.job,
+            job_level: realm_core::tables::JOB_LEVEL as u16,
+            job_price: realm_loot::sinks::job_change_cost(h.progress.class_level.max(realm_core::tables::JOB_LEVEL as u16)),
+        })
+    }
+
+    /// She won THE CLASS TRIAL: the feat is kept for good, and her client is told at once.
+    fn trial_passed(&self, ticket: u64) {
+        let Some(hero) = self.tickets.lock().unwrap().get(&ticket).map(|t| t.hero) else { return };
+        if self.server(Cmd::HeroFeat { hero, feat: realm_store::feats::CLASS_TRIAL }).is_err() {
+            return;
+        }
+        self.world.count(|s| s.trials_passed += 1);
+        let view = match self.store.hero(hero) {
+            Ok(Some(h)) => self.trial_view(&h).ok(),
+            _ => None,
+        };
+        let out = match self.locs.lock().unwrap().get(&hero) {
+            Some(Loc::Field { out, .. }) => Some(out.clone()),
+            _ => None,
+        };
+        if let (Some(v), Some(out)) = (view, out) {
+            let _ = out.send(resp_frame(0, &Resp::WorldPush(v)));
         }
     }
 
@@ -410,7 +447,10 @@ impl Gateway {
         };
         let h = self.own_hero(account, hero)?;
         if vault == TRIAL_VAULT && h.progress.class_level < SKILL1_LEVEL as u16 {
-            return Ok(bad("the class trial is from class level 10"));
+            return Ok(bad(&format!("THE CLASS TRIAL is from class level {SKILL1_LEVEL}; she is level {}", h.progress.class_level)));
+        }
+        if vault == TRIAL_VAULT && self.store.feats(hero)?.contains(&realm_store::feats::CLASS_TRIAL) {
+            return Ok(bad("she has passed THE CLASS TRIAL already"));
         }
         let sheet = sheet_of(&*self.store, &h)?;
         if self.locs.lock().unwrap().get(&hero).is_some_and(|l| !matches!(l, Loc::Town { conn } if *conn == s.conn)) {
@@ -600,6 +640,14 @@ impl Gateway {
             _ => None,
         };
         let Some(k) = kind(b.kind == R_WORLD_RELIC) else { return };
+        // THE CLASS TRIAL needs no key, so its win pays no chest (a free chest every five minutes would be a
+        // faucet): the win is the feat that lets the trainer give her a job.
+        if b.kind == R_VAULT_CHEST && b.vault == TRIAL_VAULT {
+            for (c, _) in &b.heroes {
+                self.trial_passed(c.ticket);
+            }
+            return;
+        }
         for (c, _) in &b.heroes {
             let key = RollKey { field_seed: roll_seed(b.field_seed, b.host), tick: b.tick, index: b.index, slot: c.slot };
             if self.reward(c.ticket, key, c.luck, k).is_some() {

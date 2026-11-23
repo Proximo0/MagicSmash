@@ -38,6 +38,8 @@ pub mod limits {
 	pub const DECK_CARDS: u16 = 30;
 	pub const NOVICE_CARDS: u16 = 12;
 	pub const BELT: usize = 3;
+	/// Bank tabs an account may own at most (the free one and those bought).
+	pub const BANK_TABS_MAX: u32 = 8;
 	pub const FIELDS: usize = 6;
 	pub const MAX_SOCKETS: u8 = 2;
 	pub const MAX_LINES: usize = 4;
@@ -317,6 +319,12 @@ pub struct FlagChange {
 	pub banned_until: Option<Millis>,
 }
 
+/// Feats a hero earns for good (`Cmd::HeroFeat`, `Store::feats`).
+pub mod feats {
+	/// She passed THE CLASS TRIAL (vault row 5): the trainer may give her a job.
+	pub const CLASS_TRIAL: u8 = 1;
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum EntitlementKind {
 	BankTab = 1,
@@ -428,6 +436,17 @@ pub enum Cmd {
 	Plunder { from: HeroId, to: HeroId, items: Vec<ItemSpec>, stacks: Vec<(StackKind, u64)>, coin: u64 },
 	Trade { a: TradeSide, b: TradeSide },
 	GrantEntitlement { account: AccountId, kind: EntitlementKind, count: u32, purchase: String },
+	/// A hero buys one more of an entitlement for coin (the server only; a coin sink, e.g. a bank tab): her
+	/// account must hold exactly `have` of it now (so a repeated or stale request buys nothing), `price` coin is
+	/// debited from her bag and destroyed (a DEBIT row with `reason`) and the count rises by one (an ENTITLE row);
+	/// one transaction.
+	BuyEntitlement { hero: HeroId, kind: EntitlementKind, have: u32, price: u64, reason: String },
+	/// A hero earns a feat (the server only): a fact about her kept for good, such as passing THE CLASS TRIAL
+	/// (`feats::CLASS_TRIAL`). Earning one she has is a no-op. A FEAT row records it.
+	HeroFeat { hero: HeroId, feat: u8 },
+	/// A hero takes a job (the server only, after its checks): `price` coin is debited from her bag and destroyed
+	/// (a DEBIT row, reason "job") and her job set, in one transaction. `price` 0 debits nothing.
+	TakeJob { hero: HeroId, job: u8, price: u64 },
 	/// Moves things from a hero's bag into escrow as a parcel (the server only; the gateway checks consent). A
 	/// listing is one item or one stack for `price` coin; a letter is up to eight entries for the hero `to`, with
 	/// `price` the cash on delivery (0 for a gift). `fee` coin is taken from the sender's bag and destroyed.
@@ -516,6 +535,9 @@ impl Cmd {
 			Cmd::Plunder { .. } => "plunder",
 			Cmd::Trade { .. } => "trade",
 			Cmd::GrantEntitlement { .. } => "grant_entitlement",
+			Cmd::BuyEntitlement { .. } => "buy_entitlement",
+			Cmd::HeroFeat { .. } => "hero_feat",
+			Cmd::TakeJob { .. } => "take_job",
 			Cmd::ParcelPut { .. } => "parcel_put",
 			Cmd::ParcelTake { .. } => "parcel_take",
 			Cmd::ParcelReturn { .. } => "parcel_return",

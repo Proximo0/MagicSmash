@@ -204,6 +204,20 @@ heroes, so a field of unmarked heroes does no extra work.
   - A duellist who leaves town forfeits.
   - Both get `DuelResult`, and a `duel` line goes to the log as a record.
 
+## In the client (job trial-sinks)
+
+- **Duels:** THE DUEL RING in the training yard (`client/town/duel_panel.gd`): challenge a hero of the town by name or
+  from the heroes standing nearest; a challenge opens the ring over the other's town with ACCEPT and REFUSE; the start
+  closes the screens (the walking keys steer) and the town shows "DUEL WITH ..."; both are told the result in words. A
+  duellist who leaves the town is told there that she forfeits (the gateway no longer reaches her). Shell test with a
+  second hero: challenged, refused, challenged from the nearby list, accepted, forfeit by leaving, the result.
+- **The BLOOD MARK:** the rebindable key "BLOOD MARK RITE" (G) holds interact and `IN_MARK` together
+  (`RealmClient.held_buttons`, the module's `send_input` bit 7). At a waystone (48 px) the HUD says what holding F and G
+  do; the hold bar is the rite's (5 s) while G is held; the outcome (`Event::Mark`, now a frame event row) is said in
+  words; a marked hero carries a red BLOOD MARKED seal by her health (`hero_view().marked`). Checked by `field_test.gd`
+  (the input word carries 0x4000 and 0x80, plain interact no mark, the waystone distance, the HUD reads the mark) and the
+  core's rite tests (`core/tests/pvp.rs`); the shell test does not walk a field to a waystone.
+
 ## Marked realms
 
 `Field::set_marked_realm(true)` marks every present hero past class level **20** for good, and every hero who joins

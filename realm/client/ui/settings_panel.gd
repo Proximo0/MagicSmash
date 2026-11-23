@@ -4,7 +4,8 @@ extends PanelBase
 ## fullscreen). Kept in user://settings.cfg (ShellSettings). In town it also holds LEAVE TOWN and QUIT.
 
 const COLS: int = 2
-const ROW_H: float = 30.0
+## Ten rows a column (19 keys) in the 270 px the keys had at nine rows of 30.
+const ROW_H: float = 27.0
 
 var awaiting: String = ""
 

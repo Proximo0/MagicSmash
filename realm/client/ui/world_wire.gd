@@ -9,18 +9,44 @@ const R_WORLD := 0x91
 const P_WORLD := 0xB1
 
 const Q_BOARD := 1
+const Q_VAULT_OPEN := 5
+const Q_TRIAL := 7
+## The class trial is vault row 5 (realm/core tables VAULTS; no key, no seals, from class level 10).
+const TRIAL_VAULT := 5
 
 const K_BOARD := 1
 const K_QUEUED := 2
 const K_VAULT := 3
 const K_MOVED := 4
 const K_NEWS := 5
+const K_TRIAL := 6
 
 
 static func board() -> Array:
 	var b := StreamPeerBuffer.new()
 	b.big_endian = false
 	b.put_u8(Q_BOARD)
+	return [T_WORLD, b.data_array]
+
+
+## THE CLASS TRIAL as the trainer tells it to her (K_TRIAL).
+static func trial(hero: int) -> Array:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+	b.put_u8(Q_TRIAL)
+	b.put_u64(hero)
+	return [T_WORLD, b.data_array]
+
+
+## Opens a vault for her (the trial: vault 5, no seals); the reply is K_VAULT with the ticket.
+static func vault_open(hero: int, vault: int, seals: int) -> Array:
+	var b := StreamPeerBuffer.new()
+	b.big_endian = false
+	b.put_u8(Q_VAULT_OPEN)
+	b.put_u64(hero)
+	b.put_u8(vault)
+	b.put_u8(seals)
+	b.put_u32(0)
 	return [T_WORLD, b.data_array]
 
 
@@ -67,5 +93,12 @@ static func decode_body(b: StreamPeerBuffer, d: Dictionary) -> void:
 			d["field"] = b.get_u8()
 			d["boss"] = b.get_u8()
 			d["in_ticks"] = b.get_u32()
+		K_TRIAL:
+			d["hero"] = b.get_64()
+			d["level"] = b.get_u16()
+			d["passed"] = b.get_u8() != 0
+			d["job"] = b.get_u8()
+			d["job_level"] = b.get_u16()
+			d["job_price"] = b.get_64()
 		_:
 			d["bad"] = true

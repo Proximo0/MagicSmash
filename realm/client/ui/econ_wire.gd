@@ -9,6 +9,11 @@ const R_ECON := 0x8B
 const P_ECON := 0xA8
 
 # request sub-bytes
+const Q_MERCHANT_LIST := 0x01
+const Q_MERCHANT_BUY := 0x02
+const Q_MERCHANT_SELL := 0x03
+const Q_BUYBACK := 0x04
+const Q_BUYBACK_TAKE := 0x05
 const Q_TRADE_INVITE := 0x10
 const Q_TRADE_ACCEPT := 0x11
 const Q_TRADE_OFFER := 0x12
@@ -27,6 +32,8 @@ const Q_OUTBOX := 0x32
 const Q_LETTER_TAKE := 0x33
 const Q_LETTER_REFUSE := 0x34
 const Q_LETTER_RECALL := 0x35
+const Q_BANK_TABS := 0x40
+const Q_BANK_TAB_BUY := 0x41
 
 # reply kinds
 const K_OK := 0
@@ -39,6 +46,7 @@ const K_LISTINGS := 6
 const K_LETTERS := 7
 const K_PRICES := 8
 const K_NOTICE := 9
+const K_BANK_TABS := 10
 
 # notice kinds
 const N_SOLD := 1
@@ -72,6 +80,28 @@ static func hero_only(sub: int, hero: int) -> Array:
 static func with_id(sub: int, hero: int, id: int) -> Array:
 	var b := _head(sub, hero)
 	b.put_u64(id)
+	return [T_ECON, b.data_array]
+
+
+## The merchant: buy `count` of offer `offer` (potions 0-5, embers 6, gear 7-12).
+static func merchant_buy(hero: int, offer: int, count: int) -> Array:
+	var b := _head(Q_MERCHANT_BUY, hero)
+	b.put_u16(offer)
+	b.put_u32(count)
+	return [T_ECON, b.data_array]
+
+
+## The merchant buys an item from her bag (item != 0) or a count of embers, a field's material or a trophy.
+static func merchant_sell(hero: int, item: int, stack_kind: int, count: int) -> Array:
+	var b := _head(Q_MERCHANT_SELL, hero)
+	GwWire.put_thing(b, item, stack_kind, count)
+	return [T_ECON, b.data_array]
+
+
+## Buys the next bank tab; `owned` is the count she was shown (a stale click buys nothing).
+static func bank_tab_buy(hero: int, owned: int) -> Array:
+	var b := _head(Q_BANK_TAB_BUY, hero)
+	b.put_u32(owned)
 	return [T_ECON, b.data_array]
 
 
@@ -233,5 +263,9 @@ static func decode_body(b: StreamPeerBuffer, d: Dictionary) -> void:
 			d["a"] = b.get_64()
 			d["b"] = b.get_64()
 			d["text"] = GwWire.get_str(b)
+		K_BANK_TABS:
+			d["owned"] = b.get_u32()
+			d["max"] = b.get_u32()
+			d["price"] = b.get_64()
 		_:
 			d["bad"] = true

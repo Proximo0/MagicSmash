@@ -29,11 +29,11 @@ crate). `realm/store/check.sh` builds it, runs the tests and a short crash fuzz,
   ledger from empty rebuilds every item and stack exactly.
 - **Crash points** (`src/crash.rs`) are inert unless the fuzz arms them through `REALM_STORE_CRASH=site:n`.
 
-## Schema (version 2)
+## Schema (version 4)
 
 `schema_version(version)`. Migrations run at open, one transaction per step (`src/schema.rs`). Version 1 is the
 first design. Version 2 is the lead's addition: item origins, account flags and ledger parties, backfilled from the
-ledger. `tests/schema.rs` builds a version 1 database with data, opens it, and checks the backfill and `verify`.
+ledger. Version 3 adds parcels (E1); version 4 adds `feats` (THE CLASS TRIAL, job trial-sinks). `tests/schema.rs` builds a version 1 database with data, opens it, and checks the backfill and `verify`.
 
 | Table | Columns | Rules |
 |---|---|---|
@@ -42,6 +42,7 @@ ledger. `tests/schema.rs` builds a version 1 database with data, opens it, and c
 | purchases | purchase PK, account, kind, count, time | one grant per purchase id |
 | heroes | id, account, name, name_key, name_held, race, class, job, look, class_level 1..60, class_xp, stats "6 numbers", unspent, deck, belt, waystones, self_found, created, deleted_at | UNIQUE(name_key) WHERE name_held: names are unique without regard to case |
 | owned_cards | (account, card) PK | deck cards learned from pages |
+| feats (version 4) | (hero, feat) PK, time | what a hero has done for good: 1 she passed THE CLASS TRIAL (`types::feats`) |
 | items | id AUTOINCREMENT (never reused), base, gear_slot 0..5, item_level, rarity 0..4, lines "stat:pts,...", sockets 0..2, sock0, sock1, plus, bound, place_kind, place_owner, place_tab, place_slot, minted, origin_account, origin_hero, mint_seq | UNIQUE(place): a place holds one item; the place columns are NOT NULL: an item has exactly one place |
 | stacks | (owner_kind, owner, kind) PK, count CHECK >= 0 | a stack at 0 is deleted |
 | ledger | seq PK, time, request, actor, op, item, stack_kind, from_kind/owner/tab/slot, to_kind/owner/tab/slot, count, reason, data, from_acct, to_acct, minted | indexes on request, item, from_acct, to_acct, guild source |
@@ -72,7 +73,7 @@ refuses a server-only command from an account with `NotYours` before doing anyth
 
 | Who | Commands | What an account may touch |
 |---|---|---|
-| server only | account_by_steam, account_by_dev_name, apply_flags, clawback, grant_entitlement, mint, stack_credit, stack_debit, apply_outing, sell_item (the price is the server's), trade_commit (the gateway commits after both players confirm; the store cannot see consent) | nothing |
+| server only | account_by_steam, account_by_dev_name, apply_flags, clawback, grant_entitlement, buy_entitlement, hero_feat, take_job, mint, stack_credit, stack_debit, apply_outing, sell_item (the price is the server's), trade_commit (the gateway commits after both players confirm; the store cannot see consent) | nothing |
 | server, or the owner on its own things | hero_create, hero_rename, hero_delete, hero_undelete, hero_save, learn_page (its own page stack), move_item, socket, unsocket, stack_transfer | its own heroes; its own bags, worn gear, bank, house, and mail to its own heroes. Guild banks, market listings and trade sessions are the server's (membership lives in the gateway; job T1 will pass it in). In hero_save an account may not raise class_level or class_xp; it may respend points, choose a job, and set the deck and belt within the rules |
 
 `tests/auth.rs` walks every command three ways: as a player against another account's things (refused with
@@ -103,6 +104,8 @@ Each is now refused.
 | outing delta | `apply_outing(m, hero, OutingDelta{coin, xp, levels, items, stacks, potions_used, waystone}) -> Vec<(ItemId, Place)>` uses up potions first, then banks coin, stacks and items (bag first, overflow to the hero's mail: nothing banked is dropped), then adds xp, levels and unspent points | Insufficient (potions: nothing applied), Invalid, Deleted |
 | trade commit | `trade_commit(m, TradeSide{hero, items, stacks}, TradeSide)` bag to bag both ways at once; `m.id = trade_request_id(a, b, session)`, a hash of both lists that is the same from either side | Bound, NotYours (item not in the giver's bag), Insufficient, Full, Refused, Invalid |
 | entitlement | `grant_entitlement(m, account, kind, count, purchase) -> (granted_now, total)` once per purchase id; a second grant of the same purchase returns (false, total) | Invalid (same purchase, other terms) |
+| bought for coin | `buy_entitlement(m, hero, kind, have, price, reason) -> total`: the account must hold exactly `have` now (a doubled click buys one); `price` coin leaves her bag (DEBIT row, `reason`, e.g. "bank tab") and the count rises by one (ENTITLE row), one transaction; bank tabs stop at `limits::BANK_TABS_MAX` 8 | Invalid (stale `have`), Insufficient, Full |
+| feats and jobs | `hero_feat(m, hero, feat)` (once; FEAT row); `take_job(m, hero, job, price)`: `price` coin leaves her bag (DEBIT row "job") and her job is set, one transaction (JOB row) | Insufficient |
 | clawback | `clawback(m, ClawbackPlan{items, stacks}, reason) -> (removed, missing, shortfall)` | Invalid |
 | reads | `account`, `hero`, `heroes(account, include_deleted)`, `item`, `items_at(kind, owner)`, `stack(owner, kind)`, `stacks(owner)`, `entitlements`, `trace`, `trace_forward`, `clawback_plan`, `verify`, `backup(path)`, `stats` | |
 

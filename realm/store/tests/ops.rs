@@ -550,6 +550,63 @@ fn entitlements_once_per_purchase() {
 }
 
 #[test]
+fn a_bank_tab_is_bought_for_coin_once_per_count() {
+	let mut t = T::new("buytab");
+	let a = t.account(1);
+	let h = t.hero(a, "Tabby");
+	let coin = |t: &T| t.s.stack(Owner::bag(h), StackKind::COIN).unwrap();
+	t.credit(Owner::bag(h), StackKind::COIN, 100);
+	// Too poor: nothing moves.
+	let m = t.m();
+	assert!(matches!(t.s.buy_entitlement(m, h, EntitlementKind::BankTab, 0, 150, "bank tab"), Err(Error::Insufficient { .. })));
+	assert!(t.s.entitlements(a).unwrap().is_empty());
+	let m = t.m();
+	assert_eq!(t.s.buy_entitlement(m, h, EntitlementKind::BankTab, 0, 60, "bank tab").unwrap(), 1);
+	assert_eq!(coin(&t), 40);
+	// The same count again (a doubled click): refused, nothing paid.
+	let m = t.m();
+	assert!(matches!(t.s.buy_entitlement(m, h, EntitlementKind::BankTab, 0, 30, "bank tab"), Err(Error::Invalid(_))));
+	assert_eq!(coin(&t), 40);
+	// The tab opened: an item goes into it.
+	let it = t.mint_bag(h, 3);
+	let m = t.by(a);
+	t.s.move_item(m, it, Dest::bank(a, 1)).unwrap();
+	// The coin is destroyed and traced: a DEBIT with the reason.
+	let flows = t.s.coin_flows().unwrap();
+	assert!(flows.iter().any(|(op, reason, _, _, total)| op == "DEBIT" && reason == "bank tab" && *total == 60), "{flows:?}");
+	// The most is BANK_TABS_MAX.
+	let m = t.m();
+	t.s.grant_entitlement(m, a, EntitlementKind::BankTab, BANK_TABS_MAX - 2, "fill").unwrap();
+	let m = t.m();
+	assert!(matches!(t.s.buy_entitlement(m, h, EntitlementKind::BankTab, BANK_TABS_MAX - 1, 1, "bank tab"), Err(Error::Full(_))));
+	t.ok();
+}
+
+#[test]
+fn a_feat_is_kept_and_a_job_is_taken_for_coin() {
+	let mut t = T::new("feat");
+	let a = t.account(1);
+	let h = t.hero(a, "Trier");
+	assert!(t.s.feats(h).unwrap().is_empty());
+	let m = t.m();
+	t.s.hero_feat(m, h, feats::CLASS_TRIAL).unwrap();
+	let m = t.m();
+	t.s.hero_feat(m, h, feats::CLASS_TRIAL).unwrap();
+	assert_eq!(t.s.feats(h).unwrap(), vec![feats::CLASS_TRIAL]);
+	t.credit(Owner::bag(h), StackKind::COIN, 500);
+	let m = t.m();
+	assert!(matches!(t.s.take_job(m, h, 3, 501), Err(Error::Insufficient { .. })));
+	assert_ne!(t.s.hero(h).unwrap().unwrap().progress.job, 3);
+	let m = t.m();
+	t.s.take_job(m, h, 3, 400).unwrap();
+	assert_eq!(t.s.hero(h).unwrap().unwrap().progress.job, 3);
+	assert_eq!(t.s.stack(Owner::bag(h), StackKind::COIN).unwrap(), 100);
+	let flows = t.s.coin_flows().unwrap();
+	assert!(flows.iter().any(|(op, reason, _, _, total)| op == "DEBIT" && reason == "job" && *total == 400), "{flows:?}");
+	t.ok();
+}
+
+#[test]
 fn group_commit_many_threads() {
 	let path = fresh("group");
 	let s = Arc::new(SqliteStore::open_with(&path, Options { group_window: Duration::from_millis(20), ..Default::default() }).unwrap());
