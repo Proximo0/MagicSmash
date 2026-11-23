@@ -19,7 +19,8 @@ chmod +x "$T/bin/cargo"
 export PATH="$T/bin:$PATH" FAKE_PIDS="$T/pids" STATION_JOB_SEED=42 WIREFUZZ_TICK=1 STATION_JOB_ART="$T/art"
 fails=0
 check() { if eval "$2"; then echo "  ok   $1"; else echo "  FAIL $1 ($2)"; fails=$((fails + 1)); fi; }
-alive() { local p; for p in $(cat "$T/pids" 2>/dev/null); do kill -0 "$p" 2>/dev/null && return 0; done; return 1; }
+# A process that ended but was not reaped (a zombie: a container whose first process does not reap orphans) is not alive.
+alive() { local p; for p in $(cat "$T/pids" 2>/dev/null); do kill -0 "$p" 2>/dev/null || continue; [ "$(awk '{print $3}' "/proc/$p/stat" 2>/dev/null)" = Z ] || return 0; done; return 1; }
 job=("$REPO/tools/station/jobs/wirefuzz.sh")
 
 FAKE_SECS=0 bash "${job[@]}" iters=5 >"$T/pass.out" 2>&1; rc=$?
