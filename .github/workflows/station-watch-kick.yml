@@ -1,0 +1,28 @@
+# Lives on the station-results branch. GitHub's own schedule runs the station watchdog hours late (a 03:17 UTC cron
+# fired at 12:59 on 23 Nov 2026), so each PC's heartbeat push starts it instead: this starts the station-watch workflow
+# of main when its last run is over 20 minutes old. The schedule on main stays as the fallback for "every PC is off".
+name: station-watch-kick
+on:
+  push:
+    branches: [station-results]
+    paths: ["*-heartbeat.txt"]
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: station-watch-kick
+  cancel-in-progress: true
+jobs:
+  kick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: start station-watch on main when it is due
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          last=$(gh run list --workflow station-watch.yml --limit 1 --json createdAt --jq '.[0].createdAt // empty')
+          now=$(date -u +%s); t=0; [ -n "$last" ] && t=$(date -u -d "$last" +%s)
+          echo "last station-watch run: ${last:-never} ($(( (now - t) / 60 )) min ago)"
+          if [ $((now - t)) -ge 1200 ]; then gh workflow run station-watch.yml --ref main && echo started; else echo "not due"; fi
