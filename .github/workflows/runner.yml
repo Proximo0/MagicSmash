@@ -1,0 +1,33 @@
+# Checks that run on Curtis's own PCs (GitHub self-hosted runners), after a merge to main or by hand.
+# Never add a pull_request trigger here: the repo is public, and a fork's pull request must not reach these machines.
+name: runner
+on:
+  push:
+    branches: [main]
+    paths: ["realm/**", ".github/workflows/runner.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: runner-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux-pc:
+    if: github.repository == 'Proximo0/MagicSmash'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: machine
+        run: |
+          echo "host=$(hostname) cores=$(nproc) ram_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo --version; command -v godot || echo "godot is not on the runner's PATH"
+      - name: realm/check.sh
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          time realm/check.sh
+      - name: realm/store/check.sh
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          time realm/store/check.sh
