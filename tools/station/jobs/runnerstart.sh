@@ -18,11 +18,18 @@ find_dir() {  # $1 = the start script's name; a folder holding it beside the .ru
 	for f in "$HOME"/*/"$1" "$HOME"/*/*/"$1" /c/*/"$1" /d/*/"$1"; do
 		[ -f "$f" ] && [ -f "$(dirname "$f")/.runner" ] && { dirname "$f"; return 0; }
 	done
+	# Last: look for the registration file itself, four folders deep on each drive (a runner started from an elevated
+	# prompt hides its path from this user, and the folder can be anywhere).
+	for d in /c /d /e "$HOME"; do
+		[ -d "$d" ] || continue
+		f=$(timeout -k 5 120 find "$d" -maxdepth 4 -name .runner -type f 2>/dev/null | head -1)
+		[ -n "$f" ] && [ -f "$(dirname "$f")/$1" ] && { dirname "$f"; return 0; }
+	done
 	return 1
 }
 case "$(uname -s)" in
 MINGW* | MSYS* | CYGWIN*)
-	dir=$(find_dir run.cmd) || { echo "FAIL runnerstart no registered runner folder found (run.cmd beside .runner)"; exit 1; }
+	dir=$(find_dir run.cmd) || { echo "FAIL runnerstart no registered runner folder found (run.cmd beside .runner); runner process now: $(tasklist.exe 2>/dev/null | grep -ci Runner.Listener)"; exit 1; }
 	start="$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup"
 	[ -d "$start" ] || { echo "FAIL runnerstart no Startup folder at $start"; exit 1; }
 	win=$(cygpath -w "$dir")
