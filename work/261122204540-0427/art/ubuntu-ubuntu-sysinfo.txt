@@ -1,23 +1,23 @@
 ram_total_mb=15374
-ram_free_mb=11084
+ram_free_mb=9350
 page_mb=4095
-page_used_mb=0
+page_used_mb=3
 cores=4
-disk_free_gb=/837,/837
+disk_free_gb=/835,/835
 --- top programs by memory (MB)
-   2129  11x claude-desktop
-    356   1x bazaar
-    300   1x gnome-shell
-    264   1x ptyxis
-    182   1x dissent
-    138   3x gjs
-    112   1x mutter-x11-fram
-     95   1x Xwayland
-     94   3x xdg-desktop-por
-     69   1x ibus-x11
-     65   1x evolution-alarm
-     55   1x systemd-journal
-     51   1x localsearch-3
-     49   1x snapd
-     49   1x fwupd
+   2180  11x claude-desktop
+    613   1x firefox
+    363   1x bazaar
+    314   1x gnome-shell
+    288   1x ptyxis
+    281   1x Isolated
+    227   3x Web
+    211   1x Privileged
+    179   1x dissent
+    140   1x Runner.Listener
+    137   3x gjs
+    113   1x mutter-x11-fram
+    108   1x WebExtensions
+     94   1x Xwayland
+     93   3x xdg-desktop-por
 gpu=none-or-not-nvidia
