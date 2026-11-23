@@ -923,6 +923,17 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         let t0 = Instant::now();
         let reqs: Vec<JoinReq> = joins.iter().map(|j| j.req.clone()).collect();
         let ids = sim.tick(&reqs, &leaves, &inputs, &mut row);
+        // Recording only (branch video-capture): REALM_VIDEO_BOSS="<row> <secs>" raises boss `row` beside the newest hero.
+        if let Some(v) = std::env::var("REALM_VIDEO_BOSS").ok().filter(|v| !v.trim().is_empty()) {
+            let mut it = v.split_whitespace().map(|t| t.parse::<u64>().unwrap_or(0));
+            let (which, secs) = (it.next().unwrap_or(0), it.next().unwrap_or(8));
+            if n == secs * 20 {
+                let at = sim.field.heroes().iter().rev().find(|h| h.present).map(|h| (h.x, h.y));
+                if let Some((x, y)) = at {
+                    sim.field.summon_boss(which as u8, 2_000_000, x + 90 * realm_core::SUB, y);
+                }
+            }
+        }
         let tick = sim.field.tick();
         members_dirty |= !leaves.is_empty() || !joins.is_empty();
         for (j, id) in joins.iter().zip(ids) {

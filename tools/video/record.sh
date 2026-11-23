@@ -17,7 +17,7 @@ IFS=';' read -ra clips <<<"$CLIPS"
 for c in "${clips[@]}"; do
 	read -r field zoom secs class race <<<"$c"
 	n=$((n + 1)); port=$((7830 + n))
-	realm/target/release/realm-server --port=$port --field="$field" --bots="${BOTS:-300}" --monsters=8000 --rally=0.3 --threads=2 --report=600 >"$out/server$n.log" 2>&1 &
+	REALM_VIDEO_BOSS="${BOSS:+$field ${BOSS}}" realm/target/release/realm-server --port=$port --field="$field" --bots="${BOTS:-300}" --monsters=8000 --rally=0.3 --threads=2 --report=600 >"$out/server$n.log" 2>&1 &
 	sv=$!
 	sleep 4
 	godot --path realm/client -- --server=127.0.0.1:$port --bot --zoom="$zoom" --class="$class" --race="$race" --window="${W}x${H}" --debug=0 --mute >"$out/client$n.log" 2>&1 &
