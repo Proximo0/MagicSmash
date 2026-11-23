@@ -1,0 +1,1 @@
+2026-11-23T11:27:51Z PASS id=261123001212-2869 kind=shell secs=5 charbody made=1 race=elf verts=19158 bones=53 height=1.960 bytes=766824 modifiers=ARMATURE,MASK;
