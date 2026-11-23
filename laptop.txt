@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-23T09:01Z commit=53a6cf9 took=1042s
-JOB frames INFO zooms=16 mean_ms=44.45 p99_ms=76.41 monsters_drawn=14150 renderer="AMD RadeonT 610M"
-JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.16s 
+STATION machine=laptop time=2026-11-23T09:19Z commit=387b13e took=979s
+JOB frames INFO zooms=16 mean_ms=41.33 p99_ms=71.35 monsters_drawn=14094 renderer="AMD RadeonT 610M"
+JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.14s 
 STATION PASS jobs=2 failed=0 skipped=0
