@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-22T22:38Z commit=71c72fa took=183s
-JOB economy INFO seed=318290 ok bots=1000 days=30 secs=179 sales=3516 tax=79782 coin_per_bot=54594 listings=17400 trades=105 letters=165 refused=140
+STATION machine=heatherspc time=2026-11-23T00:50Z commit=83f6947 took=274s
+JOB economy INFO seed=488048 ok bots=1000 days=30 secs=183 sales=3566 tax=74645 coin_per_bot=53963 listings=17727 trades=91 letters=135 refused=148
 STATION PASS jobs=1 failed=0 skipped=0
