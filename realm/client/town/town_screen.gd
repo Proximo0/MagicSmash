@@ -14,6 +14,8 @@ const PIC_K: float = HERO_BOX / 142.0
 ## A picture's bottom edge lies this far south of the station's point (world px); the hearth's likewise.
 const PIC_BASE: float = 24.0
 const HEARTH_BASE: float = 34.0
+## A station name that would sit above this y (under the place title) is drawn here instead.
+const TITLE_BAR_Y: float = 38.0
 const CHAT_LINES: int = 7
 const CHAT_SHOW_S: float = 25.0
 const SAY_S: float = 6.0
@@ -141,8 +143,9 @@ func w2s(p: Vector2) -> Vector2:
 func paint() -> void:
 	_ground()
 	HomeDraw.props(self)
-	_stations()
-	_heroes()
+	_world()
+	_station_labels()
+	_hero_labels()
 	_hud()
 	_chat()
 	_minimap()
@@ -164,7 +167,7 @@ func _ground() -> void:
 		draw_arc(w2s(TownMap.CENTRE), TownMap.PLAZA_R * ZOOM, 0.0, TAU, 160, Color(0, 0, 0, 0.5), 6.0)
 		draw_arc(w2s(TownMap.CENTRE), (TownMap.PLAZA_R - 5.0) * ZOOM, 0.0, TAU, 160, Color(UiKit.GOLD_DIM, 0.3), 1.5)
 		draw_rect(Rect2(w2s(Vector2.ZERO), Vector2(size_px, size_px) * ZOOM), UiKit.BLOOD, false, 3.0)
-		_hearth()
+		_hearth_glow()
 		return
 	draw_rect(Rect2(0, 0, UiKit.W, UiKit.H), Color(0.04, 0.035, 0.045))
 	var half := Vector2(UiKit.W, UiKit.H) / (2.0 * ZOOM)
@@ -206,78 +209,136 @@ func _ground() -> void:
 	# The hearth in the middle of the plaza.
 	if int(shell.place[0]) != HomeMap.PLAZA:
 		return
-	_hearth()
+	_hearth_glow()
 
 
-## The hearth: its picture on the plaza's middle (a warm glow round it, breathing with the fire), else a few circles.
-func _hearth() -> void:
+## The hearth's glow on the cobbles, under everything.
+func _hearth_glow() -> void:
 	var hc: Vector2 = w2s(TownMap.CENTRE)
 	var fl: float = 0.85 + 0.15 * sin(_clock * 8.0)
 	if UiArt.has_file("town_hearth"):
 		draw_circle(hc, 150.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.05))
 		draw_circle(hc, 95.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.06))
+	else:
+		draw_circle(hc, 44.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.07))
+
+
+## The hearth itself: its picture on the plaza's middle, else a few circles.
+func _hearth_pic() -> void:
+	var hc: Vector2 = w2s(TownMap.CENTRE)
+	var fl: float = 0.85 + 0.15 * sin(_clock * 8.0)
+	if UiArt.has_file("town_hearth"):
 		var tex: Texture2D = UiArt.texture("town_hearth", 96)
 		var hs: Vector2 = tex.get_size() * PIC_K * ZOOM
 		draw_texture_rect(tex, Rect2(Vector2(hc.x - hs.x / 2.0, hc.y + HEARTH_BASE * ZOOM - hs.y), hs), false)
 		return
-	draw_circle(hc, 44.0 * ZOOM * fl, Color(0.9, 0.5, 0.1, 0.07))
 	draw_circle(hc, 20.0 * ZOOM, Color(0.1, 0.08, 0.08))
 	draw_arc(hc, 20.0 * ZOOM, 0.0, TAU, 24, UiKit.GOLD_DIM, 1.5)
 	draw_colored_polygon(PackedVector2Array([hc + Vector2(-9, 4), hc + Vector2(0, -26 * fl), hc + Vector2(9, 4)]), Color(0.85, 0.32, 0.08, 0.9))
 	draw_colored_polygon(PackedVector2Array([hc + Vector2(-4, 4), hc + Vector2(0, -12 * fl), hc + Vector2(4, 4)]), Color(1.0, 0.8, 0.3))
 
 
-func _stations() -> void:
+## Stations, the hearth, the fires to sit at and the heroes in one list by ground y: whoever stands further
+## north is drawn first, so a hero behind a building is hidden by it and one in front is drawn over it.
+func _world() -> void:
+	var plaza: bool = int(shell.place[0]) == HomeMap.PLAZA
+	var items: Array = []
 	for s in stations:
-		var at: Vector2 = s["at"]
-		var sz: Vector2 = (s["size"] as Vector2) * ZOOM
-		var c: Vector2 = w2s(at)
+		var picture: bool = UiArt.has_file("town_" + String(s["id"]))
+		items.append([(s["at"] as Vector2).y + (PIC_BASE if picture else 0.0), 0, s])
+	if plaza:
+		items.append([TownMap.CENTRE.y + HEARTH_BASE, 1, null])
+	var fires: Array[Vector2] = HomeMap.fires_here(shell.place, shell.house.get("items", []))
+	for f in fires:
+		items.append([f.y + 8.0, 2, f])
+	for id in members.keys():
+		items.append([shown(id).y, 3, id])
+	items.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	for it in items:
+		match int(it[1]):
+			0:
+				_station(it[2])
+			1:
+				_hearth_pic()
+			2:
+				HomeDraw.fire_picture(self, it[2])
+			3:
+				_hero(int(it[2]))
+
+
+func _station_rect(s: Dictionary) -> Rect2:
+	var c: Vector2 = w2s(s["at"])
+	if UiArt.has_file("town_" + String(s["id"])):
+		var ps: Vector2 = UiArt.texture("town_" + String(s["id"]), 96).get_size() * PIC_K * ZOOM
+		return Rect2(Vector2(c.x - ps.x / 2.0, c.y + PIC_BASE * ZOOM - ps.y), ps)
+	var sz: Vector2 = (s["size"] as Vector2) * ZOOM
+	return Rect2(c - sz / 2.0, sz)
+
+
+func _station(s: Dictionary) -> void:
+	var c: Vector2 = w2s(s["at"])
+	if c.x < -400 or c.x > UiKit.W + 400 or c.y < -400 or c.y > UiKit.H + 400:
+		return
+	var r: Rect2 = _station_rect(s)
+	var id: String = "st:" + String(s["id"])
+	var near_it: bool = not _prompt.is_empty() and _prompt["id"] == s["id"]
+	hit(id, r)
+	if UiArt.has_file("town_" + String(s["id"])):
+		# The picture at its own size (a pixel as big as a hero's), standing on the station's point.
+		draw_texture_rect(UiArt.texture("town_" + String(s["id"]), 96), r, false, Color(1.3, 1.25, 1.15) if (near_it or hover_id == id) else Color.WHITE)
+		return
+	var col: Color = s["col"]
+	draw_rect(r, col.darkened(0.55))
+	draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.34)), col)
+	draw_rect(r, UiKit.GOLD if (near_it or hover_id == id) else UiKit.GOLD_DIM, false, 2.0)
+	UiKit.rune(self, c - Vector2(12, 14), stations.find(s) + 2, 24.0, Color(UiKit.GOLD, 0.7), 1.5)
+	if s["id"] == "gate":
+		for k in 6:
+			var gx: float = r.position.x + (k + 0.5) * r.size.x / 6.0
+			draw_rect(Rect2(gx - 9, r.end.y - 30, 18, 30), Color(0.02, 0.02, 0.03))
+			draw_arc(Vector2(gx, r.end.y - 30), 9.0, PI, TAU, 10, UiKit.GOLD_DIM, 1.0)
+
+
+## Names and the use prompt, over everything. A name that would fall under the title bar at the top goes below it.
+func _station_labels() -> void:
+	for s in stations:
+		var c: Vector2 = w2s(s["at"])
 		if c.x < -400 or c.x > UiKit.W + 400 or c.y < -400 or c.y > UiKit.H + 400:
 			continue
-		var r := Rect2(c - sz / 2.0, sz)
-		var id: String = "st:" + String(s["id"])
+		var r: Rect2 = _station_rect(s)
 		var near_it: bool = not _prompt.is_empty() and _prompt["id"] == s["id"]
-		if UiArt.has_file("town_" + String(s["id"])):
-			# The picture at its own size (a pixel as big as a hero's), standing on the station's point.
-			var tex: Texture2D = UiArt.texture("town_" + String(s["id"]), 96)
-			var ps: Vector2 = tex.get_size() * PIC_K * ZOOM
-			r = Rect2(Vector2(c.x - ps.x / 2.0, c.y + PIC_BASE * ZOOM - ps.y), ps)
-			hit(id, r)
-			draw_texture_rect(tex, r, false, Color(1.3, 1.25, 1.15) if (near_it or hover_id == id) else Color.WHITE)
-		else:
-			hit(id, r)
-			var col: Color = s["col"]
-			draw_rect(r, col.darkened(0.55))
-			draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.34)), col)
-			draw_rect(r, UiKit.GOLD if (near_it or hover_id == id) else UiKit.GOLD_DIM, false, 2.0)
-			UiKit.rune(self, c - Vector2(12, 14), stations.find(s) + 2, 24.0, Color(UiKit.GOLD, 0.7), 1.5)
-			if s["id"] == "gate":
-				for k in 6:
-					var gx: float = r.position.x + (k + 0.5) * r.size.x / 6.0
-					draw_rect(Rect2(gx - 9, r.end.y - 30, 18, 30), Color(0.02, 0.02, 0.03))
-					draw_arc(Vector2(gx, r.end.y - 30), 9.0, PI, TAU, 10, UiKit.GOLD_DIM, 1.0)
-		UiKit.text(self, Vector2(c.x, r.position.y - 20), String(s["name"]), 14, UiKit.GOLD if near_it else UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
+		var ly: float = r.position.y - 20.0
+		if absf(c.x - UiKit.W / 2.0) < 150.0 and ly < TITLE_BAR_Y:
+			ly = TITLE_BAR_Y
+		UiKit.text(self, Vector2(c.x, ly), String(s["name"]), 14, UiKit.GOLD if near_it else UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
 		if near_it:
 			UiKit.text(self, Vector2(c.x, r.end.y + 6), "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(s["what"])], 12, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 
 
-func _heroes() -> void:
-	var order: Array = members.keys()
-	order.sort_custom(func(a: int, b: int) -> bool: return shown(a).y < shown(b).y)
-	for id in order:
+func _hero(id: int) -> void:
+	var m: Dictionary = members[id]
+	var p: Vector2 = w2s(shown(id))
+	if p.x < -60 or p.x > UiKit.W + 60 or p.y < -60 or p.y > UiKit.H + 100:
+		return
+	var mine: bool = id == me
+	draw_circle(p + Vector2(0, 2), 12.0 * ZOOM * 0.8, Color(0, 0, 0, 0.4))
+	if mine:
+		draw_arc(p + Vector2(0, 2), 13.0 * ZOOM * 0.8, 0.0, TAU, 20, UiKit.GOLD, 1.5)
+	var d: int = int(m["dir"])
+	var bob: float = 0.0
+	if (m["from"] as Vector2).distance_to(m["to"]) > 0.5:
+		bob = sin(_clock * 14.0 + float(id)) * 1.5
+	UiArt.draw_hero(self, int(m["class"]), int(m["race"]), p + Vector2(0, -HERO_BOX * ZOOM * 0.4 + bob), HERO_BOX * ZOOM, int(m["look"]), d in [4, 5, 6])
+
+
+## Every hero's name and speech, over everything.
+func _hero_labels() -> void:
+	for id in members.keys():
 		var m: Dictionary = members[id]
 		var p: Vector2 = w2s(shown(id))
 		if p.x < -60 or p.x > UiKit.W + 60 or p.y < -60 or p.y > UiKit.H + 100:
 			continue
 		var mine: bool = id == me
-		draw_circle(p + Vector2(0, 2), 12.0 * ZOOM * 0.8, Color(0, 0, 0, 0.4))
-		if mine:
-			draw_arc(p + Vector2(0, 2), 13.0 * ZOOM * 0.8, 0.0, TAU, 20, UiKit.GOLD, 1.5)
-		var d: int = int(m["dir"])
-		var bob: float = 0.0
-		if (m["from"] as Vector2).distance_to(m["to"]) > 0.5:
-			bob = sin(_clock * 14.0 + float(id)) * 1.5
-		UiArt.draw_hero(self, int(m["class"]), int(m["race"]), p + Vector2(0, -HERO_BOX * ZOOM * 0.4 + bob), HERO_BOX * ZOOM, int(m["look"]), d in [4, 5, 6])
 		var label: String = "%s  %d" % [String(m["name"]), int(m["level"])]
 		UiKit.text(self, p + Vector2(0, -HERO_BOX * ZOOM * 0.95 - 16), label, 12, UiKit.GOLD if mine else UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
 		if float(m["say_until"]) > _clock:

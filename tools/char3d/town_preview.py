@@ -68,7 +68,7 @@ def pic(name, k):
     return im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.NEAREST)
 
 
-def compose(x0, y0, w, h, scale, labels=True, heroes=()):
+def compose(x0, y0, w, h, scale, labels=True, heroes=(), title=False):
     """w x h in preview px."""
     img = ground(x0, y0, w, h, scale)
     d = ImageDraw.Draw(img, "RGBA")
@@ -83,24 +83,35 @@ def compose(x0, y0, w, h, scale, labels=True, heroes=()):
         if (ART / ("ui_town_%s.png" % sid)).exists():
             items.append((ay + PIC_BASE, sid, name, ax))
     items.append((CENTRE[1] + HEARTH_BASE, "hearth", "", CENTRE[0]))
+    if (ART / "ui_town_brazier.png").exists():
+        for fx in (1850.0, 2250.0):                                   # HomeMap.FIRES[PLAZA]
+            items.append((2048.0 + 8.0, "brazier", "", fx))
+    for hx, hy in heroes:
+        items.append((hy, "hero", "", hx))
     items.sort()
     glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     for rr, al in ((150, 14), (95, 16)):
         gd.ellipse((cx - rr * scale, cy - rr * scale, cx + rr * scale, cy + rr * scale), fill=(230, 128, 26, al))
     img.alpha_composite(glow)
-    for base, sid, name, ax in items:
-        im = pic(sid, PIC_K * scale)
-        px, py = to((ax, base))
-        img.alpha_composite(im, (round(px - im.width / 2), round(py - im.height)))
-        if labels and sid != "hearth":
-            d.text((px - 4 * len(name), py - im.height - 14), name, fill=(214, 190, 120, 255))
     hs = hero()
     hk = HERO_BOX / 142.0 * scale
     hi = hs.resize((round(hs.width * hk), round(hs.height * hk)), Image.NEAREST)
-    for hx, hy in heroes:
-        px, py = to((hx, hy))
-        img.alpha_composite(hi, (round(px - hi.width / 2), round(py - hi.height + 3 * scale)))
+    labs = []
+    for base, sid, name, ax in items:
+        if sid == "hero":
+            px, py = to((ax, base))
+            img.alpha_composite(hi, (round(px - hi.width / 2), round(py - hi.height + 3 * scale)))
+            continue
+        im = pic(sid, PIC_K * scale)
+        px, py = to((ax, base))
+        img.alpha_composite(im, (round(px - im.width / 2), round(py - im.height)))
+        if labels and sid not in ("hearth", "brazier"):
+            labs.append((px, py - im.height - 14, name))
+    for px, ly, name in labs:                                         # labels last, over everything
+        if title and abs(px - img.width / 2) < 150 * scale / 1.0 and ly < 38 * scale:
+            ly = 38 * scale                                           # below the title bar
+        d.text((px - 4 * len(name), ly), name, fill=(214, 190, 120, 255))
     return img
 
 
@@ -114,7 +125,7 @@ def main():
     s = ZOOM * 1.5
     w, h = 1440, 810
     x0, y0 = sm[2] - w / s / 2, sm[3] - h / s / 2 - 20
-    crop = compose(x0, y0, w, h, s, heroes=[(sm[2] - 70, sm[3] + 95), (sm[2] + 30, sm[3] + 120)])
+    crop = compose(x0, y0, w, h, s, heroes=[(sm[2] - 70, sm[3] + 95), (sm[2] + 30, sm[3] - 10), (sm[2] - 110, sm[3] - 30)], title=True)
     crop.convert("RGB").save(out / "town_preview_smith.png")
     print("ok", out)
 
