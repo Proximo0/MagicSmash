@@ -106,3 +106,27 @@ fn the_jobs_gate_short() {
         assert!(gap <= JOB_GAP_REPORTED_PCT[class as usize], "class {class}: gap {gap}%");
     }
 }
+
+#[test]
+fn a_cohort_is_played_out_at_the_hours_cap_even_when_some_careers_reached_60_early() {
+    // A career at 60 stops playing, so her hours stop growing; she must not hold the cap open for the others
+    // (that made `balance career` play forever when one career never reached 60).
+    let mut c = Cohort::new(7, 1);
+    let cap = 200;
+    assert!(!c.finished(cap), "a new cohort plays");
+    c.careers[0].level = CLASS_LEVEL_MAX;
+    c.careers[0].ticks = 30 * TICKS_HOUR;
+    for x in &mut c.careers[1..] {
+        x.level = 41;
+        x.ticks = cap * TICKS_HOUR;
+    }
+    assert!(c.finished(cap), "those below 60 have the cap");
+    c.careers[1].ticks = cap * TICKS_HOUR - 1;
+    assert!(!c.finished(cap), "one below 60 is short of the cap");
+    for x in &mut c.careers {
+        x.level = CLASS_LEVEL_MAX;
+    }
+    assert!(c.finished(cap) && c.done(), "all 60");
+    let line = progress_line(0, &c, false);
+    assert!(line.starts_with("balance progress seed 0 ") && !line.starts_with("BALANCE "), "{line}");
+}
