@@ -35,3 +35,4 @@
 2026-11-22T08:14Z heatherspc JOB deep FAIL build 
 2026-11-22T08:14Z heatherspc JOB deep FAIL build 
 2026-11-22T08:15Z heatherspc JOB deep FAIL build 
+2026-11-23T01:02Z heatherspc queue 2026-11-23T01:01:38Z FAIL id=261123000439-0558 kind=shell secs=402 blender self test:     raise ValueError("The \"package\" does not name an extension") ValueError: The "package" does not name an extension  (log heatherspc-blender.txt) 
