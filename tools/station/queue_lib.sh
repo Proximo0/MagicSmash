@@ -297,11 +297,12 @@ qk_bench() {  # args: fields=0,1 threads=1,2 monsters=5000,20000 bots=N ticks=N 
   done; done; done
   echo "$([ $bad = 0 ] && echo PASS || echo FAIL) bench seed=$seed runs=$n bad=$bad${detail} last: ${LAST:-none}"
 }
-qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=0|1 hours=N. realm-loadtest balance career; record only
+qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=K hours=N. fast is the compression k of career.rs (an outing counts k
+  # times as long), 16 as in balance.md, never 0 or 1 here: uncompressed careers take days and print nothing. realm-loadtest balance career; record only
   local args=$1 n per mins fast hours rc line
   q_cargo || { echo "FAIL cargo is not installed on this station"; return 0; }
   n=$(q_int "$(q_tok "$args" seeds)" 1 1 50); per=$(q_int "$(q_tok "$args" per)" 2 1 20); mins=$(q_int "$(q_tok "$args" minutes)" 20 1 600)
-  fast=$(q_int "$(q_tok "$args" fast)" 1 0 1); hours=$(q_int "$(q_tok "$args" hours)" 200 1 2000)
+  fast=$(q_int "$(q_tok "$args" fast)" 16 2 64); hours=$(q_int "$(q_tok "$args" hours)" 200 1 2000)
   q_build realm -p realm-loadtest || { echo "FAIL build $(q_tail "$Q_WD/build.log")"; return 0; }
   BOT_THREADS="${STATION_BALANCE_THREADS:-2}" q_run "$Q_WD/balance.out" timeout "$(q_left)" realm/target/release/realm-loadtest balance career "$n" "$per" "$mins" "$fast" "$hours"; rc=$?
   [ $rc = 99 ] && return 3
