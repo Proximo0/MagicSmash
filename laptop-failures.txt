@@ -8,3 +8,4 @@
 2026-11-23T03:49Z laptop queue 2026-11-23T03:49:17Z FAIL id=261122113654-5395 kind=economy secs=4 economy runs=1 bad=1 seed=214334 no ECONOMY ok line: timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied  
 2026-11-23T05:21Z laptop queue 2026-11-23T05:21:32Z FAIL id=261122135940-2187 kind=shell secs=914 wirefuzz iters=2000000 seed=422455 (rerun: WIRE_FUZZ_ITERS=2000000 WIRE_FUZZ_SEED=422455 cargo test --release --lib fuzz in realm/) 
 2026-11-23T12:38Z laptop queue 2026-11-23T12:38:33Z FAIL id=261123122327-4504 kind=shell secs=2 runnerstart no registered runner folder found (run.cmd beside .runner) 
+2026-11-23T14:12Z laptop queue 2026-11-23T14:12:06Z FAIL id=261123125551-9413 kind=shell secs=2 runnerstart no registered runner folder found (run.cmd beside .runner) 
