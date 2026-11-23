@@ -77,8 +77,32 @@ fn go(args: &[String]) -> Result<String, String> {
             if !release::running(&root) {
                 return Err(format!("no supervisor is running in {}", root.display()));
             }
+            let said = root.join(supervise::STOPPED);
+            let _ = std::fs::remove_file(&said);
             std::fs::write(root.join(cmd), "").map_err(|e| e.to_string())?;
-            Ok(format!("{cmd} requested"))
+            if cmd == "restart" {
+                return Ok("restart requested".into());
+            }
+            // The stop returns when the supervisor has ended (its gateway banked and exited, or was killed after
+            // the grace), so a service manager that kills what is left after this command kills nothing.
+            let t = std::time::Instant::now();
+            let bound = supervise::STOP_GRACE + std::time::Duration::from_secs(5);
+            while release::running(&root) {
+                if t.elapsed() > bound {
+                    return Err(format!("stop requested, but the supervisor is still running after {} s", bound.as_secs()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            let secs = t.elapsed().as_secs_f64();
+            match std::fs::read_to_string(&said).unwrap_or_default().trim() {
+                "forced" => Err(format!(
+                    "stopped in {secs:.1} s, but the gateway did not bank its fields and exit within {} s and was killed: heroes in fields lost their unbanked hauls (logs/supervisor.log, logs/realm.log)",
+                    supervise::STOP_GRACE.as_secs()
+                )),
+                "clean" => Ok(format!("stopped in {secs:.1} s")),
+                // A supervisor of an older release says nothing: it killed the gateway.
+                _ => Err(format!("stopped in {secs:.1} s, but the supervisor did not say the gateway stopped cleanly (an older release kills it)")),
+            }
         }
         "status" => {
             let c = load(&root)?;
@@ -94,7 +118,7 @@ fn go(args: &[String]) -> Result<String, String> {
             if port == 0 {
                 return Err("admin_port is 0 (off) in ops.conf".into());
             }
-            let token = std::fs::read_to_string(format!("{}.admin", c.path(&root, "db").display())).map_err(|e| format!("admin token: {e}"))?;
+            let token = std::fs::read_to_string(realm_ops::sides::side(&c.path(&root, "db"), realm_ops::sides::ADMIN)).map_err(|e| format!("admin token: {e}"))?;
             let mut s = std::net::TcpStream::connect(("127.0.0.1", port as u16)).map_err(|e| format!("the realm's admin port {port} does not answer: {e}"))?;
             let words: Vec<&str> = args.iter().filter(|a| !a.starts_with("--")).map(|a| a.as_str()).collect();
             std::io::Write::write_all(&mut s, format!("{}\tops\n{}\n", token.trim(), words.join(" ")).as_bytes()).map_err(|e| e.to_string())?;
@@ -121,8 +145,12 @@ fn go(args: &[String]) -> Result<String, String> {
                 Some(f) => PathBuf::from(f),
                 None => backup::list(&c.path(&root, "backup_dir")).pop().ok_or("no backups")?.1,
             };
-            let d = backup::restore(&from, &c.path(&root, "db"), now)?;
-            Ok(format!("restore ok from {} digest={d:016x}", from.display()))
+            let r = backup::restore(&from, &c.path(&root, "db"), now)?;
+            let mut out = format!("restore ok from {} digest={:016x}", from.display(), r.digest);
+            for n in &r.notes {
+                out.push_str(&format!("\nNOTE {n}"));
+            }
+            Ok(out)
         }
         "drill" => {
             let c = load(&root)?;

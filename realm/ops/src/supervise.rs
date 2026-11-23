@@ -1,8 +1,11 @@
 //! The host's one long-running program: starts the current release's gateway from `ops.conf`, keeps it up, and
 //! tells somebody when it dies (alarm `host-death`: a log line and the hook). `running` holds the supervisor's pid
 //! while it lives (restores refuse while it exists); `stop` and `restart` are files the CLI drops, so the same
-//! three commands work from a .cmd, a .ps1, systemd or a hand. A killed gateway loses nothing banked (the store
-//! commits before it answers), so stop is a kill: the standard library has no graceful signal.
+//! three commands work from a .cmd, a .ps1, systemd or a hand. On stop and restart the supervisor asks the gateway
+//! to stop (the file `runtime::GATEWAY_STOP`, as the standard library has no graceful signal): it banks every hero
+//! in a field and exits. Only a gateway that has not exited within `STOP_GRACE` is killed (logged
+//! `gateway_stop_forced`); a killed gateway loses the unbanked hauls, nothing banked (the store commits before it
+//! answers).
 
 use crate::alarm::Alarms;
 use crate::config::Conf;
@@ -12,6 +15,39 @@ use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::atomic::Ordering::Relaxed;
 use std::time::{Duration, Instant};
+
+/// How long a gateway asked to stop has to bank its fields and exit before it is killed. `realm-ops stop` waits a
+/// little longer than this for the supervisor (systemd's `TimeoutStopSec` in realm.service is above both).
+pub const STOP_GRACE: Duration = Duration::from_secs(20);
+
+/// The supervisor's last word on a requested stop, in the host folder: `clean` (the gateway banked its fields and
+/// exited) or `forced` (killed after `STOP_GRACE`: heroes in fields lost their unbanked hauls).
+pub const STOPPED: &str = "stopped";
+
+/// Asks the gateway to stop and waits up to `grace` for it to exit; kills it after that. True: it stopped by itself.
+pub fn stop_child(root: &Path, child: &mut Child, grace: Duration) -> bool {
+    let ask = root.join(crate::runtime::GATEWAY_STOP);
+    let _ = std::fs::write(&ask, "");
+    let t = Instant::now();
+    let clean = loop {
+        if let Ok(Some(_)) = child.try_wait() {
+            break true;
+        }
+        if t.elapsed() >= grace {
+            let _ = child.kill();
+            let _ = child.wait();
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    let _ = std::fs::remove_file(&ask);
+    if clean {
+        log::info("gateway_stop_clean", &[("ms", t.elapsed().as_millis().to_string())]);
+    } else {
+        log::warn("gateway_stop_forced", &[("after_ms", t.elapsed().as_millis().to_string())]);
+    }
+    clean
+}
 
 pub fn start_child(root: &Path, conf_path: &Path, conf: &Conf) -> Result<Child, String> {
     let cur = release::current(root).ok_or("no current release (install one and switch to it)")?;
@@ -24,6 +60,8 @@ pub fn start_child(root: &Path, conf_path: &Path, conf: &Conf) -> Result<Child, 
     }
     let console = OpenOptions::new().create(true).append(true).open(conf.path(root, "log_dir").join("console.log")).map_err(|e| format!("console.log: {e}"))?;
     let err = console.try_clone().map_err(|e| e.to_string())?;
+    // A stop request left over (a supervisor that died mid-stop) must not stop the new gateway.
+    let _ = std::fs::remove_file(root.join(crate::runtime::GATEWAY_STOP));
     let mut args = conf.gateway_args(root);
     args.push(format!("--ops-conf={}", conf_path.display()));
     Command::new(&exe).args(&args).current_dir(root).stdout(console).stderr(err).spawn().map_err(|e| format!("start {}: {e}", exe.display()))
@@ -57,6 +95,8 @@ pub fn run(root: &Path) -> i32 {
             Err(e) => {
                 alarms.raise("host-death", &format!("cannot start the gateway: {e}"), time::now_ms());
                 if wait_or_stop(&stop, Duration::from_secs(backoff)) {
+                    // No gateway was running: the stop killed nothing.
+                    let _ = std::fs::write(root.join(STOPPED), "clean\n");
                     break 'outer 1;
                 }
                 backoff = (backoff * 2).min(30);
@@ -68,15 +108,15 @@ pub fn run(root: &Path) -> i32 {
         loop {
             std::thread::sleep(Duration::from_millis(250));
             if stop.exists() {
-                let _ = child.kill();
-                let _ = child.wait();
-                log::info("gateway_stopped", &[("why", "stop requested".into())]);
+                let clean = stop_child(root, &mut child, STOP_GRACE);
+                // `realm-ops stop` reads this once `running` is gone, and fails on a forced stop.
+                let _ = std::fs::write(root.join(STOPPED), if clean { "clean\n" } else { "forced\n" });
+                log::info("gateway_stopped", &[("why", "stop requested".into()), ("clean", clean.to_string())]);
                 break 'outer 0;
             }
             if restart.exists() {
                 let _ = std::fs::remove_file(&restart);
-                let _ = child.kill();
-                let _ = child.wait();
+                stop_child(root, &mut child, STOP_GRACE);
                 log::info("gateway_restart", &[("release", release::current(root).unwrap_or_default())]);
                 backoff = 1;
                 continue 'outer;
@@ -88,6 +128,8 @@ pub fn run(root: &Path) -> i32 {
                     backoff = 1;
                 }
                 if wait_or_stop(&stop, Duration::from_secs(backoff)) {
+                    // No gateway was running: the stop killed nothing.
+                    let _ = std::fs::write(root.join(STOPPED), "clean\n");
                     break 'outer 0;
                 }
                 backoff = (backoff * 2).min(30);

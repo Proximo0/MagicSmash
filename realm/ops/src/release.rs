@@ -176,8 +176,9 @@ pub fn rollback(root: &Path, db: &Path, backup_dir: &Path, restore_pre_switch: b
             return Err("the realm is running (stop it first, or --force if its `running` file is stale)".into());
         }
         let Some((_, newest)) = backup::list(&backup_dir.join("pre-switch")).pop() else { return Err("no pre-switch backup to restore".into()) };
-        backup::restore(&newest, db, at_ms)?;
+        let r = backup::restore(&newest, db, at_ms)?;
         // The store is back at the older schema now, so the guard in `switch` passes.
+        return switch(root, &prev, db, backup_dir, at_ms).map(|out| r.notes.iter().fold(out, |o, n| format!("{o}\nNOTE {n}")));
     }
     switch(root, &prev, db, backup_dir, at_ms)
 }

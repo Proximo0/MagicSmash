@@ -40,7 +40,9 @@ a crowd; 40 in the yard keeps the dummy readable; 16 in a house (owner included)
   never needs a plot); she gets them back on the grid when she holds a house again. Giving up a house refunds nothing.
 - Upgrading a rented house to bought: buy the same plot, full price (the rent already paid is not credited).
 - The registry (plots, rules, names, guestbooks) is the gateway's own small file `<db>.homes` (tab-separated lines, replayed at
-  start; in memory when no file). The **items and coin are the store's**; the registry owns no value.
+  start; in memory when no file; a last line cut mid-append, by a crash or a backup copy, is dropped from the file at
+  start so the next write begins a whole line). It is backed up with the store (`realm_ops::sides::HOMES`). The **items
+  and coin are the store's**; the registry owns no value.
 
 ## Furniture, trophies and the grid
 

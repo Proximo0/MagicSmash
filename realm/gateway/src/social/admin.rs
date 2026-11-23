@@ -356,12 +356,12 @@ pub fn cli(args: &[String]) -> i32 {
         }
     };
     let social = Social::default();
-    if let Err(e) = social.persist(std::path::Path::new(&format!("{db}.social"))) {
+    if let Err(e) = social.persist(&realm_ops::sides::side(db.as_ref(), realm_ops::sides::SOCIAL)) {
         eprintln!("admin: social log: {e}");
         return 2;
     }
     // Switches thrown here are saved beside the store, and the realm reads them when it next starts.
-    realm_ops::switches::persist(std::path::PathBuf::from(format!("{db}.switches")));
+    realm_ops::switches::persist(realm_ops::sides::side(db.as_ref(), realm_ops::sides::SWITCHES));
     let out = Console { store: &store, social: &social, live: None, op }.run(&line);
     println!("{out}");
     i32::from(out.starts_with("error:"))

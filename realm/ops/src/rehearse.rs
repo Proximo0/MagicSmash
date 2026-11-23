@@ -1,8 +1,11 @@
 //! The rehearsal (`realm-ops rehearse`, the station word `ops`, and the end-to-end test): on a scratch folder,
 //! make a store with play in it, back it up on the clock's code path while writes go on, wreck the live file,
-//! restore, drill, and run a release, a rollback and the schema-downgrade refusal. One line out, an error on any
+//! restore, drill, and run a release, a rollback and the schema-downgrade refusal. The files beside the store go
+//! the same way: a house in the plot registry and a realm clock epoch made before the backup are lost with the
+//! disk and must come back with the restore. One line out, an error on any
 //! step that does not do what it says.
 
+use crate::sides::{side, EPOCH, HOMES, SECRET};
 use crate::{backup, release};
 use realm_store::{Cmd, Meta, SqliteStore, Store};
 use std::path::Path;
@@ -37,8 +40,13 @@ pub fn rehearse(dir: &Path, now_ms: i64) -> Result<String, String> {
     std::fs::create_dir_all(&data).map_err(|e| e.to_string())?;
     let db = data.join("realm.db");
     let store = Arc::new(SqliteStore::open(&db).map_err(|e| e.to_string())?);
-    std::fs::write(format!("{}.secret", db.display()), "12345").map_err(|e| e.to_string())?;
+    std::fs::write(side(&db, SECRET), "12345").map_err(|e| e.to_string())?;
     play(&store, 0, 40)?;
+    // A house (a line as the gateway's plot registry writes it: plot 3 owned by account 1) and an epoch a month old.
+    let home = "plot\t3\t1\tHero0\t0\t0\t0\tTHE HEARTH\t1700000000000\n";
+    let epoch = format!("{}\n", now_ms - 30 * 86_400_000);
+    std::fs::write(side(&db, HOMES), home).map_err(|e| e.to_string())?;
+    std::fs::write(side(&db, EPOCH), &epoch).map_err(|e| e.to_string())?;
 
     // Backups while writes go on: a writer thread keeps adding heroes through the first one.
     let stop = Arc::new(AtomicBool::new(false));
@@ -64,7 +72,9 @@ pub fn rehearse(dir: &Path, now_ms: i64) -> Result<String, String> {
     }
     let all = backup::list(&backups);
     ensure(all.len() == 3, &format!("retention kept {} backups, wanted 3", all.len()))?;
-    ensure(backups.join(format!("{}.secret", all[0].1.file_name().unwrap().to_string_lossy())).exists(), "the side file travels with its backup")?;
+    for ext in [SECRET, HOMES, EPOCH] {
+        ensure(side(&all[0].1, ext).exists(), &format!("the .{ext} file travels with its backup"))?;
+    }
     let newest = all.last().unwrap().1.clone();
     let (_, want, _) = backup::check(&newest)?;
 
@@ -75,11 +85,19 @@ pub fn rehearse(dir: &Path, now_ms: i64) -> Result<String, String> {
     for suffix in ["-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{}{suffix}", db.display()));
     }
+    // The disk is lost: the files beside the store go with it.
+    for ext in [HOMES, EPOCH] {
+        let _ = std::fs::remove_file(side(&db, ext));
+    }
     ensure(backup::check(&db).is_err(), "the wrecked file should fail its check")?;
-    let got = backup::restore(&newest, &db, now_ms + 10 * 3_600_000)?;
+    let restored = backup::restore(&newest, &db, now_ms + 10 * 3_600_000)?;
+    ensure(restored.notes.is_empty(), &format!("the backup has every side file: {:?}", restored.notes))?;
+    let got = restored.digest;
     ensure(got == want, "restored digest equals the backup's")?;
     let (_, again, _) = backup::check(&db)?;
     ensure(again == want, "the live store verifies after restore")?;
+    ensure(std::fs::read_to_string(side(&db, HOMES)).ok().as_deref() == Some(home), "the restore brings back who owns every house")?;
+    ensure(std::fs::read_to_string(side(&db, EPOCH)).ok() == Some(epoch.clone()), "the restore brings back the realm clock's epoch")?;
     ensure(data.join("realm.db.before-restore-".to_string() + &crate::time::stamp(now_ms + 10 * 3_600_000)).exists(), "the wrecked file is set aside, not deleted")?;
     let drilled = backup::drill(&backups, &dir.join("scratch"), now_ms + 11 * 3_600_000)?;
 
@@ -105,7 +123,7 @@ pub fn rehearse(dir: &Path, now_ms: i64) -> Result<String, String> {
     ensure(release::current(&root).as_deref() == Some("v1"), "rolled back to v1")?;
     let (_, after, _) = backup::check(&db)?;
     ensure(after == want, "the store came through switch and rollback untouched")?;
-    Ok(format!("OPS ok backups=3 restored_digest={want:016x} {drilled} release=v1->v2->v1 downgrade=refused"))
+    Ok(format!("OPS ok backups=3 restored_digest={want:016x} sides=homes,epoch {drilled} release=v1->v2->v1 downgrade=refused"))
 }
 
 #[cfg(test)]

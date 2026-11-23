@@ -362,3 +362,67 @@ fn heroes_play_their_own_class_level_job_and_gear() {
         let _ = sock.send(&lc.bye());
     }
 }
+
+/// Heroes the stop test puts in the field at once (measured: see `a_stop_banks_every_hero_in_the_fields_in_time`).
+const STOP_HEROES: usize = 1000;
+
+/// A stop with a crowd in the field: every hero the host plays is in when the realm is stopped (`Gateway::shutdown`,
+/// what `realm-gateway` runs on `gateway.stop`). Each is banked with her whole haul (the coin she is told is the coin
+/// in her bag), nobody holds a ticket after, and the stop is well inside `realm_ops::supervise::STOP_GRACE`.
+#[test]
+fn a_stop_banks_every_hero_in_the_fields_in_time() {
+    stop_a_crowd("stop-crowd", STOP_HEROES, Duration::from_secs(3));
+}
+
+fn stop_a_crowd(name: &str, heroes: usize, fight: Duration) {
+    let r = realm(name, quick(CopyRules { cap: 2_000, open_at: 2_000, ..CopyRules::default() }), 1);
+    let t0 = Instant::now();
+    let mut crowd: Vec<(GatewayClient, i64)> = Vec::with_capacity(heroes);
+    for i in 0..heroes {
+        let mut c = login(&r, &format!("crowd{i}"));
+        let h = hero(&mut c, &format!("Crowd{i}"), 1 + (i % 4) as u8);
+        level_up(&r, h, 12);
+        match c.call(Req::World(WReq::BotTicket { hero: h, field: 0, ticks: 1_000_000 })).unwrap() {
+            Resp::Ticket { .. } => {}
+            x => panic!("hero {i}: {x:?}"),
+        }
+        crowd.push((c, h));
+    }
+    let in_fields = || r.gw.host_loads().iter().map(|l| l.2).sum::<u32>() as usize;
+    assert!(wait_until(STALL_SECS, || in_fields() == heroes), "all in: {} of {heroes}", in_fields());
+    let ready = t0.elapsed();
+    // They fight, so there are hauls to lose.
+    std::thread::sleep(fight);
+    let asked = Instant::now();
+    r.gw.shutdown();
+    let took = asked.elapsed();
+    eprintln!("stop: {heroes} heroes after {fight:?} of fighting, in the field (in after {ready:?}) banked and stopped in {took:?}");
+    assert!(took < realm_ops::supervise::STOP_GRACE / 2, "the stop took {took:?}");
+    assert_eq!(r.gw.ticket_count(), 0, "nobody is left in a field");
+    let (mut total, mut banked_on_the_way) = (0u64, 0usize);
+    for (c, h) in crowd.iter_mut() {
+        // Every Outing push she got, up to the one that ends her outing. Each carries her outing's total so far (a
+        // flush on the way is one, `left` 255), so the last is what she banked in all, never the sum of them.
+        let mut coin_told = 0u64;
+        let mut on_the_way = false;
+        let left = loop {
+            let told = c.wait_push(Duration::from_secs(10), |p| match p {
+                Resp::Outing { hero, coin, left, .. } if *hero == *h => Some((*coin, *left)),
+                _ => None,
+            });
+            let (coin, left) = told.unwrap().unwrap_or_else(|| panic!("hero {h} was not told her outing ended"));
+            assert!(coin >= coin_told, "hero {h}: a total never goes down ({coin_told} then {coin})");
+            on_the_way |= left == 255 && coin > 0;
+            coin_told = coin;
+            if left != 255 {
+                break left;
+            }
+        };
+        assert_eq!(left, 4, "hero {h} left by the shutdown");
+        assert_eq!(coin(&r, *h), coin_told, "hero {h}: her whole haul is in her bag");
+        total += coin_told;
+        banked_on_the_way += on_the_way as usize;
+    }
+    eprintln!("stop: {banked_on_the_way} of {heroes} heroes had banked coin before the stop");
+    assert!(total > 0, "the crowd had hauls to bank");
+}

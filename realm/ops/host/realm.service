@@ -14,7 +14,8 @@ ExecStart=/bin/sh -c 'exec /opt/realm/releases/$(cat /opt/realm/current)/realm-o
 ExecStop=/bin/sh -c '/opt/realm/releases/$(cat /opt/realm/current)/realm-ops stop --root=/opt/realm'
 Restart=on-failure
 RestartSec=5
-TimeoutStopSec=30
+# `realm-ops stop` waits for the gateway to bank every field and exit (at most 25 s); keep this above it.
+TimeoutStopSec=40
 LimitNOFILE=65536
 # The supervisor restarts a dead gateway itself; systemd restarts the supervisor.
 NoNewPrivileges=true

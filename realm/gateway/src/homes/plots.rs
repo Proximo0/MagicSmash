@@ -104,14 +104,19 @@ impl Registry {
         Registry { next_entry: 1, ..Registry::default() }
     }
 
-    /// Opens (and replays) a file; later changes are appended to it.
+    /// Opens (and replays) a file; later changes are appended to it. Only whole lines are read: a last line with no
+    /// newline (a copy or a crash in the middle of an append) is cut off the file, as its fields cannot be trusted
+    /// (a number may be cut short), so the next write starts on a new line rather than joining onto it.
     pub fn open(path: &std::path::Path) -> std::io::Result<Registry> {
         let mut r = Registry::new();
-        if let Ok(text) = std::fs::read_to_string(path) {
-            for line in text.lines() {
-                let f: Vec<&str> = line.split('\t').collect();
-                r.apply(&f);
-            }
+        let text = std::fs::read_to_string(path).unwrap_or_default();
+        let keep = text.rfind('\n').map_or(0, |end| end + 1);
+        for line in text[..keep].lines() {
+            let f: Vec<&str> = line.split('\t').collect();
+            r.apply(&f);
+        }
+        if keep < text.len() {
+            std::fs::OpenOptions::new().write(true).open(path)?.set_len(keep as u64)?;
         }
         r.file = Some(std::fs::OpenOptions::new().create(true).append(true).open(path)?);
         Ok(r)
@@ -433,5 +438,24 @@ mod tests {
         }
         let b = r.book(0);
         assert_eq!((b.len(), b[0].text.as_str(), b[49].text.as_str()), (BOOK_MAX, "n59", "n10"));
+    }
+
+    /// A backup copied mid-append ends on a partial line: it is not read, and the next write starts on a fresh line
+    /// instead of joining onto it.
+    #[test]
+    fn a_partial_last_line_is_ignored_and_the_next_write_starts_a_new_line() {
+        let path = std::env::temp_dir().join(format!("realm-plots-partial-{}.homes", std::process::id()));
+        std::fs::write(&path, "plot\t1\t7\tAnn\t0\t0\t0\tA\t1\nplot\t2\t9\tBo").unwrap();
+        {
+            let mut r = Registry::open(&path).unwrap();
+            assert_eq!(r.plot_of(7, 10), Some(1));
+            assert_eq!(r.plot_of(9, 10), None, "the cut line is not read");
+            r.buy(3, 11, "Cy", 10).unwrap();
+        }
+        let r = Registry::open(&path).unwrap();
+        assert_eq!((r.plot_of(7, 10), r.plot_of(9, 10), r.plot_of(11, 10)), (Some(1), None, Some(3)));
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.ends_with('\n') && text.lines().last().unwrap().starts_with("plot\t3\t11\t"), "{text:?}");
+        let _ = std::fs::remove_file(&path);
     }
 }

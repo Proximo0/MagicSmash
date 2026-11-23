@@ -177,8 +177,13 @@ fn a_duel_is_challenged_declined_accepted_and_fought_to_a_result_for_both() {
             result = Some(r);
             break;
         }
+        // The town's ticker lifts the duels out of the book while it steps them, so one "not in a duel" can be
+        // that moment and not the end: look twice before believing it.
         if !w.gw.social.in_duel(ha) {
-            break;
+            std::thread::sleep(Duration::from_millis(5));
+            if !w.gw.social.in_duel(ha) {
+                break;
+            }
         }
     }
     let ra = push_of(&mut ann, |p| if let SPush::DuelResult { duel, winner, loser, draw } = p { Some((*duel, *winner, *loser, *draw)) } else { None }).expect("a result for her");

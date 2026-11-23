@@ -260,6 +260,43 @@ fn spends_and_the_smith_are_the_players_own() {
     assert_eq!(w.store.verify().unwrap().problems, Vec::<String>::new());
 }
 
+/// The smith's + and a socketed monster card count in the field: the sheet a field host fights with is the loot
+/// rules' own sum of what she wears (`realm_loot::gear::gear_stats`), and the same hero without them is weaker.
+#[test]
+fn the_field_sheet_counts_the_smiths_plus_and_socketed_cards() {
+    let w = world("sheet-plus", true);
+    let mut ann = login(&w, "ann");
+    let h = make_hero(&mut ann, "Annie", 1);
+    let plain = |slot: u8| ItemSpec { base: 1, gear_slot: slot, item_level: 1, rarity: 2, lines: vec![(0, 40), (3, 20)], sockets: 2, plus: 0, bound: false };
+    let card = StackKind::card(0);
+    let rune = StackKind::rune(1, 3);
+    w.store.stack_credit(sys(&w, 1), Owner::bag(h), card, 1, true, "grant").unwrap();
+    w.store.stack_credit(sys(&w, 2), Owner::bag(h), rune, 1, true, "grant").unwrap();
+    let smithed = w.store.mint(sys(&w, 3), Dest::bag(h), ItemSpec { plus: 5, ..plain(0) }, "grant").unwrap().0;
+    assert_eq!(ann.call(Req::Equip { hero: h, item: smithed }).unwrap(), Resp::Ok);
+    w.store.socket(sys(&w, 4), h, smithed, 0, card).unwrap();
+    w.store.socket(sys(&w, 5), h, smithed, 1, rune).unwrap();
+    let hero = w.store.hero(h).unwrap().unwrap();
+    let sheet = realm_gateway::sheet::sheet_of(&*w.store, &hero).unwrap();
+    let worn: Vec<_> = w.store.items_at(PlaceKind::Worn, h).unwrap().into_iter().map(|i| (i.spec, i.socketed)).collect();
+    assert_eq!(sheet.gear, realm_loot::gear::gear_stats(&worn), "the field's gear is the loot rules' sum");
+    let rule = realm_loot::cards::card_rule(0).unwrap();
+    // 40 x 1.15 = 46 might, 20 x 1.15 = 23 on stat 3, a grade III rune's 7 on stat 1, and the card's points.
+    let mut want = [0u16; 6];
+    want[0] = 46;
+    want[3] = 23;
+    want[1] += 7;
+    want[rule.stat as usize] += rule.points;
+    assert_eq!(sheet.gear, want);
+    // The same hero in the same item with no plus and empty sockets.
+    assert_eq!(ann.call(Req::Unequip { hero: h, item: smithed }).unwrap(), Resp::Ok);
+    let bare = w.store.mint(sys(&w, 6), Dest::bag(h), plain(0), "grant").unwrap().0;
+    assert_eq!(ann.call(Req::Equip { hero: h, item: bare }).unwrap(), Resp::Ok);
+    let bare_sheet = realm_gateway::sheet::sheet_of(&*w.store, &w.store.hero(h).unwrap().unwrap()).unwrap();
+    assert_eq!(bare_sheet.gear, [40, 0, 0, 20, 0, 0]);
+    assert_ne!(bare_sheet.gear, sheet.gear);
+}
+
 /// What the shell (job C2) added to the gateway: the item list carries `+` and what the sockets hold, the deck cards
 /// a hero may use, a merchant's buy and sell, and the dev kit a new hero gets under `--dev-grant`.
 #[test]

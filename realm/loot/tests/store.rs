@@ -571,3 +571,14 @@ fn gear_stats_sum_worn_items_in_hundredths() {
 	assert_eq!(base_name(base_id(3, 5, 1)), "ASHEN GAUNTLETS");
 	let _ = (CARD_COUNT, BOSS_COUNT);
 }
+
+/// A malformed stored item never panics the sum every join, duel and home fight takes: a line on a stat past the
+/// six is skipped, a plus past +10 counts as +10, and a socket holding something that is not a rune or card (or a
+/// card id past the table) adds nothing.
+#[test]
+fn gear_stats_skip_what_a_malformed_item_holds() {
+	let bad = ItemSpec { base: 1, gear_slot: 0, item_level: 1, rarity: 0, lines: vec![(0, 10), (6, 50), (255, 9)], sockets: 3, plus: 200, bound: false };
+	let socks = vec![Some(StackKind(2009)), Some(StackKind(5000 + 60_000)), Some(StackKind(1))];
+	let g = gear_stats(&[(bad, socks)]);
+	assert_eq!(g, [13, 0, 0, 0, 0, 0], "10 x (100 + 3 x 10)% on might, the rest skipped");
+}

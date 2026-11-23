@@ -329,7 +329,8 @@ struct EndGuard(Arc<HostStatus>);
 
 impl Drop for EndGuard {
     fn drop(&mut self) {
-        self.0.ended.store(true, Ordering::Relaxed);
+        // Release: whoever sees `ended` (Acquire) and then queues a message has it queued after this host's last.
+        self.0.ended.store(true, Ordering::Release);
     }
 }
 
@@ -355,6 +356,10 @@ pub enum HostMsg {
     /// Never sent by a host: the gateway's own note that a host is gone, queued behind that host's last messages so
     /// every flush it sent is applied before its outings are given up.
     Lost { host: u32 },
+    /// Never sent by a host: the gateway's question about a host seen ended, queued behind that host's last
+    /// messages (its `Closed`, if it sent one), so the answer (closed cleanly or died) does not depend on how far
+    /// behind the applier is.
+    Reap { host: u32 },
 }
 
 pub struct HostHandle {
@@ -373,10 +378,11 @@ impl HostHandle {
     }
 
     /// Waits for the thread if it has ended by itself (a vault closing, an abort).
-    pub fn reap(&mut self) {
-        if let Some(t) = self.thread.take() {
-            let _ = t.join();
-        }
+    /// Joins the ended host's thread. `Some(message)` if it ended by a panic (a bug: the caller prints it).
+    pub fn reap(&mut self) -> Option<String> {
+        let t = self.thread.take()?;
+        let e = t.join().err()?;
+        Some(e.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| e.downcast_ref::<String>().cloned()).unwrap_or_else(|| "a panic with no message".into()))
     }
 
     pub fn stop(&mut self) {

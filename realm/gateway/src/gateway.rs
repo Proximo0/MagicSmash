@@ -173,6 +173,8 @@ pub struct Gateway {
     threads: Mutex<Vec<JoinHandle<()>>>,
     next_conn: AtomicU64,
     ticket_rng: AtomicU64,
+    /// Tests: the applier sleeps this long once, on the next message it takes (a store or a box too slow to keep up).
+    pub(crate) applier_pause_ms: AtomicU64,
     /// Logins accepted and field tickets issued since start (for the LAN rehearsal's host report; not game state).
     pub logins: AtomicU64,
     pub tickets_issued: AtomicU64,
@@ -269,6 +271,7 @@ impl Gateway {
             stop: AtomicBool::new(false),
             threads: Mutex::new(Vec::new()),
             next_conn: AtomicU64::new(1),
+            applier_pause_ms: AtomicU64::new(0),
             logins: AtomicU64::new(0),
             tickets_issued: AtomicU64::new(0),
             ticket_rng: AtomicU64::new(IdGen::new().boot | 1),
@@ -868,7 +871,14 @@ impl Gateway {
 
     fn applier(&self, rx: Receiver<HostMsg>) {
         loop {
-            match rx.recv_timeout(Duration::from_millis(100)) {
+            let m = rx.recv_timeout(Duration::from_millis(100));
+            if m.is_ok() {
+                let pause = self.applier_pause_ms.swap(0, Ordering::Relaxed);
+                if pause > 0 {
+                    std::thread::sleep(Duration::from_millis(pause));
+                }
+            }
+            match m {
                 Ok(HostMsg::Flush(f)) => self.apply(f),
                 Ok(HostMsg::Kills(b)) => self.roll_kills(b),
                 Ok(HostMsg::Unused { hero, ticket }) => self.unused(hero, ticket),
@@ -883,6 +893,7 @@ impl Gateway {
                     self.world.closed(host);
                     self.wars_host_gone(host);
                 }
+                Ok(HostMsg::Reap { host }) => self.on_reap(host),
                 Ok(HostMsg::Lost { host }) => {
                     self.lose_host(host);
                     self.wars_host_gone(host);

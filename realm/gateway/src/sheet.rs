@@ -4,35 +4,19 @@ use realm_core::tables::{BELT, CLASS_XP, CLASS_LEVEL_MAX, DECK_SIZE, NONE, P_NON
 use realm_core::Sheet;
 use realm_store::{Hero, Owner, PlaceKind, Result, StackClass, StackKind, Store};
 
-/// A rune's stat points by grade 1..3 when socketed (gear lines carry their own points).
-pub const RUNE_POINTS: [u16; 4] = [0, 2, 4, 6];
 /// The store numbers deck cards from 0 and the core from 1 (THE FOOL, card 0 of the store, is id 1 of the core's
 /// table of 30): a store card `c` is the core's `c + CARD_BASE`.
 pub const CARD_BASE: u8 = 1;
 
 /// The sheet of a hero: class, job, race and level from her row, spent points as points, gear from what she
-/// wears (the six stats from item lines, plus a socketed rune's points by grade), the weapon level from her
-/// best worn item, her deck, and her belt filled from her bag (a slot is empty when the bag holds none).
+/// wears summed by the loot rules' own `realm_loot::gear::gear_stats` (item lines raised 3% a smith's plus, and
+/// the runes and monster cards in her sockets; the one sum for every field, duel and home), the weapon level from
+/// her best worn item, her deck, and her belt filled from her bag (a slot is empty when the bag holds none).
 pub fn sheet_of(store: &dyn Store, h: &Hero) -> Result<Sheet> {
     let p = &h.progress;
-    let mut gear = [0u16; 6];
-    let mut gear_level = 0u16;
-    for it in store.items_at(PlaceKind::Worn, h.id)? {
-        gear_level = gear_level.max(it.spec.item_level);
-        for &(stat, pts) in &it.spec.lines {
-            if let Some(g) = gear.get_mut(stat as usize) {
-                *g = g.saturating_add(pts);
-            }
-        }
-        for s in it.socketed.iter().flatten() {
-            if s.class() == Some(StackClass::Rune) {
-                let (stat, grade) = ((s.0 - 2000) / 10, (s.0 - 2000) % 10);
-                if let (Some(g), Some(&pts)) = (gear.get_mut(stat as usize), RUNE_POINTS.get(grade as usize)) {
-                    *g = g.saturating_add(pts);
-                }
-            }
-        }
-    }
+    let worn = store.items_at(PlaceKind::Worn, h.id)?;
+    let gear_level = worn.iter().map(|it| it.spec.item_level).max().unwrap_or(0);
+    let gear = gear_stats_of(&worn);
     let mut points = [0u16; 6];
     points.copy_from_slice(&p.stats);
     let bag = store.stacks(Owner::bag(h.id))?;
@@ -63,6 +47,12 @@ pub fn sheet_of(store: &dyn Store, h: &Hero) -> Result<Sheet> {
         belt,
         look: h.look,
     })
+}
+
+/// The six gear stats of what a hero wears: `realm_loot::gear::gear_stats` over her worn items and their sockets.
+pub fn gear_stats_of(worn: &[realm_store::Item]) -> [u16; 6] {
+    let pairs: Vec<_> = worn.iter().map(|it| (it.spec.clone(), it.socketed.clone())).collect();
+    realm_loot::gear::gear_stats(&pairs)
 }
 
 /// Total class XP needed to reach `level` (1 needs none). `CLASS_XP[L - 1]` is the step from L to L + 1.
