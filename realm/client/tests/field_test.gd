@@ -42,17 +42,17 @@ func _art() -> void:
 	var heroes: Array[Dictionary] = FieldArt.hero_entries()
 	_check(heroes.size() == 24, "24 hero entries, got %d" % heroes.size())
 	var walk: Dictionary = FieldArt.hero_entry(1, 1)
-	_check(walk["art"] == "walk" and int(walk["anim"]) == 4 and is_equal_approx(float(walk["scale"]), 0.5), "elf knight is the walk strip at half scale")
-	_check((walk["tex"] as Texture2D).get_width() % 4 == 0, "a strip of four whole frames")
-	_check(is_equal_approx(float(walk["fps"]), 8.0), "a strip with no sidecar steps at 8 fps")
+	_check(walk["art"] == "walk" and int(walk["anim"]) == 8 and float(walk["scale"]) < 0.5, "elf knight is the 8-frame walk strip from its sidecar")
+	_check((walk["tex"] as Texture2D).get_width() % 8 == 0, "a strip of eight whole frames")
+	_check(is_equal_approx(float(walk["fps"]), 12.0), "the sidecar sets 12 fps")
+	_check(int(walk["atk_n"]) == 8 and int(walk["hit_n"]) == 4 and int(walk["die_n"]) == 8, "atk, hit and die frame counts come from the sidecar")
+	_check((walk["atk"] as Texture2D).get_width() % 8 == 0 and (walk["hit"] as Texture2D).get_width() % 4 == 0, "strips of whole frames")
 	_sidecar()
 	var novice: Dictionary = FieldArt.hero_entry(0, 0)
 	_check(novice["art"] == "walk", "human novice is a walk strip")
-	var borrowed: Dictionary = FieldArt.hero_entry(0, 3)
-	_check(borrowed["art"] == "stand-in", "an orc novice borrows the orc knight")
-	var mage: Dictionary = FieldArt.hero_entry(2, 0)
-	_check(mage["art"] == "still" and int(mage["anim"]) == 1, "a hero with a still picture only")
-	_check(int(FieldArt.art_summary(heroes)["walk"]) == 6, "six heroes have walk strips")
+	_check(int(FieldArt.art_summary(heroes)["walk"]) == 24, "all 24 heroes have walk strips")
+	var old_style: Dictionary = FieldArt.entry_for("enemy_guard")
+	_check(not old_style.has("atk_n"), "art without strips keeps the old defaults")
 	# The batch builds an atlas from these.
 	var holder := Node.new()
 	var batch := RealmBatch.new(holder, kinds, 1)
@@ -103,11 +103,19 @@ func _anim() -> void:
 	# The hero layer draws with the fallbacks: a hit hero flashes, a dead one fades and tilts.
 	var layer := RealmLayer.new()
 	layer.is_ground = false
-	layer.hero_entry = FieldArt.hero_entry(1, 1)
+	var with_strips: Dictionary = FieldArt.hero_entry(1, 1)
 	var now: float = Time.get_ticks_msec() / 1000.0
+	layer.hero_entry = with_strips
 	layer.hit_at = now
 	layer._draw_hero()
-	_check(layer.last_state == A.HIT and layer.last_tint.r > 1.0, "a hit hero draws with the flash")
+	_check(layer.last_state == A.HIT and layer.last_tint == Color.WHITE, "a hit hero with a hit strip draws it, no flash")
+	var bare: Dictionary = with_strips.duplicate()
+	for k in ["atk", "hit", "die", "atk_n", "hit_n", "die_n"]:
+		bare.erase(k)
+	layer.hero_entry = bare
+	layer.hit_at = now
+	layer._draw_hero()
+	_check(layer.last_state == A.HIT and layer.last_tint.r > 1.0, "a hit hero with no strip draws with the flash")
 	layer.hit_at = -100.0
 	layer.hero_alive = false
 	layer.died_at = -100.0

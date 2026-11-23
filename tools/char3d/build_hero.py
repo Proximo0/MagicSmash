@@ -32,9 +32,10 @@ REGION = {
 }
 STEEL, STEEL_D, STEEL_L = (0.24, 0.26, 0.31), (0.11, 0.12, 0.15), (0.42, 0.44, 0.5)
 CRIMSON, LEATHER, LEATHER_D, MAIL = (0.3, 0.02, 0.03), (0.16, 0.09, 0.05), (0.06, 0.04, 0.03), (0.2, 0.2, 0.23)
+PALLID, SACK, STRAW = (0.36, 0.4, 0.33), (0.42, 0.33, 0.2), (0.6, 0.48, 0.16)
 GOLD, BONE = (0.72, 0.52, 0.16), (0.78, 0.74, 0.62)
 RACE = E("RACE", "human")                        # race = body + skin colour + a head feature that reads at 56 px
-SKIN = {"elf": (0.56, 0.42, 0.35), "dwarf": (0.5, 0.3, 0.22)}.get(RACE, (0.55, 0.36, 0.27))
+SKIN = {"orc": (0.13, 0.25, 0.07), "elf": (0.56, 0.42, 0.35), "dwarf": (0.5, 0.3, 0.22)}.get(RACE, (0.55, 0.36, 0.27))
 
 # kit: skin colours by region (default first), shells (regions, thickness m, colour, metallic, optional filter),
 # extras built in code, weapons {object in the pack: (hand bone, scale)}
@@ -117,6 +118,110 @@ KITS = {
         extras=["pauldrons", "helm", "cape", "knees", "gauntlets", "boots", "skirt", "cross"],
         cape=(0.08, 0.14, 0.4), pauldron=(GOLD, 0.115, False), boot=STEEL, gauntlet=STEEL, skirt=(0.6, 0.58, 0.5), crest=GOLD,
         weapons={"1H_Sword": ("hand_r", (0.6, 0.6, 0.7), "hammer"), "Round_Shield": ("hand_l", (0.5, 0.5, 0.5))},
+    ),
+    # ---- monsters on the same bodies (road field) ----
+    "scarecrow": dict(
+        skin={"*": (0.16, 0.1, 0.05), "head": SACK, "neck": SACK, "hand": STRAW, "foot": STRAW},
+        shells=[
+            (["chest", "belly", "hips", "upperarm"], 0.03, (0.13, 0.07, 0.04), 0.0, None),
+            (["lowerarm"], 0.02, (0.2, 0.13, 0.06), 0.0, None),
+            (["belly"], 0.045, (0.3, 0.24, 0.1), 0.0, "belt"),
+            (["thigh", "calf"], 0.02, (0.09, 0.08, 0.07), 0.0, None),
+        ],
+        extras=["sack", "hat", "skirt"], hat=(0.07, 0.05, 0.04), skirt=(0.13, 0.07, 0.04),
+        weapons={},
+    ),
+    "bloated_pilgrim": dict(
+        skin={"*": PALLID, "belly": (0.4, 0.42, 0.26), "chest": (0.4, 0.42, 0.26)},
+        bulk={"spine_01": 1.45},
+        shells=[
+            (["hips", "thigh"], 0.04, (0.17, 0.12, 0.08), 0.0, "kilt"),
+            (["upperarm", "chest"], 0.03, (0.17, 0.12, 0.08), 0.0, "strap"),
+            (["calf"], 0.02, (0.12, 0.09, 0.07), 0.0, None),
+        ],
+        extras=["hood", "skirt"], hood=(0.17, 0.12, 0.08), skirt=(0.17, 0.12, 0.08), skirt_to=0.3,
+        weapons={},
+    ),
+    "penitent": dict(
+        skin={"*": PALLID},
+        shells=[
+            (["hips", "thigh"], 0.03, (0.5, 0.46, 0.4), 0.0, "kilt"),
+            (["belly"], 0.04, (0.3, 0.02, 0.03), 0.0, "belt"),
+        ],
+        extras=["capirote", "skirt"], capirote=(0.5, 0.46, 0.4), skirt=(0.5, 0.46, 0.4), skirt_to=0.2,
+        weapons={"Knife": ("hand_r", (0.5, 0.5, 0.6))},
+    ),
+    "gravedigger": dict(
+        skin={"*": (0.08, 0.08, 0.09), "head": PALLID, "neck": PALLID, "hand": PALLID},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.1, 0.1, 0.12), 0.0, None),
+            (["belly"], 0.045, LEATHER_D, 0.0, "belt"),
+            (["thigh"], 0.02, (0.07, 0.07, 0.08), 0.0, None),
+            (["calf"], 0.028, LEATHER_D, 0.0, None),
+        ],
+        extras=["hat", "boots", "skirt", "buckle"], hat=(0.05, 0.05, 0.06), boot=LEATHER_D, skirt=(0.1, 0.1, 0.12),
+        weapons={"2H_Sword": ("hand_r", (0.6, 0.6, 0.7), "shovel")},
+    ),
+    # ---- wood, marsh and peaks monsters ----
+    "hanged_man": dict(
+        skin={"*": (0.3, 0.33, 0.4)},
+        shells=[
+            (["chest", "belly", "upperarm"], 0.025, (0.3, 0.28, 0.22), 0.0, None),
+            (["hips", "thigh"], 0.025, (0.1, 0.09, 0.08), 0.0, None),
+        ],
+        extras=["noose"], weapons={},
+    ),
+    "wood_witch": dict(
+        skin={"*": (0.05, 0.1, 0.06), "head": (0.42, 0.46, 0.3), "neck": (0.42, 0.46, 0.3), "hand": (0.42, 0.46, 0.3)},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.06, 0.12, 0.07), 0.0, None),
+            (["belly"], 0.05, (0.3, 0.2, 0.08), 0.0, "belt"),
+        ],
+        extras=["witchhat", "skirt", "hair"], hat=(0.04, 0.07, 0.05), hair=(0.5, 0.5, 0.46), skirt=(0.06, 0.12, 0.07), skirt_to=0.1,
+        weapons={"2H_Staff": ("hand_r", (0.6, 0.6, 0.8))},
+    ),
+    "bark_wight": dict(
+        skin={"*": (0.13, 0.08, 0.04), "head": (0.17, 0.11, 0.05)},
+        bulk={"spine_02": 1.2},
+        shells=[
+            (["chest", "belly"], 0.04, (0.09, 0.06, 0.03), 0.0, "strap"),
+            (["lowerarm", "calf"], 0.035, (0.08, 0.05, 0.03), 0.0, None),
+            (["hips"], 0.03, (0.1, 0.16, 0.06), 0.0, None),
+        ],
+        extras=["pauldrons", "face"], pauldron=((0.1, 0.16, 0.06), 0.1, True),
+        weapons={},
+    ),
+    "lumberer": dict(
+        skin={"*": (0.1, 0.09, 0.08), "head": PALLID, "neck": PALLID, "hand": PALLID, "lowerarm": PALLID},
+        bulk={"spine_02": 1.25},
+        shells=[
+            (["chest", "belly", "upperarm"], 0.03, (0.13, 0.04, 0.03), 0.0, None),
+            (["belly"], 0.045, LEATHER_D, 0.0, "belt"),
+            (["hips", "thigh"], 0.025, (0.1, 0.09, 0.08), 0.0, None),
+            (["calf"], 0.03, LEATHER_D, 0.0, None),
+        ],
+        extras=["hood", "boots", "buckle"], boot=LEATHER_D, hood=(0.05, 0.04, 0.04),
+        weapons={"2H_Axe": ("hand_r", (0.6, 0.6, 0.7))},
+    ),
+    "drowned": dict(
+        skin={"*": (0.1, 0.2, 0.2), "belly": (0.16, 0.26, 0.2), "hand": (0.05, 0.1, 0.1), "foot": (0.05, 0.1, 0.1)},
+        bulk={"spine_01": 1.2},
+        shells=[
+            (["hips", "thigh"], 0.03, (0.08, 0.12, 0.13), 0.0, "kilt"),
+            (["chest"], 0.03, (0.08, 0.12, 0.13), 0.0, "strap"),
+            (["lowerarm", "calf"], 0.03, (0.04, 0.1, 0.06), 0.0, None),
+        ],
+        extras=["hair", "face"], hair=(0.03, 0.1, 0.05), weapons={},
+    ),
+    "goat_cultist": dict(
+        skin={"*": (0.05, 0.04, 0.05), "head": PALLID, "neck": PALLID, "hand": PALLID},
+        shells=[
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.07, 0.05, 0.07), 0.0, None),
+            (["chest", "belly"], 0.045, (0.3, 0.02, 0.03), 0.0, "tabard"),
+            (["belly"], 0.055, BONE, 0.0, "belt"),
+        ],
+        extras=["hood", "horns", "skirt"], hood=(0.07, 0.05, 0.07), skirt=(0.07, 0.05, 0.07), skirt_to=0.12,
+        weapons={"Knife": ("hand_r", (0.5, 0.5, 0.6))},
     ),
     "orc": dict(
         skin={"*": (0.1, 0.2, 0.06), "head": (0.13, 0.25, 0.07)},
@@ -280,6 +385,9 @@ def trs(loc, rot=(0, 0, 0), scale=(1, 1, 1)):
 
 S = marks["w"]                                   # the body's size against a 1.79 m human
 ex = list(kit["extras"])
+if RACE == "orc" and kit_name != "orc":           # an orc in any class kit: bald, its face and tusks when the head shows
+    ex = [e for e in ex if e != "hair"] + ([] if "helm" in ex else ["face", "tusks"])
+    kit = dict(kit, bulk=dict(kit.get("bulk", {}), spine_02=1.3))
 if RACE == "elf" and "helm" not in ex:           # elves go bare-headed with long pale hair, so the race reads at 56 px
     ex = [e for e in ex if e != "hood"] + ([] if "hair" in ex else ["hair"])
     kit = dict(kit, hair=(0.75, 0.66, 0.38))
@@ -393,6 +501,51 @@ if "hair" in ex and RACE == "elf":                # the long part, down the back
     c, half = (lo + hi) / 2, (hi - lo) / 2
     o = prim("cone", "hair_long", kit["hair"], 0.0, r2=0.7)
     hang(o, "head", trs(Vector((0, hi.y - half.y * 0.1, c.z - half.z * 0.9)), (8, 0, 0), (half.x * 0.95, half.y * 0.42, half.z * 1.3)))
+if "witchhat" in ex:                             # a wide brim and a tall bent point
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "hat_brim", kit["hat"], 0.0, r2=1.0)
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z - half.z * 0.3)), (-6, 0, 0), (half.x * 2.5, half.y * 2.2, half.z * 0.07)))
+    o = prim("cone", "hat_point", kit["hat"])
+    hang(o, "head", trs(Vector((c.x, c.y + half.y * 0.25, hi.z + half.z * 0.75)), (-14, 0, 0), (half.x * 1.1, half.y * 1.0, half.z * 1.1)))
+if "horns" in ex:                                # goat horns, swept back
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    for sg in (1, -1):
+        o = prim("cone", "horn%d" % sg, BONE)
+        hang(o, "head", trs(Vector((sg * half.x * 0.85, c.y + half.y * 0.5, hi.z + half.z * 0.45)), (-40, sg * 22, 0), (half.x * 0.24, half.y * 0.2, half.z * 0.75)))
+if "noose" in ex:                                # the rope still on him: a ring at the neck and the cut end down the chest
+    lo, hi = bbox(["neck"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "noose_ring", STRAW, 0.0, r2=1.0)
+    hang(o, "neck_01", trs(c, (0, 0, 0), (half.x * 1.5, half.y * 1.5, 0.03 * S)))
+    o = prim("cone", "noose_end", STRAW, 0.0, r2=1.0)
+    hang(o, "spine_03", trs(Vector((c.x + 0.03 * S, lo.y - 0.05 * S, c.z - 0.2 * S)), (8, 0, 0), (0.022 * S, 0.022 * S, 0.2 * S)))
+if "sack" in ex:                                 # a sack over the whole head, two dark holes for eyes
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("sphere", "sack", SACK)
+    hang(o, "head", trs(c, (0, 0, 0), (half.x * 1.2, half.y * 1.15, half.z * 1.15)))
+    for sg in (1, -1):
+        o = prim("cube", "sackeye%d" % sg, (0.01, 0.01, 0.01))
+        hang(o, "head", trs(Vector((sg * half.x * 0.62, lo.y - half.y * 0.02, c.z + half.z * 0.1)), (0, 0, 0), (half.x * 0.3, half.y * 0.3, half.z * 0.16)))
+if "hat" in ex:                                  # a wide brim and a low crown
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("cone", "hat_brim", kit["hat"], 0.0, r2=1.0)
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z - half.z * 0.25)), (-6, 0, 0), (half.x * 2.3, half.y * 2.0, half.z * 0.07)))
+    o = prim("cone", "hat_crown", kit["hat"], 0.0, r2=0.75)
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z + half.z * 0.1)), (-6, 0, 0), (half.x * 1.15, half.y * 1.05, half.z * 0.4)))
+if "capirote" in ex:                             # the penitent's tall pointed hood, covering the face, eye holes
+    lo, hi = bbox(["head"])
+    c, half = (lo + hi) / 2, (hi - lo) / 2
+    o = prim("sphere", "cap_face", kit["capirote"])
+    hang(o, "head", trs(c, (0, 0, 0), (half.x * 1.2, half.y * 1.15, half.z * 1.15)))
+    o = prim("cone", "cap_cone", kit["capirote"])
+    hang(o, "head", trs(Vector((c.x, c.y, hi.z + half.z * 1.0)), (0, 0, 0), (half.x * 1.05, half.y * 1.0, half.z * 1.5)))
+    for sg in (1, -1):
+        o = prim("cube", "capeye%d" % sg, (0.01, 0.01, 0.01))
+        hang(o, "head", trs(Vector((sg * half.x * 0.62, lo.y - half.y * 0.02, c.z + half.z * 0.1)), (0, 0, 0), (half.x * 0.3, half.y * 0.3, half.z * 0.14)))
 if "hood" in ex:                                 # a hood: over the top, sides and back, the face left open
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
@@ -444,7 +597,22 @@ def _hammer():
     return me
 
 
-MESHES = {"hammer": _hammer}
+def _shovel():
+    """a spade along +Z, grip at the origin."""
+    me = bpy.data.meshes.new("shovel")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.04, radius2=0.04, depth=1.7, matrix=Matrix.Translation((0, 0, 0.6)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0, 0, 1.6)) @ Matrix.Diagonal((0.36, 0.05, 0.5, 1)))
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("shovel_shaft", LEATHER))
+    me.materials.append(material("shovel_blade", STEEL_D, 1.0))
+    for p_ in me.polygons:
+        p_.material_index = 1 if p_.center.z > 1.34 and abs(p_.center.z - 1.45) > 0.005 else 0
+    return me
+
+
+MESHES = {"hammer": _hammer, "shovel": _shovel}
 held = []                                        # (the pack's weapon on its own rig, our copy, hand bone, palm point, scale)
 for name, ob in weap.items():
     bone, scale = kit["weapons"][name][:2]
