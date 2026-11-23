@@ -1,2 +1,3 @@
 2026-11-22T15:42Z msi queue 2026-11-22T15:42:29Z FAIL id=261122135940-2187 kind=shell secs=162 wirefuzz iters=2000000 seed=273593 (rerun: WIRE_FUZZ_ITERS=2000000 WIRE_FUZZ_SEED=273593 cargo test --release --lib fuzz in realm/) 
 2026-11-22T20:10Z msi queue 2026-11-22T20:09:28Z FAIL id=261122113647-8689 kind=economy secs=3381 job printed nothing 
+2026-11-23T10:56Z msi queue 2026-11-23T10:56:05Z FAIL id=261122113704-0426 kind=balance secs=43200 balance cohorts=1 no BALANCE line:  
