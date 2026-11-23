@@ -19,7 +19,10 @@ jobs:
     runs-on: [self-hosted, linux]
     timeout-minutes: 60
     steps:
+      # clean: false keeps realm/target between runs: the first Ubuntu run rebuilt everything (32 minutes).
       - uses: actions/checkout@v4
+        with:
+          clean: false
       - name: machine
         run: |
           echo "host=$(hostname) cores=$(nproc) ram_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
@@ -43,7 +46,10 @@ jobs:
         # The short path has no space: the runner takes everything up to the first space as the program, quotes or not.
         shell: 'C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}'
     steps:
+      # clean: false keeps realm/target between runs: the first Ubuntu run rebuilt everything (32 minutes).
       - uses: actions/checkout@v4
+        with:
+          clean: false
       - name: machine
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
