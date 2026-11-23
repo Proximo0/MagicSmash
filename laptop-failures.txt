@@ -19,3 +19,4 @@
 2026-11-23T15:18Z laptop queue 2026-11-23T15:18:03Z FAIL id=261123150652-0416 kind=shell secs=7 exediag started=1 blocked=3 first=[realm-loadtest rc=126] SmartAppControlState:On antivirus=Windows Defender log_lines=12 (report laptop-exediag.txt) 
 2026-11-23T15:26Z laptop queue 2026-11-23T15:26:24Z FAIL id=261123122134-1846 kind=balance secs=66 balance cohorts=7 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
 2026-11-23T15:30Z laptop queue 2026-11-23T15:29:49Z FAIL id=261123122136-8583 kind=balance secs=67 balance cohorts=8 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
+2026-11-23T15:33Z laptop queue 2026-11-23T15:33:14Z FAIL id=261122113707-1919 kind=package secs=67 package: realm-ops package: timeout: failed to run command ‘realm/target/release/realm-ops.exe’: Permission denied  
