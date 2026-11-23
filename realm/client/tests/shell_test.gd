@@ -10,6 +10,7 @@ var _problems: Array[String] = []
 var _checks: int = 0
 var _shots_dir: String = ""
 var _shots: int = 0
+var _done: bool = false
 var _shell: Shell = null
 var _gateway: String = "127.0.0.1:7700"
 
@@ -32,7 +33,29 @@ func _check(cond: bool, what: String) -> void:
 		print("  FAILED: ", what)
 
 
+## False (and the run ends with a FAILED line naming why) when the outing ended by itself: `last_outing.left` is
+## 0 gate, 1 waystone, 2 disconnect (the host's 5 s silence timeout), 3 kicked, 4 shutdown, 5 vault, 6 host lost,
+## 7 ticket unused; an empty last_outing with the shell back means the gateway link was lost.
+func _field_alive(client: Node, when: String) -> bool:
+	if is_instance_valid(client) and _shell.in_field and _shell.field_client == client:
+		return true
+	_check(false, "the outing ended by itself %s: last_outing=%s in_field=%s base=%s" % [when, str(_shell.last_outing), str(_shell.in_field), _shell.base_name])
+	_finish()
+	return false
+
+
+## A script error inside _run would leave the test hanging until check_client's 240 s timeout: end it sooner.
+func _process(_delta: float) -> bool:
+	if Time.get_ticks_msec() > 230000 and not _done:
+		_check(false, "the shell test ran past 230 s (stuck after an error?)")
+		_finish()
+	return false
+
+
 func _finish() -> void:
+	if _done:
+		return
+	_done = true
 	var ok: bool = _problems.is_empty()
 	print("SHELL_TEST %s checks=%d shots=%d%s" % ["ok" if ok else "FAILED", _checks, _shots, "" if ok else " problems=\"%s\"" % "; ".join(_problems)])
 	quit(0 if ok else 1)
@@ -505,10 +528,18 @@ func _run() -> void:
 	await _press("field:0")
 	_check(await _until(func() -> bool: return _shell.in_field and _shell.field_client != null), "a ticket hands her to the field client")
 	var client: Node = _shell.field_client
-	var joined: bool = await _until(func() -> bool: return int(client.link.counters().get("ticks_applied", 0)) > 40, 20.0)
-	_check(joined, "the field client joined with the ticket and ran 40 ticks")
+	var joined: bool = await _until(func() -> bool: return not is_instance_valid(client) or int(client.link.counters().get("ticks_applied", 0)) > 40, 20.0)
+	_check(joined and is_instance_valid(client), "the field client joined with the ticket and ran 40 ticks")
+	# Checked right after joining, before idling: the screens are hidden while the outing lasts.
+	_check(not _shell.layer.visible or not _shell.in_field, "the shell's screens are hidden in the field")
+	if not _field_alive(client, "after joining"):
+		return
 	await _frames(20)
+	if not _field_alive(client, "while idling 20 frames"):
+		return
 	await _shot("21_field")
+	if not _field_alive(client, "during the field shot"):
+		return
 	_check(not _shell.layer.visible, "the shell's screens are hidden in the field")
 	_check(int(client.link.counters().get("hash_checks_failed", 0)) == 0, "no hash check failed in the field")
 	client.script_move = 3
