@@ -24,3 +24,14 @@ body centre, bottom edge 1 px under the feet, no resampling) and writes `<key>_w
 `_walk.json` (frame counts, 12 fps, scale 0.4667). Heroes are `hero_<race>_<class>`; monsters `enemy_<name>` from
 `enemy_<name>_<action>.png` (walk = any `walking_*`, death = any `death_*`, attack = the remaining action). Keys in
 `art/locked.txt` are skipped. Godot makes the `.import` files the first time the editor opens the folder.
+
+## Field and act bosses (bosses.txt)
+
+`build_bosses.sh <human body glb> <KayKit adventurers gltf dir> <out dir> [name ...]` renders every line of `bosses.txt`
+(name, pack, actions, env) at 2.2x the monsters' pixels (RES = 276 x ORTHO, a multiple of 4), then
+`python3 tools/char3d/import_sprites.py monsters <out dir>/strips realm/client/art`. Three ways to build one:
+- pack `-`: a plan of `build_beast.py` (`tree`, `chandelier`, `ghost`, `rider`), all shapes moved by code;
+- a KayKit adventurers pack name: the human body in a `build_hero.py` kit (`boss_*`), re-posed from the pack's clips;
+- `skel:Skeleton_Warrior` (set `SKELS` to the KayKit Skeletons `Characters/gltf` dir): `build_skel.py`, the skeleton's own rig and
+  clips with props on its bones (`bone_regent`, `archlich`). The skeleton is a big-skulled chibi: it reads cute, not grim.
+A rooted boss lists `Idle` and `Walking_A` (a sway) and no legs move; its walk strip is the sway. `review_bosses.py` makes the contact sheets.

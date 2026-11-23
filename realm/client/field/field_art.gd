@@ -36,7 +36,7 @@ const FIELD_COLOURS: Array[Color] = [
 	Color(0.62, 0.7, 0.8), Color(0.62, 0.4, 0.62), Color(0.72, 0.34, 0.26)]
 ## Behaviour bits of the core (realm/core tables/kinds.rs).
 ## Field bosses with an art slot after the kinds (godot/src/draw.rs BOSS_ART).
-const BOSS_ART: int = 4
+const BOSS_ART: int = 12
 const B_SWARM: int = 1 << 1
 const B_RUNNER: int = 1 << 2
 const B_BRUTE: int = 1 << 3
