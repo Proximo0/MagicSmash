@@ -6,3 +6,4 @@
 2026-11-23T08:43:27Z PASS id=261122113651-9566 kind=soak secs=1814 soak seed=297466 secs=1800 SOAK ok secs=1809 cycles=1198 heroes=40 outings=1198 banked=1193 left_gate=0 left_waystone=1146 timeouts=4 coin=26857519 xp=27195979 levels=499 potions=0 deposits=1188 points=939 snapshots=9403 chats=
 2026-11-23T10:18:03Z PASS id=261122113651-9566 kind=soak secs=1814 soak seed=216120 secs=1800 SOAK ok secs=1809 cycles=1061 heroes=40 outings=1061 banked=1054 left_gate=0 left_waystone=1022 timeouts=6 coin=18236792 xp=20524391 levels=443 potions=0 deposits=1054 points=883 snapshots=8344 chats=
 2026-11-23T16:00:52Z FAIL id=261122113651-9566 kind=soak secs=66 soak seed=241342 secs=1800 timeout: failed to run command ‘realm/target/release/realm-soak’: Permission denied 
+2026-11-23T17:16:44Z FAIL id=261122113651-9566 kind=soak secs=67 soak seed=232241 secs=1800 timeout: failed to run command ‘realm/target/release/realm-soak’: Permission denied 
