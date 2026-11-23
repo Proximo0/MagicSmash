@@ -6,7 +6,13 @@
 #   queue.sh add kind=shell args=script=runnerstart needs=<machine> priority=9
 find_dir() {  # $1 = the start script's name; a folder holding it beside the .runner registration
 	local d f
-	for d in "$HOME/actions-runner" /c/actions-runner /d/actions-runner /c/projects/actions-runner /d/projects/actions-runner "$HOME/projects/actions-runner" "$HOME/Downloads/actions-runner" /c/runner /d/runner /opt/actions-runner; do
+	# A runner that is running says where it lives (one was set up in C:\Windows\System32\actions-runner).
+	case "$(uname -s)" in
+	MINGW* | MSYS* | CYGWIN*) d=$(powershell.exe -NoProfile -Command "(Get-Process Runner.Listener -ErrorAction SilentlyContinue | Select-Object -First 1).Path" 2>/dev/null | tr -d '\r') ; [ -n "$d" ] && d=$(cygpath -u "$d" 2>/dev/null) ;;
+	*) d=$(pgrep -f Runner.Listener 2>/dev/null | head -1); [ -n "$d" ] && d=$(readlink "/proc/$d/exe" 2>/dev/null) ;;
+	esac
+	if [ -n "$d" ]; then d=$(dirname "$(dirname "$d")"); [ -f "$d/$1" ] && [ -f "$d/.runner" ] && { echo "$d"; return 0; }; fi
+	for d in "$HOME/actions-runner" /c/actions-runner /d/actions-runner /c/projects/actions-runner /d/projects/actions-runner "$HOME/projects/actions-runner" "$HOME/Downloads/actions-runner" /c/runner /d/runner /opt/actions-runner /c/Windows/System32/actions-runner; do
 		[ -f "$d/$1" ] && [ -f "$d/.runner" ] && { echo "$d"; return 0; }
 	done
 	for f in "$HOME"/*/"$1" "$HOME"/*/*/"$1" /c/*/"$1" /d/*/"$1"; do
