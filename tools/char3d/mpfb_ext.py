@@ -19,6 +19,6 @@ def load(mpfb_src):
     dest = os.path.join(bpy.utils.user_resource("EXTENSIONS", path="user_default", create=True), "mpfb")
     if not os.path.isdir(dest):
         shutil.copytree(os.path.join(mpfb_src, "mpfb"), dest)
-    addon_utils.enable(MODULE, default_set=False)
+    addon_utils.enable(MODULE, default_set=True)  # it reads its own preferences entry while it registers
     return (importlib.import_module(MODULE + ".services.humanservice").HumanService,
             importlib.import_module(MODULE + ".services.targetservice").TargetService)
