@@ -88,6 +88,11 @@ def height(src: Path, key: str) -> int:
     return b[3] - b[1]
 
 
+# Kinds that float: world px they are drawn above their spot (the shader sways them there, figures.gdshader).
+HOVER = {"enemy_carrion_crow": 12, "enemy_cliff_harpy": 10, "enemy_hollow_angel": 8, "enemy_marsh_light": 8,
+         "enemy_void_eye": 10, "enemy_wisp": 8}
+
+
 def import_one(src: Path, dst: Path, key: str, scale: float):
     acts, out = load_actions(src, key)
     x0, x1, y0, y1 = box_of(acts, ["idle", out["walk"], out["atk"], out["hit"], out["die"]], out["walk"])
@@ -96,6 +101,8 @@ def import_one(src: Path, dst: Path, key: str, scale: float):
     strip(acts["idle"][:1], x0, x1, y0, y1).save(dst / (key + ".png"))
     side = {"frames": len(acts[out["walk"]]), "fps": 12, "scale": scale, "atk_frames": len(acts[out["atk"]]),
             "hit_frames": len(acts[out["hit"]]), "die_frames": len(acts[out["die"]])}
+    if key in HOVER:
+        side["hover"] = HOVER[key]
     (dst / (key + "_walk.json")).write_text(json.dumps(side) + "\n")
     print(key, "frame %dx%d" % (x1 - x0, y1 - y0), out["atk"], "walk strip %d px" % ((x1 - x0) * side["frames"]))
 
