@@ -28,10 +28,10 @@ uniform vec2 cell = vec2(32.0, 32.0);
 // Per entry: the first frame's top left in the atlas and its size, in texels.
 uniform vec4 rects[MAX_FRAMES];
 // Per entry: frames in the strip, and the scale it is drawn at.
-uniform float anims[MAX_FRAMES];
-uniform float scales[MAX_FRAMES];
-// Per entry: frames a second of a strip.
-uniform float rates[MAX_FRAMES];
+// Per entry: x the frames of the strip, y the scale it is drawn at, z its frames a second. One vec4 array, not
+// three float arrays: a float in a uniform block takes 16 bytes, and three arrays of 256 with `rects` passed the
+// 16 KB a block is promised (the figures then drew as garbage on the software renderer).
+uniform vec4 info[MAX_FRAMES];
 // Where the atk, hit, die strips of kind k start: entry extra_base + 3 * k + state - 1 (their rect width 0: none).
 uniform int extra_base = 0;
 
@@ -60,10 +60,10 @@ void vertex() {
 		return;
 	}
 	vec4 r = rects[s];
-	float n = anims[s];
+	float n = info[s].x;
 	float step_x = 0.0;
 	// The quad spans x -cell.x/2..cell.x/2 and y -cell.y..0 (feet at the origin): shrink it to the picture.
-	VERTEX = VERTEX * (r.zw / cell) * scales[e] + INSTANCE_CUSTOM.xy * (1.0 - blend);
+	VERTEX = VERTEX * (r.zw / cell) * info[e].y + INSTANCE_CUSTOM.xy * (1.0 - blend);
 	if (state > 0.5) {
 		// A strip of a state plays once over its ticks, then holds its last frame.
 		float len = STRIP_TICKS.x;
@@ -75,7 +75,7 @@ void vertex() {
 		step_x = floor(clamp((age + blend) / len, 0.0, 0.999) * n);
 	} else if (bob > 0.0) {
 		if (n > 1.5) {
-			step_x = floor(mod(TIME * rates[e] + bob * 0.7, n));
+			step_x = floor(mod(TIME * info[e].z + bob * 0.7, n));
 		} else if (bob_stills > 0.5) {
 			VERTEX.y -= abs(sin(TIME * BOB_RATE + bob)) * BOB_PX;
 		}
