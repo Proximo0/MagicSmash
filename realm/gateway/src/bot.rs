@@ -99,9 +99,7 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, ke
         if !c.welcomed() && round % 20 == 1 {
             let _ = sock.send(&c.hello());
         }
-        while let Ok(n) = sock.recv(&mut buf) {
-            c.receive(&buf[..n]);
-        }
+        drain(&sock, &mut buf, period, |b| c.receive(b));
         c.apply();
         let mut word = 0u16;
         // Some(n): walk `word` for n ticks, then stand (a bounded walk near the stone).
@@ -262,6 +260,24 @@ pub fn play_field(gw: &mut GatewayClient, host: &str, port: u16, ticket: u64, ke
     Ok(out)
 }
 
+/// Reads what has arrived, for at most `budget`; the rest waits in the socket for the next round. Unbounded, the
+/// read never ends while datagrams come faster than a starved bot takes them: a host that has heard no
+/// acknowledgement sends her whole state again, `STATE_PARTS_PER_TICK` parts a tick until she acknowledges, and her
+/// acknowledgement rides on the input she would send after this read. The host heard nothing for `host::TIMEOUT`
+/// and dropped her as a disconnect (the station's `left: 2` after a move). Returns the datagrams read.
+fn drain(sock: &UdpSocket, buf: &mut [u8], budget: Duration, mut take: impl FnMut(&[u8])) -> usize {
+    let end = Instant::now() + budget;
+    let mut n = 0;
+    while let Ok(len) = sock.recv(buf) {
+        take(&buf[..len]);
+        n += 1;
+        if Instant::now() >= end {
+            break;
+        }
+    }
+    n
+}
+
 /// Standing at a waystone holding interact: any hit breaks the hold, so she fights where she stands (skills and
 /// potions from the bot's own choice, no walking).
 fn hold(bot: &mut Option<Bot>, f: &Field) -> u16 {
@@ -313,4 +329,40 @@ const STALL: Duration = Duration::from_secs(15);
 
 fn age_over(tick: u32, joined_at: u32, joined: bool, max: u32) -> bool {
     joined && tick - joined_at > max
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    #[test]
+    fn a_bot_flooded_faster_than_it_reads_still_gets_to_send_its_input() {
+        // A host sending her state over and over (no acknowledgement yet) to a bot that takes a millisecond a
+        // datagram: the read must give the round back, so the input that acknowledges goes out.
+        let bot = UdpSocket::bind("127.0.0.1:0").unwrap();
+        bot.set_nonblocking(true).unwrap();
+        let to = bot.local_addr().unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let s = stop.clone();
+        let flood = std::thread::spawn(move || {
+            let host = UdpSocket::bind("127.0.0.1:0").unwrap();
+            let end = Instant::now() + Duration::from_secs(20);
+            while !s.load(Ordering::Relaxed) && Instant::now() < end {
+                let _ = host.send_to(&[7u8; 600], to);
+            }
+        });
+        while bot.peek(&mut [0u8; 1]).is_err() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let mut buf = [0u8; 2048];
+        let t0 = Instant::now();
+        let n = drain(&bot, &mut buf, Duration::from_millis(50), |_| std::thread::sleep(Duration::from_millis(1)));
+        let took = t0.elapsed();
+        stop.store(true, Ordering::Relaxed);
+        flood.join().unwrap();
+        assert!(n >= 1, "she read what came");
+        assert!(took < Duration::from_secs(3), "the read gave the round back after {took:?} ({n} datagrams)");
+    }
 }
