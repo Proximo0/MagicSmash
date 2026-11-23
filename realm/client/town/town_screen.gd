@@ -251,6 +251,8 @@ func _world() -> void:
 	var fires: Array[Vector2] = HomeMap.fires_here(shell.place, shell.house.get("items", []))
 	for f in fires:
 		items.append([f.y + 8.0, 2, f])
+	for th in HomeDraw.depth_things(self):
+		items.append([float(th[0]), 4, th[1]])
 	for id in members.keys():
 		items.append([shown(id).y, 3, id])
 	items.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
@@ -264,6 +266,8 @@ func _world() -> void:
 				HomeDraw.fire_picture(self, it[2])
 			3:
 				_hero(int(it[2]))
+			4:
+				HomeDraw.thing_picture(self, it[2])
 
 
 func _station_rect(s: Dictionary) -> Rect2:

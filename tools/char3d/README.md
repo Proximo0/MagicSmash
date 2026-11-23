@@ -43,3 +43,12 @@ opengameart.org, itch.io answered 403 from the build proxy and the GitHub search
 horse metarig, a rig without a mesh). Nothing was downloaded. `boss_death_the_pale_rider` stays unimported: the hand-built `rider`
 horse still reads low-poly (see work_review/). A rigged horse glb would be the right next step if one can be fetched.
 A rooted boss lists `Idle` and `Walking_A` (a sway) and no legs move; its walk strip is the sway. `review_bosses.py` makes the contact sheets.
+
+## Home furniture and plaques (`home_models.py`)
+One 3D model per piece in the town_models style, rendered by `build_town.py` (same camera and pixel density as the town
+pictures; each model is shrunk by `SCALE` so it stands right beside a hero). Files: `realm/client/art/ui_home_<name>.png`,
+`<name>` = the furniture's name lower-cased, spaces to `_`, no `'` (`home_chair`, `home_saints_screen` ...), and
+`home_plaque_0..7` by boss. Rebuild: `HOME=1 python3 -I build_town.py -- <scratch dir> realm/client/art [home_chair ...]`
+(bpy as a python module; about 3 s a picture). Contact sheet at 2x on the house floor with a hero: `home_sheet.py <art> <png>`.
+The client (`HomeDraw.draw_thing` / `thing_picture`, `HomeMap.thing_art`) uses a file when it exists and the flat stand-in
+when it does not; pictured things are drawn in the town's depth order (rugs under everything).
