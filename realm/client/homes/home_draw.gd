@@ -44,10 +44,23 @@ static func _fire(t: TownScreen, at: Vector2) -> void:
 	var c: Vector2 = t.w2s(at)
 	var fl: float = 0.85 + 0.15 * sin(t._clock * 8.0 + at.x)
 	t.draw_circle(c, 40.0 * TownScreen.ZOOM * fl, Color(0.9, 0.5, 0.1, 0.07))
+	if UiArt.has_file("town_brazier"):
+		return
 	t.draw_circle(c, 14.0 * TownScreen.ZOOM, Color(0.1, 0.08, 0.08))
 	t.draw_arc(c, 14.0 * TownScreen.ZOOM, 0.0, TAU, 20, UiKit.GOLD_DIM, 1.5)
 	t.draw_colored_polygon(PackedVector2Array([c + Vector2(-8, 3), c + Vector2(0, -22 * fl), c + Vector2(8, 3)]), Color(0.85, 0.32, 0.08, 0.9))
 	t.draw_colored_polygon(PackedVector2Array([c + Vector2(-3, 3), c + Vector2(0, -10 * fl), c + Vector2(3, 3)]), Color(1.0, 0.8, 0.3))
+
+
+## The brazier picture of a fire to sit at (ui_town_brazier.png, standing on the fire's point); drawn in the town's
+## depth order. Without the picture `_fire` has drawn the old stand-in.
+static func fire_picture(t: TownScreen, at: Vector2) -> void:
+	if not UiArt.has_file("town_brazier"):
+		return
+	var tex: Texture2D = UiArt.texture("town_brazier", 96)
+	var ps: Vector2 = tex.get_size() * TownScreen.PIC_K * TownScreen.ZOOM
+	var c: Vector2 = t.w2s(at)
+	t.draw_texture_rect(tex, Rect2(Vector2(c.x - ps.x / 2.0, c.y + 8.0 * TownScreen.ZOOM - ps.y), ps), false)
 
 
 static func _house(t: TownScreen) -> void:
