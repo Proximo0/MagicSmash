@@ -67,6 +67,17 @@ func _art() -> void:
 	var batch := RealmBatch.new(holder, kinds, 1)
 	_check(batch.count == 0, "a batch starts empty")
 	holder.free()
+	# The ground: a tile for each of the six fields, shown by FieldGround.
+	var soil := FieldGround.new()
+	_check(soil.field == -1 and soil.material == null, "no ground before a field is known")
+	for f in 6:
+		soil.set_field(f, 1000.0)
+		_check(soil.field == f and soil.material != null and soil.size == Vector2(1000, 1000), "field %d has its ground tile" % f)
+	soil.set_field(77, 1000.0)
+	_check(soil.field == 5, "a field with no tile keeps the ground that was shown")
+	soil.set_scale_px(0.1)
+	_check(is_equal_approx(float((soil.material as ShaderMaterial).get_shader_parameter("detail")), FieldGround.MIN_DETAIL), "far out the ground fades toward its mean colour")
+	soil.free()
 
 
 ## A strip's frames, fps and scale come from its .json next to it; a bad count falls back to 4.
