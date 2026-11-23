@@ -1,0 +1,10 @@
+00:12.000  render           | Saved: 'C:\Users\heath\AppData\Local\Temp\tmp.LpdEdRJYmk\art\heatherspc-blender-human.png'
+[INFO ] services.locationservice ...............: Not adding link to MakeHuman user data, since neither explicit path nor auto-discovery is set in preferences.
+[INFO ] mpfb.init ..............................: Build info FROM_SOURCE
+[INFO ] mpfb.init ..............................: Online access preference is not enabled. Not checking if MakeHuman is online.
+[INFO ] mpfb.init ..............................: MPFB initialization has finished.
+SELFTEST version=5.3.0 human_verts=19158 bones=53 render_s=6.3
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:33:43)
+OBJ import of 'base.obj' took 33.03 ms
+
+Blender quit
