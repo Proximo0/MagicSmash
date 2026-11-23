@@ -5,3 +5,4 @@
 2026-11-22T23:02Z laptop queue 2026-11-22T23:01:55Z FAIL id=261122135940-2187 kind=shell secs=46 wirefuzz iters=2000000 seed=689518 (rerun: WIRE_FUZZ_ITERS=2000000 WIRE_FUZZ_SEED=689518 cargo test --release --lib fuzz in realm/) 
 2026-11-23T00:53Z laptop queue 2026-11-23T00:53:17Z FAIL id=261123000437-3391 kind=shell secs=129 blender self test:  (log laptop-blender.txt) 
 2026-11-23T02:23Z laptop queue 2026-11-23T02:22:51Z FAIL id=261123012047-3598 kind=shell secs=17 blender self test exit=0 version=[Blender 5.3.0] files=6946: ValueError: I don't seem to exist Exception in module register(): C:\Users\Athena\AppData\Roaming\Blender Foundation\Blender\5.3\extensions\user_default\mpfb\__init__.py  las 
+2026-11-23T03:49Z laptop queue 2026-11-23T03:49:17Z FAIL id=261122113654-5395 kind=economy secs=4 economy runs=1 bad=1 seed=214334 no ECONOMY ok line: timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied  
