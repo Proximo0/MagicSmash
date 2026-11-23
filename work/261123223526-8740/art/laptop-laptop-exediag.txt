@@ -1,0 +1,81 @@
+--- files in realm/target/release and realm/store/target/release (newest first)
+realm/target/release/:
+total 78112
+-rw-r--r-- 1 Athena 197121    7987 2026-11-23 14:13 realm-soak.d
+-rw-r--r-- 1 Athena 197121    8118 2026-11-23 13:45 librealm_loadtest.d
+-rw-r--r-- 1 Athena 197121    8295 2026-11-23 13:45 realm-loadtest.d
+-rw-r--r-- 1 Athena 197121    4307 2026-11-23 13:45 librealm_server.d
+-rw-r--r-- 1 Athena 197121    4360 2026-11-23 13:45 realm-server.d
+-rw-r--r-- 1 Athena 197121    3092 2026-11-23 13:45 librealm_loot.d
+-rw-r--r-- 1 Athena 197121    1531 2026-11-23 13:45 librealm_ops.d
+-rw-r--r-- 1 Athena 197121    1581 2026-11-23 13:45 realm-ops.d
+-rw-r--r-- 1 Athena 197121    7997 2026-11-23 13:45 realm-lanplay.d
+-rw-r--r-- 1 Athena 197121    7993 2026-11-23 13:45 realm-world.d
+-rw-r--r-- 1 Athena 197121    7936 2026-11-23 13:45 librealm_gateway.d
+-rw-r--r-- 1 Athena 197121    7997 2026-11-23 13:45 realm-economy.d
+-rw-r--r-- 1 Athena 197121    7990 2026-11-23 13:45 realm-gateway.d
+-rw-r--r-- 1 Athena 197121    1915 2026-11-23 13:45 librealm_core.d
+-rw-r--r-- 2 Athena 197121 2625536 2026-11-23 10:39 realm_loadtest.pdb
+-rwxr-xr-x 2 Athena 197121 3129856 2026-11-23 10:39 realm-loadtest.exe
+-rw-r--r-- 2 Athena 197121 3592192 2026-11-23 10:39 realm_soak.pdb
+-rwxr-xr-x 2 Athena 197121 6743040 2026-11-23 10:39 realm-soak.exe
+-rw-r--r-- 2 Athena 197121 2674688 2026-11-23 10:39 realm_economy.pdb
+-rwxr-xr-x 2 Athena 197121 3251712 2026-11-23 10:39 realm-economy.exe
+-rw-r--r-- 2 Athena 197121 3829760 2026-11-23 10:39 realm_gateway.pdb
+-rwxr-xr-x 2 Athena 197121 6704640 2026-11-23 10:39 realm-gateway.exe
+-rw-r--r-- 2 Athena 197121 3584000 2026-11-23 10:39 realm_world.pdb
+-rwxr-xr-x 2 Athena 197121 6682112 2026-11-23 10:39 realm-world.exe
+-rw-r--r-- 2 Athena 197121 3379200 2026-11-23 10:39 realm_lanplay.pdb
+-rwxr-xr-x 2 Athena 197121 5627904 2026-11-23 10:39 realm-lanplay.exe
+-rw-r--r-- 2 Athena 197121 9048254 2026-11-23 10:39 librealm_gateway.rlib
+-rw-r--r-- 2 Athena 197121 2224128 2026-11-23 10:38 realm_server.pdb
+-rwxr-xr-x 2 Athena 197121 2677760 2026-11-23 10:38 realm-server.exe
+-rw-r--r-- 2 Athena 197121 1179724 2026-11-23 10:38 librealm_loadtest.rlib
+-rw-r--r-- 2 Athena 197121 1798392 2026-11-23 10:38 librealm_server.rlib
+-rw-r--r-- 2 Athena 197121 2609152 2026-11-22 20:22 realm_ops.pdb
+-rwxr-xr-x 2 Athena 197121 3119104 2026-11-22 20:22 realm-ops.exe
+-rw-r--r-- 2 Athena 197121  558816 2026-11-22 20:22 librealm_loot.rlib
+-rw-r--r-- 2 Athena 197121 1992772 2026-11-22 20:22 librealm_ops.rlib
+-rw-r--r-- 2 Athena 197121 2795198 2026-11-22 09:49 librealm_core.rlib
+-rw-r--r-- 1 Athena 197121       0 2026-11-21 15:28 .cargo-artifact-lock
+-rw-r--r-- 1 Athena 197121       0 2026-11-21 15:28 .cargo-lock
+--- same names without .exe (a stray file would be tried first)
+-rwxr-xr-x 2 Athena 197121 6743040 Nov 23 10:39 realm/target/release/realm-soak
+-rwxr-xr-x 2 Athena 197121 3129856 Nov 23 10:39 realm/target/release/realm-loadtest
+-rwxr-xr-x 2 Athena 197121 3251712 Nov 23 10:39 realm/target/release/realm-economy
+-rwxr-xr-x 2 Athena 197121 2677760 Nov 23 10:38 realm/target/release/realm-server
+-rwxr-xr-x 2 Athena 197121 3119104 Nov 22 20:22 realm/target/release/realm-ops
+--- start each program (10 s limit; a usage error is fine, 126 is the fault)
+rc=0 realm/target/release/realm-loadtest: realm-loadtest [--server=127.0.0.1:7777] [--clients=N] [--proto=a0|a1] [--follow] [--players=N] [--secs=10] [--threads=1] [--zoom=1] realm-loadtest --relay=PORT --to=HOST:PORT [--loss=0.05] [--delay-m
+rc=0 realm/target/release/realm-soak: realm-soak [--bots=8] [--secs=60] [--fields=0,1,2] [--monsters=1500] [--threads=1] [--db=PATH] [--seed=1] [--progress=60] [--fast] [--fight-secs=20] [--max-secs=240] [--plain (the gateway and the bots
+rc=2 realm/target/release/realm-economy: unknown flag --help 
+rc=2 realm/store/target/release/realm-store: usage: realm-store <command>   verify <db>                      check every invariant (replays the ledger) 
+--- still running from earlier jobs
+--- security state and recent blocks (read only)
+
+
+RealTimeProtectionEnabled : True
+SmartAppControlState      : Off
+IsTamperProtected         : False
+AntivirusEnabled          : True
+
+
+
+
+ControlledFolderAccess=0
+antivirus=Windows Defender
+--- log Microsoft-Windows-Windows Defender/Operational
+--- log Microsoft-Windows-CodeIntegrity/Operational
+2026-11-23 14:15:03Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements or violated code in
+2026-11-23 14:15:03Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements.
+2026-11-23 14:14:42Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements or violated code in
+2026-11-23 14:14:42Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements.
+2026-11-23 14:14:21Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements or violated code in
+2026-11-23 14:14:21Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements.
+2026-11-23 14:14:00Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements or violated code in
+2026-11-23 14:14:00Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-soak.exe that did not meet the Enterprise signing level requirements.
+2026-11-23 13:57:42Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\Users\Athena\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\build\realm-gateway\1e38b16f7c8e104e\out\realm_gateway-1e38b16f7c
+2026-11-23 13:57:42Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\Users\Athena\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin\cargo.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\build\realm-gateway\1e38b16f7c8e104e\out\realm_gateway-1e38b16f7c
+2026-11-23 13:45:58Z id=3077 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-loadtest.exe that did not meet the Enterprise signing level requirements or violated cod
+2026-11-23 13:45:58Z id=3033 Code Integrity determined that a process (\Device\HarddiskVolume3\projects\tools\PortableGit\usr\bin\timeout.exe) attempted to load \Device\HarddiskVolume3\projects\stations\MagicSmash\realm\target\release\realm-loadtest.exe that did not meet the Enterprise signing level requirements.
+--- log Microsoft-Windows-AppLocker/EXE and DLL

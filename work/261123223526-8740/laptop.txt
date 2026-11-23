@@ -1,0 +1,1 @@
+2026-11-23T22:39:35Z PASS id=261123223526-8740 kind=shell secs=9 exediag started=4 blocked=0 SmartAppControlState:Off antivirus=Windows Defender log_lines=12 (report laptop-exediag.txt)
