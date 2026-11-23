@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-23T15:13Z commit=2e0e127 took=1s
-JOB frames SKIP nothing it tests changed since 74566ab
-JOB balance SKIP nothing it tests changed since 74566ab
-STATION PASS jobs=0 failed=0 skipped=2
+STATION machine=laptop time=2026-11-23T16:39Z commit=fe011f8 took=58s
+JOB frames FAIL build: For more information about this error, try `rustc --explain E0463`. error: could not compile `realm-godot` (lib) due to 1 previous error 
+JOB balance INFO     Finished `release` profile [optimized] target(s) in 0.15s timeout: failed to run command ‘target/release/realm-loadtest’: Permission denied 
+STATION FAIL jobs=2 failed=1 skipped=0
