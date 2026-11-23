@@ -1,3 +1,4 @@
 2026-11-22T19:56:37Z INFO id=261122113654-5395 kind=economy secs=2899 economy runs=1 bad=0 seed=244244 ok bots=4000 days=180 secs=2866 sales=109860 tax=2884109 coin_per_bot=339608 listings=547393 trades=2198 letters=3781 refused=3494
 2026-11-23T00:47:26Z INFO id=261122113654-5395 kind=economy secs=2993 economy runs=1 bad=0 seed=276777 ok bots=4000 days=180 secs=2961 sales=112721 tax=2950176 coin_per_bot=342982 listings=558185 trades=2272 letters=3855 refused=3066
 2026-11-23T03:49:17Z FAIL id=261122113654-5395 kind=economy secs=4 economy runs=1 bad=1 seed=214334 no ECONOMY ok line: timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied 
+2026-11-23T07:42:05Z INFO id=261122113654-5395 kind=economy secs=3028 economy runs=1 bad=0 seed=207744 ok bots=4000 days=180 secs=3002 sales=112205 tax=3034635 coin_per_bot=343013 listings=550498 trades=2311 letters=3694 refused=3660
