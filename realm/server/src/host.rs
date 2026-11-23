@@ -923,15 +923,40 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         let t0 = Instant::now();
         let reqs: Vec<JoinReq> = joins.iter().map(|j| j.req.clone()).collect();
         let ids = sim.tick(&reqs, &leaves, &inputs, &mut row);
-        // Recording only (branch video-capture): REALM_VIDEO_BOSS="<row> <secs>" raises boss `row` beside the newest hero.
+        // Recording only (branch video-capture): REALM_VIDEO_BOSS="<row> <secs>" raises boss `row` beside a player's
+        // hero once she has been in the field `secs` seconds. The summon is not in any tick record, so a follower
+        // would never apply it (client.rs test a_boss_reaches_a_follower_through_the_record_or_the_state_and_no_other_way):
+        // every lockstep client is sent the field's state again right after it (the path of a client that fell behind),
+        // so all peers hold the boss from this tick on.
         if let Some(v) = std::env::var("REALM_VIDEO_BOSS").ok().filter(|v| !v.trim().is_empty()) {
+            // Per host thread (each field copy runs its own): ticks a player has been in, and whether it fired.
+            thread_local!(static VIDEO: std::cell::Cell<(u64, bool)> = const { std::cell::Cell::new((0, false)) });
             let mut it = v.split_whitespace().map(|t| t.parse::<u64>().unwrap_or(0));
             let (which, secs) = (it.next().unwrap_or(0), it.next().unwrap_or(8));
-            if n == secs * 20 {
-                let at = sim.field.heroes().iter().rev().find(|h| h.present).map(|h| (h.x, h.y));
-                if let Some((x, y)) = at {
-                    sim.field.summon_boss(which as u8, 2_000_000, x + 90 * realm_core::SUB, y);
+            // The newest player hero whose client has its state (not a bot, not one still joining).
+            let me = clients
+                .values()
+                .filter(|c| c.proto == PROTO_BP && c.state_tick.is_some_and(|st| c.ack >= st))
+                .filter_map(|c| c.id)
+                .filter(|&id| sim.field.heroes().get(id as usize).is_some_and(|h| h.present && h.alive()))
+                .max();
+            let (since, done) = VIDEO.get();
+            match me {
+                None => VIDEO.set((0, done)),
+                Some(id) if !done => {
+                    VIDEO.set((since + 1, false));
+                    if since + 1 >= secs * 20 && sim.field.boss().is_none() {
+                        let h = &sim.field.heroes()[id as usize];
+                        let (x, y) = (h.x + 90 * realm_core::SUB, h.y);
+                        sim.field.summon_boss(which as u8, 2_000_000, x, y);
+                        VIDEO.set((since + 1, true));
+                        for c in clients.values_mut().filter(|c| c.proto == PROTO_B || c.proto == PROTO_BP) {
+                            c.state_tick = None;
+                        }
+                        eprintln!("REALM_VIDEO_BOSS: boss {which} beside hero {id} at tick {}; state resent to every follower", sim.field.tick());
+                    }
                 }
+                Some(_) => {}
             }
         }
         let tick = sim.field.tick();
