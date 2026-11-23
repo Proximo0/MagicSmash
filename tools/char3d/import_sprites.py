@@ -4,7 +4,8 @@
 usage: import_sprites.py heroes   <heroes24 dir>  <realm/client/art dir>
        import_sprites.py monsters <monsters dir>  <realm/client/art dir>
 
-Monsters are enemy_<name>_<action>.png: the walk action is any walking_*, the attack the one action that is not idle,
+Monsters are enemy_<name>_<action>.png (a field boss boss_<slug>_<action>.png, drawn instead of its carrier;
+a rooted boss has no walking_* and an 8 frame idle, which becomes its walk strip): the walk action is any walking_*, the attack the one action that is not idle,
 walking_*, hit_a or death_*, the death any death_*. A key listed in <art dir>/locked.txt is skipped.
 
 Per hero one crop box is shared by every frame of every action: symmetric about the body centre (so the client,
@@ -38,10 +39,14 @@ def load_actions(src: Path, key: str):
     """({action: frames}, {"walk": .., "atk": .., "hit": "hit_a", "die": ..}) for one character."""
     acts = {}
     for p in src.glob(key + "_*.png"):
+        if p.stem.endswith("_sheet_6x"):
+            continue
         acts[p.stem[len(key) + 1:].lower()] = frames_of(Image.open(p).convert("RGBA"))
     walk = [a for a in acts if a.startswith("walking_")]
     die = [a for a in acts if a.startswith("death_")]
     atk = [a for a in acts if a not in ("idle", "hit_a", "block_hit") and a not in walk and a not in die]
+    if not walk and len(acts.get("idle", [])) >= 8:      # a rooted boss: its 8 frame idle (a sway) is its walk strip
+        walk = ["idle"]
     if len(atk) != 1 or len(walk) != 1 or len(die) != 1 or "idle" not in acts or "hit_a" not in acts:
         raise SystemExit("%s: need idle, hit_a, one walking_*, one death_*, one attack; found %s" % (key, sorted(acts)))
     return acts, {"walk": walk[0], "atk": atk[0], "hit": "hit_a", "die": die[0]}
@@ -120,7 +125,7 @@ def main(argv):
         keys = ["hero_%s_%s" % (r, c) for r in RACES for c in CLASSES]
     else:
         scale = MONSTER_SCALE
-        keys = sorted(p.stem for p in src.glob("enemy_*.json"))  # every monster in the folder
+        keys = sorted(p.stem for p in [*src.glob("enemy_*.json"), *src.glob("boss_*.json")])  # every monster and boss in the folder
     for key in keys:
         if key in lock:
             print(key, "locked: skipped")
