@@ -57,11 +57,15 @@ test_py="$T/blender_selftest.py"
 cat > "$test_py" <<'EOF'
 import sys, time, bpy
 src, out = sys.argv[sys.argv.index("--") + 1:][:2]
-sys.path.insert(0, src)
+import os, shutil, importlib, addon_utils
 bpy.ops.wm.read_factory_settings(use_empty=True)
-import mpfb
-mpfb.register()
-from mpfb.services.humanservice import HumanService
+# Blender 5 only lets the generator find its own folders when it is loaded as an extension, not from sys.path
+dest = os.path.join(bpy.utils.user_resource("EXTENSIONS", path="user_default", create=True), "mpfb")
+if not os.path.isdir(dest):
+    shutil.copytree(os.path.join(src, "mpfb"), dest)
+M = "bl_ext.user_default.mpfb"
+addon_utils.enable(M, default_set=False)
+HumanService = importlib.import_module(M + ".services.humanservice").HumanService
 h = HumanService.create_human()
 rig = HumanService.add_builtin_rig(h, "game_engine")
 sc = bpy.context.scene
