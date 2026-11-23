@@ -340,15 +340,17 @@ mod tests {
         field: Field,
         ls: Lockstep,
         recs: Vec<(u32, Vec<u8>)>,
+        /// The realm clock for the next record (the host's `Sim::next_clock`).
+        clock: Option<u64>,
     }
 
     impl Mini {
         fn new(monsters: u32) -> Mini {
-            Mini { field: Field::new(5, Config { monsters, threads: 1 }), ls: Lockstep::default(), recs: Vec::new() }
+            Mini { field: Field::new(5, Config { monsters, threads: 1 }), ls: Lockstep::default(), recs: Vec::new(), clock: None }
         }
 
         fn tick(&mut self, joins: Vec<Join>, want: &[u8]) {
-            let mut rec = TickRec { tick: self.field.tick() + 1, joins, ..TickRec::default() };
+            let mut rec = TickRec { tick: self.field.tick() + 1, joins, clock: self.clock.take(), ..TickRec::default() };
             let want: Vec<u16> = want.iter().map(|&mv| mv as u16).collect();
             rec.changes = self.ls.changes(&rec, &want);
             assert!(self.ls.apply(&mut self.field, &rec, |_| {}));
@@ -443,5 +445,68 @@ mod tests {
         assert!(p.confirms > 100, "{} confirms", p.confirms);
         assert_eq!(p.mispredicts, 0);
         assert_eq!(p.unconfirmed(), 2);
+    }
+
+    /// A follower's field moves only by the records. A boss the host summons outside them (a host-side call after
+    /// its tick) never reaches a hero already in the field: no monster to draw, and the hashes part. A boss the
+    /// realm clock raises (the clock rides in the record) rises on her copy in the same tick, and a hero who
+    /// joins while it is up gets it in the state.
+    #[test]
+    fn a_boss_reaches_a_follower_through_the_record_or_the_state_and_no_other_way() {
+        let follow = |m: &Mini, c: &mut LockstepClient| {
+            for d in m.send(c.tick(), None) {
+                c.receive(&d);
+            }
+            c.apply();
+        };
+        let fid = 1;
+        let mut m = Mini::new(300);
+        m.field = Field::open(fid, 5, Config { monsters: 300, threads: 1 });
+        m.tick(vec![Join::bench(0, 1, 0, 1, FIELD / 2, FIELD / 2)], &[]);
+        let mut c = LockstepClient::new(PROTO_B, 0, 0, 1);
+        c.receive(&welcome(u32::MAX, 1, None));
+        for p in state_parts(1, &m.ls.state_bytes(&m.field)) {
+            c.receive(&p);
+        }
+        // Host side only: the summon is not in any record.
+        m.tick(Vec::new(), &[0]);
+        m.field.summon_boss(realm_core::tables::B_HANGING_TREE, 2_000_000, FIELD / 2 + 90 * realm_core::SUB, FIELD / 2);
+        for _ in 0..HASH_EVERY {
+            m.tick(Vec::new(), &[0]);
+        }
+        follow(&m, &mut c);
+        assert_eq!(c.tick(), m.field.tick());
+        assert!(m.field.boss().is_some() && c.field().unwrap().boss().is_none(), "the summon stays on the host");
+        assert!(c.stats.hash_bad > 0, "and the hashes part");
+        // The clock in the record: the field's boss rises on both copies.
+        let mut m = Mini::new(300);
+        m.field = Field::open(fid, 5, Config { monsters: 300, threads: 1 });
+        m.tick(vec![Join::bench(0, 1, 0, 1, FIELD / 2, FIELD / 2)], &[]);
+        let mut c = LockstepClient::new(PROTO_B, 0, 0, 1);
+        c.receive(&welcome(u32::MAX, 1, None));
+        for p in state_parts(1, &m.ls.state_bytes(&m.field)) {
+            c.receive(&p);
+        }
+        m.clock = Some(realm_core::field_boss_window(fid, 3).0 - 2);
+        for _ in 0..2 * HASH_EVERY {
+            m.tick(Vec::new(), &[0]);
+            follow(&m, &mut c);
+        }
+        let up = m.field.boss().cloned().expect("the clock raised the boss");
+        assert_eq!(up.which, realm_core::tables::field_boss_of(fid, 0));
+        assert_eq!(c.field().unwrap().boss(), Some(&up));
+        assert_eq!(c.field().unwrap().boss_pos(), m.field.boss_pos());
+        assert_eq!((c.stats.hash_bad, c.stats.hash_ok), (0, 2));
+        // A hero who joins while it is up.
+        let mut late = LockstepClient::new(PROTO_B, 0, 0, 1);
+        let t = m.field.tick();
+        late.receive(&welcome(u32::MAX, t, None));
+        for p in state_parts(t, &m.ls.state_bytes(&m.field)) {
+            late.receive(&p);
+        }
+        assert_eq!(late.field().and_then(|f| f.boss()), Some(&up));
+        m.tick(Vec::new(), &[0]);
+        follow(&m, &mut late);
+        assert_eq!(late.field().map(|f| (f.hash(), f.boss_pos())), Some((m.field.hash(), m.field.boss_pos())));
     }
 }
