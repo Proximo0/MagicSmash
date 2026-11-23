@@ -6,7 +6,8 @@
 #                      branch), so the job is free again for that station's next pick or for another station
 # Problems: a station whose <machine>-hours.txt has not been pushed for STATION_WATCH_SILENT_S (default 2 h: a
 # running station pushes it about every half hour, also during a long job); a claim older than
-# STATION_WATCH_CLAIM_S (default 5 h: no job may run longer than STATION_QUEUE_MAX_S, 4 h).
+# STATION_WATCH_CLAIM_S (default 5 h: no job may run longer than STATION_QUEUE_MAX_S, 4 h); a station that reports
+# its hours but has published no result of any kind for STATION_WATCH_IDLE_S (default 5 h) and holds no job.
 # Machines come from tools/station/roles.txt. STATION_WATCH_NOW=<epoch> replaces the clock (tests).
 set -u
 cd "$(dirname "$0")/../.."
@@ -16,6 +17,7 @@ heal=0; [ "${1:-}" = "--heal" ] && heal=1
 now="${STATION_WATCH_NOW:-$(date +%s)}"
 silent="${STATION_WATCH_SILENT_S:-7200}"
 old="${STATION_WATCH_CLAIM_S:-18000}"
+idle="${STATION_WATCH_IDLE_S:-18000}"
 alerts=0
 alert() { echo "ALERT $1"; alerts=$((alerts + 1)); }
 age() { local s=$1; printf '%dh%02dm' $((s / 3600)) $((s % 3600 / 60)); }
@@ -30,6 +32,12 @@ for m in $machines; do
   t=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m-hours.txt" 2>/dev/null)
   if [ -z "$t" ]; then alert "$m has never reported its hours"
   elif [ $((now - t)) -gt "$silent" ]; then alert "$m has been silent for $(age $((now - t))): is the PC on, signed in, and its station window running?"; fi
+  # On, but doing nothing: no result line of any kind from it for a while, and it holds no job now.
+  w=$(git log -1 --format=%ct "refs/remotes/origin/$BRANCH" -- "$m.txt" "$m-deep.txt" ":(glob)work/*/$m.txt" 2>/dev/null)
+  if [ -n "$t" ] && [ $((now - t)) -le "$silent" ] && [ $((now - ${w:-0})) -gt "$idle" ] \
+    && ! git ls-tree -r --name-only "refs/remotes/origin/$QBRANCH" claims/ 2>/dev/null | grep -q "\.$m\$"; then
+    alert "$m is on but has finished no job for $(age $((now - ${w:-0}))) and holds none: its station may be stuck between jobs"
+  fi
 done
 
 ops=()
