@@ -115,7 +115,9 @@ never by wall time: a host sends everything (`Closed` last) before it is marked 
 (`HostMsg::Reap`) queues behind those messages, so the applier answers it only after the host's last flush and its
 `Closed`, if any, however far behind the store is (a 1 s wall-clock grace once counted clean merges on a slow Windows
 runner as dead hosts and dropped their tickets; `world::tests::a_clean_close_behind_a_slow_applier_is_not_a_lost_host`).
-Its tickets are dropped: banked coin, XP and kept
+A dead copy lists nobody from the moment it is given up, before its heroes are free to take a new ticket
+(`a_dead_copy_lists_nobody_once_its_heroes_are_freed`), and the gateway logs which host ended without closing, with the
+panic message when its thread panicked. Its tickets are dropped: banked coin, XP and kept
 drops are already in the store; the haul is lost, as when the whole server is killed (W1's rule). The planner opens
 a new copy at once when the field has none.
 

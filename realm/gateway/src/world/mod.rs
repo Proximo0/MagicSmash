@@ -662,7 +662,9 @@ impl Gateway {
                 st.reaped.remove(&id);
             }
             if let Some(mut s) = slot {
-                s.handle.reap();
+                if let Some(why) = s.handle.reap() {
+                    eprintln!("realm-gateway: host {id} (field {} copy {}) panicked: {why}", s.field, s.copy);
+                }
                 let k = s.handle.status.counts.lock().unwrap().clone();
                 add_counts(&mut self.world.state.lock().unwrap().retired, &k);
                 // Anyone still holding a ticket to it (a ticket refused as it closed) is freed.
@@ -686,6 +688,17 @@ impl Gateway {
     pub(crate) fn on_reap(&self, host: u32) {
         let clean = self.world.state.lock().unwrap().closed.contains(&host);
         if !clean {
+            // Nobody is in a dead copy: it lists nobody from now on, before her ticket is freed and she may be let
+            // into another copy (its slot stays until the reaper's next step).
+            let named = self.hosts.lock().unwrap().iter().find(|h| h.id == host).map(|h| {
+                let st = &h.handle.status;
+                let members = std::mem::take(&mut *st.members.lock().unwrap());
+                st.heroes.store(0, Ordering::Relaxed);
+                (h.field, h.copy, h.vault.is_some(), members.len())
+            });
+            if let Some((field, copy, vault, n)) = named {
+                eprintln!("realm-gateway: host {host} (field {field} copy {copy}{}) ended without closing: its {n} heroes' outings are given up", if vault { ", a vault" } else { "" });
+            }
             self.lose_host(host);
             self.wars_host_gone(host);
             self.world.count(|s| s.hosts_lost += 1);
@@ -983,6 +996,58 @@ mod tests {
         assert_eq!(told, vec![100, 150, 180], "each push is her outing's total so far");
         assert_eq!(bag, *told.last().unwrap(), "the last push is what is in her bag");
         assert_ne!(told.iter().sum::<u64>(), bag, "summing the pushes over-counts (the stop test's old mistake)");
+        drop(l);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
+    }
+
+    /// A copy that dies (a crash; `abort_copy`) lists nobody once its heroes are freed: they may take a new ticket
+    /// at once, and a dead copy still naming them would be a hero in two copies (the week's `doubled`: the dead
+    /// slot stayed until the reaper's next step, up to 250 ms after the applier gave up its outings).
+    #[test]
+    fn a_dead_copy_lists_nobody_once_its_heroes_are_freed() {
+        let db = std::env::temp_dir().join(format!("realm-dead-members-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let world = WorldConfig { dev_bots: true, monsters: 50, ..WorldConfig::default() };
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, world, ..Config::default() });
+        let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+        gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
+        let mut c = GatewayClient::connect_plain(&l.addr.to_string()).unwrap();
+        assert!(matches!(c.login("dead").unwrap(), Resp::Login { .. }));
+        let hero = match c.call(Req::CreateHero { name: "Deadcopy".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
+            Resp::HeroCreated(id) => id,
+            r => panic!("{r:?}"),
+        };
+        let d = OutingDelta { xp: crate::sheet::xp_to_reach(12), levels: 11, waystone: Some((0, 0)), ..OutingDelta::default() };
+        store.apply_outing(Meta::system(0xDEAD << 64 | hero as u128, 1), hero, d).unwrap();
+        assert!(matches!(c.call(Req::World(WReq::BotTicket { hero, field: 0, ticks: 1_000_000 })).unwrap(), Resp::Ticket { .. }));
+        let listed = |gw: &Gateway| gw.world_members().iter().filter(|m| m.4.contains(&(hero as u64))).map(|m| m.0).collect::<Vec<u32>>();
+        let t = std::time::Instant::now();
+        while listed(&gw).is_empty() && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let host = listed(&gw)[0];
+        let (field, copy) = gw.hosts.lock().unwrap().iter().find(|h| h.id == host).map(|h| (h.field, h.copy)).unwrap();
+        assert!(gw.abort_copy(field, copy));
+        // From the moment her ticket is gone until the dead slot is removed, the dead copy must not name her.
+        let t = std::time::Instant::now();
+        let mut freed_at = None;
+        while t.elapsed() < Duration::from_secs(5) {
+            let freed = gw.ticket_count() == 0;
+            let in_dead = listed(&gw).contains(&host);
+            if freed {
+                freed_at.get_or_insert_with(std::time::Instant::now);
+                assert!(!in_dead, "her ticket is freed but the dead copy {host} still lists her");
+                if !gw.hosts.lock().unwrap().iter().any(|h| h.id == host) {
+                    break;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        assert!(freed_at.is_some(), "the dead copy's ticket was freed");
+        assert_eq!(gw.world.stats().hosts_lost, 1);
         drop(l);
         gw.shutdown();
         let _ = std::fs::remove_file(&db);

@@ -378,10 +378,11 @@ impl HostHandle {
     }
 
     /// Waits for the thread if it has ended by itself (a vault closing, an abort).
-    pub fn reap(&mut self) {
-        if let Some(t) = self.thread.take() {
-            let _ = t.join();
-        }
+    /// Joins the ended host's thread. `Some(message)` if it ended by a panic (a bug: the caller prints it).
+    pub fn reap(&mut self) -> Option<String> {
+        let t = self.thread.take()?;
+        let e = t.join().err()?;
+        Some(e.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| e.downcast_ref::<String>().cloned()).unwrap_or_else(|| "a panic with no message".into()))
     }
 
     pub fn stop(&mut self) {
