@@ -1,2 +1,2 @@
 seed,bots,days,status,summary
-263123,4000,180,ok,ok bots=4000 days=180 secs=3026 sales=111324 tax=2976622 coin_per_bot=341866 listings=551553 trades=2299 letters=3812 refused=3579
+256420,4000,180,fail,timeout: failed to run command ‘realm/target/release/realm-economy’: Permission denied
