@@ -1,0 +1,4 @@
+# Files a station may download for the lead (tools/station/jobs/fetchasset.sh): <name> <https url>
+# Pages first, to read the licence and the download link before any model is fetched.
+quaternius-home https://quaternius.com/
+quaternius-animals https://quaternius.com/packs/ultimateanimatedanimals.html
