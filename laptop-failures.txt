@@ -29,3 +29,4 @@
 2026-11-23T17:02Z laptop queue 2026-11-23T17:02:42Z FAIL id=261122113704-0426 kind=balance secs=67 balance cohorts=1 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied  
 2026-11-23T17:03Z laptop f702afe JOB frames FAIL build: For more information about this error, try `rustc --explain E0463`. error: could not compile `realm-godot` (lib) due to 1 previous error   
 2026-11-23T17:16Z laptop queue 2026-11-23T17:16:44Z FAIL id=261122113651-9566 kind=soak secs=67 soak seed=232241 secs=1800 timeout: failed to run command ‘realm/target/release/realm-soak’: Permission denied  
+2026-11-23T17:23Z laptop 1cf5681 JOB frames FAIL build: For more information about this error, try `rustc --explain E0463`. error: could not compile `realm-godot` (lib) due to 1 previous error   
