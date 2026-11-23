@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Seamless ground tiles for the six fields, made from seeded noise only (no model, no outside art).
-ground.py OUT_DIR  ->  ground_0.png .. ground_5.png (512 x 512, wraps on both axes) and ground_blotch.png."""
+ground.py OUT_DIR  ->  ground_0a.png, ground_0b.png .. ground_5b.png (512 x 512, each wraps on both axes) and the
+two long-period maps ground_blotch.png (shade) and ground_patch.png (which of a and b shows)."""
 import sys
 from pathlib import Path
 import numpy as np
@@ -104,33 +105,28 @@ def lit(img, h, strength, amount=38.0):
     return img + emboss(h, strength)[..., None] * amount
 
 
-def road(rng):  # THE FOOL'S ROAD: packed earth, cobbles showing through in patches, pebbles
+# Each field is two tiles: `a` its common ground and `b` the other ground that shows in patches. The shader
+# (realm/client/field/ground.gdshader) chooses between them with a map of a much longer period, so the patches
+# never repeat with the tile.
+
+
+def road(rng):  # THE FOOL'S ROAD: packed earth with pebbles; old cobbles
     base = fbm(rng, 4)
     fine = fbm(rng, 64, 2)
     earth = ramp(norm(0.6 * base + 0.4 * fine), [(0, (34, 27, 20)), (0.5, (54, 43, 31)), (1, (74, 60, 43))])
     earth = lit(earth, fine, 6.0, 14)
-    joint, shade = stones(rng, 420, 2.2)
-    cob_h = np.clip(joint * 1.4, 0, 1)
-    cob = ramp(np.clip(0.5 + 0.3 * shade + 0.4 * (fine - 0.5), 0, 1), [(0, (52, 50, 48)), (1, (96, 90, 80))])
-    cob = lit(cob * (0.45 + 0.55 * joint[..., None]), cob_h, 1.6, 26)
-    patch = np.clip((fbm(rng, 5, 3) - 0.52) * 30, 0, 1)
-    img = earth * (1 - patch[..., None]) + cob * patch[..., None]
     dome, sh = blobs(rng, 300, 1.5, 4.0, 0.5)
     peb = ramp(np.clip(0.5 + 0.4 * sh, 0, 1), [(0, (70, 64, 56)), (1, (112, 104, 92))])
-    m = (dome > 0)[..., None] * (1 - patch[..., None])
-    img = img * (1 - m) + lit(peb, dome, 2.5, 30) * m
-    return img
+    m = (dome > 0)[..., None]
+    a = earth * (1 - m) + lit(peb, dome, 2.5, 30) * m
+    joint, shade = stones(rng, 420, 2.2)
+    cob = ramp(np.clip(0.5 + 0.3 * shade + 0.4 * (fine - 0.5), 0, 1), [(0, (52, 50, 48)), (1, (96, 90, 80))])
+    b = lit(cob * (0.45 + 0.55 * joint[..., None]), np.clip(joint * 1.4, 0, 1), 1.6, 26)
+    return a, b
 
 
-def wood(rng):  # THE HANGING WOOD: fallen leaves over dark soil, moss
-    base = fbm(rng, 4)
-    fine = fbm(rng, 64, 2)
-    soil = ramp(norm(0.6 * base + 0.4 * fine), [(0, (18, 20, 14)), (1, (40, 36, 24))])
-    img = lit(soil, fine, 6.0, 10)
-    moss = np.clip((fbm(rng, 6, 4) - 0.52) * 30, 0, 1)
-    green = ramp(norm(fbm(rng, 48, 2)), [(0, (20, 40, 22)), (0.6, (34, 58, 28)), (1, (56, 80, 36))])
-    img = img * (1 - moss[..., None]) + lit(green, fine, 8.0, 16) * moss[..., None]
-    for seed, count, cols in [(1, 520, [(0, (58, 38, 16)), (1, (104, 66, 22))]), (2, 380, [(0, (70, 30, 14)), (1, (128, 84, 26))])]:
+def leaves(img, seeds):
+    for seed, count, cols in seeds:
         r2 = np.random.default_rng(7300 + seed)
         dome, sh = blobs(r2, count, 2.0, 4.2, 0.6)
         leaf = ramp(np.clip(0.5 + 0.5 * sh, 0, 1), cols)
@@ -139,67 +135,77 @@ def wood(rng):  # THE HANGING WOOD: fallen leaves over dark soil, moss
     return img
 
 
-def marsh(rng):  # THE DROWNED MARSH: mud banks, standing water, reeds
+def wood(rng):  # THE HANGING WOOD: fallen leaves over dark soil; moss
+    base = fbm(rng, 4)
+    fine = fbm(rng, 64, 2)
+    soil = ramp(norm(0.6 * base + 0.4 * fine), [(0, (18, 20, 14)), (1, (40, 36, 24))])
+    a = leaves(lit(soil, fine, 6.0, 10), [(1, 520, [(0, (58, 38, 16)), (1, (104, 66, 22))]), (2, 380, [(0, (70, 30, 14)), (1, (128, 84, 26))])])
+    green = ramp(norm(fbm(rng, 48, 2)), [(0, (20, 40, 22)), (0.6, (34, 58, 28)), (1, (56, 80, 36))])
+    b = leaves(lit(green, fine, 8.0, 16), [(3, 160, [(0, (58, 38, 16)), (1, (104, 66, 22))])])
+    return a, b
+
+
+def marsh(rng):  # THE DROWNED MARSH: mud banks with reeds; standing water
     h = fbm(rng, 5)
     fine = fbm(rng, 64, 2)
     mud = ramp(norm(0.6 * h + 0.4 * fine), [(0, (26, 34, 30)), (0.6, (44, 52, 40)), (1, (64, 66, 46))])
-    mud = lit(mud, fine, 6.0, 12)
-    level = 0.45
-    water = (h < level).astype(float)
-    depth = np.clip((level - h) * 9, 0, 1)
-    pool = ramp(depth, [(0, (26, 58, 62)), (0.4, (16, 40, 48)), (1, (8, 22, 30))])
-    shore = ((h >= level) & (h < level + 0.012)).astype(float)
-    img = mud * (1 - water[..., None]) + pool * water[..., None]
-    img = img * (1 - 0.45 * shore[..., None])
-    dome, sh = blobs(rng, 420, 1.2, 2.6, 0.5)
-    reed = (dome > 0) & (h > level + 0.01) & (h < level + 0.09)
-    img = np.where(reed[..., None], lit(ramp(np.clip(0.5 + 0.5 * sh, 0, 1), [(0, (40, 62, 30)), (1, (86, 104, 44))]), dome, 2.0, 22), img)
-    glint = (rng.random((N, N)) < 0.004) & (h < level - 0.03)
-    img = np.where(glint[..., None], img + 34, img)
-    return img
+    a = lit(mud, fine, 6.0, 12)
+    dome, sh = blobs(rng, 420, 1.2, 2.6, 0.22)
+    reed = (dome > 0)[..., None]
+    a = np.where(reed, lit(ramp(np.clip(0.5 + 0.5 * sh, 0, 1), [(0, (40, 62, 30)), (1, (86, 104, 44))]), dome, 2.0, 22), a)
+    depth = norm(fbm(rng, 4, 4))
+    b = ramp(depth, [(0, (8, 22, 30)), (0.6, (16, 40, 48)), (1, (24, 54, 58))])
+    glint = (rng.random((N, N)) < 0.004)[..., None]
+    b = np.where(glint, b + 34, b)
+    return a, b
 
 
-def peaks(rng):  # THE PALE PEAKS: snow drifts with bare rock breaking through
+def peaks(rng):  # THE PALE PEAKS: snow drifts; bare rock
     h = fbm(rng, 4)
     fine = fbm(rng, 64, 2)
     drift = fbm(rng, 12, 3)
-    snow = ramp(norm(0.6 * h + 0.4 * drift), [(0, (92, 106, 126)), (0.6, (126, 140, 160)), (1, (158, 170, 186))])
-    snow = lit(snow, drift, 5.0, 18)
+    snow = ramp(norm(0.6 * h + 0.4 * drift), [(0, (74, 88, 108)), (0.6, (106, 120, 140)), (1, (136, 148, 166))])
+    a = lit(snow, drift, 5.0, 16)
     joint, shade = stones(rng, 150, 2.5)
     rock = ramp(np.clip(0.5 + 0.3 * shade + 0.5 * (fine - 0.5), 0, 1), [(0, (36, 40, 50)), (1, (78, 84, 96))])
-    rock = lit(rock * (0.4 + 0.6 * joint[..., None]), np.clip(joint * 1.4, 0, 1), 1.6, 24)
-    bare = (h < 0.43).astype(float)
-    edge_ = ((h >= 0.43) & (h < 0.445)).astype(float)
-    img = snow * (1 - bare[..., None]) + rock * bare[..., None]
-    img = img + edge_[..., None] * 22
-    return img
+    b = lit(rock * (0.4 + 0.6 * joint[..., None]), np.clip(joint * 1.4, 0, 1), 1.6, 24)
+    return a, b
 
 
-def tower(rng):  # THE TOWER: worn flagstones, some cracked
-    joint, shade = stones(rng, 60, 3.0)
+def flags(rng, count, cols, crack_seed):
+    joint, shade = stones(rng, count, 3.0)
     fine = fbm(rng, 64, 2)
     v = 0.5 + 0.25 * shade + 0.5 * (fine - 0.5)
-    img = ramp(np.clip(v, 0, 1), [(0, (36, 30, 46)), (0.5, (58, 48, 68)), (1, (84, 72, 94))])
+    img = ramp(np.clip(v, 0, 1), cols)
     img = lit(img * (0.3 + 0.7 * joint[..., None]), np.clip(joint * 1.3, 0, 1), 1.4, 30)
-    f1, f2, _ = cells_map(rng, 26)
-    crack = (np.clip(1 - (f2 - f1) / 1.2, 0, 1) * np.clip((fbm(rng, 4) - 0.5) * 8, 0, 1))
-    img = img * (1 - 0.6 * crack[..., None])
-    return lit(img, fine, 5.0, 8)
+    f1, f2, _ = cells_map(rng, crack_seed)
+    crack = np.clip(1 - (f2 - f1) / 1.2, 0, 1) * np.clip((fbm(rng, 4) - 0.5) * 8, 0, 1)
+    return lit(img * (1 - 0.6 * crack[..., None]), fine, 5.0, 8)
 
 
-def edge(rng):  # THE EDGE: cracked ash plates, embers in the cracks
-    f1, f2, ident = cells_map(rng, 90)
-    gap = (f2 - f1)
+def tower(rng):  # THE TOWER: worn flagstones; smaller, darker broken paving
+    a = flags(rng, 60, [(0, (36, 30, 46)), (0.5, (58, 48, 68)), (1, (84, 72, 94))], 26)
+    b = flags(rng, 190, [(0, (26, 22, 34)), (0.5, (42, 36, 52)), (1, (62, 54, 72))], 40)
+    return a, b
+
+
+def plates(rng, count, heat):
+    f1, f2, ident = cells_map(rng, count)
+    gap = f2 - f1
     crack = np.clip(1 - gap / 2.4, 0, 1)
     fine = fbm(rng, 64, 2)
-    shade = rng.uniform(-1, 1, 90)[ident]
+    shade = rng.uniform(-1, 1, count)[ident]
     ash = ramp(np.clip(0.5 + 0.25 * shade + 0.5 * (fine - 0.5), 0, 1), [(0, (34, 22, 22)), (0.6, (60, 38, 32)), (1, (84, 54, 44))])
     ash = lit(ash, np.clip(gap / 6.0, 0, 1), 1.6, 26)
-    hot = np.clip((fbm(rng, 3) - 0.48) * 10, 0, 1)
     img = ash * (1 - 0.8 * crack[..., None])
-    img += (crack * hot)[..., None] * np.array([190.0, 70.0, 16.0])
-    img += (np.clip(1 - gap / 7.0, 0, 1) * hot * 0.25)[..., None] * np.array([120.0, 30.0, 6.0])
+    if heat > 0:
+        img += (crack * heat)[..., None] * np.array([190.0, 70.0, 16.0])
+        img += (np.clip(1 - gap / 7.0, 0, 1) * heat * 0.25)[..., None] * np.array([120.0, 30.0, 6.0])
     return img
+
+
+def edge(rng):  # THE EDGE: cracked ash plates; plates with embers in the cracks
+    return plates(rng, 90, 0.0), plates(rng, 90, 1.0)
 
 
 def save(img, path, colours=40):
@@ -212,9 +218,13 @@ def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
     for k, f in enumerate([road, wood, marsh, peaks, tower, edge]):
-        save(f(np.random.default_rng(7100 + k)), out / ("ground_%d.png" % k))
-    b = fbm(np.random.default_rng(7199), 3, 3)
-    Image.fromarray((norm(b) * 255).astype(np.uint8), "L").resize((128, 128), Image.BILINEAR).save(out / "ground_blotch.png", optimize=True)
+        a, b = f(np.random.default_rng(7100 + k))
+        save(a, out / ("ground_%da.png" % k))
+        save(b, out / ("ground_%db.png" % k))
+    rng = np.random.default_rng(7199)
+    for name in ["ground_blotch.png", "ground_patch.png"]:
+        m = fbm(rng, 4, 4)
+        Image.fromarray((norm(m) * 255).astype(np.uint8), "L").resize((128, 128), Image.BILINEAR).save(out / name, optimize=True)
 
 
 if __name__ == "__main__":
