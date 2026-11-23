@@ -31,3 +31,23 @@ jobs:
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
           time realm/store/check.sh
+  windows-pc:
+    if: github.repository == 'Proximo0/MagicSmash'
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: machine
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "host=$(hostname) cores=${NUMBER_OF_PROCESSORS}"
+          cargo --version
+          command -v godot || echo "godot is not on the runner's PATH"
+          command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || echo "no nvidia-smi"
+      - name: realm tests (release)
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd realm && time cargo test --release --workspace
