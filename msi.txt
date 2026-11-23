@@ -1,3 +1,3 @@
-STATION machine=msi time=2026-11-23T15:43Z commit=2e0e127 took=1333s
-JOB realm PASS REALM ok tests=441 bench 300x8000 tick_ms=2.04/6.47 follower=ok 8 tower_tick_ms=2.31/13.45 tower_follower=ok 3 | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=6.4 
+STATION machine=msi time=2026-11-23T16:50Z commit=fe011f8 took=1430s
+JOB realm PASS REALM ok tests=442 bench 300x8000 tick_ms=2.16/9.87 follower=ok 8 tower_tick_ms=2.02/10.13 tower_follower=ok 3 | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=7.3 
 STATION PASS jobs=1 failed=0 skipped=0
