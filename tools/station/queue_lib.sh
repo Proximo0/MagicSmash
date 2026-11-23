@@ -258,19 +258,40 @@ fail_detail() {  # stdin = a check's output; one compact line (about 600 charact
 }
 q_tail() { tail -3 "$1" | tr -d '\r' | tr '\n' ' ' | cut -c1-1500; }   # a failure's last lines: long enough to hold the cause
 
-qk_fuzz() {  # args: seeds=A-B ops=N kills=N. realm-store fuzz per seed.
-  local args=$1 rep=$2 s seeds ops kills bad=0 n=0 detail="" rc
+q_lanes() {  # how many seeds a job runs side by side: lanes=N in the args, else STATION_LANES, else cores-1 capped by memory
+  local n c m; n=$(q_tok "$1" lanes); [ -n "$n" ] || n=${STATION_LANES:-}
+  if [ -z "$n" ]; then
+    c=$(nproc 2>/dev/null || echo "${NUMBER_OF_PROCESSORS:-2}"); n=$((c - 1))
+    m=$(awk '/MemTotal/ {print int($2 / 1024 / 1500)}' /proc/meminfo 2>/dev/null); [ -n "$m" ] && [ "$m" -lt "$n" ] && n=$m
+  fi
+  q_int "$n" 1 1 16
+}
+qk_fuzz() {  # args: seeds=A-B ops=N kills=N lanes=N. realm-store fuzz per seed, `lanes` seeds at a time (one core each).
+  local args=$1 rep=$2 s seeds="" ops kills bad=0 n=0 detail="" rc lanes i batch
   q_cargo || { echo "FAIL cargo is not installed on this station"; return 0; }
   ops=$(q_int "$(q_tok "$args" ops)" 50000 100 5000000); kills=$(q_int "$(q_tok "$args" kills)" 200 1 100000)
+  lanes=$(q_lanes "$args")
   q_build realm/store || { echo "FAIL build $(q_tail "$Q_WD/build.log")"; return 0; }
-  for s in $(q_seeds "$(q_tok "$args" seeds)" "$rep"); do
+  if [ "$rep" = forever ]; then  # a forever pass draws one seed for every lane
+    for ((i = 0; i < lanes; i++)); do seeds+=" $(q_seeds "$(q_tok "$args" seeds)" forever)"; done
+  else seeds=$(q_seeds "$(q_tok "$args" seeds)" "$rep"); fi
+  set -- $seeds
+  while [ $# -gt 0 ]; do
     q_late && { detail+=" stopped at the time limit;"; break; }
-    q_run "$Q_WD/fuzz.$s" timeout "$(q_left)" realm/store/target/release/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s"; rc=$?
-    [ $rc = 99 ] && return 3
-    n=$((n + 1)); rm -rf "$Q_WD/fz$s"
-    if [ $rc = 0 ]; then LAST="$(tail -1 "$Q_WD/fuzz.$s" | cut -c1-100)"; else bad=$((bad + 1)); detail+=" seed=$s FAILED: $(q_tail "$Q_WD/fuzz.$s");"; fi
+    batch=""
+    for ((i = 0; i < lanes && $# > 0; i++)); do
+      s=$1; shift; batch+=" $s"
+      ( q_run "$Q_WD/fuzz.$s" timeout "$(q_left)" realm/store/target/release/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s"; echo $? >"$Q_WD/rc.$s" ) &
+    done
+    wait
+    for s in $batch; do
+      rc=$(cat "$Q_WD/rc.$s" 2>/dev/null || echo 1)
+      [ "$rc" = 99 ] && return 3
+      n=$((n + 1)); rm -rf "$Q_WD/fz$s"
+      if [ "$rc" = 0 ]; then LAST="$(tail -1 "$Q_WD/fuzz.$s" | cut -c1-100)"; else bad=$((bad + 1)); detail+=" seed=$s FAILED: $(q_tail "$Q_WD/fuzz.$s");"; fi
+    done
   done
-  echo "$([ $bad = 0 ] && echo PASS || echo FAIL) fuzz seeds_run=$n ops=$ops kills=$kills${detail}${LAST:+ last: $LAST}"
+  echo "$([ $bad = 0 ] && echo PASS || echo FAIL) fuzz seeds_run=$n lanes=$lanes ops=$ops kills=$kills${detail}${LAST:+ last: $LAST}"
 }
 qk_soak() {  # args: secs=N bots=N seeds=A-B
   local args=$1 rep=$2 secs bots seed out rc
