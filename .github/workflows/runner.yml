@@ -40,7 +40,8 @@ jobs:
     defaults:
       run:
         # Git's bash by its full path: plain `bash` found the WSL launcher (WindowsApps\bash.EXE) first on the MSI.
-        shell: '"C:\Program Files\Git\bin\bash.exe" --noprofile --norc -e -o pipefail {0}'
+        # The short path has no space: the runner takes everything up to the first space as the program, quotes or not.
+        shell: 'C:\PROGRA~1\Git\bin\bash.exe --noprofile --norc -e -o pipefail {0}'
     steps:
       - uses: actions/checkout@v4
       - name: machine
