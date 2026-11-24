@@ -34,6 +34,7 @@ STEEL, STEEL_D, STEEL_L = (0.24, 0.26, 0.31), (0.11, 0.12, 0.15), (0.42, 0.44, 0
 CRIMSON, LEATHER, LEATHER_D, MAIL = (0.3, 0.02, 0.03), (0.16, 0.09, 0.05), (0.06, 0.04, 0.03), (0.2, 0.2, 0.23)
 PALLID, SACK, STRAW = (0.36, 0.4, 0.33), (0.42, 0.33, 0.2), (0.6, 0.48, 0.16)
 GOLD, BONE = (0.72, 0.52, 0.16), (0.78, 0.74, 0.62)
+OXBLOOD, TGOLD, IVORY = (0.2, 0.025, 0.03), (0.55, 0.4, 0.13), (0.66, 0.63, 0.54)   # hero gear: oxblood, tarnished gold, bone-white plate
 RACE = E("RACE", "human")                        # race = body + skin colour + a head feature that reads at 56 px
 SKIN = {"orc": (0.13, 0.25, 0.07), "elf": (0.56, 0.42, 0.35), "dwarf": (0.5, 0.3, 0.22)}.get(RACE, (0.55, 0.36, 0.27))
 
@@ -46,16 +47,16 @@ KITS = {
             (["neck"], 0.030, STEEL_D, 1.0, None),
             (["chest", "belly"], 0.030, STEEL, 1.0, None),
             (["hips"], 0.030, STEEL_D, 1.0, None),
-            (["chest", "belly"], 0.045, CRIMSON, 0.0, "tabard"),
+            (["chest", "belly"], 0.045, OXBLOOD, 0.0, "tabard"),
             (["belly"], 0.058, LEATHER_D, 0.0, "belt"),
             (["upperarm"], 0.020, STEEL_D, 1.0, None),
             (["lowerarm"], 0.022, STEEL, 1.0, None),
             (["thigh"], 0.022, STEEL_D, 1.0, None),
             (["calf"], 0.026, STEEL, 1.0, None),
         ],
-        extras=["pauldrons", "helm", "cape", "knees", "gauntlets", "boots", "skirt", "cross", "buckle"],
-        boot=STEEL_D, gauntlet=STEEL_D, skirt=CRIMSON,
-        cape=CRIMSON, pauldron=(STEEL_L, 0.115, False),
+        extras=["pauldrons", "helm", "cape", "knees", "gauntlets", "boots", "skirt", "buckle", "gear_knight"],
+        boot=STEEL_D, gauntlet=STEEL_D, skirt=OXBLOOD, crest=OXBLOOD,
+        cape=OXBLOOD, pauldron=(STEEL_L, 0.115, False),
         weapons={"1H_Sword": ("hand_r", (0.42, 0.6, 0.74)), "Rectangle_Shield": ("hand_l", (0.52, 0.52, 0.56))},
     ),
     "novice": dict(
@@ -66,18 +67,18 @@ KITS = {
             (["thigh"], 0.018, (0.1, 0.1, 0.12), 0.0, None),
             (["calf"], 0.026, LEATHER, 0.0, None),
         ],
-        extras=["hair", "boots", "buckle"], boot=LEATHER, hair=(0.12, 0.07, 0.04),
+        extras=["hair", "boots", "buckle", "gear_novice"], boot=LEATHER, hair=(0.12, 0.07, 0.04),
         weapons={"Knife": ("hand_r", (0.5, 0.5, 0.6))},
     ),
     "mage": dict(
         skin={"*": (0.07, 0.05, 0.16), "head": SKIN, "neck": SKIN, "hand": SKIN},
         shells=[
-            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.09, 0.05, 0.22), 0.0, None),
-            (["belly"], 0.05, GOLD, 1.0, "belt"),
+            (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.07, 0.04, 0.17), 0.0, None),
+            (["belly"], 0.05, TGOLD, 1.0, "belt"),
             (["chest", "belly"], 0.045, (0.2, 0.12, 0.36), 0.0, "tabard"),
         ],
-        extras=["hood", "skirt", "boots"], boot=LEATHER_D, hood=(0.09, 0.05, 0.22), skirt=(0.09, 0.05, 0.22), skirt_to=0.12,
-        weapons={"2H_Staff": ("hand_r", (0.6, 0.6, 0.8))},
+        extras=["hood", "skirt", "boots", "gear_mage"], boot=LEATHER_D, hood=(0.07, 0.04, 0.17), skirt=(0.07, 0.04, 0.17), skirt_to=0.12,
+        weapons={"2H_Staff": ("hand_r", (0.65, 0.65, 0.7), "crystalstaff")},
     ),
     "archer": dict(
         skin={"*": (0.1, 0.1, 0.1), "head": SKIN, "neck": SKIN, "hand": LEATHER_D},
@@ -89,35 +90,35 @@ KITS = {
             (["thigh"], 0.018, (0.11, 0.13, 0.1), 0.0, None),
             (["calf"], 0.028, LEATHER_D, 0.0, None),
         ],
-        extras=["hood", "cape", "boots", "quiver"], boot=LEATHER_D, hood=(0.1, 0.2, 0.1), cape=(0.1, 0.2, 0.1), cape_len=0.6,
+        extras=["hood", "cape", "boots", "quiver", "gear_archer"], boot=LEATHER_D, hood=(0.1, 0.2, 0.1), cape=(0.1, 0.2, 0.1), cape_len=0.6,
         weapons={"2H_Crossbow": ("hand_r", (0.55, 0.55, 0.55))},
     ),
     "priest": dict(
         skin={"*": (0.5, 0.47, 0.4), "head": SKIN, "neck": SKIN, "hand": SKIN},
         shells=[
             (["chest", "belly", "hips", "upperarm", "lowerarm"], 0.03, (0.58, 0.55, 0.47), 0.0, None),
-            (["chest", "belly"], 0.045, CRIMSON, 0.0, "tabard"),
-            (["belly"], 0.052, GOLD, 1.0, "belt"),
+            (["chest", "belly"], 0.045, OXBLOOD, 0.0, "tabard"),
+            (["belly"], 0.052, TGOLD, 1.0, "belt"),
         ],
-        extras=["hair", "skirt", "boots", "cross"], boot=LEATHER, hair=(0.5, 0.5, 0.5), skirt=(0.58, 0.55, 0.47), skirt_to=0.12,
-        weapons={"2H_Staff": ("hand_r", (0.6, 0.6, 0.8))},
+        extras=["hair", "skirt", "boots", "gear_priest"], boot=LEATHER, hair=(0.5, 0.5, 0.5), skirt=(0.58, 0.55, 0.47), skirt_to=0.12,
+        weapons={"2H_Staff": ("hand_r", (0.65, 0.65, 0.7), "censerstaff")},
     ),
     "paladin": dict(
         skin={"*": MAIL, "head": SKIN, "neck": SKIN, "hand": LEATHER_D},
         shells=[
-            (["neck"], 0.030, STEEL, 1.0, None),
-            (["chest", "belly"], 0.030, STEEL_L, 1.0, None),
-            (["hips"], 0.030, STEEL, 1.0, None),
-            (["chest", "belly"], 0.045, (0.6, 0.58, 0.5), 0.0, "tabard"),
+            (["neck"], 0.030, IVORY, 0.5, None),
+            (["chest", "belly"], 0.030, IVORY, 0.5, None),
+            (["hips"], 0.030, TGOLD, 1.0, None),
+            (["chest", "belly"], 0.045, (0.7, 0.67, 0.58), 0.0, "tabard"),
             (["belly"], 0.058, GOLD, 1.0, "belt"),
-            (["upperarm"], 0.020, STEEL, 1.0, None),
-            (["lowerarm"], 0.022, STEEL_L, 1.0, None),
-            (["thigh"], 0.022, STEEL, 1.0, None),
-            (["calf"], 0.026, STEEL_L, 1.0, None),
+            (["upperarm"], 0.020, IVORY, 0.5, None),
+            (["lowerarm"], 0.022, IVORY, 0.5, None),
+            (["thigh"], 0.022, IVORY, 0.5, None),
+            (["calf"], 0.026, TGOLD, 1.0, None),
         ],
-        extras=["pauldrons", "helm", "cape", "knees", "gauntlets", "boots", "skirt", "cross"],
-        cape=(0.08, 0.14, 0.4), pauldron=(GOLD, 0.115, False), boot=STEEL, gauntlet=STEEL, skirt=(0.6, 0.58, 0.5), crest=GOLD,
-        weapons={"1H_Sword": ("hand_r", (0.6, 0.6, 0.7), "hammer"), "Round_Shield": ("hand_l", (0.5, 0.5, 0.5))},
+        extras=["pauldrons", "helm", "cape", "knees", "gauntlets", "boots", "skirt", "cross", "gear_paladin"],
+        cape=(0.6, 0.57, 0.47), pauldron=(GOLD, 0.115, False), boot=TGOLD, gauntlet=TGOLD, skirt=(0.7, 0.67, 0.58), crest=GOLD,
+        weapons={"1H_Sword": ("hand_r", (0.65, 0.65, 0.8), "mace"), "Round_Shield": ("hand_l", (0.5, 0.5, 0.5))},
     ),
     # ---- monsters on the same bodies (road field) ----
     "scarecrow": dict(
@@ -993,6 +994,120 @@ def lit(name, bone, col, loc, size, strength=7.0):
     hang(o, bone, trs(loc, (0, 0, 0), size))
 
 
+def glow(o, col, strength=6.0):
+    """make a prim's material emit."""
+    bs = o.data.materials[0].node_tree.nodes["Principled BSDF"]
+    bs.inputs["Emission Color"].default_value = (*col, 1)
+    bs.inputs["Emission Strength"].default_value = strength
+
+
+if any(e_.startswith("gear_") for e_ in ex):     # class gear: shapes that read at 56 px (see the class blocks below)
+    hlo, hhi = bbox(["head"])
+    hc, hhalf = (hlo + hhi) / 2, (hhi - hlo) / 2
+    clo, chi = bbox(["chest"])
+    cfy = clo.y - 0.035 * S                       # the front of the chest plate (y: -front, +back)
+    cback = chi.y
+    cmid = (clo + chi) / 2
+    cam_n = Vector((math.sin(math.radians(70)), -math.cos(math.radians(70)), 0))   # the camera's side (YAW -70), for discs that must face it
+if "gear_knight" in ex:                          # iron spiked pauldrons, a bone sigil on the oxblood tabard, a plumed great helm
+    for s_, sg in (("l", 1), ("r", -1)):
+        p = bw("upperarm_" + s_)
+        o = prim("cone", "pauld_rim_" + s_, STEEL_D, 1.0, r2=1.0)
+        hang(o, "clavicle_" + s_, trs(p + Vector((sg * 0.05 * S, 0, 0.01 * S)), (0, sg * -20, 0), (0.14 * S, 0.13 * S, 0.012 * S)))
+        o = prim("cone", "pauld_spike_" + s_, STEEL_L, 1.0)
+        hang(o, "clavicle_" + s_, trs(p + Vector((sg * 0.07 * S, 0, 0.16 * S)), (0, sg * 24, 0), (0.035 * S, 0.035 * S, 0.11 * S)))
+    o = prim("cube", "sigil", BONE)
+    hang(o, "spine_03", trs(Vector((0, cfy - 0.004 * S, marks["chest"] - 0.01 * S)), (0, 45, 0), (0.05 * S, 0.01 * S, 0.05 * S)))
+    o = prim("cube", "sigil_bar", OXBLOOD)
+    hang(o, "spine_03", trs(Vector((0, cfy - 0.014 * S, marks["chest"] - 0.01 * S)), (0, 0, 0), (0.011 * S, 0.006 * S, 0.075 * S)))
+    o = prim("cone", "plume", OXBLOOD, 0.0, r2=0.3)  # a horsehair plume swept back from the crest
+    hang(o, "head", trs(Vector((0, hc.y + hhalf.y * 0.9, hhi.z + 0.02 * S)), (-115, 0, 0), (0.035 * S, 0.035 * S, 0.1 * S)))
+    o = prim("cube", "visor_bar", (0.015, 0.015, 0.02))
+    hang(o, "head", trs(Vector((0, hlo.y - hhalf.y * 0.1, hc.z - hhalf.z * 0.1)), (0, 0, 0), (0.011 * S, hhalf.y * 0.2, hhalf.z * 0.45)))
+if "gear_paladin" in ex:                         # a halo-like gold rune disc behind the head, gold-edged white plate, a gold gorget
+    dc = hc - cam_n * (hhalf.x * 0.9) + Vector((0, 0, hhalf.z * 0.35))
+    o = prim("cone", "halo_disc", GOLD, 1.0, r2=1.0)
+    hang(o, "head", trs(dc, (0, 90, -20), (hhalf.z * 1.75, hhalf.z * 1.75, 0.012 * S)))
+    o = prim("cone", "halo_core", (0.1, 0.07, 0.03), 0.0, r2=1.0)
+    hang(o, "head", trs(dc + cam_n * 0.012 * S, (0, 90, -20), (hhalf.z * 1.3, hhalf.z * 1.3, 0.012 * S)))
+    side = Vector((cam_n.y * -1, cam_n.x, 0))     # across the disc, horizontal
+    for k in range(8):                            # runes: gold lit beads round the rim
+        a_ = math.pi * k / 4
+        at = dc + cam_n * 0.02 * S + (side * math.cos(a_) + Vector((0, 0, 1)) * math.sin(a_)) * hhalf.z * 1.55
+        lit("rune%d" % k, "head", (1.0, 0.75, 0.25), at, (0.012 * S,) * 3, 5.0)
+    o = prim("cone", "gorget", GOLD, 1.0, r2=0.8)
+    hang(o, "spine_03", trs(Vector((0, cmid.y, chi.z - 0.005 * S)), (0, 0, 0), ((chi.x - clo.x) * 0.5, (chi.y - clo.y) * 0.62, 0.03 * S)))
+    for s_, sg in (("l", 1), ("r", -1)):          # a gold edge ring under each pauldron
+        p = bw("upperarm_" + s_)
+        o = prim("cone", "pauld_edge_" + s_, TGOLD, 1.0, r2=1.0)
+        hang(o, "clavicle_" + s_, trs(p + Vector((sg * 0.05 * S, 0, 0.0)), (0, sg * -20, 0), (0.15 * S, 0.14 * S, 0.012 * S)))
+if "gear_mage" in ex:                             # glowing violet rune trim on the robe and a shoulder mantle
+    o = prim("cone", "mantle", (0.12, 0.05, 0.22), 0.0, r2=0.5)
+    hang(o, "spine_03", trs(Vector((0, cmid.y, chi.z - 0.03 * S)), (0, 0, 0), ((chi.x - clo.x) * 0.8, (chi.y - clo.y) * 0.85, 0.07 * S)))
+    glo, ghi = bbox(["hips", "thigh"])
+    hem = kit["skirt_to"] * S
+    o = prim("cone", "hem_rune", (0.5, 0.25, 1.0), 0.0, r2=1.0)
+    glow(o, (0.5, 0.25, 1.0), 5.0)
+    hang(o, "pelvis", trs(Vector((0, (glo.y + ghi.y) / 2, hem + 0.01 * S)), (0, 0, 0), ((ghi.x - glo.x) * 0.64, (ghi.y - glo.y) * 0.88, 0.014 * S)))
+    for nm, sx, sz, dz in (("rune_v", 0.012, 0.11, -0.12), ("rune_h", 0.05, 0.012, -0.075)):
+        o = prim("cube", nm, (0.5, 0.25, 1.0))
+        glow(o, (0.5, 0.25, 1.0), 6.0)
+        hang(o, "spine_03", trs(Vector((0, cfy - 0.01 * S, marks["chest"] + dz * S)), (0, 0, 0), (sx * S, 0.008 * S, sz * S)))
+    for s_ in "lr":                               # glowing cuffs
+        lw = bw("lowerarm_" + s_)
+        o = prim("cone", "cuff_" + s_, (0.5, 0.25, 1.0), 0.0, r2=1.0)
+        glow(o, (0.5, 0.25, 1.0), 5.0)
+        hang(o, "lowerarm_" + s_, trs(lw + (bw("hand_" + s_) - lw) * 0.7, (0, 0, 0), (0.05 * S, 0.05 * S, 0.012 * S)))
+if "gear_priest" in ex:                          # oxblood mantle edged in gold, a bone rosary with a skull bead, a gold collar
+    o = prim("cone", "mantle", OXBLOOD, 0.0, r2=0.55)
+    hang(o, "spine_03", trs(Vector((0, cmid.y, chi.z - 0.03 * S)), (0, 0, 0), ((chi.x - clo.x) * 0.82, (chi.y - clo.y) * 0.88, 0.07 * S)))
+    o = prim("cone", "mantle_edge", TGOLD, 1.0, r2=1.0)
+    hang(o, "spine_03", trs(Vector((0, cmid.y, chi.z - 0.1 * S)), (0, 0, 0), ((chi.x - clo.x) * 0.83, (chi.y - clo.y) * 0.89, 0.01 * S)))
+    for k in range(9):                            # a U of bone beads from the collar down the chest
+        t_ = k / 8
+        o = prim("sphere", "bead%d" % k, BONE)
+        hang(o, "spine_03", trs(Vector((math.cos(math.pi * t_) * 0.07 * S, cfy - 0.012 * S, chi.z - 0.04 * S - math.sin(math.pi * t_) * 0.15 * S)), (0, 0, 0), (0.014 * S,) * 3))
+    o = prim("sphere", "skull_bead", BONE)
+    hang(o, "spine_03", trs(Vector((0, cfy - 0.02 * S, chi.z - 0.215 * S)), (0, 0, 0), (0.026 * S, 0.02 * S, 0.03 * S)))
+    for sg in (1, -1):
+        o = prim("sphere", "skull_eye%d" % sg, (0.02, 0.01, 0.01))
+        hang(o, "spine_03", trs(Vector((sg * 0.009 * S, cfy - 0.037 * S, chi.z - 0.212 * S)), (0, 0, 0), (0.007 * S,) * 3))
+if "gear_archer" in ex:                          # a cross-body bandolier, an arm guard, a fan of fletched arrows over the shoulder
+    o = prim("cube", "bandolier", LEATHER_D)
+    hang(o, "spine_03", trs(Vector((0, cfy + 0.005 * S, marks["chest"] + 0.0 * S)), (0, -40, 0), (0.03 * S, 0.012 * S, 0.19 * S)))
+    for sg in (1, -1):
+        o = prim("cube", "bandolier_stud%d" % sg, BONE, 1.0)
+        hang(o, "spine_03", trs(Vector((sg * 0.03 * S, cfy - 0.004 * S, marks["chest"] + sg * 0.035 * S)), (0, -40, 0), (0.014 * S, 0.008 * S, 0.014 * S)))
+    o = prim("cube", "bracer", LEATHER)
+    lw = bw("lowerarm_l")
+    hang(o, "lowerarm_l", trs(lw + (bw("hand_l") - lw) * 0.55, (0, 0, 0), (0.04 * S, 0.04 * S, 0.07 * S)))
+    for k, rz in enumerate((-18, 0, 18)):         # arrow shafts splayed above the quiver, red fletching
+        base = Vector((-0.07 * S + rz * 0.0035 * S, cback + 0.05 * S, marks["chest"] + 0.3 * S))
+        o = prim("cone", "arrow%d" % k, BONE, 0.0, r2=0.8)
+        hang(o, "spine_03", trs(base, (0, 28 + rz, 0), (0.01 * S, 0.01 * S, 0.13 * S)))
+        o = prim("sphere", "fletch%d" % k, OXBLOOD)
+        hang(o, "spine_03", trs(base + Vector((-0.045 * S - rz * 0.0015 * S, 0, 0.06 * S)), (0, 28 + rz, 0), (0.018 * S, 0.012 * S, 0.035 * S)))
+if "gear_novice" in ex:                          # patched, quilted gambeson: rope belt, oxblood and bone patches, one leather pauldron, a bedroll
+    for k, dz in enumerate((0.1, 0.0, -0.1)):    # quilting ridges round the torso
+        o = prim("cone", "quilt%d" % k, (0.2, 0.17, 0.1), 0.0, r2=1.0)
+        hang(o, "spine_03", trs(Vector((cmid.x, cmid.y, marks["chest"] + dz * S)), (0, 0, 0), ((chi.x - clo.x) * 0.56, (chi.y - clo.y) * 0.58, 0.012 * S)))
+    o = prim("cube", "patch_chest", OXBLOOD)
+    hang(o, "spine_03", trs(Vector((0.07 * S, cfy + 0.012 * S, marks["chest"] + 0.03 * S)), (0, 0, 8), (0.05 * S, 0.008 * S, 0.055 * S)))
+    o = prim("cube", "patch_belly", BONE)
+    hang(o, "spine_01", trs(Vector((-0.06 * S, cfy + 0.03 * S, marks["hip"] + 0.15 * S)), (0, 0, -6), (0.04 * S, 0.008 * S, 0.04 * S)))
+    o = prim("cube", "patch_thigh", (0.3, 0.12, 0.06))
+    tp = bw("thigh_r")
+    hang(o, "thigh_r", trs(tp + Vector((0, -0.06 * S, -0.18 * S)), (0, 0, 0), (0.05 * S, 0.012 * S, 0.055 * S)))
+    o = prim("cone", "rope_belt", SACK, 0.0, r2=1.0)
+    hang(o, "spine_01", trs(Vector((cmid.x, cmid.y, marks["hip"] + 0.1 * S)), (0, 0, 0), ((chi.x - clo.x) * 0.58, (chi.y - clo.y) * 0.62, 0.016 * S)))
+    p = bw("upperarm_l")
+    o = prim("sphere", "pauldron_one", LEATHER)
+    hang(o, "clavicle_l", trs(p + Vector((0.035 * S, 0, 0.05 * S)), (0, -20, 0), (0.1 * S, 0.09 * S, 0.06 * S)))
+    o = prim("cone", "bedroll", SACK, 0.0, r2=1.0)   # slung across the back, one end over each shoulder
+    hang(o, "spine_03", trs(Vector((0, cback + 0.07 * S, marks["chest"] + 0.1 * S)), (0, 62, 0), (0.05 * S, 0.05 * S, 0.22 * S)))
+    o = prim("cone", "bedroll_strap", LEATHER_D, 0.0, r2=1.0)
+    hang(o, "spine_03", trs(Vector((0.02 * S, cback + 0.07 * S, marks["chest"] + 0.1 * S)), (0, 62, 0), (0.054 * S, 0.054 * S, 0.012 * S)))
+
 if "cowl" in ex:                                 # a deep pointed hood that overhangs the face: inside, only darkness
     lo, hi = bbox(["head"])
     c, half = (lo + hi) / 2, (hi - lo) / 2
@@ -1420,6 +1535,66 @@ def _mace():
     return me
 
 
+def _gmat(name, col, strength):
+    m = material(name, col)
+    bs = m.node_tree.nodes["Principled BSDF"]
+    bs.inputs["Emission Color"].default_value = (*col, 1)
+    bs.inputs["Emission Strength"].default_value = strength
+    return m
+
+
+def _tag(bm, n0, idx):
+    """material index idx for the faces added since there were n0."""
+    bm.faces.ensure_lookup_table()
+    for f_ in bm.faces[n0:]:
+        f_.material_index = idx
+
+
+def _crystalstaff():
+    """a mage's staff along +Z: a dark shaft, four iron prongs and a big glowing violet crystal."""
+    me = bpy.data.meshes.new("crystalstaff")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.045, radius2=0.04, depth=2.6, matrix=Matrix.Translation((0, 0, 0.9)))
+    for k in range(4):
+        a_ = math.pi * k / 2
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=5, radius1=0.035, radius2=0.015, depth=0.5,
+                              matrix=Matrix.Translation((0.17 * math.cos(a_), 0.17 * math.sin(a_), 2.4)))
+    n0 = len(bm.faces)
+    bmesh.ops.create_cone(bm, cap_ends=False, segments=6, radius1=0.17, radius2=0.0, depth=0.4, matrix=Matrix.Translation((0, 0, 2.7)))
+    bmesh.ops.create_cone(bm, cap_ends=False, segments=6, radius1=0.17, radius2=0.0, depth=0.4,
+                          matrix=Matrix.Translation((0, 0, 2.3)) @ Matrix.Rotation(math.pi, 4, "X"))
+    _tag(bm, n0, 1)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("cstaff_wood", LEATHER_D))
+    me.materials.append(_gmat("cstaff_crystal", (0.55, 0.3, 1.0), 7.0))
+    return me
+
+
+def _censerstaff():
+    """a priest's staff along +Z: a bone-white shaft, a gold hook with a chain and a swinging censer with embers."""
+    me = bpy.data.meshes.new("censerstaff")
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.045, radius2=0.04, depth=2.5, matrix=Matrix.Translation((0, 0, 0.85)))
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((0.2, 0, 2.1)) @ Matrix.Diagonal((0.5, 0.07, 0.07, 1)))
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=4, radius1=0.015, radius2=0.015, depth=0.4, matrix=Matrix.Translation((0.42, 0, 1.9)))
+    n0 = len(bm.faces)
+    bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=6, radius=0.2, matrix=Matrix.Translation((0.42, 0, 1.55)) @ Matrix.Diagonal((1, 1, 1.0, 1)))
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.15, radius2=0.0, depth=0.2, matrix=Matrix.Translation((0.42, 0, 1.82)))
+    _tag(bm, n0, 1)
+    n1 = len(bm.faces)
+    for k in range(4):                           # embers glowing through the censer's holes
+        a_ = math.pi * k / 2 + 0.4
+        bmesh.ops.create_uvsphere(bm, u_segments=5, v_segments=4, radius=0.06, matrix=Matrix.Translation((0.42 + 0.19 * math.cos(a_), 0.19 * math.sin(a_), 1.5)))
+    _tag(bm, n1, 2)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(material("censer_shaft", (0.7, 0.66, 0.55)))
+    me.materials.append(material("censer_gold", TGOLD, 1.0))
+    me.materials.append(_gmat("censer_ember", (1.0, 0.4, 0.1), 7.0))
+    return me
+
+
 def _tower():
     """a tower shield in the pack shield's frame as it is held (the long side along x): white face, gold rim, boss and bar."""
     me = bpy.data.meshes.new("tower")
@@ -1437,7 +1612,7 @@ def _tower():
     return me
 
 
-MESHES = dict(EXTRA_MESHES, **{"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook, "spade": _spade, "mace": _mace, "tower": _tower})
+MESHES = dict(EXTRA_MESHES, **{"hammer": _hammer, "shovel": _shovel, "scythe": _scythe, "crook": _crook, "spade": _spade, "mace": _mace, "tower": _tower, "crystalstaff": _crystalstaff, "censerstaff": _censerstaff})
 held = []                                        # (the pack's weapon on its own rig, our copy, hand bone, palm point, scale)
 for name, ob in weap.items():
     bone, scale = kit["weapons"][name][:2]
