@@ -397,9 +397,12 @@ heartbeat_start() {
 heartbeat_stop() { [ -z "$hb_pid" ] || kill "$hb_pid" 2>/dev/null; hb_pid=""; }
 # Loops an older version of this script left behind (it exec'd without stopping its loop): children of this pid,
 # killed before this station starts any of its own. Linux ps, else Git Bash's (an optional status letter, PID, PPID).
+# Running lanes are children of this pid too (an exec keeps it): their pids, from the lane files ($Q_LD/<lane>), are spared,
+# or every merge that restarts the station kills every running job and counts a start toward parking it.
 heartbeat_reap() {
-  local p
+  local p keep; keep=" $(cat "${Q_LD:-/nonexistent}"/[0-9]* 2>/dev/null | sed -nE 's/^pid=([0-9]+).*/\1/p' | tr '\n' ' ') "
   for p in $({ ps -e -o pid=,ppid= 2>/dev/null || ps 2>/dev/null | awk 'NR > 1 { if ($1 !~ /^[0-9]+$/) $1 = ""; $0 = $0; print $1, $2 }'; } | awk -v pp=$$ '$2 == pp { print $1 }'); do
+    [[ "$keep" == *" $p "* ]] && continue
     kill "$p" 2>/dev/null
   done
 }
