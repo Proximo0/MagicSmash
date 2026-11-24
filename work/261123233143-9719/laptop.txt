@@ -1,2 +1,3 @@
 2026-11-24T02:11:09Z FAIL id=261123233143-9719 kind=shell secs=4 world secs=7200 timeout: failed to run command ‘.git/station_bin/9096843cb69d/realm-world’: No such file or directory 
 2026-11-24T08:45:34Z FAIL id=261123233143-9719 kind=shell secs=3606 silent for 3601 s: 
+2026-11-24T12:03:30Z FAIL id=261123233143-9719 kind=shell secs=7207 world secs=7200 bot 95: cannot decrypt peer's message hero 178: store 1442486, reported 1432765 WORLD FAILED days=7.00 secs=7202 heroes=200 cycles=19429 outings=19429 vault_runs=518 vault_joins=516 queued=18381 queue_max=138 admitted=1
