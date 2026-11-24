@@ -160,7 +160,8 @@ job_realm() {  # one line: the summary line of each check script; FAIL when a sc
   local c out line bad=0 detail=""
   for c in realm/check.sh realm/store/check.sh; do
     [ -f "$c" ] || continue
-    out=$(timeout -k 30 "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
+    # Busy lanes share the cores: timing budgets are printed, not held (a correctness gate, not a benchmark).
+    out=$(if [ "$(lanes_busy 2>/dev/null || echo 0)" -gt 0 ]; then export PVP_BENCH_LOADED=1; fi; timeout -k 30 "${STATION_REALM_TIMEOUT:-3600}" bash "$c" 2>&1); line=$(tail -1 <<<"$out")
     if [[ "$line" == *" ok "* ]]; then detail+=" | ${line:0:120}"
     else bad=$((bad + 1)); detail+=" | $c: $(fail_detail <<<"$out") $(tail -3 <<<"$out" | tr '\n' ' ' | cut -c1-1500)"; fi
   done
