@@ -1,3 +1,4 @@
 2026-11-24T06:35:35Z FAIL id=261123112904-9176 kind=soak secs=2 parked: started 3 times on this machine without finishing
 2026-11-24T18:41:19Z INFO id=261123112904-9176 kind=soak secs=184 stopped for a merge after 184 s
 2026-11-24T20:59:39Z INFO id=261123112904-9176 kind=soak secs=7652 stopped for a merge after 7651 s
+2026-11-24T22:07:07Z INFO id=261123112904-9176 kind=soak secs=3256 stopped for a merge after 3255 s
