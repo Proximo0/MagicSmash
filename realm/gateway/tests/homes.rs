@@ -184,14 +184,29 @@ fn a_street_of_24_houses_is_visited_by_200_bots_and_no_item_is_copied_or_lost() 
     // 200 bots walk the street.
     let visited = std::sync::atomic::AtomicU32::new(0);
     let refused = std::sync::atomic::AtomicU32::new(0);
+    // All 200 step onto the street together, so the full street is met every run, not only on a slow runner.
+    let together = std::sync::Barrier::new(200);
     std::thread::scope(|s| {
         for k in 0..200u32 {
-            let (w, visited, refused) = (&w, &visited, &refused);
+            let (w, visited, refused, together) = (&w, &visited, &refused, &together);
             s.spawn(move || {
                 let mut p = player(w, &format!("bot{k}"));
                 let plot = k % 24;
                 let h = p.hero;
-                assert!(matches!(go(&mut p, STREET, 1), Resp::Town { .. }));
+                together.wait();
+                // A street holds 100 at once (place.rs, no overflow): when the 200 bunch up, as they do on a slow runner
+                // (Windows CI, 24 Nov), the late ones are told it is full and wait, as a person would.
+                let mut tries = 0;
+                let entered = loop {
+                    match go(&mut p, STREET, 1) {
+                        Resp::Err { code: realm_gateway::proto::code::FULL, .. } if tries < 600 => {
+                            tries += 1;
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                        }
+                        r => break r,
+                    }
+                };
+                assert!(matches!(entered, Resp::Town { .. }), "{entered:?}");
                 let Resp::Home(HResp::Street { plots, .. }) = call(&mut p, HReq::Street { hero: h, street: 1 }) else { panic!() };
                 assert_eq!(plots.iter().filter(|x| x.status != 0).count(), 24);
                 assert_eq!(plots[plot as usize].name, format!("House {plot}"));
