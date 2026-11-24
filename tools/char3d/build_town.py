@@ -20,6 +20,8 @@ import sys
 
 import bpy
 import numpy as np
+if os.environ.get("RENDER_PYLIB"):  # Pillow for Blender's python (Blender ignores PYTHONPATH); render.sh installs it there
+    sys.path.append(os.environ["RENDER_PYLIB"])
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

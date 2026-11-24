@@ -43,16 +43,19 @@ trap cleanup EXIT; trap 'exit 1' INT TERM
 B=$(find "$T/blender" -maxdepth 2 -name "$exe" -type f 2>/dev/null | head -1)
 [ -n "$B" ] || { [ -s "$T/blender_path" ] && B=$(head -1 "$T/blender_path" | tr -d '\r'); }
 bpymod=0; python3 -I -c "import bpy, PIL, numpy" >/dev/null 2>&1 && bpymod=1
-PYX=""; PYLIB="$T/pylib"
-if python3 -I -c "import PIL, numpy" >/dev/null 2>&1; then PYX=python3
-elif [ -n "$B" ]; then   # Blender's own python (numpy inside); Pillow is added once under $T/pylib
-  PYX=$("$B" -b --factory-startup --python-expr "import sys; print('PYEXE=' + sys.executable)" 2>/dev/null | tr -d '\r' | sed -n 's/^PYEXE=//p' | tail -1)
-  [ -n "$PYX" ] || fail "cannot find Blender's python"
-  if ! PYTHONPATH="$(p "$PYLIB")" "$PYX" -c "import PIL, numpy" >/dev/null 2>&1; then
-    "$PYX" -m ensurepip >/dev/null 2>&1
-    "$PYX" -m pip install --quiet --target "$(p "$PYLIB")" pillow numpy >>"$log" 2>&1 || fail "pip install pillow failed: $(tail -1 "$log" | cut -c1-200)"
+PYX=""; PYLIB="$T/pylib"; BPYX=""
+if [ -n "$B" ] && [ $bpymod = 0 ]; then   # Blender's own python (numpy inside) gets Pillow once under $T/pylib: build_town.py needs it
+  BPYX=$("$B" -b --factory-startup --python-expr "import sys; print('PYEXE=' + sys.executable)" 2>/dev/null | tr -d '\r' | sed -n 's/^PYEXE=//p' | tail -1)
+  [ -n "$BPYX" ] || fail "cannot find Blender's python"
+  if ! PYTHONPATH="$(p "$PYLIB")" "$BPYX" -c "import PIL, numpy" >/dev/null 2>&1; then
+    "$BPYX" -m ensurepip >/dev/null 2>&1
+    "$BPYX" -m pip install --quiet --target "$(p "$PYLIB")" pillow numpy >>"$log" 2>&1 || fail "pip install pillow failed: $(tail -1 "$log" | cut -c1-200)"
   fi
-  export PYTHONPATH="$(p "$PYLIB")"
+fi
+# Blender ignores PYTHONPATH, so scripts it runs add RENDER_PYLIB to sys.path themselves (after Blender's own modules).
+export RENDER_PYLIB="$(p "$PYLIB")"
+if python3 -I -c "import PIL, numpy" >/dev/null 2>&1; then PYX=python3
+elif [ -n "$BPYX" ]; then PYX=$BPYX; export PYTHONPATH="$(p "$PYLIB")"
 else fail "no Blender under $T (run script=blender first) and no python with bpy"; fi
 [ $bpymod = 1 ] || [ -n "$B" ] || fail "no Blender under $T (run script=blender first)"
 export PYTHONDONTWRITEBYTECODE=1
