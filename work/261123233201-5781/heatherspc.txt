@@ -1,1 +1,2 @@
 2026-11-24T04:46:21Z FAIL id=261123233201-5781 kind=shell secs=5 parked: started 3 times on this machine without finishing
+2026-11-24T18:49:20Z INFO id=261123233201-5781 kind=shell secs=129 stopped for a merge after 129 s
