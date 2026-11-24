@@ -1,0 +1,1 @@
+2026-11-24T04:38:57Z INFO id=261124043544-2507 kind=shell secs=3 shell fetchasset: fetchasset ok name=quaternius-animals-licence bytes=2040 sha256=0f5956541c747cd6
