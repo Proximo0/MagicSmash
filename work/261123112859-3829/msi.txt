@@ -1,0 +1,1 @@
+2026-11-24T02:25:59Z PASS id=261123112859-3829 kind=bench secs=207 bench seed=714113 runs=36 bad=0 last: BENCH 1000x22004 threads=4 ticks=600 wall=4.6s kills=180527 spawns=202531 deaths=10 recycled=0 hash=ce35e5767acd727f
