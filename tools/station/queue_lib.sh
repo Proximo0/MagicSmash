@@ -198,7 +198,7 @@ q_ownbin() {
 q_sac() {
   case "${STATION_SAC:-}" in 1) return 0 ;; 0) return 1 ;; esac
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ;; *) return 1 ;; esac
-  local head c v; head=$(git rev-parse -q --verify HEAD 2>/dev/null)
+  local head c="" v=""; head=$(git rev-parse -q --verify HEAD 2>/dev/null)   # c and v stay set when the cache file is missing (set -u)
   read -r c v <"$Q_GD/station_sac" 2>/dev/null
   if [ "$c" != "$head" ]; then
     v=$(timeout -k 5 60 powershell.exe -NoProfile -NonInteractive -Command 'try { (Get-MpComputerStatus).SmartAppControlState } catch { "" }' 2>/dev/null | tr -d '\r ' | head -1)
