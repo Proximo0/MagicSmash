@@ -230,21 +230,15 @@ pending_merge() {
   for j in "${jobs[@]}"; do touched "$j" <<<"$changed" && return 0; done
   return 1
 }
-# A queue job (Q_IN_JOB=1, set by queue_lib's q_run_job) is killed by a merge only when it is short (Q_KILLABLE=1: timeout_s of at most
-# STATION_QUEUE_KILL_MAX_S, default 900); a long one runs to its end and the station takes the new commit afterwards. A queue job that
-# needs the GPU (J_GPUIDLE=1) is stopped, claim released, when art generation starts. deep steps (Q_IN_JOB unset) are killed by any merge.
-step_run() {  # $1 = output file, rest = command; the command's status, or 99 when it was killed (merge landed, GPU wanted)
-  local f="$1" pid last=$SECONDS rc watch_merge=1; shift
-  [ "${Q_IN_JOB:-0}" = 1 ] && [ "${Q_KILLABLE:-0}" != 1 ] && watch_merge=0
+# Queue jobs are watched by queue_lib's q_watch (merge, GPU, silence, the lead's stop); step_run is for the deep steps, killed by any merge.
+step_run() {  # $1 = output file, rest = command; the command's status, or 99 when it was killed (a merge landed)
+  local f="$1" pid last=$SECONDS; shift
   "$@" >"$f" 2>&1 & pid=$!
-  while kill -0 "$pid" 2>/dev/null; do
+  while q_alive "$pid"; do
     sleep 1
     if [ $((SECONDS - last)) -ge "${STATION_DEEP_POLL:-60}" ]; then
       last=$SECONDS
-      if [ "${Q_IN_JOB:-0}" = 1 ] && [ "${J_GPUIDLE:-0}" = 1 ] && q_gpu_busy; then
-        echo "station: art generation needs the GPU, stopping the queue job" >&2; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99
-      fi
-      if [ $watch_merge = 1 ] && pending_merge; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; return 99; fi
+      if pending_merge; then q_kill "$pid"; return 99; fi
     fi
   done
   wait "$pid"; return $?
@@ -498,6 +492,7 @@ if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
     heartbeat_reap
     keepawake_start
+    Q_NLANES=$(q_lane_total)   # before the heartbeat forks, so its lanes_busy=B/N shows the real N
     heartbeat_start
     trap 'heartbeat_stop; rm -f "$STATE.awake"' EXIT
   fi

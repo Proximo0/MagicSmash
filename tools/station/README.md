@@ -48,7 +48,15 @@ Between merges a station used to repeat the same `deep` pass. With the role word
 the next job from a queue the lead loaded in advance, and runs `deep` only when the queue has nothing for it. A merge still
 comes first, but a merge no longer throws away a long job: a queue job with `timeout_s` above `STATION_QUEUE_KILL_MAX_S` (default 900)
 runs to its end and the station takes the new commit afterwards (audit 22 Nov: kills cost 21% of machine hours); a short job is cut by a
-merge, its claim released, and picked up again later. A claim a machine left itself (crash, reboot) never blocks that machine.
+merge, its claim released, and picked up again later. Kinds that repeat with fresh seeds (fuzz, soak, bench, balance, economy, shell
+wirefuzz) are stopped by a merge at any length: one INFO line `stopped for a merge after N s`, no done record, the job runs again.
+A claim a machine left itself (crash, reboot) never blocks that machine.
+
+Watch (`q_watch` in `queue_lib.sh`): a job whose output has not grown for `silent_s` seconds (job field; 0 = off; default 900, balance and
+fuzz 1800, a shell script that builds 3600, render/blender/godot scripts, package and frames off) is stopped and FAILs `silent for N s`
+with its last 3 lines. `queue.sh stop <id>` writes `stop/<id>` naming the runs live now; their lanes, on any machine, stop them within
+about a minute (INFO `stopped by the lead`), the job stays queued (`cancel` removes it and the stop file). Circuit breaker: 3 FAILs in a
+row of one job on one commit (all machines, from the done records) give `SKIP queue job <id>: paused: 3 failures on <commit>` until main moves.
 
 Resource gate: before a job starts the station needs free RAM (job field `needs_free_mb`, default by kind: fuzz 512, soak/balance/package 1024,
 bench/economy 2048, frames 3072, shell 256; `0` = no check; the test override is `STATION_FREE_MB`) and, for `frames` and `needs=gpu` jobs
@@ -117,7 +125,7 @@ is a fresh seed) and queue `kind=shell args=script=<name>`. A job whose script i
 with a line. For a built-in kind write a `qk_<kind>` function in `queue_lib.sh` and add the name to `Q_KINDS` and `q_exec`.
 
 The lead's tool, `tools/station/queue.sh` (run from any clone): `add kind=.. args=".." [needs=..] [priority=..] [repeat=..]
-[timeout_s=..] [every_s=..] [max_lanes=..] [max_per_machine=..]`, `list`, `cancel <id>`, `fill-week` or `fill-month` (the same: forever
+[timeout_s=..] [every_s=..] [max_lanes=..] [max_per_machine=..] [silent_s=..]`, `list`, `cancel <id>`, `stop <id>`, `fill-week` or `fill-month` (the same: forever
 jobs run until cancelled. Per machine with its own seed ranges: economy 7 (2 lanes), soak 6 (3), worldlong 6, bench 5, fuzz 4 (4 lanes),
 wirefuzz 4; one balance sweep 7, a daily Linux and Windows package 8, frames on the GPU machines every 12 hours 8; priorities 9 = once-off
 lead jobs, 3 = lan play. Safe to repeat: existing jobs get the current priority and lane limits),

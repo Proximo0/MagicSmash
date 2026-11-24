@@ -2,9 +2,11 @@
 # The lead's tool for the station work queue (see tools/station/README.md). Run it from any clone of the repository.
 #   queue.sh add kind=fuzz args="seeds=1-50 ops=50000" [needs=any|gpu|linux|windows|<machine>] [priority=0-9] [repeat=once|forever]
 #                [timeout_s=3600] [every_s=0] [needs_free_mb=MB] [needs_gpu_idle=0|1] [max_lanes=1] [max_per_machine=N] [own_bin=0|1]
+#                [silent_s=N]   stop the job when its output has not grown for N s (0 = off; default by kind, see q_default_silent)
 #                max_lanes: how many station lanes may run a forever job at once (all machines); max_per_machine: on one machine
 #   queue.sh list                 pending jobs, who holds a claim and for how long, done counts
 #   queue.sh cancel <id>
+#   queue.sh stop <id>           stop the runs of a job now (any machine, within about a minute; INFO "stopped by the lead"); the job stays
 #   queue.sh fill-week            load the default forever work for every machine's lanes (safe to run again: jobs already queued are
 #                                 not repeated, their priority and lane limits are brought up to date). fill-month: the same (forever
 #                                 jobs run until cancelled, so one fill covers to 2026-12-31 and beyond)
@@ -17,13 +19,14 @@ cd "$(dirname "$0")/../.."
 
 cmd=${1:-}; shift || true
 
-q_job_text() {  # words 8 to 12 (needs_free_mb, needs_gpu_idle, max_lanes, max_per_machine, own_bin) are written only when given
+q_job_text() {  # words 8 to 13 (needs_free_mb, needs_gpu_idle, max_lanes, max_per_machine, own_bin, silent_s) are written only when given
   printf 'kind=%s\nargs=%s\nneeds=%s\npriority=%s\nrepeat=%s\ntimeout_s=%s\nevery_s=%s\nadded=%s\n' "$1" "$2" "$3" "$4" "$5" "$6" "$7" "${Q_ADDED:-$(date -u +%FT%TZ)}"
   [ -z "${8:-}" ] || printf 'needs_free_mb=%s\n' "$8"; [ -z "${9:-}" ] || printf 'needs_gpu_idle=%s\n' "$9"
   [ -z "${10:-}" ] || printf 'max_lanes=%s\n' "${10}"; [ -z "${11:-}" ] || printf 'max_per_machine=%s\n' "${11}"; [ -z "${12:-}" ] || printf 'own_bin=%s\n' "${12}"
+  [ -z "${13:-}" ] || printf 'silent_s=%s\n' "${13}"
 }
-q_add() {  # kind args needs priority repeat timeout every [mb gpuidle max_lanes max_per_machine own_bin] -> prints the id (Q_ID= rewrites that job)
-  J_KIND=$1 J_ARGS=$2 J_NEEDS=$3 J_PRIO=$4 J_REPEAT=$5 J_TIMEOUT=$6 J_EVERY=$7 J_MB=${8:-} J_GPUIDLE=${9:-} J_MAXL=${10:-1} J_MAXM=${11:-1}
+q_add() {  # kind args needs priority repeat timeout every [mb gpuidle max_lanes max_per_machine own_bin silent_s] -> prints the id (Q_ID= rewrites that job)
+  J_KIND=$1 J_ARGS=$2 J_NEEDS=$3 J_PRIO=$4 J_REPEAT=$5 J_TIMEOUT=$6 J_EVERY=$7 J_MB=${8:-} J_GPUIDLE=${9:-} J_MAXL=${10:-1} J_MAXM=${11:-1} J_SILENT=${13:-}
   q_valid_job || { echo "queue: refused: $Q_WHY" >&2; return 1; }
   case "${12:-}" in ""|0|1) ;; *) echo "queue: refused: own_bin must be 0 or 1" >&2; return 1 ;; esac
   local id tmp; id=${Q_ID:-"$(date -u +%y%m%d%H%M%S)-$(printf %04d $((RANDOM % 10000)))"}
@@ -36,15 +39,16 @@ q_machines() { grep -v '^#' tools/station/roles.txt | grep -iw queue | cut -d: -
 
 case "$cmd" in
   add)
-    kind="" args="" needs=any prio=5 rep=once to=3600 every=0 mb="" gpuidle="" maxl="" maxm="" ownbin=""
+    kind="" args="" needs=any prio=5 rep=once to=3600 every=0 mb="" gpuidle="" maxl="" maxm="" ownbin="" silent=""
     for a in "$@"; do
       case "$a" in kind=*) kind=${a#kind=} ;; args=*) args=${a#args=} ;; needs=*) needs=${a#needs=} ;; priority=*) prio=${a#priority=} ;;
         repeat=*) rep=${a#repeat=} ;; timeout_s=*) to=${a#timeout_s=} ;; every_s=*) every=${a#every_s=} ;;
         needs_free_mb=*) mb=${a#needs_free_mb=} ;; needs_gpu_idle=*) gpuidle=${a#needs_gpu_idle=} ;;
         max_lanes=*) maxl=${a#max_lanes=} ;; max_per_machine=*) maxm=${a#max_per_machine=} ;; own_bin=*) ownbin=${a#own_bin=} ;;
+        silent_s=*) silent=${a#silent_s=} ;;
         *) echo "queue: unknown word '${a:0:30}'" >&2; exit 2 ;; esac
     done
-    q_add "$kind" "$args" "$needs" "$prio" "$rep" "$to" "$every" "$mb" "$gpuidle" "$maxl" "$maxm" "$ownbin" || exit 1 ;;
+    q_add "$kind" "$args" "$needs" "$prio" "$rep" "$to" "$every" "$mb" "$gpuidle" "$maxl" "$maxm" "$ownbin" "$silent" || exit 1 ;;
   list)
     q_fetch || { echo "queue: no branch $QBRANCH yet (use add or fill-week)"; exit 0; }
     now=$(q_now); n=0
@@ -67,7 +71,14 @@ case "$cmd" in
     [ -n "${1:-}" ] || { echo "usage: queue.sh cancel <id>" >&2; exit 2; }
     q_fetch || { echo "queue: no queue branch"; exit 1; }
     grep -qx "queue/$1.job" <<<"$Q_TREE" || { echo "queue: no job $1"; exit 1; }
-    gb_put_retry "$QBRANCH" "queue: cancel $1" "-queue/$1.job" && echo "cancelled $1" ;;
+    ops=("-queue/$1.job"); grep -qx "stop/$1" <<<"$Q_TREE" && ops+=("-stop/$1")
+    gb_put_retry "$QBRANCH" "queue: cancel $1" "${ops[@]}" && echo "cancelled $1" ;;
+  stop)  # stop/<id> names the runs live now (claim and its time): their lanes stop them, a later run of the job is not touched
+    [ -n "${1:-}" ] || { echo "usage: queue.sh stop <id>" >&2; exit 2; }
+    q_fetch || { echo "queue: no queue branch"; exit 1; }
+    tmp=$(mktemp); for c in $(grep "^claims/$1\." <<<"$Q_TREE"); do echo "claim=${c#claims/} time=$(gb_cat "$QBRANCH" "$c" | q_time_of)"; done >"$tmp"
+    if [ ! -s "$tmp" ]; then rm -f "$tmp"; echo "queue: $1 is not running anywhere: nothing to stop"; exit 0; fi
+    gb_put_retry "$QBRANCH" "queue: stop $1" "+stop/$1:$tmp" && echo "stop $1: $(grep -c . "$tmp") run(s) stop within about a minute"; rc=$?; rm -f "$tmp"; exit $rc ;;
   fill-week|fill-month)
     # Priority (Curtis via the lead, 23 Nov 2026), high to low: 9 once-off lead jobs; 8 packages and frames; 7 balance and economy;
     # 6 worldlong and soak; 5 bench; 4 fuzz and wirefuzz; 3 lan play (queued by the lead). Render jobs come at 7 with max_per_machine=1.
@@ -142,5 +153,5 @@ case "$cmd" in
   step)
     queue_step; rc=$?; echo "queue step rc=$rc (0 ran a job, 1 nothing to do, 3 interrupted)"; exit $rc ;;
   *)
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

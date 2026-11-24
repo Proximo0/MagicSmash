@@ -317,4 +317,42 @@ before=$(git -C "$T/origin.git" rev-parse -q --verify refs/heads/station-results
 ( cd "$T/alpha" && MACHINE=alpha && . tools/station/queue_lib.sh && echo x >"$T/x" && GB_BASE=0123456789012345678901234567890123456789 gb_put station-results "bad base" "+x.txt:$T/x" ); rc=$?
 check "gb_put on a base it cannot read returns 1 and leaves the branch as it was" '[ $rc = 1 ] && [ "$(git -C "$T/origin.git" rev-parse -q --verify refs/heads/station-results)" = "$before" ]'
 
+echo "== silence, a merge on a repeatable job, the lead's stop, the circuit breaker"
+cancel_all; t_new=$SECONDS
+J="$T/alpha/tools/station/jobs"   # scripts of these tests, untracked in alpha's work tree
+printf '#!/usr/bin/env bash\necho one; echo two; echo three; sleep 30; echo "PASS late"\n' >"$J/quiet.sh"
+printf '#!/usr/bin/env bash\nfor i in $(seq 1 30); do echo "tick $i"; sleep 1; done; echo "PASS talked"\n' >"$J/talk.sh"
+check "silence defaults by kind: shell 900, a building script 3600, a rendering one off, package off, fuzz 1800" \
+  '[ "$(LQ "q_default_silent shell script=quiet; q_default_silent shell script=wirefuzz; q_default_silent shell script=render; q_default_silent package x; q_default_silent fuzz x" | tr "\n" " ")" = "900 3600 0 0 1800 " ]'
+ids=$(Q alpha add kind=shell args="script=quiet" needs=alpha silent_s=3 | tail -1)
+check "the job file carries silent_s" 'rd station-queue queue/$ids.job | grep -qx "silent_s=3"'
+Q alpha step >"$T/o" 2>&1
+check "1 silence: a job quiet for silent_s is stopped, FAIL silent for N s with its last 3 lines, done recorded" 'rd station-results work/$ids/alpha.txt | grep -q " FAIL id=$ids kind=shell .*silent for [3-9] s: one two three" && files station-queue | grep -qx "done/$ids.alpha"'
+idm=$(Q alpha add kind=soak args="secs=5" needs=alpha timeout_s=3600 | tail -1)
+( cd "$T/alpha" && MACHINE=alpha && . tools/station/queue_lib.sh && pending_merge() { [ -e "$T/merged" ]; } && STATION_DEEP_POLL=1 STATION_QUEUE_STUB_SLEEP=30 queue_step ) >"$T/o" 2>&1 & mp=$!
+for _ in $(seq 1 20); do files station-queue | grep -q "^claims/$idm\." && break; sleep 0.5; done; sleep 1; touch "$T/merged"; wait $mp; rm -f "$T/merged"
+check "2 merge: a long soak (timeout 3600) is stopped for a merge, INFO line, no done record, claim gone, job still queued" 'rd station-results work/$idm/alpha.txt | grep -q " INFO id=$idm kind=soak .*stopped for a merge after [0-9]* s" && ! files station-queue | grep -q "^done/$idm\." && ! files station-queue | grep -q "^claims/$idm\." && files station-queue | grep -qx "queue/$idm.job"'
+Q alpha cancel "$idm" >/dev/null
+idt=$(Q alpha add kind=shell args="script=talk" needs=alpha | tail -1)
+Q beta stop "$idt" >"$T/o2" 2>&1
+check "3 stop of a job that is not running is a note and writes nothing" 'grep -q "not running anywhere" "$T/o2" && ! files station-queue | grep -qx "stop/$idt"'
+( STATION_DEEP_POLL=1 STATION_QUEUE_FETCH_S=1 Q alpha step >"$T/o" 2>&1 ) & sp=$!
+for _ in $(seq 1 20); do files station-queue | grep -q "^claims/$idt\." && break; sleep 0.5; done
+Q beta stop "$idt" >"$T/o2" 2>&1; t_stop=$SECONDS; wait $sp
+check "3 stop: queue.sh stop on another machine stops alpha's run within seconds, INFO stopped by the lead, the job stays" 'grep -q "run(s) stop" "$T/o2" && [ $((SECONDS - t_stop)) -lt 15 ] && rd station-results work/$idt/alpha.txt | grep -q " INFO id=$idt kind=shell .*stopped by the lead" && rd station-queue done/$idt.alpha | grep -q "status=INFO" && files station-queue | grep -qx "queue/$idt.job" && files station-queue | grep -qx "stop/$idt"'
+Q alpha cancel "$idt" >/dev/null
+check "cancel also removes the stop file" '! files station-queue | grep -qx "stop/$idt"'
+git -C "$T/beta" fetch -q "$T/alpha" HEAD && git -C "$T/beta" checkout -q --detach FETCH_HEAD   # both machines on one main commit
+idf=$(Q alpha add kind=fuzz args="seeds=666" repeat=forever | tail -1)
+Q alpha step >/dev/null 2>&1; Q beta step >/dev/null 2>&1; Q alpha step >/dev/null 2>&1
+head12=$(git -C "$T/alpha" rev-parse --short=12 HEAD)
+check "4 fails= counts FAILs in a row on the commit (alpha 2, beta 1)" 'rd station-queue done/$idf.alpha | grep -q "commit=$head12 fails=2" && rd station-queue done/$idf.beta | grep -q "commit=$head12 fails=1"'
+Q alpha step >"$T/o" 2>&1; rc=$?
+check "4 breaker: after 3 FAILs on one commit (two machines) the job is skipped with one SKIP line" '[ $rc = 1 ] && grep -q "SKIP queue job $idf: paused: 3 failures on $head12" "$T/o"'
+git -C "$T/alpha" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "main moves"
+Q alpha step >"$T/o" 2>&1; rc=$?
+check "4 when main moves the job runs again" '[ $rc = 0 ] && rd station-queue done/$idf.alpha | grep -q "fails=1"'
+Q alpha cancel "$idf" >/dev/null; rm -f "$J/quiet.sh" "$J/talk.sh"
+echo "  (these checks took $((SECONDS - t_new)) s)"
+
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi
