@@ -4,6 +4,9 @@ A station runs `tools/station/station.sh` with no Claude on it. On every new com
 pushes a few lines to the branch `station-results` (`<machine>.txt`). `tools/station/read.sh` prints them all and
 ends with `STATIONS n= failed= stale=`; a session reads that instead of running the jobs.
 
+To watch every PC live, run `tools/station/monitor.sh` (on Windows double-click `tools\station\monitor.cmd`): per PC
+it shows OK/LATE/DOWN, lanes, free RAM, the last skip reason and the jobs held, then recent failures. Read-only.
+
 ## Who runs what
 `tools/station/roles.txt` holds one line per machine (jobs, optional `--after=<station>` to wait for another station's
 PASS, optional `--p95=<ms>` frame limit). Stations run side by side and restart themselves when that file changes, so
