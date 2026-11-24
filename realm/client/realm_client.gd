@@ -92,6 +92,7 @@ var _camera: Camera2D = Camera2D.new()
 var _soil: FieldGround = FieldGround.new()
 var _ground: RealmLayer = RealmLayer.new()
 var _sites: FieldWorld = FieldWorld.new()
+var _props: FieldProps = FieldProps.new()
 var _fx_under: FieldFx = FieldFx.new()
 var _fx_over: FieldFx = FieldFx.new()
 var _hero: RealmLayer = RealmLayer.new()
@@ -154,6 +155,7 @@ func _ready() -> void:
 	_world.add_child(_soil)
 	_ground.is_ground = true
 	_world.add_child(_ground)
+	_world.add_child(_props)
 	_world.add_child(_sites)
 	_fx_under.under_figures = true
 	_fx_under.z_index = 0
@@ -550,6 +552,11 @@ func _place(hero: Vector2) -> void:
 	_ground.px_scale = s
 	_soil.set_scale_px(s)
 	_ground.queue_redraw()
+	_props.view = view
+	_props.field = int(_world_info.get("field", 0))
+	_props.side = float(RealmLink.field_size())
+	_props.sites = _world_info.get("sites", PackedFloat32Array())
+	_props.queue_redraw()
 	_sites.view = view
 	_sites.px_scale = s
 	_sites.sites = _world_info.get("sites", PackedFloat32Array())

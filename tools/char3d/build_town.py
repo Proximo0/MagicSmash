@@ -10,7 +10,7 @@ by its own `turn` (degrees off face-on). The picture is cropped to the building,
 Home furniture and plaques (home_models.py) take their ids too (home_chair ... home_plaque_7; env HOME=1 = all of
 them) and are written as <art dir>/ui_<id>.png, same camera and density.
 The field's fixed features (field_models.py: field_gate field_heart field_waystone[_lit] field_altar[_lit]; env FIELD=1 = all)
-are written as <art dir>/<id>.png, no ui_ prefix (the field loads them as art/field_<name>.png).
+are written as <art dir>/<id>.png (prop_models.py: field_prop_* ground props, env PROPS=1 = all), no ui_ prefix (the field loads them as art/field_<name>.png).
 Writes <art dir>/ui_town_<id>.png.  env: SAMPLES (48), KEY, AMB
 """
 import math
@@ -29,6 +29,7 @@ import town_lib as L  # noqa: E402
 import town_models as M  # noqa: E402
 import home_models as H  # noqa: E402
 import field_models as F  # noqa: E402
+import prop_models as PM  # noqa: E402
 
 E = os.environ.get
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -129,11 +130,13 @@ def finish(spec, bid, outdir, art):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     outdir, art, ids = argv[0], argv[1], argv[2:] or list(M.BUILDERS)
-    builders = dict(M.BUILDERS, **H.BUILDERS, **F.BUILDERS)
+    builders = dict(M.BUILDERS, **H.BUILDERS, **F.BUILDERS, **PM.BUILDERS)
     if not argv[2:] and E("HOME") == "1":   # HOME is also the home directory: only the literal 1 means furniture
         ids = list(H.BUILDERS)
     if not argv[2:] and E("FIELD"):
         ids = list(F.BUILDERS)
+    if not argv[2:] and E("PROPS"):
+        ids = list(PM.BUILDERS)
     for bid in ids:
         L.reset()
         spec = builders[bid]()

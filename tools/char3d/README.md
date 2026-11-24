@@ -52,3 +52,9 @@ pictures; each model is shrunk by `SCALE` so it stands right beside a hero). Fil
 (bpy as a python module; about 3 s a picture). Contact sheet at 2x on the house floor with a hero: `home_sheet.py <art> <png>`.
 The client (`HomeDraw.draw_thing` / `thing_picture`, `HomeMap.thing_art`) uses a file when it exists and the flat stand-in
 when it does not; pictured things are drawn in the town's depth order (rugs under everything).
+
+## Field ground props (`prop_models.py`)
+Twelve dead-gothic ground props (3 dead trees, 2 rocks, gravestone, grave cross, broken pillar, broken wall, bone pile, thorn bush,
+stump) in the field sites' style and pixel scale: ids `field_prop_<kind>`, written as `art/field_prop_<kind>.png`. Render on a
+station with `script=render set=props` (or `PROPS=1 python3 -I build_town.py -- <scratch> <art dir> [id ...]`). The client
+(`field/field_props.gd`) scatters them by a field-and-cell hash, off the sites and rings, and draws nothing for a kind without a file.

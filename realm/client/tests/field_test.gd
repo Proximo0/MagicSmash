@@ -10,6 +10,7 @@ var _checks: int = 0
 
 func _initialize() -> void:
 	_art()
+	_props()
 	_anim()
 	_sound()
 	_sfx()
@@ -25,6 +26,24 @@ func _check(cond: bool, what: String) -> void:
 	_checks += 1
 	if not cond:
 		_problems.append(what)
+
+
+func _props() -> void:
+	var sites := PackedFloat32Array()
+	for i in 15:
+		sites.append(1000.0 + 300.0 * i)
+		sites.append(2000.0 + 50.0 * i)
+	var seen: int = 0
+	for cy in 40:
+		for cx in 40:
+			var a: Array = FieldProps.prop_in_cell(3, cx, cy, 6400.0, sites)
+			_check(a == FieldProps.prop_in_cell(3, cx, cy, 6400.0, sites), "prop scatter is deterministic")
+			if not a.is_empty():
+				seen += 1
+				_check(FieldProps.is_clear(a[1], sites), "a prop stands clear of the sites")
+	_check(seen > 20 and seen < 400, "props are sparse (%d)" % seen)
+	_check(FieldProps.hash3(1, 2, 3, 4) == FieldProps.hash3(1, 2, 3, 4) and FieldProps.hash3(1, 2, 3, 4) != FieldProps.hash3(2, 2, 3, 4), "prop hash depends on the field")
+	_check(not FieldProps.is_clear(Vector2(1000, 2000), sites), "no prop on the gate")
 
 
 func _art() -> void:
