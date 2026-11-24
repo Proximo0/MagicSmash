@@ -38,10 +38,10 @@ body centre, bottom edge 1 px under the feet, no resampling) and writes `<key>_w
   `boss_extras.py` (exec'd inside build_hero: `skull`, `ribs`, `mantle`, `mitre`, `phylactery`, held `sceptre` and `lichstaff`
   meshes). Kit keys `nolegs` (no legs under the robe), `float` (m, lifted, not in Death), `bulk` values may be a per-axis tuple.
   View: bone regent YAW=-15 (the skull face shows; at -70 the head is a tube in profile).
-Horse for the rider plan: looked for a CC0 rigged horse (Quaternius animal packs) on 23 Nov 2026; quaternius.com, poly.pizza,
-opengameart.org, itch.io answered 403 from the build proxy and the GitHub search API 502, and nothing on disk has one (only Rigify's
-horse metarig, a rig without a mesh). Nothing was downloaded. `boss_death_the_pale_rider` stays unimported: the hand-built `rider`
-horse still reads low-poly (see work_review/). A rigged horse glb would be the right next step if one can be fetched.
+The rider plan's horse is built by `build_beast.py` itself (no downloaded model; Quaternius's licence also bars their files from a public repo):
+four legs of three bones each (upper, lower, pastern+hoof) joined end to end, angles solved per frame by two-bone IK from where the hoof must be,
+diagonal-pair trot (fl+br, fr+bl, 58% stance) so a planted hoof is exactly on the ground; ribs, skull face, teeth, barding scraps, rider seated on the body.
+`boss_death_the_pale_rider` is not in `bosses.txt` yet (add `boss_death_the_pale_rider - Idle:4,Walking_A:8,Attack:8,Hit_A:4,Death_A:8 ...` once its framing is chosen).
 A rooted boss lists `Idle` and `Walking_A` (a sway) and no legs move; its walk strip is the sway. `review_bosses.py` makes the contact sheets.
 
 ## Home furniture and plaques (`home_models.py`)

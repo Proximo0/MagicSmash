@@ -955,7 +955,7 @@ elif PLAN == "rider":                            # Death: a skeletal rider in a 
     bone_m, shroud, shroud2 = mat("bone", K["bone"]), mat("shroud", K["shroud"]), mat("shroud2", K["shroud2"])
     pit = mat("pit", (0.0, 0.0, 0.0))
     shade_b = mat("rskullm", (0.3, 0.28, 0.23))
-    eye = mat("eye", K["eye"], 2.0)
+    eye = mat("eye", K["eye"], 4.0)
     steel = mat("steel", (0.55, 0.6, 0.66))
     gold = mat("sigil", (0.45, 0.4, 0.2))
 
@@ -970,70 +970,90 @@ elif PLAN == "rider":                            # Death: a skeletal rider in a 
     PY = 0.62                                    # the hind hooves: the horse pitches about this line when it rears
     hj = joint("horse", body, (0, PY, 0))
     hb = joint("hb", hj, (0, -PY, 0))            # everything of the horse is built in a frame with its hooves at y 0.62
+    ub = joint("ub", hb, (0, 0, 0.2))           # the horse above the legs: lifted so the legs are long and the barrel gaunt
     # barrel, chest, rump: a gaunt horse, ribs showing
-    part("sphere", "barrel", hb, hm, (0, 0.05, 1.3), (0, 0, 0), (0.36, 0.82, 0.4))
-    part("sphere", "chest", hb, hm, (0, -0.5, 1.32), (0, 0, 0), (0.27, 0.34, 0.38))
-    part("sphere", "rump", hb, hm, (0, 0.72, 1.35), (0, 0, 0), (0.32, 0.38, 0.38))
-    part("sphere", "belly", hb, dk, (0, 0.1, 1.12), (0, 0, 0), (0.3, 0.7, 0.28))             # a sunken, shadowed belly under the barrel
+    part("sphere", "barrel", ub, hm, (0, 0.05, 1.3), (0, 0, 0), (0.34, 0.82, 0.38))
+    part("sphere", "chest", ub, hm, (0, -0.5, 1.32), (0, 0, 0), (0.27, 0.34, 0.38))
+    part("sphere", "rump", ub, hm, (0, 0.72, 1.35), (0, 0, 0), (0.32, 0.38, 0.38))
+    part("sphere", "belly", ub, dk, (0, 0.1, 1.12), (0, 0, 0), (0.3, 0.7, 0.28))             # a sunken, shadowed belly under the barrel
     for sg in (1, -1):
-        part("sphere", "hip%d" % sg, hb, bone_m, (sg * 0.27, 0.78, 1.62), (0, 0, 0), (0.06, 0.08, 0.06))
-        part("sphere", "shb%d" % sg, hb, hm, (sg * 0.2, -0.45, 1.5), (0, 0, 0), (0.09, 0.15, 0.12))    # the shoulder
-        for k in range(4):                       # only a hint of ribs, low on the flank
-            part("cone", "rib%d_%d" % (sg, k), hb, bone_m, (sg * 0.33, -0.2 + k * 0.2, 1.12), (0, sg * 24, 0), (0.012, 0.012, 0.11), r2=0.5)
+        part("sphere", "hip%d" % sg, ub, bone_m, (sg * 0.27, 0.78, 1.62), (0, 0, 0), (0.06, 0.08, 0.06))
+        part("sphere", "shb%d" % sg, ub, hm, (sg * 0.2, -0.45, 1.5), (0, 0, 0), (0.09, 0.15, 0.12))    # the shoulder
+        for k in range(7):                       # a full cage of ribs, each an arc of four bones laid on the barrel
+            ry = -0.32 + k * 0.15
+            tp = math.sqrt(max(0.05, 1 - ((ry - 0.05) / 0.84) ** 2))
+            pts = [(sg * 0.375 * tp * math.sin(math.radians(t_)), ry + 0.025 * math.sin(math.radians(t_)), 1.3 + 0.415 * math.cos(math.radians(t_)))
+                   for t_ in (28, 62, 96, 130, 160)]
+            for q in range(4):
+                rod(ub, "rib%d_%d_%d" % (sg, k, q), bone_m, pts[q], pts[q + 1], 0.02, 0.016)
     for k in range(7):                           # spine knobs
-        part("sphere", "vert%d" % k, hb, bone_m, (0, -0.5 + k * 0.2, 1.7 + (0.04 if k in (0, 1) else 0)), (0, 0, 0), (0.05, 0.06, 0.05))
-    neckj = joint("neck", hb, (0, -0.72, 1.6))
+        part("sphere", "vert%d" % k, ub, bone_m, (0, -0.5 + k * 0.2, 1.7 + (0.04 if k in (0, 1) else 0)), (0, 0, 0), (0.05, 0.06, 0.05))
+    neckj = joint("neck", ub, (0, -0.72, 1.6))
     rod(neckj, "neckm", hm, (0, 0.12, -0.25), (0, -0.26, 0.62), 0.27, 0.12)          # a deep, arched neck: thick at the withers, narrow at the poll
     part("sphere", "crest", neckj, hm, (0, 0.0, 0.3), (0, 0, 0), (0.1, 0.2, 0.3))
     headj = joint("head", neckj, (0, -0.26, 0.62))
     part("sphere", "cranium", headj, hm, (0, 0.04, 0.0), (0, 0, 0), (0.13, 0.17, 0.15))
-    rod(headj, "skull", hm, (0, 0.0, 0.04), (0, -0.4, -0.46), 0.09, 0.055)    # the long face, a flat plane to the nose
+    rod(headj, "skull", bone_m, (0, 0.0, 0.04), (0, -0.4, -0.46), 0.09, 0.055)    # the long face, a flat plane to the nose
     part("sphere", "muzzle", headj, bone_m, (0, -0.44, -0.52), (0, 0, 0), (0.065, 0.08, 0.075))
     part("sphere", "nostril1", headj, pit, (0.04, -0.49, -0.54), (0, 0, 0), (0.025, 0.03, 0.03))
     part("sphere", "nostril2", headj, pit, (-0.04, -0.49, -0.54), (0, 0, 0), (0.025, 0.03, 0.03))
     part("sphere", "jowl", headj, hm, (0, 0.08, -0.14), (0, 0, 0), (0.13, 0.13, 0.15))     # the cheek and jaw
     for sg in (1, -1):
         part("sphere", "esock%d" % sg, headj, pit, (sg * 0.115, -0.04, 0.05), (0, 0, 0), (0.045, 0.05, 0.05))
-        part("sphere", "eeye%d" % sg, headj, eye, (sg * 0.135, -0.06, 0.05), (0, 0, 0), (0.016, 0.016, 0.018))
+        part("sphere", "eeye%d" % sg, headj, eye, (sg * 0.135, -0.06, 0.05), (0, 0, 0), (0.026, 0.026, 0.03))
         part("cone", "ear%d" % sg, headj, hm, (sg * 0.08, 0.12, 0.22), (-12, sg * 10, 0), (0.035, 0.025, 0.12), r2=0.1)
     jawj = joint("hjaw", headj, (0, -0.06, -0.1))
     rod(jawj, "hjaw", bone_m, (0, 0, 0), (0, -0.3, -0.36), 0.055, 0.045)
+    rod(headj, "chamfron", steel, (0, -0.02, 0.12), (0, -0.4, -0.36), 0.04, 0.028)       # a scrap of face armour down the nose
+    part("sphere", "sigilh", headj, gold, (0, -0.07, 0.13), (0, 0, 0), (0.03, 0.03, 0.03))
+    for k in range(5):                           # bared teeth along the lower jaw
+        part("cone", "tooth%d" % k, jawj, bone_m, (0, -0.3 * (0.3 + 0.13 * k), -0.36 * (0.3 + 0.13 * k) + 0.05), (0, 0, 0), (0.012, 0.012, 0.035), r2=0.1)
+    for k in range(3):                           # barding scraps hanging from the chest and the girth
+        for sg in (1, -1):
+            part("cone", "brd%d_%d" % (k, sg), ub, steel if k == 1 else shroud2, (sg * 0.3, -0.62 + k * 0.2, 1.42 - 0.05 * k), (180, sg * 6, 0), (0.025, 0.1, 0.17), r2=0.1)
     manes = []
     for k in range(9):                           # a ragged mane along the crest
         mj = joint("mane%d" % k, neckj, (0, 0.06 - 0.045 * k, 0.1 + 0.06 * k))
         rod(mj, "mn%d" % k, dk, (0, 0, 0), (0, 0.26 + 0.06 * (k % 3), -0.3 - 0.1 * (k % 2)), 0.07, 0.01)
         manes.append(mj)
-    tail = joint("tail", hb, (0, 1.0, 1.55))
+    tail = joint("tail", ub, (0, 1.0, 1.55))
     tails = []
     for k in range(5):
         tj = joint("tl%d" % k, tail, ((k - 2) * 0.04, 0, 0))
         rod(tj, "tls%d" % k, dk, (0, 0, 0), (0, 0.18 + 0.04 * (k % 2), -0.75 - 0.18 * ((k * 2) % 3)), 0.05, 0.006)
         tails.append(tj)
+    # four legs, each three bones joined end to end (upper, lower, foot = pastern + hoof). Every bone is a rod from its own
+    # joint along -Z, each joint sits at the end of the bone above, and the pose solves the angles (two-bone IK to the
+    # fetlock) from where the hoof must be, so no segment ever floats and a planted hoof is exactly on the ground.
+    LEG = {"f": (0.62, 0.62, 1.3), "b": (0.68, 0.64, 1.3)}      # upper, lower, hip height
+    FOOT, FOOT_A = 0.24, -32.0                    # pastern + hoof length, its rest angle (toe forward)
     legs = {}
-    for fb, y_ in (("f", -0.55), ("b", 0.75)):   # four legs with the right joints: fore leg straight under the shoulder, hind leg with a backward hock
+    for fb, y_ in (("f", -0.55), ("b", 0.75)):
+        U_, L_, hz = LEG[fb]
         for sg, sn in ((1, "l"), (-1, "r")):
-            top = joint("hip_%s%s" % (fb, sn), hb, (sg * 0.2, y_, 1.25))
-            hind = fb == "b"
-            fx = 0.2 if hind else 0.0             # the hock sits behind the hip
-            rod(top, "up_%s%s" % (fb, sn), hm, (0, 0, 0), (0, fx, -0.6), 0.17 if hind else 0.12, 0.065)
-            kn = joint("kn_%s%s" % (fb, sn), top, (0, fx, -0.6))
-            part("sphere", "kjt_%s%s" % (fb, sn), kn, bone_m, (0, 0.02 if hind else -0.01, 0), (0, 0, 0), (0.06, 0.07, 0.07))
-            if hind:
-                part("cone", "hock_%s%s" % (fb, sn), kn, bone_m, (0, 0.08, 0.04), (-90, 0, 0), (0.035, 0.035, 0.06), r2=0.4)     # the point of the hock
-            rod(kn, "lo_%s%s" % (fb, sn), bone_m, (0, 0, 0), (0, -fx * 0.8, -0.5), 0.045, 0.04)                              # the cannon bone
-            part("sphere", "fet_%s%s" % (fb, sn), kn, hm, (0, -fx * 0.8, -0.5), (0, 0, 0), (0.05, 0.05, 0.05))
-            rod(kn, "pas_%s%s" % (fb, sn), bone_m, (0, -fx * 0.8, -0.5), (0, -fx * 0.8 - 0.06, -0.62), 0.04, 0.036)
-            part("cone", "hoof_%s%s" % (fb, sn), kn, dk, (0, -fx * 0.8 - 0.075, -0.65), (180, 0, 0), (0.065, 0.08, 0.045), r2=0.8)
-            legs[fb + sn] = (top, kn)
+            nm = fb + sn
+            top = joint("hip_" + nm, hb, (sg * 0.19, y_, hz))
+            part("sphere", "hipj_" + nm, top, hm, (0, 0, 0), (0, 0, 0), (0.12, 0.14, 0.14) if fb == "b" else (0.1, 0.12, 0.12))
+            rod(top, "up_" + nm, hm, (0, 0, 0), (0, 0, -U_), 0.1 if fb == "b" else 0.085, 0.05)
+            rod(top, "upb_" + nm, bone_m, (0, 0, -U_ * 0.45), (0, 0, -U_), 0.04, 0.036)      # the bone shows through the gaunt thigh
+            kn = joint("kn_" + nm, top, (0, 0, -U_))
+            part("sphere", "kjt_" + nm, kn, bone_m, (0, 0, 0), (0, 0, 0), (0.058, 0.062, 0.062))
+            rod(kn, "lo_" + nm, bone_m, (0, 0, 0), (0, 0, -L_), 0.046, 0.036)                # the cannon bone
+            fe = joint("fet_" + nm, kn, (0, 0, -L_))
+            part("sphere", "fetj_" + nm, fe, hm, (0, 0, 0), (0, 0, 0), (0.05, 0.05, 0.05))
+            rod(fe, "pas_" + nm, bone_m, (0, 0, 0), (0, 0, -FOOT * 0.62), 0.036, 0.034)
+            rod(fe, "hoof_" + nm, dk, (0, 0, -FOOT * 0.6), (0, 0, -FOOT), 0.042, 0.062)     # the hoof: its flat end is the foot
+            legs[nm] = (top, kn, fe, U_, L_, hz, y_, fb == "b")
+
     # a tattered caparison hanging from the barrel
     flaps = []
     for k in range(4):
-        fj = joint("flap%d" % k, hb, (0, 0.0 + k * 0.17, 1.58))
+        fj = joint("flap%d" % k, ub, (0, 0.0 + k * 0.17, 1.58))
         for sg in (1, -1):
             part("cone", "fp%d_%d" % (k, sg), fj, shroud2, (sg * 0.36, 0, -0.2 - 0.05 * (k % 2)), (180, sg * 8, 0), (0.035, 0.07, 0.2 + 0.05 * (k % 2)), r2=0.0)
         flaps.append(fj)
     # the rider: pelvis on the saddle, a bony torso, shroud over the shoulders, a hood with a skull
-    rj = joint("rider", hb, (0, 0.2, 1.65))
+    rj = joint("rider", ub, (0, 0.2, 1.65))
     rj.scale = (1.1, 1.1, 1.1)
     spine = joint("spine", rj, (0, 0, 0.05))
     part("cone", "ribs", spine, bone_m, (0, 0, 0.42), (0, 0, 0), (0.15, 0.11, 0.4), r2=1.0)
@@ -1112,22 +1132,43 @@ elif PLAN == "rider":                            # Death: a skeletal rider in a 
         hj.rotation_euler = Euler((math.radians(-pitch), math.radians(90 * fall), 0))
         hj.location = (0, PY, bob + (0.16 * fall))
         body.location = (0, 0, H)
-        for k_, (top, kn) in legs.items():
+        PYH = 0.62                               # hind hoof line (the pitch pivot)
+        for k_, (top, kn, fe, U_, L_, hz, hy, hind) in legs.items():
             fb, sn = k_[0], k_[1]
-            sw = 0.0
+            ty, tz, ap_ = hy - 0.13 if hind else hy, 0.0, FOOT_A         # hoof target in the horse frame (y, height above ground)
+            if hind:
+                ty = PYH
             if gait:
-                ph = w + (0 if (fb == "f") == (sn == "l") else math.pi)
-                sw = 18 * math.sin(ph)
-                lift = max(0.0, math.sin(ph + math.pi / 2))
-                kb = 38 * lift
-            else:
-                kb = 0.0
-            tuck = 0.0
-            if fb == "f":
-                tuck = max(0.0, pitch) * 2.4
-            counter = pitch if fb == "b" else 0.0
-            top.rotation_euler = Euler((math.radians(sw + counter + (tuck * 0.9)), 0, math.radians((8 if sn == "l" else -8) * fall)))
-            kn.rotation_euler = Euler((math.radians(-kb - tuck * (1.4 if fb == "f" else 0) + (22 * fall if fb == "f" else -18 * fall)), 0, 0))
+                s = (u + (0.0 if (fb == "f") == (sn == "l") else 0.5)) % 1.0      # diagonal pairs: fl+br, fr+bl half a cycle apart
+                DUTY, A_ = 0.58, 0.2
+                if s < DUTY:                     # stance: the hoof slides back along the ground
+                    ty += A_ * (1 - 2 * s / DUTY)
+                else:                            # swing: lift, carry forward, set down
+                    q = (s - DUTY) / (1 - DUTY)
+                    e_ = q * q * (3 - 2 * q)
+                    ty += A_ * (-1 + 2 * e_)
+                    tz = (0.2 if not hind else 0.17) * math.sin(math.pi * q) ** 0.8
+                    ap_ += (-22 if not hind else 18) * math.sin(math.pi * q)
+            if fb == "f":                        # rearing: the forelegs fold up under the chest
+                tk = max(0.0, pitch) / 28.0
+                tz += 0.55 * tk
+                ty += 0.12 * tk
+                ap_ -= 35 * tk
+            tz += 0.5 * fall * (1.0 if fb == "f" else 0.7)                 # fallen: the legs stick out and bend
+            ty += (-0.2 if fb == "f" else 0.15) * fall
+            zt = tz - bob - 0.16 * fall                                   # the ground stays still while the body bobs
+            ar = math.radians(ap_)
+            fx_, fz_ = ty - FOOT * math.sin(ar), zt + FOOT * math.cos(ar)   # the fetlock: the hoof end moved back up the foot
+            tgt_y, tgt_z = fx_ - top.location.y, fz_ - top.location.z
+            d = min(math.hypot(tgt_y, tgt_z), (U_ + L_) * 0.995)
+            phi = math.atan2(tgt_y, -tgt_z)
+            al = math.acos(max(-1.0, min(1.0, (U_ * U_ + d * d - L_ * L_) / (2 * U_ * d))))
+            a1 = phi + (al if hind else -al)                              # hock points back, knee points forward
+            kpy, kpz = U_ * math.sin(a1), -U_ * math.cos(a1)
+            a2 = math.atan2(d * math.sin(phi) - kpy, d * math.cos(phi) + kpz)
+            top.rotation_euler = Euler((a1, 0, math.radians((8 if sn == "l" else -8) * fall)))
+            kn.rotation_euler = Euler((a2 - a1, 0, 0))
+            fe.rotation_euler = Euler((ar - a2, 0, 0))
         neckj.rotation_euler = Euler((math.radians(-pitch * 0.4 - 8 * hit_ + 4 * math.sin(w + 0.5) + (10 * math.sin(2 * w) if gait else 0)), 0, 0))
         headj.rotation_euler = Euler((math.radians(10 * hit_ + 5 * math.sin(w + 1.0) + 6 * atk), 0, 0))
         jawj.rotation_euler = Euler((math.radians(10 + 8 * math.sin(w) + 30 * atk + 20 * hit_ + 20 * fall), 0, 0))
