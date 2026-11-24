@@ -11,3 +11,4 @@
 2026-11-24T12:34:11Z INFO id=261122113647-8689 kind=economy secs=4426 economy runs=1 bad=0 seed=119911 ok bots=4000 days=180 secs=4378 sales=111542 tax=3109999 coin_per_bot=339720 listings=551460 trades=2244 letters=3829 refused=3550
 2026-11-24T12:38:11Z INFO id=261122113647-8689 kind=economy secs=4522 economy runs=1 bad=0 seed=111095 ok bots=4000 days=180 secs=4482 sales=111112 tax=2967453 coin_per_bot=342492 listings=545789 trades=2268 letters=3843 refused=3455
 2026-11-24T12:50:08Z INFO id=261122113647-8689 kind=economy secs=542 stopped for a merge after 542 s
+2026-11-24T12:50:19Z INFO id=261122113647-8689 kind=economy secs=364 stopped for a merge after 364 s
