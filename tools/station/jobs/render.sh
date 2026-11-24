@@ -4,7 +4,7 @@
 # are over the 2 MB artifact cap, hence art-raw; at most RENDER_MAX_MB, default 45, per push; bigger files are skipped and named).
 # Sets: bosses (bosses.txt, build_bosses.sh's loop), heroes (classes.txt; only= takes race names and/or class kits,
 # default race human), icons (build_icons.py), town, home and field (build_town.py; home = HOME=1 furniture and plaques; field = FIELD=1 the field's gate, heart,
-# waystones and altars from field_models.py, written as field_<name>.png).
+# waystones and altars from field_models.py, written as field_<name>.png; props = PROPS=1 the ground props of prop_models.py, field_prop_<name>.png).
 # Queue it: queue.sh add kind=shell args="script=render set=bosses only=boss_chandelier,boss_harvester seed=1" needs=<machine> priority=5 repeat=once timeout_s=7200
 # Needs (found, or fetched once into $HH_TOOLS = ~/hh_tools): Blender + MPFB (run script=blender first), the human body glb
 #   ($HH_TOOLS/bodies/<race>.glb; else taken from a charbody artifact on station-results; else made with make_body.py),
@@ -15,7 +15,7 @@
 set -u
 set=""; only=""; seed="${STATION_JOB_SEED:-1}"
 step=""; for a in "$@"; do case "$a" in set=*) set="${a#set=}" ;; only=*) only="${a#only=}" ;; seed=*) seed="${a#seed=}" ;; step=*) step="${a#step=}" ;; esac; done
-case "$set" in bosses | heroes | icons | town | home | field) ;; *) echo "FAIL render set=$set unknown set (bosses heroes icons town home field)"; exit 1 ;; esac
+case "$set" in bosses | heroes | icons | town | home | field | props) ;; *) echo "FAIL render set=$set unknown set (bosses heroes icons town home field props)"; exit 1 ;; esac
 case "$only$seed" in *[!A-Za-z0-9_,]*) echo "FAIL render set=$set bad only= or seed= (letters, digits, _ and , only)"; exit 1 ;; esac
 fail() { [ -n "${log:-}" ] && [ -f "$log" ] && tail -120 "$log" >"${art:-/tmp}/render-log-tail.txt" 2>/dev/null; echo "FAIL render set=$set $*"; exit 1; }   # the log tail goes out as a job artifact
 T="${HH_TOOLS:-$HOME/hh_tools}"; mkdir -p "$T" || fail "cannot make $T"
@@ -75,7 +75,7 @@ q() { p "$1"; }
 
 # ---- KayKit Adventurers pack (CC0) -----------------------------------------------------------------------------------
 kk=""
-if [ "$set" != town ] && [ "$set" != home ] && [ "$set" != field ]; then
+if [ "$set" != town ] && [ "$set" != home ] && [ "$set" != field ] && [ "$set" != props ]; then
   kk="${RENDER_KAYKIT:-$T/kaykit/kaykit-character-pack-adventures-1.0}"
   if [ ! -d "$kk/addons" ]; then
     mkdir -p "$T/kaykit"
@@ -152,13 +152,14 @@ case "$set" in
     pyrun "$here/build_icons.py" "$(p "$out/strips")" "$(p "$assets")" $(echo "${only//,/ }" | sed 's/\bui_//g') >>"$log" 2>&1 || fail "build_icons failed: $(tail -2 "$log" | cut -c1-300)"
     built=$(ls "$out"/strips/*.png 2>/dev/null | wc -l)
     pyrun "$here/icons_sheet.py" "$(p "$out/strips")" "$(p "$out/sheets")" >>"$log" 2>&1 && [ -s "$out/sheets/icons_sheet.png" ] && mv "$out/sheets/icons_sheet.png" "$out/sheet_2x.png" ;;
-  town | home | field)
+  town | home | field | props)
     ids=$(echo "${only//,/ }")
     if [ $set = home ]; then ( export HOME=1; run "$STEP" "$here/build_town.py" "$(p "$work/town")" "$(p "$out/strips")" $ids ) >"$log.town" 2>&1
     elif [ $set = field ]; then ( export FIELD=1; run "$STEP" "$here/build_town.py" "$(p "$work/town")" "$(p "$out/strips")" $ids ) >"$log.town" 2>&1
+    elif [ $set = props ]; then ( export PROPS=1; run "$STEP" "$here/build_town.py" "$(p "$work/town")" "$(p "$out/strips")" $ids ) >"$log.town" 2>&1
     else run "$STEP" "$here/build_town.py" "$(p "$work/town")" "$(p "$out/strips")" $ids >"$log.town" 2>&1; fi
     rc=$?; cat "$log.town" >>"$log"; rm -f "$log.town"
-    pat=ui_*.png; [ $set = field ] && pat=field_*.png
+    pat=ui_*.png; [ $set = field ] && pat=field_*.png; [ $set = props ] && pat=field_prop_*.png
     built=$(ls "$out"/strips/$pat 2>/dev/null | wc -l)
     [ $rc = 0 ] || note "build_town ended $rc"
     [ $built -gt 0 ] && pyrun "$here/strips_sheet.py" "$(p "$out/sheet_2x.png")" $(ls "$out"/strips/$pat | while read -r f; do p "$f"; done) >>"$log" 2>&1 ;;
