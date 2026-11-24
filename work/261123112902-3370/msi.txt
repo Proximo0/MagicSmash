@@ -1,2 +1,3 @@
 2026-11-24T08:47:54Z INFO id=261123112902-3370 kind=fuzz secs=1389 stopped for a merge after 1388 s
 2026-11-24T09:42:55Z FAIL id=261123112902-3370 kind=fuzz secs=1803 silent for 1800 s: 
+2026-11-24T18:41:06Z INFO id=261123112902-3370 kind=fuzz secs=363 stopped for a merge after 363 s
