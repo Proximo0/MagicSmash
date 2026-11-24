@@ -13,6 +13,10 @@ func opened() -> void:
 	board.upper = true
 	board.max_len = NAME_MAX
 	board.entered.connect(_entered)
+	# A themed name to start with, so ENTER at once will do.
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	board.text = GameNames.themed_account(rng)
 	# The last name used, so a returning player only says YES.
 	var cf := ConfigFile.new()
 	if cf.load("user://login.cfg") == OK and ShellSettings.persist:
@@ -27,6 +31,8 @@ func paint() -> void:
 	button("back", Rect2(20, UiKit.H - 56, 110, 36), "BACK")
 	var ready: bool = board.text.length() >= NAME_MIN and not busy
 	button("go", Rect2(UiKit.W - 150, UiKit.H - 56, 130, 36), "KNOCK" if not busy else "...", ready, false, 16)
+	if ready:
+		UiKit.glow(self, Rect2(UiKit.W - 150, UiKit.H - 56, 130, 36), time)
 	UiKit.text(self, Vector2(UiKit.W / 2.0, 384), "%d to %d letters or digits" % [NAME_MIN, NAME_MAX], 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 
 

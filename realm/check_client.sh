@@ -113,6 +113,16 @@ if [[ "$shell_line" != *"SHELL_TEST ok"* ]]; then
 	fail "shell test"
 fi
 
+# A brand-new player from the title to her first kill with ENTER and one click (tests/onboard_test.gd), against the
+# same gateway: its ONBOARD line (clicks, screens, seconds) goes in the summary.
+timeout 240 "${shell_runner[@]}" "$GODOT" --path client -s res://tests/onboard_test.gd -- --gateway="$gw_addr" --dev-cert="$work/shell.db.dev-cert.pem" >"$work/onboard.log" 2>&1
+onboard_test=$(grep -E "^ONBOARD_TEST|^  FAILED" "$work/onboard.log" | tr '\n' ' ')
+if [[ "$onboard_test" != *"ONBOARD_TEST ok"* ]]; then
+	echo "${onboard_test:-ONBOARD_TEST printed nothing}$(grep -m1 '^ONBOARD ' "$work/onboard.log")"
+	fail "onboarding test"
+fi
+onboard=$(grep -m1 "^ONBOARD " "$work/onboard.log" | cut -d' ' -f2-5 | tr ' ' ',')
+
 ./target/release/realm-server --port="$SERVER_PORT" --bots=300 --monsters=8000 --rally=0.3 --threads=2 --report=60 >"$work/server.log" 2>&1 &
 pids+=($!)
 ./target/release/realm-loadtest --relay="$RELAY_PORT" --to=127.0.0.1:"$SERVER_PORT" --loss=0.05 --delay-ms=80 --jitter-ms=20 --seed=7 >"$work/relay_proc.log" 2>&1 &
@@ -168,4 +178,4 @@ fi
 # The relay reports every 10 s: its last line covers the whole test (to the server / to the clients).
 d_hash=$(line direct | grep -Eo "passed=[0-9]+ failed=[0-9]+")
 r_hash=$(line relay | grep -Eo "passed=[0-9]+ failed=[0-9]+")
-echo "REALM_CLIENT ok $(echo "$gallery" | grep -Eo "sprites=[0-9]+" | sed 's/sprites/gallery_sprites/') $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') $(echo "$shell_line" | grep -Eo "checks=[0-9]+" | sed 's/checks/shell_test_checks/') $(echo "$shell_line" | grep -Eo "shots=[0-9]+" | sed 's/shots/shell_shots/') shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"
+echo "REALM_CLIENT ok $(echo "$gallery" | grep -Eo "sprites=[0-9]+" | sed 's/sprites/gallery_sprites/') $(echo "$field" | grep -Eo "checks=[0-9]+" | sed 's/checks/field_test_checks/') $(echo "$shell_line" | grep -Eo "checks=[0-9]+" | sed 's/checks/shell_test_checks/') $(echo "$shell_line" | grep -Eo "shots=[0-9]+" | sed 's/shots/shell_shots/') onboard: $onboard shots: $shots | server 300x8000 direct: hashes $d_hash sim_ms=$(field direct sim_ms) in_kb_s=$(field direct in_kb_s) stall_ms_max=$(field direct stall_ms_max) | relay 5% loss 80+-20 ms: hashes $r_hash in_kb_s=$(field relay in_kb_s) stall_ms_max=$(field relay stall_ms_max) mispredicts=$(field relay mispredicts) lost=$(grep RELAY "$work/relay_proc.log" | tail -1 | grep -Eo "[0-9.]+%" | paste -sd/ -)"

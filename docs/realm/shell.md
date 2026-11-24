@@ -12,6 +12,24 @@ stations) -> a field gate -> the field client -> out of the gate (south) -> the 
 No screen needs a help text: every button says what it does, the town names a station when you stand at it
 ("[F] THE BANK") and shows what it is for.
 
+### The first ten minutes (onboarding, `tests/onboard_test.gd`)
+
+New account path, no help text: title (ENTER, lit) -> login (a themed name like ASHWICK4821 already spelled; ENTER
+knocks) -> builder (a new account has no hero, so it opens at once: a human knight and a themed name like GRIMWEN are
+chosen, BEGIN is lit, ENTER makes her) -> straight into the town (the hero list is skipped for a first hero) -> the
+field gates pulse and a gold arrow at the screen edge names them; one click on it (or on the gate) walks her there and
+opens them (a click on any far station walks to it now) -> the gates: the field her level suits has the lit ENTER, and
+ENTER key takes it -> the field. ESC goes back on every screen (builder to the hero list, panels close, hero list to the
+title; the town's ESC opens its menu). The test presses only these, counts inputs per screen, and adds 1.5 s of reading
+per input to the real seconds the waits took.
+
+Before (counted from the old screens, not run): about 30 inputs (a name spelled letter by letter twice, the NEW
+card, ENTER TOWN, a walk steered by hand to within 130 px of an unmarked gate, F, ENTER), 7 screens, the gate found
+by hunting. After, measured: `ONBOARD clicks=5 screens=6 secs_to_field=26 secs_to_first_kill=30` (5 inputs: ENTER,
+ENTER, ENTER, one click on the gate arrow, ENTER; 0 decisions; 1 more input in the field to the first kill). Limits
+the test asserts: at most 6 inputs and 6 screens to the field, 0 choices asked, 60 s to the field, 150 s to the first
+kill. `check_client.sh` runs it and prints the numbers in its summary.
+
 `godot --path realm/client -- [--gateway=127.0.0.1:7700]` is the shell. The old flags (`--server`, `--shots`,
 `--bot`, `--fake`, `--zooms`) still start the bare field client, so the lockstep checks and the frame-rate station are
 untouched (`Main` decides).

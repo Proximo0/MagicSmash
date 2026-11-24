@@ -202,27 +202,37 @@ func _run() -> void:
 	await _shot("03_login")
 	_check(login.board.text == "SHELLTEST", "the board spelled the name")
 	await _press("ouija:yes")
-	_check(await _until(func() -> bool: return _shell.base_name == "hero_list"), "the login reaches the hero list")
+	_check(await _until(func() -> bool: return _shell.base_name == "hero_builder"), "a new account's login opens the builder")
 	await _frames(3)
 	_check(_shell.account > 0 and _shell.heroes.is_empty(), "a new account has no heroes")
 	await _shot("04_heroes_empty")
 
-	# The builder.
+	# The builder: a themed name and a knight are already chosen; ESC goes back to the empty hero list, whose empty
+	# card opens it again.
+	var builder: HeroBuilderScreen = _shell.base as HeroBuilderScreen
+	_check(builder.board.text.length() >= 3 and builder.cls == 1 and builder.race == 0, "the builder starts with a name and a class chosen")
+	builder.on_key(_key(KEY_ESCAPE))
+	await _frames(3)
+	_check(_shell.base_name == "hero_list", "ESC leaves the builder for the hero list")
 	await _press("new")
 	await _frames(3)
 	_check(_shell.base_name == "hero_builder", "an empty card opens the builder")
-	var builder: HeroBuilderScreen = _shell.base as HeroBuilderScreen
+	builder = _shell.base as HeroBuilderScreen
 	await _press("race:1")
 	await _press("class:1")
 	await _press("pal:1")
 	await _press("mark:1")
 	_check(builder.race == 1 and builder.cls == 1 and builder.palette == 1 and builder.mark == 1, "race, class and look are chosen")
+	builder.board.text = ""
 	await _press("create")
-	_check(builder.board.text.is_empty() and _shell.heroes.is_empty(), "no hero without a name")
+	_check(_shell.heroes.is_empty(), "no hero without a name")
 	await _type(builder.board, "MIRA")
 	await _shot("05_builder")
 	await _press("create")
-	_check(await _until(func() -> bool: return _shell.base_name == "hero_list" and _shell.heroes.size() == 1), "the hero is made")
+	_check(await _until(func() -> bool: return _shell.base_name == "town" and _shell.heroes.size() == 1), "the hero is made and walks straight into town")
+	await _frames(3)
+	await _press("leave")
+	_check(await _until(func() -> bool: return _shell.base_name == "hero_list"), "HEROES brings the hero list up")
 	await _frames(3)
 	_check(String(_shell.hero.get("name", "")) == "MIRA" and int(_shell.hero["race"]) == 1 and int(_shell.hero["class"]) == 1, "she is an elf knight called MIRA")
 	_check(GameNames.look_palette(int(_shell.hero["look"])) == 1 and GameNames.look_mark(int(_shell.hero["look"])) == 1, "her look is kept")

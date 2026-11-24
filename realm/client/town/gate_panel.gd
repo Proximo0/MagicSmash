@@ -6,6 +6,23 @@ extends PanelBase
 var _entering: bool = false
 
 
+## The field her level suits best: the highest whose first level she has reached.
+func fit_field() -> int:
+	var level: int = int(shell.hero.get("level", 1))
+	var best: int = 0
+	for f in 6:
+		if level >= GameNames.FIELD_LEVELS[f].x:
+			best = f
+	return best
+
+
+func key_body(e: InputEventKey) -> bool:
+	if (e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER) and not _entering:
+		press_body("field:%d" % fit_field())
+		return true
+	return false
+
+
 func opened() -> void:
 	title = "THE FIELD GATES"
 
@@ -30,6 +47,8 @@ func paint_body(inner: Rect2) -> void:
 		if int(ways[f]) >= 0:
 			UiKit.text(self, Vector2(x + 520, ry + 36), "waystone %d known" % (int(ways[f]) + 1), 11, UiKit.GOOD)
 		button("field:%d" % f, Rect2(r.end.x - 130, ry + 10, 118, 36), "ENTER", not _entering, false, 15)
+		if f == fit_field() and not _entering:
+			UiKit.glow(self, Rect2(r.end.x - 130, ry + 10, 118, 36), time)
 
 
 func press_body(id: String) -> void:

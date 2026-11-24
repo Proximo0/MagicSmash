@@ -252,8 +252,11 @@ func login(name: String) -> String:
 	var err: String = await refresh_heroes()
 	if not err.is_empty():
 		return err
-	var s := HeroListScreen.new()
-	show_base(s, "hero_list")
+	# A new account has nothing to choose from: the builder opens at once (its way back is the hero list).
+	if heroes.is_empty():
+		show_base(HeroBuilderScreen.new(), "hero_builder")
+		return ""
+	show_base(HeroListScreen.new(), "hero_list")
 	return ""
 
 

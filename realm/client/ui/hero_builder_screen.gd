@@ -12,11 +12,18 @@ var cls: int = 1
 var palette: int = 0
 var mark: int = 0
 var busy: bool = false
+## The name on the board is the generated one until she types: her first letter replaces it.
+var _fresh: bool = false
 
 
 func opened() -> void:
 	board.upper = true
 	board.max_len = NAME_MAX
+	# A themed name already spelled, a knight already chosen: BEGIN (or ENTER) makes a hero at once.
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	board.text = GameNames.themed_name(rng)
+	_fresh = true
 	board.entered.connect(func(_t: String) -> void: create())
 
 
@@ -49,6 +56,8 @@ func paint() -> void:
 	button("back", Rect2(20, UiKit.H - 52, 100, 34), "BACK")
 	var ok: bool = _name_ok() and not busy
 	button("create", Rect2(UiKit.W - 120, UiKit.H - 52, 110, 34), "BEGIN" if not busy else "...", ok, false, 16)
+	if ok:
+		UiKit.glow(self, Rect2(UiKit.W - 120, UiKit.H - 52, 110, 34), time)
 
 
 func _name_ok() -> bool:
@@ -60,6 +69,10 @@ func _name_ok() -> bool:
 
 
 func on_press(id: String) -> void:
+	if _fresh and id.begins_with("ouija:") and id != "ouija:yes" and id != "ouija:no":
+		board.text = ""
+	if id.begins_with("ouija:") and id != "ouija:yes":
+		_fresh = false
 	if board.press(id):
 		return
 	if id.begins_with("race:"):
@@ -80,6 +93,13 @@ func on_key(e: InputEventKey) -> bool:
 	if e.keycode == KEY_ESCAPE:
 		shell.show_base(HeroListScreen.new(), "hero_list")
 		return true
+	var enter: bool = e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER
+	if _fresh and not enter and e.unicode > 31 and e.unicode < 127:
+		var up: String = char(e.unicode).to_upper()
+		if OuijaBoard.ROW1.contains(up) or OuijaBoard.ROW2.contains(up) or OuijaBoard.ROW3.contains(up):
+			board.text = ""
+	if not enter:
+		_fresh = false
 	return board.key(e)
 
 
@@ -94,5 +114,14 @@ func create() -> void:
 	if not err.is_empty():
 		busy = false
 		say(err, true)
+		return
+	# Her first hero goes straight into the town: the hero list has nothing to choose between yet (ESC from the
+	# town's menu, or HEROES, brings it up).
+	if shell.heroes.size() == 1:
+		var town_err: String = await shell.enter_town()
+		if town_err.is_empty():
+			return
+		shell.show_base(HeroListScreen.new(), "hero_list")
+		shell.base.say(town_err, true)
 		return
 	shell.show_base(HeroListScreen.new(), "hero_list")

@@ -67,6 +67,8 @@ var ticket: int = 0
 ## The ticket's 16-byte secret (FIELD_TICKET's "key"), sent in the HELLO.
 var ticket_key: PackedByteArray = PackedByteArray()
 var script_move: int = -1
+## The buttons a script holds (BTN_SKILL1 and the like), as a player's held keys; -1 leaves the keyboard alone.
+var script_buttons: int = -1
 var _warn_text: String = ""
 var _warn_until: float = 0.0
 
@@ -476,6 +478,8 @@ func _read_keys(now: float) -> void:
 		_buttons = held_buttons(func(a: String) -> bool: return ShellSettings.held(a))
 	if script_move >= 0:
 		_move = script_move
+	if script_buttons >= 0:
+		_buttons = script_buttons
 	if _move in [4, 5, 6]:
 		_hero.hero_flip = true
 	elif _move in [1, 2, 8]:
