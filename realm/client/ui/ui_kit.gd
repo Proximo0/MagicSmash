@@ -162,6 +162,13 @@ static func button_box(ci: CanvasItem, r: Rect2, label: String, hover: bool, ena
 	text(ci, Vector2(r.position.x + r.size.x / 2.0, r.position.y + (r.size.y - font().get_height(size)) / 2.0), label, size, col, HORIZONTAL_ALIGNMENT_CENTER)
 
 
+## A slow gold pulse round a rectangle: the thing to do next (the way out of town, the field to enter).
+static func glow(ci: CanvasItem, r: Rect2, t: float) -> void:
+	var k: float = 0.5 + 0.5 * sin(t * 4.0)
+	ci.draw_rect(r.grow(3.0 + 3.0 * k), Color(GOLD, 0.25 + 0.55 * k), false, 2.0)
+	ci.draw_rect(r.grow(8.0 + 5.0 * k), Color(GOLD, 0.12 + 0.2 * k), false, 1.0)
+
+
 ## A flickering candle, for the title and the card reader.
 static func candle(ci: CanvasItem, at: Vector2, t: float, seed_: float = 0.0) -> void:
 	var fl: float = 0.85 + 0.15 * sin(t * 9.0 + seed_) * sin(t * 5.3 + seed_ * 2.0)

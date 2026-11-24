@@ -26,6 +26,7 @@ func paint() -> void:
 	UiKit.text(self, Vector2(UiKit.W / 2.0, 300), "HORDE & HEARTH", 60, UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
 	UiKit.text(self, Vector2(UiKit.W / 2.0, 366), "keep the fire lit, and the dead outside", 18, UiKit.BLOOD_BRIGHT, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
 	button("enter", Rect2(380, 410, 200, 40), "ENTER", true, false, 18)
+	UiKit.glow(self, Rect2(380, 410, 200, 40), time)
 	button("settings", Rect2(380, 458, 96, 32), "SETTINGS", true, false, 13)
 	button("quit", Rect2(484, 458, 96, 32), "QUIT", true, false, 13)
 	var addr: String = "%s:%d" % [shell.gateway_host, shell.gateway_port] if shell != null else ""

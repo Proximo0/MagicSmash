@@ -43,6 +43,8 @@ var stations: Array[Dictionary] = []
 ## Which floor of her house is drawn (0 or 1).
 var floor_no: int = 0
 var _rest_poll: float = 0.0
+## The station she was sent walking to by a click (the walk ends at its door, which opens).
+var _walk_to: String = ""
 ## The plaza's cobbles (tools/ground/ground.py `town`), a child drawn behind this screen's own drawing.
 var _soil: FieldGround = null
 
@@ -124,12 +126,41 @@ func _process(delta: float) -> void:
 		_soil.position = w2s(Vector2.ZERO)
 
 
+## True while the way out of town is lit: a hero who has not yet been out on a field and is still level 1, on the
+## plaza. The gate pulses and an arrow at the screen's edge points to it; a click on either walks her there.
+func gate_lit() -> bool:
+	return int(shell.place[0]) == HomeMap.PLAZA and shell.last_outing.is_empty() and int(shell.hero.get("level", 1)) <= 1 and not TownMap.station("gate", stations).is_empty()
+
+
+## The walk a click on a far station starts: a heading each frame toward it, until a key is held (hers wins) or
+## she is at its door, where it opens.
+func _walk_dir() -> int:
+	var s: Dictionary = TownMap.station(_walk_to, stations)
+	if s.is_empty() or not members.has(me):
+		_walk_to = ""
+		return 0
+	var d: Vector2 = (s["at"] as Vector2) - shown(me)
+	if d.length() <= TownMap.USE_PX * 0.6:
+		var sid: String = _walk_to
+		_walk_to = ""
+		open_station(sid)
+		return 0
+	const DEAD: float = 24.0
+	return RealmClient._dir_code(0 if absf(d.x) < DEAD else int(signf(d.x)), 0 if absf(d.y) < DEAD else int(signf(d.y)))
+
+
 func _send_direction() -> void:
 	var d: int = 0
 	if not typing and shell.top() == self:
 		var dx: int = int(ShellSettings.held("right")) - int(ShellSettings.held("left"))
 		var dy: int = int(ShellSettings.held("down")) - int(ShellSettings.held("up"))
 		d = RealmClient._dir_code(dx, dy)
+		if d != 0:
+			_walk_to = ""
+		elif not _walk_to.is_empty():
+			d = _walk_dir()
+	elif not _walk_to.is_empty():
+		_walk_to = ""
 	if d != last_dir:
 		last_dir = d
 		shell.link.send_only(GwWire.town_input(d))
@@ -286,6 +317,8 @@ func _station(s: Dictionary) -> void:
 		return
 	var r: Rect2 = _station_rect(s)
 	var id: String = "st:" + String(s["id"])
+	if s["id"] == "gate" and gate_lit():
+		UiKit.glow(self, r, _clock)
 	var near_it: bool = not _prompt.is_empty() and _prompt["id"] == s["id"]
 	hit(id, r)
 	if UiArt.has_file("town_" + String(s["id"])):
@@ -373,6 +406,7 @@ func _hud() -> void:
 	button("social", Rect2(UiKit.W - 90, 44, 80, 26), "CHAT" + (" *" if not shell.invites.is_empty() else ""), true, false, 12)
 	_place_hud()
 	_duel_hud()
+	_gate_arrow()
 	if not _prompt.is_empty():
 		var s: String = "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(_prompt["name"])]
 		var w: float = UiKit.text_width(s, 18) + 30.0
@@ -380,6 +414,24 @@ func _hud() -> void:
 		hit("prompt", pr)
 		UiKit.frame(self, pr, UiKit.GOLD, Color(0.1, 0.04, 0.04, 0.95))
 		UiKit.text(self, pr.position + Vector2(w / 2.0, 6), s, 18, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## The lit way out: a bobbing gold arrow on the screen's edge toward the field gates (hidden once they are in view).
+func _gate_arrow() -> void:
+	if not gate_lit() or not _walk_to.is_empty():
+		return
+	var c: Vector2 = w2s(TownMap.station("gate", stations)["at"])
+	if c.y < UiKit.H - 30.0 and c.y > 40.0 and c.x > 0.0 and c.x < UiKit.W:
+		return
+	var at := Vector2(clampf(c.x, 90.0, UiKit.W - 90.0), UiKit.H - 70.0 + 6.0 * sin(_clock * 4.0))
+	if c.y < 40.0:
+		at.y = 120.0
+	var pr := Rect2(at - Vector2(100, 22), Vector2(200, 56))
+	hit("gate_arrow", pr)
+	UiKit.frame(self, pr, UiKit.GOLD, Color(0.1, 0.04, 0.04, 0.9))
+	UiKit.text(self, at + Vector2(0, -16), "THE FIELD GATES", 14, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	var dirn: float = -1.0 if c.y < 40.0 else 1.0
+	draw_colored_polygon(PackedVector2Array([at + Vector2(-12, 6 * dirn), at + Vector2(12, 6 * dirn), at + Vector2(0, 22 * dirn)]), UiKit.GOLD)
 
 
 ## A duel running or a challenge waiting shows under the hero's card; a challenge is answered on THE DUEL RING's
@@ -442,9 +494,11 @@ func on_press(id: String) -> void:
 		if shown(me).distance_to(s["at"]) <= TownMap.CLICK_PX:
 			open_station(sid)
 		else:
-			say("WALK CLOSER TO " + String(s["name"]))
+			_walk_to = sid
 		return
 	match id:
+		"gate_arrow":
+			_walk_to = "gate"
 		"prompt":
 			if not _prompt.is_empty():
 				open_station(String(_prompt["id"]))

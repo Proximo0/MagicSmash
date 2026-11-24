@@ -311,3 +311,18 @@ static func commas(n: int) -> String:
 		out = "," + s.substr(i - 3, 3) + out
 		i -= 3
 	return ("-" if n < 0 else "") + s.substr(0, i) + out
+
+
+const NAME_HEADS: Array[String] = ["MOR", "GRIM", "ASH", "VEX", "KORR", "SABLE", "THORN", "NYX", "BRAN", "CRYPT", "HOLLOW", "RAVEN", "WYRD", "DUSK", "ELDR", "MALA"]
+const NAME_TAILS: Array[String] = ["WEN", "HILD", "MORE", "IC", "OTH", "ANE", "WICK", "GAR", "LITH", "VEN", "MIR", "UND"]
+
+
+## A themed starting name that the builder accepts (3 to 16 letters, the first a letter): "GRIMWEN". Not part of
+## the sim, so any RNG will do; the caller passes its own so a test can seed it.
+static func themed_name(rng: RandomNumberGenerator) -> String:
+	return NAME_HEADS[rng.randi() % NAME_HEADS.size()] + NAME_TAILS[rng.randi() % NAME_TAILS.size()]
+
+
+## A themed account name for the dev login: a head, a tail and four digits ("ASHWICK4821"), at most 16 characters.
+static func themed_account(rng: RandomNumberGenerator) -> String:
+	return themed_name(rng) + str(1000 + rng.randi() % 9000)

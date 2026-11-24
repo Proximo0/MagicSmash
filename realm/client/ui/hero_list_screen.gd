@@ -53,6 +53,8 @@ func paint() -> void:
 			_paint_back(i, r)
 	var chosen: bool = not shell.hero.is_empty() and not bool(shell.hero.get("deleted", false))
 	button("enter", Rect2(UiKit.W / 2.0 - 110, 408, 220, 42), "ENTER TOWN", chosen and not busy, false, 18)
+	if chosen and not busy:
+		UiKit.glow(self, Rect2(UiKit.W / 2.0 - 110, 408, 220, 42), time)
 	button("delete", Rect2(UiKit.W / 2.0 - 70, 458, 140, 30), "SURE?" if _sure_until > time else "DELETE", chosen, _sure_until > time, 13)
 	button("back", Rect2(20, UiKit.H - 52, 120, 34), "LEAVE")
 	if not gone.is_empty():
@@ -144,8 +146,8 @@ func on_key(e: InputEventKey) -> bool:
 	if e.keycode == KEY_ESCAPE:
 		shell.logout()
 		return true
-	if e.keycode == KEY_ENTER and not shell.hero.is_empty():
-		on_press("enter")
+	if e.keycode == KEY_ENTER or e.keycode == KEY_KP_ENTER:
+		on_press("enter" if not shell.hero.is_empty() else "new")
 		return true
 	if e.keycode == KEY_LEFT or e.keycode == KEY_RIGHT:
 		var idx: int = -1
