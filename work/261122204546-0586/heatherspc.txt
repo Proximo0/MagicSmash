@@ -1,3 +1,4 @@
 2026-11-22T22:45:03Z INFO id=261122204546-0586 kind=shell secs=7 sysinfo ram=8013MB free=3922MB page=512MB page_used=103MB cores=4 disk_free_gb=C:91 gpu=[none-or-not-nvidia] top3=[claude:853 svchost:766 Memory:419]
 2026-11-23T06:04:43Z INFO id=261122204546-0586 kind=shell secs=7 sysinfo ram=8013MB free=3448MB page=512MB page_used=93MB cores=4 disk_free_gb=C:89 gpu=[none-or-not-nvidia] top3=[claude:954 svchost:880 MsMpEng:350]
 2026-11-23T17:11:51Z INFO id=261122204546-0586 kind=shell secs=7 sysinfo ram=8013MB free=3091MB page=512MB page_used=104MB cores=4 disk_free_gb=C:89 gpu=[none-or-not-nvidia] top3=[claude:977 svchost:890 chrome:494]
+2026-11-24T05:27:21Z INFO id=261122204546-0586 kind=shell secs=11 sysinfo ram=8013MB free=3410MB page=512MB page_used=55MB cores=4 disk_free_gb=C:89 gpu=[none-or-not-nvidia] top3=[claude:1123 svchost:913 chrome:461]
