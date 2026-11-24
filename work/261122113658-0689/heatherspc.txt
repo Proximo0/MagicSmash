@@ -8,3 +8,4 @@
 2026-11-24T07:11:37Z INFO id=261122113658-0689 kind=soak secs=233 stopped for a merge after 233 s
 2026-11-24T07:50:26Z INFO id=261122113658-0689 kind=soak secs=1201 stopped for a merge after 1201 s
 2026-11-24T08:07:48Z INFO id=261122113658-0689 kind=soak secs=377 stopped for a merge after 376 s
+2026-11-24T08:37:25Z INFO id=261122113658-0689 kind=soak secs=1026 stopped for a merge after 1026 s
