@@ -36,7 +36,8 @@ func _check(cond: bool, what: String) -> void:
 ## False (and the run ends with a FAILED line naming why) when the outing ended by itself: `last_outing.left` is
 ## 0 gate, 1 waystone, 2 disconnect (the host's 5 s silence timeout), 3 kicked, 4 shutdown, 5 vault, 6 host lost,
 ## 7 ticket unused; an empty last_outing with the shell back means the gateway link was lost.
-func _field_alive(client: Node, when: String) -> bool:
+## `client` is untyped: a freed node passed to a typed Node argument is a script error that hangs the test (24 Nov, a busy station).
+func _field_alive(client: Variant, when: String) -> bool:
 	if is_instance_valid(client) and _shell.in_field and _shell.field_client == client:
 		return true
 	_check(false, "the outing ended by itself %s: last_outing=%s in_field=%s base=%s" % [when, str(_shell.last_outing), str(_shell.in_field), _shell.base_name])
