@@ -1170,7 +1170,26 @@ impl Gateway {
             f.kept = true;
             now.push(f);
         }
-        Some(deliver(&*self.store, Meta::new(id, 0, now_ms()), hero, &now))
+        drop(loot);
+        let d = deliver(&*self.store, Meta::new(id, 0, now_ms()), hero, &now);
+        // The chest's coin is banked for her ticket like a flush's: her Outing pushes (now, and the last one) count
+        // it, or the coin in her bag is more than she was ever told (the station's `hero 126: store 210708, reported
+        // 210087`, with no bot error).
+        let coin: u64 = d.stacks.iter().filter(|s| s.0 == StackKind::COIN).map(|s| s.1).sum();
+        if coin > 0 {
+            let out = self.tickets.lock().unwrap().get_mut(&ticket).map(|t| {
+                t.coin += coin;
+                (t.coin, t.xp, t.levels, t.potions)
+            });
+            let tx = match self.locs.lock().unwrap().get(&hero) {
+                Some(Loc::Field { ticket: t, out }) if *t == ticket => Some(out.clone()),
+                _ => None,
+            };
+            if let (Some(tx), Some((coin, xp, levels, potions))) = (tx, out) {
+                let _ = tx.send(resp_frame(0, &Resp::Outing { hero, coin, xp, levels, potions, left: 255 }));
+            }
+        }
+        Some(d)
     }
 
     /// Is this hero in a town or a field right now?
@@ -1196,7 +1215,8 @@ impl Gateway {
             return;
         }
         self.loot.lock().unwrap().remove(&ticket);
-        self.tickets.lock().unwrap().remove(&ticket);
+        // Coin a chest banked for the ticket (`reward`) is still told.
+        let coin = self.tickets.lock().unwrap().remove(&ticket).map_or(0, |t| t.coin);
         let tx = {
             let mut locs = self.locs.lock().unwrap();
             match locs.get(&(hero as i64)) {
@@ -1210,7 +1230,7 @@ impl Gateway {
         };
         // Her client learns the ticket went unused (never entered: expired, or the vault was full or closing).
         if let Some(tx) = tx {
-            let _ = tx.send(resp_frame(0, &Resp::Outing { hero: hero as i64, coin: 0, xp: 0, levels: 0, potions: 0, left: LEFT_UNUSED }));
+            let _ = tx.send(resp_frame(0, &Resp::Outing { hero: hero as i64, coin, xp: 0, levels: 0, potions: 0, left: LEFT_UNUSED }));
         }
     }
 

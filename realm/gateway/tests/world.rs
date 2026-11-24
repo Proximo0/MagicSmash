@@ -399,6 +399,53 @@ fn a_reward_rolls_a_chest_for_each_hero_with_a_ticket() {
 }
 
 #[test]
+fn a_chests_coin_is_in_the_coin_her_outing_push_reports() {
+    // The station's 2-hour world proof: `hero 126: store 210708, reported 210087` with no bot error. A tide's cache,
+    // a boss's, the world's or a vault's chest mints coin straight into her bag (`Gateway::reward`), outside her
+    // outing's flushes, so the Outing push (the coin banked for the ticket, which a bot reports and the client shows)
+    // never held it. It is banked for the ticket, so it is told in her pushes now: at once (left 255) and in the last.
+    let r = realm("chest-coin", quick(CopyRules::default()), 1);
+    let mut c = login(&r, "coiner");
+    let h = hero(&mut c, "Coiner", 3);
+    level_up(&r, h, 30);
+    let ticket = match c.call(Req::World(WReq::BotTicket { hero: h, field: 0, ticks: 1_000_000 })).unwrap() {
+        Resp::Ticket { ticket, .. } => ticket,
+        r => panic!("{r:?}"),
+    };
+    // In the field (her host plays her), so her outing's own flushes bank coin too and the last push is a recall's.
+    assert!(wait_until(STALL_SECS, || r.gw.world_members().iter().any(|m| m.4.contains(&(h as u64)))), "she never entered the field");
+    let cr = Credited { hero: h as u64, ticket, slot: 0, luck: 0 };
+    let batch = |kind: u8, index: u32| RewardBatch { host: 1, field_seed: 5, tick: 900, index, kind, source: 0, level: 10, seals: 3, boss: 0, vault: 0, heroes: vec![(cr, 5_000)] };
+    for (i, kind) in [realm_core::tables::R_TIDE_CACHE, R_BOSS_CHEST, realm_core::tables::R_WORLD_EPIC, R_VAULT_CHEST].into_iter().enumerate() {
+        let before = coin(&r, h);
+        r.gw.on_reward(batch(kind, 10 + i as u32));
+        let got = coin(&r, h) - before;
+        assert!(got > 0, "reward kind {kind} pays coin");
+        // Told at once: a push of the ticket's banked coin, the chest's included.
+        let told = c.wait_push(Duration::from_secs(5), |p| match p {
+            Resp::Outing { hero, coin, left: 255, .. } if *hero == h => Some(*coin),
+            _ => None,
+        });
+        assert!(told.unwrap().is_some_and(|t| t >= got), "reward kind {kind}: {got} coin and no push telling it");
+    }
+    assert_eq!(r.gw.world.stats().chests, 4);
+    let _ = c.call(Req::World(WReq::Recall { hero: h })).unwrap();
+    let end = Instant::now() + Duration::from_secs(STALL_SECS);
+    let mut last = None;
+    while last.is_none() && Instant::now() < end {
+        last = c
+            .wait_push(Duration::from_millis(200), |p| match p {
+                Resp::Outing { hero, coin, left, .. } if *hero == h && *left != 255 => Some((*coin, *left)),
+                _ => None,
+            })
+            .unwrap();
+    }
+    let (reported, left) = last.expect("her outing ended");
+    assert_ne!(left, realm_gateway::gateway::LEFT_UNUSED, "she was in the field");
+    assert_eq!(coin(&r, h), reported, "the coin in her bag is the coin her outing reported (chests included)");
+}
+
+#[test]
 fn the_board_counts_down_every_field_and_the_world_boss() {
     let r = realm("board", quick(CopyRules::default()), 1);
     let mut c = login(&r, "reader");
