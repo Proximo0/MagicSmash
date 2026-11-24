@@ -706,7 +706,7 @@ lanes_busy() {  # how many lanes run a job now (files of live lanes; a dead lane
     if q_lane_live_f "$f"; then n=$((n + 1)); else rm -f "$f"; fi
   done; echo $n
 }
-q_snap_dir() { printf %s "$Q_GD/station_bin/$(git rev-parse --short=12 HEAD 2>/dev/null || echo none)"; }
+q_snap_dir() { printf %s "$(cd "$Q_GD" 2>/dev/null && pwd || echo "$Q_GD")/station_bin/$(git rev-parse --short=12 HEAD 2>/dev/null || echo none)"; }   # absolute: shell jobs cd into realm/ before running from it
 # q_build_all: the one build of a commit for every lane, run by the station between merge jobs and lane starts. Builds realm and the
 # store (the same command as the merge jobs and deep, so a build already done is a no-op), copies every realm-* program into
 # $Q_GD/station_bin/<commit>/ and starts one (realm-store --help) to see that this PC lets it run. While it builds it holds
@@ -736,7 +736,7 @@ q_build_all() {
   if [ $rc = 126 ]; then rm -rf "$tmp"; echo "$head refused" >"$Q_GD/station_sac"; echo "REFUSED $head $(q_now) this PC refuses programs built here" >"$Q_GD/station_build.state"; echo "queue: this PC refuses programs built here (status 126): only jobs that run signed programs"; return 1; fi
   if [ $rc != 0 ]; then rm -rf "$tmp"; echo "FAIL $head $(q_now) build: $(tail -3 "$Q_GD/station_build.log" 2>/dev/null | tr -d '\r' | tr '\n' ' ' | cut -c1-300)" >"$Q_GD/station_build.state"; echo "queue: the build of ${head:0:7} failed; jobs that need it wait"; return 1; fi
   rm -rf "$snap"; mv "$tmp" "$snap"; touch "$snap/.ok"; Q_SNAP=$snap; echo "OK $head $(q_now)" >"$Q_GD/station_build.state"
-  for f in "$Q_GD"/station_bin/*; do   # old commits' copies, unless a live lane still runs from one (Windows cannot delete a running program)
+  for f in "$(dirname "$snap")"/*; do   # old commits' copies, unless a live lane still runs from one (Windows cannot delete a running program)
     [ "$f" = "$snap" ] && continue; grep -qs "snap=$f\( \|$\)" $(for l in "$Q_LD"/[0-9]*; do case "$l" in *.cool|*.log) ;; *) q_lane_live_f "$l" && echo "$l" ;; esac; done) /dev/null && continue
     rm -rf "$f" 2>/dev/null
   done
