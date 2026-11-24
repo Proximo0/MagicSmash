@@ -179,6 +179,14 @@ q_skip() {  # $1 = id, $2 = why: one SKIP line on stderr per job and half an hou
   last=$(awk -v k="$1" '$1 == k { t = $2 } END { print t }' "$f" 2>/dev/null)
   [ -n "$last" ] && [ $((now - last)) -lt "${STATION_QUEUE_SKIP_NOTE_S:-1800}" ] && return 0
   echo "$1 $now" >>"$f"; echo "SKIP queue job $1: $2" >&2
+  printf '%s %s\n' "$now" "$2" >"$Q_GD/station_lastskip" 2>/dev/null   # the heartbeat says why lanes stand idle
+  return 0
+}
+q_idle_why() {  # for the heartbeat: free RAM and the newest SKIP reason of the last hour, one short field each
+  local t w now; now=$(q_now); q_free_mb_set 2>/dev/null; printf ' free_mb=%s' "${Q_FREE_MB:-?}"
+  read -r t w <"$Q_GD/station_lastskip" 2>/dev/null || return 0
+  [ $((now - ${t:-0})) -lt 3600 ] && printf ' last_skip="%s"' "$(printf %s "$w" | tr -d '"\r' | cut -c1-120)"
+  return 0
 }
 # ---- Smart App Control and programs built here -------------------------------------------------------------------------------------
 # q_ownbin: does the loaded job (J_*) start a program this station compiled (realm binaries, cargo test, the Godot module)? Built-in kinds
