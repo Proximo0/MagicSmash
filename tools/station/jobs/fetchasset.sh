@@ -11,4 +11,7 @@ url=$(awk -v n="$name" '$1==n && $2 ~ /^https:\/\//{print $2; exit}' "$here/asse
 art="${STATION_JOB_ART:-${TMPDIR:-/tmp}}"; mkdir -p "$art"
 out="$art/asset-$name"
 curl -fsSL --max-time 600 --max-filesize 60000000 -A "Mozilla/5.0" -o "$out" "$url" || { echo "fetchasset FAILED: $name could not be downloaded"; exit 1; }
+if head -c 512 "$out" | tr -d '\r\n\t ' | grep -qiE '^(<!doctype|<html)'; then   # a web page (quota, sign-in, error) instead of the file
+  echo "fetchasset FAILED: $name came back as a web page: $(grep -oiE '<title>[^<]*' "$out" | head -1 | cut -c8-100)"; rm -f "$out"; exit 1
+fi
 echo "fetchasset ok name=$name bytes=$(wc -c <"$out" | tr -d ' ') sha256=$(sha256sum "$out" | cut -c1-16)"
