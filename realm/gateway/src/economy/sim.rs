@@ -100,11 +100,17 @@ fn kill_coin(level: u16) -> u64 {
     3 * (100 + 12 * (level as u64 - 1)) / 100
 }
 
-struct Counters(Mutex<BTreeMap<String, u64>>);
+#[derive(Default)]
+struct Counters(Mutex<BTreeMap<String, u64>>, Mutex<BTreeMap<String, String>>);
 
 impl Counters {
     fn add(&self, k: &str, n: u64) {
         *self.0.lock().unwrap().entry(k.to_string()).or_insert(0) += n;
+    }
+    /// Counts one failure and keeps the text of the first, so a FAIL line can say what failed.
+    fn fail(&self, k: &str, text: impl FnOnce() -> String) {
+        self.add(k, 1);
+        self.1.lock().unwrap().entry(k.to_string()).or_insert_with(text);
     }
 }
 
@@ -148,6 +154,8 @@ pub struct Report {
     pub classes: Vec<ClassRow>,
     pub totals: super::Totals,
     pub counters: BTreeMap<String, u64>,
+    /// The first error text behind a counter (an outing the store refused, an INTERNAL economy reply).
+    pub first_errors: BTreeMap<String, String>,
     pub flows: Vec<(String, String, bool, i64, i64)>,
     pub items_live: i64,
     pub ledger_rows: i64,
@@ -212,8 +220,8 @@ impl Sim {
         self.count.add(&format!("n_{name}"), 1);
         match resp {
             Resp::Econ(e) => Ok(e),
-            Resp::Err { code, .. } => {
-                self.count.add(&format!("err{code}"), 1);
+            Resp::Err { code, msg } => {
+                self.count.fail(&format!("err{code}"), || format!("{name}: {msg}"));
                 Err(code)
             }
             _ => Err(0),
@@ -285,12 +293,11 @@ impl Sim {
             reqs.push(Request { id: m.id, actor: 0, now, cmd: Cmd::Outing { hero: b.hero, delta } });
             who.push(i);
         }
-        let _ = day;
         for chunk in reqs.chunks(500) {
             let res = self.store.submit_batch(chunk.to_vec());
             for r in res {
                 if let Err(e) = r {
-                    self.count.add("outing_failed", 1);
+                    self.count.fail("outing_failed", || format!("day {day}: {e:?}"));
                     if self.count.0.lock().unwrap().get("outing_failed").copied().unwrap_or(0) < 5 {
                         eprintln!("outing failed: {e:?}");
                     }
@@ -824,7 +831,7 @@ pub fn run(cfg: &Config) -> Report {
         ids: accounts.iter().zip(&heroes).map(|(a, h)| (*a, *h)).collect(),
         ratios: Mutex::new(HashMap::new()),
         now: AtomicI64::new(EPOCH),
-        count: Counters(Mutex::new(BTreeMap::new())),
+        count: Counters::default(),
         secret: cfg.seed ^ 0x5EC,
     };
     let _ = FIELDS.len();
@@ -875,6 +882,7 @@ pub fn run(cfg: &Config) -> Report {
     report.secs = started.elapsed().as_secs_f64();
     report.totals = eco.totals();
     report.counters = sim.count.0.lock().unwrap().clone();
+    report.first_errors = sim.count.1.lock().unwrap().clone();
     report.flows = store.coin_flows().unwrap_or_default();
     let windows = cfg.days.div_ceil(WINDOW_DAYS).max(1);
     for rarity in 0..5u8 {
@@ -946,9 +954,10 @@ impl Report {
         if self.farm_hops > 0 {
             f.push(format!("{} onward hops from trade-locked accounts", self.farm_hops));
         }
-        for k in ["outing_failed"] {
+        for k in ["outing_failed", "err15"] {
             if let Some(n) = self.counters.get(k) {
-                f.push(format!("{k}: {n}"));
+                let first = self.first_errors.get(k).map_or(String::new(), |t| format!(" (first: {t})"));
+                f.push(format!("{k}: {n}{first}"));
             }
         }
         f
