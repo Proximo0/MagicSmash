@@ -3,3 +3,5 @@
 quaternius-home https://quaternius.com/
 quaternius-animals https://quaternius.com/packs/ultimateanimatedanimals.html
 quaternius-animals-drive https://drive.google.com/drive/folders/1uJ3N5HfB7jKTseJUNQr3N4YaN0UuEtHk?usp=sharing  # CC0 (pack page links here); folder listing, to find the horse file id
+quaternius-animals-gltf https://drive.google.com/drive/folders/1yJXdB1iSrI8Db7hG77zxZ66vKsqIt0ry  # CC0; the pack's glTF subfolder listing (horse file id)
+quaternius-animals-licence https://drive.google.com/uc?export=download&id=1F2uy8T2fRpdc6gZ4mnS02_C2E63WvKtn  # the pack's License.txt

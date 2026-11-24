@@ -117,7 +117,7 @@ case "$set" in
       esac
       rc=$?
       [ $rc = 0 ] && FLIP=1 pyrun "$here/post.py" "$(p "$raw")" "$(p "$out/strips")" "$name" >>"$out/log_$name.txt" 2>&1; rc=$?
-      if [ $rc = 0 ]; then built=$((built + 1)); note "ok $name"; else note "FAILED $name rc=$rc: $(tail -2 "$out/log_$name.txt" | tr -d '\r' | tr '\n' ' ' | cut -c1-300)"; fi
+      if [ $rc = 0 ]; then built=$((built + 1)); note "ok $name"; else tail -80 "$out/log_$name.txt" >"$art/log_$name.txt" 2>/dev/null; note "FAILED $name rc=$rc: $(tail -2 "$out/log_$name.txt" | tr -d '\r' | tr '\n' ' ' | cut -c1-300)"; fi
     done <"$here/bosses.txt"
     # contact sheets: import into a scratch art dir, then review_bosses.py (2x, edge checks)
     if [ $built -gt 0 ]; then
@@ -138,7 +138,7 @@ case "$set" in
         ( export RACE=$r RES=576 ORTHO=4.59 YAW=-70 ELEV=20 SAMPLES=24; run "$STEP" "$here/build_hero.py" "$(p "$body")" "$(p "$chars/$pack.glb")" "$(p "$raw")" "$kit" "$acts" ) >"$out/log_${r}_$kit.txt" 2>&1
         rc=$?
         [ $rc = 0 ] && FLIP=1 pyrun "$here/post.py" "$(p "$raw")" "$(p "$out/strips")" "hero_${r}_$kit" >>"$out/log_${r}_$kit.txt" 2>&1; rc=$?
-        if [ $rc = 0 ]; then built=$((built + 1)); note "ok $r $kit"; else note "FAILED $r $kit rc=$rc: $(tail -2 "$out/log_${r}_$kit.txt" | tr -d '\r' | tr '\n' ' ' | cut -c1-300)"; fi
+        if [ $rc = 0 ]; then built=$((built + 1)); note "ok $r $kit"; else tail -80 "$out/log_${r}_$kit.txt" >"$art/log_${r}_$kit.txt" 2>/dev/null; note "FAILED $r $kit rc=$rc: $(tail -2 "$out/log_${r}_$kit.txt" | tr -d '\r' | tr '\n' ' ' | cut -c1-300)"; fi
       done <"$here/classes.txt"
     done
     ls "$out"/strips/*_walk.png >/dev/null 2>&1 && pyrun "$here/strips_sheet.py" "$(p "$out/sheet_2x.png")" $(ls "$out"/strips/*_walk.png | while read -r f; do p "$f"; done) >>"$log" 2>&1 ;;
