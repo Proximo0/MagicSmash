@@ -189,10 +189,18 @@ func _ready() -> void:
 		_scripted()
 
 
+## The bare client's flags. Embedded, the command line is the shell's (shell_test.gd runs with --shots for its own
+## screenshots): only the view flags count, or --shots would make the shell's field the scripted bot, wandering
+## south through the gate (24 Nov, a busy station: the outing ended by the gate while the test idled).
+const EMBEDDED_FLAGS: PackedStringArray = ["zoom", "debug", "mute"]
+
+
 func _parse_args() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		var v: String = kv[1] if kv.size() > 1 else ""
+		if embedded and not EMBEDDED_FLAGS.has(kv[0]):
+			continue
 		match kv[0]:
 			"server":
 				var hp := v.split(":")
