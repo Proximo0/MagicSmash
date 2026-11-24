@@ -481,7 +481,9 @@ qk_fuzz() {  # args: seeds=A-B ops=N kills=N lanes=N. realm-store fuzz per seed,
     pids=""
     for ((i = 0; i < lanes && $# > 0; i++)); do
       s=$1; shift; batch+=" $s"
-      ( q_run "$Q_WD/fuzz.$s" timeout -k 30 "$(q_left)" "$Q_SBIN"/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s"; echo $? >"$Q_WD/rc.$s" ) &
+      # -v: a line per killed child, so a 400,000-op seed (two hours on a busy PC) is not stopped by the silence check (MSI
+      # 24 Nov: "silent for 1800 s" twice); the result line stays last.
+      ( q_run "$Q_WD/fuzz.$s" timeout -k 30 "$(q_left)" "$Q_SBIN"/realm-store fuzz --seed=$s --ops=$ops --kills=$kills --dir="$Q_WD/fz$s" -v; echo $? >"$Q_WD/rc.$s" ) &
       pids+=" $!"
     done
     for i in $pids; do wait "$i"; done   # only our seeds: a bare wait in a lane also met the station's jobs ("not a child of this shell" on Windows)
