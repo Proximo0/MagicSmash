@@ -1,1 +1,2 @@
 2026-11-23T07:03:36Z INFO id=261122113640-7335 kind=economy secs=2099 economy runs=1 bad=0 seed=49335 ok bots=4000 days=180 secs=2068 sales=110928 tax=2832639 coin_per_bot=340597 listings=550542 trades=2303 letters=3847 refused=3446
+2026-11-24T05:06:23Z FAIL id=261122113640-7335 kind=economy secs=0 parked: started 4 times on this machine without finishing
