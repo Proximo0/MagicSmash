@@ -357,6 +357,8 @@ Q alpha cancel "$idf" >/dev/null; rm -f "$J/quiet.sh" "$J/talk.sh"
 out=$(cd "$T/alpha" && bash -c 'set -uo pipefail; source tools/station/queue_lib.sh; Q_GD=$(mktemp -d); uname() { echo MINGW64_NT; }; timeout() { echo Off; }
   q_sac; echo "rc=$? cache=$(cat "$Q_GD/station_sac" | cut -d" " -f2)"' 2>&1)
 check "q_sac with no cache file under set -u: no unbound error, says off and writes the cache" '[[ "$out" == *"rc=1 cache=off"* ]] && [[ "$out" != *unbound* ]]'
+snapd=$(cd "$T/alpha" && bash -c 'source tools/station/queue_lib.sh; q_snap_dir')
+check "the programs' folder (STATION_BIN) is absolute, so a shell job that cds into realm/ still finds it" '[[ "$snapd" == /* ]]'
 echo "  (these checks took $((SECONDS - t_new)) s)"
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi
