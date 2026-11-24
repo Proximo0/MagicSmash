@@ -9,11 +9,11 @@
 #   ($HH_TOOLS/bodies/<race>.glb; else taken from a charbody artifact on station-results; else made with make_body.py),
 #   the KayKit Adventurers pack (CC0, cloned from github.com/KayKit-Game-Assets; its LICENSE.txt must say CC0), Pillow + numpy.
 # Test hooks: RENDER_BRANCH (default art-raw), RENDER_NO_PUSH=1 (write to $RENDER_OUT, default $STATION_JOB_ART/render-out, push
-#   nothing), RENDER_BODY / RENDER_KAYKIT (a body glb file, the pack's root dir), RENDER_STEP_TIMEOUT (s per Blender run, 1500).
+#   nothing), RENDER_BODY / RENDER_KAYKIT (a body glb file, the pack's root dir), RENDER_STEP_TIMEOUT (s per Blender run, 1500; the job word step=N wins).
 # Summary line: PASS render set=.. made=N bytes=.. path=renders/...   or   FAIL render set=.. <reason>   (exit 1)
 set -u
 set=""; only=""; seed="${STATION_JOB_SEED:-1}"
-for a in "$@"; do case "$a" in set=*) set="${a#set=}" ;; only=*) only="${a#only=}" ;; seed=*) seed="${a#seed=}" ;; esac; done
+step=""; for a in "$@"; do case "$a" in set=*) set="${a#set=}" ;; only=*) only="${a#only=}" ;; seed=*) seed="${a#seed=}" ;; step=*) step="${a#step=}" ;; esac; done
 case "$set" in bosses | heroes | icons | town | home) ;; *) echo "FAIL render set=$set unknown set (bosses heroes icons town home)"; exit 1 ;; esac
 case "$only$seed" in *[!A-Za-z0-9_,]*) echo "FAIL render set=$set bad only= or seed= (letters, digits, _ and , only)"; exit 1 ;; esac
 fail() { echo "FAIL render set=$set $*"; exit 1; }
@@ -61,10 +61,11 @@ run() { # run <seconds> <script> <args...>: a char3d script with bpy; killed wit
   if [ $bpymod = 1 ]; then timeout -k 10 "$t" python3 -I "$s" -- "$@"
   else timeout -k 10 "$t" "$B" -b --factory-startup --python "$(p "$s")" -- "$@"; fi
   local rc=$?
-  if [ $rc = 124 ] || [ $rc = 137 ]; then killours; fi
+  if [ $rc = 124 ] || [ $rc = 137 ]; then killours; echo "render: stopped at the step limit of $t s (job word step=N gives more)"; fi
   return $rc
 }
-STEP="${RENDER_STEP_TIMEOUT:-1500}"
+STEP="${step:-${RENDER_STEP_TIMEOUT:-1500}}"   # step=N (job word): seconds per Blender run; a big boss at 16 samples on 4 cores needs ~50 min
+[[ "$STEP" =~ ^[0-9]+$ ]] && [ "$STEP" -ge 60 ] && [ "$STEP" -le 14400 ] || { echo "FAIL render set=$set bad step= (60 to 14400 s)"; exit 1; }
 pyrun() { PYTHONDONTWRITEBYTECODE=1 timeout -k 10 600 "$PYX" "$@"; }   # Pillow-only scripts: path args need Windows form
 q() { p "$1"; }
 
