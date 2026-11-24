@@ -124,7 +124,13 @@ job_frames() {  # one line: the realm client's frame times with a full horde on 
   server=$!
   sleep 5
   kill -0 "$server" 2>/dev/null || { echo "JOB frames FAIL the server did not start: $(tail -1 "$dir/server.log" | cut -c1-120)"; return 1; }
-  out=$(timeout -k 30 "${STATION_FRAMES_TIMEOUT:-300}" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="${STATION_FRAMES_SECS:-60}" --zooms="${STATION_FRAMES_ZOOM:-16}" --mute 2>&1)
+  # The run plays secs at each zoom; a busy 4-core PC with an old GPU needs about 3x that plus start-up (ubuntu, 24 Nov:
+  # 300 s was not enough for zooms=16,4 secs=60 beside three lanes).
+  local fsecs="${STATION_FRAMES_SECS:-60}" fz="${STATION_FRAMES_ZOOM:-16}" ftime rc=0
+  ftime=$(( 120 + 3 * fsecs * $(tr ',' '\n' <<<"$fz" | grep -c .) )); [ "$ftime" -ge 300 ] || ftime=300
+  ftime="${STATION_FRAMES_TIMEOUT:-$ftime}"
+  out=$(timeout -k 30 "$ftime" "${runner[@]}" "$GODOT" --path realm/client -- --server=127.0.0.1:"$port" --shots="$dir/shots" --secs="$fsecs" --zooms="$fz" --mute 2>&1) || rc=$?
+  [ "$rc" != 124 ] || out+=$'\n'"timed out after $ftime s"
   line=$(grep '^CLIENT_FRAMES ' <<<"$out" | tail -1)
   # Pictures for Curtis, at most once in 20 hours a machine: the same battle at zoom 16 (already saved), 4 and 2,
   # pushed to the results branch as shots/<machine>-zoom<N>.png (overwritten, so the branch holds only the newest).
