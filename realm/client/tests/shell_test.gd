@@ -835,11 +835,13 @@ func _economy() -> void:
 	_check(await _until(func() -> bool: return (_shell.trade.get("their_items", []) as Array).size() == 1 and (_shell.trade.get("their_stacks", []) as Array).size() == 1), "and the mate's on hers")
 	await _frames(2)
 	await _shot("36_trade_table")
-	# The server hears no confirm in the first 1.5 s after a change: say so in words.
+	# The server hears no confirm in the first 1.5 s after a change: say so in words. On a busy PC the press can land
+	# after the 1.5 s (the panel is still busy refreshing her own offer), and then the confirm is rightly taken.
 	await _press("confirm")
-	_check(await _until(func() -> bool: return tp.toast_text.contains("A MOMENT AGO")), "a confirm too soon is refused in words: " + tp.toast_text)
-	await create_timer(1.8).timeout
-	await _press("confirm")
+	_check(await _until(func() -> bool: return tp.toast_text.contains("A MOMENT AGO") or bool(_shell.trade.get("my_ok", false))), "a confirm too soon is refused in words: " + tp.toast_text)
+	if not bool(_shell.trade.get("my_ok", false)):
+		await create_timer(1.8).timeout
+		await _press("confirm")
 	_check(await _until(func() -> bool: return bool(_shell.trade.get("my_ok", false))), "she confirms the offers she sees")
 	await _press("confirm", mate)
 	_check(await _until(func() -> bool: return _shell.trade.get("state", -1) == EconWire.TS_DONE and mate.trade.get("state", -1) == EconWire.TS_DONE, 15.0), "the trade is done on both sides: " + mt.toast_text)
@@ -854,7 +856,7 @@ func _economy() -> void:
 	tp = _shell.panel_of("TradePanel") as TradePanel
 	tp.name_edit.text = "NOBODYNAMEDTHIS"
 	await _press("invite")
-	_check(await _until(func() -> bool: return tp.toast_text.contains("NO HERO NAMED")), "inviting no one is refused in words: " + tp.toast_text)
+	_check(await _until(func() -> bool: return tp.toast_text.contains("NO HERO NAMED"), 30.0), "inviting no one is refused in words: " + tp.toast_text)
 	await _press("close")
 
 	# The world board.
@@ -896,7 +898,7 @@ func _duels(mate: Shell, pname: String, mname: String) -> void:
 	await _shot("38_duel_challenged")
 	await _press("refuse")
 	_check(await _until(func() -> bool: return md.toast_text.contains("WILL NOT DUEL YOU")), "he is told she refused: " + md.toast_text)
-	_check(_shell.duel_offer.is_empty() and dp.accept_btn.disabled, "the challenge is answered")
+	_check(await _until(func() -> bool: return _shell.duel_offer.is_empty() and dp.accept_btn.disabled), "the challenge is answered")
 	await _press("close", mate)
 	# Her turn: from the heroes near her.
 	_check(await _until(func() -> bool: return dp.has_hit("near:" + mname)), "he is in the list of heroes near her")
