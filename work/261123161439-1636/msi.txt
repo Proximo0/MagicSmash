@@ -2,3 +2,4 @@
 2026-11-24T07:56:47Z INFO id=261123161439-1636 kind=shell secs=2648 stopped for a merge after 2648 s
 2026-11-24T10:43:48Z INFO id=261123161439-1636 kind=shell secs=3003 wirefuzz iters=6000000 seed=848784 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
 2026-11-24T12:50:21Z INFO id=261123161439-1636 kind=shell secs=1268 stopped for a merge after 1268 s
+2026-11-24T13:38:59Z INFO id=261123161439-1636 kind=shell secs=424 stopped for a merge after 424 s
