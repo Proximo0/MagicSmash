@@ -1,1 +1,1 @@
-LANPLAY ok addr=192.168.12.22:7700 secs=600 logins_ok=198 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=198 banked=192 deposits=192 rtt_mean_ms=4.60 rtt_p99_ms=37.53 calls=2658 refused_datagrams=0 hash_bad=0 mismatches=0
+LANPLAY ok addr=192.168.12.22:7700 secs=600 logins_ok=173 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=173 banked=173 deposits=173 rtt_mean_ms=6.41 rtt_p99_ms=38.02 calls=2348 refused_datagrams=0 hash_bad=0 mismatches=0
