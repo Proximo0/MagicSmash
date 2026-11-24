@@ -11,3 +11,4 @@
 2026-11-23T21:56:53Z INFO id=261122184613-2739 kind=shell secs=78 lanplay: no live host
 2026-11-24T06:31:56Z FAIL id=261122184613-2739 kind=shell secs=51 lanplay host=ubuntu  tools/station/jobs/lanplay.sh: line 39: /c/projects/stations/MagicSmash/.git/station_bin/d280e2beae23/realm-lanplay: No 
 2026-11-24T12:13:29Z INFO id=261122184613-2739 kind=shell secs=82 lanplay: no live host
+2026-11-24T20:50:32Z INFO id=261122184613-2739 kind=shell secs=84 lanplay: no live host
