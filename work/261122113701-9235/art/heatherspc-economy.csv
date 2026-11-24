@@ -1,2 +1,2 @@
 seed,bots,days,status,summary
-306216,4000,180,ok,ok bots=4000 days=180 secs=6909 sales=112093 tax=3228865 coin_per_bot=346497 listings=554338 trades=2313 letters=3834 refused=3189
+355523,4000,180,fail,timeout: failed to run command ‘/c/projects/stations/MagicSmash/.git/station_bin/eecd4af1e997/realm-economy’: No such file or directory
