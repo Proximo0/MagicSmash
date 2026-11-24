@@ -103,7 +103,7 @@ fn the_jobs_gate_short() {
     // balance.md reports for the full gate.
     for (class, a, b, gap) in jobs_gate(1, 50, 50, 1_200) {
         assert!(a > 0 && b > 0, "class {class}: {a} {b}");
-        assert!(gap <= JOB_GAP_REPORTED_PCT[class as usize], "class {class}: gap {gap}%");
+        assert!(gap <= JOB_GAP_REPORTED_PCT[class as usize], "class {class}: gap {gap}% ({a} {b})");
     }
 }
 

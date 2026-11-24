@@ -298,7 +298,7 @@ pub const J_CRUSADER: u8 = 9;
 pub const JOBS: [Job; 10] = [
     Job { name: "WARDEN", class: KNIGHT, ultimate: U_RAMPART, passive: Passive { threat: 26, provoke_pull_px: 40, weapon_dmg_mul_pct: 200, ..NO } },
     Job { name: "BERSERKER", class: KNIGHT, ultimate: U_BLOOD_RAGE, passive: Passive { threat: 14, dmg_per_missing: 3, ..NO } },
-    Job { name: "ARCHMAGE", class: MAGE, ultimate: U_CATACLYSM, passive: Passive { second_burst_pct: 50, ..NO } },
+    Job { name: "ARCHMAGE", class: MAGE, ultimate: U_CATACLYSM, passive: Passive { second_burst_pct: 100, ..NO } },
     // The HEXER's "cursed monsters take 15% more" is `CURSE_TAKEN_PCT`: only PLAGUE curses.
     Job { name: "HEXER", class: MAGE, ultimate: U_PLAGUE, passive: NO },
     Job { name: "RANGER", class: ARCHER, ultimate: U_HAIL, passive: Passive { pierce: 8, move_pct: 10, ..NO } },

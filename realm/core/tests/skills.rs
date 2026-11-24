@@ -114,7 +114,7 @@ fn bolt_stops_at_walls() {
 
 #[test]
 fn fireball_bursts_and_the_archmage_bursts_twice() {
-    for (job_bit, mul) in [(0u8, 100u32), (0, 150)] {
+    for (job_bit, mul) in [(0u8, 100u32), (0, 200)] {
         let (field, class, level) = if mul == 100 { (2, MAGE, 10) } else { (3, MAGE | job_bit, 40) };
         let (mut f, id, x, y) = arena(field, class, level);
         let a = stunned(&mut f, kind(if field == 2 { "drowned" } else { "goat cultist" }), 60, x + px(150), y);
@@ -123,7 +123,7 @@ fn fireball_bursts_and_the_archmage_bursts_twice() {
         let before = [hp(&f, a), hp(&f, b), hp(&f, c)];
         fire(&mut f, &[]);
         let d = expect(&f, id, 40);
-        let want = d + if mul == 150 { d * 50 / 100 } else { 0 };
+        let want = d + if mul == 200 { d * 100 / 100 } else { 0 };
         assert_eq!(before[0] - hp(&f, a), want, "job {}", f.heroes()[id as usize].job);
         assert_eq!(before[1] - hp(&f, b), want);
         assert_eq!(before[2], hp(&f, c), "outside the burst");

@@ -98,6 +98,8 @@ field copy: changing one class's damage moved another's rate): the probe's slot 
 fell 64% at level 60 whichever class stood there), so read the means, not single levels. Left: MAGE alone at level
 40 (-25 to -90% in every run, damage-insensitive, so the shots are lost, not weak: not traced) and at 30.
 The careers (2 a job) need the station's run to confirm.
+The jobs gate: a MAGE that stands and shoots made HEXER's own contribution 60% over ARCHMAGE's (gap 38%, bound 25; the
+curse is not the cause: `CURSE_TAKEN_PCT` 100 left it unchanged), so ARCHMAGE's `second_burst_pct` went 50 to 100.
 
 ## The party gate (rules 13)
 
