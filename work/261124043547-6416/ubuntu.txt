@@ -1,0 +1,1 @@
+2026-11-24T05:05:24Z FAIL id=261124043547-6416 kind=shell secs=1506 render set=bosses nothing was built: FAILED boss_chandelier rc=1: 24:34.190  render           | Saved: '/tmp/station-job-ubuntu-JsHLXQ/tmp/tmp.DPxUDj8A9g/raw_boss_chandelier/Death_A_04.png' 24:36.978  render           | Saved: '/tmp/st
