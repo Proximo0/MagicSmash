@@ -80,11 +80,13 @@ static func play(group: String, gain_db: float = 0.0) -> bool:
 	return inst != null and inst.request(group, gain_db)
 
 
-func request(group: String, gain_db: float = 0.0) -> bool:
+## `at` (seconds, tests only) stands in for the clock, so a test of the rate window does not depend on how fast the
+## machine runs its loop (a busy station took longer than the window for 1000 requests, 24 Nov).
+func request(group: String, gain_db: float = 0.0, at: float = -1.0) -> bool:
 	if not GROUPS.has(group):
 		return false
 	var spec: Array = GROUPS[group]
-	var now: float = Time.get_ticks_usec() / 1000000.0
+	var now: float = at if at >= 0.0 else Time.get_ticks_usec() / 1000000.0
 	var recent: PackedFloat64Array = _recent.get(group, PackedFloat64Array())
 	var kept := PackedFloat64Array()
 	for t in recent:
