@@ -63,6 +63,10 @@ pub struct WeekOpts {
     pub progress_secs: u64,
     /// The gateway and its bots speak TLS (an in-memory dev certificate the bots trust).
     pub tls: bool,
+    /// Test hook: this bot's first session fails (drops its connection, as an I/O error would) at its outing's
+    /// `FAIL_AFTER` into its outing, so a test sees how a bot that died with coin in flight is reported.
+    #[doc(hidden)]
+    pub fail_bot: Option<u64>,
 }
 
 impl Default for WeekOpts {
@@ -86,6 +90,7 @@ impl Default for WeekOpts {
             db: None,
             progress_secs: 0,
             tls: false,
+            fail_bot: None,
         }
     }
 }
@@ -112,7 +117,8 @@ pub struct WeekReport {
     /// A hero seen in two hosts at once (samples).
     pub doubled: u64,
     pub samples: u64,
-    /// Heroes whose store coin is not what was reported banked.
+    /// Heroes whose store coin is not what was reported banked. A hero whose bot failed with her outing in flight
+    /// names that bot and its error (the error is the failure; the coin it never heard of is its consequence).
     pub coin_mismatches: Vec<String>,
     /// Heroes whose banked coin went down across the kill.
     pub kill_losses: u64,
@@ -203,6 +209,11 @@ impl WeekReport {
 struct Shared {
     reported: HashMap<i64, u64>,
     heroes: HashMap<i64, i64>,
+    /// The bot that plays each hero.
+    bots: HashMap<i64, u64>,
+    /// Heroes whose bot's session failed with her outing in flight: that error. The gateway recalls a hero whose
+    /// connection ended (`world_session_closed`) and banks her haul, so the store holds coin no bot was told of.
+    died: HashMap<i64, String>,
     codes: Vec<u64>,
     cycles: u64,
     outings: u64,
@@ -237,6 +248,9 @@ fn await_ticket(gw: &mut GatewayClient, stop: &AtomicBool) -> Result<Option<u64>
     }
 }
 
+/// How far into her outing the `WeekOpts::fail_bot` hook drops the connection.
+const FAIL_AFTER: Duration = Duration::from_millis(700);
+
 /// A recalled outing that has not ended after this long is stuck: an error.
 const OUTING_STUCK: Duration = Duration::from_secs(240);
 
@@ -246,7 +260,8 @@ const OUTING_STUCK: Duration = Duration::from_secs(240);
 /// so `recall` is a pace, not a hang guard. Giving up there instead (job W2's first form) dropped the connection, she
 /// was kicked, and the haul she banked on leaving (most of an outing's coin) was in the store but never reported:
 /// the station's `hero 126: store 1349722, reported 32019`.
-fn await_outing(gw: &mut GatewayClient, hero: i64, recall: Duration, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(u64, u8), String> {
+/// `fail` (the `WeekOpts::fail_bot` hook) gives up `FAIL_AFTER` into the outing, as an I/O error there would.
+fn await_outing(gw: &mut GatewayClient, hero: i64, recall: Duration, stop: &AtomicBool, sh: &Mutex<Shared>, fail: bool) -> Result<(u64, u8), String> {
     let mut recalled: Option<Instant> = None;
     let start = Instant::now();
     loop {
@@ -273,6 +288,9 @@ fn await_outing(gw: &mut GatewayClient, hero: i64, recall: Duration, stop: &Atom
             }
             None => {}
         }
+        if fail && recalled.is_none() && start.elapsed() > FAIL_AFTER {
+            return Err(format!("test: dropped the connection mid-outing (hero {hero})"));
+        }
         if recalled.is_some_and(|r| r.elapsed() > OUTING_STUCK) {
             return Err(format!("hero {hero}: her outing never ended (recalled {:.0} s ago)", recalled.map_or(0.0, |r| r.elapsed().as_secs_f64())));
         }
@@ -295,7 +313,11 @@ fn prep(store: &SqliteStore, hero: &HeroInfo, keys: bool, n: u64) {
 
 /// One bot's session: login, hero, town, then an outing (a field, or a vault) to its end, the coin to the bank.
 #[allow(clippy::too_many_arguments)]
-fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientConfig>>, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: &SqliteStore, stop: &AtomicBool, sh: &Mutex<Shared>) -> Result<(), String> {
+/// `flight` holds her hero from the request that may start an outing until its coin is reported: when the session
+/// fails meanwhile, coin the gateway banks for her (her haul, banked when the connection's end recalls her) was
+/// never reported.
+fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientConfig>>, b: u64, n: u64, o: &WeekOpts, clock: &RealmClock, store: &SqliteStore, stop: &AtomicBool, sh: &Mutex<Shared>, flight: &mut Option<i64>) -> Result<(), String> {
+    *flight = None;
     let mut gw = GatewayClient::connect_with(addr, tls).map_err(io)?;
     match gw.login(&format!("world-bot-{b}")).map_err(io)? {
         Resp::Login { .. } => {}
@@ -315,7 +337,11 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
         Ok(Some(h)) => h.account,
         _ => return Err("hero not in the store".into()),
     };
-    sh.lock().unwrap().heroes.insert(hero.id, account);
+    {
+        let mut s = sh.lock().unwrap();
+        s.heroes.insert(hero.id, account);
+        s.bots.insert(hero.id, b);
+    }
     let leader = b % 4 == 0;
     prep(store, &hero, leader, n);
     match gw.call(Req::EnterTown { hero: hero.id }).map_err(io)? {
@@ -327,6 +353,7 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
     let day_hour = clock.now() / (3600 * realm_core::TICK_HZ as u64) % 24;
     let code = if b % 4 == 1 { sh.lock().unwrap().codes.pop() } else { None };
     let mut started = false;
+    *flight = Some(hero.id);
     // A leader's second session is a vault, then every `vault_every`th.
     if leader && n % o.vault_every.max(1) == 1 % o.vault_every.max(1) {
         let seals = (n % 4) as u8;
@@ -375,9 +402,11 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
             r => return Err(format!("bot ticket: {r:?}")),
         }
     }
-    let (coin, left) = await_outing(&mut gw, hero.id, Duration::from_secs_f64(o.recall_secs), stop, sh)?;
+    let fail = o.fail_bot == Some(b) && n == 0;
+    let (coin, left) = await_outing(&mut gw, hero.id, Duration::from_secs_f64(o.recall_secs), stop, sh, fail)?;
     {
         let mut s = sh.lock().unwrap();
+        *flight = None;
         *s.reported.entry(hero.id).or_insert(0) += coin;
         s.outings += 1;
         s.lost_outings += (left == LEFT_LOST) as u64;
@@ -393,6 +422,18 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
     }
     sh.lock().unwrap().cycles += 1;
     Ok(())
+}
+
+/// A hero whose store coin is not what was reported. When her bot failed with her outing in flight, that error is
+/// named: it is the failure, and the coin the gateway banked for her after it (recalled when the connection ended)
+/// is its consequence. Otherwise no bot error explains it: a ledger bug.
+fn mismatch_line(hero: i64, have: u64, said: u64, bot: Option<u64>, died: Option<&str>) -> String {
+    let why = match (died, bot) {
+        (Some(e), _) => format!("after {e}"),
+        (None, Some(b)) => format!("bot {b} had no error: a ledger bug"),
+        (None, None) => "no bot: a ledger bug".into(),
+    };
+    format!("hero {hero}: store {have}, reported {said} ({why})")
 }
 
 /// Coin in a hero's bag and her account's bank.
@@ -480,9 +521,17 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
             let mut n = 0u64;
             let mut rng = o2.seed ^ (b << 32) ^ 0xB07;
             while !stop.load(Ordering::Relaxed) {
-                if let Err(e) = session(&addr, client_tls.as_ref(), b, n, &o2, &clock, &store, &stop, &sh) {
-                    if !stop.load(Ordering::Relaxed) {
-                        sh.lock().unwrap().errors.push(format!("bot {b}: {e}"));
+                let mut flight = None;
+                if let Err(e) = session(&addr, client_tls.as_ref(), b, n, &o2, &clock, &store, &stop, &sh, &mut flight) {
+                    // An error after the stop is kept too when an outing was in flight: her coin may be unreported.
+                    let stopped = stop.load(Ordering::Relaxed);
+                    if !stopped || flight.is_some() {
+                        let e = format!("bot {b}: {e}{}", if stopped { " (after the stop)" } else { "" });
+                        let mut s = sh.lock().unwrap();
+                        if let Some(h) = flight {
+                            s.died.insert(h, e.clone());
+                        }
+                        s.errors.push(e);
                     }
                 }
                 n += 1;
@@ -575,7 +624,7 @@ pub fn run_week(o: &WeekOpts) -> Result<WeekReport, String> {
         let have = coin_of(&store, h, a);
         let said = s.reported.get(&h).copied().unwrap_or(0);
         if have != said {
-            rep.coin_mismatches.push(format!("hero {h}: store {have}, reported {said}"));
+            rep.coin_mismatches.push(mismatch_line(h, have, said, s.bots.get(&h).copied(), s.died.get(&h).map(String::as_str)));
         }
         if let Some(before) = killed_at.as_ref().and_then(|k| k.get(&h)) {
             if have < *before {

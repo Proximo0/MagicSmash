@@ -126,6 +126,36 @@ fn a_compressed_week_of_bot_play_loses_and_doubles_nothing() {
 }
 
 #[test]
+fn a_bot_that_dies_with_coin_in_flight_is_the_reason_its_heros_coin_mismatches() {
+    // The station's Windows runs: `bot 95: cannot decrypt peer's message` then `hero 178: store 1442486, reported
+    // 1432765`. A bot whose connection fails mid-outing never hears of the coin the gateway banked for her (in flight,
+    // and her haul when the connection's end recalls her). Bot 2's first session drops its connection 0.7 s into its
+    // outing: the error is the failure, and her mismatch names it instead of looking like a ledger bug.
+    let o = WeekOpts { bots: 8, secs: 12.0, realm_cap: 8, tick_us: 4_000, recall_secs: 1.5, kill: false, fail_bot: Some(2), ..WeekOpts::default() };
+    // Its own store: run_week names the default file by process and seed, which the compressed week (same seed) shares.
+    let o = WeekOpts { db: Some(std::env::temp_dir().join(format!("realm-week-{}-fail-bot.db", std::process::id()))), ..o };
+    let r = run_week(&o).unwrap();
+    for e in &r.errors {
+        eprintln!("{e}");
+    }
+    for m in &r.coin_mismatches {
+        eprintln!("{m}");
+    }
+    println!("{}", r.line());
+    assert!(!r.ok());
+    assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
+    assert!(r.errors[0].starts_with("bot 2: test: dropped the connection mid-outing"), "{:?}", r.errors);
+    // Coin banked before the drop and never reported shows as her mismatch, labelled with bot 2's error, and no other.
+    // Whether any coin was in flight at the drop depends on how far the host got (a loaded box may be at 0), so the
+    // label is held whenever the mismatch shows.
+    assert!(r.coin_mismatches.len() <= 1, "{:?}", r.coin_mismatches);
+    for m in &r.coin_mismatches {
+        assert!(m.contains("(after bot 2: test: dropped the connection mid-outing"), "{:?}", r.coin_mismatches);
+    }
+    assert!(r.verify_error.is_none(), "{}", r.line());
+}
+
+#[test]
 fn a_player_in_a_closing_copy_is_moved_over_the_wire_with_her_haul() {
     // The grace runs on the wall clock from the realm's start: 3 s of it ran out during the logins below on a starved
     // Windows CI box, copy 1 was already closing and the player was placed in copy 0. 12 s leaves the set-up room.
