@@ -3,7 +3,7 @@ render.sh). Same camera, lighting, palette and pixel scale as the field sites (f
 faces -Y; the picture's bottom centre is the prop's ground point. Props are small (0.5 to 3 m) so they never hide a monster."""
 import math
 
-from town_lib import box, cyl, cone, sph, pyramid, mat
+from town_lib import box, cyl, cone, sph, pyramid, mat, prim
 from town_models import palette
 from field_models import black_stone, skull
 
@@ -18,29 +18,37 @@ def _spec(w=2.4, cz=0.8, amb=0.7, key=4.2):
     return dict(res=(int(w * 220) // 8 * 8 or 8, 480), cz=cz, turn=20, amb=amb, key=key)
 
 
+def _stick(m, x, y, z, a, tilt, ln, d, tip):
+    """One tapered segment from (x, y, z), leaning `tilt` from upright toward heading `a` (radians); returns its end."""
+    dx, dy, dz = math.sin(tilt) * math.cos(a), math.sin(tilt) * math.sin(a), math.cos(tilt)
+    prim("cyl", m, (x + dx * ln / 2, y + dy * ln / 2, z + dz * ln / 2), (d, d, ln), (0, math.degrees(tilt), math.degrees(a)),
+         seg=5, r2=tip)
+    return x + dx * ln, y + dy * ln, z + dz * ln
+
+
 def _limb(m, x, y, z, a, tilt, ln, d, n=4):
+    """A gnarled branch: n segments joined end to end, each thinner and bending further out (the segments used to be
+    upright cones stepped sideways, which drew as loose floating sticks; 24 Nov render)."""
     seg = ln / n
     for k in range(n):
-        cone(m, x, y, z, d * (1 - k / (n + 1.0)), seg * 1.15, seg=5, tip=0.7)
-        x += math.sin(tilt) * math.cos(a) * seg
-        y += math.sin(tilt) * math.sin(a) * seg
-        z += math.cos(tilt) * seg
-        tilt += 0.18
+        x, y, z = _stick(m, x, y, z, a, tilt, seg * 1.1, d * (1 - k / (n + 1.0)), 0.75)
+        a += 0.25 * (1 if k % 2 else -1)
+        tilt = min(tilt + 0.18, 1.45)
 
 
 def dead_tree(variant):
     bark = _bark()
-    h = (3.4, 2.6, 4.4)[variant]
+    h = (2.8, 2.2, 3.2)[variant]                                        # whole tree inside the 480 px frame
     cone(bark, 0, 0, 0, 0.55, h, seg=7, tip=0.35)
     cone(bark, 0, 0, 0, 0.8, 0.5, seg=7, tip=0.7)                       # root flare
     for k in range(3 + variant):
         a = k * 2.2 + variant
-        _limb(bark, 0.05 * math.cos(a), 0.05 * math.sin(a), h * (0.45 + 0.13 * k), a, 0.9 - 0.1 * k, 1.1 + 0.2 * variant, 0.2)
+        _limb(bark, 0.05 * math.cos(a), 0.05 * math.sin(a), h * (0.4 + 0.11 * k), a, 0.95 - 0.08 * k, 0.9 + 0.15 * variant, 0.18)
     if variant == 1:                                                    # broken top and a hanging noose of rope
         box(mat("rope", (60, 48, 36), rough=0.9), 0.5, 0, 1.6, 0.05, 0.05, 0.9)
     if variant == 2:
         skull(palette(), 0.1, -0.3, 1.1, 0.5)                           # a skull wedged in the trunk
-    return _spec(3.0, h * 0.45)
+    return _spec(3.0, h * 0.5)
 
 
 def dead_tree_a():
