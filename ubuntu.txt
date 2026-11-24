@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-24T06:30Z commit=d7d5434 took=0s
-JOB realm SKIP nothing it tests changed since 95ecb7c
-JOB world SKIP nothing it tests changed since 95ecb7c
-JOB ops SKIP nothing it tests changed since 95ecb7c
-STATION PASS jobs=0 failed=0 skipped=3
+STATION machine=ubuntu time=2026-11-24T07:46Z commit=5205c10 took=2806s
+JOB realm FAIL realm/check.sh: failed tests: bench_1000_heroes_half_marked_among_20000_monsters_inside_the_budget | panic: core/tests/pvp.rs:772: over the 50 ms budget: 52.28 / 77.64; | rerun -p realm-core --test pvp | REALM failed: cargo test   error: test failed, to rerun pass `-p realm-core --test pvp` REALM failed: cargo test  | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=27.3  | REALM_CLIENT ok gallery_sprites=473 field_test_checks=178 shell_test_checks=204 shell_shots=50 shots: zoom 1/2/4 monster
+JOB world PASS world secs=600 WORLD ok days=7.00 secs=601 heroes=200 cycles=1673 outings=1673 vault_runs=48 vault_joins=47 queued=1565 queue_max=79 admitted=1515 copies_opened=7 merges=4 moved=32 moved_bots=0 peak_copies=9 peak_heroes=152 tides=2619 won=0 bosses=691 killed=0 world_bosses=37 chests=0 news=532 
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261124-114656 schema=4 items=0 stacks=0 ledger=136 digest=cbf29ce484222325 on 2026-11-24 release=v1->v2->v1 downgrade=refused
+STATION FAIL jobs=3 failed=1 skipped=0
