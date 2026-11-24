@@ -17,7 +17,7 @@ set=""; only=""; seed="${STATION_JOB_SEED:-1}"
 step=""; for a in "$@"; do case "$a" in set=*) set="${a#set=}" ;; only=*) only="${a#only=}" ;; seed=*) seed="${a#seed=}" ;; step=*) step="${a#step=}" ;; esac; done
 case "$set" in bosses | heroes | icons | town | home | field) ;; *) echo "FAIL render set=$set unknown set (bosses heroes icons town home field)"; exit 1 ;; esac
 case "$only$seed" in *[!A-Za-z0-9_,]*) echo "FAIL render set=$set bad only= or seed= (letters, digits, _ and , only)"; exit 1 ;; esac
-fail() { echo "FAIL render set=$set $*"; exit 1; }
+fail() { [ -n "${log:-}" ] && [ -f "$log" ] && tail -120 "$log" >"${art:-/tmp}/render-log-tail.txt" 2>/dev/null; echo "FAIL render set=$set $*"; exit 1; }   # the log tail goes out as a job artifact
 T="${HH_TOOLS:-$HOME/hh_tools}"; mkdir -p "$T" || fail "cannot make $T"
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"; here="$repo/tools/char3d"
 art="${STATION_JOB_ART:-${TMPDIR:-/tmp}}"; mkdir -p "$art"
