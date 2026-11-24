@@ -160,8 +160,15 @@ impl WeekReport {
         let s = &self.stats;
         let c = &self.counts;
         let (items, stacks, ledger) = self.store_rows;
+        let first_error = match self.errors.first() {
+            Some(e) => {
+                let e: String = e.chars().map(|c| if c == '"' || c.is_control() { '\'' } else { c }).take(160).collect();
+                format!(" first_error=\"{e}\"")
+            }
+            None => String::new(),
+        };
         format!(
-            "WORLD {} days={:.2} secs={:.0} heroes={} cycles={} outings={} vault_runs={} vault_joins={} queued={} queue_max={} admitted={} copies_opened={} merges={} moved={} moved_bots={} peak_copies={} peak_heroes={} tides={} won={} bosses={} killed={} world_bosses={} chests={} news={} keys={} refunds={} vaults_closed={} host_killed={} tickets_lost={} lost_outings={} recalled={} doubled={}/{} coin_mismatch={} kill_losses={} left_placed={} errors={} verify={} items={items} stacks={stacks} ledger_rows={ledger}",
+            "WORLD {} days={:.2} secs={:.0} heroes={} cycles={} outings={} vault_runs={} vault_joins={} queued={} queue_max={} admitted={} copies_opened={} merges={} moved={} moved_bots={} peak_copies={} peak_heroes={} tides={} won={} bosses={} killed={} world_bosses={} chests={} news={} keys={} refunds={} vaults_closed={} host_killed={} tickets_lost={} lost_outings={} recalled={} doubled={}/{} coin_mismatch={} kill_losses={} left_placed={} errors={} verify={} items={items} stacks={stacks} ledger_rows={ledger}{first_error}",
             if self.ok() { "ok" } else { "FAILED" },
             self.days,
             self.secs,
