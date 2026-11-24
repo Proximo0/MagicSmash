@@ -1,4 +1,4 @@
-STATION machine=laptop time=2026-11-24T15:43Z commit=8c963a1 took=946s
-JOB frames INFO zooms=16 mean_ms=67.33 p99_ms=135.43 monsters_drawn=14701 renderer="AMD RadeonT 610M"
+STATION machine=laptop time=2026-11-24T16:01Z commit=473bf2b took=867s
+JOB frames INFO zooms=16 mean_ms=65.81 p99_ms=105.27 monsters_drawn=14158 renderer="AMD RadeonT 610M"
 JOB balance INFO careers=10 h10=0.27 h20=3.0 h40=25.8 h60=NaN worst_class=-33% sunk=91%
 STATION PASS jobs=2 failed=0 skipped=0
