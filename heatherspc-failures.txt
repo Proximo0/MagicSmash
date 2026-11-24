@@ -42,3 +42,4 @@
 2026-11-24T02:15Z heatherspc queue 2026-11-24T02:14:46Z FAIL id=261123233155-9324 kind=shell secs=5 world secs=7200 timeout: failed to run command ‘.git/station_bin/9096843cb69d/realm-world’: No such file or directory  
 2026-11-24T04:46Z heatherspc queue 2026-11-24T04:46:21Z FAIL id=261123233201-5781 kind=shell secs=5 parked: started 3 times on this machine without finishing 
 2026-11-24T05:56Z heatherspc queue 2026-11-24T05:55:39Z FAIL id=261122113701-9235 kind=economy secs=10 economy runs=1 bad=1 seed=355523 no ECONOMY ok line: timeout: failed to run command ‘/c/projects/stations/MagicSmash/.git/station_bin/eecd4af1e997/realm-economy’: No such file or directory  
+2026-11-24T06:32Z heatherspc queue 2026-11-24T06:31:56Z FAIL id=261122184613-2739 kind=shell secs=51 lanplay host=ubuntu  tools/station/jobs/lanplay.sh: line 39: /c/projects/stations/MagicSmash/.git/station_bin/d280e2beae23/realm-lanplay: No  
