@@ -14,3 +14,4 @@
 2026-11-24T12:50:19Z INFO id=261122113647-8689 kind=economy secs=364 stopped for a merge after 364 s
 2026-11-24T13:38:39Z INFO id=261122113647-8689 kind=economy secs=1266 stopped for a merge after 1265 s
 2026-11-24T13:38:41Z INFO id=261122113647-8689 kind=economy secs=1450 stopped for a merge after 1450 s
+2026-11-24T15:00:08Z INFO id=261122113647-8689 kind=economy secs=3493 stopped for a merge after 3491 s
