@@ -111,6 +111,7 @@ func _gui_input(e: InputEvent) -> void:
 		if e.button_index == MOUSE_BUTTON_LEFT:
 			var h: Dictionary = _hit_at(e.position)
 			if not h.is_empty() and bool(h["enabled"]):
+				Sfx.play("ui_click")
 				on_press(String(h["id"]))
 			else:
 				on_click_empty(e.position)

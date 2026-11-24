@@ -12,6 +12,7 @@ func _initialize() -> void:
 	_art()
 	_anim()
 	_sound()
+	_sfx()
 	_fx()
 	_hud()
 	_input()
@@ -232,6 +233,33 @@ func _sound() -> void:
 	_check(int(s.played.get("level", 0)) == 1, "the level bleep is rate limited")
 	_check(not s.played.has("bank"), "another hero's bank is silent")
 	s.free()
+
+
+func _sfx() -> void:
+	var x := Sfx.new()
+	x._ready()
+	var missing: PackedStringArray = []
+	for f in Sfx.files():
+		if x._streams.get(f) == null:
+			missing.append(f)
+	_check(missing.is_empty(), "every listed sound loads, missing: %s" % ", ".join(missing))
+	_check(Sfx.files().size() >= 27, "the sound list has the whole pass")
+	var ok: int = 0
+	for i in 1000:
+		var group: String = Sfx.GROUPS.keys()[i % Sfx.GROUPS.size()]
+		if x.request(group):
+			ok += 1
+	_check(x.busy() <= Sfx.VOICES, "no more voices than the cap, got %d" % x.busy())
+	_check(ok <= Sfx.GROUPS.size() + Sfx.VOICES and ok < 1000, "1000 requests in one frame start few, got %d" % ok)
+	var kills: int = 0
+	for i in 500:
+		if x.request("mon_small"):
+			kills += 1
+	_check(kills == 0, "a flood of one sound inside its window starts none more")
+	_check(not x.request("no_such_sound"), "an unknown sound is refused")
+	for p in x._voices:
+		p.stop()
+	x.free()
 
 
 func _fx() -> void:

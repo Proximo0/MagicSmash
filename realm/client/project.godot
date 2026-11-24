@@ -10,6 +10,10 @@ config/description="The realm lockstep client: the whole field simulated here, t
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
+[autoload]
+
+SfxBus="*res://audio/sfx.gd"
+
 [display]
 
 window/size/viewport_width=480
