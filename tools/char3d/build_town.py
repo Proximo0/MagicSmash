@@ -128,7 +128,7 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     outdir, art, ids = argv[0], argv[1], argv[2:] or list(M.BUILDERS)
     builders = dict(M.BUILDERS, **H.BUILDERS, **F.BUILDERS)
-    if not argv[2:] and E("HOME"):
+    if not argv[2:] and E("HOME") == "1":   # HOME is also the home directory: only the literal 1 means furniture
         ids = list(H.BUILDERS)
     if not argv[2:] and E("FIELD"):
         ids = list(F.BUILDERS)
