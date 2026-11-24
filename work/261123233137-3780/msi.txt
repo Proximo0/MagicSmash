@@ -4,3 +4,4 @@
 2026-11-24T08:37:27Z PASS id=261123233137-3780 kind=shell secs=1156 wirefuzz iters=2000000 seed=35212 8 tests in 1153 s
 2026-11-24T10:38:13Z PASS id=261123233137-3780 kind=shell secs=1393 wirefuzz iters=2000000 seed=835451 8 tests in 1391 s
 2026-11-24T12:26:55Z PASS id=261123233137-3780 kind=shell secs=1510 wirefuzz iters=2000000 seed=479774 8 tests in 1508 s
+2026-11-24T15:00:44Z INFO id=261123233137-3780 kind=shell secs=906 stopped for a merge after 906 s
