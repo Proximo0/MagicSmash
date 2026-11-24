@@ -2,3 +2,4 @@
 # Pages first, to read the licence and the download link before any model is fetched.
 quaternius-home https://quaternius.com/
 quaternius-animals https://quaternius.com/packs/ultimateanimatedanimals.html
+quaternius-animals-drive https://drive.google.com/drive/folders/1uJ3N5HfB7jKTseJUNQr3N4YaN0UuEtHk?usp=sharing  # CC0 (pack page links here); folder listing, to find the horse file id
