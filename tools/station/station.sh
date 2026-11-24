@@ -429,6 +429,19 @@ retry_unpushed() {
     tail -n +2 "$STATE.unpushed" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum >"$STATE.report"; rm -f "$STATE.unpushed"; echo "station: the kept report was pushed"
   fi
 }
+# merge_job J: runs job_J (its report on stdout, its status returned) and, while it runs, keeps the queue's free lanes filled
+# from the last build (Q_SNAP) once a minute. A merge test can take most of an hour on a 4-core PC; before this, lanes that
+# finished during it stayed empty until it ended, and on a day of many merges the Linux station sat at 1 of 3 lanes (24 Nov).
+merge_job() {
+  local j=$1 out rc p last=$SECONDS
+  if [ "$queue" != 1 ] || [ "$push" != 1 ] || [ -z "${Q_SNAP:-}" ] || [ ! -f "$Q_SNAP/.ok" ]; then "job_$j"; return; fi
+  out=$(mktemp); ( "job_$j" ) >"$out" & p=$!
+  while kill -0 "$p" 2>/dev/null; do
+    sleep "${STATION_LANE_TICK:-5}"
+    if [ $((SECONDS - last)) -ge 60 ]; then last=$SECONDS; lanes_fill >&2; fi
+  done
+  wait "$p"; rc=$?; cat "$out"; rm -f "$out"; return $rc
+}
 run_once() {
   [ "$push" = 1 ] && retry_unpushed
   git fetch -q origin main || { echo "station: fetch failed" >&2; return 2; }
@@ -470,7 +483,7 @@ run_once() {
       tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
     fi
     for j in "${run[@]:+${run[@]}}"; do
-      body+="$("job_$j")"$'\n' || failed=$((failed + 1))
+      body+="$(merge_job "$j")"$'\n' || failed=$((failed + 1))
     done
     verdict="STATION $([ $failed -eq 0 ] && echo PASS || echo FAIL) jobs=${#run[@]} failed=$failed skipped=$skipped"
   fi
