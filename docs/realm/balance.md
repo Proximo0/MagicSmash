@@ -86,11 +86,20 @@ Per hour, by band: kills 1.5k, 25k, 13k, 25k, 16k, 41k; falls 6.1, 17.5, 2.0, 0.
 run-to-run spread of the median at 20 careers is about as large: run 2 with the previous table gave 0.45, 5.0,
 20.2, 79.5 h where the fit predicted 0.44, 4.99, 20.6, 77.8. THE MOON MARSH step (`CAREER_PCT` 180%) overshot;
 a third step, or a station run of more careers, would settle 40.
-**Classes: not met.** The worst class is 37% behind its band's median (ARCHER, 40-49; run 2: 61%, MAGE 20-29).
-MAGE and ARCHER are slowest from 20 on and reach 60 in 102 and 107 hours against 64 to 71 for the others; they fall
-more alone (THE HANGED WOOD) and their bots kite rather than hold. KNIGHT and PRIEST lead. With 2 careers a job, a
-band's figure for a class moves 20 to 40% between runs (compare runs 2 and 3), so the per-class numbers need the
-station's run of more careers before class tables are tuned to them; none were.
+**Classes: moved, not closed (run 5, probe).** MAGE and ARCHER were slowest from 20 on. The probe (`balance probe 3 8`,
+levels 10 to 60, each class's XP an hour against the median of the five, mean over levels) showed it alone, not in a
+party: alone KNIGHT +24%, MAGE -15%, ARCHER -31%, PRIEST +25%, PALADIN +7%; in a party -7, +6, +17, -6, +7%. The
+mechanism is the bot, not the numbers: a ranged hero looked for monsters within 200 px and fled them with weight 3
+(melee: 110 to 160 px, weight 1), so alone she spent her time walking away from what she should shoot. Doubling
+FIREBALL's damage moved nothing at level 40, so damage was not the lever. Now a ranged bot flees within 120 px with
+weight 1 (`bots.rs`, `reach` and `flee_w` of `Role::Ranged`): alone MAGE -11%, ARCHER -15%; in a party 0 and +1%
+(KNIGHT +14, PRIEST +30, PALADIN +12 alone). The probe is noisy (5 heroes, 3 seeds, and heroes of one run share a
+field copy: changing one class's damage moved another's rate): the probe's slot also matters (the hero in slot 1
+fell 64% at level 60 whichever class stood there), so read the means, not single levels. Left: MAGE alone at level
+40 (-25 to -90% in every run, damage-insensitive, so the shots are lost, not weak: not traced) and at 30.
+The careers (2 a job) need the station's run to confirm.
+The jobs gate: a MAGE that stands and shoots made HEXER's own contribution 60% over ARCHMAGE's (gap 38%, bound 25; the
+curse is not the cause: `CURSE_TAKEN_PCT` 100 left it unchanged), so ARCHMAGE's `second_burst_pct` went 50 to 100.
 
 ## The party gate (rules 13)
 
