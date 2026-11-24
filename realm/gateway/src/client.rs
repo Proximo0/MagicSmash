@@ -50,18 +50,31 @@ impl GatewayClient {
 
     /// Reads what has arrived, waiting at most `wait`; `Ok(false)` when the server closed the connection.
     fn fill(&mut self, wait: Duration) -> std::io::Result<bool> {
-        self.stream.tcp().set_read_timeout(Some(wait.max(Duration::from_millis(1))))?;
+        // No SO_RCVTIMEO: Windows documents a socket whose receive timed out as in an indeterminate state, and a
+        // record read through it can lose bytes (rustls then fails "cannot decrypt peer's message"). Poll a
+        // non-blocking socket instead, where "nothing yet" is a plain WouldBlock; writes stay blocking.
+        let end = Instant::now() + wait;
+        self.stream.tcp().set_nonblocking(true)?;
         let mut tmp = [0u8; 16 * 1024];
-        match self.stream.read(&mut tmp) {
-            Ok(0) => Ok(false),
-            Ok(n) => {
-                self.buf.extend_from_slice(&tmp[..n]);
-                Ok(true)
+        let r = loop {
+            match self.stream.read(&mut tmp) {
+                Ok(0) => break Ok(false),
+                Ok(n) => {
+                    self.buf.extend_from_slice(&tmp[..n]);
+                    break Ok(true);
+                }
+                Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted) || e.raw_os_error() == Some(997) => {
+                    let left = end.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        break Ok(true);
+                    }
+                    std::thread::sleep(left.min(Duration::from_millis(1)));
+                }
+                Err(e) => break Err(e),
             }
-            // Windows can report a read timeout as ERROR_IO_PENDING (997, "overlapped I/O is in progress").
-            Err(e) if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut | ErrorKind::Interrupted) || e.raw_os_error() == Some(997) => Ok(true),
-            Err(e) => Err(e),
-        }
+        };
+        self.stream.tcp().set_nonblocking(false)?;
+        r
     }
 
     /// The next whole frame in the buffer, if any.
