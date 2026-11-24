@@ -1,3 +1,4 @@
 2026-11-23T01:07:03Z PASS id=261122184607-7341 kind=shell secs=7205 lanhost ip=192.168.12.22 secs=7200 logins=154 tickets=154 peak_in_fields=20 errors=0
 2026-11-23T12:30:09Z PASS id=261122184607-7341 kind=shell secs=7205 lanhost ip=192.168.12.22 secs=7200 logins=264 tickets=264 peak_in_fields=20 errors=0
 2026-11-24T06:27:11Z FAIL id=261122184607-7341 kind=shell secs=2 lanhost: the gateway did not start
+2026-11-24T15:10:28Z FAIL id=261122184607-7341 kind=shell secs=3610 silent for 3604 s: lanhost: serving 192.168.12.22:7700 (udp 7800-7801) for 7200s Terminated                 sleep 1 
