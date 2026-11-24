@@ -40,3 +40,4 @@
 2026-11-23T02:08Z heatherspc queue 2026-11-23T02:08:06Z FAIL id=261123013638-1183 kind=shell secs=7 charbody Traceback (most recent call last):     raise ValueError("I don't seem to exist") ValueError: I don't seem to exist  
 2026-11-23T02:11Z heatherspc queue 2026-11-23T02:11:15Z FAIL id=261123013640-2824 kind=shell secs=9 charbody Traceback (most recent call last):     raise ValueError("I don't seem to exist") ValueError: I don't seem to exist  
 2026-11-24T02:15Z heatherspc queue 2026-11-24T02:14:46Z FAIL id=261123233155-9324 kind=shell secs=5 world secs=7200 timeout: failed to run command ‘.git/station_bin/9096843cb69d/realm-world’: No such file or directory  
+2026-11-24T04:46Z heatherspc queue 2026-11-24T04:46:21Z FAIL id=261123233201-5781 kind=shell secs=5 parked: started 3 times on this machine without finishing 
