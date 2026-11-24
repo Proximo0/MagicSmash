@@ -48,7 +48,9 @@ echo "lanhost: serving $ip:$port (udp $fieldport-$((fieldport + ngw - 1))) for $
 refresh="${STATION_LAN_REFRESH:-90}"; since=0
 for _ in $(seq 1 $((secs + 180))); do
 	kill -0 "$gw_pid" 2>/dev/null || break; sleep 1; since=$((since + 1))
-	if [ "$since" -ge "$refresh" ]; then since=0; info live; lan_put "$art/lanhost.txt" || true; fi
+	if [ "$since" -ge "$refresh" ]; then   # the line keeps the queue's silence watch (q_watch) from stopping a healthy host
+		since=0; info live; lan_put "$art/lanhost.txt" || true; echo "lanhost: live, $((t1 - $(date +%s))) s left" >&2
+	fi
 done
 wait "$gw_pid" 2>/dev/null; rc=$?; gw_pid=""
 info ended; lan_put "$art/lanhost.txt" || true

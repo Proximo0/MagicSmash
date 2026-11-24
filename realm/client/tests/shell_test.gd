@@ -330,8 +330,8 @@ func _run() -> void:
 	await _shot("23_places")
 	await _press("go:%d:1" % HomeMap.STREET)
 	_check(await _until(func() -> bool: return _shell.place == [HomeMap.STREET, 1] and _shell.base is TownScreen), "she walks to the first street")
-	await _frames(3)
-	_check(_shell.town.has("members") and (_shell.base as TownScreen).stations.size() == 2 + HomeMap.PLOTS_PER_STREET, "the street's doors are stations")
+	# The street's members reply comes from the server: on a busy box it can land a few frames after the walk.
+	_check(await _until(func() -> bool: return _shell.town.has("members") and (_shell.base as TownScreen).stations.size() == 2 + HomeMap.PLOTS_PER_STREET), "the street's doors are stations")
 	await _shot("24_street")
 	await _press("street")
 	var street: StreetPanel = _shell.panel_of("StreetPanel") as StreetPanel
