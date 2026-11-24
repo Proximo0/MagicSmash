@@ -1,2 +1,3 @@
 2026-11-22T20:09:28Z FAIL id=261122113647-8689 kind=economy secs=3381 job printed nothing
 2026-11-23T22:02:44Z INFO id=261122113647-8689 kind=economy secs=5998 economy runs=1 bad=0 seed=161564 ok bots=4000 days=180 secs=5934 sales=109446 tax=2975749 coin_per_bot=345370 listings=544497 trades=2242 letters=3783 refused=3211
+2026-11-24T05:33:34Z FAIL id=261122113647-8689 kind=economy secs=2 parked: started 4 times on this machine without finishing
