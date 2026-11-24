@@ -9,3 +9,4 @@
 2026-11-24T06:26Z msi queue 2026-11-24T06:26:14Z FAIL id=261123112122-9814 kind=soak secs=4 parked: started 3 times on this machine without finishing 
 2026-11-24T06:35Z msi queue 2026-11-24T06:35:35Z FAIL id=261123112904-9176 kind=soak secs=2 parked: started 3 times on this machine without finishing 
 2026-11-24T07:10Z msi queue 2026-11-24T07:10:38Z FAIL id=261123161439-1636 kind=shell secs=1 parked: started 3 times on this machine without finishing 
+2026-11-24T07:26Z msi queue 2026-11-24T07:26:18Z FAIL id=261122113644-6983 kind=soak secs=1 parked: started 5 times on this machine without finishing 
