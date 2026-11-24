@@ -5,3 +5,4 @@
 2026-11-24T02:10Z msi queue 2026-11-24T02:10:06Z FAIL id=261123233131-1835 kind=shell secs=3 world secs=7200 timeout: failed to run command ‘.git/station_bin/9096843cb69d/realm-world’: No such file or directory  
 2026-11-24T02:12Z msi queue 2026-11-24T02:11:59Z FAIL id=261123233131-1835 kind=shell secs=2 world secs=7200 timeout: failed to run command ‘.git/station_bin/9096843cb69d/realm-world’: No such file or directory  
 2026-11-24T03:33Z msi queue 2026-11-24T03:33:05Z FAIL id=261123233131-1835 kind=shell secs=4 world secs=7200 timeout: failed to run command ‘.git/station_bin/5f690d3d8520/realm-world’: No such file or directory  
+2026-11-24T05:33Z msi queue 2026-11-24T05:33:34Z FAIL id=261122113647-8689 kind=economy secs=2 parked: started 4 times on this machine without finishing 
