@@ -148,7 +148,7 @@ impl Bot {
                 }
             }
             Role::Healer => 160,
-            Role::Ranged => 200,
+            Role::Ranged => 120,
         };
         let flee_w = match role {
             Role::Melee => {
@@ -159,7 +159,7 @@ impl Bot {
                 }
             }
             Role::Healer => 2,
-            Role::Ranged => 3,
+            Role::Ranged => 1,
         };
         // Each monster near: its place relative to the hero and its walking speed, in sixteenths of a px (a tick).
         let mut near: Vec<(i64, i64, i64)> = Vec::new();

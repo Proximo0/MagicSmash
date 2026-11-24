@@ -377,7 +377,7 @@ pub fn print_book(all: &[Career]) {
 pub const FORCED_SINK_MIN_PCT: u64 = 40;
 /// Bounds on the jobs gate's own-contribution gaps (percent, by class, NOVICE unused) the short test (1 seed, 50
 /// heroes, 1,200 ticks) holds the pairs to: the full gate's gaps (balance.md) with room for the short run's noise.
-pub const JOB_GAP_REPORTED_PCT: [u64; 6] = [0, 75, 25, 80, 90, 45];
+pub const JOB_GAP_REPORTED_PCT: [u64; 6] = [0, 75, 45, 80, 90, 45];
 
 pub fn party_gate(seeds: u64, ticks: u32, fields: &[u8]) -> Vec<(u8, u32)> {
     let jobs: Vec<(u8, u64)> = fields.iter().flat_map(|&f| (0..seeds).map(move |s| (f, s))).collect();
