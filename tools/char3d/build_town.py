@@ -9,6 +9,8 @@ by its own `turn` (degrees off face-on). The picture is cropped to the building,
 (that column is the ground point), the bottom edge is the lowest pixel, 2 px of clear border all round.
 Home furniture and plaques (home_models.py) take their ids too (home_chair ... home_plaque_7; env HOME=1 = all of
 them) and are written as <art dir>/ui_<id>.png, same camera and density.
+The field's fixed features (field_models.py: field_gate field_heart field_waystone[_lit] field_altar[_lit]; env FIELD=1 = all)
+are written as <art dir>/<id>.png, no ui_ prefix (the field loads them as art/field_<name>.png).
 Writes <art dir>/ui_town_<id>.png.  env: SAMPLES (48), KEY, AMB
 """
 import math
@@ -24,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import town_lib as L  # noqa: E402
 import town_models as M  # noqa: E402
 import home_models as H  # noqa: E402
+import field_models as F  # noqa: E402
 
 E = os.environ.get
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -106,7 +109,7 @@ def render(spec, raw):
 
 def finish(spec, bid, outdir, art):
     raw = os.path.join(outdir, "raw_" + bid)
-    name = bid if bid.startswith("home_") else "town_" + bid
+    name = bid if bid.startswith(("home_", "field_")) else "town_" + bid
     subprocess.run([sys.executable, os.path.join(HERE, "post.py"), raw, os.path.join(outdir, name), name], check=True,
                    stdout=subprocess.DEVNULL, env=dict(os.environ, NOSHEET="1"))
     a = np.asarray(Image.open(os.path.join(outdir, name, name + "_still.png")).convert("RGBA"))
@@ -117,16 +120,18 @@ def finish(spec, bid, outdir, art):
     pad = np.zeros((a.shape[0] + 8, a.shape[1] + 8, 4), np.uint8)
     pad[4:-4, 4:-4] = a
     im = Image.fromarray(pad).crop((box[0] + 4, box[1] + 4, box[2] + 4, box[3] + 4))
-    im.save(os.path.join(art, "ui_%s.png" % name))
+    im.save(os.path.join(art, ("%s.png" if name.startswith("field_") else "ui_%s.png") % name))
     print(bid, im.size)
 
 
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     outdir, art, ids = argv[0], argv[1], argv[2:] or list(M.BUILDERS)
-    builders = dict(M.BUILDERS, **H.BUILDERS)
+    builders = dict(M.BUILDERS, **H.BUILDERS, **F.BUILDERS)
     if not argv[2:] and E("HOME"):
         ids = list(H.BUILDERS)
+    if not argv[2:] and E("FIELD"):
+        ids = list(F.BUILDERS)
     for bid in ids:
         L.reset()
         spec = builders[bid]()
