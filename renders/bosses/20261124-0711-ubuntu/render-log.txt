@@ -1,0 +1,6 @@
+ok boss_chandelier
+boss_chandelier frame 456x386 attack walk strip 3648 px
+boss_chandelier walk: 8 frames of 456x386, border pixels in frames none
+boss_chandelier atk: 8 frames of 456x386, border pixels in frames none
+boss_chandelier hit: 4 frames of 456x386, border pixels in frames none
+boss_chandelier die: 8 frames of 456x386, border pixels in frames none; last frame 371x188 (bottom 385 of 386)

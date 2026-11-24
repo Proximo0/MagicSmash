@@ -1,0 +1,42 @@
+{
+ "Idle": {
+  "frames": 4,
+  "frame_px": [
+   456,
+   456
+  ],
+  "colours": 56
+ },
+ "Walking_A": {
+  "frames": 8,
+  "frame_px": [
+   456,
+   456
+  ],
+  "colours": 58
+ },
+ "Attack": {
+  "frames": 8,
+  "frame_px": [
+   456,
+   456
+  ],
+  "colours": 62
+ },
+ "Hit_A": {
+  "frames": 4,
+  "frame_px": [
+   456,
+   456
+  ],
+  "colours": 57
+ },
+ "Death_A": {
+  "frames": 8,
+  "frame_px": [
+   456,
+   456
+  ],
+  "colours": 58
+ }
+}
