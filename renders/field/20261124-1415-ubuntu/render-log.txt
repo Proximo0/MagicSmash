@@ -1,0 +1,26 @@
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:80: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  wd.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:84: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mats = [m for m in bpy.data.materials if m.use_nodes and m.users]
+02:29.686  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_gate/Still_00.png'
+02:30.695  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_gate/Still_00_id.png'
+04:42.389  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_heart/Still_00.png'
+04:42.887  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_heart/Still_00_id.png'
+04:54.171  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_waystone/Still_00.png'
+04:54.269  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_waystone/Still_00_id.png'
+05:06.959  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_waystone_lit/Still_00.png'
+05:07.039  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_waystone_lit/Still_00_id.png'
+06:30.879  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_altar/Still_00.png'
+06:33.365  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_altar/Still_00_id.png'
+08:47.815  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_altar_lit/Still_00.png'
+08:49.106  render           | Saved: '/tmp/station-job-ubuntu-6mKcYV/tmp/tmp.5BiZ4iRdmy/town/raw_field_altar_lit/Still_00_id.png'
+field_gate (318, 224)
+field_heart (262, 199)
+field_waystone (82, 118)
+field_waystone_lit (82, 118)
+field_altar (110, 138)
+field_altar_lit (110, 138)
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)
+
+Blender quit
+sheet 6 pictures (636, 1978)
