@@ -1,0 +1,1 @@
+2026-11-24T05:19:03Z INFO id=261122113709-0991 kind=frames secs=334 zooms=16,4 mean_ms=99.45 p99_ms=150.00 monsters_drawn=6978 renderer="Intel(R) UHD Graphics 600"
