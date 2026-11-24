@@ -5,3 +5,4 @@
 2026-11-24T05:55:39Z FAIL id=261122113701-9235 kind=economy secs=10 economy runs=1 bad=1 seed=355523 no ECONOMY ok line: timeout: failed to run command ‘/c/projects/stations/MagicSmash/.git/station_bin/eecd4af1e997/realm-economy’: No such file or directory 
 2026-11-24T12:35:43Z INFO id=261122113701-9235 kind=economy secs=798 stopped for a merge after 798 s
 2026-11-24T12:59:32Z INFO id=261122113701-9235 kind=economy secs=133 stopped for a merge after 132 s
+2026-11-24T13:15:51Z INFO id=261122113701-9235 kind=economy secs=130 stopped for a merge after 129 s
