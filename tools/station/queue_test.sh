@@ -359,6 +359,10 @@ out=$(cd "$T/alpha" && bash -c 'set -uo pipefail; source tools/station/queue_lib
 check "q_sac with no cache file under set -u: no unbound error, says off and writes the cache" '[[ "$out" == *"rc=1 cache=off"* ]] && [[ "$out" != *unbound* ]]'
 snapd=$(cd "$T/alpha" && bash -c 'source tools/station/queue_lib.sh; q_snap_dir')
 check "the programs' folder (STATION_BIN) is absolute, so a shell job that cds into realm/ still finds it" '[[ "$snapd" == /* ]]'
+idS=$(Q alpha add kind=economy args="seeds=7 days=1 bots=2" needs=alpha priority=9 | tail -1)
+LQ 'Q_NLANES=1; Q_SNAP="$T/gone_snap"; lanes_fill; echo "started=$Q_STARTED"' >"$T/g1" 2>&1; waitlanes
+check "a lane whose programs' folder is gone hands its job back: no FAIL, no done record, no claim left" 'grep -q "^started=1" "$T/g1" && grep -q "programs. folder .* is gone" "$T/g1" && ! rd station-results work/$idS/alpha.txt | grep -q FAIL && ! files station-queue | grep -q "^done/$idS\." && ! files station-queue | grep -q "^claims/$idS\."'
+Q alpha cancel "$idS" >/dev/null
 echo "  (these checks took $((SECONDS - t_new)) s)"
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi

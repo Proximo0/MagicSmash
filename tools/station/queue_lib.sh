@@ -637,6 +637,11 @@ q_run_job() {  # $1 = id, claimed by us. 0 done, 3 interrupted (claim released)
   Q_ID=$id; Q_T0=$t0; [ -n "${Q_CLAIM_T:-}" ] || Q_CLAIM_T=$(gb_cat "$QBRANCH" "claims/$id.$cl" | q_time_of)
   # Unfinished starts on this machine (lanes of one job add up): the third beyond its lanes is the last. Its own TMPDIR keeps a lane's
   # temporary files (databases, scratch dirs of the scripts) apart from every other lane's, and goes with the work dir.
+  # A lane whose programs' folder is gone (cleaned away under it, or never finished) must not FAIL or count a start: it hands the job back.
+  if [ "${Q_IN_LANE:-0}" = 1 ] && [ -n "${Q_SNAP:-}" ] && [ ! -f "$Q_SNAP/.ok" ] && q_ownbin; then
+    Q_IN_JOB=0; Q_KILLABLE=0; Q_REPEATABLE=0; Q_ID=""; Q_CLAIM_T=""; rm -rf "$Q_WD"
+    gb_put_retry "$QBRANCH" "$MACHINE releases $id" "-claims/$id.$cl"; echo "queue: job $id: the programs' folder $Q_SNAP is gone; claim released, it runs again"; return 3
+  fi
   n=$(q_att_get "$id")
   if [ "$n" -ge $((2 + J_MAXM)) ]; then line="FAIL parked: started $n times on this machine without finishing"; rc=0; echo "queue: $id parked"; n=-1
   else q_att_add "$id" 1 >/dev/null; line=$(TMPDIR="$Q_WD/tmp" q_exec "$J_KIND" "$J_ARGS" "$J_REPEAT" 2>"$Q_WD/stderr.log"); rc=$?; fi
@@ -711,7 +716,7 @@ q_snap_dir() { printf %s "$(cd "$Q_GD" 2>/dev/null && pwd || echo "$Q_GD")/stati
 # store (the same command as the merge jobs and deep, so a build already done is a no-op), copies every realm-* program into
 # $Q_GD/station_bin/<commit>/ and starts one (realm-store --help) to see that this PC lets it run. While it builds it holds
 # $Q_GD/station_build.lock: no job that runs our programs starts then. Sets Q_SNAP (empty when there is nothing to run).
-# A failed build is tried again after STATION_BUILD_RETRY_S (default 3600). Old copies go when no live lane uses them.
+# A failed build is tried again after STATION_BUILD_RETRY_S (default 3600). Old copies go when no live lane uses them and they are 6 h old.
 q_build_all() {
   local snap head st tmp f rc; Q_SNAP=""; snap=$(q_snap_dir); head=$(git rev-parse -q --verify HEAD 2>/dev/null)
   [ -f "$snap/.ok" ] && { Q_SNAP=$snap; return 0; }
@@ -737,7 +742,8 @@ q_build_all() {
   if [ $rc != 0 ]; then rm -rf "$tmp"; echo "FAIL $head $(q_now) build: $(tail -3 "$Q_GD/station_build.log" 2>/dev/null | tr -d '\r' | tr '\n' ' ' | cut -c1-300)" >"$Q_GD/station_build.state"; echo "queue: the build of ${head:0:7} failed; jobs that need it wait"; return 1; fi
   rm -rf "$snap"; mv "$tmp" "$snap"; touch "$snap/.ok"; Q_SNAP=$snap; echo "OK $head $(q_now)" >"$Q_GD/station_build.state"
   for f in "$(dirname "$snap")"/*; do   # old commits' copies, unless a live lane still runs from one (Windows cannot delete a running program)
-    [ "$f" = "$snap" ] && continue; grep -qs "snap=$f\( \|$\)" $(for l in "$Q_LD"/[0-9]*; do case "$l" in *.cool|*.log) ;; *) q_lane_live_f "$l" && echo "$l" ;; esac; done) /dev/null && continue
+    [ "$f" = "$snap" ] && continue; [ -n "$(find "$f" -maxdepth 0 -mmin -360 2>/dev/null)" ] && continue   # young: another station on this checkout may use it
+    grep -qs "snap=$f\( \|$\)" $(for l in "$Q_LD"/[0-9]*; do case "$l" in *.cool|*.log) ;; *) q_lane_live_f "$l" && echo "$l" ;; esac; done) /dev/null && continue
     rm -rf "$f" 2>/dev/null
   done
   return 0
