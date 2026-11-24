@@ -353,6 +353,10 @@ git -C "$T/alpha" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "m
 Q alpha step >"$T/o" 2>&1; rc=$?
 check "4 when main moves the job runs again" '[ $rc = 0 ] && rd station-queue done/$idf.alpha | grep -q "fails=1"'
 Q alpha cancel "$idf" >/dev/null; rm -f "$J/quiet.sh" "$J/talk.sh"
+# q_sac on Windows the first time (no cache file yet) under set -u: it once killed every Windows station ("c: unbound variable")
+out=$(cd "$T/alpha" && bash -c 'set -uo pipefail; source tools/station/queue_lib.sh; Q_GD=$(mktemp -d); uname() { echo MINGW64_NT; }; timeout() { echo Off; }
+  q_sac; echo "rc=$? cache=$(cat "$Q_GD/station_sac" | cut -d" " -f2)"' 2>&1)
+check "q_sac with no cache file under set -u: no unbound error, says off and writes the cache" '[[ "$out" == *"rc=1 cache=off"* ]] && [[ "$out" != *unbound* ]]'
 echo "  (these checks took $((SECONDS - t_new)) s)"
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi
