@@ -344,9 +344,15 @@ fn session(addr: &str, tls: Option<&std::sync::Arc<crate::tls::rustls::ClientCon
     }
     let leader = b % 4 == 0;
     prep(store, &hero, leader, n);
-    match gw.call(Req::EnterTown { hero: hero.id }).map_err(io)? {
-        Resp::Town { .. } => {}
-        r => return Err(format!("enter town: {r:?}")),
+    // A session that dropped mid-outing leaves her in the field until the host banks her (the connection's end recalls
+    // her): a client logging straight back in is told "she is already somewhere" (11) and waits, as a player would.
+    let wait_from = Instant::now();
+    loop {
+        match gw.call(Req::EnterTown { hero: hero.id }).map_err(io)? {
+            Resp::Town { .. } => break,
+            Resp::Err { code: 11, .. } if wait_from.elapsed() < Duration::from_secs(60) => std::thread::sleep(Duration::from_millis(250)),
+            r => return Err(format!("enter town: {r:?}")),
+        }
     }
     let _ = gw.call(Req::World(WReq::Board)).map_err(io)?;
     // What to do: a leader opens a vault every third session; a follower joins an open one when there is one.
