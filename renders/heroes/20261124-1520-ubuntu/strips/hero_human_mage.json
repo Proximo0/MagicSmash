@@ -1,0 +1,42 @@
+{
+ "Idle": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 69
+ },
+ "Walking_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 72
+ },
+ "Spellcast_Shoot": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 74
+ },
+ "Hit_A": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 68
+ },
+ "Death_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 76
+ }
+}

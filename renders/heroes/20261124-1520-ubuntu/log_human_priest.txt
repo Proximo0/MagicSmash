@@ -1,0 +1,93 @@
+06:20:32 | INFO: Data are loaded, start creating Blender stuff
+06:20:32 | INFO: Blender create Mesh node base
+06:20:32 | INFO: glTF import finished in 0.20s
+06:20:33 | INFO: Data are loaded, start creating Blender stuff
+06:20:33 | INFO: Blender create Mesh node Cube.157
+06:20:33 | INFO: Blender create Mesh node Cube.158
+06:20:33 | INFO: Blender create Mesh node Cube.155
+06:20:33 | INFO: Blender create Mesh node Cube.159
+06:20:33 | INFO: Blender create Mesh node Cube.153
+06:20:33 | INFO: Blender create Mesh node Cube.154
+06:20:33 | INFO: Blender create Mesh node Cube.12901
+06:20:33 | INFO: Blender create Mesh node Cube.12902
+06:20:33 | INFO: Blender create Mesh node Cylinder.018
+06:20:33 | INFO: Blender create Mesh node Cylinder.039
+06:20:33 | INFO: Blender create Mesh node Cube.156
+06:20:33 | INFO: Blender create Mesh node Plane.030
+06:20:36 | INFO: glTF import finished in 3.50s
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:587: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  m.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1405: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  b_ = m_.node_tree.nodes.get("Principled BSDF") if m_.use_nodes else None
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1685: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  w.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1699: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  ID_MATS = [m_ for m_ in bpy.data.materials if m_.use_nodes and m_.users]
+00:08.431  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_00.png'
+00:09.250  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_00_id.png'
+00:12.222  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_01.png'
+00:12.702  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_01_id.png'
+00:14.773  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_02.png'
+00:15.144  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_02_id.png'
+00:17.437  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_03.png'
+00:17.800  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Idle_03_id.png'
+00:20.593  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_00.png'
+00:21.253  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_00_id.png'
+00:23.794  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_01.png'
+00:24.213  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_01_id.png'
+00:26.306  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_02.png'
+00:26.659  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_02_id.png'
+00:28.637  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_03.png'
+00:28.995  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_03_id.png'
+00:30.944  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_04.png'
+00:31.306  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_04_id.png'
+00:33.252  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_05.png'
+00:33.599  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_05_id.png'
+00:35.549  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_06.png'
+00:35.904  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_06_id.png'
+00:37.859  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_07.png'
+00:38.199  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Walking_A_07_id.png'
+00:40.164  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_00.png'
+00:40.511  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_00_id.png'
+00:42.602  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_01.png'
+00:42.963  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_01_id.png'
+00:45.090  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_02.png'
+00:45.444  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_02_id.png'
+00:47.520  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_03.png'
+00:47.860  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_03_id.png'
+00:49.925  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_04.png'
+00:50.258  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_04_id.png'
+00:52.238  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_05.png'
+00:52.576  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_05_id.png'
+00:54.647  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_06.png'
+00:55.026  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_06_id.png'
+00:57.073  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_07.png'
+00:57.432  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Spellcast_Raise_07_id.png'
+00:59.542  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_00.png'
+00:59.885  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_00_id.png'
+01:02.030  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_01.png'
+01:02.415  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_01_id.png'
+01:04.661  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_02.png'
+01:05.034  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_02_id.png'
+01:07.233  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_03.png'
+01:07.649  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Hit_A_03_id.png'
+01:09.935  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_00.png'
+01:10.327  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_00_id.png'
+01:12.673  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_01.png'
+01:13.109  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_01_id.png'
+01:15.338  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_02.png'
+01:15.714  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_02_id.png'
+01:18.182  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_03.png'
+01:18.887  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_03_id.png'
+01:21.091  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_04.png'
+01:21.507  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_04_id.png'
+01:23.757  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_05.png'
+01:24.135  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_05_id.png'
+01:26.291  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_06.png'
+01:26.692  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_06_id.png'
+01:28.887  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_07.png'
+01:29.288  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_human_priest/Death_A_07_id.png'
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)
+
+Blender quit
+{'Idle': {'frames': 4, 'frame_px': [144, 144], 'colours': 94}, 'Walking_A': {'frames': 8, 'frame_px': [144, 144], 'colours': 105}, 'Spellcast_Raise': {'frames': 8, 'frame_px': [144, 144], 'colours': 108}, 'Hit_A': {'frames': 4, 'frame_px': [144, 144], 'colours': 94}, 'Death_A': {'frames': 8, 'frame_px': [144, 144], 'colours': 112}} 112 112

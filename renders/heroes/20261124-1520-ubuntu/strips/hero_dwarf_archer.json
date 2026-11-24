@@ -1,0 +1,42 @@
+{
+ "Idle": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 96
+ },
+ "Walking_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 116
+ },
+ "2H_Ranged_Shoot": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 116
+ },
+ "Hit_A": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 103
+ },
+ "Death_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 122
+ }
+}

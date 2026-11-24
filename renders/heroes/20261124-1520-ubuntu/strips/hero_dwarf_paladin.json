@@ -1,0 +1,50 @@
+{
+ "Idle": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 181
+ },
+ "Walking_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 210
+ },
+ "1H_Melee_Attack_Chop": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 217
+ },
+ "Block_Hit": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 172
+ },
+ "Hit_A": {
+  "frames": 4,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 181
+ },
+ "Death_A": {
+  "frames": 8,
+  "frame_px": [
+   144,
+   144
+  ],
+  "colours": 247
+ }
+}

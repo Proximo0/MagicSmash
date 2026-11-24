@@ -1,0 +1,104 @@
+06:39:50 | INFO: Data are loaded, start creating Blender stuff
+06:39:50 | INFO: Blender create Mesh node base
+06:39:51 | INFO: glTF import finished in 0.30s
+06:39:52 | INFO: Data are loaded, start creating Blender stuff
+06:39:52 | INFO: Blender create Mesh node Cube.125
+06:39:52 | INFO: Blender create Mesh node Cube.126
+06:39:52 | INFO: Blender create Mesh node PrototypePete_body.020
+06:39:52 | INFO: Blender create Mesh node PrototypePete_head.001
+06:39:52 | INFO: Blender create Mesh node Cube.128
+06:39:52 | INFO: Blender create Mesh node Cube.127
+06:39:52 | INFO: Blender create Mesh node Cube.003
+06:39:52 | INFO: Blender create Mesh node Cylinder.280
+06:39:52 | INFO: Blender create Mesh node Cylinder.005
+06:39:52 | INFO: Blender create Mesh node Cylinder.010
+06:39:52 | INFO: Blender create Mesh node Cylinder.022
+06:39:52 | INFO: Blender create Mesh node Cube.11839
+06:39:52 | INFO: Blender create Mesh node Cube.12993
+06:39:52 | INFO: Blender create Mesh node Cube.124
+06:39:52 | INFO: Blender create Mesh node Plane.004
+06:39:56 | INFO: glTF import finished in 3.95s
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:587: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  m.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1405: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  b_ = m_.node_tree.nodes.get("Principled BSDF") if m_.use_nodes else None
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1685: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  w.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_hero.py:1699: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  ID_MATS = [m_ for m_ in bpy.data.materials if m_.use_nodes and m_.users]
+00:11.135  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_00.png'
+00:11.482  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_00_id.png'
+00:13.600  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_01.png'
+00:13.915  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_01_id.png'
+00:16.864  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_02.png'
+00:17.453  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_02_id.png'
+00:20.616  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_03.png'
+00:20.944  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Idle_03_id.png'
+00:23.525  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_00.png'
+00:24.445  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_00_id.png'
+00:28.155  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_01.png'
+00:28.927  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_01_id.png'
+00:32.539  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_02.png'
+00:33.148  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_02_id.png'
+00:36.335  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_03.png'
+00:36.928  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_03_id.png'
+00:40.239  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_04.png'
+00:40.630  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_04_id.png'
+00:43.033  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_05.png'
+00:43.449  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_05_id.png'
+00:46.121  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_06.png'
+00:46.543  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_06_id.png'
+00:49.055  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_07.png'
+00:49.475  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Walking_A_07_id.png'
+00:52.061  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_00.png'
+00:52.472  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_00_id.png'
+00:54.791  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_01.png'
+00:55.193  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_01_id.png'
+00:57.721  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_02.png'
+00:58.177  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_02_id.png'
+01:00.461  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_03.png'
+01:00.778  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_03_id.png'
+01:02.853  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_04.png'
+01:03.169  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_04_id.png'
+01:05.353  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_05.png'
+01:06.081  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_05_id.png'
+01:09.527  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_06.png'
+01:10.129  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_06_id.png'
+01:13.534  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_07.png'
+01:14.059  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/1H_Melee_Attack_Chop_07_id.png'
+01:17.661  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_00.png'
+01:18.401  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_00_id.png'
+01:21.494  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_01.png'
+01:22.150  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_01_id.png'
+01:25.545  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_02.png'
+01:26.240  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_02_id.png'
+01:30.180  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_03.png'
+01:30.869  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Block_Hit_03_id.png'
+01:34.191  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_00.png'
+01:34.915  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_00_id.png'
+01:38.353  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_01.png'
+01:38.991  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_01_id.png'
+01:42.953  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_02.png'
+01:43.576  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_02_id.png'
+01:47.133  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_03.png'
+01:47.707  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Hit_A_03_id.png'
+01:50.975  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_00.png'
+01:51.724  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_00_id.png'
+01:55.423  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_01.png'
+01:56.265  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_01_id.png'
+01:59.985  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_02.png'
+02:00.673  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_02_id.png'
+02:04.342  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_03.png'
+02:05.061  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_03_id.png'
+02:08.849  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_04.png'
+02:09.626  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_04_id.png'
+02:13.002  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_05.png'
+02:13.589  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_05_id.png'
+02:17.112  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_06.png'
+02:17.689  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_06_id.png'
+02:21.662  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_07.png'
+02:22.434  render           | Saved: '/tmp/station-job-ubuntu-CV40g3/tmp/tmp.97Divur1ow/raw_dwarf_knight/Death_A_07_id.png'
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)
+
+Blender quit
+{'Idle': {'frames': 4, 'frame_px': [144, 144], 'colours': 142}, 'Walking_A': {'frames': 8, 'frame_px': [144, 144], 'colours': 156}, '1H_Melee_Attack_Chop': {'frames': 8, 'frame_px': [144, 144], 'colours': 172}, 'Block_Hit': {'frames': 4, 'frame_px': [144, 144], 'colours': 138}, 'Hit_A': {'frames': 4, 'frame_px': [144, 144], 'colours': 141}, 'Death_A': {'frames': 8, 'frame_px': [144, 144], 'colours': 197}} 78 78
