@@ -1,2 +1,3 @@
 2026-11-23T03:22:18Z INFO id=261122204540-0427 kind=shell secs=1 sysinfo ram=15374MB free=11084MB page=4095MB page_used=0MB cores=4 disk_free_gb=/837,/837 gpu=[none-or-not-nvidia] top3=[claude-desktop:2129 bazaar:356 gnome-shell:300]
 2026-11-23T20:35:51Z INFO id=261122204540-0427 kind=shell secs=2 sysinfo ram=15374MB free=9350MB page=4095MB page_used=3MB cores=4 disk_free_gb=/835,/835 gpu=[none-or-not-nvidia] top3=[claude-desktop:2180 firefox:613 bazaar:363]
+2026-11-24T06:44:25Z INFO id=261122204540-0427 kind=shell secs=2 sysinfo ram=15374MB free=6270MB page=4095MB page_used=1430MB cores=4 disk_free_gb=/834,/834 gpu=[none-or-not-nvidia] top3=[claude-desktop:1884 python3.13:1390 blender:1246]
