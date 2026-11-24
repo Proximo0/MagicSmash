@@ -88,7 +88,7 @@ pub fn rate_at(rows: &[(u8, u64)], level: u8) -> f64 {
 /// What a career makes of the probe's rate in each field, percent: two steps of the curve's hours for the field's
 /// band over the median career's (`balance career 1 1 10 16 160`, then `1 2`; balance.md). Falls, travel and town
 /// make a career slower than the probe where it dies (THE HANGED WOOD); bigger parties make it faster elsewhere.
-pub const CAREER_PCT: [u64; 6] = [81, 52, 180, 92, 115, 110];
+pub const CAREER_PCT: [u64; 6] = [89, 56, 150, 74, 143, 155];
 
 /// `MEASURED_XP_HOUR` times `CAREER_PCT` of its field: the rates `CLASS_XP` is fitted to.
 pub const CAREER_XP_HOUR: [(u8, u64); 18] = {
