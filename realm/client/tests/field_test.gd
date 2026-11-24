@@ -266,13 +266,13 @@ func _sfx() -> void:
 	var ok: int = 0
 	for i in 1000:
 		var group: String = Sfx.GROUPS.keys()[i % Sfx.GROUPS.size()]
-		if x.request(group):
+		if x.request(group, 0.0, 1000.0):
 			ok += 1
 	_check(x.busy() <= Sfx.VOICES, "no more voices than the cap, got %d" % x.busy())
 	_check(ok <= Sfx.GROUPS.size() + Sfx.VOICES and ok < 1000, "1000 requests in one frame start few, got %d" % ok)
 	var kills: int = 0
 	for i in 500:
-		if x.request("mon_small"):
+		if x.request("mon_small", 0.0, 1000.0):
 			kills += 1
 	_check(kills == 0, "a flood of one sound inside its window starts none more")
 	_check(not x.request("no_such_sound"), "an unknown sound is refused")
