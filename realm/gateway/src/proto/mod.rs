@@ -260,7 +260,7 @@ pub enum Resp {
     Chat { from: u16, name: String, text: String },
     Arrive(Member),
     Depart(u16),
-    /// A field outing's result, applied to the store: coin banked, class XP, levels gained, potions drunk, and why
+    /// A field outing's result, applied to the store: coin banked (her chests' coin included), class XP, levels gained, potions drunk, and why
     /// she left the field (0 gate, 1 waystone, 2 disconnect, 3 kicked, 4 shutdown, 5 her vault closed, 6 her field's host
     /// died (what was banked is kept, the haul is lost), 255 still there).
     Outing { hero: i64, coin: u64, xp: u64, levels: u16, potions: u32, left: u8 },
