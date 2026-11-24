@@ -538,16 +538,21 @@ qk_balance() {  # args: seeds=N (cohorts) per=N minutes=N fast=K hours=N. fast i
   else echo "FAIL balance cohorts=$n no BALANCE line: $(q_tail "$Q_WD/balance.out")"; fi
 }
 qk_economy() {  # args: seeds=A-B days=N bots=N. realm-economy per seed; record only
-  local args=$1 rep=$2 s days bots rc line n=0 bad=0 csv="$Q_WD/art/economy.csv" first=""
+  # The store lives on the repo's disk (the one the heartbeat's disk_free_gb measures), one file per lane, not in TMPDIR:
+  # a 4000 x 180 store passes 1 GB, and where TMPDIR is a RAM-sized tmpfs (Ubuntu 25.10's /tmp) two lanes of it filled
+  # it (24 Nov: "outing_failed: 19613", the store's commits failing "database or disk is full"). A killed run's file is
+  # reused by the lane's next run, never piled up.
+  local args=$1 rep=$2 s days bots rc line n=0 bad=0 csv="$Q_WD/art/economy.csv" first="" db="${Q_GD:-.}/station_eco-$(q_cl).db"
   q_cargo || { echo "FAIL cargo is not installed on this station"; return 0; }
   days=$(q_int "$(q_tok "$args" days)" 180 1 3650); bots=$(q_int "$(q_tok "$args" bots)" 4000 10 50000)
   q_build realm -p realm-gateway --bin realm-economy || { echo "FAIL build $(q_tail "$Q_WD/build.log")"; return 0; }
   echo "seed,bots,days,status,summary" >"$csv"
   for s in $(q_seeds "$(q_tok "$args" seeds)" "$rep"); do
     q_late && break
-    q_run "$Q_WD/eco.out" timeout -k 30 "$(q_left)" "$Q_RBIN"/realm-economy --bots="$bots" --days="$days" --seed=$s --quiet --db="$Q_WD/eco.db"; rc=$?
+    q_run "$Q_WD/eco.out" timeout -k 30 "$(q_left)" "$Q_RBIN"/realm-economy --bots="$bots" --days="$days" --seed=$s --quiet --db="$db"; rc=$?
+    rm -f "$db" "$db-wal" "$db-shm"
     [ $rc = 99 ] && return 3
-    rm -f "$Q_WD"/eco.db*; line=$(tail -1 "$Q_WD/eco.out" | tr -d ',' | cut -c1-240)
+    line=$(tail -1 "$Q_WD/eco.out" | tr -d ',' | cut -c1-240)
     n=$((n + 1)); first=${first:-$s}
     if q_cut $rc; then LAST="seed=$s stopped at the time limit"; break
     elif [[ "$line" == "ECONOMY ok "* ]]; then echo "$s,$bots,$days,ok,${line:8}" >>"$csv"; LAST="seed=$s ${line:8:200}"
