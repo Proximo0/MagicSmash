@@ -1,1 +1,2 @@
 2026-11-22T12:32:34Z INFO id=261122113707-1919 kind=package secs=144 package target=windows version=20261122-5a19576 hash=32484a82e36fdc15 dir=/c/Users/crp27/station-packages/20261122-windows-5a19576 client export failed
+2026-11-24T15:41:03Z INFO id=261122113707-1919 kind=package secs=40 package target=windows version=20261124-00ab8a3 hash=3341489b06bf00b1 dir=/c/Users/crp27/station-packages/20261124-windows-00ab8a3 client export failed
