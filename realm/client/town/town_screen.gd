@@ -49,6 +49,7 @@ var _soil: FieldGround = null
 
 func opened() -> void:
 	modal = false
+	Sfx.play("bell")
 	var t: Dictionary = shell.town
 	stations = HomeMap.stations_for(shell.place, shell.street_plots)
 	size_px = float(t.get("size", 4096))

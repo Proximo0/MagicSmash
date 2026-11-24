@@ -119,6 +119,10 @@ var _world_info: Dictionary = {}
 var _last_health: int = 0
 var _last_cd: PackedInt32Array = PackedInt32Array([0, 0, 0])
 var _last_alive: bool = true
+var _was_tide: bool = false
+var _was_boss: bool = false
+var _boss_low: bool = false
+var _told_portal: bool = false
 var _hero_key: int = -1
 var _debug_text: String = ""
 
@@ -168,6 +172,8 @@ func _ready() -> void:
 	_world.add_child(_camera)
 	_camera.make_current()
 	_sound.muted = _mute
+	if _mute and Sfx.inst != null:
+		Sfx.inst.silent = true
 	add_child(_sound)
 	_build_hud()
 	if embedded:
@@ -363,6 +369,7 @@ func _on_frame() -> void:
 	_fx_over.ingest(rows)
 	_fx_over.events(ev)
 	_sound.from_events(ev, link.hero_id())
+	_world_sounds()
 	_mark_events(ev)
 	if not _info.is_empty():
 		var hp: int = int(_info["health"])
@@ -383,6 +390,28 @@ func _on_frame() -> void:
 		_last_health = hp
 	if _fake.has("tide") and not _world_info.is_empty():
 		_world_info["tide"] = true
+
+
+## The tide's horn when a tide starts, a roar when a boss appears, its death knell when it goes down, and the
+## portal sound when the hero first stands in the field.
+func _world_sounds() -> void:
+	if _world_info.is_empty():
+		return
+	var tide: bool = bool(_world_info.get("tide", false))
+	if tide and not _was_tide:
+		_sound.hook("tide")
+	_was_tide = tide
+	var boss: Dictionary = _world_info.get("boss", {})
+	if not boss.is_empty():
+		if not _was_boss:
+			_sound.hook("boss")
+		_boss_low = int(boss["health"]) * 20 < int(boss["max_health"])
+	elif _was_boss and _boss_low:
+		_sound.hook("boss_down")
+	_was_boss = not boss.is_empty()
+	if not _told_portal and _hero_ready:
+		_told_portal = true
+		_sound.hook("portal")
 
 
 ## The rectangle the worker should build draw buffers for: the screen around the hero and a margin.
@@ -518,6 +547,7 @@ func _place(hero: Vector2) -> void:
 	_fx_under.px_scale = s
 	_fx_over.px_scale = s
 	_hero.hero_pos = hero
+	_sound.listener = hero
 	_hero.px_scale = s
 	_hero.hero_alive = bool(_info.get("alive", true))
 	_hero.hero_moving = _move != 0

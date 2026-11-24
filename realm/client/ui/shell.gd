@@ -147,6 +147,7 @@ func show_base(s: UiScreen, name: String) -> UiScreen:
 ## Puts a panel over the base screen; it closes itself with `close()` (its `closed` signal).
 func open_panel(p: UiScreen) -> UiScreen:
 	p.shell = self
+	Sfx.play("chest" if p is BankPanel else "ui_open")
 	panels.append(p)
 	layer.add_child(p)
 	p.closed.connect(_panel_closed.bind(p))

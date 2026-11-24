@@ -66,8 +66,10 @@ server (UDP) -> worker thread (realm/godot/src/worker.rs)          main thread (
 - **Tides and bosses.** A tide banner with a red border, the altars lit and their 150 px rings while `Field::tide()`
   is on; "NEXT TIDE m:ss" otherwise; a boss bar from `world().boss`. See "Waiting for R2".
 - **Sound hooks** (`FieldSound`): hit (own health fell), kill, skill, level, down, raise, potion, bank, pick, tide, bad,
-  each a generated bleep, rate limited per hook (0.07 to 1 s) so ten thousand deaths are one click. Real sounds replace
-  `_make`; the hooks stay.
+  each rate limited per hook (0.07 to 1 s), plus boss roar and death and the field portal. They play WAVs from
+  `realm/client/audio/sfx/` (27 sounds, made by our own seeded generator `tools/sfx/sfx.py`, numpy only; rerun it to
+  change them) through the `SfxBus` autoload (`audio/sfx.gd`): 24 voices, 1 to 3 plays per group per 100 ms, random
+  variant and +-6% pitch; important sounds take the oldest voice. UI: click, panel open, bank chest, town bell.
 
 ## Controls
 
