@@ -539,6 +539,8 @@ func _run() -> void:
 	await _press("field:0")
 	_check(await _until(func() -> bool: return _shell.in_field and _shell.field_client != null), "a ticket hands her to the field client")
 	var client: Node = _shell.field_client
+	# The test runs with --shots for its own screenshots: the field must not read it as the bare client's scripted bot.
+	_check(not bool(client.get("_bot")) and str(client.get("_shots_dir")).is_empty(), "the shell's field is played by her keys, not the scripted bot")
 	var joined: bool = await _until(func() -> bool: return not is_instance_valid(client) or int(client.link.counters().get("ticks_applied", 0)) > 40, 20.0)
 	_check(joined and is_instance_valid(client), "the field client joined with the ticket and ran 40 ticks")
 	# Checked right after joining, before idling: the screens are hidden while the outing lasts.
