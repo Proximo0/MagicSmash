@@ -363,6 +363,12 @@ idS=$(Q alpha add kind=economy args="seeds=7 days=1 bots=2" needs=alpha priority
 LQ 'Q_NLANES=1; Q_SNAP="$T/gone_snap"; lanes_fill; echo "started=$Q_STARTED"' >"$T/g1" 2>&1; waitlanes
 check "a lane whose programs' folder is gone hands its job back: no FAIL, no done record, no claim left" 'grep -q "^started=1" "$T/g1" && grep -q "programs. folder .* is gone" "$T/g1" && ! rd station-results work/$idS/alpha.txt | grep -q FAIL && ! files station-queue | grep -q "^done/$idS\." && ! files station-queue | grep -q "^claims/$idS\."'
 Q alpha cancel "$idS" >/dev/null
+# A station restart (exec keeps the pid) reaps leftover heartbeat loops among its children, but not its running lanes.
+mkdir -p "$T/reap/lanes"
+bash -c 'sleep 30 & lane=$!; sleep 30 & loop=$!; echo "pid=$lane id=x kind=soak" >"$1/lanes/1"
+  Q_LD="$1/lanes"; eval "$(sed -n "/^heartbeat_reap()/,/^}/p" "$2")"; heartbeat_reap
+  wait $loop; echo "loop_rc=$?"; st=$(ps -o stat= -p $lane | tr -d " "); [ -n "$st" ] && [ "${st:0:1}" != Z ] && echo lane_alive; kill $lane' _ "$T/reap" "$REPO/tools/station/station.sh" >"$T/reap/out" 2>&1
+check "a station restart kills a leftover loop but spares a running lane (merges used to kill every job and park it)" 'grep -q "^loop_rc=143" "$T/reap/out" && grep -q "^lane_alive" "$T/reap/out"'
 echo "  (these checks took $((SECONDS - t_new)) s)"
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi
