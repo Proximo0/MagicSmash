@@ -2,3 +2,4 @@
 2026-11-24T05:06:23Z FAIL id=261122113640-7335 kind=economy secs=0 parked: started 4 times on this machine without finishing
 2026-11-24T07:01:04Z INFO id=261122113640-7335 kind=economy secs=182 stopped for a merge after 182 s
 2026-11-24T07:52:33Z INFO id=261122113640-7335 kind=economy secs=241 stopped for a merge after 240 s
+2026-11-24T07:52:34Z INFO id=261122113640-7335 kind=economy secs=302 stopped for a merge after 302 s
