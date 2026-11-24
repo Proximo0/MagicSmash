@@ -1,0 +1,6 @@
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:80: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  wd.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:84: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mats = [m for m in bpy.data.materials if m.use_nodes and m.users]
+render: stopped at the step limit of 1500 s (job word step=N gives more)
+build_town ended 124

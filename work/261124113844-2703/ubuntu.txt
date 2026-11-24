@@ -1,0 +1,1 @@
+2026-11-24T13:12:18Z FAIL id=261124113844-2703 kind=shell secs=1624 render set=field nothing was built:   mats = [m for m in bpy.data.materials if m.use_nodes and m.users] render: stopped at the step limit of 1500 s (job word step=N gives more) build_town ended 124 
