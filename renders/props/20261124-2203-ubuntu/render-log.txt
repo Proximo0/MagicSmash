@@ -1,0 +1,44 @@
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:81: DeprecationWarning: 'World.use_nodes' is expected to be removed in Blender 6.0
+  wd.use_nodes = True
+/home/curtis/projects/stations/MagicSmash/tools/char3d/build_town.py:85: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mats = [m for m in bpy.data.materials if m.use_nodes and m.users]
+00:10.746  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_a/Still_00.png'
+00:11.062  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_a/Still_00_id.png'
+00:20.791  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_b/Still_00.png'
+00:21.121  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_b/Still_00_id.png'
+00:32.440  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_c/Still_00.png'
+00:32.630  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_dead_tree_c/Still_00_id.png'
+00:39.625  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_rock_a/Still_00.png'
+00:39.864  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_rock_a/Still_00_id.png'
+00:51.721  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_rock_b/Still_00.png'
+00:51.869  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_rock_b/Still_00_id.png'
+00:58.416  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_gravestone/Still_00.png'
+00:58.548  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_gravestone/Still_00_id.png'
+01:02.662  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_grave_cross/Still_00.png'
+01:02.756  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_grave_cross/Still_00_id.png'
+01:20.100  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_broken_pillar/Still_00.png'
+01:20.424  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_broken_pillar/Still_00_id.png'
+01:37.597  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_broken_wall/Still_00.png'
+01:37.863  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_broken_wall/Still_00_id.png'
+01:42.983  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_bone_pile/Still_00.png'
+01:43.111  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_bone_pile/Still_00_id.png'
+01:47.725  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_thorn_bush/Still_00.png'
+01:47.886  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_thorn_bush/Still_00_id.png'
+01:52.301  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_stump/Still_00.png'
+01:52.403  render           | Saved: '/tmp/station-job-ubuntu-BcUpDh/tmp/tmp.FGKkbGecn8/town/raw_field_prop_stump/Still_00_id.png'
+field_prop_dead_tree_a (54, 111)
+field_prop_dead_tree_b (58, 104)
+field_prop_dead_tree_c (64, 124)
+field_prop_rock_a (64, 34)
+field_prop_rock_b (74, 71)
+field_prop_gravestone (42, 56)
+field_prop_grave_cross (38, 58)
+field_prop_broken_pillar (122, 113)
+field_prop_broken_wall (130, 84)
+field_prop_bone_pile (64, 29)
+field_prop_thorn_bush (54, 48)
+field_prop_stump (44, 38)
+Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:18)
+
+Blender quit
+sheet 12 pictures (260, 1956)
