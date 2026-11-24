@@ -1,0 +1,1 @@
+2026-11-24T17:57:17Z FAIL id=261122113709-0991 kind=frames secs=450 no CLIENT_FRAMES line (no display, or the client died):  last: OpenGL API 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3 - Compatibility - Using Device: Intel - Mesa Intel(R) HD Graphics 5
