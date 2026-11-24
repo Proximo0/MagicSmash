@@ -4,3 +4,4 @@
 2026-11-24T07:52:33Z INFO id=261122113640-7335 kind=economy secs=241 stopped for a merge after 240 s
 2026-11-24T07:52:34Z INFO id=261122113640-7335 kind=economy secs=302 stopped for a merge after 302 s
 2026-11-24T08:51:07Z INFO id=261122113640-7335 kind=economy secs=182 stopped for a merge after 182 s
+2026-11-24T10:44:43Z FAIL id=261122113640-7335 kind=economy secs=4313 economy runs=1 bad=1 seed=40485 no ECONOMY ok line: coin flows by ledger row (op, reason, minted?, rows, coin): market: 545987 listed, 110722 sold for 54058032 coin, 0 cancelled, 433251 expired; tax 3297278 fees 23808973 postage 11343; npc paid 135033730 took 36306370; trades 2184, letters 3781 (cod 317285), buybacks 0 median sale price, percent of
