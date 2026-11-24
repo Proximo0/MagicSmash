@@ -1,1 +1,2 @@
 2026-11-24T06:26:14Z FAIL id=261123112122-9814 kind=soak secs=4 parked: started 3 times on this machine without finishing
+2026-11-24T20:29:07Z PASS id=261123112122-9814 kind=soak secs=7203 soak seed=522442 secs=7200 SOAK ok secs=7201 cycles=4321 heroes=40 outings=4321 banked=4320 left_gate=0 left_waystone=4019 timeouts=0 coin=83866494 xp=93950196 levels=814 potions=0 deposits=4320 points=1254 snapshots=33720 chat
