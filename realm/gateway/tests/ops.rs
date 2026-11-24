@@ -197,7 +197,14 @@ fn a_gateway_started_with_an_ops_conf_logs_serves_metrics_and_keeps_switches_acr
     let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap();
     let status = runtime::fetch(addr, "/status").unwrap();
     assert!(status.contains("trade frozen"), "the switch came back with the process: {status}");
-    assert!(runtime::fetch(addr, "/metrics").unwrap().contains("realm_tick_ms{field=\"0\""));
+    // The first tick time shows once field 0 has ticked; on a station whose cores are shared that can take seconds.
+    let until = std::time::Instant::now() + Duration::from_secs(20);
+    let mut metrics = runtime::fetch(addr, "/metrics").unwrap();
+    while !metrics.contains("realm_tick_ms{field=\"0\"") && std::time::Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(100));
+        metrics = runtime::fetch(addr, "/metrics").unwrap();
+    }
+    assert!(metrics.contains("realm_tick_ms{field=\"0\""), "no field 0 tick time after 20 s: {metrics}");
     let _ = child.kill();
     let _ = child.wait();
     let log = std::fs::read_to_string(dir.join("logs/realm.log")).unwrap();
