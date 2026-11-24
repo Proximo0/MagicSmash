@@ -492,6 +492,7 @@ if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
     heartbeat_reap
     keepawake_start
+    Q_NLANES=$(q_lane_total)   # before the heartbeat forks, so its lanes_busy=B/N shows the real N
     heartbeat_start
     trap 'heartbeat_stop; rm -f "$STATE.awake"' EXIT
   fi
