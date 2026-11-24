@@ -18,6 +18,6 @@ heatherspc: economy queue deep
 # "lanes: <machine> N" (not a role word, so a station still running the code from before lanes reads this file without error).
 # STATION_LANES overrides; without a line: cores/2 capped at total RAM / 1.5 GB. Each lane still needs its job's free RAM to start.
 lanes: msi 10
-lanes: laptop 1
+lanes: laptop 2
 lanes: heatherspc 1
 lanes: ubuntu 3
