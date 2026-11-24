@@ -1,3 +1,30 @@
+balance progress seed 0 round 1 below_60 20/20 lowest_level 6 fewest_hours 0.3 secs 63
+balance progress seed 0 round 2 below_60 20/20 lowest_level 9 fewest_hours 0.7 secs 142
+balance progress seed 0 round 3 below_60 20/20 lowest_level 10 fewest_hours 1.0 secs 219
+balance progress seed 0 round 4 below_60 20/20 lowest_level 12 fewest_hours 6.3 secs 297
+balance progress seed 0 round 5 below_60 20/20 lowest_level 22 fewest_hours 11.7 secs 384
+balance progress seed 0 round 6 below_60 20/20 lowest_level 27 fewest_hours 17.0 secs 507
+balance progress seed 0 round 7 below_60 20/20 lowest_level 28 fewest_hours 22.3 secs 609
+balance progress seed 0 round 8 below_60 20/20 lowest_level 29 fewest_hours 27.7 secs 707
+balance progress seed 0 round 9 below_60 20/20 lowest_level 30 fewest_hours 33.0 secs 810
+balance progress seed 0 round 10 below_60 20/20 lowest_level 38 fewest_hours 38.3 secs 911
+balance progress seed 0 round 11 below_60 20/20 lowest_level 39 fewest_hours 43.7 secs 1017
+balance progress seed 0 round 12 below_60 20/20 lowest_level 41 fewest_hours 49.0 secs 1132
+balance progress seed 0 round 13 below_60 20/20 lowest_level 44 fewest_hours 54.3 secs 1267
+balance progress seed 0 round 14 below_60 19/20 lowest_level 44 fewest_hours 59.7 secs 1368
+balance progress seed 0 round 15 below_60 15/20 lowest_level 45 fewest_hours 65.0 secs 1475
+balance progress seed 0 round 16 below_60 9/20 lowest_level 48 fewest_hours 70.3 secs 1536
+balance progress seed 0 round 17 below_60 8/20 lowest_level 49 fewest_hours 75.7 secs 1592
+balance progress seed 0 round 18 below_60 6/20 lowest_level 50 fewest_hours 81.0 secs 1649
+balance progress seed 0 round 19 below_60 6/20 lowest_level 50 fewest_hours 86.3 secs 1681
+balance progress seed 0 round 20 below_60 6/20 lowest_level 54 fewest_hours 91.7 secs 1710
+balance progress seed 0 round 21 below_60 5/20 lowest_level 57 fewest_hours 97.0 secs 1740
+balance progress seed 0 round 22 below_60 5/20 lowest_level 58 fewest_hours 102.3 secs 1772
+balance progress seed 0 round 23 below_60 3/20 lowest_level 58 fewest_hours 107.7 secs 1805
+balance progress seed 0 round 24 below_60 3/20 lowest_level 58 fewest_hours 113.0 secs 1836
+balance progress seed 0 round 25 below_60 1/20 lowest_level 59 fewest_hours 118.3 secs 1865
+balance progress seed 0 round 26 below_60 1/20 lowest_level 59 fewest_hours 123.7 secs 1896
+balance progress seed 0 round 27 below_60 0/20 lowest_level 60 fewest_hours 0.0 secs 1924
 median hours to a class level (credited field time), 20 careers
    level   KNIGHT     MAGE   ARCHER   PRIEST  PALADIN   median   target
        5     0.07     0.10     0.13     0.07     0.10     0.10   (0.12)
