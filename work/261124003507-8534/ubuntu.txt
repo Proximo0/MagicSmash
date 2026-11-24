@@ -1,0 +1,1 @@
+2026-11-24T03:27:56Z INFO id=261124003507-8534 kind=shell secs=3 shell fetchasset: fetchasset ok name=quaternius-animals-drive bytes=372940 sha256=6b23e101667a3cb8
