@@ -1,1 +1,1 @@
-HEARTBEAT machine=msi time=2026-11-24T10:18Z disk_free_gb=309 lanes_busy=6/10 free_mb=5152
+HEARTBEAT machine=msi time=2026-11-24T10:44Z disk_free_gb=309 lanes_busy=7/10 free_mb=4857 last_skip="needs 2048 MB free RAM, only 809 MB free (4905 MB less what lanes just started)"
