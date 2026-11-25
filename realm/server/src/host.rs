@@ -631,6 +631,8 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
     let mut n = 0u64;
     // Why everyone leaves when the host stops: the gateway's Stop, or the vault has closed.
     let mut stopping: Option<Leave> = None;
+    // Heroes moved in and kicked in the same batch of orders: they join this tick and are kicked the next.
+    let mut kick_next: Vec<u64> = Vec::new();
     'ticks: loop {
         if opts.ticks.is_some_and(|t| sim.field.tick() >= t) {
             break;
@@ -652,7 +654,7 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
         let mut finals: Vec<Flush> = Vec::new();
         let mut moved: Vec<HostMsg> = Vec::new();
         let mut joins: Vec<sim_join::Req> = Vec::new();
-        let mut kicks: Vec<u64> = Vec::new();
+        let mut kicks: Vec<u64> = std::mem::take(&mut kick_next);
         // Orders from the gateway.
         for cmd in cmds.try_iter().collect::<Vec<_>>() {
             match cmd {
@@ -720,8 +722,14 @@ fn run(opts: HostOpts, sock: UdpSocket, cmds: Receiver<HostCmd>, msgs: Option<Se
             }
         }
         for hero in kicks {
-            // Admitted and kicked in the same batch of orders (a starved host): she never joins.
+            // Admitted and kicked in the same batch of orders (a starved host): she never joins. One moved in from a
+            // closing copy carries her haul: she joins and is kicked next tick, so it is banked whole (handed back
+            // unused, it would be banked as a disconnect, half of it lost).
             joins.retain(|j| match j.who {
+                Some((h, _)) if h == hero && j.moved_in => {
+                    kick_next.push(hero);
+                    true
+                }
                 Some((h, ticket)) if h == hero => {
                     send_msg(HostMsg::Unused { hero, ticket });
                     false

@@ -556,7 +556,7 @@ impl Gateway {
         }
         self.tickets.lock().unwrap().insert(
             ticket,
-            crate::gateway::Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key },
+            crate::gateway::Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key, kicked: false },
         );
         let mut e = Entry::new(ticket, hero as u64, sheet, realm_core::Outing::new());
         e.drive = drive;
@@ -586,7 +586,14 @@ impl Gateway {
             })
         };
         // Job R3b: she keeps her guild tag in the copy she is moved to.
-        let account = self.tickets.lock().unwrap().get(&ticket).map(|t| t.account);
+        let (account, kicked) = self.tickets.lock().unwrap().get(&ticket).map_or((None, false), |t| (Some(t.account), t.kicked));
+        if kicked {
+            // Kicked or recalled after the old copy let her go: the Kick found her in no host. She leaves as kicked,
+            // her haul banked (the station's `hero 70: her outing never ended (recalled 240 s ago)`).
+            self.apply(Flush { hero, ticket, seq: seq + 1, coin: transfer.outing.coin as u64, lost_coin: 0, xp: 0, potions: [0; 6], waystone: None, fell: 0, banked: true, left: Some(Leave::Kicked), mark: None, plunders: Vec::new(), plunder_coin: Vec::new() });
+            self.world.count(|s| s.moved_banked += 1);
+            return;
+        }
         let guild = account.map_or(0, |a| self.social.guild_of_account(a));
         let dest = {
             let hosts = self.hosts.lock().unwrap();
@@ -613,8 +620,15 @@ impl Gateway {
             let Some(t) = tickets.get_mut(&ticket) else { return };
             t.host = id;
             t.moved = Some((seq, transfer.outing.coin as u64));
-            let driven = t.driven;
+            let (driven, kicked) = (t.driven, t.kicked);
             drop(tickets);
+            // Kicked between the check above and her Admit: that Kick may have reached the new copy before the Admit
+            // did. This one follows the Admit on the same channel.
+            if kicked {
+                if let Some(h) = self.hosts.lock().unwrap().iter().find(|h| h.id == id) {
+                    let _ = h.handle.cmds.send(HostCmd::Kick(hero));
+                }
+            }
             if driven {
                 None
             } else {
@@ -1156,6 +1170,71 @@ mod tests {
         }
         assert!(freed_at.is_some(), "the dead copy's ticket was freed");
         assert_eq!(gw.world.stats().hosts_lost, 1);
+        drop(l);
+        gw.shutdown();
+        let _ = std::fs::remove_file(&db);
+    }
+
+    /// The 2-hour week on a starved station: `bot 33: hero 70: her outing never ended (recalled 240 s ago)`. The
+    /// gateway sends a recall to every host as a Kick; a hero being moved out of a closing copy is in neither copy
+    /// then (the old one has let her go, the applier has not yet admitted her to the new one), so both hosts dropped
+    /// it and she played on in the new copy to the end of her order. A recall now marks her ticket, and the move
+    /// banks a marked hero (kicked) instead of admitting her.
+    #[test]
+    fn a_hero_recalled_while_she_is_moved_between_copies_is_still_recalled() {
+        let db = std::env::temp_dir().join(format!("realm-recall-moved-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&db);
+        let store = Arc::new(SqliteStore::open(&db).unwrap());
+        let world = WorldConfig { dev_bots: true, monsters: 50, ..WorldConfig::default() };
+        let gw = Gateway::start(store.clone(), Config { dev_login: true, secret: 5, world, ..Config::default() });
+        for _ in 0..2 {
+            let sim = SimOpts { field: 0, seed: 3, monsters: 50, threads: 1, bots: 0, rally_permille: 0, level: 0, vault: None };
+            gw.add_host(HostOpts { sim, port: 0, ..HostOpts::default() }).unwrap();
+        }
+        let l = crate::conn::listen(gw.clone(), "127.0.0.1:0").unwrap();
+        let mut c = GatewayClient::connect_plain(&l.addr.to_string()).unwrap();
+        assert!(matches!(c.login("recallmove").unwrap(), Resp::Login { .. }));
+        let hero = match c.call(Req::CreateHero { name: "Recallmove".into(), race: 0, class: 1, look: 1, self_found: false }).unwrap() {
+            Resp::HeroCreated(id) => id,
+            r => panic!("{r:?}"),
+        };
+        let d = OutingDelta { xp: crate::sheet::xp_to_reach(12), levels: 11, waystone: Some((0, 0)), ..OutingDelta::default() };
+        store.apply_outing(Meta::system(0x4EC1 << 64 | hero as u128, 1), hero, d).unwrap();
+        // An order far longer than the test: only the recall can end her outing.
+        let ticket = match c.call(Req::World(WReq::BotTicket { hero, field: 0, ticks: 1_000_000 })).unwrap() {
+            Resp::Ticket { ticket, .. } => ticket,
+            r => panic!("{r:?}"),
+        };
+        let from = gw.tickets.lock().unwrap()[&ticket].host;
+        let listed = |gw: &Gateway, id: u32| gw.world_members().iter().any(|m| m.0 == id && m.4.contains(&(hero as u64)));
+        let t = std::time::Instant::now();
+        while !listed(&gw, from) && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(listed(&gw, from), "she joined her copy");
+        // Her copy closes into the other; the applier is slow, so her move waits in its queue.
+        gw.applier_pause_ms.store(3_000, Ordering::Relaxed);
+        {
+            let mut hosts = gw.hosts.lock().unwrap();
+            let into = hosts.iter().find(|h| h.vault.is_none() && h.id != from).map(|h| h.id).unwrap();
+            let h = hosts.iter_mut().find(|h| h.id == from).unwrap();
+            h.closing = Some(into);
+            h.handle.cmds.send(HostCmd::MoveOut(hero as u64)).unwrap();
+        }
+        let t = std::time::Instant::now();
+        while listed(&gw, from) && t.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(!listed(&gw, from), "the closing copy let her go");
+        assert!(gw.tickets.lock().unwrap()[&ticket].moved.is_none(), "her move is still in the applier's queue");
+        // Recalled now: in neither copy.
+        assert!(matches!(c.call(Req::World(WReq::Recall { hero })).unwrap(), Resp::Ok));
+        let left = c.wait_push(Duration::from_secs(20), |r| match r {
+            Resp::Outing { hero: h, left, .. } if *h == hero && *left != 255 => Some(*left),
+            _ => None,
+        });
+        assert_eq!(left.unwrap(), Some(3), "her outing ended by the recall (3: kicked or recalled)");
+        assert_eq!(gw.ticket_count(), 0);
         drop(l);
         gw.shutdown();
         let _ = std::fs::remove_file(&db);
