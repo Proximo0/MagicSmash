@@ -43,3 +43,4 @@
 2026-11-25T08:18:46Z INFO id=261122113647-8689 kind=economy secs=3117 economy runs=1 bad=0 seed=191873 ok bots=4000 days=180 secs=3097 sales=112110 tax=3229232 coin_per_bot=340393 listings=551047 trades=2212 letters=3824 refused=3349
 2026-11-25T09:13:52Z INFO id=261122113647-8689 kind=economy secs=2980 economy runs=1 bad=0 seed=150134 ok bots=4000 days=180 secs=2947 sales=109477 tax=3276571 coin_per_bot=347041 listings=542460 trades=2239 letters=3733 refused=3412
 2026-11-25T09:18:04Z INFO id=261122113647-8689 kind=economy secs=3069 economy runs=1 bad=0 seed=100442 ok bots=4000 days=180 secs=3035 sales=107472 tax=2871404 coin_per_bot=343089 listings=537627 trades=2145 letters=3755 refused=3239
+2026-11-25T10:26:55Z INFO id=261122113647-8689 kind=economy secs=3857 economy runs=1 bad=0 seed=152890 ok bots=4000 days=180 secs=3818 sales=109666 tax=2956489 coin_per_bot=345075 listings=541828 trades=2233 letters=3607 refused=3428
