@@ -33,6 +33,9 @@ pub struct BotStats {
     pub left_by_gate: u64,
     pub left_by_waystone: u64,
     pub timeouts: u64,
+    /// Times a login's first town entry was told "she is already somewhere" (the last session's outing was still being
+    /// banked) and waited for the server to release her.
+    pub enter_waits: u64,
     /// After an outing the store did not hold exactly what the gateway reported (coin, xp, level).
     pub mismatches: u64,
     pub errors: Vec<String>,
@@ -61,6 +64,7 @@ impl BotStats {
         self.left_by_gate += o.left_by_gate;
         self.left_by_waystone += o.left_by_waystone;
         self.timeouts += o.timeouts;
+        self.enter_waits += o.enter_waits;
         self.mismatches += o.mismatches;
         self.errors.extend(o.errors.iter().cloned());
         self.logins += o.logins;
@@ -69,6 +73,9 @@ impl BotStats {
         self.rtts_us.extend(o.rtts_us.iter().copied());
     }
 }
+
+/// How long a login waits for the server to release a hero still placed by her last session: the ticket's life plus margin.
+const ENTER_WAIT: Duration = Duration::from_secs(realm_server::host::TICKET_TTL.as_secs() + 30);
 
 fn io(e: std::io::Error) -> String {
     e.to_string()
@@ -109,9 +116,19 @@ pub fn cycle(addr: &str, tls: Option<&Arc<ClientConfig>>, bot: u64, field: u8, p
     let hero = heroes.iter().find(|h| !h.deleted).ok_or("no hero")?.clone();
     prep(&hero);
     // The town: walk a little, say something, hear the room.
-    match gw.call(Req::EnterTown { hero: hero.id }).map_err(io)? {
-        Resp::Town { .. } => {}
-        r => return Err(format!("enter town: {r:?}")),
+    // A previous session that ended with its outing unreported (a timeout) leaves her in the field until the gateway
+    // banks her (the connection's end recalls her; an unused ticket expires after `TICKET_TTL`): a player logging
+    // straight back in is told "she is already somewhere" (11) and waits.
+    let wait_from = Instant::now();
+    loop {
+        match gw.call(Req::EnterTown { hero: hero.id }).map_err(io)? {
+            Resp::Town { .. } => break,
+            Resp::Err { code: code::BUSY, .. } if wait_from.elapsed() < ENTER_WAIT => {
+                stats.enter_waits += 1;
+                std::thread::sleep(Duration::from_millis(250));
+            }
+            r => return Err(format!("enter town: {r:?}")),
+        }
     }
     expect_ok(gw.call(Req::TownInput { dir: 3 }).map_err(io)?, "town input")?;
     expect_ok(gw.call(Req::Chat { text: format!("{} is here", hero.name) }).map_err(io)?, "chat")?;
