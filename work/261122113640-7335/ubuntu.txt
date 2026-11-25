@@ -14,3 +14,4 @@
 2026-11-25T04:42:18Z FAIL id=261122113640-7335 kind=economy secs=2623 silent for 900 s: economy progress day 15/180 secs 672 economy progress day 20/180 secs 1041 economy progress day 25/180 secs 1719 
 2026-11-25T10:13:52Z INFO id=261122113640-7335 kind=economy secs=10756 economy runs=1 bad=0 seed=54739 ok bots=4000 days=180 secs=10713 sales=111792 tax=2959078 coin_per_bot=342674 listings=550771 trades=2280 letters=3789 refused=2977
 2026-11-25T10:20:53Z INFO id=261122113640-7335 kind=economy secs=8592 economy runs=1 bad=0 seed=74658 ok bots=4000 days=180 secs=8556 sales=110478 tax=2969045 coin_per_bot=344184 listings=551835 trades=2294 letters=3805 refused=3022
+2026-11-25T11:39:23Z INFO id=261122113640-7335 kind=economy secs=2523 stopped for a merge after 2522 s
