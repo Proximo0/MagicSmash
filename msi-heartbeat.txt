@@ -1,1 +1,1 @@
-HEARTBEAT machine=msi time=2026-11-25T18:29Z disk_free_gb=307 lanes_busy=2/10 free_mb=5658 last_skip="needs 2048 MB free RAM, only 1648 MB free (5744 MB less what lanes just started)"
+HEARTBEAT machine=msi time=2026-11-25T19:00Z disk_free_gb=309 lanes_busy=0/10 free_mb=6265 last_skip="the GPU is busy (art generation is RUNNING)"
