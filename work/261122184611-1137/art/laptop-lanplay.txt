@@ -1,1 +1,9 @@
-LANPLAY ok addr=192.168.12.22:7700 secs=609 logins_ok=209 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=209 banked=202 deposits=202 rtt_mean_ms=31.79 rtt_p99_ms=319.06 calls=2820 refused_datagrams=0 hash_bad=0 mismatches=0
+LANPLAY ok addr=192.168.12.22:7700 secs=607 logins_ok=176 cycles_failed=10 handshake_failed=0 auth_failed=0 outings=166 banked=166 deposits=166 rtt_mean_ms=23.12 rtt_p99_ms=226.77 calls=2183 refused_datagrams=0 hash_bad=0 mismatches=0
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
+realm-lanplay: bot 135018: enter town: Err { code: 11, msg: "she is already somewhere" }
