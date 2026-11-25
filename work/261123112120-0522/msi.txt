@@ -5,3 +5,4 @@
 2026-11-24T16:38:43Z INFO id=261123112120-0522 kind=fuzz secs=1082 stopped for a merge after 1082 s
 2026-11-24T17:08:01Z PASS id=261123112120-0522 kind=fuzz secs=816 fuzz seeds_run=1 lanes=1 ops=200000 kills=800 last: STORE fuzz ok seed=750983 ops=200000 kills=800 (stmt=241 progress=157 commit=138 aftercommit=110 bef
 2026-11-25T06:42:03Z PASS id=261123112120-0522 kind=fuzz secs=1545 fuzz seeds_run=1 lanes=1 ops=200000 kills=800 last: STORE fuzz ok seed=621606 ops=200000 kills=800 (stmt=235 progress=132 commit=128 aftercommit=125 bef
+2026-11-25T19:50:32Z PASS id=261123112120-0522 kind=fuzz secs=1698 fuzz seeds_run=1 lanes=1 ops=200000 kills=800 last: STORE fuzz ok seed=585917 ops=200000 kills=800 (stmt=237 progress=144 commit=130 aftercommit=131 bef
