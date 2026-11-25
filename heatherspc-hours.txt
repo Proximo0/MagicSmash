@@ -1,4 +1,4 @@
 2026-11-22 busy_h=9.62 idle_h=0.31
 2026-11-23 busy_h=22.41 idle_h=0.93
 2026-11-24 busy_h=24.03 idle_h=0.02 lane_h=18.15 lanes=1
-2026-11-25 busy_h=12.53 idle_h=0.00 lane_h=9.70 lanes=1
+2026-11-25 busy_h=13.04 idle_h=0.00 lane_h=10.20 lanes=1
