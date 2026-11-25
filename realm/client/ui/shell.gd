@@ -179,7 +179,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	if e is InputEventKey and e.pressed and not e.echo:
 		var t: UiScreen = top()
-		if t != null and t.on_key(e):
+		if t != null and t.handle_key(e):
 			get_viewport().set_input_as_handled()
 
 

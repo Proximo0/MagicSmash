@@ -48,6 +48,14 @@ for the whole game.
 Three heavy jobs run at once on this box (4 cores). The lead commits, reviews, merges and runs the checks; workers
 never run git, never message Curtis, never install packages beyond the crates named above.
 
+## Ideas from the first playtest (Curtis, 25 Nov; not scheduled, no order)
+- A choice of manual or automatic basic attack (today every hero attacks on a cooldown by herself).
+- Better maps: obstacles that block, water, plants, more detail in each field, atmosphere (fog, weather, light).
+  Today a field is the procedural ground with patches and a few props.
+- UI fonts and frames in a pixel gothic style, not modern and slim (today a system serif).
+Done from the same playtest: menus take the mouse everywhere and the keyboard (arrows or Tab, Enter, Esc or a
+right click back); the town is seen at the fields' zoom with crisp pixels and the fields' walk animations.
+
 ## The stations (Curtis's four computers)
 
 His four computers test every merge with no Claude and no tokens (`tools/station/`, results on the branch
