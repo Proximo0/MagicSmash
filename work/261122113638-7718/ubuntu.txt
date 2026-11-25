@@ -9,3 +9,4 @@
 2026-11-25T07:11:16Z INFO id=261122113638-7718 kind=bench secs=753 stopped for a merge after 753 s
 2026-11-25T07:27:36Z PASS id=261122113638-7718 kind=bench secs=849 bench seed=5591 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=44.8s kills=174618 spawns=194618 deaths=11 recycled=0 hash=34f57c3c269273b5
 2026-11-25T10:56:06Z PASS id=261122113638-7718 kind=bench secs=1081 bench seed=11348 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=10.1s kills=170810 spawns=190810 deaths=6 recycled=0 hash=7a294e742c336d1e
+2026-11-25T15:05:26Z PASS id=261122113638-7718 kind=bench secs=294 bench seed=93963 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=13.8s kills=179866 spawns=199866 deaths=3 recycled=0 hash=fc71e81f473232dc
