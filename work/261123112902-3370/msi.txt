@@ -2,3 +2,4 @@
 2026-11-24T09:42:55Z FAIL id=261123112902-3370 kind=fuzz secs=1803 silent for 1800 s: 
 2026-11-24T18:41:06Z INFO id=261123112902-3370 kind=fuzz secs=363 stopped for a merge after 363 s
 2026-11-24T19:40:14Z FAIL id=261123112902-3370 kind=fuzz secs=1805 silent for 1800 s: 
+2026-11-25T05:08:31Z PASS id=261123112902-3370 kind=fuzz secs=4225 fuzz seeds_run=1 lanes=1 ops=400000 kills=1600 last: STORE fuzz ok seed=1118231 ops=400000 kills=1600 (stmt=486 progress=318 commit=246 aftercommit=223 b
