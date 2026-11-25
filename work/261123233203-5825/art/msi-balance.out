@@ -1,92 +1,103 @@
-balance progress seed 0 round 1 below_60 20/20 lowest_level 5 fewest_hours 0.2 secs 25
-balance progress seed 0 round 2 below_60 20/20 lowest_level 6 fewest_hours 0.3 secs 50
-balance progress seed 0 round 3 below_60 20/20 lowest_level 7 fewest_hours 0.5 secs 82
-balance progress seed 0 round 4 below_60 20/20 lowest_level 9 fewest_hours 0.7 secs 110
-balance progress seed 0 round 5 below_60 20/20 lowest_level 10 fewest_hours 0.8 secs 144
-balance progress seed 0 round 6 below_60 20/20 lowest_level 13 fewest_hours 3.5 secs 183
-balance progress seed 0 round 7 below_60 20/20 lowest_level 20 fewest_hours 6.2 secs 246
-balance progress seed 0 round 8 below_60 20/20 lowest_level 24 fewest_hours 8.8 secs 293
-balance progress seed 0 round 9 below_60 20/20 lowest_level 24 fewest_hours 11.5 secs 334
-balance progress seed 0 round 10 below_60 20/20 lowest_level 25 fewest_hours 14.2 secs 375
-balance progress seed 0 round 11 below_60 20/20 lowest_level 27 fewest_hours 16.8 secs 414
-balance progress seed 0 round 12 below_60 20/20 lowest_level 28 fewest_hours 19.5 secs 458
-balance progress seed 0 round 13 below_60 20/20 lowest_level 28 fewest_hours 22.2 secs 503
-balance progress seed 0 round 14 below_60 20/20 lowest_level 29 fewest_hours 24.8 secs 559
-balance progress seed 0 round 15 below_60 20/20 lowest_level 30 fewest_hours 27.5 secs 618
-balance progress seed 0 round 16 below_60 20/20 lowest_level 33 fewest_hours 30.2 secs 679
-balance progress seed 0 round 17 below_60 20/20 lowest_level 37 fewest_hours 32.8 secs 725
-balance progress seed 0 round 18 below_60 20/20 lowest_level 39 fewest_hours 35.5 secs 785
-balance progress seed 0 round 19 below_60 20/20 lowest_level 40 fewest_hours 38.2 secs 845
-balance progress seed 0 round 20 below_60 20/20 lowest_level 42 fewest_hours 40.8 secs 893
-balance progress seed 0 round 21 below_60 18/20 lowest_level 43 fewest_hours 43.5 secs 955
-balance progress seed 0 round 22 below_60 18/20 lowest_level 43 fewest_hours 46.2 secs 1005
-balance progress seed 0 round 23 below_60 17/20 lowest_level 43 fewest_hours 48.8 secs 1051
-balance progress seed 0 round 24 below_60 16/20 lowest_level 44 fewest_hours 51.5 secs 1098
-balance progress seed 0 round 25 below_60 15/20 lowest_level 45 fewest_hours 54.2 secs 1144
-balance progress seed 0 round 26 below_60 15/20 lowest_level 45 fewest_hours 56.8 secs 1182
-balance progress seed 0 round 27 below_60 15/20 lowest_level 45 fewest_hours 59.5 secs 1240
-balance progress seed 0 round 28 below_60 15/20 lowest_level 47 fewest_hours 62.2 secs 1279
-balance progress seed 0 round 29 below_60 14/20 lowest_level 47 fewest_hours 64.8 secs 1334
-balance progress seed 0 round 30 below_60 12/20 lowest_level 47 fewest_hours 67.5 secs 1376
-balance progress seed 0 round 31 below_60 11/20 lowest_level 49 fewest_hours 70.2 secs 1413
-balance progress seed 0 round 32 below_60 10/20 lowest_level 51 fewest_hours 72.8 secs 1459
-balance progress seed 0 round 33 below_60 8/20 lowest_level 52 fewest_hours 75.5 secs 1482
-balance progress seed 0 round 34 below_60 8/20 lowest_level 52 fewest_hours 78.2 secs 1504
-balance progress seed 0 round 35 below_60 8/20 lowest_level 54 fewest_hours 80.8 secs 1524
-balance progress seed 0 round 36 below_60 8/20 lowest_level 54 fewest_hours 83.5 secs 1545
-balance progress seed 0 round 37 below_60 8/20 lowest_level 55 fewest_hours 86.2 secs 1567
-balance progress seed 0 round 38 below_60 8/20 lowest_level 56 fewest_hours 88.8 secs 1607
-balance progress seed 0 round 39 below_60 7/20 lowest_level 57 fewest_hours 91.5 secs 1630
-balance progress seed 0 round 40 below_60 7/20 lowest_level 57 fewest_hours 94.2 secs 1654
-balance progress seed 0 round 41 below_60 4/20 lowest_level 57 fewest_hours 99.3 secs 1675
-balance progress seed 0 round 42 below_60 4/20 lowest_level 58 fewest_hours 102.0 secs 1697
-balance progress seed 0 round 43 below_60 4/20 lowest_level 58 fewest_hours 104.7 secs 1718
-balance progress seed 0 round 44 below_60 2/20 lowest_level 59 fewest_hours 107.3 secs 1738
-balance progress seed 0 round 45 below_60 2/20 lowest_level 59 fewest_hours 110.0 secs 1757
-balance progress seed 0 round 46 below_60 2/20 lowest_level 59 fewest_hours 112.7 secs 1777
-balance progress seed 0 round 47 below_60 1/20 lowest_level 59 fewest_hours 117.8 secs 1796
-balance progress seed 0 round 48 below_60 1/20 lowest_level 59 fewest_hours 120.5 secs 1816
-balance progress seed 0 round 49 below_60 1/20 lowest_level 59 fewest_hours 123.2 secs 1837
-balance progress seed 0 round 50 below_60 1/20 lowest_level 59 fewest_hours 125.8 secs 1857
-balance progress seed 0 round 51 below_60 0/20 lowest_level 60 fewest_hours 0.0 secs 1876
+balance progress seed 0 round 1 below_60 20/20 lowest_level 5 fewest_hours 0.2 secs 50
+balance progress seed 0 round 2 below_60 20/20 lowest_level 7 fewest_hours 0.3 secs 94
+balance progress seed 0 round 3 below_60 20/20 lowest_level 8 fewest_hours 0.5 secs 126
+balance progress seed 0 round 4 below_60 20/20 lowest_level 10 fewest_hours 0.7 secs 179
+balance progress seed 0 round 5 below_60 20/20 lowest_level 20 fewest_hours 3.3 secs 231
+balance progress seed 0 round 6 below_60 20/20 lowest_level 23 fewest_hours 6.0 secs 283
+balance progress seed 0 round 7 below_60 20/20 lowest_level 24 fewest_hours 8.7 secs 336
+balance progress seed 0 round 8 below_60 20/20 lowest_level 26 fewest_hours 11.3 secs 435
+balance progress seed 0 round 9 below_60 20/20 lowest_level 27 fewest_hours 14.0 secs 518
+balance progress seed 0 round 10 below_60 20/20 lowest_level 28 fewest_hours 16.7 secs 580
+balance progress seed 0 round 11 below_60 20/20 lowest_level 29 fewest_hours 19.3 secs 631
+balance progress seed 0 round 12 below_60 20/20 lowest_level 29 fewest_hours 22.0 secs 686
+balance progress seed 0 round 13 below_60 20/20 lowest_level 29 fewest_hours 24.7 secs 748
+balance progress seed 0 round 14 below_60 20/20 lowest_level 29 fewest_hours 27.3 secs 827
+balance progress seed 0 round 15 below_60 20/20 lowest_level 29 fewest_hours 30.0 secs 894
+balance progress seed 0 round 16 below_60 20/20 lowest_level 29 fewest_hours 32.7 secs 968
+balance progress seed 0 round 17 below_60 20/20 lowest_level 29 fewest_hours 35.3 secs 1059
+balance progress seed 0 round 18 below_60 20/20 lowest_level 30 fewest_hours 38.0 secs 1156
+balance progress seed 0 round 19 below_60 20/20 lowest_level 33 fewest_hours 40.7 secs 1228
+balance progress seed 0 round 20 below_60 20/20 lowest_level 34 fewest_hours 43.3 secs 1311
+balance progress seed 0 round 21 below_60 20/20 lowest_level 38 fewest_hours 46.0 secs 1418
+balance progress seed 0 round 22 below_60 18/20 lowest_level 38 fewest_hours 48.7 secs 1506
+balance progress seed 0 round 23 below_60 16/20 lowest_level 40 fewest_hours 51.3 secs 1579
+balance progress seed 0 round 24 below_60 15/20 lowest_level 40 fewest_hours 54.0 secs 1650
+balance progress seed 0 round 25 below_60 15/20 lowest_level 41 fewest_hours 56.7 secs 1722
+balance progress seed 0 round 26 below_60 15/20 lowest_level 42 fewest_hours 59.3 secs 1786
+balance progress seed 0 round 27 below_60 13/20 lowest_level 42 fewest_hours 62.0 secs 1841
+balance progress seed 0 round 28 below_60 13/20 lowest_level 42 fewest_hours 64.7 secs 1919
+balance progress seed 0 round 29 below_60 13/20 lowest_level 42 fewest_hours 67.3 secs 1984
+balance progress seed 0 round 30 below_60 12/20 lowest_level 43 fewest_hours 70.0 secs 2061
+balance progress seed 0 round 31 below_60 11/20 lowest_level 43 fewest_hours 72.7 secs 2118
+balance progress seed 0 round 32 below_60 11/20 lowest_level 43 fewest_hours 75.3 secs 2175
+balance progress seed 0 round 33 below_60 11/20 lowest_level 43 fewest_hours 78.0 secs 2233
+balance progress seed 0 round 34 below_60 11/20 lowest_level 43 fewest_hours 80.7 secs 2288
+balance progress seed 0 round 35 below_60 8/20 lowest_level 43 fewest_hours 83.3 secs 2343
+balance progress seed 0 round 36 below_60 8/20 lowest_level 43 fewest_hours 86.0 secs 2403
+balance progress seed 0 round 37 below_60 7/20 lowest_level 43 fewest_hours 88.7 secs 2464
+balance progress seed 0 round 38 below_60 5/20 lowest_level 44 fewest_hours 91.3 secs 2518
+balance progress seed 0 round 39 below_60 5/20 lowest_level 44 fewest_hours 94.0 secs 2572
+balance progress seed 0 round 40 below_60 5/20 lowest_level 44 fewest_hours 96.7 secs 2624
+balance progress seed 0 round 41 below_60 5/20 lowest_level 45 fewest_hours 99.3 secs 2676
+balance progress seed 0 round 42 below_60 5/20 lowest_level 45 fewest_hours 102.0 secs 2730
+balance progress seed 0 round 43 below_60 4/20 lowest_level 45 fewest_hours 109.7 secs 2791
+balance progress seed 0 round 44 below_60 3/20 lowest_level 45 fewest_hours 112.3 secs 2825
+balance progress seed 0 round 45 below_60 2/20 lowest_level 46 fewest_hours 115.0 secs 2859
+balance progress seed 0 round 46 below_60 2/20 lowest_level 46 fewest_hours 117.7 secs 2889
+balance progress seed 0 round 47 below_60 1/20 lowest_level 46 fewest_hours 120.3 secs 2918
+balance progress seed 0 round 48 below_60 1/20 lowest_level 46 fewest_hours 123.0 secs 2947
+balance progress seed 0 round 49 below_60 1/20 lowest_level 47 fewest_hours 125.7 secs 2970
+balance progress seed 0 round 50 below_60 1/20 lowest_level 48 fewest_hours 128.3 secs 2989
+balance progress seed 0 round 51 below_60 1/20 lowest_level 48 fewest_hours 131.0 secs 3009
+balance progress seed 0 round 52 below_60 1/20 lowest_level 50 fewest_hours 133.7 secs 3036
+balance progress seed 0 round 53 below_60 1/20 lowest_level 51 fewest_hours 136.3 secs 3062
+balance progress seed 0 round 54 below_60 1/20 lowest_level 52 fewest_hours 139.0 secs 3085
+balance progress seed 0 round 55 below_60 1/20 lowest_level 52 fewest_hours 141.7 secs 3108
+balance progress seed 0 round 56 below_60 1/20 lowest_level 53 fewest_hours 144.3 secs 3129
+balance progress seed 0 round 57 below_60 1/20 lowest_level 54 fewest_hours 147.0 secs 3150
+balance progress seed 0 round 58 below_60 1/20 lowest_level 55 fewest_hours 149.7 secs 3171
+balance progress seed 0 round 59 below_60 1/20 lowest_level 55 fewest_hours 152.3 secs 3197
+balance progress seed 0 round 60 below_60 1/20 lowest_level 56 fewest_hours 155.0 secs 3226
+balance progress seed 0 round 61 below_60 1/20 lowest_level 56 fewest_hours 157.7 secs 3251
+balance progress seed 0 round 62 below_60 1/20 lowest_level 56 fewest_hours 160.3 secs 3278
 median hours to a class level (credited field time), 20 careers
    level   KNIGHT     MAGE   ARCHER   PRIEST  PALADIN   median   target
-       5     0.04     0.07     0.09     0.07     0.12     0.07   (0.12)
-      10     0.34     0.41     0.30     0.43     0.38     0.38     0.42
-      15     1.52     2.57     2.55     1.77     2.04     2.04   (1.56)
-      20     2.60     4.21     5.84     3.10     3.69     3.69     4.00
-      25     4.65    10.18     9.55     4.82     6.20     6.20   (7.22)
-      30    12.90    19.27    18.76    11.61    12.84    12.90  (11.68)
-      35    21.88    26.73    24.91    17.75    17.76    21.88  (17.56)
-      40    29.48    33.62    33.30    23.02    21.42    29.48    25.00
-      45    39.15    45.69    46.12    31.79    30.25    39.15  (35.05)
-      50    47.47    60.83    64.39    38.83    36.93    47.47  (47.42)
-      55    54.40    72.26    79.63    45.68    48.13    54.40  (62.33)
-      60    70.64   101.98   106.82    63.53    67.31    70.64    80.00
+       5     0.04     0.03     0.06     0.08     0.10     0.06   (0.12)
+      10     0.26     0.18     0.30     0.37     0.46     0.30     0.42
+      15     2.74     2.12     1.38     1.07     1.24     1.38   (1.56)
+      20     4.40     4.82     2.67     2.08     2.44     2.67     4.00
+      25     7.35    11.21     7.89     4.85     5.62     7.35   (7.22)
+      30    13.58    19.39    17.48    10.33    12.81    13.58  (11.68)
+      35    17.60    31.50    22.43    16.34    21.35    21.35  (17.56)
+      40    23.87    37.30    28.87    23.55    25.16    25.16    25.00
+      45    29.94    45.72    40.23    29.36    33.86    33.86  (35.05)
+      50    39.04    65.56    53.87    39.58    54.39    53.87  (47.42)
+      55    45.78    80.75    71.89    46.96    67.53    67.53  (62.33)
+      60    58.21   113.63    90.84    62.06    87.06    87.06    80.00
 class XP an hour by band (percent off the band's median)
     band         KNIGHT           MAGE         ARCHER         PRIEST        PALADIN    median
-     1-9      2224  +0%      2234  +0%      2297  +3%      1661 -25%      2162  -2%      2224
-   10-19    174726 +36%    102400 -20%    100031 -21%    128131  +0%    135973  +6%    128131
-   20-29     96137  +0%     82291 -14%     88744  -7%    143241 +48%    115741 +20%     96137
-   30-39    383710  +0%    387389  +0%    311769 -19%    435091 +12%    575814 +48%    387389
-   40-49    952301 +40%    464734 -31%    424405 -37%    788266 +16%    676089  +0%    676089
-   50-59   1784337 +20%   1124700 -23%    940904 -36%   1794800 +21%   1479357  +0%   1479357
-worst class behind its band's median (bands 10-59): -37%
+     1-9      3808  +0%      6180 +62%      3831  +0%      2425 -36%      2786 -26%      3808
+   10-19     76680 -37%     83050 -31%    126525  +3%    162004 +32%    122044  +0%    122044
+   20-29    133345  +3%     65617 -49%     54532 -57%    129205  +0%    136356  +5%    129205
+   30-39    442820  +0%    437541  -1%    465570  +5%    504772 +13%    417196  -5%    442820
+   40-49    933548+106%    411546  -8%    315778 -30%    800108 +77%    451142  +0%    451142
+   50-59   2424533 +72%   1024715 -27%   1076747 -23%   1784631 +26%   1406074  +0%   1406074
+worst class behind its band's median (bands 10-59): -57%
 per hour, all careers by band: kills, downs, falls; outings in a party
-     1-9 kills    1524 downs  6.21 falls  6.10 party  50%
-   10-19 kills   25183 downs 29.84 falls 17.53 party  55%
-   20-29 kills   12577 downs  2.28 falls  1.97 party  39%
-   30-39 kills   24571 downs  0.24 falls  0.12 party  49%
-   40-49 kills   15867 downs  0.00 falls  0.00 party  44%
-   50-59 kills   40985 downs  0.31 falls  0.23 party  45%
+     1-9 kills    2526 downs  9.65 falls  8.47 party  50%
+   10-19 kills   21001 downs 23.25 falls 13.31 party  59%
+   20-29 kills   13132 downs  3.25 falls  1.75 party  37%
+   30-39 kills   27080 downs  0.56 falls  0.06 party  49%
+   40-49 kills   12986 downs  0.06 falls  0.03 party  35%
+   50-59 kills   42837 downs  0.16 falls  0.05 party  47%
 coin per career (minted by monsters and the merchant; sunk), by band
     band       kills     chests   merchant |     falls   potions    repair     fares      smith      tax |  sunk%     market
-     1-9        1018        130          8 |       345       504        35        67         13        1 |    84%         13
-   10-19      732962          0       4640 |    155826      5979    133629       450     251875       41 |    74%        617
-   20-29     1692466      42037      13855 |     57954     12970    555042      7830     921604      118 |    89%       1762
-   30-39    12003997      16358      59923 |     14309     19797   4917930     87500    6001990      163 |    91%       2476
-   40-49    32634854      15673      86809 |         0     27988  18203524    465600    9084900      520 |    85%       7921
-   50-59   113601462      52952     366206 |    178014     74183  72170491   1009700   32215038      354 |    92%       5418
-  career   160666761     127152     531445 |    406449    141425  95980655   1571147   48475422     1199 |    91%      18209
-sinks remove 91% of what monsters mint and 90% of all minted (with the merchant)
-BALANCE careers=20 h10=0.38 h20=3.7 h40=29.5 h60=70.6 worst_class=-37% sunk=91%
+     1-9        1509        218         12 |       677       544        71        54         11        2 |    78%         32
+   10-19      505578          0       3245 |    133378      8160    129970       900     186878       45 |    90%        672
+   20-29     2008260      38976      16697 |     85692     14906    764095     10080     781550      135 |    80%       2022
+   30-39    13008148      16412      66997 |     18249     16108   5440917    114800    7354982      151 |    99%       2305
+   40-49    28427816       5452      76820 |      9314     19827  18201230    524667    7565536      389 |    92%       5934
+   50-59   103667140      89344     356653 |    153889     68482  65106488    870574   30652852      384 |    93%       5876
+  career   147618454     150404     520427 |    401202    128029  89642773   1521075   46541812     1109 |    93%      16843
+sinks remove 93% of what monsters mint and 93% of all minted (with the merchant)
+BALANCE careers=20 h10=0.30 h20=2.7 h40=25.2 h60=87.1 worst_class=-57% sunk=93%
