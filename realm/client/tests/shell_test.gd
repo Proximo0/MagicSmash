@@ -45,10 +45,10 @@ func _field_alive(client: Variant, when: String) -> bool:
 	return false
 
 
-## A script error inside _run would leave the test hanging until check_client's 240 s timeout: end it sooner.
+## A script error inside _run would leave the test hanging until check_client's 480 s timeout: end it sooner.
 func _process(_delta: float) -> bool:
-	if Time.get_ticks_msec() > 230000 and not _done:
-		_check(false, "the shell test ran past 230 s (stuck after an error?)")
+	if Time.get_ticks_msec() > 470000 and not _done:
+		_check(false, "the shell test ran past 470 s (stuck after an error?)")
 		_finish()
 	return false
 
@@ -67,7 +67,9 @@ func _frames(n: int) -> void:
 		await process_frame
 
 
-func _until(cond: Callable, secs: float = 10.0) -> bool:
+## 30 s: the gateway answers in milliseconds on an idle PC, but a busy station (ubuntu: three lanes and the playtest
+## server on four cores) has taken more than 10 s for a bank deposit, a guild founding, a house rent (24-25 Nov).
+func _until(cond: Callable, secs: float = 30.0) -> bool:
 	var t0: int = Time.get_ticks_msec()
 	while not cond.call():
 		if Time.get_ticks_msec() - t0 > secs * 1000.0:
