@@ -150,7 +150,12 @@ Curtis plays against the same LAN host (`lanhost` on ubuntu). Code: `realm/playt
   copies the client to `~/HordeAndHearthPlay/client`, imports it and puts "Play Horde and Hearth" on the desktop (a
   `.cmd` on Windows, a `.desktop` on Linux) that runs the station's own Godot editor binary. Re-run it to update.
 - **Anywhere else:** the CI artifact `realm-playtest-windows-<ver>` (a debug export plus `Play.cmd`).
-- The host keeps a fresh store per session (two hours), so heroes last one session.
+- **The server:** `queue.sh add kind=shell args=script=playhost needs=ubuntu priority=9` (`jobs/playhost.sh`) runs the
+  gateway detached from the queue under `realm/playtest/serve.sh`, on a KEPT store `~/HordeAndHearthServer/realm.db`
+  (heroes stay), restarts it if it exits, and publishes `lan/host.txt` every 300 s with `end_epoch` a day ahead (same
+  format as lanhost, so the lanplay bots use it too). Re-run playhost to update the server to a new commit (it stops the
+  old one cleanly first). `touch ~/HordeAndHearthServer/stop` stops it for good. It replaced the forever lanhost job on
+  ubuntu (same ports); a lanhost rehearsal must not run on that PC while playhost serves.
 
 ## LAN rehearsal
 
