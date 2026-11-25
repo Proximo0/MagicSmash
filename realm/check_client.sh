@@ -64,7 +64,8 @@ fi
 
 # Import the client project (the pictures, and the extension list Godot loads the module from). On a fresh
 # clone the first import does its work and then Godot aborts while quitting; the second one is clean.
-import() { (timeout 120 "$GODOT" --headless --path client --import >"$work/import.log" 2>&1) 2>/dev/null; }
+# 360 s: a busy station (ubuntu at 3 lanes with the playtest server, 25 Nov 19:53) ran past 120 s on a fresh import.
+import() { (timeout 360 "$GODOT" --headless --path client --import >"$work/import.log" 2>&1) 2>/dev/null; }
 import || true
 if ! import || [ ! -f client/.godot/extension_list.cfg ]; then
 	grep -E "ERROR" "$work/import.log" | head -10
