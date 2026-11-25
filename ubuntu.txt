@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-25T04:43Z commit=cdd1e0e took=0s
-JOB realm SKIP nothing it tests changed since 6b77d67
-JOB world SKIP nothing it tests changed since 6b77d67
-JOB ops SKIP nothing it tests changed since 6b77d67
-STATION PASS jobs=0 failed=0 skipped=3
+STATION machine=ubuntu time=2026-11-25T06:54Z commit=1ca537d took=4779s
+JOB realm FAIL realm/check.sh:    | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=34.0  | realm/check_client.sh: direct: FOLLOW_TEST FAILED server=127.0.0.1:7791 ticks=110 hash_checks passed=6 failed=0 join_kb=224 in_kb_s=0.0 out_kb_s=0.38 sim_ms=0.00 stall_ms_max=5709 mispredicts=2/2 problems="timed out after 110 ticks; only 6 hash checks" relay: FOLLOW_TEST FAILED server=127.0.0.1:7792 ticks=115 hash_checks passed=5 failed=0 join_kb=226 in_kb_s=0.0 out_kb_s=0.38 sim_ms=0.00 stall_ms_max=4591 mispredicts=3/3 problems="timed out after 115 ticks; only 5 hash checks" REALM_CLIENT failed: follow test 
+JOB world PASS world secs=600 WORLD ok days=7.00 secs=602 heroes=200 cycles=1067 outings=1067 vault_runs=25 vault_joins=25 queued=913 queue_max=60 admitted=867 copies_opened=4 merges=1 moved=5 moved_bots=0 peak_copies=9 peak_heroes=152 tides=2787 won=0 bosses=736 killed=0 world_bosses=40 chests=0 news=482 key
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261125-105402 schema=4 items=0 stacks=0 ledger=140 digest=cbf29ce484222325 on 2026-11-25 release=v1->v2->v1 downgrade=refused
+STATION FAIL jobs=3 failed=1 skipped=0
