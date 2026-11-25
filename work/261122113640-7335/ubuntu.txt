@@ -11,3 +11,4 @@
 2026-11-25T01:32:03Z INFO id=261122113640-7335 kind=economy secs=304 stopped for a merge after 304 s
 2026-11-25T02:23:08Z INFO id=261122113640-7335 kind=economy secs=184 stopped for a merge after 183 s
 2026-11-25T04:37:07Z FAIL id=261122113640-7335 kind=economy secs=2045 silent for 901 s: economy progress day 10/180 secs 383 economy progress day 15/180 secs 696 economy progress day 20/180 secs 1140 
+2026-11-25T04:42:18Z FAIL id=261122113640-7335 kind=economy secs=2623 silent for 900 s: economy progress day 15/180 secs 672 economy progress day 20/180 secs 1041 economy progress day 25/180 secs 1719 
