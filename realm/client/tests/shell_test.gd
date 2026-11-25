@@ -276,7 +276,8 @@ func _run() -> void:
 	_check(gp != null and _shell.guild.is_empty(), "the guild panel opens with no guild")
 	gp.text = "PALE COURT"
 	await _press("create")
-	_check(await _until(func() -> bool: return not _shell.guild.is_empty()), "she founds a guild")
+	# 30 s: on a busy station (ubuntu 25 Nov, three lanes) the gateway took longer than 10 s to answer the create.
+	_check(await _until(func() -> bool: return not _shell.guild.is_empty(), 30.0), "she founds a guild")
 	_check(String(_shell.guild.get("name", "")) == "PALE COURT" and int(_shell.guild["my_rank"]) == 0, "she is its leader")
 	gp.text = "who has a lantern"
 	await _press("send")
