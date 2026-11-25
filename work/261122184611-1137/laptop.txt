@@ -30,3 +30,4 @@
 2026-11-25T11:01:51Z PASS id=261122184611-1137 kind=shell secs=626 lanplay host=ubuntu addr=192.168.12.22:7700 secs=607 logins_ok=176 cycles_failed=10 handshake_failed=0 auth_failed=0 outings=166 banked=166 deposits=166 rtt_mean_ms=23.12 rtt_p99_ms=226.77 calls=2183 refused_datagrams=0 hash_bad=0 mism
 2026-11-25T13:26:40Z PASS id=261122184611-1137 kind=shell secs=617 lanplay host=ubuntu addr=192.168.12.22:7700 secs=607 logins_ok=117 cycles_failed=10 handshake_failed=0 auth_failed=0 outings=107 banked=107 deposits=107 rtt_mean_ms=30.65 rtt_p99_ms=169.51 calls=1403 refused_datagrams=0 hash_bad=0 mism
 2026-11-25T14:43:07Z INFO id=261122184611-1137 kind=shell secs=92 lanplay: no live host
+2026-11-25T16:28:39Z INFO id=261122184611-1137 kind=shell secs=94 lanplay: no live host
