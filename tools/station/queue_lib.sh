@@ -362,7 +362,7 @@ q_kill() {  # pid: the timeout path: taskkill /T takes the native tree on Window
   wait "$p" 2>/dev/null; return 0
 }
 # Silence: a job whose output has not grown for J_SILENT seconds (job field silent_s, 0 = off) is stopped and FAILs "silent for N s".
-# Defaults by kind: 900 for kinds that print as they go (economy every 5 days, bench every report, soak every --progress=300 s);
+# Defaults by kind: 900 for kinds that print as they go (economy every day, bench every report, soak every --progress=300 s);
 # balance 1800 (one line a round); fuzz 1800 (realm-store prints only at a seed's end); package and frames off
 # (copies, exports and Godot are quiet); shell 900, but 3600 for a script that builds (names cargo: its build is quiet) and off for one
 # that renders (names blender or godot). The station's own build (q_build_all) runs before the jobs and is never watched.

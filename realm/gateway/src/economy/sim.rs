@@ -60,7 +60,7 @@ pub struct Config {
     pub db: PathBuf,
     /// Bots whose accounts are TRADE_LOCKED from the start (farms that keep trying).
     pub farms: usize,
-    /// No tables while it runs: one `economy progress day N/DAYS secs S` line every 5 days instead.
+    /// No tables while it runs: one `economy progress day N/DAYS secs S` line a day instead.
     pub quiet: bool,
 }
 
@@ -857,6 +857,11 @@ pub fn run(cfg: &Config) -> Report {
             let spent = &mut phase_secs[round];
             *spent += (c - b).as_secs_f64();
             phase_secs[3] += (b - a).as_secs_f64();
+        }
+        if cfg.quiet && !(day % 5 == 4 || day + 1 == cfg.days) {
+            // One short line a day when quiet: a 4,000-bot day on a busy PC takes minutes, and the station stops a job
+            // silent for 900 s (ubuntu 25 Nov: days 20 to 25 took 678 s, 25 to 30 more than 900).
+            println!("economy progress day {}/{} secs {:.0}", day + 1, cfg.days, started.elapsed().as_secs_f64());
         }
         if day % 5 == 4 || day + 1 == cfg.days {
             let flows = store.coin_flows().unwrap_or_default();
