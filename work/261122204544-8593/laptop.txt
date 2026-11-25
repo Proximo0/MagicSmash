@@ -7,3 +7,4 @@
 2026-11-24T16:51:31Z INFO id=261122204544-8593 kind=shell secs=6 sysinfo ram=14069MB free=2015MB page=9464MB page_used=1115MB cores=8 disk_free_gb=C:23 gpu=[none-or-not-nvidia] top3=[svchost:1599 claude:1156 steamwebhelper:553]
 2026-11-24T23:31:35Z INFO id=261122204544-8593 kind=shell secs=8 sysinfo ram=14069MB free=1676MB page=10495MB page_used=1320MB cores=8 disk_free_gb=C:23 gpu=[none-or-not-nvidia] top3=[svchost:1496 claude:1068 steamwebhelper:536]
 2026-11-25T05:43:20Z INFO id=261122204544-8593 kind=shell secs=13 sysinfo ram=14069MB free=1172MB page=11528MB page_used=1584MB cores=8 disk_free_gb=C:19 gpu=[none-or-not-nvidia] top3=[svchost:1524 claude:1013 msedge:490]
+2026-11-25T12:00:14Z INFO id=261122204544-8593 kind=shell secs=16 sysinfo ram=14069MB free=1477MB page=13676MB page_used=1890MB cores=8 disk_free_gb=C:20 gpu=[none-or-not-nvidia] top3=[svchost:1259 claude:924 msedge:484]
