@@ -2,11 +2,14 @@
 # Reads the LAN host's info that the station job lanhost publishes (lan/host.txt on branch station-results: ip, port,
 # state, its certificate), waits until a server is live with at least 10 minutes left, saves the certificate and
 # starts the game pointed at that server, trusting exactly that certificate (debug build: --dev-cert).
-param([switch]$DryRun)   # -DryRun: find the server and print the command, start nothing
+# -Godot/-Project: run the game from a checkout with a Godot editor binary (a station's own copy, see the station job
+# playkit) instead of the exported HordeAndHearth.exe beside this script. -DryRun: find the server, print the command.
+param([string]$Godot = '', [string]$Project = '', [switch]$DryRun)
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $url = 'https://raw.githubusercontent.com/Proximo0/MagicSmash/station-results/lan/host.txt'
 $exe = Join-Path $here 'HordeAndHearth.exe'
+if ($Godot) { $exe = $Godot }
 if (-not $DryRun -and -not (Test-Path $exe)) { Write-Host "HordeAndHearth.exe is not next to this script: unzip the whole folder first."; exit 1 }
 $f = $null; $text = ''
 for ($i = 1; $i -le 40; $i++) {
@@ -28,6 +31,8 @@ $pem = Join-Path $env:TEMP 'horde_and_hearth_lan.pem'
 Set-Content -Path $pem -Value $m.Value -Encoding ascii
 $left = [int](([int64]$f['end_epoch'] - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) / 60)
 Write-Host "Server found on $($f['machine']) at $($f['ip']):$($f['tcp_port']), $left minutes left in this session. Starting the game."
-$gameArgs = @('--', "--gateway=$($f['ip']):$($f['tcp_port'])", "--dev-cert=$pem")
+$gameArgs = @()
+if ($Project) { $gameArgs += @('--path', $Project) }
+$gameArgs += @('--', "--gateway=$($f['ip']):$($f['tcp_port'])", "--dev-cert=$pem")
 if ($DryRun) { Write-Host "DRYRUN $exe $($gameArgs -join ' ')"; exit 0 }
-Start-Process -FilePath $exe -WorkingDirectory $here -ArgumentList $gameArgs
+Start-Process -FilePath $exe -WorkingDirectory $here -ArgumentList ($gameArgs | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } })
