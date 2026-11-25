@@ -4,3 +4,4 @@
 2026-11-24T15:52:46Z INFO id=261123233203-5825 kind=balance secs=1206 stopped for a merge after 1206 s
 2026-11-24T16:38:44Z INFO id=261123233203-5825 kind=balance secs=1445 stopped for a merge after 1445 s
 2026-11-25T03:59:40Z INFO id=261123233203-5825 kind=balance secs=3280 balance cohorts=1 per=2 careers=20 h10=0.30 h20=2.7 h40=25.2 h60=87.1 worst_class=-57% sunk=93%
+2026-11-25T10:51:28Z INFO id=261123233203-5825 kind=balance secs=2884 balance cohorts=1 per=2 careers=20 h10=0.30 h20=2.7 h40=25.2 h60=87.1 worst_class=-57% sunk=93%
