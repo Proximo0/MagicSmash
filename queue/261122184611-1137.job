@@ -1,8 +1,0 @@
-kind=shell
-args=script=lanplay secs=600 bots=20 wait=60
-needs=laptop
-priority=8
-repeat=forever
-timeout_s=1800
-every_s=3600
-added=2026-11-22T18:46:11Z
