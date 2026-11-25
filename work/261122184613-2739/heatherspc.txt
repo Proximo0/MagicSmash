@@ -14,3 +14,4 @@
 2026-11-24T20:50:32Z INFO id=261122184613-2739 kind=shell secs=84 lanplay: no live host
 2026-11-25T03:34:26Z INFO id=261122184613-2739 kind=shell secs=81 lanplay: no live host
 2026-11-25T08:13:42Z INFO id=261122184613-2739 kind=shell secs=83 lanplay: no live host
+2026-11-25T11:32:18Z PASS id=261122184613-2739 kind=shell secs=655 lanplay host=ubuntu addr=192.168.12.22:7700 secs=601 logins_ok=67 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=67 banked=64 deposits=64 rtt_mean_ms=46.94 rtt_p99_ms=494.25 calls=908 refused_datagrams=0 hash_bad=0 mismatches

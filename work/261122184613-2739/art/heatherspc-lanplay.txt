@@ -1,1 +1,1 @@
-tools/station/jobs/lanplay.sh: line 39: /c/projects/stations/MagicSmash/.git/station_bin/d280e2beae23/realm-lanplay: No such file or directory
+LANPLAY ok addr=192.168.12.22:7700 secs=601 logins_ok=67 cycles_failed=0 handshake_failed=0 auth_failed=0 outings=67 banked=64 deposits=64 rtt_mean_ms=46.94 rtt_p99_ms=494.25 calls=908 refused_datagrams=0 hash_bad=0 mismatches=0
