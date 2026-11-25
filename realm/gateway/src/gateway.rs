@@ -99,6 +99,9 @@ pub(crate) struct Ticket {
     /// The ticket's field key (`realm_server::host::Entry`): random, replaced by a fresh one at each move to another
     /// another copy admits her with the same ones.
     pub(crate) key: realm_server::TicketKey,
+    /// Kicked or recalled (`Gateway::kick`): a move to another copy that the Kick missed banks her instead of
+    /// admitting her there.
+    pub(crate) kicked: bool,
 }
 
 /// A vault's host: its row, seals, the code its party enters with, and who paid its key.
@@ -710,7 +713,7 @@ impl Gateway {
         self.social.party_set_copy(hero, field, slot.copy, now_ms());
         self.tickets.lock().unwrap().insert(
             ticket,
-            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key },
+            Ticket { hero, account, field, coin: 0, xp: 0, levels: 0, potions: 0, host: host_id, conn, driven: drive.is_some(), moved: None, key, kicked: false },
         );
         let mut e = Entry::new(ticket, hero as u64, sheet, outing);
         e.drive = drive;
@@ -1198,7 +1201,12 @@ impl Gateway {
     }
 
     /// Sends the hero out of her field (the operator's kick): she is banked and her result applied.
+    /// Her tickets are marked first: a hero being moved between copies is in neither host, and the move must see
+    /// the mark (`on_moved`) or the Kick is lost and she plays on in the new copy.
     pub fn kick(&self, hero: i64) {
+        for t in self.tickets.lock().unwrap().values_mut().filter(|t| t.hero == hero) {
+            t.kicked = true;
+        }
         for s in self.hosts.lock().unwrap().iter() {
             let _ = s.handle.cmds.send(HostCmd::Kick(hero as u64));
         }
@@ -1330,7 +1338,7 @@ mod plunder_tests {
         let (vt, wt) = (0x1111u64, 0x2222u64);
         let (tx, _rx) = channel();
         for (t, h, a) in [(vt, victim, va), (wt, winner, wa)] {
-            gw.tickets.lock().unwrap().insert(t, Ticket { hero: h, account: a, field: 0, coin: 0, xp: 0, levels: 0, potions: 0, host: 1, conn: 0, driven: false, moved: None, key: Default::default() });
+            gw.tickets.lock().unwrap().insert(t, Ticket { hero: h, account: a, field: 0, coin: 0, xp: 0, levels: 0, potions: 0, host: 1, conn: 0, driven: false, moved: None, key: Default::default(), kicked: false });
             gw.locs.lock().unwrap().insert(h, Loc::Field { ticket: t, out: tx.clone() });
         }
         {
