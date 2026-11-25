@@ -1,2 +1,3 @@
 2026-11-23T17:02:42Z FAIL id=261122113704-0426 kind=balance secs=67 balance cohorts=1 no BALANCE line: timeout: failed to run command ‘realm/target/release/realm-loadtest’: Permission denied 
 2026-11-24T17:51:23Z INFO id=261122113704-0426 kind=balance secs=1875 balance cohorts=1 per=2 careers=20 h10=0.60 h20=4.4 h40=31.4 h60=80.7 worst_class=-30% sunk=79%
+2026-11-25T00:42:45Z INFO id=261122113704-0426 kind=balance secs=129 stopped for a merge after 128 s
