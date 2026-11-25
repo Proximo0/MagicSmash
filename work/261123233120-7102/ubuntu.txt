@@ -1,3 +1,4 @@
 2026-11-24T03:28:46Z FAIL id=261123233120-7102 kind=shell secs=1 world secs=7200 timeout: failed to execute process: No such file or directory (os error 2) 
 2026-11-24T07:45:48Z FAIL id=261123233120-7102 kind=shell secs=3604 silent for 3602 s: 
 2026-11-24T13:41:11Z FAIL id=261123233120-7102 kind=shell secs=7230 world secs=7200 bot 18: enter town: Err { code: 11, msg: "she is already somewhere" } hero 15: store 513686, reported 512612 WORLD FAILED days=7.00 secs=7227 heroes=200 cycles=6153 outings=6153 vault_runs=97 vault_joins=95 queued=5885 
+2026-11-25T01:06:44Z PASS id=261123233120-7102 kind=shell secs=7207 world secs=7200 WORLD ok days=7.00 secs=7203 heroes=200 cycles=18057 outings=18057 vault_runs=438 vault_joins=435 queued=17168 queue_max=107 admitted=17122 copies_opened=36 merges=35 moved=344 moved_bots=0 peak_copies=9 peak_heroes=152
