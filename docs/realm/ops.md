@@ -139,6 +139,19 @@ window passes); field UDP `flood_udp_rate` datagrams a second. Over a limit the 
 soak and tests, whose bots are all one address, are untouched. Suggested public values (in each setting's text): 20, 10, 100, 400.
 Why 400 UDP/s: a client sends 20 a second per hero, so a household of a few passes; a flood does not.
 
+## Playtest on the home PCs
+
+Curtis plays against the same LAN host (`lanhost` on ubuntu). Code: `realm/playtest/` (`play.ps1`, `play.sh`,
+`README.txt`, `Play.cmd`) and the station job `tools/station/jobs/playkit.sh`.
+- The launcher reads `lan/host.txt` from `station-results` (public raw URL), waits for `state=live` with 10+ minutes
+  left, saves the published certificate and starts the client with `--gateway=IP:7700 --dev-cert=PEM`. Only a debug
+  build honours `--dev-cert` (`gw_link.gd`), so the release export cannot be used for this.
+- **On a station PC:** `queue.sh add kind=shell args=script=playkit needs=<machine> priority=9` builds the native module,
+  copies the client to `~/HordeAndHearthPlay/client`, imports it and puts "Play Horde and Hearth" on the desktop (a
+  `.cmd` on Windows, a `.desktop` on Linux) that runs the station's own Godot editor binary. Re-run it to update.
+- **Anywhere else:** the CI artifact `realm-playtest-windows-<ver>` (a debug export plus `Play.cmd`).
+- The host keeps a fresh store per session (two hours), so heroes last one session.
+
 ## LAN rehearsal
 
 Proof that the game works between the home PCs over a real network with TLS: one PC hosts, the others play. Code:

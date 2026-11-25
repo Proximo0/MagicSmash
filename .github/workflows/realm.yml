@@ -211,10 +211,21 @@ jobs:
           godot --headless --path realm/client --export-release "Windows Desktop" ../../build/realm-client/HordeAndHearth.exe
           cp realm/client/bin/realm_godot.dll build/realm-client/
           ls -l build/realm-client
+      - name: Export the playtest kit (debug build, trusts the LAN server's own certificate; realm/playtest)
+        run: |
+          mkdir -p build/realm-playtest
+          godot --headless --path realm/client --export-debug "Windows Desktop" ../../build/realm-playtest/HordeAndHearth.exe
+          cp realm/client/bin/realm_godot.dll realm/playtest/Play.cmd realm/playtest/play.ps1 realm/playtest/README.txt build/realm-playtest/
+          ls -l build/realm-playtest
       - uses: actions/upload-artifact@v4
         with:
           name: realm-client-windows-${{ steps.ver.outputs.v }}
           path: build/realm-client
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realm-playtest-windows-${{ steps.ver.outputs.v }}
+          path: build/realm-playtest
           if-no-files-found: error
 
   # Licences, advisories, duplicate versions and sources of every crate we depend on (realm/deny.toml): the workspace and the
