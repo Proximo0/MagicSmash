@@ -5,12 +5,15 @@ extends UiScreen
 ## talk with Enter, use a station with F or a click when you stand at it. Stations and the plaza are TownMap's:
 ## the server knows only where heroes are.
 
-const ZOOM: float = 1.5
+## Screen px per world px: 2 on the shell's 960 x 540 canvas is the field's zoom 1 on its 480 x 270 one, so the
+## town is seen from the same height as the fields (Curtis, 25 Nov: "more similar to the fields in the perspective").
+const ZOOM: float = 2.0
 const SNAP_S: float = 0.1
-const HERO_BOX: float = 64.0
-## World px per px of a station's picture: the heroes' (HERO_BOX over the 142 px hero frame), so every pixel in the
-## town is the same size and a building stands as tall against a hero as the art was made to.
-const PIC_K: float = HERO_BOX / 142.0
+## A hero's height for names and speech above her (world px): the field's walk strips at their own scale.
+const HERO_BOX: float = 40.0
+## World px per px of a station's picture: the heroes' walk-strip scale in the field, so every pixel in the town is
+## the same size and a building stands as tall against a hero as the art was made to.
+const PIC_K: float = 0.4667
 ## A picture's bottom edge lies this far south of the station's point (world px); the hearth's likewise.
 const PIC_BASE: float = 24.0
 const HEARTH_BASE: float = 34.0
@@ -51,6 +54,9 @@ var _soil: FieldGround = null
 
 func opened() -> void:
 	modal = false
+	nav_enabled = false
+	# Crisp pixels, as the field's integer-scaled canvas draws them.
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	Sfx.play("bell")
 	var t: Dictionary = shell.town
 	stations = HomeMap.stations_for(shell.place, shell.street_plots)
@@ -353,6 +359,17 @@ func _station_labels() -> void:
 			UiKit.text(self, Vector2(c.x, r.end.y + 6), "[%s]  %s" % [ShellSettings.key_label(ShellSettings.key("interact")), String(s["what"])], 12, UiKit.GOLD, HORIZONTAL_ALIGNMENT_CENTER)
 
 
+## The field's hero pictures (walk, attack strips) by class * 4 + race, loaded once.
+var _hero_art: Dictionary = {}
+
+
+func _hero_entry(cls: int, race: int) -> Dictionary:
+	var k: int = cls * 4 + race
+	if not _hero_art.has(k):
+		_hero_art[k] = FieldArt.hero_entry(cls, race)
+	return _hero_art[k]
+
+
 func _hero(id: int) -> void:
 	var m: Dictionary = members[id]
 	var p: Vector2 = w2s(shown(id))
@@ -363,10 +380,26 @@ func _hero(id: int) -> void:
 	if mine:
 		draw_arc(p + Vector2(0, 2), 13.0 * ZOOM * 0.8, 0.0, TAU, 20, UiKit.GOLD, 1.5)
 	var d: int = int(m["dir"])
-	var bob: float = 0.0
-	if (m["from"] as Vector2).distance_to(m["to"]) > 0.5:
-		bob = sin(_clock * 14.0 + float(id)) * 1.5
-	UiArt.draw_hero(self, int(m["class"]), int(m["race"]), p + Vector2(0, -HERO_BOX * ZOOM * 0.4 + bob), HERO_BOX * ZOOM, int(m["look"]), d in [4, 5, 6])
+	var moving: bool = (m["from"] as Vector2).distance_to(m["to"]) > 0.5
+	var e: Dictionary = _hero_entry(int(m["class"]), int(m["race"]))
+	if e.is_empty():
+		UiArt.draw_hero(self, int(m["class"]), int(m["race"]), p + Vector2(0, -HERO_BOX * ZOOM * 0.4), HERO_BOX * ZOOM, int(m["look"]), d in [4, 5, 6])
+		return
+	# As in the field: the walk strip's frames while she moves, its first frame standing, mirrored facing west.
+	var tex: Texture2D = e["tex"]
+	var n: int = int(e["anim"])
+	var fw: float = float(tex.get_width()) / n
+	var f: int = (int((_clock + float(id) * 0.37) * float(e["fps"])) % n) if moving else 0
+	var region := Rect2(f * fw, 0, fw, tex.get_height())
+	var sz: Vector2 = region.size * float(e["scale"]) * ZOOM
+	var dst := Rect2(p - Vector2(sz.x / 2.0, sz.y * 0.82), sz)
+	var col: Color = GameNames.LOOK_PALETTES[GameNames.look_palette(int(m["look"]))]
+	if d in [4, 5, 6]:
+		draw_set_transform(Vector2(p.x * 2.0, 0), 0.0, Vector2(-1, 1))
+		draw_texture_rect_region(tex, dst, region, col)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		draw_texture_rect_region(tex, dst, region, col)
 
 
 ## Every hero's name and speech, over everything.

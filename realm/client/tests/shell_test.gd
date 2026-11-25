@@ -69,6 +69,22 @@ func _frames(n: int) -> void:
 
 ## 30 s: the gateway answers in milliseconds on an idle PC, but a busy station (ubuntu: three lanes and the playtest
 ## server on four cores) has taken more than 10 s for a bank deposit, a guild founding, a house rent (24-25 Nov).
+## Moves the real mouse (window coordinates, as the OS sends them) over a button of the top screen: true when the
+## screen's own input saw it there.
+func _mouse_reaches(id: String) -> bool:
+	var t: UiScreen = _shell.top()
+	for h in t._hits:
+		if h["id"] == id:
+			var p: Vector2 = root.get_final_transform() * (t.get_global_transform_with_canvas() * (h["rect"] as Rect2).get_center())
+			var m := InputEventMouseMotion.new()
+			m.position = p
+			m.global_position = p
+			Input.parse_input_event(m)
+			await _frames(3)
+			return t.hover_id == id
+	return false
+
+
 func _until(cond: Callable, secs: float = 30.0) -> bool:
 	var t0: int = Time.get_ticks_msec()
 	while not cond.call():
@@ -183,6 +199,25 @@ func _run() -> void:
 	await _frames(3)
 	await _shot("01_title")
 	_check(_shell.base_name == "title", "starts at the title")
+	# A real mouse, through the window: every title button lights under the pointer (25 Nov: the screens were
+	# 480 x 270 Controls drawing 960 x 540, so only the top-left quarter took clicks).
+	for id in ["enter", "settings", "quit"]:
+		_check(await _mouse_reaches(id), "the mouse reaches the title's '%s' button" % id)
+	# The keyboard walks the same menu: Down picks the first button, Down again the one below, Enter presses it,
+	# Esc goes back.
+	_shell.top().hover_id = ""
+	_shell._unhandled_input(_key(KEY_DOWN))
+	_check(_shell.top().hover_id == "enter", "Down picks the title's first button (%s)" % _shell.top().hover_id)
+	_shell._unhandled_input(_key(KEY_DOWN))
+	_check(_shell.top().hover_id in ["settings", "quit"], "Down moves to a button below (%s)" % _shell.top().hover_id)
+	_shell._unhandled_input(_key(KEY_LEFT))
+	_check(_shell.top().hover_id == "settings", "Left moves to settings (%s)" % _shell.top().hover_id)
+	_shell._unhandled_input(_key(KEY_ENTER))
+	await _frames(2)
+	_check(_shell.panel_of("SettingsPanel") != null, "Enter presses the picked button (settings open)")
+	_shell._unhandled_input(_key(KEY_ESCAPE))
+	await _frames(2)
+	_check(_shell.panel_of("SettingsPanel") == null, "Esc goes back (settings close)")
 	await _press("settings")
 	await _frames(2)
 	await _shot("02_settings")
