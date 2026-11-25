@@ -1,3 +1,4 @@
 2026-11-24T04:46:21Z FAIL id=261123233201-5781 kind=shell secs=5 parked: started 3 times on this machine without finishing
 2026-11-24T18:49:20Z INFO id=261123233201-5781 kind=shell secs=129 stopped for a merge after 129 s
 2026-11-24T19:54:48Z INFO id=261123233201-5781 kind=shell secs=3007 wirefuzz iters=2000000 seed=207286 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
+2026-11-25T05:13:09Z INFO id=261123233201-5781 kind=shell secs=3008 wirefuzz iters=2000000 seed=696605 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
