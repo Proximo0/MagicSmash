@@ -44,3 +44,4 @@
 2026-11-25T05:46:58Z INFO id=261122113644-6983 kind=soak secs=1687 stopped for a merge after 1687 s
 2026-11-25T06:52:23Z PASS id=261122113644-6983 kind=soak secs=1806 soak seed=115369 secs=1800 SOAK ok secs=1802 cycles=1214 heroes=40 outings=1214 banked=1213 left_gate=0 left_waystone=1175 timeouts=0 coin=24650406 xp=25572603 levels=490 potions=0 deposits=1213 points=930 snapshots=9535 chats=
 2026-11-25T06:55:24Z PASS id=261122113644-6983 kind=soak secs=1806 soak seed=110272 secs=1800 SOAK ok secs=1802 cycles=1081 heroes=40 outings=1081 banked=1079 left_gate=0 left_waystone=1028 timeouts=0 coin=29167924 xp=30386495 levels=527 potions=0 deposits=1079 points=967 snapshots=8462 chats=
+2026-11-25T07:09:23Z INFO id=261122113644-6983 kind=soak secs=363 stopped for a merge after 363 s
