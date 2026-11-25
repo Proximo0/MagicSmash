@@ -8,3 +8,4 @@
 2026-11-25T11:40:13Z INFO id=261123233125-7028 kind=shell secs=2522 stopped for a merge after 2522 s
 2026-11-25T12:35:31Z INFO id=261123233125-7028 kind=shell secs=3002 wirefuzz iters=2000000 seed=371787 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
 2026-11-25T16:33:31Z INFO id=261123233125-7028 kind=shell secs=3005 wirefuzz iters=2000000 seed=943659 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
+2026-11-25T20:31:25Z INFO id=261123233125-7028 kind=shell secs=2106 stopped for a merge after 2106 s
