@@ -33,7 +33,8 @@ rm -f "$dir/stop" "$dir/gateway.stop"
 cp "$src" "$dir/bin/realm-gateway.new" && mv "$dir/bin/realm-gateway.new" "$dir/bin/realm-gateway" || { echo "FAIL playhost: copy the gateway"; exit 1; }
 cp "$repo/realm/playtest/serve.sh" "$dir/serve.sh"
 : >"$dir/out.log"
-MACHINE="$(q_me)" BRANCH="$BRANCH" setsid nohup bash "$dir/serve.sh" "$dir" "$repo" "$ip" "$port" "$fieldport" >/dev/null 2>&1 </dev/null &
+# TMPDIR=/tmp: the job's own TMPDIR is deleted when the job ends, and every later git publish would fail there (25 Nov).
+TMPDIR=/tmp MACHINE="$(q_me)" BRANCH="$BRANCH" setsid nohup bash "$dir/serve.sh" "$dir" "$repo" "$ip" "$port" "$fieldport" >/dev/null 2>&1 </dev/null &
 for _ in $(seq 1 120); do grep -q '^LISTEN ' "$dir/out.log" 2>/dev/null && break; sleep 1; done
 grep -q '^LISTEN ' "$dir/out.log" || { tail -3 "$dir/err.log" 2>/dev/null; echo "FAIL playhost: the gateway did not start (see $dir/err.log)"; exit 1; }
 sleep 5
