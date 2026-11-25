@@ -1,6 +1,7 @@
-    Finished `release` profile [optimized] target(s) in 0.38s
+    Finished `release` profile [optimized] target(s) in 7.90s
      Running unittests src/lib.rs (/home/curtis/station-targets/wirefuzz/release/build/realm-core/5e6d815bf3c0389d/out/realm_core-5e6d815bf3c0389d)
 
 running 2 tests
-test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes ... ok
+test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
 test wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
+test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes ... ok
