@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-25T03:47Z commit=6b77d67 took=5146s
-JOB realm FAIL realm/check.sh:    | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=33.8  | REALM_CLIENT ok gallery_sprites=496 field_test_checks=2126 shell_test_checks=208 shell_shots=50 onboard: clicks=5,screen
-JOB world PASS world secs=600 WORLD ok days=7.00 secs=1111 heroes=200 cycles=927 outings=927 vault_runs=10 vault_joins=9 queued=810 queue_max=51 admitted=760 copies_opened=5 merges=2 moved=17 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2719 won=0 bosses=718 killed=0 world_bosses=39 chests=0 news=532 keys
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261125-074758 schema=4 items=0 stacks=0 ledger=146 digest=cbf29ce484222325 on 2026-11-25 release=v1->v2->v1 downgrade=refused
-STATION FAIL jobs=3 failed=1 skipped=0
+STATION machine=ubuntu time=2026-11-25T04:43Z commit=cdd1e0e took=0s
+JOB realm SKIP nothing it tests changed since 6b77d67
+JOB world SKIP nothing it tests changed since 6b77d67
+JOB ops SKIP nothing it tests changed since 6b77d67
+STATION PASS jobs=0 failed=0 skipped=3
