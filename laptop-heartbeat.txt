@@ -1,1 +1,1 @@
-HEARTBEAT machine=laptop time=2026-11-25T11:10Z disk_free_gb=19 lanes_busy=0/2 free_mb=1044 last_skip="needs 2048 MB free RAM, only 600 MB free"
+HEARTBEAT machine=laptop time=2026-11-25T11:43Z disk_free_gb=19 lanes_busy=0/2 free_mb=786 last_skip="needs 2048 MB free RAM, only 280 MB free (792 MB less what lanes just started)"
