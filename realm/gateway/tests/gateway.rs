@@ -167,6 +167,34 @@ fn a_field_ticket_hands_the_hero_to_a_host_and_she_is_in_one_place() {
 }
 
 #[test]
+fn a_hero_left_in_the_field_by_a_dropped_connection_is_released_in_bounded_time() {
+    // The soak's "she is already somewhere": a session ends with her ticket unused (a timeout), and the next login's
+    // town entry is told 11 until the host hands the ticket back; then it succeeds.
+    let mut wc = realm_gateway::world::WorldConfig::default();
+    wc.ticket_ttl = Duration::from_millis(500);
+    let w = world_with("dropped", Config { dev_login: true, secret: 77, world: wc, ..Config::default() });
+    let mut a = login(&w, "ann");
+    let h = make_hero(&mut a, "Annie", 1);
+    assert!(matches!(a.call(Req::EnterTown { hero: h }).unwrap(), Resp::Town { .. }));
+    assert!(matches!(a.call(Req::FieldTicket { hero: h, field: 0 }).unwrap(), Resp::Ticket { .. }));
+    drop(a);
+    let mut b = login(&w, "ann");
+    let from = std::time::Instant::now();
+    let mut waited = 0;
+    loop {
+        match b.call(Req::EnterTown { hero: h }).unwrap() {
+            Resp::Town { .. } => break,
+            Resp::Err { code: code::BUSY, .. } if from.elapsed() < Duration::from_secs(20) => {
+                waited += 1;
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            r => panic!("never released: {r:?}"),
+        }
+    }
+    eprintln!("released after {waited} busy answers");
+}
+
+#[test]
 fn the_bank_and_mail_go_through_the_stores_rules() {
     let w = world("bank", true);
     let (mut ann, mut bo) = (login(&w, "ann"), login(&w, "bobby"));
