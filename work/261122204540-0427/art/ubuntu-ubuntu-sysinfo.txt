@@ -1,23 +1,23 @@
 ram_total_mb=15374
-ram_free_mb=7507
+ram_free_mb=9882
 page_mb=4095
-page_used_mb=1662
+page_used_mb=1674
 cores=4
 disk_free_gb=/834,/834
 --- top programs by memory (MB)
-   1727  11x claude-desktop
-    739   2x rustc
+   1752  11x claude-desktop
     453   1x firefox
-    264   1x bazaar
-    262   1x gnome-shell
-    248   1x claude
+    275   1x bazaar
+    266   1x gnome-shell
     230   1x ptyxis
-    202   1x Privileged
     196   3x Web
-    192   1x realm-world
     190   1x Isolated
+    188   1x Privileged
     133   1x Runner.Listener
+    124   1x Runner.Worker
     111   3x gjs
      88   1x WebExtensions
      75   3x xdg-desktop-por
+     65   2x core-7626ba42ee
+     64  14x bash
 gpu=none-or-not-nvidia
