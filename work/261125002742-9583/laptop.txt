@@ -1,0 +1,1 @@
+2026-11-25T01:03:26Z PASS id=261125002742-9583 kind=shell secs=58 playkit dest=/c/Users/Athena/HordeAndHearthPlay launcher=/c/Users/Athena/Desktop/Play Horde and Hearth.cmd godot=C:/projects/tools/godot/Godot_v4.7.2-stable_win64.exe
