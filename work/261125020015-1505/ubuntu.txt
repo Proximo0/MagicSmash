@@ -1,0 +1,1 @@
+2026-11-25T03:52:18Z PASS id=261125020015-1505 kind=shell secs=10 playhost ip=192.168.12.22 port=7700 udp=7800-7801 store=/home/curtis/HordeAndHearthServer/realm.db supervisor=1025106
