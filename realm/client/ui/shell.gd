@@ -720,7 +720,16 @@ func _open_field(host: String, port: int, ticket: int, key: PackedByteArray, fie
 	field_started.emit(field)
 
 
+## The frame of the last Esc seen: the field client's `escaped` and the shell's own key handler both see one press,
+## and the second sighting in the same frame must not count as the second press (25 Nov: one Esc left the field).
+var _esc_frame: int = -1
+
+
 func _field_escape() -> void:
+	var f: int = Engine.get_process_frames()
+	if f == _esc_frame:
+		return
+	_esc_frame = f
 	if _now - _esc_at < ESC_LEAVE_S:
 		leave_field_now()
 		return

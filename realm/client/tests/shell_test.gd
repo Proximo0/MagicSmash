@@ -226,6 +226,7 @@ func _run() -> void:
 	_shell.top().on_key(_key(KEY_Q))
 	_check(ShellSettings.key("skill1") == KEY_Q, "a key is rebound from the screen")
 	ShellSettings.reset_keys()
+	_check(await _mouse_reaches("close"), "the mouse reaches a panel's X (it is not under the panel's swallow)")
 	await _press("close")
 	await _frames(2)
 	_check(_shell.panel_of("SettingsPanel") == null, "settings close")
@@ -589,6 +590,16 @@ func _run() -> void:
 	if not _field_alive(client, "while idling 20 frames"):
 		return
 	await _shot("21_field")
+	# One Esc press reaches the shell twice (the field client's `escaped` and the shell's key handler): it warns, it
+	# must not leave (25 Nov, the playbot: one Esc lost half the haul).
+	var esc := InputEventKey.new()
+	esc.pressed = true
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	Input.parse_input_event(esc)
+	await _frames(3)
+	_check(_shell.in_field and _shell.field_client == client, "one Esc in the field warns and does not leave")
+	_shell._esc_at = -100.0
 	if not _field_alive(client, "during the field shot"):
 		return
 	_check(not _shell.layer.visible, "the shell's screens are hidden in the field")

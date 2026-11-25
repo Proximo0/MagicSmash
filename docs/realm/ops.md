@@ -157,6 +157,44 @@ Curtis plays against the same LAN host (`lanhost` on ubuntu). Code: `realm/playt
   old one cleanly first). `touch ~/HordeAndHearthServer/stop` stops it for good. It replaced the forever lanhost job on
   ubuntu (same ports); a lanhost rehearsal must not run on that PC while playhost serves.
 
+## Player-like bots (playbot)
+
+Bots that play the REAL client the way Curtis does, for realistic data (frame times, stutters, errors, screens, flows).
+Code: `realm/client/tests/playbot.gd`, station job `tools/station/jobs/playbot.sh`.
+- **Input path:** the shell is built as `main.gd` builds it, and every input is an event through
+  `Input.parse_input_event`: keys (keycode and physical keycode, pressed then released, the keys `ShellSettings` binds,
+  so a station's own key settings are used) and the mouse moved over and clicked on the buttons the screens draw, at
+  window coordinates. It never calls `press()`, `on_press`, `_unhandled_input` or the field client's `script_move`. It
+  READS state (the screens' `_hits`, the town, the field client's `_info`, monsters in view, sites) to decide.
+- **The flow:** title, login (Backspace the offered name, type `PB<name>`, Enter or KNOCK), the first hero or the builder
+  (random race and class by clicks), town (walks with the move keys to a station and clicks it or presses F; the bag or
+  sheet by key or button; closes by Esc, a right click on nothing or the X), the gates (clicks a field it fits, or
+  Enter), the field, back, again until `--secs`. A 0.3 to 1.5 s pause before each menu input; seeded RNG (`--seed`).
+- **The field brain (keys only):** out from the gate, then hunts the nearest pack (the nearest monster alone when hurt),
+  explores 600 to 1 800 px off when nothing is in view, kites away under 50 % health and taps a potion under 45 %,
+  holds skill 1 while anything is within 150 px and skill 2 / the ultimate when ready, picks an offered card with its
+  key after a moment, roams off after being downed. After 90 to 200 s (or four downs) it walks to the nearest waystone,
+  clears it, holds F 3 s to bank, then leaves by holding F again, by the gate (south through it) or by Esc. When `--secs`
+  is up it leaves by the nearer of gate and waystone; 90 s later by Esc. Unstick: no headway for 3 s with a move key
+  held, a random heading for 1.5 s. Never steps south near the gate unless leaving (that ends the outing).
+- **Data** (`--out`): `summary.json` (per-screen secs, inputs, visits, frames and hitches; FPS and frame ms p50/p99/max;
+  frames over 50 and 100 ms with the screen and time; engine and script errors counted by an `OS.add_logger` Logger,
+  the first 20 kept; the field client's net and sim counters per outing with the field's sites; a 16 x 16 heat grid per
+  field; card picks, potions, banks, downs, outings as the gateway reported them, km walked at 32 px a metre; buttons
+  another button covers and panels that did not close by the way tried) and PNGs (each screen change, each of the first
+  three downs, one a minute, at most 40). One stdout line:
+  `PLAYBOT ok|FAILED secs= screens= fields= outings= kills= deaths= coin= fps_p50= frame_ms_p99= hitches_50ms= errors= km_walked=`.
+  FAILED only when it never reached a field or the gateway link was lost. Kills are counted from the frame's kill rows
+  near her in frames that gave her XP (a kill row names no killer): a lower bound.
+- **On a station:** `queue.sh add kind=shell args="script=playbot secs=900 bots=2" needs=<machine> timeout_s=2400`
+  (needs `playkit` run there first: it uses `~/HordeAndHearthPlay/client`, copying the checkout's `playbot.gd` in).
+  It waits (`wait=`, 300 s) for the live host `play.sh` finds (fresh: rewritten in the last 15 minutes), runs K windows
+  a few seconds apart with their own names and seeds, on Linux on the real DISPLAY when set (Curtis watches) else under
+  `xvfb-run`; the window is 960 x 540 and asks not to take focus. Art: `botN/summary.json`, `botN/*.png`, `botN.log`.
+  Last line `PASS playbot ...`, `INFO playbot: no live host` or `FAIL playbot ...`.
+- **Locally:** a gateway with `--dev-cert --dev-login --dev-grant --fields=0`, then
+  `xvfb-run -a godot --path realm/client -s res://tests/playbot.gd -- --gateway=127.0.0.1:PORT --dev-cert=PEM --secs=240 --out=DIR`.
+
 ## LAN rehearsal
 
 Proof that the game works between the home PCs over a real network with TLS: one PC hosts, the others play. Code:
