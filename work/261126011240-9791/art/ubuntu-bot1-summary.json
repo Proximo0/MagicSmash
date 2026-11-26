@@ -1,0 +1,2853 @@
+{
+	"banks": 0,
+	"card_picks": [
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 1,
+			"t": 42.2
+		},
+		{
+			"card": 10,
+			"field": 1,
+			"slot": 3,
+			"t": 43.7
+		},
+		{
+			"card": 1,
+			"field": 1,
+			"slot": 1,
+			"t": 58.6
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 2,
+			"t": 246.1
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 2,
+			"t": 247.6
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 249.1
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 250.8
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 2,
+			"t": 254.2
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 255.7
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 257.3
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 258.9
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 260.4
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 261.9
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 263.5
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 265.0
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 266.5
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 3,
+			"t": 268.0
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 269.5
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 2,
+			"t": 271.1
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 272.7
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 274.4
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 2,
+			"t": 275.9
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 277.5
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 279.0
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 280.5
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 3,
+			"t": 283.1
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 284.6
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 286.2
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 287.7
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 3,
+			"t": 289.2
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 290.7
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 3,
+			"t": 292.2
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 293.8
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 295.4
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 296.9
+		},
+		{
+			"card": 12,
+			"field": 0,
+			"slot": 1,
+			"t": 298.4
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 300.0
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 301.6
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 1,
+			"t": 303.1
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 313.6
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 3,
+			"t": 330.0
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 376.0
+		},
+		{
+			"card": 9,
+			"field": 0,
+			"slot": 2,
+			"t": 433.1
+		},
+		{
+			"card": 9,
+			"field": 0,
+			"slot": 2,
+			"t": 434.7
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 3,
+			"t": 436.2
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 3,
+			"t": 437.8
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 439.3
+		},
+		{
+			"card": 9,
+			"field": 0,
+			"slot": 2,
+			"t": 441.0
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 470.5
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 472.0
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 473.6
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 475.2
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 476.7
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 478.2
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 479.8
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 481.4
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 482.9
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 484.5
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 486.0
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 487.5
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 489.0
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 490.6
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 492.1
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 493.6
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 495.2
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 496.7
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 498.2
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 499.7
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 501.2
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 502.7
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 504.2
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 505.8
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 507.4
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 508.9
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 510.4
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 512.0
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 513.5
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 515.1
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 516.6
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 3,
+			"t": 518.1
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 679.5
+		},
+		{
+			"card": 2,
+			"field": 0,
+			"slot": 2,
+			"t": 681.1
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 682.6
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 684.1
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 685.7
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 1,
+			"t": 689.2
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 3,
+			"t": 713.4
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 715.0
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 3,
+			"t": 716.5
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 2,
+			"t": 718.0
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 732.8
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 734.3
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 735.9
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 737.4
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 738.9
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 740.4
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 741.9
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 743.4
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 744.9
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 746.4
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 748.0
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 749.5
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 751.0
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 752.5
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 754.1
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 755.6
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 757.2
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 758.7
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 760.3
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 761.8
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 771.7
+		},
+		{
+			"card": 5,
+			"field": 0,
+			"slot": 3,
+			"t": 773.2
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 774.7
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 786.0
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 787.5
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 789.1
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 790.7
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 792.2
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 793.7
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 795.2
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 796.7
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 798.3
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 799.9
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 801.4
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 802.9
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 804.5
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 806.1
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 807.6
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 809.1
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 810.7
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 812.2
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 813.7
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 815.3
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 816.8
+		},
+		{
+			"card": 10,
+			"field": 0,
+			"slot": 3,
+			"t": 818.4
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 829.9
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 831.4
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 833.0
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 834.5
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 836.0
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 837.6
+		},
+		{
+			"card": 4,
+			"field": 0,
+			"slot": 3,
+			"t": 839.1
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 840.7
+		},
+		{
+			"card": 1,
+			"field": 0,
+			"slot": 1,
+			"t": 842.3
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 843.8
+		}
+	],
+	"coin": 2146,
+	"dead_clicks": [
+		"SmithPanel:close under swallow",
+		"SmithPanel did not close by close button"
+	],
+	"deaths": 8,
+	"display": "X11",
+	"errors": 0,
+	"fields_entered": 4,
+	"first_errors": [],
+	"frames": {
+		"count": 27432,
+		"fps_p50": 90.0,
+		"hitches": [
+			{
+				"ms": 76.0,
+				"screen": "login",
+				"t": 0.88
+			},
+			{
+				"ms": 75.3,
+				"screen": "hero_list",
+				"t": 7.0
+			},
+			{
+				"ms": 52.5,
+				"screen": "town",
+				"t": 9.8
+			},
+			{
+				"ms": 133.3,
+				"screen": "town",
+				"t": 10.25
+			},
+			{
+				"ms": 61.9,
+				"screen": "MarketPanel",
+				"t": 14.47
+			},
+			{
+				"ms": 126.0,
+				"screen": "town",
+				"t": 14.61
+			},
+			{
+				"ms": 135.0,
+				"screen": "town",
+				"t": 15.03
+			},
+			{
+				"ms": 129.8,
+				"screen": "BankPanel",
+				"t": 17.36
+			},
+			{
+				"ms": 139.7,
+				"screen": "town",
+				"t": 17.78
+			},
+			{
+				"ms": 140.8,
+				"screen": "GatePanel",
+				"t": 35.82
+			},
+			{
+				"ms": 142.4,
+				"screen": "field1",
+				"t": 39.03
+			},
+			{
+				"ms": 100.4,
+				"screen": "field1",
+				"t": 39.13
+			},
+			{
+				"ms": 150.0,
+				"screen": "field1",
+				"t": 60.58
+			},
+			{
+				"ms": 57.8,
+				"screen": "field1",
+				"t": 68.95
+			},
+			{
+				"ms": 129.9,
+				"screen": "field1",
+				"t": 69.09
+			},
+			{
+				"ms": 71.1,
+				"screen": "field1",
+				"t": 69.15
+			},
+			{
+				"ms": 100.5,
+				"screen": "field1",
+				"t": 69.27
+			},
+			{
+				"ms": 103.8,
+				"screen": "field1",
+				"t": 69.56
+			},
+			{
+				"ms": 92.2,
+				"screen": "field1",
+				"t": 69.72
+			},
+			{
+				"ms": 60.0,
+				"screen": "field1",
+				"t": 70.42
+			},
+			{
+				"ms": 84.5,
+				"screen": "field1",
+				"t": 70.51
+			},
+			{
+				"ms": 73.7,
+				"screen": "field1",
+				"t": 70.74
+			},
+			{
+				"ms": 61.1,
+				"screen": "field1",
+				"t": 70.8
+			},
+			{
+				"ms": 66.3,
+				"screen": "field1",
+				"t": 71.16
+			},
+			{
+				"ms": 62.0,
+				"screen": "field1",
+				"t": 71.26
+			},
+			{
+				"ms": 71.8,
+				"screen": "field1",
+				"t": 72.06
+			},
+			{
+				"ms": 56.0,
+				"screen": "field1",
+				"t": 72.2
+			},
+			{
+				"ms": 54.6,
+				"screen": "field1",
+				"t": 72.34
+			},
+			{
+				"ms": 93.1,
+				"screen": "field1",
+				"t": 72.43
+			},
+			{
+				"ms": 72.8,
+				"screen": "field1",
+				"t": 72.5
+			},
+			{
+				"ms": 72.4,
+				"screen": "field1",
+				"t": 72.59
+			},
+			{
+				"ms": 73.5,
+				"screen": "field1",
+				"t": 72.67
+			},
+			{
+				"ms": 132.9,
+				"screen": "field1",
+				"t": 72.83
+			},
+			{
+				"ms": 126.2,
+				"screen": "field1",
+				"t": 72.98
+			},
+			{
+				"ms": 135.4,
+				"screen": "field1",
+				"t": 73.13
+			},
+			{
+				"ms": 72.2,
+				"screen": "field1",
+				"t": 73.21
+			},
+			{
+				"ms": 90.2,
+				"screen": "field1",
+				"t": 73.3
+			},
+			{
+				"ms": 109.4,
+				"screen": "field1",
+				"t": 73.41
+			},
+			{
+				"ms": 133.3,
+				"screen": "field1",
+				"t": 73.61
+			},
+			{
+				"ms": 128.9,
+				"screen": "field1",
+				"t": 73.74
+			},
+			{
+				"ms": 80.1,
+				"screen": "field1",
+				"t": 73.87
+			},
+			{
+				"ms": 103.2,
+				"screen": "field1",
+				"t": 74.02
+			},
+			{
+				"ms": 97.2,
+				"screen": "field1",
+				"t": 74.06
+			},
+			{
+				"ms": 70.2,
+				"screen": "field1",
+				"t": 74.24
+			},
+			{
+				"ms": 111.5,
+				"screen": "field1",
+				"t": 74.33
+			},
+			{
+				"ms": 61.8,
+				"screen": "field1",
+				"t": 74.41
+			},
+			{
+				"ms": 54.9,
+				"screen": "field1",
+				"t": 74.5
+			},
+			{
+				"ms": 150.0,
+				"screen": "field1",
+				"t": 74.66
+			},
+			{
+				"ms": 133.3,
+				"screen": "field1",
+				"t": 74.77
+			},
+			{
+				"ms": 112.8,
+				"screen": "field1",
+				"t": 74.86
+			},
+			{
+				"ms": 104.4,
+				"screen": "field1",
+				"t": 75.02
+			},
+			{
+				"ms": 115.0,
+				"screen": "field1",
+				"t": 75.07
+			},
+			{
+				"ms": 55.1,
+				"screen": "field1",
+				"t": 75.16
+			},
+			{
+				"ms": 62.7,
+				"screen": "field1",
+				"t": 75.21
+			},
+			{
+				"ms": 75.1,
+				"screen": "field1",
+				"t": 75.46
+			},
+			{
+				"ms": 88.6,
+				"screen": "field1",
+				"t": 75.53
+			},
+			{
+				"ms": 58.1,
+				"screen": "field1",
+				"t": 75.91
+			},
+			{
+				"ms": 91.9,
+				"screen": "field1",
+				"t": 75.98
+			},
+			{
+				"ms": 98.6,
+				"screen": "field1",
+				"t": 76.08
+			},
+			{
+				"ms": 83.8,
+				"screen": "field1",
+				"t": 76.2
+			},
+			{
+				"ms": 91.7,
+				"screen": "field1",
+				"t": 76.29
+			},
+			{
+				"ms": 113.0,
+				"screen": "field1",
+				"t": 76.37
+			},
+			{
+				"ms": 75.6,
+				"screen": "field1",
+				"t": 76.67
+			},
+			{
+				"ms": 83.3,
+				"screen": "field1",
+				"t": 76.77
+			},
+			{
+				"ms": 66.7,
+				"screen": "field1",
+				"t": 76.82
+			},
+			{
+				"ms": 57.9,
+				"screen": "field1",
+				"t": 76.88
+			},
+			{
+				"ms": 70.0,
+				"screen": "field1",
+				"t": 76.99
+			},
+			{
+				"ms": 105.4,
+				"screen": "field1",
+				"t": 77.05
+			},
+			{
+				"ms": 95.4,
+				"screen": "field1",
+				"t": 77.19
+			},
+			{
+				"ms": 84.5,
+				"screen": "field1",
+				"t": 77.23
+			},
+			{
+				"ms": 97.4,
+				"screen": "field1",
+				"t": 77.47
+			},
+			{
+				"ms": 71.9,
+				"screen": "field1",
+				"t": 77.53
+			},
+			{
+				"ms": 56.1,
+				"screen": "field1",
+				"t": 77.58
+			},
+			{
+				"ms": 70.4,
+				"screen": "field1",
+				"t": 77.64
+			},
+			{
+				"ms": 66.7,
+				"screen": "field1",
+				"t": 77.7
+			},
+			{
+				"ms": 66.7,
+				"screen": "field1",
+				"t": 77.77
+			},
+			{
+				"ms": 75.1,
+				"screen": "field1",
+				"t": 77.97
+			},
+			{
+				"ms": 80.9,
+				"screen": "field1",
+				"t": 78.28
+			},
+			{
+				"ms": 63.7,
+				"screen": "field1",
+				"t": 78.34
+			},
+			{
+				"ms": 62.5,
+				"screen": "field1",
+				"t": 78.42
+			},
+			{
+				"ms": 57.1,
+				"screen": "field1",
+				"t": 78.47
+			},
+			{
+				"ms": 61.1,
+				"screen": "field1",
+				"t": 78.52
+			},
+			{
+				"ms": 58.3,
+				"screen": "field1",
+				"t": 79.36
+			},
+			{
+				"ms": 128.0,
+				"screen": "field1",
+				"t": 79.53
+			},
+			{
+				"ms": 58.1,
+				"screen": "field1",
+				"t": 79.55
+			},
+			{
+				"ms": 53.3,
+				"screen": "field1",
+				"t": 79.8
+			},
+			{
+				"ms": 57.7,
+				"screen": "field1",
+				"t": 80.02
+			},
+			{
+				"ms": 116.3,
+				"screen": "field1",
+				"t": 80.61
+			},
+			{
+				"ms": 100.0,
+				"screen": "field1",
+				"t": 80.7
+			},
+			{
+				"ms": 66.7,
+				"screen": "field1",
+				"t": 80.76
+			},
+			{
+				"ms": 82.3,
+				"screen": "field1",
+				"t": 80.86
+			},
+			{
+				"ms": 56.0,
+				"screen": "field1",
+				"t": 80.91
+			},
+			{
+				"ms": 66.3,
+				"screen": "field1",
+				"t": 81.06
+			},
+			{
+				"ms": 56.6,
+				"screen": "field1",
+				"t": 81.13
+			},
+			{
+				"ms": 55.6,
+				"screen": "field1",
+				"t": 81.17
+			},
+			{
+				"ms": 63.8,
+				"screen": "field1",
+				"t": 81.25
+			},
+			{
+				"ms": 104.2,
+				"screen": "field1",
+				"t": 81.36
+			},
+			{
+				"ms": 69.9,
+				"screen": "field1",
+				"t": 81.46
+			},
+			{
+				"ms": 107.2,
+				"screen": "field1",
+				"t": 81.53
+			},
+			{
+				"ms": 64.3,
+				"screen": "field1",
+				"t": 81.61
+			},
+			{
+				"ms": 83.3,
+				"screen": "field1",
+				"t": 81.67
+			},
+			{
+				"ms": 71.2,
+				"screen": "field1",
+				"t": 81.74
+			},
+			{
+				"ms": 66.7,
+				"screen": "field1",
+				"t": 81.8
+			},
+			{
+				"ms": 70.0,
+				"screen": "field1",
+				"t": 81.87
+			},
+			{
+				"ms": 68.7,
+				"screen": "field1",
+				"t": 81.94
+			},
+			{
+				"ms": 101.9,
+				"screen": "field1",
+				"t": 82.05
+			},
+			{
+				"ms": 59.7,
+				"screen": "field1",
+				"t": 82.11
+			},
+			{
+				"ms": 77.8,
+				"screen": "field1",
+				"t": 82.18
+			},
+			{
+				"ms": 108.8,
+				"screen": "field1",
+				"t": 82.35
+			},
+			{
+				"ms": 83.3,
+				"screen": "field1",
+				"t": 82.38
+			},
+			{
+				"ms": 102.2,
+				"screen": "field1",
+				"t": 82.51
+			},
+			{
+				"ms": 56.6,
+				"screen": "field1",
+				"t": 82.59
+			},
+			{
+				"ms": 149.9,
+				"screen": "none",
+				"t": 82.85
+			},
+			{
+				"ms": 131.7,
+				"screen": "none",
+				"t": 83.98
+			},
+			{
+				"ms": 50.8,
+				"screen": "none",
+				"t": 84.34
+			},
+			{
+				"ms": 130.3,
+				"screen": "OutingPanel",
+				"t": 84.92
+			},
+			{
+				"ms": 146.8,
+				"screen": "OutingPanel",
+				"t": 88.79
+			},
+			{
+				"ms": 119.8,
+				"screen": "OutingPanel",
+				"t": 88.93
+			},
+			{
+				"ms": 140.4,
+				"screen": "OutingPanel",
+				"t": 89.07
+			},
+			{
+				"ms": 142.9,
+				"screen": "OutingPanel",
+				"t": 89.25
+			},
+			{
+				"ms": 121.4,
+				"screen": "OutingPanel",
+				"t": 89.38
+			},
+			{
+				"ms": 112.5,
+				"screen": "OutingPanel",
+				"t": 89.5
+			},
+			{
+				"ms": 136.3,
+				"screen": "OutingPanel",
+				"t": 89.63
+			},
+			{
+				"ms": 144.6,
+				"screen": "OutingPanel",
+				"t": 89.8
+			},
+			{
+				"ms": 130.2,
+				"screen": "OutingPanel",
+				"t": 89.96
+			},
+			{
+				"ms": 88.4,
+				"screen": "OutingPanel",
+				"t": 90.04
+			},
+			{
+				"ms": 131.6,
+				"screen": "OutingPanel",
+				"t": 90.18
+			},
+			{
+				"ms": 100.2,
+				"screen": "OutingPanel",
+				"t": 90.28
+			},
+			{
+				"ms": 110.3,
+				"screen": "OutingPanel",
+				"t": 90.39
+			},
+			{
+				"ms": 150.0,
+				"screen": "town",
+				"t": 95.07
+			},
+			{
+				"ms": 66.7,
+				"screen": "town",
+				"t": 95.12
+			},
+			{
+				"ms": 51.3,
+				"screen": "town",
+				"t": 95.36
+			},
+			{
+				"ms": 123.5,
+				"screen": "town",
+				"t": 95.75
+			},
+			{
+				"ms": 133.3,
+				"screen": "town",
+				"t": 95.9
+			},
+			{
+				"ms": 116.7,
+				"screen": "town",
+				"t": 96.01
+			},
+			{
+				"ms": 100.0,
+				"screen": "town",
+				"t": 96.11
+			},
+			{
+				"ms": 100.0,
+				"screen": "town",
+				"t": 96.21
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 96.29
+			},
+			{
+				"ms": 84.7,
+				"screen": "town",
+				"t": 96.88
+			},
+			{
+				"ms": 93.3,
+				"screen": "town",
+				"t": 97.32
+			},
+			{
+				"ms": 74.8,
+				"screen": "town",
+				"t": 97.4
+			},
+			{
+				"ms": 126.9,
+				"screen": "town",
+				"t": 97.52
+			},
+			{
+				"ms": 64.9,
+				"screen": "town",
+				"t": 97.88
+			},
+			{
+				"ms": 62.0,
+				"screen": "town",
+				"t": 97.95
+			},
+			{
+				"ms": 97.6,
+				"screen": "town",
+				"t": 98.38
+			},
+			{
+				"ms": 114.2,
+				"screen": "town",
+				"t": 98.49
+			},
+			{
+				"ms": 59.6,
+				"screen": "town",
+				"t": 98.55
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 98.63
+			},
+			{
+				"ms": 59.5,
+				"screen": "town",
+				"t": 98.69
+			},
+			{
+				"ms": 89.5,
+				"screen": "town",
+				"t": 98.79
+			},
+			{
+				"ms": 85.5,
+				"screen": "town",
+				"t": 98.88
+			},
+			{
+				"ms": 75.0,
+				"screen": "town",
+				"t": 98.94
+			},
+			{
+				"ms": 64.0,
+				"screen": "town",
+				"t": 99.0
+			},
+			{
+				"ms": 64.9,
+				"screen": "town",
+				"t": 99.07
+			},
+			{
+				"ms": 67.9,
+				"screen": "town",
+				"t": 99.13
+			},
+			{
+				"ms": 70.0,
+				"screen": "town",
+				"t": 99.21
+			},
+			{
+				"ms": 70.8,
+				"screen": "town",
+				"t": 99.28
+			},
+			{
+				"ms": 71.0,
+				"screen": "town",
+				"t": 99.36
+			},
+			{
+				"ms": 70.8,
+				"screen": "town",
+				"t": 99.43
+			},
+			{
+				"ms": 70.8,
+				"screen": "town",
+				"t": 99.5
+			},
+			{
+				"ms": 112.0,
+				"screen": "town",
+				"t": 99.61
+			},
+			{
+				"ms": 117.2,
+				"screen": "town",
+				"t": 99.72
+			},
+			{
+				"ms": 100.0,
+				"screen": "town",
+				"t": 99.83
+			},
+			{
+				"ms": 89.5,
+				"screen": "town",
+				"t": 99.91
+			},
+			{
+				"ms": 100.0,
+				"screen": "town",
+				"t": 100.02
+			},
+			{
+				"ms": 100.0,
+				"screen": "town",
+				"t": 100.12
+			},
+			{
+				"ms": 88.7,
+				"screen": "town",
+				"t": 100.19
+			},
+			{
+				"ms": 59.5,
+				"screen": "town",
+				"t": 100.26
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 100.34
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 100.42
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 100.52
+			},
+			{
+				"ms": 101.4,
+				"screen": "town",
+				"t": 100.62
+			},
+			{
+				"ms": 85.4,
+				"screen": "town",
+				"t": 100.69
+			},
+			{
+				"ms": 80.2,
+				"screen": "town",
+				"t": 100.77
+			},
+			{
+				"ms": 56.9,
+				"screen": "town",
+				"t": 100.84
+			},
+			{
+				"ms": 75.4,
+				"screen": "town",
+				"t": 100.92
+			},
+			{
+				"ms": 70.4,
+				"screen": "town",
+				"t": 101.02
+			},
+			{
+				"ms": 74.9,
+				"screen": "town",
+				"t": 101.1
+			},
+			{
+				"ms": 73.1,
+				"screen": "town",
+				"t": 101.17
+			},
+			{
+				"ms": 84.9,
+				"screen": "town",
+				"t": 101.26
+			},
+			{
+				"ms": 79.3,
+				"screen": "town",
+				"t": 101.34
+			},
+			{
+				"ms": 70.4,
+				"screen": "town",
+				"t": 101.39
+			},
+			{
+				"ms": 69.4,
+				"screen": "town",
+				"t": 101.52
+			},
+			{
+				"ms": 73.4,
+				"screen": "town",
+				"t": 101.6
+			},
+			{
+				"ms": 51.5,
+				"screen": "town",
+				"t": 101.72
+			},
+			{
+				"ms": 60.4,
+				"screen": "town",
+				"t": 101.77
+			},
+			{
+				"ms": 83.9,
+				"screen": "town",
+				"t": 102.09
+			},
+			{
+				"ms": 83.2,
+				"screen": "town",
+				"t": 102.18
+			},
+			{
+				"ms": 64.6,
+				"screen": "town",
+				"t": 102.24
+			},
+			{
+				"ms": 133.0,
+				"screen": "town",
+				"t": 102.37
+			},
+			{
+				"ms": 88.1,
+				"screen": "town",
+				"t": 102.46
+			},
+			{
+				"ms": 66.7,
+				"screen": "town",
+				"t": 102.52
+			},
+			{
+				"ms": 78.0,
+				"screen": "town",
+				"t": 102.61
+			},
+			{
+				"ms": 66.8,
+				"screen": "town",
+				"t": 102.67
+			},
+			{
+				"ms": 82.8,
+				"screen": "town",
+				"t": 102.76
+			},
+			{
+				"ms": 78.1,
+				"screen": "town",
+				"t": 102.84
+			},
+			{
+				"ms": 80.0,
+				"screen": "town",
+				"t": 102.92
+			},
+			{
+				"ms": 99.9,
+				"screen": "town",
+				"t": 103.02
+			},
+			{
+				"ms": 83.3,
+				"screen": "town",
+				"t": 103.1
+			},
+			{
+				"ms": 98.8,
+				"screen": "town",
+				"t": 103.2
+			}
+		],
+		"ms_max": 150.0,
+		"ms_p50": 11.11,
+		"ms_p99": 133.33,
+		"over_100ms": 1398,
+		"over_50ms": 5561
+	},
+	"gateway": "192.168.12.22:7700",
+	"heat": {
+		"0": {
+			"cells_visited": 4,
+			"grid": [
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					299,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					143,
+					259,
+					284,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				]
+			]
+		},
+		"1": {
+			"cells_visited": 2,
+			"grid": [
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					51,
+					32,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0
+				]
+			]
+		}
+	},
+	"kills": 1275,
+	"kites": 16,
+	"km_walked": 0.72,
+	"name": "PBCURTISHP1",
+	"net": [
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 486.340514898983,
+			"bytes_out_per_sec": 532.113739830652,
+			"field": 1,
+			"frame_build_ms": 0.060238,
+			"frame_build_ms_max": 1.807804,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 35,
+			"join_bytes": 14274,
+			"join_tick": 2069704,
+			"left_by": "",
+			"mispredicts": 0,
+			"monsters": 146,
+			"players": 3,
+			"predictions_checked": 620,
+			"sim_ms_last": 67.205857,
+			"sim_ms_per_tick": 62.634221,
+			"sim_ms_per_tick_max": 66.7892423333333,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				4692.0,
+				14245.6484375,
+				3699.5078125,
+				2839.4609375,
+				15083.90625,
+				6965.37890625,
+				11156.66015625,
+				11156.66015625,
+				4136.83984375,
+				9285.3203125,
+				9285.3203125,
+				4136.83984375,
+				8612.5546875,
+				10554.9375,
+				12633.3671875,
+				9389.4453125,
+				9389.4453125,
+				12633.3671875,
+				4944.9921875,
+				11439.0078125,
+				3750.6328125,
+				6994.5546875,
+				6994.5546875,
+				3750.6328125,
+				11439.0078125,
+				4944.9921875
+			],
+			"stall_ms_max": 626.370127,
+			"start": [
+				8175.0,
+				16144.0
+			],
+			"ticks_applied": 696,
+			"unconfirmed_inputs": 14
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 17330.7781704453,
+			"bytes_out_per_sec": 650.841453069508,
+			"field": 0,
+			"frame_build_ms": 0.07344,
+			"frame_build_ms_max": 53.11262,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 221,
+			"join_bytes": 16606,
+			"join_tick": 2079782,
+			"left_by": "",
+			"mispredicts": 223,
+			"monsters": 288,
+			"players": 4,
+			"predictions_checked": 2148,
+			"sim_ms_last": 51.424457,
+			"sim_ms_per_tick": 54.3521855,
+			"sim_ms_per_tick_max": 93.984399,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				5229.90625,
+				14529.33984375,
+				2467.33203125,
+				4181.015625,
+				14764.75390625,
+				5790.0234375,
+				10292.0,
+				11824.1875,
+				3992.0,
+				8192.0,
+				10292.0,
+				4559.8125,
+				7771.4453125,
+				10554.9375,
+				12170.109375,
+				10492.0,
+				8192.0,
+				12792.0,
+				4213.890625,
+				10492.0,
+				4213.890625,
+				5892.0,
+				8192.0,
+				3592.0,
+				12170.109375,
+				5892.0
+			],
+			"stall_ms_max": 9873.470165,
+			"start": [
+				8191.0,
+				16152.0
+			],
+			"ticks_applied": 4413,
+			"unconfirmed_inputs": 137
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 7294.24434956495,
+			"bytes_out_per_sec": 638.332177922675,
+			"field": 0,
+			"frame_build_ms": 0.087065,
+			"frame_build_ms_max": 51.137749,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 157,
+			"join_bytes": 16277,
+			"join_tick": 2085696,
+			"left_by": "waystone",
+			"mispredicts": 341,
+			"monsters": 288,
+			"players": 4,
+			"predictions_checked": 1128,
+			"sim_ms_last": 34.283321,
+			"sim_ms_per_tick": 41.4169874230769,
+			"sim_ms_per_tick_max": 93.4964759,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				5229.90625,
+				14529.33984375,
+				2467.33203125,
+				4181.015625,
+				14764.75390625,
+				5790.0234375,
+				10292.0,
+				11824.1875,
+				3992.0,
+				8192.0,
+				10292.0,
+				4559.8125,
+				7771.4453125,
+				10554.9375,
+				12170.109375,
+				10492.0,
+				8192.0,
+				12792.0,
+				4213.890625,
+				10492.0,
+				4213.890625,
+				5892.0,
+				8192.0,
+				3592.0,
+				12170.109375,
+				5892.0
+			],
+			"stall_ms_max": 11574.76073,
+			"start": [
+				8183.0,
+				16194.0
+			],
+			"ticks_applied": 3131,
+			"unconfirmed_inputs": 9
+		}
+	],
+	"notes": [
+		"60.2 died in field 1 at (8148.0, 16035.0)",
+		"82.6 outing over in field 1: { \"t\": 164, \"hero\": 52, \"coin\": 141, \"xp\": 448, \"levels\": 0, \"potions\": 0, \"left\": 2, \"field\": 1, \"at_s\": 82.6 }",
+		"173.4 outing over in field 1: { \"t\": 164, \"hero\": 52, \"coin\": 263, \"xp\": 526, \"levels\": 0, \"potions\": 0, \"left\": 2, \"field\": 1, \"at_s\": 173.4 }",
+		"173.4 the field client never joined field 1",
+		"251.5 died in field 0 at (8375.0, 15860.0)",
+		"280.7 died in field 0 at (8304.0, 16176.0)",
+		"344.4 died in field 0 at (6786.0, 15662.0)",
+		"364.4 field 0: to a waystone to bank",
+		"479.4 died in field 0 at (6337.0, 14752.0)",
+		"557.2 outing over in field 0: { \"t\": 164, \"hero\": 52, \"coin\": 1091, \"xp\": 5008, \"levels\": 0, \"potions\": 0, \"left\": 2, \"field\": 0, \"at_s\": 557.2 }",
+		"587.7 covered button SmithPanel:close under swallow",
+		"590.5 SmithPanel did not close by close button",
+		"731.3 died in field 0 at (6952.0, 15554.0)",
+		"787.3 died in field 0 at (8529.0, 16093.0)",
+		"829.2 died in field 0 at (8552.0, 15952.0)",
+		"843.6 field 0: to a waystone to bank",
+		"900.1 field 0: time is up, out by the waystone",
+		"908.4 outing over in field 0: { \"t\": 164, \"hero\": 52, \"coin\": 651, \"xp\": 3299, \"levels\": 1, \"potions\": 0, \"left\": 2, \"field\": 0, \"at_s\": 908.4 }"
+	],
+	"ok": true,
+	"os": "Linux",
+	"outings": [
+		{
+			"at_s": 82.6,
+			"coin": 141,
+			"field": 1,
+			"hero": 52,
+			"left": 2,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 448
+		},
+		{
+			"at_s": 173.4,
+			"coin": 263,
+			"field": 1,
+			"hero": 52,
+			"left": 2,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 526
+		},
+		{
+			"at_s": 557.2,
+			"coin": 1091,
+			"field": 0,
+			"hero": 52,
+			"left": 2,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 5008
+		},
+		{
+			"at_s": 908.4,
+			"coin": 651,
+			"field": 0,
+			"hero": 52,
+			"left": 2,
+			"levels": 1,
+			"potions": 0,
+			"t": 164,
+			"xp": 3299
+		}
+	],
+	"panels_opened": [
+		"MarketPanel",
+		"BankPanel",
+		"MarketPanel",
+		"BoardPanel",
+		"SmithPanel",
+		"TrainerPanel"
+	],
+	"potions": 0,
+	"renderer": "Mesa Intel(R) HD Graphics 520 (SKL GT2)",
+	"screens": {
+		"BankPanel": {
+			"frames": 2,
+			"hitches_50ms": 1,
+			"inputs": 1,
+			"secs": 0.2,
+			"visits": 1
+		},
+		"BoardPanel": {
+			"frames": 1,
+			"hitches_50ms": 1,
+			"inputs": 1,
+			"secs": 0.1,
+			"visits": 1
+		},
+		"GatePanel": {
+			"frames": 154,
+			"hitches_50ms": 91,
+			"inputs": 4,
+			"secs": 10.7,
+			"visits": 4
+		},
+		"MarketPanel": {
+			"frames": 9,
+			"hitches_50ms": 8,
+			"inputs": 2,
+			"secs": 0.9,
+			"visits": 2
+		},
+		"OutingPanel": {
+			"frames": 50,
+			"hitches_50ms": 50,
+			"inputs": 3,
+			"secs": 5.6,
+			"visits": 3
+		},
+		"SmithPanel": {
+			"frames": 28,
+			"hitches_50ms": 28,
+			"inputs": 2,
+			"secs": 3.7,
+			"visits": 1
+		},
+		"TrainerPanel": {
+			"frames": 41,
+			"hitches_50ms": 32,
+			"inputs": 1,
+			"secs": 3.8,
+			"visits": 1
+		},
+		"field0": {
+			"frames": 14754,
+			"hitches_50ms": 4024,
+			"inputs": 406,
+			"secs": 531.5,
+			"visits": 2
+		},
+		"field1": {
+			"frames": 5792,
+			"hitches_50ms": 181,
+			"inputs": 25,
+			"secs": 54.3,
+			"visits": 2
+		},
+		"hero_list": {
+			"frames": 480,
+			"hitches_50ms": 1,
+			"inputs": 2,
+			"secs": 2.8,
+			"visits": 1
+		},
+		"login": {
+			"frames": 1197,
+			"hitches_50ms": 1,
+			"inputs": 23,
+			"secs": 6.1,
+			"visits": 1
+		},
+		"none": {
+			"frames": 47,
+			"hitches_50ms": 9,
+			"inputs": 0,
+			"secs": 1.6,
+			"visits": 5
+		},
+		"title": {
+			"frames": 137,
+			"hitches_50ms": 0,
+			"inputs": 1,
+			"secs": 0.6,
+			"visits": 1
+		},
+		"town": {
+			"frames": 4740,
+			"hitches_50ms": 1134,
+			"inputs": 60,
+			"secs": 146.5,
+			"visits": 10
+		}
+	},
+	"secs": 908.7,
+	"seed": 874831,
+	"shots": 40,
+	"unsticks": 50,
+	"warnings": 0,
+	"why": "",
+	"window": "960x540"
+}

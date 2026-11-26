@@ -1,1 +1,2 @@
 2026-11-26T01:16:42Z FAIL id=261126011240-9791 kind=shell secs=200 playbot ok=0/1 host=ubuntu last: FAILED secs=193 screens=4 fields=0 outings=0 kills=0 deaths=0 coin=0 fps_p50=150.0 frame_ms_p99=75.7 hitches_50ms=495 errors=0 km_walked=0.00 why="never reached a field"
+2026-11-26T09:16:01Z PASS id=261126011240-9791 kind=shell secs=920 playbot bots=1 host=ubuntu secs=909 screens=14 fields=4 outings=4 kills=1275 deaths=8 coin=2146 fps_p50=90.0 frame_ms_p99=133.3 hitches_50ms=5561 errors=0 km_walked=0.72
