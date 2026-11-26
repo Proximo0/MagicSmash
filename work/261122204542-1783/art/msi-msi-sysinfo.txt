@@ -1,26 +1,26 @@
 ram_total_mb=16088
-ram_free_mb=5071
+ram_free_mb=4508
 page_mb=14680
-page_used_mb=2028
+page_used_mb=1852
 page_peak_mb=9603
 commit_limit_mb=30769
-commit_free_mb=14233
+commit_free_mb=13054
 cores=24
 disk_free_gb=C:27,D:302
 --- top programs by memory (MB)
-   2671  15x claude
-   1236  97x svchost
-    905   7x steamwebhelper
-    707   1x MsMpEng
-    482   2x realm-soak
-    474   1x explorer
-    389   6x ace
+   2538  15x claude
+   1233  97x svchost
+    969   3x realm-soak
+    911   7x steamwebhelper
+    657   1x MsMpEng
+    473   1x explorer
+    379   6x ace
+    324  33x bash
     268   6x msedgewebview2
-    236  23x bash
+    251   1x Godot_v4.7.2-stable_win64
+    223   3x powershell
     201   2x Runner.Listener
-    187   2x powershell
-    185   1x realm-economy
-    170   1x realm-world
-    154   2x tailscaled
-    139   1x steam
-gpu=NVIDIA GeForce RTX 5050 Laptop GPU, 8151, 999
+    187   1x realm-economy
+    155   2x tailscaled
+    142   1x steam
+gpu=NVIDIA GeForce RTX 5050 Laptop GPU, 8151, 1493
