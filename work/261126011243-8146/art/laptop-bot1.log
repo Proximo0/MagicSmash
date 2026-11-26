@@ -1,0 +1,54 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official, safeguards balanced)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 3.3.0 Core Profile Context 25.10.30.11.251117 - Compatibility - Using Device: ATI Technologies Inc. - AMD RadeonT 610M
+
+PLAYBOT_NOTE 14.9 covered button BagPanel:close under swallow
+PLAYBOT_NOTE 17.1 BagPanel did not close by close button
+PLAYBOT_NOTE 40.6 PostPanel did not close by right click
+PLAYBOT_NOTE 66.4 died in field 1 at (8142.0, 16055.0)
+PLAYBOT_NOTE 83.8 died in field 1 at (8217.0, 16259.0)
+PLAYBOT_NOTE 99.6 outing over in field 1: { "t": 164, "hero": 53, "coin": 168, "xp": 236, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 99.6 }
+PLAYBOT_NOTE 136.9 died in field 1 at (8059.0, 16034.0)
+PLAYBOT_NOTE 152.6 outing over in field 1: { "t": 164, "hero": 53, "coin": 55, "xp": 82, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 152.6 }
+PLAYBOT_NOTE 192.6 died in field 1 at (8384.0, 15969.0)
+PLAYBOT_NOTE 209.2 died in field 1 at (8206.0, 16274.0)
+PLAYBOT_NOTE 223.0 died in field 1 at (8384.0, 15970.0)
+PLAYBOT_NOTE 238.6 died in field 1 at (8203.0, 16277.0)
+PLAYBOT_NOTE 253.4 field 1: to a waystone to bank
+PLAYBOT_NOTE 254.1 died in field 1 at (8192.0, 16255.0)
+PLAYBOT_NOTE 273.0 died in field 1 at (8033.0, 16129.0)
+PLAYBOT_NOTE 288.9 died in field 1 at (8184.0, 16250.0)
+PLAYBOT_NOTE 293.3 outing over in field 1: { "t": 164, "hero": 53, "coin": 284, "xp": 1136, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 293.3 }
+PLAYBOT_NOTE 298.3 covered button SheetPanel:close under swallow
+PLAYBOT_NOTE 300.5 SheetPanel did not close by close button
+PLAYBOT_NOTE 323.6 died in field 1 at (8018.0, 16009.0)
+PLAYBOT_NOTE 340.1 outing over in field 1: { "t": 164, "hero": 53, "coin": 160, "xp": 256, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 340.1 }
+PLAYBOT_NOTE 346.9 SheetPanel did not close by close button
+PLAYBOT_NOTE 368.0 died in field 1 at (8089.0, 16103.0)
+PLAYBOT_NOTE 383.6 outing over in field 1: { "t": 164, "hero": 53, "coin": 106, "xp": 212, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 383.6 }
+PLAYBOT_NOTE 396.0 covered button TrainerPanel:close under swallow
+PLAYBOT_NOTE 398.3 TrainerPanel did not close by close button
+PLAYBOT_NOTE 423.0 died in field 1 at (8234.0, 16092.0)
+PLAYBOT_NOTE 439.3 outing over in field 1: { "t": 164, "hero": 53, "coin": 43, "xp": 86, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 439.3 }
+PLAYBOT_NOTE 483.4 died in field 1 at (8085.0, 16009.0)
+PLAYBOT_NOTE 500.2 died in field 1 at (8159.0, 16267.0)
+PLAYBOT_NOTE 519.5 died in field 1 at (8320.0, 15938.0)
+PLAYBOT_NOTE 535.0 outing over in field 1: { "t": 164, "hero": 53, "coin": 179, "xp": 376, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 535.0 }
+PLAYBOT_NOTE 585.0 died in field 1 at (8424.0, 16032.0)
+PLAYBOT_NOTE 600.4 outing over in field 1: { "t": 164, "hero": 53, "coin": 125, "xp": 230, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 600.4 }
+PLAYBOT_NOTE 608.9 MarketPanel did not close by right click
+PLAYBOT_NOTE 651.3 died in field 1 at (8383.0, 15969.0)
+PLAYBOT_NOTE 667.0 outing over in field 1: { "t": 164, "hero": 53, "coin": 240, "xp": 306, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 667.0 }
+PLAYBOT_NOTE 676.1 SheetPanel did not close by close button
+PLAYBOT_NOTE 684.1 BagPanel did not close by close button
+PLAYBOT_NOTE 716.7 died in field 0 at (8271.0, 15798.0)
+PLAYBOT_NOTE 745.7 died in field 0 at (8530.0, 16073.0)
+PLAYBOT_NOTE 773.1 died in field 0 at (7999.0, 16037.0)
+PLAYBOT_NOTE 820.7 field 0: to a waystone to bank
+PLAYBOT_NOTE 885.8 banked at a waystone in field 0
+PLAYBOT_NOTE 888.9 outing over in field 0: { "t": 164, "hero": 53, "coin": 1305, "xp": 2346, "levels": 0, "potions": 0, "left": 1, "field": 0, "at_s": 888.9 }
+PLAYBOT ok secs=904 screens=17 fields=10 outings=10 kills=1807 deaths=21 coin=2665 fps_p50=420.0 frame_ms_p99=9.1 hitches_50ms=43 errors=0 km_walked=0.79
+WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
