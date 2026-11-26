@@ -2,28 +2,20 @@ Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official,
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 OpenGL API 3.3.0 NVIDIA 591.44 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 5050 Laptop GPU
 
-PLAYBOT_NOTE 20.4 PostPanel did not close by right click
-PLAYBOT_NOTE 59.6 died in field 1 at (8379.0, 16043.0)
-PLAYBOT_NOTE 76.0 outing over in field 1: { "t": 164, "hero": 51, "coin": 88, "xp": 148, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 76.0 }
-PLAYBOT_NOTE 121.7 died in field 1 at (8199.0, 16101.0)
-PLAYBOT_NOTE 141.2 died in field 1 at (8245.0, 16197.0)
-PLAYBOT_NOTE 170.4 died in field 1 at (8332.0, 16057.0)
-PLAYBOT_NOTE 187.3 outing over in field 1: { "t": 164, "hero": 51, "coin": 114, "xp": 400, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 187.3 }
-PLAYBOT_NOTE 232.6 died in field 1 at (8221.0, 16176.0)
-PLAYBOT_NOTE 250.2 outing over in field 1: { "t": 164, "hero": 51, "coin": 76, "xp": 140, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 250.2 }
-PLAYBOT_NOTE 292.9 died in field 0 at (8337.0, 15956.0)
-PLAYBOT_NOTE 326.9 died in field 0 at (8112.0, 15953.0)
-PLAYBOT_NOTE 370.8 field 0: to a waystone to bank
-PLAYBOT_NOTE 512.0 banked at a waystone in field 0
-PLAYBOT_NOTE 536.6 died in field 0 at (10074.0, 11503.0)
-PLAYBOT_NOTE 659.1 died in field 0 at (8589.0, 10441.0)
-PLAYBOT_NOTE 760.4 died in field 0 at (8620.0, 10254.0)
-PLAYBOT_NOTE 855.4 died in field 0 at (8637.0, 10517.0)
-PLAYBOT_NOTE 966.1 died in field 0 at (7681.0, 10575.0)
+PLAYBOT_NOTE 90.3 died in field 0 at (9260.0, 10753.0)
+PLAYBOT_NOTE 125.6 died in field 0 at (10118.0, 11080.0)
+PLAYBOT_NOTE 191.9 field 0: to a waystone to bank
+PLAYBOT_NOTE 213.9 died in field 0 at (11039.0, 9854.0)
+PLAYBOT_NOTE 232.2 banked at a waystone in field 0
+PLAYBOT_NOTE 336.4 died in field 0 at (8172.0, 15486.0)
+PLAYBOT_NOTE 463.4 died in field 0 at (8013.0, 15967.0)
+PLAYBOT_NOTE 602.4 died in field 0 at (8177.0, 15895.0)
+PLAYBOT_NOTE 755.8 died in field 0 at (8174.0, 15927.0)
+PLAYBOT_NOTE 888.4 died in field 0 at (8241.0, 15809.0)
 PLAYBOT_NOTE 990.1 field 0: still in 90 s after time, Esc
 PLAYBOT_NOTE 990.1 Esc 1 in field 0
-PLAYBOT_NOTE 990.4 outing over in field 0: { "t": 164, "hero": 51, "coin": 2495, "xp": 7239, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 990.4 }
-PLAYBOT ok secs=991 screens=14 fields=4 outings=4 kills=3678 deaths=12 coin=2773 fps_p50=480.0 frame_ms_p99=6.1 hitches_50ms=37 errors=0 km_walked=1.25
+PLAYBOT_NOTE 990.2 outing over in field 0: { "t": 164, "hero": 51, "coin": 1045, "xp": 6587, "levels": 1, "potions": 0, "left": 2, "field": 0, "at_s": 990.2 }
+PLAYBOT ok secs=990 screens=8 fields=1 outings=1 kills=3804 deaths=8 coin=1045 fps_p50=600.0 frame_ms_p99=3.7 hitches_50ms=27 errors=0 km_walked=1.64
 WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
    at: cleanup (core/object/object.cpp:2536)
 ERROR: 1 resources still in use at exit (run with --verbose for details).
