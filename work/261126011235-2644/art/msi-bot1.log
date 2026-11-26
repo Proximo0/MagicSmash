@@ -2,38 +2,28 @@ Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official,
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 OpenGL API 3.3.0 NVIDIA 591.44 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 5050 Laptop GPU
 
-PLAYBOT_NOTE 26.2 covered button ReaderPanel:close under swallow
-PLAYBOT_NOTE 28.5 ReaderPanel did not close by close button
-PLAYBOT_NOTE 54.9 died in field 1 at (8320.0, 15938.0)
-PLAYBOT_NOTE 73.0 died in field 1 at (8176.0, 16272.0)
-PLAYBOT_NOTE 77.4 died in field 1 at (8172.0, 16163.0)
-PLAYBOT_NOTE 96.5 died in field 1 at (8119.0, 16225.0)
-PLAYBOT_NOTE 111.5 field 1: to a waystone to bank
-PLAYBOT_NOTE 115.6 died in field 1 at (8090.0, 16145.0)
-PLAYBOT_NOTE 135.1 died in field 1 at (8163.0, 16055.0)
-PLAYBOT_NOTE 159.6 died in field 1 at (7834.0, 16000.0)
-PLAYBOT_NOTE 184.9 died in field 1 at (8319.0, 15937.0)
-PLAYBOT_NOTE 209.7 died in field 1 at (7748.0, 16000.0)
-PLAYBOT_NOTE 230.4 died in field 1 at (8018.0, 16032.0)
-PLAYBOT_NOTE 254.3 died in field 1 at (7877.0, 16000.0)
-PLAYBOT_NOTE 273.8 died in field 1 at (8056.0, 16125.0)
-PLAYBOT_NOTE 298.2 died in field 1 at (7954.0, 16000.0)
-PLAYBOT_NOTE 320.6 died in field 1 at (8038.0, 15993.0)
-PLAYBOT_NOTE 343.1 died in field 1 at (7870.0, 16000.0)
-PLAYBOT_NOTE 366.0 died in field 1 at (7859.0, 16000.0)
-PLAYBOT_NOTE 389.2 died in field 1 at (7862.0, 16001.0)
-PLAYBOT_NOTE 414.5 died in field 1 at (7878.0, 16001.0)
-PLAYBOT_NOTE 487.3 died in field 1 at (6490.0, 15225.0)
-PLAYBOT_NOTE 519.7 died in field 1 at (7424.0, 15872.0)
-PLAYBOT_NOTE 544.2 died in field 1 at (7759.0, 16001.0)
-PLAYBOT_NOTE 570.3 died in field 1 at (7713.0, 16002.0)
-PLAYBOT_NOTE 599.5 died in field 1 at (8002.0, 16203.0)
-PLAYBOT_NOTE 724.4 died in field 1 at (6421.0, 15139.0)
-PLAYBOT_NOTE 838.4 died in field 1 at (6535.0, 15137.0)
-PLAYBOT_NOTE 900.1 field 1: time is up, out by the gate
-PLAYBOT_NOTE 909.8 died in field 1 at (7231.0, 15682.0)
-PLAYBOT_NOTE 935.1 outing over in field 1: { "t": 164, "hero": 51, "coin": 696, "xp": 10459, "levels": 1, "potions": 0, "left": 0, "field": 1, "at_s": 935.1 }
-PLAYBOT ok secs=935 screens=8 fields=1 outings=1 kills=2145 deaths=26 coin=696 fps_p50=330.0 frame_ms_p99=7.4 hitches_50ms=28 errors=0 km_walked=0.68
+PLAYBOT_NOTE 20.4 PostPanel did not close by right click
+PLAYBOT_NOTE 59.6 died in field 1 at (8379.0, 16043.0)
+PLAYBOT_NOTE 76.0 outing over in field 1: { "t": 164, "hero": 51, "coin": 88, "xp": 148, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 76.0 }
+PLAYBOT_NOTE 121.7 died in field 1 at (8199.0, 16101.0)
+PLAYBOT_NOTE 141.2 died in field 1 at (8245.0, 16197.0)
+PLAYBOT_NOTE 170.4 died in field 1 at (8332.0, 16057.0)
+PLAYBOT_NOTE 187.3 outing over in field 1: { "t": 164, "hero": 51, "coin": 114, "xp": 400, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 187.3 }
+PLAYBOT_NOTE 232.6 died in field 1 at (8221.0, 16176.0)
+PLAYBOT_NOTE 250.2 outing over in field 1: { "t": 164, "hero": 51, "coin": 76, "xp": 140, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 250.2 }
+PLAYBOT_NOTE 292.9 died in field 0 at (8337.0, 15956.0)
+PLAYBOT_NOTE 326.9 died in field 0 at (8112.0, 15953.0)
+PLAYBOT_NOTE 370.8 field 0: to a waystone to bank
+PLAYBOT_NOTE 512.0 banked at a waystone in field 0
+PLAYBOT_NOTE 536.6 died in field 0 at (10074.0, 11503.0)
+PLAYBOT_NOTE 659.1 died in field 0 at (8589.0, 10441.0)
+PLAYBOT_NOTE 760.4 died in field 0 at (8620.0, 10254.0)
+PLAYBOT_NOTE 855.4 died in field 0 at (8637.0, 10517.0)
+PLAYBOT_NOTE 966.1 died in field 0 at (7681.0, 10575.0)
+PLAYBOT_NOTE 990.1 field 0: still in 90 s after time, Esc
+PLAYBOT_NOTE 990.1 Esc 1 in field 0
+PLAYBOT_NOTE 990.4 outing over in field 0: { "t": 164, "hero": 51, "coin": 2495, "xp": 7239, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 990.4 }
+PLAYBOT ok secs=991 screens=14 fields=4 outings=4 kills=3678 deaths=12 coin=2773 fps_p50=480.0 frame_ms_p99=6.1 hitches_50ms=37 errors=0 km_walked=1.25
 WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
    at: cleanup (core/object/object.cpp:2536)
 ERROR: 1 resources still in use at exit (run with --verbose for details).
