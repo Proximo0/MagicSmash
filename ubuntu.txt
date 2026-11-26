@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-25T19:53Z commit=a0e6c38 took=8218s
-JOB realm FAIL realm/check.sh:    | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=95.3  | realm/check_client.sh: REALM_CLIENT failed: godot --import 
-JOB world PASS world secs=600 WORLD ok days=7.00 secs=602 heroes=200 cycles=1600 outings=1600 vault_runs=44 vault_joins=44 queued=1436 queue_max=58 admitted=1391 copies_opened=7 merges=4 moved=39 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2556 won=0 bosses=672 killed=0 world_bosses=35 chests=0 news=531 
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261125-235307 schema=4 items=0 stacks=0 ledger=152 digest=cbf29ce484222325 on 2026-11-26 release=v1->v2->v1 downgrade=refused
+STATION machine=ubuntu time=2026-11-26T00:31Z commit=f667656 took=14457s
+JOB realm FAIL realm/check.sh:    | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=76.3  | realm/check_client.sh: ART_GALLERY printed nothing REALM_CLIENT failed: art gallery 
+JOB world PASS world secs=600 WORLD ok days=7.00 secs=602 heroes=200 cycles=1633 outings=1633 vault_runs=47 vault_joins=47 queued=1527 queue_max=83 admitted=1478 copies_opened=5 merges=3 moved=29 moved_bots=0 peak_copies=9 peak_heroes=152 tides=2603 won=0 bosses=687 killed=0 world_bosses=37 chests=0 news=531 
+JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261126-043130 schema=4 items=0 stacks=0 ledger=150 digest=cbf29ce484222325 on 2026-11-26 release=v1->v2->v1 downgrade=refused
 STATION FAIL jobs=3 failed=1 skipped=0
