@@ -1,0 +1,30 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official, safeguards balanced)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 3.3.0 Core Profile Context 25.10.30.11.251117 - Compatibility - Using Device: ATI Technologies Inc. - AMD RadeonT 610M
+
+PLAYBOT_NOTE 56.8 died in field 0 at (8167.0, 16119.0)
+ERROR: WASAPI: GetBufferSize error
+   at: thread_func (drivers/wasapi/audio_driver_wasapi.cpp:778)
+WARNING: WASAPI: Current output_device invalidated, closing output_device
+   at: thread_func (drivers/wasapi/audio_driver_wasapi.cpp:849)
+PLAYBOT_NOTE 97.3 died in field 0 at (8323.0, 16129.0)
+PLAYBOT_NOTE 134.3 died in field 0 at (8022.0, 16118.0)
+PLAYBOT_NOTE 164.7 field 0: to a waystone to bank
+PLAYBOT_NOTE 175.0 died in field 0 at (7994.0, 15971.0)
+PLAYBOT_NOTE 235.8 died in field 0 at (7334.0, 15553.0)
+PLAYBOT_NOTE 275.2 died in field 0 at (8018.0, 16100.0)
+PLAYBOT_NOTE 315.0 died in field 0 at (7999.0, 16094.0)
+PLAYBOT_NOTE 389.0 died in field 0 at (7123.0, 15553.0)
+PLAYBOT_NOTE 430.5 died in field 0 at (7947.0, 16057.0)
+PLAYBOT_NOTE 506.8 died in field 0 at (7127.0, 15553.0)
+PLAYBOT_NOTE 644.3 died in field 0 at (7041.0, 14416.0)
+PLAYBOT_NOTE 718.5 died in field 0 at (7258.0, 15553.0)
+PLAYBOT_NOTE 877.8 died in field 0 at (6370.0, 14721.0)
+PLAYBOT_NOTE 900.1 field 0: time is up, out by the gate
+PLAYBOT_NOTE 918.9 died in field 0 at (8342.0, 15985.0)
+PLAYBOT_NOTE 933.5 outing over in field 0: { "t": 164, "hero": 53, "coin": 350, "xp": 2432, "levels": 9, "potions": 0, "left": 0, "field": 0, "at_s": 933.5 }
+PLAYBOT ok secs=934 screens=8 fields=1 outings=1 kills=1199 deaths=14 coin=350 fps_p50=420.0 frame_ms_p99=6.1 hitches_50ms=69 errors=1 km_walked=0.53
+WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
