@@ -3,3 +3,4 @@
 2026-11-24T19:54:48Z INFO id=261123233201-5781 kind=shell secs=3007 wirefuzz iters=2000000 seed=207286 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
 2026-11-25T05:13:09Z INFO id=261123233201-5781 kind=shell secs=3008 wirefuzz iters=2000000 seed=696605 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
 2026-11-25T12:58:30Z PASS id=261123233201-5781 kind=shell secs=2784 wirefuzz iters=2000000 seed=473089 8 tests in 2779 s
+2026-11-26T03:02:56Z PASS id=261123233201-5781 kind=shell secs=2848 wirefuzz iters=2000000 seed=880232 8 tests in 2843 s
