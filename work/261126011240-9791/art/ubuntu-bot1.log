@@ -2,25 +2,21 @@ Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official,
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 OpenGL API 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3 - Compatibility - Using Device: Intel - Mesa Intel(R) HD Graphics 520 (SKL GT2)
 
-PLAYBOT_NOTE 60.2 died in field 1 at (8148.0, 16035.0)
-PLAYBOT_NOTE 82.6 outing over in field 1: { "t": 164, "hero": 52, "coin": 141, "xp": 448, "levels": 0, "potions": 0, "left": 2, "field": 1, "at_s": 82.6 }
-PLAYBOT_NOTE 173.4 outing over in field 1: { "t": 164, "hero": 52, "coin": 263, "xp": 526, "levels": 0, "potions": 0, "left": 2, "field": 1, "at_s": 173.4 }
-PLAYBOT_NOTE 173.4 the field client never joined field 1
-PLAYBOT_NOTE 251.5 died in field 0 at (8375.0, 15860.0)
-PLAYBOT_NOTE 280.7 died in field 0 at (8304.0, 16176.0)
-PLAYBOT_NOTE 344.4 died in field 0 at (6786.0, 15662.0)
-PLAYBOT_NOTE 364.4 field 0: to a waystone to bank
-PLAYBOT_NOTE 479.4 died in field 0 at (6337.0, 14752.0)
-PLAYBOT_NOTE 557.2 outing over in field 0: { "t": 164, "hero": 52, "coin": 1091, "xp": 5008, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 557.2 }
-PLAYBOT_NOTE 587.7 covered button SmithPanel:close under swallow
-PLAYBOT_NOTE 590.5 SmithPanel did not close by close button
-PLAYBOT_NOTE 731.3 died in field 0 at (6952.0, 15554.0)
-PLAYBOT_NOTE 787.3 died in field 0 at (8529.0, 16093.0)
-PLAYBOT_NOTE 829.2 died in field 0 at (8552.0, 15952.0)
-PLAYBOT_NOTE 843.6 field 0: to a waystone to bank
-PLAYBOT_NOTE 900.1 field 0: time is up, out by the waystone
-PLAYBOT_NOTE 908.4 outing over in field 0: { "t": 164, "hero": 52, "coin": 651, "xp": 3299, "levels": 1, "potions": 0, "left": 2, "field": 0, "at_s": 908.4 }
-PLAYBOT ok secs=909 screens=14 fields=4 outings=4 kills=1275 deaths=8 coin=2146 fps_p50=90.0 frame_ms_p99=133.3 hitches_50ms=5561 errors=0 km_walked=0.72
+PLAYBOT_NOTE 13.5 covered button BagPanel:close under swallow
+PLAYBOT_NOTE 15.8 BagPanel did not close by close button
+PLAYBOT_NOTE 50.8 died in field 0 at (8235.0, 15983.0)
+PLAYBOT_NOTE 84.5 died in field 0 at (8019.0, 16000.0)
+PLAYBOT_NOTE 120.0 died in field 0 at (7956.0, 15737.0)
+PLAYBOT_NOTE 150.0 field 0: to a waystone to bank
+PLAYBOT_NOTE 235.4 died in field 0 at (7040.0, 14336.0)
+PLAYBOT_NOTE 447.3 died in field 0 at (6562.0, 14626.0)
+PLAYBOT_NOTE 727.5 outing over in field 0: { "t": 164, "hero": 52, "coin": 2149, "xp": 8242, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 727.5 }
+PLAYBOT_NOTE 826.6 died in field 0 at (8254.0, 15986.0)
+PLAYBOT_NOTE 841.6 field 0: to a waystone to bank
+PLAYBOT_NOTE 892.8 outing over in field 0: { "t": 164, "hero": 52, "coin": 332, "xp": 897, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 892.8 }
+PLAYBOT_NOTE 925.0 covered button ReaderPanel:close under swallow
+PLAYBOT_NOTE 927.9 ReaderPanel did not close by close button
+PLAYBOT ok secs=928 screens=11 fields=2 outings=2 kills=3336 deaths=6 coin=2481 fps_p50=122.9 frame_ms_p99=126.6 hitches_50ms=3971 errors=0 km_walked=0.90
 WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
    at: cleanup (core/object/object.cpp:2536)
 ERROR: 1 resources still in use at exit (run with --verbose for details).
