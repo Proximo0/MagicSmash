@@ -2,47 +2,22 @@ Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official,
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 OpenGL API 3.3.0 - Build 31.0.101.2140 - Compatibility - Using Device: Intel - Intel(R) UHD Graphics 600
 
-PLAYBOT_NOTE 58.3 died in field 1 at (8230.0, 16143.0)
-PLAYBOT_NOTE 74.4 outing over in field 1: { "t": 164, "hero": 50, "coin": 119, "xp": 236, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 74.4 }
-PLAYBOT_NOTE 124.2 died in field 1 at (8266.0, 15938.0)
-PLAYBOT_NOTE 141.2 died in field 1 at (8205.0, 16275.0)
-PLAYBOT_NOTE 153.1 died in field 1 at (8384.0, 15968.0)
-PLAYBOT_NOTE 178.5 died in field 1 at (8448.0, 16032.0)
-PLAYBOT_NOTE 193.4 field 1: to a waystone to bank
-PLAYBOT_NOTE 198.2 died in field 1 at (7985.0, 16128.0)
-PLAYBOT_NOTE 218.2 died in field 1 at (7980.0, 16076.0)
-PLAYBOT_NOTE 242.1 died in field 1 at (7792.0, 16002.0)
-PLAYBOT_NOTE 266.7 died in field 1 at (7971.0, 16002.0)
-PLAYBOT_NOTE 300.6 died in field 1 at (8194.0, 15936.0)
-PLAYBOT_NOTE 316.7 died in field 1 at (8150.0, 16246.0)
-PLAYBOT_NOTE 337.1 died in field 1 at (8134.0, 16044.0)
-PLAYBOT_NOTE 360.9 died in field 1 at (7975.0, 16002.0)
-PLAYBOT_NOTE 388.2 died in field 1 at (8097.0, 15936.0)
-PLAYBOT_NOTE 407.2 died in field 1 at (8062.0, 16120.0)
-PLAYBOT_NOTE 438.1 died in field 1 at (8116.0, 15936.0)
-PLAYBOT_NOTE 453.8 died in field 1 at (8169.0, 16265.0)
-PLAYBOT_NOTE 486.3 died in field 1 at (8248.0, 15936.0)
-PLAYBOT_NOTE 514.9 died in field 1 at (8318.0, 15938.0)
-PLAYBOT_NOTE 550.2 died in field 1 at (8168.0, 15937.0)
-PLAYBOT_NOTE 569.1 died in field 1 at (8010.0, 16106.0)
-PLAYBOT_NOTE 598.4 died in field 1 at (8096.0, 15937.0)
-PLAYBOT_NOTE 614.7 died in field 1 at (8192.0, 16288.0)
-PLAYBOT_NOTE 629.8 outing over in field 1: { "t": 164, "hero": 50, "coin": 249, "xp": 7452, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 629.8 }
-PLAYBOT_NOTE 662.7 died in field 1 at (8205.0, 16095.0)
-PLAYBOT_NOTE 678.6 outing over in field 1: { "t": 164, "hero": 50, "coin": 128, "xp": 248, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 678.6 }
-PLAYBOT_NOTE 725.3 died in field 1 at (8318.0, 15938.0)
-PLAYBOT_NOTE 741.3 outing over in field 1: { "t": 164, "hero": 50, "coin": 180, "xp": 268, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 741.3 }
-PLAYBOT_NOTE 782.2 died in field 1 at (8315.0, 15937.0)
-PLAYBOT_NOTE 797.8 died in field 1 at (8172.0, 16268.0)
-PLAYBOT_NOTE 825.7 died in field 1 at (8362.0, 15985.0)
-PLAYBOT_NOTE 840.0 field 1: to a waystone to bank
-PLAYBOT_NOTE 840.8 died in field 1 at (8174.0, 16262.0)
-PLAYBOT_NOTE 856.0 died in field 1 at (8183.0, 16279.0)
-PLAYBOT_NOTE 874.8 died in field 1 at (8053.0, 16132.0)
-PLAYBOT_NOTE 894.3 died in field 1 at (8026.0, 16089.0)
-PLAYBOT_NOTE 909.3 field 1: time is up, out by the gate
-PLAYBOT_NOTE 909.5 outing over in field 1: { "t": 164, "hero": 50, "coin": 222, "xp": 1364, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 909.5 }
-PLAYBOT ok secs=910 screens=13 fields=5 outings=5 kills=1962 deaths=32 coin=898 fps_p50=120.0 frame_ms_p99=25.0 hitches_50ms=115 errors=0 km_walked=0.55
+PLAYBOT_NOTE 107.4 died in field 1 at (8187.0, 15944.0)
+PLAYBOT_NOTE 154.8 outing over in field 1: { "t": 164, "hero": 50, "coin": 100, "xp": 146, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 154.8 }
+PLAYBOT_NOTE 226.7 died in field 1 at (8365.0, 16009.0)
+PLAYBOT_NOTE 265.6 outing over in field 1: { "t": 164, "hero": 50, "coin": 121, "xp": 144, "levels": 0, "potions": 0, "left": 0, "field": 1, "at_s": 265.6 }
+PLAYBOT_NOTE 326.7 died in field 0 at (8037.0, 16017.0)
+PLAYBOT_NOTE 429.1 died in field 0 at (8038.0, 16131.0)
+PLAYBOT_NOTE 481.4 field 0: to a waystone to bank
+PLAYBOT_NOTE 663.1 died in field 0 at (6337.0, 14753.0)
+PLAYBOT_NOTE 900.2 field 0: time is up, out by the waystone
+PLAYBOT_NOTE 914.2 died in field 0 at (4601.0, 14118.0)
+PLAYBOT_NOTE 975.8 died in field 0 at (6337.0, 14753.0)
+PLAYBOT_NOTE 990.1 field 0: still in 90 s after time, Esc
+PLAYBOT_NOTE 990.1 Esc 1 in field 0
+PLAYBOT_NOTE 991.3 Esc 2 in field 0
+PLAYBOT_NOTE 991.4 outing over in field 0: { "t": 164, "hero": 50, "coin": 322, "xp": 1913, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 991.4 }
+PLAYBOT ok secs=991 screens=12 fields=3 outings=3 kills=1583 deaths=7 coin=543 fps_p50=120.0 frame_ms_p99=21.2 hitches_50ms=84 errors=0 km_walked=0.55
 WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
    at: cleanup (core/object/object.cpp:2536)
 ERROR: 1 resources still in use at exit (run with --verbose for details).
