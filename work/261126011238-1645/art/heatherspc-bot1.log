@@ -1,0 +1,23 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official, safeguards balanced)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 3.3.0 - Build 31.0.101.2140 - Compatibility - Using Device: Intel - Intel(R) UHD Graphics 600
+
+PLAYBOT_NOTE 53.3 died in field 0 at (8430.0, 15986.0)
+PLAYBOT_NOTE 100.6 died in field 0 at (8026.0, 16093.0)
+PLAYBOT_NOTE 127.0 outing over in field 0: { "t": 164, "hero": 50, "coin": 323, "xp": 760, "levels": 0, "potions": 0, "left": 0, "field": 0, "at_s": 127.0 }
+PLAYBOT_NOTE 175.1 died in field 0 at (8279.0, 16001.0)
+PLAYBOT_NOTE 278.1 died in field 0 at (8574.0, 15617.0)
+PLAYBOT_NOTE 325.8 field 0: to a waystone to bank
+PLAYBOT_NOTE 326.5 died in field 0 at (8360.0, 16131.0)
+PLAYBOT_NOTE 379.2 died in field 0 at (7748.0, 15714.0)
+PLAYBOT_NOTE 558.1 died in field 0 at (6338.0, 14752.0)
+PLAYBOT_NOTE 686.1 died in field 0 at (6361.0, 14753.0)
+PLAYBOT_NOTE 848.9 died in field 0 at (6338.0, 14754.0)
+PLAYBOT_NOTE 900.0 field 0: time is up, out by the gate
+PLAYBOT_NOTE 959.7 died in field 0 at (8424.0, 16119.0)
+PLAYBOT_NOTE 972.9 outing over in field 0: { "t": 164, "hero": 50, "coin": 1155, "xp": 5659, "levels": 0, "potions": 0, "left": 0, "field": 0, "at_s": 972.9 }
+PLAYBOT ok secs=973 screens=10 fields=2 outings=2 kills=3527 deaths=10 coin=1478 fps_p50=120.0 frame_ms_p99=21.7 hitches_50ms=64 errors=0 km_walked=0.63
+WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:822)
