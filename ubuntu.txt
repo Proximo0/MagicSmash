@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-26T01:11Z commit=3c0c663 took=2132s
-JOB realm PASS REALM ok tests=450 bench 300x8000 tick_ms=5.82/7.79 follower=ok 8 tower_tick_ms=5.70/7.59 tower_follower=ok 3 | STORE ok tests=55 fuzz ops=5000 kills=20 acked=4824 digest=bb7c07ca9763e56b secs=25.9  | REALM_CLIENT ok gallery_sprites=496 field_test_checks=2126 shell_test_checks=218 shell_shots=50 onboard: clicks=5,screen
-JOB world PASS world secs=600 WORLD ok days=7.00 secs=602 heroes=200 cycles=1650 outings=1650 vault_runs=45 vault_joins=45 queued=1522 queue_max=53 admitted=1484 copies_opened=7 merges=4 moved=39 moved_bots=0 peak_copies=9 peak_heroes=151 tides=2564 won=0 bosses=675 killed=0 world_bosses=35 chests=0 news=531 
-JOB ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261126-051157 schema=4 items=0 stacks=0 ledger=146 digest=cbf29ce484222325 on 2026-11-26 release=v1->v2->v1 downgrade=refused
-STATION PASS jobs=3 failed=0 skipped=0
+STATION machine=ubuntu time=2026-11-26T01:33Z commit=7391641 took=1s
+JOB realm SKIP nothing it tests changed since 3c0c663
+JOB world SKIP nothing it tests changed since 3c0c663
+JOB ops SKIP nothing it tests changed since 3c0c663
+STATION PASS jobs=0 failed=0 skipped=3
