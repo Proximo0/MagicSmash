@@ -2,21 +2,29 @@ Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official,
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 OpenGL API 4.6 (Core Profile) Mesa 26.0.8-1ubuntu0.3 - Compatibility - Using Device: Intel - Mesa Intel(R) HD Graphics 520 (SKL GT2)
 
-PLAYBOT_NOTE 13.5 covered button BagPanel:close under swallow
-PLAYBOT_NOTE 15.8 BagPanel did not close by close button
-PLAYBOT_NOTE 50.8 died in field 0 at (8235.0, 15983.0)
-PLAYBOT_NOTE 84.5 died in field 0 at (8019.0, 16000.0)
-PLAYBOT_NOTE 120.0 died in field 0 at (7956.0, 15737.0)
-PLAYBOT_NOTE 150.0 field 0: to a waystone to bank
-PLAYBOT_NOTE 235.4 died in field 0 at (7040.0, 14336.0)
-PLAYBOT_NOTE 447.3 died in field 0 at (6562.0, 14626.0)
-PLAYBOT_NOTE 727.5 outing over in field 0: { "t": 164, "hero": 52, "coin": 2149, "xp": 8242, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 727.5 }
-PLAYBOT_NOTE 826.6 died in field 0 at (8254.0, 15986.0)
-PLAYBOT_NOTE 841.6 field 0: to a waystone to bank
-PLAYBOT_NOTE 892.8 outing over in field 0: { "t": 164, "hero": 52, "coin": 332, "xp": 897, "levels": 0, "potions": 0, "left": 2, "field": 0, "at_s": 892.8 }
-PLAYBOT_NOTE 925.0 covered button ReaderPanel:close under swallow
-PLAYBOT_NOTE 927.9 ReaderPanel did not close by close button
-PLAYBOT ok secs=928 screens=11 fields=2 outings=2 kills=3336 deaths=6 coin=2481 fps_p50=122.9 frame_ms_p99=126.6 hitches_50ms=3971 errors=0 km_walked=0.90
+PLAYBOT_NOTE 134.6 the town showed no hero
+PLAYBOT_NOTE 154.8 covered button BagPanel:close under swallow
+PLAYBOT_NOTE 163.3 BagPanel did not close by close button
+PLAYBOT_NOTE 276.1 walk to gate ran out of time (at (1848.0, 1848.0))
+PLAYBOT_NOTE 281.2 the gates did not open
+PLAYBOT_NOTE 293.7 BagPanel did not close by close button
+PLAYBOT_NOTE 354.2 walk to smith ran out of time (at (1848.0, 1848.0))
+PLAYBOT_NOTE 420.6 walk to gate ran out of time (at (1848.0, 1848.0))
+PLAYBOT_NOTE 425.6 the gates did not open
+PLAYBOT_NOTE 449.6 BagPanel did not close by close button
+PLAYBOT_NOTE 509.9 walk to gate ran out of time (at (3034.0, 3130.0))
+PLAYBOT_NOTE 516.6 the gates did not open
+PLAYBOT_NOTE 576.7 walk to board ran out of time (at (4095.0, 3202.0))
+PLAYBOT_NOTE 639.8 walk to market ran out of time (at (4095.0, 4095.0))
+PLAYBOT_NOTE 702.9 walk to gate ran out of time (at (3630.0, 4095.0))
+PLAYBOT_NOTE 707.9 the gates did not open
+PLAYBOT_NOTE 768.0 walk to post ran out of time (at (1085.0, 2301.0))
+PLAYBOT_NOTE 831.2 walk to gate ran out of time (at (0.0, 0.0))
+PLAYBOT_NOTE 836.2 the gates did not open
+PLAYBOT_NOTE 896.3 walk to smith ran out of time (at (0.0, 0.0))
+PLAYBOT_NOTE 959.4 walk to gate ran out of time (at (598.0, 0.0))
+PLAYBOT_NOTE 964.4 the gates did not open
+PLAYBOT FAILED secs=964 screens=6 fields=0 outings=0 kills=0 deaths=0 coin=0 fps_p50=10.4 frame_ms_p99=147.8 hitches_50ms=5785 errors=0 km_walked=0.47 why="never reached a field"
 WARNING: 3 ObjectDB instances were leaked at exit (run with `--verbose` for details).
    at: cleanup (core/object/object.cpp:2536)
 ERROR: 1 resources still in use at exit (run with --verbose for details).
