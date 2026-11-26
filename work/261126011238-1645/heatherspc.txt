@@ -1,1 +1,2 @@
 2026-11-26T01:47:42Z PASS id=261126011238-1645 kind=shell secs=988 playbot bots=1 host=ubuntu secs=973 screens=10 fields=2 outings=2 kills=3527 deaths=10 coin=1478 fps_p50=120.0 frame_ms_p99=21.7 hitches_50ms=64 errors=0 km_walked=0.63
+2026-11-26T09:04:23Z PASS id=261126011238-1645 kind=shell secs=929 playbot bots=1 host=ubuntu secs=912 screens=9 fields=1 outings=1 kills=3873 deaths=34 coin=629 fps_p50=120.0 frame_ms_p99=16.8 hitches_50ms=46 errors=0 km_walked=0.63
