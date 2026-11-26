@@ -1,1 +1,1 @@
-machine=ubuntu time=1795724219 status=INFO passes=23 commit=73916410e815 fails=0
+machine=ubuntu time=1795729591 status=FAIL passes=24 commit=73916410e815 fails=1
