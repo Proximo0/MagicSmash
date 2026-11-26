@@ -30,3 +30,4 @@
 2026-11-26T14:15:59Z INFO id=261122113640-7335 kind=economy secs=14404 economy runs=1 bad=0 seed=9508 stopped at the time limit
 2026-11-26T14:48:02Z INFO id=261122113640-7335 kind=economy secs=11439 economy runs=1 bad=0 seed=16856 ok bots=4000 days=180 secs=11399 sales=111899 tax=3068797 coin_per_bot=343088 listings=553833 trades=2381 letters=3852 refused=2972
 2026-11-26T17:26:10Z INFO id=261122113640-7335 kind=economy secs=9145 economy runs=1 bad=0 seed=73212 ok bots=4000 days=180 secs=9095 sales=110686 tax=3025282 coin_per_bot=342771 listings=549181 trades=2301 letters=3828 refused=3475
+2026-11-26T20:16:52Z INFO id=261122113640-7335 kind=economy secs=14405 economy runs=1 bad=0 seed=53057 stopped at the time limit
