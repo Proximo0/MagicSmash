@@ -5,874 +5,1183 @@
 			"card": 6,
 			"field": 1,
 			"slot": 1,
-			"t": 63.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 64.7
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 4,
-			"t": 87.7
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 89.2
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 90.7
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 4,
-			"t": 92.2
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 93.8
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 4,
-			"t": 95.3
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 1,
-			"t": 96.8
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 98.3
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 99.8
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 1,
-			"t": 101.3
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 1,
-			"t": 102.8
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 1,
-			"t": 106.4
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 4,
-			"t": 107.9
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 109.4
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 3,
-			"t": 110.9
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 1,
-			"t": 112.4
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 4,
-			"t": 113.9
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 4,
-			"t": 115.4
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 116.9
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 118.4
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 119.9
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 1,
-			"t": 121.4
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 2,
-			"t": 156.4
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 157.9
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 4,
-			"t": 182.2
-		},
-		{
-			"card": 6,
-			"field": 1,
-			"slot": 1,
-			"t": 205.3
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 227.5
+			"t": 59.5
 		},
 		{
 			"card": 4,
 			"field": 1,
 			"slot": 4,
-			"t": 253.8
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 255.3
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 256.8
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 258.3
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 259.8
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 261.3
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 262.8
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 264.3
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 265.9
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 267.4
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 268.9
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 3,
-			"t": 294.1
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 3,
-			"t": 322.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 323.7
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 4,
-			"t": 325.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 326.7
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 328.3
-		},
-		{
-			"card": 2,
-			"field": 1,
-			"slot": 2,
-			"t": 329.8
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 4,
-			"t": 331.3
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 332.8
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 334.3
-		},
-		{
-			"card": 11,
-			"field": 1,
-			"slot": 4,
-			"t": 335.8
-		},
-		{
-			"card": 2,
-			"field": 1,
-			"slot": 2,
-			"t": 337.3
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 2,
-			"t": 372.9
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 1,
-			"t": 374.4
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 1,
-			"t": 375.9
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 2,
-			"t": 377.4
+			"t": 61.0
 		},
 		{
 			"card": 4,
 			"field": 1,
 			"slot": 4,
-			"t": 378.9
+			"t": 62.5
 		},
 		{
-			"card": 9,
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 64.0
+		},
+		{
+			"card": 2,
 			"field": 1,
 			"slot": 3,
-			"t": 380.4
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 3,
-			"t": 381.9
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 3,
-			"t": 383.4
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 3,
-			"t": 384.9
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 2,
-			"t": 386.4
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 1,
-			"t": 388.0
+			"t": 65.5
 		},
 		{
 			"card": 6,
 			"field": 1,
-			"slot": 3,
-			"t": 407.6
+			"slot": 1,
+			"t": 67.1
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 68.6
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 70.1
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 71.6
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 73.1
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 117.2
 		},
 		{
 			"card": 12,
 			"field": 1,
 			"slot": 1,
-			"t": 455.6
+			"t": 123.6
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 141.9
 		},
 		{
 			"card": 3,
 			"field": 1,
 			"slot": 2,
-			"t": 508.2
+			"t": 143.4
 		},
 		{
-			"card": 10,
+			"card": 11,
 			"field": 1,
 			"slot": 1,
-			"t": 540.8
-		},
-		{
-			"card": 1,
-			"field": 1,
-			"slot": 2,
-			"t": 542.3
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 1,
-			"t": 543.8
+			"t": 146.2
 		},
 		{
 			"card": 5,
 			"field": 1,
 			"slot": 4,
-			"t": 545.3
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 1,
-			"t": 546.8
-		},
-		{
-			"card": 1,
-			"field": 1,
-			"slot": 2,
-			"t": 548.3
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 4,
-			"t": 549.8
-		},
-		{
-			"card": 4,
-			"field": 1,
-			"slot": 3,
-			"t": 551.3
-		},
-		{
-			"card": 4,
-			"field": 1,
-			"slot": 3,
-			"t": 552.8
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 1,
-			"t": 554.3
-		},
-		{
-			"card": 4,
-			"field": 1,
-			"slot": 3,
-			"t": 555.8
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 2,
-			"t": 607.8
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 639.8
-		},
-		{
-			"card": 4,
-			"field": 1,
-			"slot": 4,
-			"t": 641.3
-		},
-		{
-			"card": 4,
-			"field": 1,
-			"slot": 4,
-			"t": 642.8
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 644.3
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 3,
-			"t": 645.8
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 1,
-			"t": 647.3
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 648.8
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 1,
-			"t": 650.3
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 3,
-			"t": 651.8
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 653.4
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 654.9
+			"t": 169.4
 		},
 		{
 			"card": 2,
 			"field": 1,
-			"slot": 2,
-			"t": 695.1
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 1,
-			"t": 723.7
-		},
-		{
-			"card": 1,
-			"field": 1,
-			"slot": 3,
-			"t": 725.2
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 1,
-			"t": 726.7
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 1,
-			"t": 728.2
-		},
-		{
-			"card": 10,
-			"field": 1,
 			"slot": 4,
-			"t": 729.7
-		},
-		{
-			"card": 1,
-			"field": 1,
-			"slot": 3,
-			"t": 731.2
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 4,
-			"t": 732.7
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 4,
-			"t": 734.2
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 4,
-			"t": 735.7
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 1,
-			"t": 737.2
-		},
-		{
-			"card": 10,
-			"field": 1,
-			"slot": 4,
-			"t": 738.7
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 3,
-			"t": 763.1
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 2,
-			"t": 792.8
+			"t": 196.3
 		},
 		{
 			"card": 12,
 			"field": 1,
+			"slot": 3,
+			"t": 236.8
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 3,
+			"t": 260.3
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 3,
+			"t": 285.1
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 316.5
+		},
+		{
+			"card": 4,
+			"field": 1,
 			"slot": 4,
-			"t": 863.1
+			"t": 318.0
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 319.5
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 1,
+			"t": 321.0
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 322.5
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 324.0
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 325.5
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 327.0
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 1,
+			"t": 328.5
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 330.1
+		},
+		{
+			"card": 8,
+			"field": 1,
+			"slot": 3,
+			"t": 331.6
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 3,
+			"t": 356.3
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 4,
+			"t": 404.8
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 428.5
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 3,
+			"t": 473.4
+		},
+		{
+			"card": 2,
+			"field": 1,
+			"slot": 1,
+			"t": 505.9
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 566.1
+		},
+		{
+			"card": 2,
+			"field": 1,
+			"slot": 3,
+			"t": 661.6
+		},
+		{
+			"card": 12,
+			"field": 1,
+			"slot": 1,
+			"t": 663.2
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 664.7
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 3,
+			"t": 666.2
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 667.7
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 669.2
+		},
+		{
+			"card": 12,
+			"field": 1,
+			"slot": 1,
+			"t": 670.7
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 672.2
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 673.7
+		},
+		{
+			"card": 12,
+			"field": 1,
+			"slot": 1,
+			"t": 675.2
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 676.8
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 3,
+			"t": 678.3
+		},
+		{
+			"card": 2,
+			"field": 1,
+			"slot": 3,
+			"t": 716.5
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 718.0
+		},
+		{
+			"card": 4,
+			"field": 1,
+			"slot": 4,
+			"t": 769.4
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 771.0
+		},
+		{
+			"card": 8,
+			"field": 1,
+			"slot": 3,
+			"t": 782.4
+		},
+		{
+			"card": 8,
+			"field": 1,
+			"slot": 3,
+			"t": 783.9
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 785.4
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 786.9
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 2,
+			"t": 788.4
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 789.9
+		},
+		{
+			"card": 8,
+			"field": 1,
+			"slot": 3,
+			"t": 791.4
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 4,
+			"t": 792.9
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 794.4
+		},
+		{
+			"card": 8,
+			"field": 1,
+			"slot": 3,
+			"t": 796.0
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 1,
+			"t": 797.5
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 3,
+			"t": 799.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 800.5
+		},
+		{
+			"card": 6,
+			"field": 1,
+			"slot": 4,
+			"t": 802.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 803.5
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 805.0
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 3,
+			"t": 806.5
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 808.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 809.5
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 2,
+			"t": 811.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 1,
+			"t": 812.5
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 3,
+			"t": 814.0
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 2,
+			"t": 815.5
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 1,
+			"t": 856.9
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 4,
+			"t": 858.4
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 4,
+			"t": 860.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 2,
+			"t": 861.5
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 3,
+			"t": 863.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 2,
+			"t": 864.5
+		},
+		{
+			"card": 5,
+			"field": 1,
+			"slot": 4,
+			"t": 866.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 2,
+			"t": 867.5
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 3,
+			"t": 869.0
+		},
+		{
+			"card": 11,
+			"field": 1,
+			"slot": 2,
+			"t": 870.5
+		},
+		{
+			"card": 7,
+			"field": 1,
+			"slot": 1,
+			"t": 872.0
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 875.1
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 2,
+			"t": 876.6
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 2,
+			"t": 878.1
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 879.6
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 2,
+			"t": 881.1
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 882.6
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 884.1
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 885.7
+		},
+		{
+			"card": 3,
+			"field": 1,
+			"slot": 1,
+			"t": 887.2
+		},
+		{
+			"card": 9,
+			"field": 1,
+			"slot": 2,
+			"t": 888.7
+		},
+		{
+			"card": 2,
+			"field": 1,
+			"slot": 4,
+			"t": 890.2
 		}
 	],
-	"coin": 629,
+	"coin": 898,
 	"dead_clicks": [],
-	"deaths": 34,
+	"deaths": 32,
 	"display": "Windows",
 	"errors": 0,
-	"fields_entered": 1,
+	"fields_entered": 5,
 	"first_errors": [],
 	"frames": {
-		"count": 100871,
+		"count": 91689,
 		"fps_p50": 120.0,
 		"hitches": [
 			{
-				"ms": 133.3,
+				"ms": 145.1,
 				"screen": "login",
-				"t": 0.88
+				"t": 1.51
 			},
 			{
-				"ms": 85.5,
+				"ms": 137.5,
 				"screen": "hero_list",
-				"t": 6.95
+				"t": 8.13
 			},
 			{
-				"ms": 64.8,
+				"ms": 67.9,
 				"screen": "hero_list",
-				"t": 7.02
+				"t": 8.2
 			},
 			{
-				"ms": 135.7,
+				"ms": 132.8,
 				"screen": "town",
-				"t": 9.44
+				"t": 11.06
 			},
 			{
-				"ms": 122.9,
+				"ms": 133.3,
 				"screen": "town",
-				"t": 9.96
+				"t": 11.55
 			},
 			{
-				"ms": 108.8,
-				"screen": "SmithPanel",
+				"ms": 146.9,
+				"screen": "MerchantPanel",
+				"t": 20.98
+			},
+			{
+				"ms": 72.0,
+				"screen": "MerchantPanel",
+				"t": 21.05
+			},
+			{
+				"ms": 62.6,
+				"screen": "MerchantPanel",
+				"t": 21.79
+			},
+			{
+				"ms": 52.3,
+				"screen": "MerchantPanel",
+				"t": 21.84
+			},
+			{
+				"ms": 57.2,
+				"screen": "MerchantPanel",
+				"t": 21.9
+			},
+			{
+				"ms": 55.6,
+				"screen": "MerchantPanel",
+				"t": 21.96
+			},
+			{
+				"ms": 55.6,
+				"screen": "MerchantPanel",
+				"t": 22.01
+			},
+			{
+				"ms": 76.7,
+				"screen": "MerchantPanel",
+				"t": 23.13
+			},
+			{
+				"ms": 68.6,
+				"screen": "MerchantPanel",
 				"t": 23.2
 			},
 			{
-				"ms": 128.2,
-				"screen": "SmithPanel",
-				"t": 23.36
+				"ms": 70.0,
+				"screen": "MerchantPanel",
+				"t": 23.28
 			},
 			{
-				"ms": 144.2,
+				"ms": 75.1,
+				"screen": "MerchantPanel",
+				"t": 23.35
+			},
+			{
+				"ms": 76.9,
+				"screen": "MerchantPanel",
+				"t": 23.43
+			},
+			{
+				"ms": 72.3,
+				"screen": "MerchantPanel",
+				"t": 23.5
+			},
+			{
+				"ms": 72.2,
+				"screen": "MerchantPanel",
+				"t": 23.57
+			},
+			{
+				"ms": 71.4,
+				"screen": "MerchantPanel",
+				"t": 23.63
+			},
+			{
+				"ms": 76.2,
+				"screen": "MerchantPanel",
+				"t": 24.64
+			},
+			{
+				"ms": 71.2,
+				"screen": "MerchantPanel",
+				"t": 24.71
+			},
+			{
+				"ms": 66.2,
+				"screen": "MerchantPanel",
+				"t": 24.79
+			},
+			{
+				"ms": 68.0,
+				"screen": "MerchantPanel",
+				"t": 24.85
+			},
+			{
+				"ms": 63.9,
+				"screen": "MerchantPanel",
+				"t": 24.91
+			},
+			{
+				"ms": 54.4,
+				"screen": "MerchantPanel",
+				"t": 24.96
+			},
+			{
+				"ms": 58.3,
+				"screen": "MerchantPanel",
+				"t": 25.02
+			},
+			{
+				"ms": 137.0,
 				"screen": "town",
-				"t": 26.34
+				"t": 25.52
 			},
 			{
-				"ms": 51.5,
+				"ms": 148.1,
+				"screen": "BagPanel",
+				"t": 27.03
+			},
+			{
+				"ms": 51.3,
+				"screen": "BagPanel",
+				"t": 28.87
+			},
+			{
+				"ms": 59.5,
+				"screen": "BagPanel",
+				"t": 28.93
+			},
+			{
+				"ms": 70.4,
+				"screen": "BagPanel",
+				"t": 28.99
+			},
+			{
+				"ms": 56.7,
+				"screen": "BagPanel",
+				"t": 29.05
+			},
+			{
+				"ms": 58.3,
+				"screen": "BagPanel",
+				"t": 29.1
+			},
+			{
+				"ms": 58.3,
+				"screen": "BagPanel",
+				"t": 29.16
+			},
+			{
+				"ms": 55.7,
+				"screen": "BagPanel",
+				"t": 29.21
+			},
+			{
+				"ms": 141.6,
 				"screen": "town",
-				"t": 29.86
+				"t": 31.66
 			},
 			{
-				"ms": 54.2,
-				"screen": "PostPanel",
-				"t": 32.0
-			},
-			{
-				"ms": 133.3,
+				"ms": 51.9,
 				"screen": "town",
-				"t": 32.13
+				"t": 32.18
 			},
 			{
-				"ms": 127.1,
+				"ms": 69.9,
 				"screen": "town",
-				"t": 32.52
+				"t": 37.96
 			},
 			{
-				"ms": 92.5,
-				"screen": "town",
-				"t": 44.01
-			},
-			{
-				"ms": 138.8,
+				"ms": 131.1,
 				"screen": "GatePanel",
-				"t": 51.12
+				"t": 42.74
 			},
 			{
-				"ms": 144.7,
+				"ms": 146.9,
 				"screen": "field1",
-				"t": 61.19
+				"t": 56.91
 			},
 			{
-				"ms": 123.9,
+				"ms": 117.5,
 				"screen": "field1",
-				"t": 61.33
+				"t": 57.08
 			},
 			{
-				"ms": 145.9,
+				"ms": 142.6,
 				"screen": "field1",
-				"t": 61.52
-			},
-			{
-				"ms": 121.1,
-				"screen": "field1",
-				"t": 69.78
-			},
-			{
-				"ms": 147.3,
-				"screen": "field1",
-				"t": 87.64
-			},
-			{
-				"ms": 148.4,
-				"screen": "field1",
-				"t": 106.11
-			},
-			{
-				"ms": 141.0,
-				"screen": "field1",
-				"t": 166.38
-			},
-			{
-				"ms": 130.9,
-				"screen": "field1",
-				"t": 226.12
-			},
-			{
-				"ms": 146.3,
-				"screen": "field1",
-				"t": 286.33
-			},
-			{
-				"ms": 141.7,
-				"screen": "field1",
-				"t": 346.28
-			},
-			{
-				"ms": 137.1,
-				"screen": "field1",
-				"t": 406.31
+				"t": 57.34
 			},
 			{
 				"ms": 139.7,
 				"screen": "field1",
-				"t": 466.39
+				"t": 58.68
 			},
 			{
-				"ms": 136.8,
-				"screen": "field1",
-				"t": 526.31
+				"ms": 69.9,
+				"screen": "none",
+				"t": 74.49
 			},
 			{
-				"ms": 136.2,
-				"screen": "field1",
-				"t": 586.19
+				"ms": 64.5,
+				"screen": "none",
+				"t": 74.56
 			},
 			{
-				"ms": 134.1,
-				"screen": "field1",
-				"t": 646.36
+				"ms": 90.9,
+				"screen": "OutingPanel",
+				"t": 74.7
 			},
 			{
-				"ms": 82.6,
-				"screen": "field1",
-				"t": 652.79
+				"ms": 130.4,
+				"screen": "OutingPanel",
+				"t": 74.98
 			},
 			{
-				"ms": 55.2,
-				"screen": "field1",
-				"t": 652.85
+				"ms": 126.7,
+				"screen": "town",
+				"t": 76.77
 			},
 			{
-				"ms": 83.3,
-				"screen": "field1",
-				"t": 652.95
+				"ms": 145.0,
+				"screen": "BagPanel",
+				"t": 78.25
 			},
 			{
-				"ms": 100.0,
-				"screen": "field1",
-				"t": 653.07
+				"ms": 56.1,
+				"screen": "BagPanel",
+				"t": 79.53
 			},
 			{
-				"ms": 55.0,
-				"screen": "field1",
-				"t": 653.12
+				"ms": 50.2,
+				"screen": "BagPanel",
+				"t": 79.68
 			},
 			{
-				"ms": 76.8,
-				"screen": "field1",
-				"t": 653.21
+				"ms": 51.0,
+				"screen": "BagPanel",
+				"t": 79.73
 			},
 			{
-				"ms": 71.4,
-				"screen": "field1",
-				"t": 653.28
+				"ms": 144.5,
+				"screen": "town",
+				"t": 84.04
 			},
 			{
-				"ms": 117.8,
-				"screen": "field1",
-				"t": 653.4
+				"ms": 68.6,
+				"screen": "town",
+				"t": 92.49
 			},
 			{
-				"ms": 83.3,
-				"screen": "field1",
-				"t": 653.48
+				"ms": 62.6,
+				"screen": "town",
+				"t": 92.58
 			},
 			{
-				"ms": 53.3,
-				"screen": "field1",
-				"t": 653.53
+				"ms": 92.6,
+				"screen": "ReaderPanel",
+				"t": 98.36
 			},
 			{
-				"ms": 51.9,
-				"screen": "field1",
-				"t": 653.58
+				"ms": 138.8,
+				"screen": "ReaderPanel",
+				"t": 98.56
 			},
 			{
-				"ms": 66.2,
+				"ms": 50.1,
+				"screen": "ReaderPanel",
+				"t": 99.62
+			},
+			{
+				"ms": 51.7,
+				"screen": "ReaderPanel",
+				"t": 101.01
+			},
+			{
+				"ms": 50.2,
+				"screen": "ReaderPanel",
+				"t": 101.1
+			},
+			{
+				"ms": 51.1,
+				"screen": "ReaderPanel",
+				"t": 101.21
+			},
+			{
+				"ms": 135.5,
+				"screen": "town",
+				"t": 102.17
+			},
+			{
+				"ms": 146.7,
+				"screen": "GatePanel",
+				"t": 109.5
+			},
+			{
+				"ms": 145.3,
 				"screen": "field1",
-				"t": 653.7
+				"t": 114.57
+			},
+			{
+				"ms": 116.7,
+				"screen": "field1",
+				"t": 114.71
+			},
+			{
+				"ms": 115.3,
+				"screen": "field1",
+				"t": 115.16
+			},
+			{
+				"ms": 56.5,
+				"screen": "field1",
+				"t": 119.29
+			},
+			{
+				"ms": 56.3,
+				"screen": "field1",
+				"t": 122.36
+			},
+			{
+				"ms": 150.0,
+				"screen": "field1",
+				"t": 124.52
+			},
+			{
+				"ms": 139.4,
+				"screen": "field1",
+				"t": 141.43
+			},
+			{
+				"ms": 145.0,
+				"screen": "field1",
+				"t": 153.51
+			},
+			{
+				"ms": 143.4,
+				"screen": "field1",
+				"t": 213.63
+			},
+			{
+				"ms": 137.4,
+				"screen": "field1",
+				"t": 273.69
+			},
+			{
+				"ms": 135.4,
+				"screen": "field1",
+				"t": 333.41
+			},
+			{
+				"ms": 137.1,
+				"screen": "field1",
+				"t": 393.64
 			},
 			{
 				"ms": 133.9,
 				"screen": "field1",
-				"t": 706.27
+				"t": 453.51
 			},
 			{
-				"ms": 138.4,
+				"ms": 123.3,
 				"screen": "field1",
-				"t": 766.32
+				"t": 513.75
 			},
 			{
-				"ms": 133.3,
+				"ms": 142.6,
 				"screen": "field1",
-				"t": 826.31
+				"t": 573.55
 			},
 			{
-				"ms": 135.8,
-				"screen": "field1",
-				"t": 886.34
-			},
-			{
-				"ms": 95.5,
+				"ms": 53.4,
 				"screen": "none",
-				"t": 911.51
+				"t": 629.92
+			},
+			{
+				"ms": 100.3,
+				"screen": "OutingPanel",
+				"t": 630.09
+			},
+			{
+				"ms": 135.9,
+				"screen": "OutingPanel",
+				"t": 630.4
+			},
+			{
+				"ms": 142.0,
+				"screen": "town",
+				"t": 632.4
+			},
+			{
+				"ms": 127.1,
+				"screen": "SheetPanel",
+				"t": 633.69
+			},
+			{
+				"ms": 139.0,
+				"screen": "town",
+				"t": 639.09
+			},
+			{
+				"ms": 131.9,
+				"screen": "GatePanel",
+				"t": 654.03
+			},
+			{
+				"ms": 144.3,
+				"screen": "field1",
+				"t": 659.75
+			},
+			{
+				"ms": 116.7,
+				"screen": "field1",
+				"t": 659.89
+			},
+			{
+				"ms": 121.9,
+				"screen": "field1",
+				"t": 660.33
+			},
+			{
+				"ms": 145.7,
+				"screen": "field1",
+				"t": 663.22
+			},
+			{
+				"ms": 53.8,
+				"screen": "field1",
+				"t": 665.93
+			},
+			{
+				"ms": 61.0,
+				"screen": "field1",
+				"t": 669.89
+			},
+			{
+				"ms": 54.3,
+				"screen": "none",
+				"t": 678.69
+			},
+			{
+				"ms": 90.0,
+				"screen": "OutingPanel",
+				"t": 678.83
+			},
+			{
+				"ms": 76.2,
+				"screen": "town",
+				"t": 683.28
+			},
+			{
+				"ms": 73.8,
+				"screen": "town",
+				"t": 688.06
+			},
+			{
+				"ms": 128.4,
+				"screen": "PostPanel",
+				"t": 690.64
+			},
+			{
+				"ms": 149.4,
+				"screen": "field1",
+				"t": 714.35
+			},
+			{
+				"ms": 50.0,
+				"screen": "field1",
+				"t": 714.39
+			},
+			{
+				"ms": 100.0,
+				"screen": "field1",
+				"t": 715.0
+			},
+			{
+				"ms": 59.7,
+				"screen": "field1",
+				"t": 721.4
+			},
+			{
+				"ms": 92.5,
+				"screen": "OutingPanel",
+				"t": 741.48
+			},
+			{
+				"ms": 77.2,
+				"screen": "BagPanel",
+				"t": 743.05
+			},
+			{
+				"ms": 140.3,
+				"screen": "field1",
+				"t": 767.53
+			},
+			{
+				"ms": 50.0,
+				"screen": "field1",
+				"t": 767.58
+			},
+			{
+				"ms": 130.0,
+				"screen": "field1",
+				"t": 768.18
+			},
+			{
+				"ms": 55.6,
+				"screen": "field1",
+				"t": 771.72
+			},
+			{
+				"ms": 61.9,
+				"screen": "field1",
+				"t": 774.74
+			},
+			{
+				"ms": 53.9,
+				"screen": "field1",
+				"t": 820.15
+			},
+			{
+				"ms": 81.3,
+				"screen": "field1",
+				"t": 820.25
+			},
+			{
+				"ms": 131.1,
+				"screen": "field1",
+				"t": 881.41
+			},
+			{
+				"ms": 72.7,
+				"screen": "field1",
+				"t": 881.47
+			},
+			{
+				"ms": 68.1,
+				"screen": "field1",
+				"t": 881.54
+			},
+			{
+				"ms": 83.3,
+				"screen": "field1",
+				"t": 881.62
+			},
+			{
+				"ms": 73.2,
+				"screen": "field1",
+				"t": 881.69
 			}
 		],
-		"ms_max": 148.36,
+		"ms_max": 150.0,
 		"ms_p50": 8.33,
-		"ms_p99": 16.78,
-		"over_100ms": 29,
-		"over_50ms": 46
+		"ms_p99": 25.0,
+		"over_100ms": 48,
+		"over_50ms": 115
 	},
 	"gateway": "192.168.12.22:7700",
 	"heat": {
@@ -1157,8 +1466,8 @@
 					0,
 					0,
 					0,
-					1498,
-					184,
+					883,
+					535,
 					0,
 					0,
 					0,
@@ -1170,30 +1479,30 @@
 			]
 		}
 	},
-	"kills": 3873,
-	"kites": 36,
-	"km_walked": 0.63,
+	"kills": 1962,
+	"kites": 32,
+	"km_walked": 0.55,
 	"name": "PBHEATHERS1",
 	"net": [
 		{
 			"bad_datagrams": 0,
-			"bytes_in_per_sec": 520.986350157626,
-			"bytes_out_per_sec": 619.983756425582,
+			"bytes_in_per_sec": 553.906112913861,
+			"bytes_out_per_sec": 619.894927809736,
 			"field": 1,
-			"frame_build_ms": 0.1417,
-			"frame_build_ms_max": 0.3847,
+			"frame_build_ms": 0.1467,
+			"frame_build_ms_max": 0.2532,
 			"hash_checks_failed": 0,
-			"hash_checks_passed": 850,
-			"join_bytes": 13599,
-			"join_tick": 2056160,
-			"left_by": "gate",
-			"mispredicts": 266,
-			"monsters": 134,
-			"players": 2,
-			"predictions_checked": 16266,
-			"sim_ms_last": 6.2309,
-			"sim_ms_per_tick": 6.75203684210526,
-			"sim_ms_per_tick_max": 7.42778421052632,
+			"hash_checks_passed": 18,
+			"join_bytes": 13577,
+			"join_tick": 2520725,
+			"left_by": "",
+			"mispredicts": 1,
+			"monsters": 119,
+			"players": 1,
+			"predictions_checked": 333,
+			"sim_ms_last": 7.2141,
+			"sim_ms_per_tick": 2.92852,
+			"sim_ms_per_tick_max": 7.04713,
 			"sites": [
 				8192.0,
 				16288.0,
@@ -1226,82 +1535,391 @@
 				11439.0078125,
 				4944.9921875
 			],
-			"stall_ms_max": 236.879,
+			"stall_ms_max": 135.1775,
 			"start": [
-				8187.0,
-				16177.0
+				8195.0,
+				16178.0
 			],
-			"ticks_applied": 17006,
+			"ticks_applied": 356,
+			"unconfirmed_inputs": 3
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 277.720252389768,
+			"bytes_out_per_sec": 619.376102452,
+			"field": 1,
+			"frame_build_ms": 0.135,
+			"frame_build_ms_max": 0.3532,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 514,
+			"join_bytes": 13577,
+			"join_tick": 2521886,
+			"left_by": "",
+			"mispredicts": 93,
+			"monsters": 95,
+			"players": 2,
+			"predictions_checked": 9960,
+			"sim_ms_last": 5.7606,
+			"sim_ms_per_tick": 6.45307,
+			"sim_ms_per_tick_max": 7.168155,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				4692.0,
+				14245.6484375,
+				3699.5078125,
+				2839.4609375,
+				15083.90625,
+				6965.37890625,
+				11156.66015625,
+				11156.66015625,
+				4136.83984375,
+				9285.3203125,
+				9285.3203125,
+				4136.83984375,
+				8612.5546875,
+				10554.9375,
+				12633.3671875,
+				9389.4453125,
+				9389.4453125,
+				12633.3671875,
+				4944.9921875,
+				11439.0078125,
+				3750.6328125,
+				6994.5546875,
+				6994.5546875,
+				3750.6328125,
+				11439.0078125,
+				4944.9921875
+			],
+			"stall_ms_max": 250.4437,
+			"start": [
+				8200.0,
+				16150.0
+			],
+			"ticks_applied": 10281,
+			"unconfirmed_inputs": 6
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 553.894649237715,
+			"bytes_out_per_sec": 619.88209842488,
+			"field": 1,
+			"frame_build_ms": 0.1353,
+			"frame_build_ms_max": 0.2598,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 19,
+			"join_bytes": 13929,
+			"join_tick": 2532789,
+			"left_by": "",
+			"mispredicts": 6,
+			"monsters": 72,
+			"players": 2,
+			"predictions_checked": 337,
+			"sim_ms_last": 5.6498,
+			"sim_ms_per_tick": 3.11167,
+			"sim_ms_per_tick_max": 7.47124210526316,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				4692.0,
+				14245.6484375,
+				3699.5078125,
+				2839.4609375,
+				15083.90625,
+				6965.37890625,
+				11156.66015625,
+				11156.66015625,
+				4136.83984375,
+				9285.3203125,
+				9285.3203125,
+				4136.83984375,
+				8612.5546875,
+				10554.9375,
+				12633.3671875,
+				9389.4453125,
+				9389.4453125,
+				12633.3671875,
+				4944.9921875,
+				11439.0078125,
+				3750.6328125,
+				6994.5546875,
+				6994.5546875,
+				3750.6328125,
+				11439.0078125,
+				4944.9921875
+			],
+			"stall_ms_max": 168.5523,
+			"start": [
+				8172.0,
+				16152.0
+			],
+			"ticks_applied": 375,
 			"unconfirmed_inputs": 2
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 547.760902366117,
+			"bytes_out_per_sec": 650.715962482376,
+			"field": 1,
+			"frame_build_ms": 0.1608,
+			"frame_build_ms_max": 0.1672,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 26,
+			"join_bytes": 13577,
+			"join_tick": 2533883,
+			"left_by": "",
+			"mispredicts": 6,
+			"monsters": 75,
+			"players": 2,
+			"predictions_checked": 476,
+			"sim_ms_last": 6.4796,
+			"sim_ms_per_tick": 2.884355,
+			"sim_ms_per_tick_max": 6.94213529411765,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				4692.0,
+				14245.6484375,
+				3699.5078125,
+				2839.4609375,
+				15083.90625,
+				6965.37890625,
+				11156.66015625,
+				11156.66015625,
+				4136.83984375,
+				9285.3203125,
+				9285.3203125,
+				4136.83984375,
+				8612.5546875,
+				10554.9375,
+				12633.3671875,
+				9389.4453125,
+				9389.4453125,
+				12633.3671875,
+				4944.9921875,
+				11439.0078125,
+				3750.6328125,
+				6994.5546875,
+				6994.5546875,
+				3750.6328125,
+				11439.0078125,
+				4944.9921875
+			],
+			"stall_ms_max": 226.2736,
+			"start": [
+				8162.0,
+				16147.0
+			],
+			"ticks_applied": 529,
+			"unconfirmed_inputs": 4
+		},
+		{
+			"bad_datagrams": 0,
+			"bytes_in_per_sec": 412.762826479905,
+			"bytes_out_per_sec": 619.643952584845,
+			"field": 1,
+			"frame_build_ms": 0.1349,
+			"frame_build_ms_max": 0.5011,
+			"hash_checks_failed": 0,
+			"hash_checks_passed": 141,
+			"join_bytes": 13577,
+			"join_tick": 2534946,
+			"left_by": "gate",
+			"mispredicts": 59,
+			"monsters": 127,
+			"players": 2,
+			"predictions_checked": 2570,
+			"sim_ms_last": 2.8619,
+			"sim_ms_per_tick": 3.26267333333333,
+			"sim_ms_per_tick_max": 8.50247368421053,
+			"sites": [
+				8192.0,
+				16288.0,
+				8192.0,
+				8192.0,
+				4692.0,
+				14245.6484375,
+				3699.5078125,
+				2839.4609375,
+				15083.90625,
+				6965.37890625,
+				11156.66015625,
+				11156.66015625,
+				4136.83984375,
+				9285.3203125,
+				9285.3203125,
+				4136.83984375,
+				8612.5546875,
+				10554.9375,
+				12633.3671875,
+				9389.4453125,
+				9389.4453125,
+				12633.3671875,
+				4944.9921875,
+				11439.0078125,
+				3750.6328125,
+				6994.5546875,
+				6994.5546875,
+				3750.6328125,
+				11439.0078125,
+				4944.9921875
+			],
+			"stall_ms_max": 245.473,
+			"start": [
+				8200.0,
+				16144.0
+			],
+			"ticks_applied": 2825,
+			"unconfirmed_inputs": 1
 		}
 	],
 	"notes": [
-		"69.3 died in field 1 at (8231.0, 15937.0)",
-		"87.1 died in field 1 at (8133.0, 16253.0)",
-		"105.9 died in field 1 at (8126.0, 16200.0)",
-		"140.2 died in field 1 at (8478.0, 16065.0)",
-		"155.2 field 1: to a waystone to bank",
-		"163.2 died in field 1 at (8179.0, 15940.0)",
-		"185.7 died in field 1 at (8040.0, 16096.0)",
-		"209.9 died in field 1 at (8097.0, 15938.0)",
-		"229.2 died in field 1 at (7989.0, 16085.0)",
-		"254.0 died in field 1 at (7862.0, 16002.0)",
-		"278.6 died in field 1 at (7963.0, 16002.0)",
-		"301.3 died in field 1 at (8027.0, 16114.0)",
-		"321.7 died in field 1 at (8027.0, 16123.0)",
-		"356.2 died in field 1 at (8112.0, 15938.0)",
-		"371.9 died in field 1 at (8162.0, 16258.0)",
-		"391.1 died in field 1 at (8101.0, 16095.0)",
-		"415.5 died in field 1 at (7934.0, 16002.0)",
-		"439.2 died in field 1 at (7906.0, 16002.0)",
-		"469.2 died in field 1 at (8290.0, 15936.0)",
-		"490.0 died in field 1 at (8017.0, 16095.0)",
-		"514.0 died in field 1 at (7938.0, 16002.0)",
-		"540.3 died in field 1 at (8034.0, 15996.0)",
-		"565.7 died in field 1 at (7866.0, 16002.0)",
-		"590.8 died in field 1 at (7906.0, 16002.0)",
-		"619.4 died in field 1 at (8104.0, 15936.0)",
-		"639.7 died in field 1 at (8015.0, 16111.0)",
-		"678.1 died in field 1 at (8227.0, 15936.0)",
-		"700.8 died in field 1 at (8013.0, 16001.0)",
-		"723.5 died in field 1 at (7863.0, 16001.0)",
-		"746.1 died in field 1 at (7860.0, 16001.0)",
-		"775.0 died in field 1 at (8027.0, 16001.0)",
-		"800.8 died in field 1 at (7769.0, 16001.0)",
-		"845.7 died in field 1 at (8097.0, 15937.0)",
-		"878.6 died in field 1 at (8138.0, 15937.0)",
-		"896.5 died in field 1 at (8064.0, 16160.0)",
-		"911.2 field 1: time is up, out by the gate",
-		"911.4 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 629, \"xp\": 16283, \"levels\": 2, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 911.4 }"
+		"58.3 died in field 1 at (8230.0, 16143.0)",
+		"74.4 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 119, \"xp\": 236, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 74.4 }",
+		"124.2 died in field 1 at (8266.0, 15938.0)",
+		"141.2 died in field 1 at (8205.0, 16275.0)",
+		"153.1 died in field 1 at (8384.0, 15968.0)",
+		"178.5 died in field 1 at (8448.0, 16032.0)",
+		"193.4 field 1: to a waystone to bank",
+		"198.2 died in field 1 at (7985.0, 16128.0)",
+		"218.2 died in field 1 at (7980.0, 16076.0)",
+		"242.1 died in field 1 at (7792.0, 16002.0)",
+		"266.7 died in field 1 at (7971.0, 16002.0)",
+		"300.6 died in field 1 at (8194.0, 15936.0)",
+		"316.7 died in field 1 at (8150.0, 16246.0)",
+		"337.1 died in field 1 at (8134.0, 16044.0)",
+		"360.9 died in field 1 at (7975.0, 16002.0)",
+		"388.2 died in field 1 at (8097.0, 15936.0)",
+		"407.2 died in field 1 at (8062.0, 16120.0)",
+		"438.1 died in field 1 at (8116.0, 15936.0)",
+		"453.8 died in field 1 at (8169.0, 16265.0)",
+		"486.3 died in field 1 at (8248.0, 15936.0)",
+		"514.9 died in field 1 at (8318.0, 15938.0)",
+		"550.2 died in field 1 at (8168.0, 15937.0)",
+		"569.1 died in field 1 at (8010.0, 16106.0)",
+		"598.4 died in field 1 at (8096.0, 15937.0)",
+		"614.7 died in field 1 at (8192.0, 16288.0)",
+		"629.8 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 249, \"xp\": 7452, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 629.8 }",
+		"662.7 died in field 1 at (8205.0, 16095.0)",
+		"678.6 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 128, \"xp\": 248, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 678.6 }",
+		"725.3 died in field 1 at (8318.0, 15938.0)",
+		"741.3 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 180, \"xp\": 268, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 741.3 }",
+		"782.2 died in field 1 at (8315.0, 15937.0)",
+		"797.8 died in field 1 at (8172.0, 16268.0)",
+		"825.7 died in field 1 at (8362.0, 15985.0)",
+		"840.0 field 1: to a waystone to bank",
+		"840.8 died in field 1 at (8174.0, 16262.0)",
+		"856.0 died in field 1 at (8183.0, 16279.0)",
+		"874.8 died in field 1 at (8053.0, 16132.0)",
+		"894.3 died in field 1 at (8026.0, 16089.0)",
+		"909.3 field 1: time is up, out by the gate",
+		"909.5 outing over in field 1: { \"t\": 164, \"hero\": 50, \"coin\": 222, \"xp\": 1364, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 909.5 }"
 	],
 	"ok": true,
 	"os": "Windows",
 	"outings": [
 		{
-			"at_s": 911.4,
-			"coin": 629,
+			"at_s": 74.4,
+			"coin": 119,
 			"field": 1,
 			"hero": 50,
 			"left": 0,
-			"levels": 2,
+			"levels": 0,
 			"potions": 0,
 			"t": 164,
-			"xp": 16283
+			"xp": 236
+		},
+		{
+			"at_s": 629.8,
+			"coin": 249,
+			"field": 1,
+			"hero": 50,
+			"left": 0,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 7452
+		},
+		{
+			"at_s": 678.6,
+			"coin": 128,
+			"field": 1,
+			"hero": 50,
+			"left": 0,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 248
+		},
+		{
+			"at_s": 741.3,
+			"coin": 180,
+			"field": 1,
+			"hero": 50,
+			"left": 0,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 268
+		},
+		{
+			"at_s": 909.5,
+			"coin": 222,
+			"field": 1,
+			"hero": 50,
+			"left": 0,
+			"levels": 0,
+			"potions": 0,
+			"t": 164,
+			"xp": 1364
 		}
 	],
 	"panels_opened": [
-		"SmithPanel",
-		"PostPanel"
+		"MerchantPanel",
+		"BagPanel",
+		"BagPanel",
+		"ReaderPanel",
+		"SheetPanel",
+		"PostPanel",
+		"BagPanel"
 	],
 	"potions": 0,
 	"renderer": "Intel(R) UHD Graphics 600",
 	"screens": {
+		"BagPanel": {
+			"frames": 520,
+			"hitches_50ms": 13,
+			"inputs": 3,
+			"secs": 15.6,
+			"visits": 3
+		},
 		"GatePanel": {
-			"frames": 50,
-			"hitches_50ms": 1,
+			"frames": 196,
+			"hitches_50ms": 3,
+			"inputs": 5,
+			"secs": 5.2,
+			"visits": 5
+		},
+		"MerchantPanel": {
+			"frames": 99,
+			"hitches_50ms": 22,
 			"inputs": 1,
-			"secs": 1.4,
+			"secs": 4.3,
 			"visits": 1
+		},
+		"OutingPanel": {
+			"frames": 302,
+			"hitches_50ms": 6,
+			"inputs": 4,
+			"secs": 5.9,
+			"visits": 4
 		},
 		"PostPanel": {
 			"frames": 1,
@@ -1310,60 +1928,67 @@
 			"secs": 0.1,
 			"visits": 1
 		},
-		"SmithPanel": {
-			"frames": 90,
-			"hitches_50ms": 2,
+		"ReaderPanel": {
+			"frames": 89,
+			"hitches_50ms": 6,
 			"inputs": 1,
-			"secs": 2.9,
+			"secs": 3.4,
+			"visits": 1
+		},
+		"SheetPanel": {
+			"frames": 202,
+			"hitches_50ms": 1,
+			"inputs": 1,
+			"secs": 4.9,
 			"visits": 1
 		},
 		"field1": {
-			"frames": 97312,
-			"hitches_50ms": 31,
-			"inputs": 383,
-			"secs": 845.9,
-			"visits": 1
+			"frames": 82024,
+			"hitches_50ms": 41,
+			"inputs": 325,
+			"secs": 718.0,
+			"visits": 5
 		},
 		"hero_list": {
-			"frames": 179,
+			"frames": 235,
 			"hitches_50ms": 2,
 			"inputs": 2,
-			"secs": 1.9,
+			"secs": 2.2,
 			"visits": 1
 		},
 		"login": {
-			"frames": 870,
+			"frames": 955,
 			"hitches_50ms": 1,
-			"inputs": 23,
-			"secs": 6.1,
+			"inputs": 22,
+			"secs": 6.6,
 			"visits": 1
 		},
 		"none": {
-			"frames": 1,
-			"hitches_50ms": 1,
+			"frames": 133,
+			"hitches_50ms": 4,
 			"inputs": 0,
-			"secs": 0.1,
-			"visits": 2
+			"secs": 0.5,
+			"visits": 6
 		},
 		"title": {
-			"frames": 36,
+			"frames": 97,
 			"hitches_50ms": 0,
 			"inputs": 1,
-			"secs": 0.3,
+			"secs": 0.8,
 			"visits": 1
 		},
 		"town": {
-			"frames": 2332,
-			"hitches_50ms": 7,
-			"inputs": 8,
-			"secs": 37.8,
-			"visits": 3
+			"frames": 6836,
+			"hitches_50ms": 15,
+			"inputs": 28,
+			"secs": 103.9,
+			"visits": 12
 		}
 	},
-	"secs": 911.5,
-	"seed": 518551,
-	"shots": 28,
-	"unsticks": 7,
+	"secs": 909.6,
+	"seed": 979761,
+	"shots": 40,
+	"unsticks": 11,
 	"warnings": 0,
 	"why": "",
 	"window": "960x540"
