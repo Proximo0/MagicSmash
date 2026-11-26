@@ -94,3 +94,4 @@
 2026-11-26T08:35:47Z PASS id=261122113645-3086 kind=bench secs=172 bench seed=173965 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=7.5s kills=167237 spawns=187237 deaths=11 recycled=0 hash=4b85b92e5cc7c88b
 2026-11-26T08:40:06Z PASS id=261122113645-3086 kind=bench secs=159 bench seed=119541 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=7.3s kills=162056 spawns=182056 deaths=7 recycled=0 hash=c7ccc670efd29274
 2026-11-26T09:20:18Z PASS id=261122113645-3086 kind=bench secs=154 bench seed=154577 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=6.4s kills=130313 spawns=150313 deaths=6 recycled=0 hash=1c00d7a4a0dca795
+2026-11-26T09:24:24Z PASS id=261122113645-3086 kind=bench secs=154 bench seed=194439 runs=24 bad=0 last: BENCH 1000x20000 threads=2 ticks=600 wall=6.4s kills=151941 spawns=171941 deaths=9 recycled=0 hash=61105947da828098
