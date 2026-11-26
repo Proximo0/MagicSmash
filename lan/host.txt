@@ -4,11 +4,11 @@ ip=192.168.12.22
 tcp_port=7700
 udp_ports=7800-7801
 start_epoch=1795580198
-end_epoch=1795799761
+end_epoch=1795800072
 start=2026-11-25T04:16:38Z
-end=2026-11-27T17:16:01Z
+end=2026-11-27T17:21:12Z
 state=live
-updated_epoch=1795713361
+updated_epoch=1795713672
 kept_store=yes
 -----BEGIN CERTIFICATE-----
 MIIBgjCCASigAwIBAgIUPOQgqc2cNO7ONrcsaObkApjLZHkwCgYIKoZIzj0EAwIw
