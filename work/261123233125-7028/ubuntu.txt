@@ -14,3 +14,4 @@
 2026-11-26T10:22:53Z INFO id=261123233125-7028 kind=shell secs=3001 wirefuzz iters=2000000 seed=144818 stopped at its budget of 3000 s: 1 tests ok, 0 failed, running: wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
 2026-11-26T15:20:41Z PASS id=261123233125-7028 kind=shell secs=2405 wirefuzz iters=2000000 seed=515787 8 tests in 2404 s
 2026-11-26T18:49:41Z INFO id=261123233125-7028 kind=shell secs=3002 wirefuzz iters=2000000 seed=206228 stopped at its budget of 3000 s: 1 tests ok, 0 failed, running: wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
+2026-11-26T23:47:35Z INFO id=261123233125-7028 kind=shell secs=3003 wirefuzz iters=2000000 seed=496599 stopped at its budget of 3000 s: 1 tests ok, 0 failed, running: wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
