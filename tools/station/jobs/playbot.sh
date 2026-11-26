@@ -64,6 +64,20 @@ for i in $(seq 1 "$bots"); do
 	sleep 5   # windows a moment apart, as people log in
 done
 wait
+# The queue publishes only flat files in the art folder (not folders): each bot's summary and up to 6 screenshots
+# (the first, the last and some between) go up as botN-<name>, small enough for the artifact cap.
+for i in $(seq 1 "$bots"); do
+	[ -f "$art/bot$i/summary.json" ] && cp "$art/bot$i/summary.json" "$art/bot$i-summary.json"
+	shots=$(ls "$art/bot$i"/*.png 2>/dev/null | sort)
+	n=$(printf '%s\n' "$shots" | grep -c . || true)
+	if [ "$n" -gt 0 ]; then
+		step=$(( (n + 5) / 6 )); k=0
+		for f in $shots; do
+			if [ $((k % step)) -eq 0 ] || [ "$k" -eq $((n - 1)) ]; then cp "$f" "$art/bot$i-$(basename "$f")"; fi
+			k=$((k + 1))
+		done
+	fi
+done
 ok=0 lines=""
 for i in $(seq 1 "$bots"); do
 	line=$(grep -a '^PLAYBOT \(ok\|FAILED\)' "$art/bot$i.log" | tail -1)
