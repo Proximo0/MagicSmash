@@ -1,0 +1,35 @@
+Initialize godot-rust (API v4.7.stable.official, runtime v4.7.2.stable.official, safeguards balanced)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 3.3.0 - Build 31.0.101.2140 - Compatibility - Using Device: Intel - Intel(R) UHD Graphics 600
+
+PLAYBOT_NOTE 41.5 died in field 0 at (8237.0, 16159.0)
+PLAYBOT_NOTE 62.5 died in field 0 at (8269.0, 16171.0)
+PLAYBOT_NOTE 81.0 died in field 0 at (8052.0, 16174.0)
+PLAYBOT_NOTE 100.0 died in field 0 at (8290.0, 16167.0)
+PLAYBOT_NOTE 115.0 field 0: to a waystone to bank
+PLAYBOT_NOTE 138.3 died in field 0 at (7105.0, 15553.0)
+PLAYBOT_NOTE 158.5 died in field 0 at (7951.0, 16108.0)
+PLAYBOT_NOTE 178.5 died in field 0 at (8028.0, 16054.0)
+PLAYBOT_NOTE 216.0 died in field 0 at (7143.0, 15553.0)
+PLAYBOT_NOTE 254.5 died in field 0 at (7132.0, 15553.0)
+PLAYBOT_NOTE 274.5 died in field 0 at (7965.0, 16085.0)
+PLAYBOT_NOTE 298.6 died in field 0 at (7765.0, 15861.0)
+PLAYBOT_NOTE 319.0 died in field 0 at (7963.0, 16105.0)
+PLAYBOT_NOTE 356.0 died in field 0 at (7166.0, 15553.0)
+PLAYBOT_NOTE 376.6 died in field 0 at (7984.0, 16024.0)
+PLAYBOT_NOTE 397.0 died in field 0 at (7984.0, 16042.0)
+PLAYBOT_NOTE 418.5 died in field 0 at (7880.0, 16089.0)
+PLAYBOT_NOTE 441.5 died in field 0 at (7816.0, 16173.0)
+PLAYBOT_NOTE 463.0 died in field 0 at (8000.0, 16000.0)
+PLAYBOT_NOTE 530.6 died in field 0 at (6363.0, 14778.0)
+PLAYBOT_NOTE 566.5 died in field 0 at (7397.0, 15553.0)
+PLAYBOT_NOTE 589.0 died in field 0 at (7953.0, 15938.0)
+PLAYBOT_NOTE 659.0 died in field 0 at (6513.0, 14658.0)
+PLAYBOT_NOTE 690.5 died in field 0 at (7560.0, 16215.0)
+PLAYBOT_NOTE 763.6 died in field 0 at (6336.0, 14754.0)
+PLAYBOT_NOTE 797.2 died in field 0 at (7361.0, 15553.0)
+PLAYBOT_NOTE 824.0 died in field 0 at (8133.0, 15698.0)
+PLAYBOT_NOTE 891.5 died in field 0 at (6337.0, 14752.0)
+PLAYBOT_NOTE 906.5 field 0: time is up, out by the gate
+PLAYBOT_NOTE 906.8 outing over in field 0: { "t": 164, "hero": 50, "coin": 149, "xp": 3778, "levels": 9, "potions": 0, "left": 0, "field": 0, "at_s": 906.8 }
+PLAYBOT ok secs=907 screens=8 fields=1 outings=1 kills=2524 deaths=27 coin=149 fps_p50=98.0 frame_ms_p99=31.1 hitches_50ms=139 errors=0 km_walked=0.86
