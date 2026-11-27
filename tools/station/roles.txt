@@ -1,26 +1,22 @@
 # What each watching station runs on every merge: <STATION_NAME>: jobs [--after=<station>] [--p95=<frame limit ms, 0 = record only>]
 # A station restarts itself when this file changes. No --after means it does not wait for another station.
-# Four of Wands is stopped (21 Nov 2026): no station runs boss, checks or golden. `frames` now means Horde & Hearth's client drawing 10,000 monsters on the station's own
-# graphics (record only unless a role adds --p95=<ms>, a limit on the 99th-percentile frame), so the laptop and the Celeron record theirs. A job is skipped for a merge
-# that changed nothing it tests. `deep`: between merges the station runs seeded soaks (big store crash fuzz, full-size
-# field bench) and reports them in <machine>-deep.txt instead of sleeping, so a merge of docs or art costs the stations nothing.
-# `soak` runs inside `deep` now (time-boxed, fresh seed; STATION_DEEP_SOAK_SECS, default 900), so no role lists it. A deep FAIL also appends a line to <machine>-failures.txt.
-# `balance` (laptop): careers 1 to 60 of every class and job, alone and in parties (docs/realm/balance.md).
-# `realm` is deterministic, so only ubuntu and msi run it; the laptop and heatherspc spend that time on seeds, careers and frames.
-# STOPPED (Curtis, 27 Nov 2026: "do a full stop" and "make sure my computers all stop their stations and work"): Horde & Hearth is
-# shelved until later in the year. The `stopped:` line ends every station that reads it: running jobs and the playtest server
-# end, one STOPPED report is published, the launcher and the station exit (station.sh, station_stop). No station runs after that.
-# To run stations again: take the machine off the `stopped:` line, give it its jobs, merge, then start its launcher once on the
-# PC (or restart the PC). The roles before the stop were:
+# FOUR OF WANDS is the game in work (Curtis, 27 Nov 2026, 22:53 UTC: "Yes, all four" PCs go back to work on it; 23:00: "laptop is up
+# please restart the station there"). A merge that changes the game runs:
+#   checks  tools/check_all.sh (unit tests, sims, bot runs, lint) on this machine's own system and graphics
+#   boss    bots play five seeds to the Archlich with four wizards (the two machines with cores to spare)
+#   golden  did this merge change how the game plays (record only)
+# A job is skipped for a merge that changed nothing it tests (docs, the stations, realm/).
+# `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with
+# tools/station/queue.sh, see README). Four of Wands jobs are `shell` jobs (tools/station/jobs/<name>.sh).
+# Horde & Hearth is shelved (docs/realm/SHELVED.md): no station runs realm, frames, deep, soak, world, economy, ops or balance, and
+# nobody runs `queue.sh fill-week` (it loads Horde & Hearth's jobs). Its roles before the stop were:
 #   ubuntu: realm world ops queue deep     msi: realm queue deep     laptop: frames balance queue deep     heatherspc: economy queue deep
-ubuntu: idle
-msi: idle
-laptop: idle
-heatherspc: idle
-stopped: ubuntu msi laptop heatherspc
-# `--ci-covered` (flag, optional per machine): the `realm` job is skipped unless the merge touched Windows-only paths CI does not test (README, "CI overlap").
-# `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with tools/station/queue.sh,
-# see README) and falls back to `deep` only when the queue has nothing for this machine. A merge still comes first and interrupts a long job.
+# To stop a machine again: add a line `stopped: <machine> ...` (or `stopped: all`); a station that reads it ends its jobs, its
+# launcher and itself. To start it again: take it off that line, merge, then start its launcher once on the PC (or restart the PC).
+ubuntu: checks boss golden queue
+msi: checks boss queue
+laptop: checks queue
+heatherspc: checks queue
 # Lanes (station.sh, queue_lib.sh lanes_fill): how many queue jobs a machine runs at the same time, one line per machine
 # "lanes: <machine> N" (not a role word, so a station still running the code from before lanes reads this file without error).
 # STATION_LANES overrides; without a line: cores/2 capped at total RAM / 1.5 GB. Each lane still needs its job's free RAM to start.

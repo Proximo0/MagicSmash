@@ -19,6 +19,12 @@ four of wands now". Nothing under `realm/` is in work. Four of Wands (the rest o
   merge (the PCs' own GitHub runners) now start by hand only. Each file keeps its old trigger as a comment.
 - **The lead's hourly check** and its reminders (scheduled tasks of the project) are switched off.
 
+## The PCs went back to work on Four of Wands (27 Nov 2026, 22:53 UTC)
+Curtis: "Yes, all four". `tools/station/roles.txt` has no `stopped:` line now and gives every machine Four of Wands jobs
+only (`checks`, `boss`, `golden`, `queue`); the station watchdog (`station-watch.yml`) runs every 30 minutes again.
+Nothing of Horde & Hearth was started: the queue's old jobs stay cancelled, `realm.yml`'s nightly run and `runner.yml`'s
+run after each merge stay off, and the playtest server stays down.
+
 ## Where the work stands
 - Plan and jobs: `docs/realm/build_plan.md`. The newest direction is its section "Scope change and second playtest
   (Curtis, 27 Nov)": an MMO first, with survivor horde elements; class level 1 to 60 is the only level.
