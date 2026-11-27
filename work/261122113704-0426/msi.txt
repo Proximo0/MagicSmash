@@ -14,3 +14,4 @@
 2026-11-26T15:34:22Z INFO id=261122113704-0426 kind=balance secs=2761 balance cohorts=1 per=2 careers=20 h10=0.36 h20=3.4 h40=32.5 h60=88.2 worst_class=-45% sunk=89%
 2026-11-26T23:02:57Z INFO id=261122113704-0426 kind=balance secs=4657 balance cohorts=1 per=2 careers=20 h10=0.36 h20=3.4 h40=32.5 h60=88.2 worst_class=-45% sunk=89%
 2026-11-27T06:13:21Z FAIL id=261122113704-0426 kind=balance secs=2857 silent for 1801 s: balance progress seed 0 round 1 below_60 20/20 lowest_level 7 fewest_hours 0.3 secs 1052 
+2026-11-27T13:39:49Z INFO id=261122113704-0426 kind=balance secs=4616 balance cohorts=1 per=2 careers=20 h10=0.36 h20=3.4 h40=32.5 h60=88.2 worst_class=-45% sunk=89%
