@@ -1,27 +1,7 @@
-    Finished `release` profile [optimized] target(s) in 0.09s
+    Finished `release` profile [optimized] target(s) in 1.20s
      Running unittests src/lib.rs (/home/curtis/station-targets/wirefuzz/release/build/realm-core/5e6d815bf3c0389d/out/realm_core-5e6d815bf3c0389d)
 
 running 2 tests
-test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes ... ok
+test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
 test wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
-test wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1795.94s
-
-     Running unittests src/lib.rs (/home/curtis/station-targets/wirefuzz/release/build/realm-gateway/5011e9e3ae05b38a/out/realm_gateway-5011e9e3ae05b38a)
-
-running 2 tests
-test proto::fuzz::frames_from_a_hostile_stream_are_refused_without_a_big_buffer ... ok
-test proto::fuzz::no_decoder_panics_allocates_wildly_or_reads_what_it_cannot_write_back ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 5.76s
-
-     Running unittests src/lib.rs (/home/curtis/station-targets/wirefuzz/release/build/realm-server/ba19818ac1d2303d/out/realm_server-ba19818ac1d2303d)
-
-running 4 tests
-test wirefuzz::hello_and_input_round_trip_and_survive_hostile_bytes ... ok
-test wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
-test wirefuzz::snapshots_round_trip_and_survive_hostile_parts has been running for over 60 seconds
-test wirefuzz::tick_records_and_the_datagram_layers_survive_hostile_bytes has been running for over 60 seconds
-test wirefuzz::tick_records_and_the_datagram_layers_survive_hostile_bytes ... ok
-test wirefuzz::snapshots_round_trip_and_survive_hostile_parts ... ok
+test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes ... ok
