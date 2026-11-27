@@ -7,10 +7,17 @@
 # `soak` runs inside `deep` now (time-boxed, fresh seed; STATION_DEEP_SOAK_SECS, default 900), so no role lists it. A deep FAIL also appends a line to <machine>-failures.txt.
 # `balance` (laptop): careers 1 to 60 of every class and job, alone and in parties (docs/realm/balance.md).
 # `realm` is deterministic, so only ubuntu and msi run it; the laptop and heatherspc spend that time on seeds, careers and frames.
-ubuntu: realm world ops queue deep
-msi: realm queue deep
-laptop: frames balance queue deep
-heatherspc: economy queue deep
+# STOPPED (Curtis, 27 Nov 2026: "do a full stop" and "make sure my computers all stop their stations and work"): Horde & Hearth is
+# shelved until later in the year. The `stopped:` line ends every station that reads it: running jobs and the playtest server
+# end, one STOPPED report is published, the launcher and the station exit (station.sh, station_stop). No station runs after that.
+# To run stations again: take the machine off the `stopped:` line, give it its jobs, merge, then start its launcher once on the
+# PC (or restart the PC). The roles before the stop were:
+#   ubuntu: realm world ops queue deep     msi: realm queue deep     laptop: frames balance queue deep     heatherspc: economy queue deep
+ubuntu: idle
+msi: idle
+laptop: idle
+heatherspc: idle
+stopped: ubuntu msi laptop heatherspc
 # `--ci-covered` (flag, optional per machine): the `realm` job is skipped unless the merge touched Windows-only paths CI does not test (README, "CI overlap").
 # `queue` (all four): between merges the station takes the next job of the work queue (branch station-queue, loaded with tools/station/queue.sh,
 # see README) and falls back to `deep` only when the queue has nothing for this machine. A merge still comes first and interrupts a long job.

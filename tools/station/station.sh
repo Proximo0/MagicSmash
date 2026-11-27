@@ -511,6 +511,63 @@ run_once() {
   [ $failed -eq 0 ]
 }
 
+# Stopped stations (27 Nov 2026: Horde & Hearth is shelved and the owner asked for every PC to stop its station and work).
+# A line `stopped: <machine> ...` (or `stopped: all`) in roles.txt ends a watching station: it ends the jobs still running in its
+# lanes and the playtest server, publishes one STOPPED report, ends its launcher (start_station.sh, start_station.cmd or a wrapper
+# named run_station.cmd, which would start it again in 60 s) and exits 0. Nothing is uninstalled and no setting is touched, so
+# a start at boot or log-on comes this way again and ends at once. To run the stations again: take the machine off the
+# `stopped:` line on main, then start its launcher once (or restart the PC); the station then follows main as before.
+station_stopped() {  # $1 = roles text (default: the file in the work tree): 0 when a `stopped:` line names this machine or `all`
+  local w t; t=${1-$(cat tools/station/roles.txt 2>/dev/null)}
+  for w in $(grep -i '^stopped:' <<<"$t" | tr -d '\r' | cut -d: -f2- | tr ',' ' '); do
+    if [ "${w,,}" = all ] || [ "${w,,}" = "${MACHINE,,}" ]; then return 0; fi
+  done
+  return 1
+}
+tree_pids() { local c; echo "$1"; for c in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$c"; done; }  # a pid and all under it, parents first
+station_stop() {  # 0 = stopped (the caller exits); 1 = main no longer stops this machine (the caller runs on)
+  local f p c pids n=0 now last mark="$STATE.stopped" tree d
+  now=$(date +%s); last=$(cat "$mark" 2>/dev/null); [[ "$last" =~ ^[0-9]+$ ]] || last=0
+  # Un-stopped on main while this PC was off: run normally (the loop checks out that commit and restarts into its roles).
+  # Asked at most once in 30 minutes, so a launcher that could not be ended costs one fetch a half hour, not one a minute.
+  if [ $((now - last)) -ge 1800 ] && git fetch -q origin main 2>/dev/null && tree=$(git show origin/main:tools/station/roles.txt 2>/dev/null) \
+    && [ -n "$tree" ] && ! station_stopped "$tree"; then
+    echo "station: this checkout says stopped, origin/main does not: running"; return 1
+  fi
+  echo "station: roles.txt stops this station: ending its jobs, its launcher and itself"
+  rm -f "$STATE.awake" "$STATE.heartbeat"  # the keep-awake helper and any old heartbeat loop end on their own
+  for f in "$Q_LD"/[0-9]*; do  # jobs still running in lanes (the queue's stop files normally ended them already)
+    case "$f" in *.cool|*.log) continue ;; esac; [ -f "$f" ] || continue
+    p=$(q_lane_get "$f" pid)
+    if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then
+      n=$((n + 1))
+      if [ -r "/proc/$p/winpid" ]; then q_kill "$p"  # Windows: taskkill /T takes the whole tree
+      else pids=$(tree_pids "$p"); for c in $pids; do kill -TERM "$c" 2>/dev/null; done; sleep 2; for c in $pids; do kill -KILL "$c" 2>/dev/null; done; fi
+    fi
+    rm -f "$f"
+  done
+  # The playtest server (jobs/playhost.sh) runs detached from the queue; its stop file ends it cleanly (heroes banked, store kept).
+  d="${STATION_PLAYHOST_DIR:-$HOME/HordeAndHearthServer}"; [ -d "$d" ] && touch "$d/stop" 2>/dev/null
+  if [ "$push" = 1 ] && [ $((now - last)) -ge 1800 ]; then  # one report; a station that is started again reports at most half-hourly
+    publish "STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD 2>/dev/null) took=0s"$'\n'"JOB stop INFO roles.txt stops this station: jobs_ended=$n, nothing runs, the station and its launcher end now"$'\n'"STATION STOPPED" \
+      && echo "$now" >"$mark"
+    publish "HEARTBEAT machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) disk_free_gb=$(q_disk_gb) lanes_busy=0/0 stopped=1" "$MACHINE-heartbeat.txt" 2>/dev/null || true
+  fi
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+      # No double quote inside the command: nothing for the Windows command line to re-quote on the way to PowerShell.
+      command -v powershell.exe >/dev/null 2>&1 && powershell.exe -NoProfile -NonInteractive -Command \
+        "Get-CimInstance Win32_Process | Where-Object { \$_.Name -eq 'cmd.exe' -and \$_.CommandLine -match 'start_station|run_station' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }" >/dev/null 2>&1
+      ;;
+    *)
+      p=$PPID
+      if [ -r "/proc/$p/cmdline" ] && tr '\0' ' ' <"/proc/$p/cmdline" | grep -q 'start_station\.sh'; then kill -TERM "$p" 2>/dev/null; fi
+      ;;
+  esac
+  return 0
+}
+if [ "$watch" = 1 ] && station_stopped && station_stop; then exit 0; fi
+
 if [ "$watch" = 1 ]; then
   if [ "$push" = 1 ]; then  # a heartbeat every 30 min, so read.sh can tell a dead machine from a quiet one
     heartbeat_reap

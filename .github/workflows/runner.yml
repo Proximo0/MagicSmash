@@ -1,10 +1,12 @@
 # Checks that run on Curtis's own PCs (GitHub self-hosted runners), after a merge to main or by hand.
 # Never add a pull_request trigger here: the repo is public, and a fork's pull request must not reach these machines.
 name: runner
+# STOPPED 27 Nov 2026: Horde & Hearth is shelved and the owner asked for his PCs to stop all work, so no merge starts a
+# run on them; by hand only. To run after each merge again, put back under `on:`
+#   push:
+#     branches: [main]
+#     paths: ["realm/**", ".github/workflows/runner.yml"]
 on:
-  push:
-    branches: [main]
-    paths: ["realm/**", ".github/workflows/runner.yml"]
   workflow_dispatch:
 permissions:
   contents: read

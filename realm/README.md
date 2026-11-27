@@ -1,5 +1,8 @@
 # realm: the crowd test's server side
 
+**Shelved on 27 Nov 2026 (the owner's decision; saved for later in the year). Nothing here is in work and no PC
+runs it: see `docs/realm/SHELVED.md`.**
+
 The contract is `docs/realm/crowd_test.md`. Rust, std only (no crates, so cargo never needs the network),
 except `godot/`, the Godot native module, which is its own cargo workspace with one crates.io dependency.
 
