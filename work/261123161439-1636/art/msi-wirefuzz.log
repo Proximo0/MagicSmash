@@ -1,22 +1,6 @@
-    Finished `release` profile [optimized] target(s) in 0.32s
+    Finished `release` profile [optimized] target(s) in 0.09s
      Running unittests src\lib.rs (C:/Users/crp27/station-targets/wirefuzz\release\build\realm-core/ec888d5bf7a92a1e\out\realm_core-ec888d5bf7a92a1e.exe)
 
 running 2 tests
 test pvp::codec::fuzz::the_pvp_block_round_trips_and_survives_hostile_bytes ... ok
 test wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes has been running for over 60 seconds
-test wirefuzz::a_field_state_round_trips_and_survives_hostile_bytes ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2938.04s
-
-     Running unittests src\lib.rs (C:/Users/crp27/station-targets/wirefuzz\release\build\realm-gateway/1e38b16f7c8e104e\out\realm_gateway-1e38b16f7c8e104e.exe)
-
-running 2 tests
-test proto::fuzz::frames_from_a_hostile_stream_are_refused_without_a_big_buffer ... ok
-test proto::fuzz::no_decoder_panics_allocates_wildly_or_reads_what_it_cannot_write_back ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 50 filtered out; finished in 2.00s
-
-     Running unittests src\lib.rs (C:/Users/crp27/station-targets/wirefuzz\release\build\realm-server/a047373d5aa8ed7f\out\realm_server-a047373d5aa8ed7f.exe)
-
-running 4 tests
-test wirefuzz::hello_and_input_round_trip_and_survive_hostile_bytes ... ok
