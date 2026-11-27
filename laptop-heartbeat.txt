@@ -1,1 +1,1 @@
-HEARTBEAT machine=laptop time=2026-11-27T23:03Z disk_free_gb=14 lanes_busy=0/0 stopped=1
+HEARTBEAT machine=laptop time=2026-11-27T23:34Z disk_free_gb=14 lanes_busy=0/2 free_mb=1049
