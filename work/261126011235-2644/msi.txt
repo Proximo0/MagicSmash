@@ -2,3 +2,4 @@
 2026-11-26T08:02:49Z PASS id=261126011235-2644 kind=shell secs=1001 playbot bots=1 host=ubuntu secs=991 screens=14 fields=4 outings=4 kills=3678 deaths=12 coin=2773 fps_p50=480.0 frame_ms_p99=6.1 hitches_50ms=37 errors=0 km_walked=1.25
 2026-11-26T14:24:59Z PASS id=261126011235-2644 kind=shell secs=1004 playbot bots=1 host=ubuntu secs=990 screens=8 fields=1 outings=1 kills=3804 deaths=8 coin=1045 fps_p50=600.0 frame_ms_p99=3.7 hitches_50ms=27 errors=0 km_walked=1.64
 2026-11-26T20:45:40Z PASS id=261126011235-2644 kind=shell secs=1020 playbot bots=1 host=ubuntu secs=991 screens=17 fields=8 outings=8 kills=1994 deaths=11 coin=2592 fps_p50=240.0 frame_ms_p99=16.7 hitches_50ms=87 errors=0 km_walked=1.09
+2026-11-27T03:03:20Z PASS id=261126011235-2644 kind=shell secs=929 playbot bots=1 host=ubuntu secs=907 screens=12 fields=2 outings=2 kills=2916 deaths=40 coin=821 fps_p50=480.0 frame_ms_p99=6.1 hitches_50ms=63 errors=0 km_walked=0.82
