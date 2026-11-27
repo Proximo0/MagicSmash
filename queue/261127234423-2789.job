@@ -1,0 +1,9 @@
+kind=shell
+args=script=wandscareer careers=1 maxruns=3 minutes=25 limit=2400
+needs=heatherspc
+priority=8
+repeat=once
+timeout_s=2700
+every_s=0
+added=2026-11-27T23:44:23Z
+needs_free_mb=600
