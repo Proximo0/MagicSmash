@@ -1,0 +1,1 @@
+2026-11-27T16:59:22Z INFO id=261123233203-5825 kind=balance secs=7239 balance cohorts=1 per=2 careers=20 h10=0.30 h20=2.7 h40=25.2 h60=87.1 worst_class=-57% sunk=93%
