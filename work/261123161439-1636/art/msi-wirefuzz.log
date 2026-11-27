@@ -1,4 +1,4 @@
-    Finished `release` profile [optimized] target(s) in 0.09s
+    Finished `release` profile [optimized] target(s) in 0.08s
      Running unittests src\lib.rs (C:/Users/crp27/station-targets/wirefuzz\release\build\realm-core/ec888d5bf7a92a1e\out\realm_core-ec888d5bf7a92a1e.exe)
 
 running 2 tests
