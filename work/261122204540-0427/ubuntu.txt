@@ -10,3 +10,4 @@
 2026-11-26T09:00:00Z INFO id=261122204540-0427 kind=shell secs=2 sysinfo ram=15374MB free=9353MB page=4095MB page_used=1686MB cores=4 disk_free_gb=/832,/832 gpu=[none-or-not-nvidia] top3=[claude-desktop:1757 firefox:456 realm-world:412]
 2026-11-26T15:13:06Z INFO id=261122204540-0427 kind=shell secs=2 sysinfo ram=15374MB free=9875MB page=4095MB page_used=1686MB cores=4 disk_free_gb=/832,/832 gpu=[none-or-not-nvidia] top3=[claude-desktop:1749 firefox:455 bazaar:287]
 2026-11-26T22:09:32Z INFO id=261122204540-0427 kind=shell secs=19 sysinfo ram=15374MB free=9475MB page=4095MB page_used=1693MB cores=4 disk_free_gb=/832,/832 gpu=[none-or-not-nvidia] top3=[claude-desktop:1713 realm-world:454 firefox:432]
+2026-11-27T04:43:29Z INFO id=261122204540-0427 kind=shell secs=5 sysinfo ram=15374MB free=9470MB page=4095MB page_used=1607MB cores=4 disk_free_gb=/831,/831 gpu=[none-or-not-nvidia] top3=[claude-desktop:1738 firefox:470 bazaar:287]
