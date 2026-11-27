@@ -1,1 +1,1 @@
-HEARTBEAT machine=ubuntu time=2026-11-27T23:10Z disk_free_gb=831 lanes_busy=0/0 stopped=1
+HEARTBEAT machine=ubuntu time=2026-11-27T23:40Z disk_free_gb=831 lanes_busy=0/3 free_mb=9579
