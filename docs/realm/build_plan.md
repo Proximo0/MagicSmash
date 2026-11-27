@@ -56,6 +56,28 @@ never run git, never message Curtis, never install packages beyond the crates na
 Done from the same playtest: menus take the mouse everywhere and the keyboard (arrows or Tab, Enter, Esc or a
 right click back); the town is seen at the fields' zoom with crisp pixels and the fields' walk animations.
 
+## Scope change and second playtest (Curtis, 27 Nov)
+Curtis: "change scope from survivor mmo cross to mmo with survivor horde, survivor elements". The saved hero's class
+level (1 to 60) is the progression; the per-outing field level and field XP are removed. The deck stays as the
+survivor element: draws come from entering a field, from ELITE, CHAMPION and boss kills, and from shrines.
+
+| Job | What | Owns | After | Ends with |
+|---|---|---|---|---|
+| X1 | remove field level and field XP; new draw sources; retune damage without the field-level term | `realm/core` (deck, mods, combat), rules 2 and 5 | none | REALM ok; measure.rs pace per field within 15% of before |
+| Q1 | quiet zones at each entrance and 3 to 5 deep in each field (no spawns, monsters kept out, a shrine each); more complex fields (walls, ruins, water, corridors); monster routing through tight passages; bots push deep instead of waiting at the gate | `realm/core` (terrain, spawn, flow, monster, bots), `realm/client/tests/playbot.gd` | none | every walkable cell reachable on many seeds; fewer stuck monsters in a corridor test; crowd bench inside the budget |
+| U1 | our own pixel gothic bitmap font (display and body), text rework on every screen, debug text off by default (F3), enemy health bars inside the monster batch, measured at 10,000 and 20,000 | `realm/client`, `tools/font` | none | check_client green; bar cost measured |
+| D1 | a full debug menu with cheats (spawn, heal, god mode, teleport to zone, grant items and levels, time of tide), dev builds only, every cheat checked by the server and refused on a release server | `realm/client/ui`, `realm/gateway` (dev role) | U1 | a release server refuses every cheat |
+| K1 | better abilities and their animations: each skill and ultimate gets a readable effect (wind-up, hit, after-image), new skill ideas per class | `realm/core` (skills), `realm/client/field/field_fx.gd` | X1 | the lead plays every class |
+| V1 | dungeons and indoor areas: hand-shaped interiors (crypts, cathedral, mine) with rooms and doors, entered from fields and town, using the same lockstep field host | `realm/core`, `realm/server`, client | Q1 | a party clears a dungeon with bots |
+| S2 | voices: memorable NPC lines spoken by a free local text-to-speech model whose voices allow commercial use (licence checked before use), made offline on the stations, shipped as audio files | `tools/voice`, `realm/client/audio` | none | every named NPC has lines; licence list updated |
+
+Side idea, not scheduled: AI chat for a few NPCs (a small local model or none). It must never block the game and
+would need its own cost and licence check first.
+
+Libraries: the simulation stays std only (determinism across Linux and Windows). Tools and the client may use
+pinned libraries where they save real work: cargo for Rust, uv/pip for Python tools, Godot addons by pinned file
+copy with their licence listed.
+
 ## The stations (Curtis's four computers)
 
 His four computers test every merge with no Claude and no tokens (`tools/station/`, results on the branch
