@@ -35,7 +35,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Horde & Hearth is shelved (docs/realm/SHELVED.md) and Four of Wands is the game in work. A push or pull request that
+  # touches none of Horde & Hearth's files skips its jobs: a job skipped by its own `if:` counts as passed for the branch
+  # rule on main, so a Four of Wands change no longer waits about 20 minutes for Rust builds it cannot affect. Any doubt
+  # (the diff cannot be read, a run by hand, a schedule) runs everything, as before.
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      realm: ${{ steps.diff.outputs.realm }}
+      animator: ${{ steps.diff.outputs.animator }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: diff
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          realm=true; animator=true; files=""; known=0
+          if [ "$EVENT" = pull_request ]; then
+            # HEAD is the merge of the pull request into its base, so its first parent is the base.
+            if files=$(git diff --name-only HEAD^1 HEAD); then known=1; fi
+          elif [ "$EVENT" = push ]; then
+            # Everything this push added, from the commit main had before it. A commit that cannot be fetched leaves the
+            # answer unknown (everything runs); only a push with no earlier commit falls back to this commit's parent.
+            if [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+              if git fetch -q --depth=1 origin "$BEFORE" && files=$(git diff --name-only "$BEFORE" HEAD); then known=1; fi
+            elif files=$(git diff --name-only HEAD^ HEAD); then known=1; fi
+          fi
+          if [ "$known" = 1 ]; then
+            grep -qE '^(realm/|\.github/workflows/realm\.yml$|\.github/actions/)' <<<"$files" || realm=false
+            grep -qE '^(tools/animator/|\.github/workflows/realm\.yml$)' <<<"$files" || animator=false
+          fi
+          echo "event=$EVENT known=$known realm=$realm animator=$animator files=$(grep -c . <<<"$files")"
+          echo "realm=$realm" >> "$GITHUB_OUTPUT"
+          echo "animator=$animator" >> "$GITHUB_OUTPUT"
+
   linux:
+    needs: [changes]
+    if: needs.changes.outputs.realm == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -76,6 +117,8 @@ jobs:
           path: hash-linux.txt
 
   windows:
+    needs: [changes]
+    if: needs.changes.outputs.realm == 'true'
     runs-on: windows-2022
     timeout-minutes: 30
     defaults:
@@ -158,6 +201,8 @@ jobs:
           path: hash-windows.txt
 
   client:
+    needs: [changes]
+    if: needs.changes.outputs.realm == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -234,6 +279,8 @@ jobs:
   # pinned by version and checked against the SHA-256 of the archive.
   # The walk animator's rule gate (tools/animator/RULES.md): every rule has a failing example that must stay refused.
   animator:
+    needs: [changes]
+    if: needs.changes.outputs.animator == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -245,6 +292,8 @@ jobs:
       - run: python3 -m unittest discover tools/animator/tests
 
   deny:
+    needs: [changes]
+    if: needs.changes.outputs.realm == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
