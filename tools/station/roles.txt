@@ -11,8 +11,8 @@
 # Horde & Hearth is shelved (docs/realm/SHELVED.md): no station runs realm, frames, deep, soak, world, economy, ops or balance, and
 # nobody runs `queue.sh fill-week` (it loads Horde & Hearth's jobs). Its roles before the stop were:
 #   ubuntu: realm world ops queue deep     msi: realm queue deep     laptop: frames balance queue deep     heatherspc: economy queue deep
-# To stop a machine again: add a line `stopped: <machine> ...` (or `stopped: all`); a station that reads it ends its jobs, its
-# launcher and itself. To start it again: take it off that line, merge, then start its launcher once on the PC (or restart the PC).
+# To take a machine out of work again, or to bring it back afterwards: README.md, "Taking a machine out of work". The line itself is
+# not written out in these comments on purpose: a helper that reads this file for it must never find it in a comment.
 ubuntu: checks boss golden queue
 msi: checks boss queue
 laptop: checks queue

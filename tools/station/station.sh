@@ -43,6 +43,8 @@ main() {  # the whole script is one function, so bash has read all of it before 
 ARGS=("$@")
 export GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60  # no git fetch or push waits for a prompt or a dead connection
 GODOT="${GODOT:-godot}"
+command -v "$GODOT" >/dev/null 2>&1 || { command -v godot4 >/dev/null 2>&1 && GODOT=godot4; }   # a Linux PC whose Godot is installed as godot4 only (ubuntu, 27 Nov 2026)
+export GODOT   # the jobs' own scripts (check_all.sh, the queue's shell jobs) read it from the environment
 MACHINE="${STATION_NAME:-$(hostname)}"
 SEEDS="${STATION_SEEDS:-7 21 33 101 102}"
 POLL="${STATION_POLL:-120}"
@@ -436,11 +438,11 @@ retry_unpushed() {
   fi
 }
 # merge_job J: runs job_J (its report on stdout, its status returned) and, while it runs, keeps the queue's free lanes filled
-# from the last build (Q_SNAP) once a minute. A merge test can take most of an hour on a 4-core PC; before this, lanes that
+# once a minute (with or without a build: q_eligible holds back the jobs that need one while Q_SNAP is empty). A merge test can take most of an hour on a 4-core PC; before this, lanes that
 # finished during it stayed empty until it ended, and on a day of many merges the Linux station sat at 1 of 3 lanes (24 Nov).
 merge_job() {
   local j=$1 out rc p last=$SECONDS
-  if [ "$queue" != 1 ] || [ "$push" != 1 ] || [ -z "${Q_SNAP:-}" ] || [ ! -f "$Q_SNAP/.ok" ]; then "job_$j"; return; fi
+  if [ "$queue" != 1 ] || [ "$push" != 1 ]; then "job_$j"; return; fi
   out=$(mktemp); ( "job_$j" ) >"$out" & p=$!
   while kill -0 "$p" 2>/dev/null; do
     sleep "${STATION_LANE_TICK:-5}"
@@ -528,9 +530,11 @@ tree_pids() { local c; echo "$1"; for c in $(pgrep -P "$1" 2>/dev/null); do tree
 station_stop() {  # 0 = stopped (the caller exits); 1 = main no longer stops this machine (the caller runs on)
   local f p c pids n=0 now last mark="$STATE.stopped" tree d
   now=$(date +%s); last=$(cat "$mark" 2>/dev/null); [[ "$last" =~ ^[0-9]+$ ]] || last=0
-  # Un-stopped on main while this PC was off: run normally (the loop checks out that commit and restarts into its roles).
-  # Asked at most once in 30 minutes, so a launcher that could not be ended costs one fetch a half hour, not one a minute.
-  if [ $((now - last)) -ge 1800 ] && git fetch -q origin main 2>/dev/null && tree=$(git show origin/main:tools/station/roles.txt 2>/dev/null) \
+  # Un-stopped on main while this PC was off, or minutes ago: run normally (the loop checks out that commit and restarts into its roles).
+  # Asked on every start. It used to be asked only when the last stop was 30 minutes old, to spare a fetch a minute where a launcher
+  # could not be ended; on 27 Nov 2026 that made three PCs stop again right after the stop line came off main, because each had
+  # been started (and had stopped) a few minutes before the merge. One fetch a start is what a running station does anyway.
+  if git fetch -q origin main 2>/dev/null && tree=$(git show origin/main:tools/station/roles.txt 2>/dev/null) \
     && [ -n "$tree" ] && ! station_stopped "$tree"; then
     echo "station: this checkout says stopped, origin/main does not: running"; return 1
   fi
