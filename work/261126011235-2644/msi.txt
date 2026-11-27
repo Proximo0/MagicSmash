@@ -5,3 +5,4 @@
 2026-11-27T03:03:20Z PASS id=261126011235-2644 kind=shell secs=929 playbot bots=1 host=ubuntu secs=907 screens=12 fields=2 outings=2 kills=2916 deaths=40 coin=821 fps_p50=480.0 frame_ms_p99=6.1 hitches_50ms=63 errors=0 km_walked=0.82
 2026-11-27T09:22:04Z PASS id=261126011235-2644 kind=shell secs=921 playbot bots=1 host=ubuntu secs=908 screens=14 fields=3 outings=3 kills=1209 deaths=11 coin=1070 fps_p50=442.0 frame_ms_p99=6.3 hitches_50ms=49 errors=0 km_walked=0.55
 2026-11-27T15:41:56Z PASS id=261126011235-2644 kind=shell secs=1003 playbot bots=1 host=ubuntu secs=991 screens=10 fields=2 outings=2 kills=2635 deaths=7 coin=2044 fps_p50=804.5 frame_ms_p99=3.7 hitches_50ms=35 errors=0 km_walked=1.52
+2026-11-27T22:00:28Z PASS id=261126011235-2644 kind=shell secs=930 playbot bots=1 host=ubuntu secs=907 screens=16 fields=8 outings=8 kills=811 deaths=13 coin=1224 fps_p50=307.4 frame_ms_p99=12.6 hitches_50ms=98 errors=0 km_walked=0.63
