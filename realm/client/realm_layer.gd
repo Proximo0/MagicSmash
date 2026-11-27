@@ -1,6 +1,7 @@
 class_name RealmLayer
 extends Node2D
-## Two plain things drawn in field px: under the figures the ground grid and the field's edge; over them
+## Two plain things drawn in field px: under the figures the field's edge (and the 64 px grid, a developer's
+## aid shown only with the numbers panel, F3); over them
 ## this player's hero with a ring at its feet (from game/crowd/crowd_layer.gd).
 
 const FIELD: Vector2 = Vector2(16384, 16384)
@@ -16,6 +17,8 @@ const RING_PX: float = 15.0
 const RING_MIN_SCREEN_PX: float = 14.0
 
 var is_ground: bool = true
+## The 64 px grid lines: off in normal play (the ground's own pictures show movement), on with F3.
+var show_grid: bool = false
 ## Field px on screen.
 var view: Rect2 = Rect2()
 ## Screen px per field px.
@@ -44,21 +47,22 @@ func _draw() -> void:
 
 func _draw_grid() -> void:
 	var w: float = 1.0 / px_scale
-	var step: float = GRID
-	while step * px_scale < GRID_MIN_SCREEN_PX:
-		step *= 2.0
-	var x0: float = maxf(0.0, floorf(view.position.x / step) * step)
-	var x1: float = minf(FIELD.x, view.end.x)
-	var y0: float = maxf(0.0, floorf(view.position.y / step) * step)
-	var y1: float = minf(FIELD.y, view.end.y)
-	var x: float = x0
-	while x <= x1:
-		draw_line(Vector2(x, y0), Vector2(x, y1), GRID_COL, w)
-		x += step
-	var y: float = y0
-	while y <= y1:
-		draw_line(Vector2(x0, y), Vector2(x1, y), GRID_COL, w)
-		y += step
+	if show_grid:
+		var step: float = GRID
+		while step * px_scale < GRID_MIN_SCREEN_PX:
+			step *= 2.0
+		var x0: float = maxf(0.0, floorf(view.position.x / step) * step)
+		var x1: float = minf(FIELD.x, view.end.x)
+		var y0: float = maxf(0.0, floorf(view.position.y / step) * step)
+		var y1: float = minf(FIELD.y, view.end.y)
+		var x: float = x0
+		while x <= x1:
+			draw_line(Vector2(x, y0), Vector2(x, y1), GRID_COL, w)
+			x += step
+		var y: float = y0
+		while y <= y1:
+			draw_line(Vector2(x0, y), Vector2(x1, y), GRID_COL, w)
+			y += step
 	draw_rect(Rect2(Vector2.ZERO, FIELD), EDGE_COL, false, 2.0 * w)
 
 

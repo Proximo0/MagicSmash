@@ -60,7 +60,8 @@ func _first_focusable(n: Node) -> Control:
 func paint() -> void:
 	draw_rect(Rect2(0, 0, UiKit.W, UiKit.H), Color(0, 0, 0, 0.62))
 	UiKit.frame(self, frame_rect, UiKit.GOLD, Color(0.045, 0.036, 0.045, 0.98))
-	UiKit.title(self, Vector2(frame_rect.get_center().x, frame_rect.position.y + 10), title, 22)
+	# Clear of the close button on the right (and its twin space on the left).
+	UiKit.title(self, Vector2(frame_rect.get_center().x, frame_rect.position.y + 10), title, UiKit.title_size(title, frame_rect.size.x - 100.0))
 
 
 func _unhandled_input(e: InputEvent) -> void:
@@ -143,7 +144,8 @@ func label(text: String, at: Vector2, size: int = 14, col: Color = UiKit.BONE, w
 	var l := Label.new()
 	l.text = text
 	l.position = at
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_override("font", UiKit.pick_font(size))
+	l.add_theme_font_size_override("font_size", UiKit.px(size))
 	l.add_theme_color_override("font_color", col)
 	if width > 0.0:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

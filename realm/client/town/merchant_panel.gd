@@ -143,12 +143,12 @@ func _sell(inner: Rect2) -> void:
 		UiKit.text(self, Vector2(dx, y + 82), "The smith would give %d EMBERS for it." % GameNames.salvage_embers(it), 12, UiKit.BONE_DIM)
 		button("sell", Rect2(dx, y + 106, 180, 34), "SELL", not busy, false, 16)
 	else:
-		UiKit.text(self, Vector2(dx, y + 10), "CHOOSE AN ITEM, OR EMBERS AND MATERIALS BELOW", 13, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(dx, y + 10), "Choose an item, or embers and materials below.", 13, UiKit.BONE_DIM)
 	var sy: float = y + 152
 	UiKit.text(self, Vector2(dx, sy), "HE BUYS BY THE PIECE", 13, UiKit.BONE_DIM)
 	stack_rows("stk:", rows, Vector2(dx, sy + 20), 300.0, 26.0, 5, sel_stack)
 	if rows.is_empty():
-		UiKit.text(self, Vector2(dx, sy + 24), "nothing of that kind in your bag", 12, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(dx, sy + 24), "Nothing of that kind in your bag.", 12, UiKit.BONE_DIM)
 	elif sel_stack >= 0 and shell.stack_count(GameNames.PLACE_BAG, sel_stack) > 0:
 		var each: int = pays_for_stack(sel_stack)
 		var have: int = shell.stack_count(GameNames.PLACE_BAG, sel_stack)
@@ -162,7 +162,7 @@ func _back(inner: Rect2) -> void:
 	var y: float = inner.position.y + 44
 	UiKit.text(self, Vector2(x, y), "What you sold him in the last half hour, for a little more than he paid.", 13, UiKit.BONE_DIM)
 	if buybacks.is_empty():
-		UiKit.text(self, Vector2(x, y + 30), "nothing to buy back", 15, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x, y + 30), "Nothing to buy back.", 15, UiKit.BONE_DIM)
 		return
 	for i in mini(buybacks.size(), 7):
 		var b: Dictionary = buybacks[i]
@@ -190,11 +190,11 @@ func _belt(inner: Rect2) -> void:
 		var k: int = int(belt[s])
 		UiKit.text(self, r.position + Vector2(10, 6), "SLOT %d" % (s + 1), 11, UiKit.BONE_DIM)
 		if k == 0:
-			UiKit.text(self, r.position + Vector2(10, 28), "empty", 15, UiKit.BONE_DIM)
+			UiKit.text(self, r.position + Vector2(10, 28), "EMPTY", 15, UiKit.BONE_DIM)
 		else:
 			draw_texture_rect(UiArt.stack_icon(k, 32), Rect2(r.position + Vector2(10, 24), Vector2(32, 32)), false)
 			UiKit.text(self, r.position + Vector2(50, 26), GameNames.stack_name(k), 14, UiKit.BONE)
-			UiKit.text(self, r.position + Vector2(50, 44), "carry %d" % shell.stack_count(GameNames.PLACE_BAG, k), 11, UiKit.BONE_DIM)
+			UiKit.text(self, r.position + Vector2(50, 44), "CARRY %d" % shell.stack_count(GameNames.PLACE_BAG, k), 11, UiKit.BONE_DIM)
 	var py: float = y + 112
 	UiKit.text(self, Vector2(x, py), "POTIONS IN YOUR BAG", 13, UiKit.BONE_DIM)
 	var rows: Array[Array] = []
@@ -204,7 +204,7 @@ func _belt(inner: Rect2) -> void:
 	stack_rows("pot:", rows, Vector2(x, py + 22), 400.0, 28.0, 6, -1)
 	button("empty", Rect2(x + 430, py + 22, 160, 30), "EMPTY THE SLOT", int(belt[belt_slot]) != 0 and not busy, false, 12)
 	if rows.is_empty():
-		UiKit.text(self, Vector2(x, py + 26), "none: buy some at the BUY tab", 13, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x, py + 26), "None. Buy some at the BUY tab.", 13, UiKit.BONE_DIM)
 
 
 func press_body(id: String) -> void:

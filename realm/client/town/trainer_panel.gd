@@ -59,7 +59,7 @@ func paint_body(inner: Rect2) -> void:
 	var px: float = x + 450
 	UiKit.text(self, Vector2(px, y + 56), "STAT POINTS", 13, UiKit.GOLD)
 	var unspent: int = int(h.get("unspent", 0))
-	UiKit.text(self, Vector2(inner.end.x, y + 56), "%d to spend" % unspent, 13, UiKit.GOOD if unspent > 0 else UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+	UiKit.text(self, Vector2(inner.end.x, y + 56), "%d TO SPEND" % unspent, 13, UiKit.GOOD if unspent > 0 else UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
 	var stats: Array = h.get("stats", [0, 0, 0, 0, 0, 0])
 	var race: int = int(h.get("race", 0))
 	for i in 6:

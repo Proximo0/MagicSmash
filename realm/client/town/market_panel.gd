@@ -147,7 +147,7 @@ func _build_sell(p: Control) -> void:
 	p.add_child(hours_opt)
 	list_btn = add_button("PUT IT UP", "list", func() -> void: put_up(), p, Vector2(430, 212), Vector2(200, 36))
 	list_btn.disabled = true
-	sell_note = label("THE HOUSE TAKES A FEE NOW AND A TAX ON A SALE. THE SERVER NAMES THE FEE.", Vector2(430, 262), 12, UiKit.BONE_DIM, 400, p)
+	sell_note = label("The house takes a fee to list it, and a tax when it sells.", Vector2(430, 262), 12, UiKit.BONE_DIM, 400, p)
 
 
 func _build_mine(p: Control) -> void:

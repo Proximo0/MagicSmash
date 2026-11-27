@@ -65,7 +65,9 @@ func _draw() -> void:
 		draw_rect(Rect2(gate + Vector2(-26, -26), Vector2(8, 26)), STONE_COL)
 		draw_rect(Rect2(gate + Vector2(18, -26), Vector2(8, 26)), STONE_COL)
 		draw_rect(Rect2(gate + Vector2(-26, -30), Vector2(52, 5)), STONE_COL.darkened(0.2))
-		draw_string(ThemeDB.fallback_font, gate + Vector2(-20, 12), "GATE", HORIZONTAL_ALIGNMENT_CENTER, 40.0, clampi(roundi(18.0 / px_scale), 6, 40), Color(0.85, 0.85, 0.9))
+		var fs: int = UiKit.crisp("jersey10", clampi(roundi(get_viewport().get_final_transform().x.x / px_scale), 1, 8))
+		var gw: float = UiKit.font().get_string_size("GATE", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string(UiKit.font(), (gate + Vector2(-gw / 2.0, 12.0 + fs * 0.6)).round(), "GATE", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.85, 0.85, 0.9))
 	for k in 7:
 		var p: Vector2 = _site(2 + k)
 		if not view.grow(60).has_point(p):

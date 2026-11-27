@@ -78,6 +78,7 @@ func _ready() -> void:
 	_still_hero = FieldArt.entry_for("hero_human_knight")
 	_monster = FieldArt.entry_for("enemy_guard")
 	_ground.is_ground = true
+	_ground.show_grid = true
 	add_child(_ground)
 	_stage.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_stage.set_script(StageDraw)

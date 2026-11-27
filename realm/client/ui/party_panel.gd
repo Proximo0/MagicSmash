@@ -21,7 +21,7 @@ func paint_body(inner: Rect2) -> void:
 	var y: float = inner.position.y - 8
 	var p: Dictionary = shell.party
 	if p.is_empty():
-		UiKit.text(self, Vector2(x, y), "YOU ARE IN NO PARTY. INVITE A HERO BY NAME.", 13, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x, y), "You are in no party. Invite a hero by name.", 13, UiKit.BONE_DIM)
 	else:
 		UiKit.text(self, Vector2(x, y), "%d OF 8" % p["members"].size(), 14, UiKit.GOLD)
 		var cp: Array = p["copy"]
@@ -53,7 +53,7 @@ func paint_body(inner: Rect2) -> void:
 	# The foot: invite by name, leave, call or follow.
 	var by: float = inner.end.y - 104
 	if p.is_empty() or _leader():
-		UiKit.text(self, Vector2(x, by - 20), "INVITE (TYPE A NAME, ENTER)", 11, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x, by - 20), "INVITE A HERO (TYPE A NAME, ENTER)", 11, UiKit.BONE_DIM)
 		var box := Rect2(x, by, 300, 28)
 		UiKit.frame(self, box, UiKit.GOLD, Color(0.04, 0.035, 0.045, 0.95))
 		UiKit.text(self, box.position + Vector2(8, 6), name_text + ("_" if int(time * 2.0) % 2 == 0 else ""), 13, UiKit.BONE)

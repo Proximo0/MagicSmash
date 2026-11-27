@@ -200,7 +200,7 @@ func act(req: Array, ok_text: String = "") -> Dictionary:
 static func error_text(r: Dictionary) -> String:
 	var m: String = String(r.get("msg", "")).to_upper()
 	if int(r["t"]) == GwWire.R_LOST:
-		return "THE GATEWAY IS NOT ANSWERING"
+		return "THE REALM IS NOT ANSWERING"
 	match int(r.get("code", 0)):
 		GwWire.E_NAME_TAKEN:
 			return "THAT NAME IS TAKEN"
@@ -221,7 +221,7 @@ static func error_text(r: Dictionary) -> String:
 		GwWire.E_BUSY:
 			return "SHE IS ALREADY SOMEWHERE"
 		GwWire.E_DISABLED:
-			return "LOGIN IS OFF ON THIS SERVER"
+			return "THE REALM IS NOT LETTING ANYONE IN"
 		GwWire.E_NO_FIELD:
 			return "THAT FIELD IS CLOSED"
 		GwWire.E_MUTED:
@@ -656,7 +656,7 @@ func _on_lost(_why: String) -> void:
 		_close_field()
 	if base_name != "title" and base_name != "login":
 		show_base(TitleScreen.new(), "title")
-		(base as UiScreen).say("THE GATEWAY WENT AWAY", true)
+		(base as UiScreen).say("THE REALM WENT SILENT", true)
 
 
 # ---- the field
@@ -735,7 +735,7 @@ func _field_escape() -> void:
 		return
 	_esc_at = _now
 	if field_client != null and field_client.has_method("warn"):
-		field_client.warn("ESC AGAIN TO LEAVE: HALF THE HAUL IS LOST. WALK OUT OF THE GATE TO KEEP IT ALL")
+		field_client.warn("ESC AGAIN TO FLEE: HALF THE HAUL IS LOST. THE GATE KEEPS IT ALL")
 
 
 ## Disconnects from the field: the host flushes the outing (half the coin lost) and the gateway pushes the result.

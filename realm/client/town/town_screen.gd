@@ -428,7 +428,7 @@ func _hud() -> void:
 	UiKit.text(self, r.position + Vector2(10, 27), "LEVEL %d %s" % [int(h.get("level", 1)), GameNames.class_name_of(int(h.get("class", 0)))], 13, UiKit.GOLD)
 	UiKit.text(self, r.position + Vector2(10, 48), "%s COIN   %s EMBERS" % [GameNames.commas(shell.coin()), GameNames.commas(shell.stack_count(GameNames.PLACE_BAG, GameNames.KIND_EMBERS))], 12, UiKit.BONE_DIM)
 	if int(h.get("unspent", 0)) > 0:
-		UiKit.text(self, Vector2(r.end.x + 8, r.position.y + 27), "%d POINTS" % int(h["unspent"]), 12, UiKit.GOOD)
+		UiKit.text(self, Vector2(r.end.x + 8, r.position.y + 27), ("%d POINT TO SPEND" if int(h["unspent"]) == 1 else "%d POINTS TO SPEND") % int(h["unspent"]), 12, UiKit.GOOD)
 	button("sheet", Rect2(UiKit.W - 330, 10, 76, 30), "SHEET", true, false, 13)
 	button("bag", Rect2(UiKit.W - 250, 10, 76, 30), "BAG", true, false, 13)
 	button("settings", Rect2(UiKit.W - 170, 10, 76, 30), "MENU", true, false, 13)
@@ -456,7 +456,10 @@ func _gate_arrow() -> void:
 	var c: Vector2 = w2s(TownMap.station("gate", stations)["at"])
 	if c.y < UiKit.H - 30.0 and c.y > 40.0 and c.x > 0.0 and c.x < UiKit.W:
 		return
-	var at := Vector2(clampf(c.x, 90.0, UiKit.W - 90.0), UiKit.H - 70.0 + 6.0 * sin(_clock * 4.0))
+	# Clear of the minimap (bottom right) and, over the chat's column (bottom left), lifted above its lines.
+	var at := Vector2(clampf(c.x, 110.0, UiKit.W - 240.0), UiKit.H - 70.0 + 6.0 * sin(_clock * 4.0))
+	if at.x - 100.0 < 540.0:
+		at.y -= 110.0
 	if c.y < 40.0:
 		at.y = 120.0
 	var pr := Rect2(at - Vector2(100, 22), Vector2(200, 56))
@@ -490,7 +493,7 @@ func _chat() -> void:
 	hit("chatbox", box)
 	UiKit.frame(self, box, UiKit.GOLD if typing else UiKit.GOLD_DIM, Color(0.04, 0.035, 0.045, 0.9))
 	var cur: String = "_" if typing and int(time * 2.0) % 2 == 0 else ""
-	UiKit.text(self, box.position + Vector2(8, 3), (chat_text + cur) if typing else "ENTER to speak to the town", 12, UiKit.BONE if typing else UiKit.BONE_DIM)
+	UiKit.text(self, box.position + Vector2(8, 3), (chat_text + cur) if typing else "Press ENTER to speak to the town.", 12, UiKit.BONE if typing else UiKit.BONE_DIM)
 	var shown_lines: Array[Dictionary] = []
 	for c in chat_log:
 		if _clock - float(c["at"]) < CHAT_SHOW_S or typing:

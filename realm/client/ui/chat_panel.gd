@@ -52,7 +52,7 @@ func paint_body(inner: Rect2) -> void:
 		UiKit.text(self, Vector2(log_r.position.x + 8, ly), "%s: %s" % [who, l["text"]], 12, CHAN_COLOURS[chan])
 		ly += 16.0
 	if lines.is_empty():
-		UiKit.text(self, log_r.position + Vector2(8, 6), "NOTHING YET ON THIS CHANNEL", 12, UiKit.BONE_DIM)
+		UiKit.text(self, log_r.position + Vector2(8, 6), "Nothing said here yet.", 12, UiKit.BONE_DIM)
 	# The input line.
 	var box := Rect2(x, log_r.end.y + 8, 540, 26)
 	UiKit.frame(self, box, UiKit.GOLD, Color(0.04, 0.035, 0.045, 0.95))
@@ -121,7 +121,7 @@ func send(line: String) -> void:
 	if not t.begins_with("/"):
 		if chan == GwWire.CHAN_WHISPER:
 			if reply_to.is_empty():
-				say("WHISPER WITH /w NAME TEXT", true)
+				say("Whisper with /w NAME TEXT.", true)
 				return
 			shell.act(GwWire.soc_talk(h, chan, reply_to, t))
 		else:

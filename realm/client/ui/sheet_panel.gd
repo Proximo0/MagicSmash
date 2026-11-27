@@ -64,8 +64,8 @@ func paint_body(inner: Rect2) -> void:
 	UiKit.text(self, Vector2(kx, dy + 26), "BELT", 12, UiKit.GOLD)
 	var belt: Array = h.get("belt", [0, 0, 0])
 	for i in 3:
-		UiKit.text(self, Vector2(kx, dy + 46 + i * 18.0), GameNames.stack_name(int(belt[i])) if int(belt[i]) != 0 else "empty", 12, UiKit.BONE if int(belt[i]) != 0 else Color(0.45, 0.4, 0.38))
-	UiKit.text(self, Vector2(x, inner.end.y - 14), "points are spent at the trainer, gear is worn from the bag", 11, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(kx, dy + 46 + i * 18.0), GameNames.stack_name(int(belt[i])) if int(belt[i]) != 0 else "EMPTY", 12, UiKit.BONE if int(belt[i]) != 0 else Color(0.45, 0.4, 0.38))
+	UiKit.text(self, Vector2(x, inner.end.y - 14), "Points are spent at the trainer; gear is worn from the bag.", 11, UiKit.BONE_DIM)
 	button("bag", Rect2(inner.end.x - 110, inner.end.y - 34, 100, 30), "THE BAG", true, false, 12)
 
 

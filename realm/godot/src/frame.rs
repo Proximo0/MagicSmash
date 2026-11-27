@@ -108,6 +108,8 @@ pub struct Frame {
     pub players: i32,
     pub monsters: i32,
     pub monster_buf: Vec<f32>,
+    /// The monsters whose health bars are drawn (DrawState::bars), the same format as `monster_buf`.
+    pub bar_buf: Vec<f32>,
     pub player_buf: Vec<f32>,
     pub hero: Option<HeroView>,
     pub fx: Vec<f32>,
@@ -338,6 +340,7 @@ pub fn build(c: &LockstepClient, view: SubRect, draw: &mut DrawState) -> Frame {
         players: f.player_count() as i32,
         monsters: f.monster_count() as i32,
         monster_buf: draw.monsters(f, view),
+        bar_buf: std::mem::take(&mut draw.bars),
         player_buf: draw.players(f, view, me),
         hero: c.hero_player().zip(me).map(|(h, id)| hero_view(h, id)),
         ..Frame::default()

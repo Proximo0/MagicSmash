@@ -55,15 +55,26 @@ func _draw() -> void:
 			var r: Rect2 = (h["rect"] as Rect2).grow(3.0)
 			draw_rect(r, Color(UiKit.GOLD, 0.55 + 0.35 * sin(time * 6.0)), false, 2.0)
 	if toast_until > time and not toast_text.is_empty():
-		var w: float = UiKit.text_width(toast_text, 16) + 40.0
-		var r := Rect2((UiKit.W - w) / 2.0, 2.0, w, 28.0)
+		# At most TOAST_W wide (the town's buttons stand either side of the top centre), wrapped to more lines.
+		var lines: PackedStringArray = UiKit.wrap(toast_text, 16, TOAST_W)
+		var w: float = 0.0
+		for l in lines:
+			w = maxf(w, UiKit.text_width(l, 16))
+		w += 32.0
+		var lh: float = UiKit.line_height(16)
+		var r := Rect2(roundf((UiKit.W - w) / 2.0), 2.0, roundf(w), 12.0 + lines.size() * lh)
 		UiKit.frame(self, r, UiKit.BAD if toast_bad else UiKit.GOLD, Color(0.05, 0.03, 0.03, 0.96))
-		UiKit.text(self, Vector2(UiKit.W / 2.0, r.position.y + 4.0), toast_text, 16, UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
+		for i in lines.size():
+			UiKit.text(self, Vector2(UiKit.W / 2.0, r.position.y + 6.0 + i * lh), lines[i], 16, UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 ## Override: draw the screen and register its buttons.
 func paint() -> void:
 	pass
+
+
+## The widest a toast line is drawn (canvas px).
+const TOAST_W: float = 330.0
 
 
 func say(s: String, bad: bool = false) -> void:

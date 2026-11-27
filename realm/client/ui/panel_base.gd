@@ -13,7 +13,8 @@ var busy: bool = false
 func paint() -> void:
 	draw_rect(Rect2(0, 0, UiKit.W, UiKit.H), Color(0, 0, 0, 0.62))
 	UiKit.frame(self, frame_rect, UiKit.GOLD, Color(0.045, 0.036, 0.045, 0.98))
-	UiKit.title(self, Vector2(frame_rect.get_center().x, frame_rect.position.y + 10), title, 22)
+	# Clear of the close button on the right (and its twin space on the left).
+	UiKit.title(self, Vector2(frame_rect.get_center().x, frame_rect.position.y + 10), title, UiKit.title_size(title, frame_rect.size.x - 100.0))
 	# The swallow: nothing behind the frame is clickable. Registered before the X so the X (the later hit) wins.
 	hit("swallow", frame_rect)
 	button("close", Rect2(frame_rect.end.x - 40, frame_rect.position.y + 8, 30, 28), "X", true, false, 14)

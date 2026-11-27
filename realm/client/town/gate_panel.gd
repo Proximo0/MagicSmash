@@ -45,7 +45,7 @@ func paint_body(inner: Rect2) -> void:
 		if not fit.is_empty():
 			UiKit.text(self, Vector2(x + 520, ry + 20), fit, 12, UiKit.BAD)
 		if int(ways[f]) >= 0:
-			UiKit.text(self, Vector2(x + 520, ry + 36), "waystone %d known" % (int(ways[f]) + 1), 11, UiKit.GOOD)
+			UiKit.text(self, Vector2(x + 520, ry + 36), "WAYSTONE %d KNOWN" % (int(ways[f]) + 1), 11, UiKit.GOOD)
 		button("field:%d" % f, Rect2(r.end.x - 130, ry + 10, 118, 36), "ENTER", not _entering, false, 15)
 		if f == fit_field() and not _entering:
 			UiKit.glow(self, Rect2(r.end.x - 130, ry + 10, 118, 36), time)

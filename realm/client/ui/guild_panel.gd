@@ -9,7 +9,7 @@ const PERM_KICK: int = 2
 const PERM_POST: int = 16
 const PERM_MOTD: int = 32
 const PERM_RANKS: int = 128
-const MODES: Array[String] = ["INVITE", "POST", "MOTD"]
+const MODES: Array[String] = ["INVITE", "POST", "NOTICE"]
 const ROWS: int = 9
 
 var text: String = ""
@@ -37,8 +37,8 @@ func paint_body(inner: Rect2) -> void:
 		_no_guild(inner)
 		return
 	UiKit.text(self, Vector2(x, y), String(g["name"]), 20, UiKit.GOLD)
-	UiKit.text(self, Vector2(inner.end.x, y + 4), "%s  %d MEMBERS" % [GwWire.RANK_NAMES[clampi(int(g["my_rank"]), 0, 3)], g["members"].size()], 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
-	UiKit.text(self, Vector2(x, y + 28), String(g["motd"]) if not String(g["motd"]).is_empty() else "NO MESSAGE OF THE DAY", 12, UiKit.BONE if not String(g["motd"]).is_empty() else UiKit.BONE_DIM)
+	UiKit.text(self, Vector2(inner.end.x, y + 4), "%s  ·  %d %s" % [GwWire.RANK_NAMES[clampi(int(g["my_rank"]), 0, 3)], g["members"].size(), "MEMBER" if g["members"].size() == 1 else "MEMBERS"], 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+	UiKit.text(self, Vector2(x, y + 28), String(g["motd"]) if not String(g["motd"]).is_empty() else "No notice posted.", 12, UiKit.BONE if not String(g["motd"]).is_empty() else UiKit.BONE_DIM)
 	# Roster.
 	var first: int = scroll_of("roster")
 	var ry: float = y + 54
@@ -74,10 +74,10 @@ func paint_body(inner: Rect2) -> void:
 	for i in MODES.size():
 		var perm: int = [PERM_INVITE, PERM_POST, PERM_MOTD][i]
 		button("mode:%d" % i, Rect2(x + i * 84.0, fy - 30, 78, 24), MODES[i], _may(perm), mode == i, 11)
-	var box := Rect2(x, fy, 560, 28)
+	var box := Rect2(x, fy, 470, 28)
 	UiKit.frame(self, box, UiKit.GOLD, Color(0.04, 0.035, 0.045, 0.95))
 	UiKit.text(self, box.position + Vector2(8, 6), text + ("_" if int(time * 2.0) % 2 == 0 else ""), 13, UiKit.BONE)
-	button("send", Rect2(x + 570, fy, 90, 28), "SEND", not text.is_empty(), false, 12)
+	button("send", Rect2(x + 480, fy, 90, 28), "SEND", not text.is_empty(), false, 12)
 	button("leave", Rect2(inner.end.x - 150, fy, 150, 28), "LEAVE GUILD", true, false, 12)
 	for inv in shell.invites:
 		if String(inv["kind"]) == "guild":

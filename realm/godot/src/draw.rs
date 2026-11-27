@@ -192,6 +192,29 @@ pub struct DrawState {
     ghosts: Vec<Ghost>,
     /// The running boss's slot and art frame, kept so its ghost is drawn with its own art after it dies.
     boss_at: Option<(usize, usize)>,
+    /// The last `monsters` call's barred monsters within BAR_RADIUS_PX of the view's centre: the same 16 floats
+    /// a figure as the monster buffer (figures_bar.gdshader reads them), in the same order.
+    pub bars: Vec<f32>,
+}
+
+/// Health bars are drawn only for monsters within this many px of the view's centre (the camera follows the
+/// hero): the bars' MultiMesh holds just those, so a full horde on screen costs the bar pass a few hundred
+/// instances instead of every drawn monster (measured 27 Nov: a bar pass over 20,000 drawn monsters added 30 % to
+/// their render on the build machine; docs/realm/client.md "Health bars").
+pub const BAR_RADIUS_PX: i64 = 480;
+
+/// A health bar rides in the tint's alpha, which is 1 for every living monster: `0.5 + b / 512` with b in 1..=255
+/// (the health left, rounded up so a living monster never shows an empty bar) for a monster that is hurt or is
+/// an elite, a champion or a boss; exactly 1 for none. (Instance colours above 1 draw black boxes in the GL
+/// compatibility renderer, so the bar lives below 1.) figures.gdshader draws a living monster opaque whatever its
+/// alpha (`bars` batch only; a ghost's alpha is its fade) and figures_bar.gdshader draws the bar from it.
+pub fn with_bar(mut tint: [f32; 4], hp: u32, max: u32, always: bool) -> [f32; 4] {
+    let max = max.max(1);
+    if hp < max || always {
+        let b = ((hp.min(max) as u64 * 255).div_ceil(max as u64)).clamp(1, 255);
+        tint[3] = 0.5 + b as f32 / 512.0;
+    }
+    tint
 }
 
 /// One figure into a draw buffer. The shader moves vertices before the instance's transform scales them, so
@@ -238,6 +261,9 @@ impl DrawState {
         self.ghosts.retain(|g| now - g.born < DIE_TICKS + FADE_TICKS);
         let heroes: Vec<(i32, i32)> = f.players().iter().filter(|p| p.present && p.alive()).map(|p| (p.x, p.y)).collect();
         let reach = ATTACK_PX as i64 * SUB as i64;
+        self.bars.clear();
+        let (cx, cy) = ((r.x0 as i64 + r.x1 as i64) / 2, (r.y0 as i64 + r.y1 as i64) / 2);
+        let bar_r = BAR_RADIUS_PX * SUB as i64;
         self.order.clear();
         for i in 0..n {
             if m.hp[i] > 0 && r.contains(m.x[i], m.y[i]) {
@@ -278,6 +304,7 @@ impl DrawState {
             } else {
                 WHITE
             };
+            let tint = with_bar(tint, m.hp[i], m.max_hp(i), elite || champ || m.is_boss(i));
             let back = self.monsters.back(i, m.x[i], m.y[i]);
             if m.hurt[i] != 0 {
                 self.monsters.hit_at[i] = now;
@@ -300,6 +327,10 @@ impl DrawState {
                 (ST_WALK, 0)
             };
             put_state(&mut out, m.x[i], m.y[i], s * self.monsters.face[i], s, tint, back, boss_frame(f, i).unwrap_or_else(|| monster_frame(m.kind[i])), state, bob, age);
+            let (dx, dy) = (m.x[i] as i64 - cx, m.y[i] as i64 - cy);
+            if tint[3] < 1.0 && dx * dx + dy * dy <= bar_r * bar_r {
+                self.bars.extend_from_slice(&out[out.len() - STRIDE..]);
+            }
         }
         out
     }
@@ -514,6 +545,30 @@ mod tests {
         d.monsters(&f, ALL);
         let away = SubRect { x0: 0, y0: 0, x1: 500 * SUB, y1: 500 * SUB };
         assert!(d.monsters(&f, away).is_empty());
+    }
+
+    #[test]
+    fn a_bar_rides_in_the_alpha_only_for_the_hurt_and_the_ranked() {
+        assert_eq!(with_bar(WHITE, 50, 50, false)[3], 1.0, "a whole common monster has no bar");
+        assert_eq!(with_bar(WHITE, 50, 50, true)[3], 0.5 + 255.0 / 512.0, "an elite's bar is full");
+        assert_eq!(with_bar(WHITE, 25, 50, false)[3], 0.5 + 128.0 / 512.0);
+        assert_eq!(with_bar(WHITE, 1, 100_000, false)[3], 0.5 + 1.0 / 512.0, "a living monster's bar is never empty");
+        let (mut f, _) = lone(None);
+        f.monsters_mut().flags[0] = 0;
+        let mx = f.monsters().max_hp(0);
+        f.monsters_mut().hp[0] = mx;
+        let b = DrawState::default().monsters(&f, ALL);
+        assert!(b.chunks(STRIDE).all(|c| c[11] == 1.0), "a fresh monster shows no bar");
+        f.monsters_mut().hp[0] /= 2;
+        let mut d = DrawState::default();
+        let b = d.monsters(&f, ALL);
+        assert!(b.chunks(STRIDE).any(|c| c[11] > 0.5 && c[11] < 1.0), "a hurt one does");
+        let near = SubRect { x0: 1500 * SUB, y0: 1500 * SUB, x1: 2500 * SUB, y1: 2500 * SUB };
+        assert_eq!(d.monsters(&f, near).len(), STRIDE);
+        assert_eq!(d.bars.len(), STRIDE, "a hurt one near the view's centre is in the bars' buffer");
+        let far = SubRect { x0: 1900 * SUB, y0: 1900 * SUB, x1: 4000 * SUB, y1: 4000 * SUB };
+        assert_eq!(d.monsters(&f, far).len(), STRIDE, "drawn");
+        assert!(d.bars.is_empty(), "but not its bar: it is over BAR_RADIUS_PX from the centre");
     }
 
     #[test]

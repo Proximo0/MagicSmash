@@ -39,10 +39,10 @@ func copies(card: int) -> int:
 
 func unlock_note(card: int) -> String:
 	if card < GameNames.NOVICE_CARDS:
-		return "owned from the start"
+		return "Owned from the start"
 	if card < GameNames.NOVICE_CARDS + 12:
-		return "at class level %d, or from its page" % (2 * (card - GameNames.NOVICE_CARDS + 1))
-	return "found as a page (elites drop them, a boss's first kill gives one)"
+		return "At class level %d, or from its page" % (2 * (card - GameNames.NOVICE_CARDS + 1))
+	return "Found as a page (elites drop them, a boss's first kill gives one)"
 
 
 func paint_body(inner: Rect2) -> void:
@@ -84,7 +84,7 @@ func paint_body(inner: Rect2) -> void:
 	# What she is looking at.
 	var dy: float = sy + 64
 	UiKit.text(self, Vector2(x, dy), "%s: %s" % [GameNames.card_name(focus), GameNames.CARD_TEXT[focus]], 14, UiKit.GOLD)
-	var how: String = ("owned, in the deck" if copies(focus) > 0 else "owned, not in the deck") if owned(focus) else unlock_note(focus)
+	var how: String = ("Owned, in the deck" if copies(focus) > 0 else "Owned, not in the deck") if owned(focus) else unlock_note(focus)
 	UiKit.text(self, Vector2(x, dy + 20), how, 12, UiKit.BONE_DIM)
 	button("save", Rect2(inner.end.x - 200, dy - 2, 200, 34), "SET THE DECK" if dirty else "DECK IS SET", dirty and not busy and not deck.is_empty(), dirty, 15)
 	button("clear", Rect2(inner.end.x - 310, dy - 2, 100, 34), "CLEAR", not deck.is_empty(), false, 13)

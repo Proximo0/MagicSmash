@@ -35,7 +35,7 @@ func build() -> void:
 	name_edit.size = Vector2(280, 32)
 	name_edit.max_length = 16
 	name_edit.focus_mode = Control.FOCUS_ALL
-	name_edit.placeholder_text = "a hero's name"
+	name_edit.placeholder_text = "A hero's name"
 	body.add_child(name_edit)
 	invite_btn = add_button("INVITE", "invite", func() -> void: invite(), body, Vector2(292, 22), Vector2(120, 32))
 	accept_btn = add_button("ACCEPT", "accept", func() -> void: accept(), body, Vector2(424, 22), Vector2(120, 32))
@@ -111,7 +111,7 @@ func refill() -> void:
 				s += "YOU HAVE CONFIRMED. " if bool(t["my_ok"]) else "YOU HAVE NOT CONFIRMED. "
 				s += "THEY HAVE CONFIRMED." if bool(t["their_ok"]) else "THEY HAVE NOT."
 				if int(t["lock_ms"]) > 0:
-					s += "  (A CONFIRM IS HEARD IN %.1f S)" % (float(t["lock_ms"]) / 1000.0)
+					s += "  (CONFIRM IN %.1f S)" % (float(t["lock_ms"]) / 1000.0)
 				status.text = s
 			EconWire.TS_DONE:
 				status.text = "THE TRADE IS DONE. WHAT WAS LAID DOWN HAS CHANGED HANDS."

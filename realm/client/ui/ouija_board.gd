@@ -68,14 +68,14 @@ func paint(screen: UiScreen, r: Rect2) -> void:
 	var yes := Rect2(r.end - Vector2(134, 52), Vector2(110, 40))
 	screen.hit("ouija:no", no, not text.is_empty())
 	screen.hit("ouija:yes", yes, true)
-	for pair in [[no, "NO", "erase", "ouija:no"], [yes, "YES", "done", "ouija:yes"]]:
+	for pair in [[no, "NO", "Erase", "ouija:no"], [yes, "YES", "Done", "ouija:yes"]]:
 		var rr: Rect2 = pair[0]
 		var hot2: bool = screen.hover_id == String(pair[3])
 		UiKit.text(screen, rr.position + Vector2(55, 0), String(pair[1]), 22, UiKit.GOLD if hot2 else UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER)
 		UiKit.text(screen, rr.position + Vector2(55, 24), String(pair[2]), 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 		if hot2:
 			_target = rr.position + Vector2(55, 12)
-	UiKit.text(screen, Vector2(r.position.x + r.size.x / 2.0, r.end.y - 24.0), "type on the keys, or click the letters", 11, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	UiKit.text(screen, Vector2(r.position.x + r.size.x / 2.0, r.end.y - 24.0), "Type on the keys, or click the letters.", 11, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	planchette = planchette.lerp(_target, 0.18)
 	_planchette(screen, planchette)
 

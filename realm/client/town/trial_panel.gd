@@ -32,7 +32,7 @@ func build() -> void:
 	label("WHAT IT ASKS", Vector2(0, 66), 13, UiKit.GOLD)
 	need_label = label("", Vector2(0, 90), 15, UiKit.BONE, 832)
 	level_label = label("", Vector2(0, 116), 15, UiKit.BONE, 832)
-	alone_label = label("YOU GO IN ALONE: YOUR PARTY WAITS IN TOWN. NO VAULT KEY IS NEEDED.", Vector2(0, 142), 15, UiKit.BONE, 832)
+	alone_label = label("You go in alone: your party waits in town. No vault key is needed.", Vector2(0, 142), 15, UiKit.BONE, 832)
 	label("WHERE YOU STAND", Vector2(0, 182), 13, UiKit.GOLD)
 	state_label = label("", Vector2(0, 206), 17, UiKit.BONE, 832)
 	job_label = label("", Vector2(0, 236), 13, UiKit.BONE_DIM, 832)

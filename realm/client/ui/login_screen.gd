@@ -26,7 +26,7 @@ func opened() -> void:
 func paint() -> void:
 	UiKit.backdrop(self, time)
 	UiKit.title(self, Vector2(UiKit.W / 2.0, 36), "WHO KNOCKS?", 30)
-	UiKit.text(self, Vector2(UiKit.W / 2.0, 96), "spell the name your account goes by", 14, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	UiKit.text(self, Vector2(UiKit.W / 2.0, 96), "Spell the name your account goes by.", 14, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	board.paint(self, Rect2(130, 150, 700, 215))
 	button("back", Rect2(20, UiKit.H - 56, 110, 36), "BACK")
 	var ready: bool = board.text.length() >= NAME_MIN and not busy

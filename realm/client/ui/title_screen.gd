@@ -23,14 +23,12 @@ func paint() -> void:
 		draw_colored_polygon(PackedVector2Array([c + Vector2(-13, 40), c + Vector2(0, -20 * f), c + Vector2(13, 40)]), Color(0.95, 0.62, 0.18, 0.9))
 	UiKit.candle(self, Vector2(250, 220), time, 0.0)
 	UiKit.candle(self, Vector2(710, 220), time, 2.0)
-	UiKit.text(self, Vector2(UiKit.W / 2.0, 300), "HORDE & HEARTH", 60, UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
-	UiKit.text(self, Vector2(UiKit.W / 2.0, 366), "keep the fire lit, and the dead outside", 18, UiKit.BLOOD_BRIGHT, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
+	UiKit.text(self, Vector2(UiKit.W / 2.0, 280), "HORDE & HEARTH", 60, UiKit.BONE, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
+	UiKit.text(self, Vector2(UiKit.W / 2.0, 370), "Keep the fire lit, and the dead outside", 18, UiKit.BLOOD_BRIGHT, HORIZONTAL_ALIGNMENT_CENTER, true, UiKit.display_font())
 	button("enter", Rect2(380, 410, 200, 40), "ENTER", true, false, 18)
 	UiKit.glow(self, Rect2(380, 410, 200, 40), time)
 	button("settings", Rect2(380, 458, 96, 32), "SETTINGS", true, false, 13)
 	button("quit", Rect2(484, 458, 96, 32), "QUIT", true, false, 13)
-	var addr: String = "%s:%d" % [shell.gateway_host, shell.gateway_port] if shell != null else ""
-	UiKit.text(self, Vector2(UiKit.W - 12, UiKit.H - 22), "realm " + addr, 11, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func on_press(id: String) -> void:

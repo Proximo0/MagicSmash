@@ -240,6 +240,13 @@ impl RealmLink {
         PackedFloat32Array::from(self.frame.monster_buf.as_slice())
     }
 
+    /// The monsters whose health bars are drawn: hurt, or an elite, a champion or a boss, within
+    /// `draw::BAR_RADIUS_PX` of the view's centre; the same 16 floats a figure as `monster_buffer`.
+    #[func]
+    fn bar_buffer(&self) -> PackedFloat32Array {
+        PackedFloat32Array::from(self.frame.bar_buf.as_slice())
+    }
+
     /// As `monster_buffer` for players other than this one (frame `class * 4 + race`, class 0 the NOVICE).
     #[func]
     fn player_buffer(&self) -> PackedFloat32Array {

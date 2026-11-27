@@ -60,7 +60,7 @@ func paint() -> void:
 	if not gone.is_empty():
 		var h: Dictionary = gone[0]
 		button("restore", Rect2(UiKit.W - 280, UiKit.H - 52, 260, 34), "RAISE %s" % String(h["name"]), true, false, 13)
-	UiKit.text(self, Vector2(UiKit.W - 12, 12), "account %s" % shell.dev_name, 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+	UiKit.text(self, Vector2(UiKit.W - 12, 12), "SIGNED IN AS %s" % shell.dev_name, 12, UiKit.BONE_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 func _paint_hero(i: int, r: Rect2, h: Dictionary) -> void:
@@ -124,7 +124,7 @@ func on_press(id: String) -> void:
 		"delete":
 			if _sure_until > time:
 				_sure_until = 0.0
-				var r: Dictionary = await shell.act(GwWire.hero_only(GwWire.T_DELETE_HERO, shell.hero_id()), "SHE IS GONE, FOR A WEEK YOU CAN RAISE HER")
+				var r: Dictionary = await shell.act(GwWire.hero_only(GwWire.T_DELETE_HERO, shell.hero_id()), "She is gone. For a week, you can raise her.")
 				if int(r["t"]) == GwWire.R_OK:
 					shell.hero = {}
 					await shell.refresh_heroes()

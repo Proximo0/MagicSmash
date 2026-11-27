@@ -157,8 +157,14 @@ func _col_of_skill(id: int) -> Color:
 	return _skill_col[id]
 
 
+## Floating words in Jersey10 with as many screen px a design px as the HUD's at every zoom: the zoom's whole
+## multiple of its crisp size (UiKit.crisp), so no zoom smears it.
+func _fk() -> int:
+	return clampi(roundi(get_viewport().get_final_transform().x.x / px_scale), 1, 8)
+
+
 func _fs() -> int:
-	return clampi(roundi(22.0 / px_scale), 6, 60)
+	return UiKit.crisp("jersey10", _fk())
 
 
 func _process(_delta: float) -> void:
@@ -222,7 +228,7 @@ func _draw_ground(wall: float, w: float) -> void:
 				draw_arc(p, RAISE_PX, 0.0, TAU, 28, Color(0.5, 1.0, 0.65, 0.25), 1.0 * w, true)
 				if prog > 0.0:
 					draw_arc(p, RAISE_PX, -PI / 2.0, -PI / 2.0 + TAU * prog, 28, Color(0.5, 1.0, 0.65, 0.95), 2.0 * w, true)
-				draw_string(ThemeDB.fallback_font, p + Vector2(-8, -20), "%ds" % ceili(rows[o + 4]), HORIZONTAL_ALIGNMENT_CENTER, 16.0, _fs(), Color(1.0, 0.5, 0.45))
+				_word(p + Vector2(0, -20), "%ds" % ceili(rows[o + 4]), Color(1.0, 0.5, 0.45))
 
 
 func _draw_state(wall: float, w: float) -> void:
@@ -312,7 +318,16 @@ func _draw_item(it: Dictionary, f: float, w: float) -> void:
 			var rise: float = 18.0 * f
 			var col4: Color = it["d"]
 			var word: String = String(it["c"])
-			var half_w: float = ThemeDB.fallback_font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, _fs()).x / 2.0
-			var at: Vector2 = p + Vector2(-half_w, -26.0 - rise)
-			draw_string_outline(ThemeDB.fallback_font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, _fs(), 3, Color(0, 0, 0, 0.6 * fade))
-			draw_string(ThemeDB.fallback_font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, _fs(), Color(col4.r, col4.g, col4.b, minf(fade * 2.0, 1.0)))
+			_word(p + Vector2(0, -26.0 - rise), word, Color(col4.r, col4.g, col4.b, minf(fade * 2.0, 1.0)), 0.6 * fade)
+
+
+## A word centred on `at` (its baseline), in the body face with a one-design-pixel shadow (no outline: a pixel
+## face's outline would be smoothed).
+func _word(at: Vector2, word: String, col: Color, shadow: float = 0.8) -> void:
+	var f: Font = UiKit.font()
+	var fs: int = _fs()
+	var one: float = float(_fk())
+	var x: float = roundf((at.x - f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x / 2.0) / one) * one
+	var y: float = roundf(at.y / one) * one
+	draw_string(f, Vector2(x + one, y + one), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, shadow))
+	draw_string(f, Vector2(x, y), word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)

@@ -913,7 +913,7 @@ func _economy() -> void:
 	await _frames(3)
 	var bp: BoardPanel = _shell.panel_of("BoardPanel") as BoardPanel
 	_check(bp != null and await _until(func() -> bool: return not bp.board.is_empty()), "the world board reads the realm's board")
-	_check(bp.tree.get_root().get_child_count() == 6 and bp.world_label.text.begins_with("THE PALE RIDER RIDES IN"), "six fields and the world boss's ride: " + bp.world_label.text)
+	_check(bp.tree.get_root().get_child_count() == 6 and bp.world_label.text.begins_with("THE PALE RIDER COMES TO"), "six fields and the world boss's ride: " + bp.world_label.text)
 	_check(_focused_in(bp), "the board has keyboard focus on a control")
 	await _frames(2)
 	await _shot("37_world_board")

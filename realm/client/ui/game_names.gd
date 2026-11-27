@@ -19,7 +19,7 @@ const CLASS_NOTES: Array[String] = [
 ## Stat points a race gives (rules section 2), in the order of STATS.
 const RACE_BONUS: Array = [[1, 1, 1, 1, 1, 1], [0, 3, 4, 0, 0, 0], [0, 0, 0, 4, 3, 0], [5, 0, 0, 2, 0, 0]]
 const STATS: Array[String] = ["MIGHT", "FOCUS", "SWIFT", "VIGOR", "WARD", "FORTUNE"]
-const STAT_NOTES: Array[String] = ["+2% damage", "+1% attack speed", "+1% move speed (cap 40%)", "+2% health", "1% less damage taken (cap 60%)", "+3% coin, +1 luck"]
+const STAT_NOTES: Array[String] = ["+2% damage", "+1% attack speed", "+1% move speed (cap 40%)", "+2% health", "-1% damage taken (cap 60%)", "+3% coin, +1 luck"]
 const RARITIES: Array[String] = ["COMMON", "UNCOMMON", "RARE", "EPIC", "RELIC"]
 const SLOTS: Array[String] = ["WEAPON", "HEAD", "BODY", "HANDS", "FEET", "CHARM"]
 const FIELDS: Array[String] = ["THE FOOL'S ROAD", "THE HANGED WOOD", "THE MOON MARSH", "THE HERMIT'S PEAKS", "THE TOWER", "THE WORLD'S EDGE"]
@@ -103,7 +103,7 @@ const SELL_BY_RARITY: Array[int] = [1, 2, 5, 12, 40]
 
 const LOOK_PALETTES: Array[Color] = [
 	Color(1, 1, 1), Color(0.82, 0.74, 0.7), Color(0.62, 0.7, 0.9), Color(0.78, 0.92, 0.74), Color(0.9, 0.7, 0.9), Color(0.7, 0.62, 0.52)]
-const LOOK_PALETTE_NAMES: Array[String] = ["TRUE", "ASHEN", "DUSK", "MOSS", "PLUM", "RUST"]
+const LOOK_PALETTE_NAMES: Array[String] = ["NATIVE", "ASHEN", "DUSK", "MOSS", "PLUM", "RUST"]
 const LOOK_MARKS: Array[String] = ["NONE", "SCAR", "SIGIL", "CROWN"]
 
 
@@ -286,13 +286,13 @@ static func class_skills(cls: int, job: int, level: int) -> Array:
 	var ids: Array = CLASS_SKILLS[clampi(cls, 0, 5)]
 	var first: int = SKILL1_LEVEL if cls != 0 else 1
 	if int(ids[0]) >= 0:
-		out.append([skill_name(int(ids[0])), first, 0 if level < first else skill_rank(level, first), "skill 1"])
+		out.append([skill_name(int(ids[0])), first, 0 if level < first else skill_rank(level, first), "Skill 1"])
 	if int(ids[1]) >= 0:
-		out.append([skill_name(int(ids[1])), SKILL2_LEVEL, 0 if level < SKILL2_LEVEL else skill_rank(level, SKILL2_LEVEL), "skill 2"])
+		out.append([skill_name(int(ids[1])), SKILL2_LEVEL, 0 if level < SKILL2_LEVEL else skill_rank(level, SKILL2_LEVEL), "Skill 2"])
 	if job >= 0 and job < JOBS.size():
-		out.append([JOB_ULTIMATES[job], JOB_LEVEL, 0 if level < JOB_LEVEL else skill_rank(level, JOB_LEVEL), "ultimate of the " + JOBS[job]])
+		out.append([JOB_ULTIMATES[job], JOB_LEVEL, 0 if level < JOB_LEVEL else skill_rank(level, JOB_LEVEL), "Ultimate of the " + JOBS[job]])
 	elif cls != 0:
-		out.append(["ULTIMATE", JOB_LEVEL, 0, "choose a job at %d" % JOB_LEVEL])
+		out.append(["ULTIMATE", JOB_LEVEL, 0, "Choose a job at %d" % JOB_LEVEL])
 	return out
 
 

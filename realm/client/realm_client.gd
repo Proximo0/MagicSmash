@@ -9,6 +9,7 @@ extends Node2D
 ## stand-ins), FieldHud, FieldFx (skills and effects), FieldWorld, FieldSound.
 ## godot --path realm/client -- [--server=127.0.0.1:7777] [--class=0..4] [--race=0..3] [--zoom=N] [--bot]
 ##   [--window=1440x810] [--shots=DIR --secs=N [--zooms=1,2,4]] [--debug=0|1] [--mute] [--fake=tide,boss]
+##   [--bars=1|0|all] (monster health bars: the hurt and the ranked near her, none, or every drawn monster (bench))
 ## A scripted run (--shots) plays as the bot, records each zoom (--zooms, by default 1, 2, 4 and --zoom) for
 ## --secs seconds, saves DIR/zoom<N>.png and DIR/stats.json, prints one CLIENT_FRAMES line and quits (exit 1
 ## if it never joined or a hash check failed). --zoom=8 at 1440x810 shows 3 840 x 2 160 px of the field: a
@@ -83,8 +84,12 @@ var _shot_zooms: Array[int] = []
 var _window: Vector2i = Vector2i(1440, 810)
 var _shots_dir: String = ""
 var _secs: float = 6.0
-var _debug: bool = true
+## The numbers panel (F3, or --debug=1): off in normal play.
+var _debug: bool = false
 var _mute: bool = false
+## Monster health bars: "1" (the hurt and the ranked near her, the default), "0" none, "all" one on every drawn
+## monster (the bench's worst case: the bar pass over the whole horde).
+var _bars: String = "1"
 var _fake: PackedStringArray = PackedStringArray()
 
 var _world: Node2D = Node2D.new()
@@ -143,6 +148,10 @@ var _rec_script: PackedFloat32Array = PackedFloat32Array()
 var _rec_monsters: PackedInt32Array = PackedInt32Array()
 var _rec_players: PackedInt32Array = PackedInt32Array()
 var _rec_fx: PackedInt32Array = PackedInt32Array()
+## The renderer's own time a frame (RenderingServer's measured render time of the window's viewport: on the CPU, and
+## on the card by its timer queries), for the bench: the frame time can hide it behind other limits.
+var _rec_render_cpu: PackedFloat32Array = PackedFloat32Array()
+var _rec_render_gpu: PackedFloat32Array = PackedFloat32Array()
 
 
 func _ready() -> void:
@@ -163,7 +172,8 @@ func _ready() -> void:
 	var kinds: Array[Dictionary] = FieldArt.monster_entries()
 	var atlas: Array[Dictionary] = kinds.duplicate()
 	atlas.append_array(FieldArt.boss_entries(kinds))
-	_monsters = RealmBatch.new(_world, atlas, 1, false, true)
+	_monsters = RealmBatch.new(_world, atlas, 1, false, true, true)
+	_monsters.set_bars(_bars != "0", _bars == "all")
 	var heroes: Array[Dictionary] = FieldArt.hero_entries()
 	_players = RealmBatch.new(_world, heroes, 2)
 	_art = {"monsters": FieldArt.art_summary(kinds), "heroes": FieldArt.art_summary(heroes)}
@@ -194,7 +204,7 @@ func _ready() -> void:
 ## The bare client's flags. Embedded, the command line is the shell's (shell_test.gd runs with --shots for its own
 ## screenshots): only the view flags count, or --shots would make the shell's field the scripted bot, wandering
 ## south through the gate (24 Nov, a busy station: the outing ended by the gate while the test idled).
-const EMBEDDED_FLAGS: PackedStringArray = ["zoom", "debug", "mute"]
+const EMBEDDED_FLAGS: PackedStringArray = ["zoom", "debug", "mute", "bars"]
 
 
 func _parse_args() -> void:
@@ -233,6 +243,8 @@ func _parse_args() -> void:
 				_debug = v != "0"
 			"mute":
 				_mute = true
+			"bars":
+				_bars = v
 			"fake":
 				_fake = v.split(",")
 
@@ -241,6 +253,7 @@ func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_hud.show_debug = _debug
+	_ground.show_grid = _debug
 	_hud.fake_tide = _fake.has("tide")
 	_hud.fake_boss = _fake.has("boss")
 	layer.add_child(_hud)
@@ -281,6 +294,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_F3:
 				_debug = not _debug
 				_hud.show_debug = _debug
+				_ground.show_grid = _debug
 			KEY_ESCAPE:
 				_quit(0)
 	elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
@@ -365,6 +379,9 @@ func _process(delta: float) -> void:
 		_rec_monsters.append(_monsters.count)
 		_rec_players.append(_players.count)
 		_rec_fx.append(_fx_over.drawn_items)
+		var vp: RID = get_viewport().get_viewport_rid()
+		_rec_render_cpu.append(RenderingServer.viewport_get_measured_render_time_cpu(vp) + RenderingServer.get_frame_setup_time_cpu())
+		_rec_render_gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(vp))
 
 
 ## New ticks arrived: every figure on screen from the module's frame, the effects, the events, the HUD numbers.
@@ -372,7 +389,11 @@ func _on_frame() -> void:
 	_info = link.hero_view()
 	_world_info = link.world()
 	_soil.set_field(int(_world_info.get("field", -1)), float(RealmLink.field_size()))
-	_monsters.fill(link.monster_buffer())
+	var mons: PackedFloat32Array = link.monster_buffer()
+	# The bars: the barred monsters near her (the game), or every drawn monster (--bars=all, the bench's worst case).
+	var barred: PackedFloat32Array = mons.duplicate() if _bars == "all" else link.bar_buffer()
+	_monsters.fill(mons)
+	_monsters.fill_bars(barred)
 	_players.fill(link.player_buffer())
 	var rows: PackedFloat32Array = link.fx_rows()
 	var ev: PackedInt32Array = link.event_rows()
@@ -618,7 +639,9 @@ func _scripted() -> void:
 			zooms.append(_extra_zoom)
 	var worst_p99: float = 0.0
 	var mean_ms: float = 0.0
+	var gpu_ms: float = 0.0
 	var drawn: int = 0
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	for z in zooms:
 		_apply_zoom(z)
 		await get_tree().create_timer(SETTLE_S).timeout
@@ -630,17 +653,24 @@ func _scripted() -> void:
 		_rec_monsters.clear()
 		_rec_players.clear()
 		_rec_fx.clear()
+		_rec_render_cpu.clear()
+		_rec_render_gpu.clear()
 		var t_rec: float = _now()
+		var cpu0: float = cpu_ms()
 		_rec = true
 		await get_tree().create_timer(_secs).timeout
 		_rec = false
+		var cpu_frame: float = (cpu_ms() - cpu0) / maxf(float(_rec_frames.size()), 1.0)
 		var dur: float = _now() - t_rec
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("%s/zoom%d.png" % [_shots_dir, z])
 		var sm: Dictionary = _summary(dur, before, link.counters())
+		sm["cpu_ms_per_frame"] = snappedf(cpu_frame, 0.01)
+		sm["bars_drawn_last"] = _monsters.bar_count
 		out["zooms"][str(z)] = sm
 		worst_p99 = maxf(worst_p99, float(sm.get("frame_ms_p99", 0.0)))
 		mean_ms = _mean(_rec_frames)
+		gpu_ms = _mean(_rec_render_gpu)
 		drawn = int(sm.get("monsters_drawn_mean", 0))
 	var c: Dictionary = link.counters()
 	for k in ["join_tick", "join_bytes", "ticks_applied", "hash_checks_passed", "hash_checks_failed", "stall_ms_max", "mispredicts", "predictions_checked", "bad_datagrams"]:
@@ -653,7 +683,7 @@ func _scripted() -> void:
 		f.store_string(JSON.stringify(out, "\t"))
 		f.close()
 	var ok: bool = link.is_joined() and int(c.get("hash_checks_failed", 1)) == 0 and int(c.get("hash_checks_passed", 0)) > 0
-	print("CLIENT_FRAMES %s zooms=%s mean_ms=%.2f p99_ms=%.2f monsters_drawn=%d renderer=\"%s\"" % ["ok" if ok else "FAILED", ",".join(PackedStringArray(zooms.map(func(x: int) -> String: return str(x)))), mean_ms, worst_p99, drawn, out["renderer"]])
+	print("CLIENT_FRAMES %s zooms=%s mean_ms=%.2f p99_ms=%.2f monsters_drawn=%d renderer=\"%s\" bars=%s render_gpu_ms=%.2f" % ["ok" if ok else "FAILED", ",".join(PackedStringArray(zooms.map(func(x: int) -> String: return str(x)))), mean_ms, worst_p99, drawn, out["renderer"], _bars, gpu_ms])
 	_quit(0 if ok else 1)
 
 
@@ -680,6 +710,9 @@ func _summary(dur: float, before: Dictionary, after: Dictionary) -> Dictionary:
 		"read_ms_p99": snappedf(_p99(_rec_read), 0.001),
 		"script_ms_mean": snappedf(_mean(_rec_script), 0.001),
 		"script_ms_p99": snappedf(_p99(_rec_script), 0.001),
+		"render_cpu_ms_mean": snappedf(_mean(_rec_render_cpu), 0.001),
+		"render_gpu_ms_mean": snappedf(_mean(_rec_render_gpu), 0.001),
+		"render_gpu_ms_p99": snappedf(_p99(_rec_render_gpu), 0.001),
 		"monsters_drawn_mean": roundi(_mean_i(_rec_monsters)),
 		"monsters_drawn_max": _max_i(_rec_monsters),
 		"players_drawn_mean": roundi(_mean_i(_rec_players)),
@@ -692,6 +725,20 @@ func _summary(dur: float, before: Dictionary, after: Dictionary) -> Dictionary:
 		"hash_checks_passed": int(after.get("hash_checks_passed", 0)) - int(before.get("hash_checks_passed", 0)),
 		"hash_checks_failed": int(after.get("hash_checks_failed", 0)) - int(before.get("hash_checks_failed", 0)),
 	}
+
+
+## This process's CPU time so far (ms, user + system, every thread: the software renderer's and the worker's
+## too), from /proc/self/stat (Linux, 100 ticks a second). On a machine shared with other work the wall-clock frame
+## swings with the load; the CPU a frame costs does not. 0 where there is no /proc.
+static func cpu_ms() -> float:
+	var f := FileAccess.open("/proc/self/stat", FileAccess.READ)
+	if f == null:
+		return 0.0
+	var line: String = f.get_line()
+	var rest: PackedStringArray = line.substr(line.rfind(")") + 2).split(" ")
+	if rest.size() < 13:
+		return 0.0
+	return (float(rest[11]) + float(rest[12])) * 10.0
 
 
 func _mean(a: PackedFloat32Array) -> float:

@@ -32,7 +32,7 @@ func build() -> void:
 	name_edit.size = Vector2(280, 32)
 	name_edit.max_length = 16
 	name_edit.focus_mode = Control.FOCUS_ALL
-	name_edit.placeholder_text = "a hero's name"
+	name_edit.placeholder_text = "A hero's name"
 	name_edit.text_submitted.connect(func(_t: String) -> void: challenge(name_edit.text))
 	body.add_child(name_edit)
 	add_button("CHALLENGE", "challenge", func() -> void: challenge(name_edit.text), body, Vector2(292, 74), Vector2(150, 32))
@@ -94,7 +94,7 @@ func _show() -> void:
 			near_list.select(i)
 			challenge(n))
 	if near_list.item_count == 0:
-		near_list.add_item("NO ONE ELSE STANDS IN THIS PLACE")
+		near_list.add_item("No one else stands here.")
 		near_list.set_item_disabled(0, true)
 		near_list.set_item_selectable(0, false)
 	if shell.duel.is_empty():

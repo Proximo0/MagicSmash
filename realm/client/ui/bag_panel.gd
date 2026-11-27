@@ -38,7 +38,7 @@ func paint_body(inner: Rect2) -> void:
 			UiKit.text(self, r.position + Vector2(108, 9), GameNames.item_name(it), 13, GameNames.rarity_colour(int(it["rarity"])))
 			button("off:%d" % int(it["id"]), Rect2(r.end.x - 90, r.position.y + 4, 84, 28), "TAKE OFF", not busy, false, 11)
 		else:
-			UiKit.text(self, r.position + Vector2(108, 9), "nothing", 12, Color(0.4, 0.38, 0.34))
+			UiKit.text(self, r.position + Vector2(108, 9), "Nothing", 12, Color(0.4, 0.38, 0.34))
 	var it2: Dictionary = shell.item_by_id(sel_item)
 	var by: float = y + 22 + 6 * 40.0 + 6
 	if not it2.is_empty() and int(it2["place"]) == GameNames.PLACE_BAG:

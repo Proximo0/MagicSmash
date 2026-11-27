@@ -52,13 +52,13 @@ func _bag_things() -> Array[Dictionary]:
 
 func paint_body(inner: Rect2) -> void:
 	var x: float = inner.position.x
-	var y: float = inner.position.y - 10
+	var y: float = inner.position.y
 	var h: Dictionary = shell.house
 	if h.is_empty():
-		UiKit.text(self, Vector2(x, y), "YOU ARE NOT IN A HOUSE", 14, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x, y), "You are not in a house.", 14, UiKit.BONE_DIM)
 		return
-	var nm: String = String(h["name"]) if not String(h["name"]).is_empty() else "A HOUSE"
-	UiKit.text(self, Vector2(x, y), "%s  OF %s   DOOR: %s" % [nm, String(h["owner"]), HomeMap.RULE_NAMES[int(h["rule"])]], 14, UiKit.BONE)
+	var nm: String = String(h["name"]) if not String(h["name"]).is_empty() else "THE HOUSE OF %s" % String(h["owner"])
+	UiKit.text(self, Vector2(x, y), "%s  ·  DOOR %s" % [nm, HomeMap.RULE_NAMES[int(h["rule"])]], 14, UiKit.BONE)
 	# The two rooms and the grid.
 	var rooms: Array[String] = ["DOWNSTAIRS", "UPSTAIRS"]
 	for i in 2:
@@ -83,7 +83,7 @@ func paint_body(inner: Rect2) -> void:
 	if _mine():
 		_mine_side(rx, y, rw)
 	else:
-		UiKit.text(self, Vector2(rx, y), "YOU ARE A VISITOR HERE.", 13, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(rx, y), "You are a visitor here.", 13, UiKit.BONE_DIM)
 	_book(rx, y + (0.0 if not _mine() else 262.0), rw)
 
 
@@ -101,12 +101,12 @@ func _mine_side(rx: float, y: float, rw: float) -> void:
 		HomeDraw.draw_thing(self, int(it["base"]), int(it["rarity"]), r.position + Vector2(14, 11), 20.0)
 		UiKit.text(self, r.position + Vector2(28, 3), HomeMap.thing_name(int(it["base"])), 11, UiKit.BONE)
 	if things.is_empty():
-		UiKit.text(self, Vector2(rx, y + 20), "NONE: THE CARPENTER MAKES SOME", 11, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(rx, y + 20), "None yet. The carpenter makes them.", 11, UiKit.BONE_DIM)
 	button("pickup", Rect2(rx + rw - 150, y + 70, 150, 24), "PICK UP", in_house and selected != 0 and not busy, false, 12)
 	# The carpenter.
 	UiKit.text(self, Vector2(rx, y + 74), "THE CARPENTER", 12, UiKit.GOLD)
 	for i in RECIPE_TABS.size():
-		button("tab:%d" % i, Rect2(rx + i * 58.0, y + 98, 54, 22), RECIPE_TABS[i], true, i == tab, 11)
+		button("tab:%d" % i, Rect2(rx + i * 44.0, y + 98, 40 if i < 6 else 74, 22), RECIPE_TABS[i], true, i == tab, 11)
 	var shown: Array[Dictionary] = _tab_recipes()
 	for i in mini(shown.size(), 8):
 		var rc: Dictionary = shown[i]
@@ -146,7 +146,7 @@ func _book(rx: float, y: float, rw: float) -> void:
 		if _mine():
 			button("wipe:%d" % int(e["id"]), Rect2(r.end.x - 44, r.position.y, 44, 18), "WIPE", not busy, false, 9)
 	if book.is_empty():
-		UiKit.text(self, Vector2(rx, y + 20), "NO ONE HAS SIGNED YET", 11, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(rx, y + 20), "No one has signed yet.", 11, UiKit.BONE_DIM)
 	if not _mine():
 		var box := Rect2(rx, y + 88, rw - 70, 24)
 		hit("typebox", box)

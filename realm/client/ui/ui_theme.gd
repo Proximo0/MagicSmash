@@ -27,7 +27,7 @@ static func _box(fill: Color, edge: Color, width: int = 1, pad: int = 6) -> Styl
 static func _make() -> Theme:
 	var t := Theme.new()
 	t.default_font = UiKit.font()
-	t.default_font_size = 14
+	t.default_font_size = UiKit.px(14)
 	var ink := Color(0.065, 0.054, 0.062, 0.98)
 	var focus: StyleBoxFlat = _box(Color(0, 0, 0, 0), UiKit.GOLD, 2, 2)
 	for c in ["Button", "OptionButton", "CheckBox"]:

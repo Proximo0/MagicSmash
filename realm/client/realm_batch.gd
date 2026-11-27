@@ -14,20 +14,33 @@ const PAD: int = 1
 const MAX_FRAMES: int = 256
 ## A shelf of the atlas is at most this wide (a texture is at most 16,384 px a side).
 const ATLAS_W: int = 4096
+## The largest texture side a renderer is promised.
+const MAX_TEXTURE: int = 16384
 ## The item's culling rectangle is not computed from the buffer: cover the whole field and beyond.
 const FIELD_RECT: Rect2 = Rect2(-512, -512, 17408, 17408)
 const SHADER: Shader = preload("res://figures.gdshader")
 const SHADOW_SHADER: Shader = preload("res://figures_shadow.gdshader")
+const BAR_SHADER: Shader = preload("res://figures_bar.gdshader")
 
 var material: ShaderMaterial = ShaderMaterial.new()
 ## The blob shadow's material when some entry hovers, else null (figures_shadow.gdshader); `_shadows` are its nodes.
 var shadow_material: ShaderMaterial = null
 var _shadows: Array[MultiMeshInstance2D] = []
+## The health bars' material when the batch has bars (the monsters'), else null (figures_bar.gdshader); `_bars`
+## are its nodes, drawn after the figures from their own two MultiMeshes (`fill_bars`: RealmLink.bar_buffer, the
+## barred monsters near the hero only, so a full horde does not cost the bar pass every figure).
+var bar_material: ShaderMaterial = null
+var _bars: Array[MultiMeshInstance2D] = []
+var _bar_caps: PackedInt32Array = PackedInt32Array([0, 0])
+var _bar_front: int = 0
+## Bars in the last bar buffer.
+var bar_count: int = 0
 ## Figures in the last buffer.
 var count: int = 0
 var _nodes: Array[MultiMeshInstance2D] = []
 var _caps: PackedInt32Array = PackedInt32Array([0, 0])
 var _front: int = 0
+var _bars_on: bool = true
 
 
 ## Where each picture goes in the atlas: shelf packing, strips left to right in entry order, a new shelf (row) when
@@ -60,7 +73,8 @@ static func layout(sizes: Array[Vector2i], max_w: int = ATLAS_W) -> Dictionary:
 ## `strips`: also pack each entry's `atk`, `hit` and `die` strips (`atk_n` etc. frames) as extra entries after the
 ## main ones, entry `entries.size() + 3 * kind + (0 atk, 1 hit, 2 die)`, where the shader finds them by the
 ## instance's state; a missing strip is an entry of anims 0 (the shader falls back to the walk strip).
-func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = true, strips: bool = false) -> void:
+## `bars`: draw health bars over the hurt and the ranked (draw.rs `with_bar`), from the same buffers.
+func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = true, strips: bool = false, bars: bool = false) -> void:
 	var cell := Vector2i.ZERO
 	var all: Array[Dictionary] = entries.duplicate()
 	if strips:
@@ -78,7 +92,14 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 		var t: Texture2D = e["tex"]
 		cell = cell.max(Vector2i(t.get_width() / int(e["anim"]), t.get_height()))
 		sizes.append(Vector2i(t.get_width(), t.get_height()))
+	# Shelves 4,096 px wide unless that makes the atlas taller than a texture may be (16,384): then wider shelves.
+	# (27 Nov: the bosses' strips made the monsters' atlas 5,506 x 16,789, which no renderer takes: every monster
+	# was drawn as a black box.)
 	var lay: Dictionary = layout(sizes)
+	var shelf_w: int = ATLAS_W
+	while (lay["size"] as Vector2i).y > MAX_TEXTURE and shelf_w < MAX_TEXTURE:
+		shelf_w *= 2
+		lay = layout(sizes, shelf_w)
 	var atlas_size: Vector2i = lay["size"]
 	var places: Array[Vector2i] = []
 	places.assign(lay["at"])
@@ -134,6 +155,13 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 		shadow_material = ShaderMaterial.new()
 		shadow_material.shader = SHADOW_SHADER
 		shadow_material.set_shader_parameter("info", info)
+	material.set_shader_parameter("bars", 1.0 if bars else 0.0)
+	if bars:
+		bar_material = ShaderMaterial.new()
+		bar_material.shader = BAR_SHADER
+		bar_material.set_shader_parameter("cell", Vector2(cell))
+		bar_material.set_shader_parameter("rects", rects)
+		bar_material.set_shader_parameter("info", info)
 	for k in 2:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_2D
@@ -158,6 +186,21 @@ func _init(parent: Node, entries: Array[Dictionary], z: int, bob_stills: bool = 
 			parent.add_child(sh)
 			RenderingServer.canvas_item_set_custom_rect(sh.get_canvas_item(), true, FIELD_RECT)
 			_shadows.append(sh)
+	# The bars after both figure nodes, so every bar is drawn over every figure of the batch.
+	for k in (2 if bars else 0):
+		var bm := MultiMesh.new()
+		bm.transform_format = MultiMesh.TRANSFORM_2D
+		bm.use_colors = true
+		bm.use_custom_data = true
+		bm.mesh = quad
+		var bn := MultiMeshInstance2D.new()
+		bn.multimesh = bm
+		bn.material = bar_material
+		bn.z_index = z
+		bn.visible = false
+		parent.add_child(bn)
+		RenderingServer.canvas_item_set_custom_rect(bn.get_canvas_item(), true, FIELD_RECT)
+		_bars.append(bn)
 
 
 ## Takes a buffer from RealmLink (`monster_buffer` or `player_buffer`).
@@ -180,11 +223,43 @@ func fill(buf: PackedFloat32Array) -> void:
 	_front = back
 
 
+## Takes the bars' buffer (RealmLink.bar_buffer: the same 16 floats a figure as `fill`'s, only the barred ones).
+func fill_bars(buf: PackedFloat32Array) -> void:
+	if _bars.is_empty():
+		return
+	var back: int = 1 - _bar_front
+	var mm: MultiMesh = _bars[back].multimesh
+	bar_count = buf.size() / STRIDE
+	if bar_count > _bar_caps[back]:
+		_bar_caps[back] = maxi(bar_count + bar_count / 2, 64)
+		mm.instance_count = _bar_caps[back]
+	if bar_count > 0:
+		buf.resize(_bar_caps[back] * STRIDE)
+		mm.buffer = buf
+	mm.visible_instance_count = bar_count
+	_bars[back].visible = _bars_on
+	_bars[_bar_front].visible = false
+	_bar_front = back
+
+
 ## 0 at a tick's arrival to 1 a tick later: how far each figure has glided from its previous position.
 func set_blend(a: float) -> void:
 	material.set_shader_parameter("blend", a)
 	if shadow_material != null:
 		shadow_material.set_shader_parameter("blend", a)
+	if bar_material != null:
+		bar_material.set_shader_parameter("blend", a)
+
+
+## Health bars on or off (a hidden node costs nothing); `every` draws one on every figure of the bar buffer, even
+## a whole one (the bench feeds it the whole monster buffer for the worst case).
+func set_bars(on: bool, every: bool = false) -> void:
+	_bars_on = on
+	if bar_material == null:
+		return
+	bar_material.set_shader_parameter("all_bars", 1.0 if every else 0.0)
+	for k in _bars.size():
+		_bars[k].visible = on and k == _bar_front
 
 
 ## Nearest texels when a picture's texel covers at least a screen pixel, smoothed (mipmaps) when smaller.

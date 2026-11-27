@@ -32,7 +32,7 @@ func build() -> void:
 	for i in 4:
 		tree.set_column_title(i, ["FIELD", "THE TIDE", "THE NEXT BOSS", "HEROES"][i])
 		tree.set_column_expand(i, i == 0)
-		tree.set_column_custom_minimum_width(i, [240, 190, 310, 90][i])
+		tree.set_column_custom_minimum_width(i, [210, 140, 330, 90][i])
 	body.add_child(tree)
 	world_label = label("", Vector2(0, 244), 15, UiKit.GOLD, 832)
 	queue_label = label("", Vector2(0, 276), 14, UiKit.BONE, 832)
@@ -84,7 +84,7 @@ func _show() -> void:
 		ti.set_text(3, str(int(heroes_in.get(n, 0))))
 		ti.set_text_alignment(3, HORIZONTAL_ALIGNMENT_RIGHT)
 	var wf: int = int(board["world_field"])
-	world_label.text = "THE PALE RIDER RIDES IN %s, IN %s" % [GameNames.FIELDS[wf] if wf < GameNames.FIELDS.size() else "THE FIELDS", _secs(int(board["world_in"]))]
+	world_label.text = "THE PALE RIDER COMES TO %s IN %s" % [GameNames.FIELDS[wf] if wf < GameNames.FIELDS.size() else "THE FIELDS", _secs(int(board["world_in"]))]
 	var q: int = int(board["queue"])
 	queue_label.text = ("NO ONE WAITS" if q == 0 else "%d WAIT" % q) + " FOR A PLACE IN A FIELD.  %d VAULT%s OPEN." % [int(board["vaults"]), "" if int(board["vaults"]) == 1 else "S"]
-	clock_label.text = "THE REALM'S CLOCK: %s OLD" % span_text(int(board["clock"]) / TICK_HZ)
+	clock_label.text = "THE REALM HAS STOOD %s" % span_text(int(board["clock"]) / TICK_HZ)

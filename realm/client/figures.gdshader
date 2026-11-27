@@ -37,6 +37,8 @@ uniform vec4 rects[MAX_FRAMES];
 uniform vec4 info[MAX_FRAMES];
 // Where the atk, hit, die strips of kind k start: entry extra_base + 3 * k + state - 1 (their rect width 0: none).
 uniform int extra_base = 0;
+// 1 in the monsters' batch, whose alpha carries the health bar.
+uniform float bars = 0.0;
 
 void vertex() {
 	float zc = INSTANCE_CUSTOM.z + 0.5;
@@ -93,4 +95,9 @@ void vertex() {
 	}
 	// A QuadMesh is built for 3D (y up): in 2D its texture would stand on its head.
 	UV = (r.xy + vec2(step_x * r.z, 0.0) + vec2(UV.x, 1.0 - UV.y) * r.zw) / atlas;
+	// In the monsters' batch a living monster's alpha carries its health bar (figures_bar.gdshader, draw.rs
+	// `with_bar`): the figure itself is opaque. A ghost's (state 3) alpha is its fade.
+	if (bars > 0.5 && state < 2.5) {
+		COLOR.a = 1.0;
+	}
 }

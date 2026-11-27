@@ -9,8 +9,13 @@ extends Control
 
 const W: float = 480.0
 const H: float = 270.0
-const FONT: int = 6
-const FONT_SMALL: int = 5
+## The faces, each at one canvas px a design px (3 screen px in the 1440 x 810 window): BODY Jersey10 (capitals
+## 10 px) for every word and number, MID Jersey15 (15) for a cooldown's seconds and a potion's letter, GOTHIC_S
+## Jacquard12 (12) for a boss's name, GOTHIC Jacquard24 (24) for the downed and joining words.
+enum { BODY, MID, GOTHIC_S, GOTHIC }
+const STYLES: Array = ["jersey10", "jersey15", "jacquard12", "jacquard24"]
+## From one line of BODY text to the next.
+const LINE: float = 14.0
 const TICKS_PER_S: float = 20.0
 ## The tide's clock from the field's tick, rules section 8: one begins every 30 minutes and lasts 5. (A
 ## stand-in until the core's tide job gives its own clock; `world.tide` decides which side it is on.)
@@ -28,13 +33,15 @@ const PANEL: Color = Color(0.04, 0.03, 0.06, 0.72)
 const EDGE: Color = Color(0.55, 0.45, 0.3, 0.9)
 const TEXT: Color = Color(0.92, 0.92, 0.85)
 const DIM: Color = Color(0.6, 0.6, 0.62)
+const GOOD: Color = Color(0.55, 0.85, 0.5)
 
 var hero: Dictionary = {}
 var world: Dictionary = {}
 var debug_text: String = ""
 ## A line over the field (the shell's warning before leaving by Esc); empty draws nothing.
 var notice: String = ""
-var show_debug: bool = true
+## The numbers panel, a developer's view: only with F3 or --debug=1.
+var show_debug: bool = false
 ## Screenshots and tests: show a tide or a boss the core has not made yet.
 var fake_tide: bool = false
 var fake_boss: bool = false
@@ -43,7 +50,6 @@ var near_stone: int = -1
 var rite_held: bool = false
 ## Where the offered cards were drawn this frame (Rect2 each), for clicks.
 var card_rects: Array[Rect2] = []
-var _font: Font = ThemeDB.fallback_font
 
 
 func _ready() -> void:
@@ -66,16 +72,39 @@ func card_at(p: Vector2) -> int:
 	return -1
 
 
-func _txt(p: Vector2, s: String, col: Color = TEXT, size: int = FONT) -> void:
-	# `p` is the top left of the text.
-	var base: Vector2 = p + Vector2(0, size * 0.85)
-	_font.draw_string(get_canvas_item(), base + Vector2(0.5, 0.5), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.8))
-	_font.draw_string(get_canvas_item(), base, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
+func _txt(p: Vector2, s: String, col: Color = TEXT, style: int = BODY) -> void:
+	# `p` is the top left of the capitals. One design pixel of shadow, whole pixels only.
+	var n: String = STYLES[style]
+	var f: Font = UiKit.face(n)
+	var fs: int = UiKit.crisp(n)
+	if style >= GOTHIC_S:
+		s = UiKit.title_case(s)
+	var base: Vector2 = (p + Vector2(0, UiKit.cap(n))).round()
+	f.draw_string(get_canvas_item(), base + Vector2(1, 1), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.85))
+	f.draw_string(get_canvas_item(), base, s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
-func _ctxt(center_x: float, y: float, s: String, col: Color = TEXT, size: int = FONT) -> void:
-	var w: float = _font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	_txt(Vector2(center_x - w / 2.0, y), s, col, size)
+func _width(s: String, style: int = BODY) -> float:
+	var n: String = STYLES[style]
+	if style >= GOTHIC_S:
+		s = UiKit.title_case(s)
+	return UiKit.face(n).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.crisp(n)).x
+
+
+## `s` cut short (no dots: a name is still read by its start) until it fits in `w` px.
+func _fit(s: String, w: float, style: int = BODY) -> String:
+	var t: String = s
+	while t.length() > 1 and _width(t, style) > w:
+		t = t.left(t.length() - 1)
+	return t
+
+
+func _ctxt(center_x: float, y: float, s: String, col: Color = TEXT, style: int = BODY) -> void:
+	_txt(Vector2(roundf(center_x - _width(s, style) / 2.0), y), s, col, style)
+
+
+func _rtxt(right_x: float, y: float, s: String, col: Color = TEXT, style: int = BODY) -> void:
+	_txt(Vector2(right_x - _width(s, style), y), s, col, style)
 
 
 func _box(r: Rect2, fill: Color = PANEL, edge: Color = EDGE) -> void:
@@ -85,7 +114,7 @@ func _box(r: Rect2, fill: Color = PANEL, edge: Color = EDGE) -> void:
 
 func _bar(r: Rect2, frac: float, col: Color) -> void:
 	draw_rect(r, Color(0, 0, 0, 0.7))
-	draw_rect(Rect2(r.position, Vector2(r.size.x * clampf(frac, 0.0, 1.0), r.size.y)), col)
+	draw_rect(Rect2(r.position, Vector2(roundf(r.size.x * clampf(frac, 0.0, 1.0)), r.size.y)), col)
 	draw_rect(r, EDGE, false, 1.0)
 
 
@@ -98,15 +127,32 @@ func _draw() -> void:
 	card_rects.clear()
 	if show_debug and not debug_text.is_empty():
 		var lines: PackedStringArray = debug_text.split("\n")
-		_box(Rect2(2, 2, 130, 4 + lines.size() * 7.0), Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
+		var dw: float = 0.0
+		for l in lines:
+			dw = maxf(dw, _width(l))
+		_box(Rect2(2, 60, dw + 8.0, 4 + lines.size() * LINE), Color(0, 0, 0, 0.6), Color(0, 0, 0, 0))
 		for i in lines.size():
-			_txt(Vector2(5, 4 + i * 7.0), lines[i], Color(0.85, 0.95, 0.8), FONT_SMALL)
+			_txt(Vector2(6, 63 + i * LINE), lines[i], Color(0.85, 0.95, 0.8))
 	_draw_world_clock()
 	if not notice.is_empty():
-		_box(Rect2(40, 40, W - 80, 14), Color(0.2, 0.04, 0.04, 0.85), EDGE)
-		_ctxt(W / 2.0, 43, notice, TEXT, FONT_SMALL)
+		# One line, or two split at the space nearest the middle when it is wider than the screen allows.
+		var lines: PackedStringArray = [notice]
+		if _width(notice) > W - 40.0 and notice.contains(" "):
+			var mid: int = notice.length() / 2
+			var cut: int = notice.rfind(" ", mid)
+			var cut2: int = notice.find(" ", mid)
+			if cut < 0 or (cut2 >= 0 and cut2 - mid < mid - cut):
+				cut = cut2
+			lines = [notice.left(cut), notice.substr(cut + 1)]
+		var nw: float = 0.0
+		for l in lines:
+			nw = maxf(nw, _width(l))
+		nw = minf(nw + 16.0, W - 20.0)
+		_box(Rect2(roundf(W / 2.0 - nw / 2.0), 58, roundf(nw), 4 + lines.size() * LINE), Color(0.2, 0.04, 0.04, 0.88), EDGE)
+		for i in lines.size():
+			_ctxt(W / 2.0, 62 + i * LINE, lines[i], TEXT)
 	if hero.is_empty():
-		_ctxt(W / 2.0, H / 2.0, "JOINING THE FIELD", TEXT, 9)
+		_ctxt(W / 2.0, H / 2.0 - 14, "Entering the field", TEXT, GOTHIC)
 		return
 	if int(hero["downed"]) > 0 or not bool(hero["alive"]):
 		_draw_downed()
@@ -119,76 +165,80 @@ func _draw() -> void:
 	_draw_mark()
 
 
+## Bottom left: her class or calling and its level, health, and the field level's XP, numbers inside the bars.
 func _draw_vitals() -> void:
 	var hp: int = int(hero["health"])
 	var mx: int = maxi(int(hero["max_health"]), 1)
 	var frac: float = float(hp) / float(mx)
-	var cls: String = String(RealmLink.class_name(int(hero["class"])))
 	var job: int = int(hero["job"])
-	var title: String = "%s %d" % [cls, int(hero["class_level"])]
-	if job >= 0:
-		title += "  JOB %d" % job
-	_box(Rect2(3, H - 41, 126, 38))
-	_txt(Vector2(7, H - 39), title, DIM, FONT_SMALL)
-	_bar(Rect2(7, H - 32, 118, 8), frac, Color(0.75, 0.15, 0.15) if frac > 0.3 else Color(0.95, 0.35, 0.1))
-	_ctxt(66, H - 31.5, "%d / %d" % [hp, mx], TEXT, FONT_SMALL)
+	var who: String = GameNames.job_name_of(job) if job >= 0 else String(RealmLink.class_name(int(hero["class"])))
+	_box(Rect2(3, H - 55, 130, 52))
+	_txt(Vector2(7, H - 52), _fit("%s %d" % [who, int(hero["class_level"])], 80.0), Color(1.0, 0.85, 0.5))
+	_rtxt(129, H - 52, "LV %d" % int(hero["level"]), DIM)
+	_bar(Rect2(7, H - 38, 122, 14), frac, Color(0.75, 0.15, 0.15) if frac > 0.3 else Color(0.95, 0.35, 0.1))
+	_ctxt(68, H - 36, "%d / %d" % [hp, mx], TEXT)
 	var need: int = maxi(int(hero["xp_need"]), 1)
-	_bar(Rect2(7, H - 22, 118, 5), float(hero["xp"]) / float(need), Color(0.35, 0.55, 0.9))
-	_txt(Vector2(7, H - 14), "FIELD LEVEL %d   XP %d/%d" % [int(hero["level"]), int(hero["xp"]), need], DIM, FONT_SMALL)
+	_bar(Rect2(7, H - 21, 122, 14), float(hero["xp"]) / float(need), Color(0.25, 0.4, 0.75))
+	_ctxt(68, H - 19, "%d / %d" % [int(hero["xp"]), need], Color(0.85, 0.9, 1.0))
 
 
 func _draw_skills() -> void:
 	var skills: PackedInt32Array = hero["skills"]
-	var x0: float = W / 2.0 - 50.0
+	var x0: float = 137.0
 	for slot in 3:
 		var id: int = skills[slot * 4]
-		var r := Rect2(x0 + slot * 33, H - 32, 30, 25)
+		var r := Rect2(x0 + slot * 87, H - 55, 84, 52)
 		_box(r)
+		var cx: float = r.position.x + 42.0
 		if id < 0:
-			_ctxt(r.position.x + 15.0, r.position.y + 6, "LV", DIM, FONT_SMALL)
-			_ctxt(r.position.x + 15.0, r.position.y + 13, str(SKILL_LEVELS[slot]), DIM, FONT_SMALL)
+			_ctxt(cx, r.position.y + 4, "SEALED", DIM)
+			_ctxt(cx, r.position.y + 19, "LEVEL %d" % SKILL_LEVELS[slot], DIM)
 		else:
 			var info: Dictionary = RealmLink.skill_info(id)
-			var name: String = String(info["name"])
-			var words: PackedStringArray = name.split(" ")
-			_ctxt(r.position.x + 15.0, r.position.y + 3, words[0].left(9), TEXT, FONT_SMALL)
+			var whole: String = String(info["name"])
+			var word: String = whole if _width(whole) <= 80.0 else _fit(whole.split(" ")[0], 80.0)
 			var rank: int = (skills[slot * 4 + 3] - 100) / 15 + 1
-			_ctxt(r.position.x + 15.0, r.position.y + 9, "RANK %d" % rank, DIM, FONT_SMALL)
 			var left: int = skills[slot * 4 + 1]
 			var full: int = maxi(skills[slot * 4 + 2], 1)
 			if left > 0:
+				# Cooling: the shade falls as it readies, the seconds left large where the rank was.
 				var f: float = clampf(float(left) / float(full), 0.0, 1.0)
-				draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 28, 23.0 * f), Color(0, 0, 0, 0.65))
-				_ctxt(r.position.x + 15.0, r.position.y + 14, "%d" % ceili(float(left) / TICKS_PER_S), Color(1, 0.9, 0.6), 8)
+				draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 82, roundf(50.0 * f)), Color(0, 0, 0, 0.7))
+				_ctxt(cx, r.position.y + 4, word, DIM)
+				_ctxt(cx, r.position.y + 17, "%d" % ceili(float(left) / TICKS_PER_S), Color(1, 0.9, 0.6), MID)
 			else:
 				draw_rect(r.grow(-1.0), Color(0.9, 0.8, 0.4, 0.1))
-		_ctxt(r.position.x + 15.0, r.position.y + 26, SKILL_KEYS[slot], DIM, 4)
+				_ctxt(cx, r.position.y + 4, word, TEXT)
+				_ctxt(cx, r.position.y + 19, "RANK %d" % rank, DIM)
+		_ctxt(cx, r.position.y + 37, SKILL_KEYS[slot], Color(0.75, 0.65, 0.45))
 
 
 func _draw_potions() -> void:
 	var belt: PackedInt32Array = hero["belt"]
-	var x0: float = W / 2.0 + 56.0
+	var x0: float = 399.0
 	for slot in 3:
 		var id: int = belt[slot * 3]
-		var r := Rect2(x0 + slot * 19, H - 28, 16, 21)
+		var r := Rect2(x0 + slot * 26, H - 55, 23, 52)
 		_box(r)
+		var cx: float = r.position.x + 12.0
 		if id < 0:
-			_ctxt(r.position.x + 8, r.position.y + 6, "-", DIM, FONT_SMALL)
+			_ctxt(cx, r.position.y + 12, "-", DIM)
 		else:
 			var name: String = String(RealmLink.potion_name(id))
-			_ctxt(r.position.x + 8, r.position.y + 2, name.left(1), TEXT, 8)
-			_ctxt(r.position.x + 8, r.position.y + 12, "x%d" % belt[slot * 3 + 1], Color(0.8, 0.9, 1.0), FONT_SMALL)
+			_ctxt(cx, r.position.y + 4, name.left(1), TEXT, MID)
+			_ctxt(cx, r.position.y + 23, "x%d" % belt[slot * 3 + 1], Color(0.8, 0.9, 1.0))
 			var rest: int = belt[slot * 3 + 2]
 			if rest > 0:
-				draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 14, 19.0 * clampf(float(rest) / 200.0, 0.0, 1.0)), Color(0, 0, 0, 0.6))
-		_ctxt(r.position.x + 8, r.position.y + 22, POTION_KEYS[slot], DIM, 4)
+				draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 21, roundf(50.0 * clampf(float(rest) / 200.0, 0.0, 1.0))), Color(0, 0, 0, 0.6))
+		_ctxt(cx, r.position.y + 37, POTION_KEYS[slot], Color(0.75, 0.65, 0.45))
 
 
+## Top right: the coin she carries and whether it is banked yet.
 func _draw_haul() -> void:
-	_box(Rect2(W - 92, 3, 89, 20))
-	_txt(Vector2(W - 88, 10), "HAUL  COIN %d" % int(hero["coin"]), Color(1.0, 0.85, 0.35), FONT_SMALL)
-	var banked: String = "BANKED AT STONE %d" % (int(hero["waystone"]) + 1) if bool(hero["banked"]) else "NOT BANKED"
-	_txt(Vector2(W - 88, 18), banked, DIM, FONT_SMALL)
+	_box(Rect2(W - 122, 3, 119, 32))
+	_txt(Vector2(W - 117, 6), "COIN %d" % int(hero["coin"]), Color(1.0, 0.85, 0.35))
+	var banked: String = "SAFE AT STONE %d" % (int(hero["waystone"]) + 1) if bool(hero["banked"]) else "NOT YET BANKED"
+	_txt(Vector2(W - 117, 20), banked, GOOD if bool(hero["banked"]) else DIM)
 
 
 func _draw_offer() -> void:
@@ -200,43 +250,46 @@ func _draw_offer() -> void:
 	var owed: int = int(hero["owed"])
 	if n == 0:
 		if owed > 0:
-			_ctxt(W / 2.0, H - 48, "CARD DRAW COMING (%d)" % owed, DIM, FONT_SMALL)
+			_ctxt(W / 2.0, H - 72, "A DRAW AWAITS (%d)" % owed, DIM)
 		return
 	var copies: PackedInt32Array = hero["copies"]
-	var w: float = 76.0
-	var x0: float = W / 2.0 - (n * (w + 4.0) - 4.0) / 2.0
-	var y: float = H - 84.0
-	_ctxt(W / 2.0, y - 9, "CHOOSE A CARD (%d QUEUED)" % owed, Color(1.0, 0.9, 0.5), FONT_SMALL)
+	var w: float = 104.0
+	var x0: float = roundf(W / 2.0 - (n * (w + 4.0) - 4.0) / 2.0)
+	var y: float = H - 125.0
+	_ctxt(W / 2.0, y - 15, "CHOOSE A CARD" if owed <= 1 else "CHOOSE A CARD  (%d MORE)" % (owed - 1), Color(1.0, 0.9, 0.5))
 	for i in 4:
 		if offer[i] <= 0:
 			continue
-		var r := Rect2(x0 + i * (w + 4.0), y, w, 34)
+		var r := Rect2(x0 + card_rects.size() * (w + 4.0), y, w, 62)
 		card_rects.append(r)
-		_box(r, Color(0.1, 0.07, 0.14, 0.88), Color(0.9, 0.75, 0.35))
+		_box(r, Color(0.1, 0.07, 0.14, 0.9), Color(0.9, 0.75, 0.35))
 		var name: String = String(RealmLink.card_name(offer[i]))
 		var parts: PackedStringArray = name.split(" ", true, 2)
 		var l1: String = " ".join(parts.slice(0, mini(2, parts.size())))
 		var l2: String = parts[2] if parts.size() > 2 else ""
-		_ctxt(r.position.x + w / 2.0, r.position.y + 6, l1, TEXT, FONT_SMALL)
-		_ctxt(r.position.x + w / 2.0, r.position.y + 13, l2, TEXT, FONT_SMALL)
-		_ctxt(r.position.x + w / 2.0, r.position.y + 22, "HAVE %d / 5" % copies[offer[i]], DIM, FONT_SMALL)
-		_ctxt(r.position.x + w / 2.0, r.position.y + 30, PICK_KEYS[i], Color(1, 0.9, 0.5), FONT_SMALL)
+		var cx: float = r.position.x + w / 2.0
+		_ctxt(cx, r.position.y + 5, _fit(l1, w - 6.0), TEXT)
+		_ctxt(cx, r.position.y + 18, _fit(l2, w - 6.0), TEXT)
+		_ctxt(cx, r.position.y + 33, "OWNED %d / 5" % copies[offer[i]], DIM)
+		_ctxt(cx, r.position.y + 47, PICK_KEYS[i], Color(1, 0.9, 0.5))
 
 
 func _draw_banking() -> void:
 	var hold: int = int(hero["hold"])
+	var y: float = H / 2.0 + 16.0
 	if hold > 0 and rite_held:
-		_bar(Rect2(W / 2.0 - 30, H / 2.0 + 24, 60, 5), float(hold) / MARK_HOLD_TICKS, MARK_RED)
-		_ctxt(W / 2.0, H / 2.0 + 17, "THE RITE OF THE BLOOD MARK", MARK_RED, FONT_SMALL)
+		_ctxt(W / 2.0, y, "THE RITE OF THE BLOOD MARK", MARK_RED)
+		_bar(Rect2(W / 2.0 - 40, y + 14, 80, 5), float(hold) / MARK_HOLD_TICKS, MARK_RED)
 	elif hold > 0:
-		_bar(Rect2(W / 2.0 - 30, H / 2.0 + 24, 60, 5), float(hold) / BANK_HOLD_TICKS, Color(1.0, 0.85, 0.3))
-		_ctxt(W / 2.0, H / 2.0 + 17, "BANKING", Color(1.0, 0.85, 0.3), FONT_SMALL)
+		_ctxt(W / 2.0, y, "BANKING THE SPOILS", Color(1.0, 0.85, 0.3))
+		_bar(Rect2(W / 2.0 - 40, y + 14, 80, 5), float(hold) / BANK_HOLD_TICKS, Color(1.0, 0.85, 0.3))
 	elif near_stone >= 0 and bool(hero["alive"]):
-		var bank: String = "HOLD %s: BANK AND LEAVE" % _key("interact")
-		var rite: String = "HOLD %s: %s THE BLOOD MARK" % [_key("mark"), "PUT DOWN" if marked() else "TAKE"]
-		_box(Rect2(W / 2.0 - 70, H / 2.0 + 14, 140, 18))
-		_ctxt(W / 2.0, H / 2.0 + 15, bank, TEXT, FONT_SMALL)
-		_ctxt(W / 2.0, H / 2.0 + 23, rite, MARK_RED if not marked() else DIM, FONT_SMALL)
+		var bank: String = "HOLD %s  BANK AND LEAVE" % _key("interact")
+		var rite: String = "HOLD %s  %s THE BLOOD MARK" % [_key("mark"), "LAY DOWN" if marked() else "TAKE UP"]
+		var bw: float = maxf(_width(bank), _width(rite)) + 14.0
+		_box(Rect2(roundf(W / 2.0 - bw / 2.0), y - 4, roundf(bw), 32))
+		_ctxt(W / 2.0, y, bank, TEXT)
+		_ctxt(W / 2.0, y + 14, rite, MARK_RED if not marked() else DIM)
 
 
 ## Is she carrying the BLOOD MARK?
@@ -252,17 +305,17 @@ static func _key(action: String) -> String:
 func _draw_mark() -> void:
 	if not marked():
 		return
-	var r := Rect2(3, H - 53, 74, 11)
-	_box(r, Color(0.3, 0.02, 0.03, 0.85), MARK_RED)
-	_txt(r.position + Vector2(4, 2), "BLOOD MARKED", Color(1.0, 0.75, 0.72), FONT_SMALL)
+	var r := Rect2(3, H - 73, 98, 16)
+	_box(r, Color(0.3, 0.02, 0.03, 0.88), MARK_RED)
+	_txt(r.position + Vector2(5, 3), "BLOOD MARKED", Color(1.0, 0.75, 0.72))
 
 
 func _draw_downed() -> void:
 	draw_rect(Rect2(0, 0, W, H), Color(0.45, 0.0, 0.0, 0.22))
 	var secs: int = ceili(float(hero["downed"]) / TICKS_PER_S)
-	_ctxt(W / 2.0, H / 2.0 - 40, "DOWNED  %ds" % secs, Color(1.0, 0.4, 0.35), 12)
-	_ctxt(W / 2.0, H / 2.0 - 26, "AN ALLY WITHIN 40 PX RAISES YOU", DIM, FONT_SMALL)
-	_bar(Rect2(W / 2.0 - 40, H / 2.0 - 18, 80, 5), float(hero["raise_pct"]) / 100.0, Color(0.5, 1.0, 0.65))
+	_ctxt(W / 2.0, H / 2.0 - 76, "Struck down  %d" % secs, Color(1.0, 0.4, 0.35), GOTHIC)
+	_ctxt(W / 2.0, H / 2.0 - 42, "An ally at your side can raise you", TEXT)
+	_bar(Rect2(W / 2.0 - 40, H / 2.0 - 26, 80, 5), float(hero["raise_pct"]) / 100.0, Color(0.5, 1.0, 0.65))
 
 
 func _draw_world_clock() -> void:
@@ -275,7 +328,7 @@ func _draw_world_clock() -> void:
 		var left: int = maxi(TIDE_LEN_TICKS - phase, 0) if not fake_tide else TIDE_LEN_TICKS * 3 / 5
 		if world.has("tide_left") and not fake_tide:
 			left = int(world["tide_left"])
-		s = "TIDE  %s LEFT" % clock(left)
+		s = "THE TIDE  %s" % clock(left)
 		col = Color(1.0, 0.45, 0.35)
 		draw_rect(Rect2(0, 0, W, 3), Color(0.9, 0.15, 0.1, 0.55))
 		draw_rect(Rect2(0, H - 3, W, 3), Color(0.9, 0.15, 0.1, 0.55))
@@ -283,15 +336,16 @@ func _draw_world_clock() -> void:
 		draw_rect(Rect2(W - 3, 0, 3, H), Color(0.9, 0.15, 0.1, 0.55))
 	else:
 		var wait: int = int(world["tide_in"]) if world.has("tide_in") else TIDE_EVERY_TICKS - phase
-		s = "NEXT TIDE %s" % clock(wait)
+		s = "TIDE IN %s" % clock(wait)
 		col = DIM
-	_box(Rect2(W / 2.0 - 45, 3, 90, 11), PANEL if not tide else Color(0.3, 0.04, 0.03, 0.85))
-	_ctxt(W / 2.0, 5.5, s, col, FONT_SMALL)
+	_box(Rect2(W / 2.0 - 55, 3, 110, 17), PANEL if not tide else Color(0.3, 0.04, 0.03, 0.85))
+	_ctxt(W / 2.0, 6, s, col)
 	var boss: Dictionary = world.get("boss", {})
 	if fake_boss and boss.is_empty():
 		boss = {"name": "THE HARVESTER", "health": 61000, "max_health": 80000}
 	if not boss.is_empty():
 		var mx: int = maxi(int(boss["max_health"]), 1)
-		_box(Rect2(W / 2.0 - 80, 17, 160, 14))
-		_ctxt(W / 2.0, 18.5, String(boss["name"]), Color(1.0, 0.75, 0.45), FONT_SMALL)
-		_bar(Rect2(W / 2.0 - 76, 25, 152, 4), float(boss["health"]) / float(mx), Color(0.8, 0.2, 0.55))
+		var frac: float = float(boss["health"]) / float(mx)
+		_box(Rect2(W / 2.0 - 120, 23, 240, 32), PANEL, Color(0.8, 0.2, 0.55))
+		_ctxt(W / 2.0, 26, String(boss["name"]), Color(1.0, 0.75, 0.45), GOTHIC_S)
+		_bar(Rect2(W / 2.0 - 114, 44, 228, 6), frac, Color(0.8, 0.2, 0.55))

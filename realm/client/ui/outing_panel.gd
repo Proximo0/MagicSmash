@@ -9,7 +9,7 @@ var outing: Dictionary = {}
 
 
 func opened() -> void:
-	title = "BACK FROM THE FIELD"
+	title = "THE RETURN"
 	frame_rect = Rect2(260, 120, 440, 280)
 
 

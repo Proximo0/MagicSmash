@@ -32,7 +32,7 @@ func paint_body(inner: Rect2) -> void:
 		return
 	UiKit.text(self, Vector2(x, y + 40), "YOUR BAG", 13, UiKit.BONE_DIM)
 	item_grid("it:", shell.items_at(GameNames.PLACE_BAG), Vector2(x, y + 62), 8, 5, 38.0, sel_item)
-	UiKit.text(self, Vector2(x, y + 62 + 5 * 38 + 6), "gear you wear is not here: take it off first", 11, UiKit.BONE_DIM)
+	UiKit.text(self, Vector2(x, y + 62 + 5 * 38 + 6), "Worn gear is not shown: take it off first.", 11, UiKit.BONE_DIM)
 	var it: Dictionary = shell.item_by_id(sel_item)
 	if it.is_empty() or int(it["place"]) != GameNames.PLACE_BAG:
 		sel_item = 0
@@ -60,13 +60,13 @@ func paint_body(inner: Rect2) -> void:
 			else:
 				var plus: int = int(it["plus"])
 				UiKit.text(self, Vector2(dx, uy), "+%d to +%d" % [plus, plus + 1], 15, UiKit.GOLD)
-				UiKit.text(self, Vector2(dx, uy + 24), "costs %d EMBERS and %s COIN" % [int(c[0]), GameNames.commas(int(c[1]))], 13, UiKit.BONE if (embers >= int(c[0]) and coin >= int(c[1])) else UiKit.BAD)
-				UiKit.text(self, Vector2(dx, uy + 44), "chance %d%%%s" % [GameNames.upgrade_chance(it), "" if GameNames.upgrade_chance(it) == 100 else "  (a failure costs the embers, not the item)"], 12, UiKit.BONE_DIM)
+				UiKit.text(self, Vector2(dx, uy + 24), "COSTS %d EMBERS AND %s COIN" % [int(c[0]), GameNames.commas(int(c[1]))], 13, UiKit.BONE if (embers >= int(c[0]) and coin >= int(c[1])) else UiKit.BAD)
+				UiKit.text(self, Vector2(dx, uy + 44), "CHANCE %d%%%s" % [GameNames.upgrade_chance(it), "" if GameNames.upgrade_chance(it) == 100 else "  (A failure costs the embers, not the item.)"], 12, UiKit.BONE_DIM)
 				button("do", Rect2(dx, uy + 70, 180, 36), "UPGRADE", not busy and embers >= int(c[0]) and coin >= int(c[1]), false, 16)
 		T_REROLL:
 			var c2: Array = GameNames.reroll_cost(it)
 			UiKit.text(self, Vector2(dx, uy), "New lines, the same kind of item.", 13, UiKit.BONE)
-			UiKit.text(self, Vector2(dx, uy + 24), "costs %d EMBERS and %s COIN" % [int(c2[0]), GameNames.commas(int(c2[1]))], 13, UiKit.BONE if (embers >= int(c2[0]) and coin >= int(c2[1])) else UiKit.BAD)
+			UiKit.text(self, Vector2(dx, uy + 24), "COSTS %d EMBERS AND %s COIN" % [int(c2[0]), GameNames.commas(int(c2[1]))], 13, UiKit.BONE if (embers >= int(c2[0]) and coin >= int(c2[1])) else UiKit.BAD)
 			button("do", Rect2(dx, uy + 54, 180, 36), "REROLL", not busy and embers >= int(c2[0]) and coin >= int(c2[1]), false, 16)
 		T_SOCKET:
 			_socket_view(it, dx, uy - 10)
@@ -102,7 +102,7 @@ func _socket_view(it: Dictionary, dx: float, y: float) -> void:
 func _fuse(inner: Rect2) -> void:
 	var x: float = inner.position.x
 	var y: float = inner.position.y + 44
-	UiKit.text(self, Vector2(x, y), "Three runes of a grade fuse into one of the next. The three are gone for good; grade I to II costs %d coin, II to III %d." % [GameNames.FUSE_COIN[0], GameNames.FUSE_COIN[1]], 13, UiKit.BONE_DIM)
+	UiKit.text(self, Vector2(x, y), "Three runes of a grade fuse into one of the next. The three are gone for good; grade I to II costs %d COIN, II to III %d COIN." % [GameNames.FUSE_COIN[0], GameNames.FUSE_COIN[1]], 13, UiKit.BONE_DIM)
 	for stat in 6:
 		var ry: float = y + 34 + stat * 46.0
 		UiKit.text(self, Vector2(x, ry + 8), GameNames.STATS[stat], 15, UiKit.BONE)

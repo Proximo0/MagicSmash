@@ -99,7 +99,7 @@ func _build_write(p: Control) -> void:
 	attach = item_list(Vector2(440, 22), Vector2(392, 240), p)
 	attach.select_mode = ItemList.SELECT_MULTI
 	send_btn = add_button("SEND", "send", func() -> void: send(), p, Vector2(0, 270), Vector2(200, 36))
-	write_note = label("POSTAGE IS TAKEN WHEN IT GOES. THE SERVER NAMES IT.", Vector2(220, 278), 12, UiKit.BONE_DIM, 600, p)
+	write_note = label("Postage is paid when the letter goes.", Vector2(220, 278), 12, UiKit.BONE_DIM, 600, p)
 
 
 func _build_sent(p: Control) -> void:
@@ -253,7 +253,7 @@ func refresh_outbox() -> void:
 	out_id = -1
 	recall_btn.disabled = true
 	_fill_letters(out_list, outbox, "out:", false)
-	out_text.text = "NO LETTER OF YOURS IS ON THE ROAD" if outbox.is_empty() else "%d ON THE ROAD. UNOPENED ONES MAY BE RECALLED." % outbox.size()
+	out_text.text = "No letter of yours is on the road." if outbox.is_empty() else "%d ON THE ROAD. UNOPENED ONES MAY BE RECALLED." % outbox.size()
 
 
 func take() -> void:

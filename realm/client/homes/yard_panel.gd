@@ -80,7 +80,7 @@ func paint_body(inner: Rect2) -> void:
 		UiKit.text(self, Vector2(x + 250 + 200, y + 180 + i * 20.0), GameNames.class_name_of(int(row[1])), 11, UiKit.BONE_DIM)
 		UiKit.text(self, Vector2(inner.end.x, y + 180 + i * 20.0), GameNames.commas(int(row[2])), 12, UiKit.GOLD, HORIZONTAL_ALIGNMENT_RIGHT)
 	if rows.is_empty():
-		UiKit.text(self, Vector2(x + 250, y + 180), "NO ROUND HAS BEEN LONG ENOUGH YET (5 SECONDS)", 11, UiKit.BONE_DIM)
+		UiKit.text(self, Vector2(x + 250, y + 180), "No round has lasted 5 seconds yet.", 11, UiKit.BONE_DIM)
 
 
 func press_body(id: String) -> void:

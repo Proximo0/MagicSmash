@@ -13,17 +13,17 @@ const CLICK_PX: float = 240.0
 
 ## id, name, position, panel, the building's size (px), colour of the stand-in.
 const STATIONS: Array[Dictionary] = [
-	{"id": "trainer", "name": "THE TRAINER", "at": Vector2(2048, 1420), "size": Vector2(150, 96), "col": Color(0.42, 0.2, 0.2), "what": "skills and points"},
-	{"id": "bank", "name": "THE BANK", "at": Vector2(1460, 1760), "size": Vector2(150, 96), "col": Color(0.4, 0.34, 0.16), "what": "deposit and withdraw"},
-	{"id": "smith", "name": "THE SMITH", "at": Vector2(2636, 1760), "size": Vector2(150, 96), "col": Color(0.46, 0.22, 0.1), "what": "salvage, upgrade, reroll, socket, fuse"},
-	{"id": "merchants", "name": "THE MERCHANTS", "at": Vector2(1460, 2336), "size": Vector2(150, 96), "col": Color(0.2, 0.34, 0.3), "what": "potions, embers, gear, selling, the belt"},
-	{"id": "reader", "name": "THE CARD READER", "at": Vector2(2636, 2336), "size": Vector2(150, 96), "col": Color(0.32, 0.2, 0.42), "what": "your deck of cards"},
-	{"id": "market", "name": "THE MARKET", "at": Vector2(1700, 1560), "size": Vector2(150, 96), "col": Color(0.3, 0.3, 0.14), "what": "buy and sell with other heroes"},
-	{"id": "post", "name": "THE POST", "at": Vector2(2396, 1560), "size": Vector2(150, 96), "col": Color(0.22, 0.24, 0.36), "what": "letters and what came back"},
-	{"id": "trade", "name": "THE TRADE TABLE", "at": Vector2(1700, 2536), "size": Vector2(150, 96), "col": Color(0.34, 0.24, 0.2), "what": "trade hand to hand"},
-	{"id": "board", "name": "THE WORLD BOARD", "at": Vector2(2396, 2536), "size": Vector2(150, 96), "col": Color(0.26, 0.2, 0.3), "what": "tides, bosses, the queue"},
-	{"id": "trial", "name": "THE CLASS TRIAL", "at": Vector2(2340, 1290), "size": Vector2(150, 96), "col": Color(0.36, 0.14, 0.14), "what": "the trial alone, for a job at 40"},
-	{"id": "gate", "name": "THE FIELD GATES", "at": Vector2(2048, 2780), "size": Vector2(240, 80), "col": Color(0.2, 0.2, 0.26), "what": "the six fields"}]
+	{"id": "trainer", "name": "THE TRAINER", "at": Vector2(2048, 1420), "size": Vector2(150, 96), "col": Color(0.42, 0.2, 0.2), "what": "Skills and points"},
+	{"id": "bank", "name": "THE BANK", "at": Vector2(1460, 1760), "size": Vector2(150, 96), "col": Color(0.4, 0.34, 0.16), "what": "Deposit and withdraw"},
+	{"id": "smith", "name": "THE SMITH", "at": Vector2(2636, 1760), "size": Vector2(150, 96), "col": Color(0.46, 0.22, 0.1), "what": "Salvage, upgrade, reroll, socket, fuse"},
+	{"id": "merchants", "name": "THE MERCHANTS", "at": Vector2(1460, 2336), "size": Vector2(150, 96), "col": Color(0.2, 0.34, 0.3), "what": "Potions, embers, gear, selling, the belt"},
+	{"id": "reader", "name": "THE CARD READER", "at": Vector2(2636, 2336), "size": Vector2(150, 96), "col": Color(0.32, 0.2, 0.42), "what": "Your deck of cards"},
+	{"id": "market", "name": "THE MARKET", "at": Vector2(1700, 1560), "size": Vector2(150, 96), "col": Color(0.3, 0.3, 0.14), "what": "Buy and sell with other heroes"},
+	{"id": "post", "name": "THE POST", "at": Vector2(2396, 1560), "size": Vector2(150, 96), "col": Color(0.22, 0.24, 0.36), "what": "Letters and what came back"},
+	{"id": "trade", "name": "THE TRADE TABLE", "at": Vector2(1700, 2536), "size": Vector2(150, 96), "col": Color(0.34, 0.24, 0.2), "what": "Trade hand to hand"},
+	{"id": "board", "name": "THE WORLD BOARD", "at": Vector2(2396, 2536), "size": Vector2(150, 96), "col": Color(0.26, 0.2, 0.3), "what": "Tides, bosses, the queue"},
+	{"id": "trial", "name": "THE CLASS TRIAL", "at": Vector2(2340, 1290), "size": Vector2(150, 96), "col": Color(0.36, 0.14, 0.14), "what": "The trial alone, for a job at 40"},
+	{"id": "gate", "name": "THE FIELD GATES", "at": Vector2(2048, 2780), "size": Vector2(240, 80), "col": Color(0.2, 0.2, 0.26), "what": "The six fields"}]
 
 
 static func station(id: String, list: Array = STATIONS) -> Dictionary:
