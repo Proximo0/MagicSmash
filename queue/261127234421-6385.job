@@ -1,0 +1,9 @@
+kind=shell
+args=script=wandsrun runs=1 wizards=2
+needs=laptop
+priority=8
+repeat=once
+timeout_s=2400
+every_s=0
+added=2026-11-27T23:44:21Z
+needs_free_mb=600
