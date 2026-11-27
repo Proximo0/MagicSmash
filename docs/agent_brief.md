@@ -1,5 +1,5 @@
 # Worker brief · shorthand (key in CLAUDE.md)
-Base rules = skill `agent-fanout-playbook` (standard preamble). Repo extras below. Contracts: use, never change.
+Base rules = `docs/agent/preamble.md` (every W prompt names it; job shape `docs/agent/brief_template.md`). Repo extras below. Contracts: use, never change.
 
 ## Hard rules
 - Edit only your listed files. Never: others' files, `project.godot`, autoloads, `tests/runner.gd`, shared bases ⇒ put needed lines in your report.

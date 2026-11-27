@@ -1,22 +1,54 @@
-# HORDE & HEARTH is the only game in work (Curtis, 21 Nov 2026: "stop four of wands and work entirely on this title")
-Code in `realm/`: Rust core, server, gateway, store, ops, loot, loadtest; Godot client in `realm/client`.
+# FOUR OF WANDS (repo MagicSmash) · Godot 4.7.2 · GDScript
+The only game in work (Curtis, 27 Nov 2026: Horde & Hearth is saved for later in the year, Four of Wands is back up front).
+Horde & Hearth lives in `realm/` and `docs/realm/` (its notes: `docs/realm/claude_notes.md`): leave it buildable, do not work on it or read it.
 
-## Read only this, then the files your job touches
-- Jobs, owners, proofs: `docs/realm/build_plan.md`. Job briefs: `docs/realm/briefs/`. One doc per system in
-  `docs/realm/` (rules, store, wire, world, homes, ops, balance, economy, social, client, shell): read only yours.
-- Do not read `docs/handoff.md`, `docs/lessons_learned.md`, `docs/archive/` or `docs/four_of_wands/`: they are for
-  FOUR OF WANDS (the rest of the repo), which is stopped. Leave it buildable; change it only when asked.
-- Never read a large source file whole; grep, then read by line range.
+Co-op survivors-like wizard shooter, 1-4p (local+LAN, host-auth ENet). 480x270 pixel art, Compat renderer.
+Target: Steam Next Fest 22 Feb-1 Mar 2027 (register by 10 Jan 23:59 PST; build + store page in review by 18 Jan; full release after 1 Mar).
+C wants to see the finished game before 10 Jan. The Next Fest build is the full game, never a cut-down slice. Plan: `docs/release_plan.md`.
 
-## Checks
-- `realm/check.sh` (`REALM ok ...`), `realm/store/check.sh` (`STORE ok ...`), `realm/check_client.sh` (needs Godot;
-  not run by CI: run it after changes to core, server or the client), `realm/check_all.sh`.
-- CI `.github/workflows/realm.yml`. Test stations on four PCs: `tools/station/roles.txt`, results `tools/station/read.sh`.
+Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summary line · `⇒` rule · L lead · W worker
+· pure = `RefCounted` + `class_name`, no Node · § = doc section
+
+## Find code (never read a script >400 lines whole)
+- `T/graph.sh [Class ...]` who uses it / what it uses · `T/map.sh [dir]` 1 line/script · `T/outline.sh f.gd` funcs + line ranges ⇒ read by range.
+
+## Commands
+- `T/run_tests.sh [name]` unit ~3 s `TESTS` (fails on engine error, 0 asserts, >10 s) · `T/lint.sh` `LINT problems=n`
+- `T/run_sims.sh [sim]` parallel `SIMS` (`sim_horde` CPU budget: real on CI `sims-horde`, ×2 in check_all) · `T/check_all.sh` `CHECK_ALL`
+- `T/station/` C's 4 PCs: STOPPED 27 Nov 2026 (`roles.txt` `stopped:` line; `docs/realm/SHELVED.md`). L asks C before turning them on. When on: `T/station/read.sh` `STATIONS n= failed= stale=`; setup `T/station/README.md`
+- `T/golden.sh [base=origin/main]` `GOLDEN same|changed` · `T/import.sh` only import path, skips no-ops (`FORCE_IMPORT=1`)
+- `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
+- `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_android.sh` → `build/` · `T/fetch_sentry.sh`
+- Play `godot --path . [-- --seed=N]` · bots+shots `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir] [--perf]`
+
+## Layout
+- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards
+- Split scripts: `World` = `game/logic/world.gd` (fields, step, snapshot, forwarders) + `game/logic/world/*.gd` (`World*` static helpers, 1st arg `w: World`); `Arena` = `game/arena/arena.gd` + `view_sync seats events fate_view draw_world draw_fx draw_enemies hud tray results_view` (`Arena*` statics, 1st arg `a: Arena`). `test_world` covers the World helpers.
+- `game/debug/` Tuning (all gameplay numbers, `world.tune`), autotest · `game/autoload/` Flags Controls G Save Sfx Net Platform Crash
+- Sole owners: Save ↔ `user://profile.json` · Platform ↔ Steam (`docs/steam.md`) · Crash ↔ Sentry (`docs/sentry.md`)
+- `game/arena/` renders snapshots · `game/ui/` `game/input/` `game/art/` (ASCII sprites) · `assets/audio`
+- `tests/unit/test_<mod>.gd` (TestCase) · `tests/sim/` · `tests/bot/bot.tscn` · `T/` sh + stdlib py
 
 ## Rules
-- Deterministic sim: seeded RNG, no wall clock in core logic; Linux and Windows must hash the same.
-- Wire tags: each system owns a range in `realm/gateway/src/proto/ranges.rs`; never reuse a number.
-- Art models must be commercial-OK and listed in the art runner's `licences.json`.
-- No secrets in git (ignored `config/*credentials*`). Never commit `target/` or `.import` churn.
-- Repro first (test, sim, bot or replay); fix the traced mechanism. Done = checks green.
-- Agent types: `worker` (a change), `scout` (a question), never `general-purpose`.
+- Static types everywhere; tabs. Helper names unique project-wide.
+- Logic pure: `delta` + seeded RNG; no wall clock, no `randf()`; in `game/logic/` (other dir ⇒ `PURE_PREFIXES` in `T/lint.py`).
+- Numbers ⇒ Tuning/data, never literals. Each logic module has a test.
+- Done = tests + lint; no-behaviour change also `GOLDEN same`.
+- Shots key on game state (time fallback). Hash compare only when `Flags.commands == 0`. Scripted runs never write player data (`Flags.is_scripted_run()`).
+- No secrets in git (ignored `config/*credentials*`, injected at export). Never commit `.import` churn.
+- Repro first (test/sim/bot/replay); fix the traced mechanism.
+- CI: list jobs first, then failing log tail ~40.
+- Tools quiet: errors/failures, then 1 summary line.
+
+## Helpers and skills (invoke, don't copy into docs)
+- Agent types: `worker` (a change), `scout` (a question); a session that lacks them (repo was not its project root at start) uses `claude` + a model override. Never `general-purpose` (~57k tokens before reading anything).
+- Every W prompt = `Read docs/agent/preamble.md, then <the job>` (job shape: `docs/agent/brief_template.md`). Model: sonnet for art/UI/tools/docs, opus for game logic.
+- Fan-out, briefs, ownership, models → skill `agent-fanout-playbook` · feel/perf bug → `measure-fix-loop` · new project / PC setup → `game-project-kickoff`
+- Generic lessons from other games → starter kit `Proximo0/game-starter-kit` `docs/lessons_learned.md`
+
+## Read only when needed
+- This file starts most tasks; a W prompt is its whole contract.
+- `docs/handoff.md` plan + decisions (L planning) · `docs/systems.md` 1 § per system, yours only
+- `docs/lessons_learned.md` shorthand, by §; W reads only a § its prompt names. Add a row when something breaks.
+- `docs/performance.md` · `docs/online.md` · `docs/android.md` · `docs/bots.md` on those topics
+- `docs/archive/` full long originals (lessons, brief, process docs); only when a prompt names one
