@@ -548,6 +548,9 @@ station_stop() {  # 0 = stopped (the caller exits); 1 = main no longer stops thi
   done
   # The playtest server (jobs/playhost.sh) runs detached from the queue; its stop file ends it cleanly (heroes banked, store kept).
   d="${STATION_PLAYHOST_DIR:-$HOME/HordeAndHearthServer}"; [ -d "$d" ] && touch "$d/stop" 2>/dev/null
+  # The art generator on the MSI (tools/art_runner on branch art-pipeline) and its supervisor end after the current picture
+  # when the STOP file exists in their folder (the same file stop_runner.ps1 writes).
+  d="${HH_ART_DIR:-/d/projects/hh_art}"; [ -d "$d" ] && : >"$d/STOP" 2>/dev/null
   if [ "$push" = 1 ] && [ $((now - last)) -ge 1800 ]; then  # one report; a station that is started again reports at most half-hourly
     publish "STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=$(git rev-parse --short=7 HEAD 2>/dev/null) took=0s"$'\n'"JOB stop INFO roles.txt stops this station: jobs_ended=$n, nothing runs, the station and its launcher end now"$'\n'"STATION STOPPED" \
       && echo "$now" >"$mark"
