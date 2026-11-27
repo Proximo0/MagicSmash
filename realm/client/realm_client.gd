@@ -560,6 +560,7 @@ func _place(hero: Vector2) -> void:
 	_sites.view = view
 	_sites.px_scale = s
 	_sites.sites = _world_info.get("sites", PackedFloat32Array())
+	_sites.quiet = _world_info.get("quiet", PackedFloat32Array())
 	_sites.tide = bool(_world_info.get("tide", false))
 	_sites.banked_at = int(_info.get("waystone", 7)) if bool(_info.get("banked", false)) else -1
 	_sites.queue_redraw()

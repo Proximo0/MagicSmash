@@ -100,6 +100,9 @@ impl Field {
                 }
                 (h.x, h.y) = walk_step(&self.terrain, m.move_pct, h.x, h.y, dir);
             }
+            // A shrine of a quiet zone (rules 6, quiet zones).
+            self.touch_shrines(i);
+            let h = &mut self.heroes[i];
             // The weapon.
             let every = h.class_row().weapon.every * 100;
             h.charge = (h.charge + (100 + m.as_pct).max(MIN_SPEED_PCT) as u32).min(every);

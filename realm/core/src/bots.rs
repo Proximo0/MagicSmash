@@ -18,6 +18,7 @@ use crate::tables::*;
 use crate::util::{at_angle, d2, grid_box, isqrt, rng_next};
 use crate::{CELL_SHIFT, CELLS_W, FIELD, Field, PCELL_SHIFT, PCELLS_W, SUB};
 
+mod delve;
 mod nav;
 
 /// How a class fights.
@@ -54,20 +55,29 @@ pub struct Plan {
     pub rally_px: i32,
     /// Hunts her foes (section 14) when she can strike heroes: walks to the nearest one off safe ground.
     pub hunt: bool,
+    /// Delves (rules 6, quiet zones): walks deep into the field from quiet zone to quiet zone, fighting on the way, and back
+    /// out again; under `RETREAT_PCT` health she goes to the nearest quiet zone and rests there.
+    pub delve: bool,
 }
 
 impl Plan {
     /// A lone hero of the edge, as the kiting gate plays: a careful decision every 2 ticks.
     pub fn alone(ring_px: i32) -> Plan {
-        Plan { every: 2, ring_px, bank_coin: u32::MAX, objectives: false, rally_px: 0, hunt: false }
+        Plan { every: 2, ring_px, bank_coin: u32::MAX, objectives: false, rally_px: 0, hunt: false, delve: false }
     }
     /// A hero in a party or a crowd, with every objective.
     pub fn party(ring_px: i32) -> Plan {
-        Plan { every: 2, ring_px, bank_coin: 400, objectives: true, rally_px: 0, hunt: false }
+        Plan { every: 2, ring_px, bank_coin: 400, objectives: true, rally_px: 0, hunt: false, delve: false }
     }
     /// One of a crowd of a thousand: a decision every 8 ticks.
     pub fn crowd(rally_px: i32) -> Plan {
-        Plan { every: 8, ring_px: 4_200, bank_coin: u32::MAX, objectives: true, rally_px, hunt: false }
+        Plan { every: 8, ring_px: 4_200, bank_coin: u32::MAX, objectives: true, rally_px, hunt: false, delve: false }
+    }
+    /// A hero who delves from the entrance through the quiet zones to the heart's rim and back, with every objective
+    /// but banking (her driver or player sends her to a waystone when the outing is over)
+    /// (the realm's driven heroes and the playbot's way).
+    pub fn delve() -> Plan {
+        Plan { delve: true, bank_coin: u32::MAX, ..Plan::party(4_200) }
     }
     /// A marked hero of a crowd who hunts the other marked (job R3's proof): a crowd bot with `hunt`.
     pub fn hunter(rally_px: i32) -> Plan {
@@ -90,6 +100,12 @@ pub struct Bot {
     /// Navigation around walls (job B1): the waypoint (px) toward the patrol's target and the tick to look again.
     nav: Option<(i32, i32)>,
     nav_until: u32,
+    /// A delve: the shrine zone she walks to next, whether she is on the way in (else out), and her rest.
+    leg: u8,
+    inward: bool,
+    resting: bool,
+    rest_until: u32,
+    banking: bool,
 }
 
 /// Fixed point of the flee vector: a monster at 100 px weighs `FLEE_K / 100`.
@@ -119,7 +135,7 @@ const PICKS_HEALER: [u8; 12] = [4, 12, 5, 21, 2, 3, 8, 17, 19, 1, 7, 24];
 
 impl Bot {
     pub fn new(id: u16, seed: u64, plan: Plan) -> Bot {
-        Bot { id, plan, input: 0, rng: seed ^ (id as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15), nav: None, nav_until: 0 }
+        Bot { id, plan, input: 0, rng: seed ^ (id as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15), nav: None, nav_until: 0, leg: 1, inward: true, resting: false, rest_until: 0, banking: false }
     }
 
     /// The input word for this tick: a new decision every `plan.every` ticks (staggered by id), else the last.
@@ -376,7 +392,14 @@ impl Bot {
         }
         // A full haul: bank at the nearest waystone.
         let mut interact = false;
-        if goal.is_none() && !vault && h.coin >= self.plan.bank_coin && n150 == 0 {
+        // A delving hero who set out for the stone keeps going when a monster comes near (else she sways between
+        // the stone and her way whenever one is at the edge of 150 px).
+        if self.plan.delve && (h.coin < self.plan.bank_coin || h.banked) {
+            self.banking = false;
+        }
+        let go_bank = h.coin >= self.plan.bank_coin && (n150 == 0 || self.banking);
+        if goal.is_none() && !vault && go_bank {
+            self.banking = self.plan.delve;
             let w = f.terrain().waystones.iter().enumerate().map(|(_, p)| *p).min_by_key(|&(wx, wy)| d2(wx, wy, h.x, h.y));
             if let Some((wx, wy)) = w {
                 if d2(wx, wy, h.x, h.y) < (WAYSTONE_PX as i64 * SUB as i64 - 8 * SUB as i64).pow(2) {
@@ -390,6 +413,27 @@ impl Bot {
                     }
                 } else if !h.banked {
                     goal = Some((wx / SUB, wy / SUB, GOAL_W * 2));
+                    // A delving hero walks round the walls between, as on her way.
+                    if self.plan.delve {
+                        if let Some((px, py)) = self.waypoint(f, x, y, wx / SUB, wy / SUB) {
+                            goal = Some((px, py, GOAL_W * 2));
+                        }
+                    }
+                }
+            }
+        }
+        // A delve: on to the next quiet zone, or back to the nearest one to rest.
+        if goal.is_none() && self.plan.delve && !vault && !f.terrain().quiet.is_empty() {
+            if let Some((gx, gy, w)) = self.delve_goal(f, h) {
+                match self.waypoint(f, x, y, gx, gy) {
+                    Some((wx, wy)) => goal = Some((wx, wy, w.max(1))),
+                    None if w == 0 => {
+                        goal = Some((x, y, 0));
+                        if (x - gx).abs() + (y - gy).abs() > 24 {
+                            goal = Some((gx, gy, GOAL_W / 3));
+                        }
+                    }
+                    None => goal = Some((gx, gy, w)),
                 }
             }
         }

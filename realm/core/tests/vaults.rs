@@ -266,7 +266,9 @@ fn killing_the_two_acts_and_the_archlich_wins_with_a_chest_for_the_heroes_past_t
 
 #[test]
 fn the_archlich_not_killed_in_three_more_minutes_loses_the_vault() {
-    let (f, log) = play(0, 0, 4, 15 * 1_200 + 3 * 1_200 + 100, false);
+    // Three heroes (four left the ARCHLICH at 2% when they were the test's party, and the monsters' tighter routing of
+    // rules 4 tipped that over; three leave it at about 16%).
+    let (f, log) = play(0, 0, 3, 15 * 1_200 + 3 * 1_200 + 100, false);
     let lost: Vec<u32> = log.iter().filter_map(|(t, e)| if matches!(e, Event::Vault { state: VAULT_LOST, .. }) { Some(*t) } else { None }).collect();
     // The act bosses were never killed either: the timeline slips, and the clock still runs out.
     assert_eq!(lost.len(), 1);

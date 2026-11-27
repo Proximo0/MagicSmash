@@ -99,7 +99,7 @@ impl Field {
     }
 
     fn birth_ok(&self, x: i32, y: i32) -> bool {
-        if x < 0 || y < 0 || x >= FIELD || y >= FIELD || self.terrain.wall(x, y) {
+        if x < 0 || y < 0 || x >= FIELD || y >= FIELD || self.terrain.blocked(x, y) {
             return false;
         }
         let (hw, hh) = (VIEW_W / 2 * SUB, VIEW_H / 2 * SUB);

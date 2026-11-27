@@ -5,6 +5,7 @@
 use crate::tables::*;
 use crate::util::{at_angle, rng_next};
 use crate::{CELL_SHIFT, CELLS, CELLS_W, FIELD, SUB, terrain_gen};
+pub use crate::quiet::*;
 
 pub(crate) const W: i32 = CELLS_W as i32;
 /// Diagonal scans flag gaps under this many cells (about `MIN_PASSAGE` across).
@@ -24,20 +25,27 @@ pub struct Terrain {
     pub waystones: [(i32, i32); 7],
     pub altars: [(i32, i32); 6],
     pub heart: (i32, i32),
+    /// QUIET zones (rules 6, quiet zones): the entrance's first, then the intermissions, then the waystones' wards.
+    pub quiet: Vec<QuietZone>,
     pub hash: u64,
+    /// Per cell, which of its eight neighbours are closed to monsters (`EDGE_*` bits): one read keeps a monster's
+    /// body off the walls. Derived from the map (not state).
+    pub edges: Vec<u8>,
 }
 
+
+
 #[inline]
-fn idx(x: i32, y: i32) -> usize {
+pub(crate) fn idx(x: i32, y: i32) -> usize {
     (y * W + x) as usize
 }
 
 #[inline]
-fn inside(x: i32, y: i32) -> bool {
+pub(crate) fn inside(x: i32, y: i32) -> bool {
     x >= 0 && y >= 0 && x < W && y < W
 }
 
-fn cell_xy(p: (i32, i32)) -> (i32, i32) {
+pub(crate) fn cell_xy(p: (i32, i32)) -> (i32, i32) {
     (p.0 >> CELL_SHIFT, p.1 >> CELL_SHIFT)
 }
 
@@ -56,6 +64,41 @@ impl Terrain {
     #[inline]
     pub fn wall(&self, x: i32, y: i32) -> bool {
         self.at(x, y) & WALL != 0
+    }
+    /// Closed to monsters: a wall or a quiet zone.
+    #[inline]
+    pub fn blocked(&self, x: i32, y: i32) -> bool {
+        self.at(x, y) & MONSTER_BLOCK != 0
+    }
+    #[inline]
+    pub fn quiet(&self, x: i32, y: i32) -> bool {
+        self.at(x, y) & QUIET != 0
+    }
+    /// The quiet zone a point is in (the nearest centre when zones touch).
+    pub fn zone_at(&self, x: i32, y: i32) -> Option<&QuietZone> {
+        if !self.quiet(x, y) {
+            return None;
+        }
+        self.quiet.iter().min_by_key(|z| crate::util::d2(x, y, z.x, z.y))
+    }
+    /// The shrines: (index, centre) of every zone that has one.
+    pub fn shrines(&self) -> impl Iterator<Item = (u8, (i32, i32))> + '_ {
+        self.quiet.iter().filter(|z| z.shrine != NO_SHRINE).map(|z| (z.shrine, (z.x, z.y)))
+    }
+
+    /// A monster's move: as `slide`, with quiet zones closed too.
+    pub fn mslide(&self, x: i32, y: i32, nx: i32, ny: i32) -> (i32, i32) {
+        let nx = nx.clamp(0, FIELD - 1);
+        let ny = ny.clamp(0, FIELD - 1);
+        if !self.blocked(nx, ny) {
+            (nx, ny)
+        } else if !self.blocked(nx, y) {
+            (nx, y)
+        } else if !self.blocked(x, ny) {
+            (x, ny)
+        } else {
+            (x, y)
+        }
     }
 
     /// Moves from (x, y) toward (nx, ny), sliding along walls; returns where it ends.
@@ -148,6 +191,12 @@ fn site_pos(s: Site) -> (i32, i32) {
     (FIELD / 2 + dx, FIELD / 2 + dy)
 }
 
+/// Water cleared of its wall is dry ground: the mire bit goes with it.
+#[inline]
+fn drained(c: u8, clear: u8) -> u8 {
+    if clear & WALL != 0 && c & WATER == WATER { MIRE } else { 0 }
+}
+
 pub(crate) struct Gen {
     pub(crate) map: Vec<u8>,
     pub(crate) rng: u64,
@@ -166,7 +215,7 @@ impl Gen {
                 let (dx, dy) = (x - cx, y - cy);
                 if dx * dx + dy * dy <= r * r + r {
                     let c = &mut self.map[idx(x, y)];
-                    *c = (*c & !clear) | set;
+                    *c = (*c & !clear & !drained(*c, clear)) | set;
                 }
             }
         }
@@ -175,7 +224,7 @@ impl Gen {
         for y in y0.max(0)..=y1.min(W - 1) {
             for x in x0.max(0)..=x1.min(W - 1) {
                 let c = &mut self.map[idx(x, y)];
-                *c = (*c & !clear) | set;
+                *c = (*c & !clear & !drained(*c, clear)) | set;
             }
         }
     }
@@ -257,19 +306,28 @@ pub fn build(field: u8, seed: u64) -> Terrain {
         Rule::Tower => terrain_gen::gen_tower(&mut g, &cells),
         Rule::Edge => terrain_gen::gen_edge(&mut g, &cells),
     }
+    // The quiet zones (rules 6, quiet zones), from the field's own stream after its generator: placed, then cleared with a ring
+    // round each so monsters walk round them, and joined to the gate like the sites.
+    let quiet = place_quiet(&mut g, gate, &waystones, &cells);
+    for z in &quiet {
+        let (x, y) = cell_xy((z.x, z.y));
+        g.disc(x, y, z.r + QUIET_RING, 0, WALL);
+    }
     clear_sites(&mut g, &cells);
-    let gate_c = cells[0];
+    let mut must: Vec<(i32, i32)> = cells.clone();
+    must.extend(quiet.iter().map(|z| cell_xy((z.x, z.y))));
+    let gate_c = must[0];
     for round in 0..REPAIR_ROUNDS {
         fill_narrow(&mut g.map);
         let reach = flood(&g.map, gate_c);
-        let cut: Vec<(i32, i32)> = cells.iter().copied().filter(|&(x, y)| !reach[idx(x, y)]).collect();
+        let cut: Vec<(i32, i32)> = must.iter().copied().filter(|&(x, y)| !reach[idx(x, y)]).collect();
         if cut.is_empty() && narrow_count(&g.map) == 0 {
             break;
         }
         // Carve each cut-off site a straight corridor to the nearest reached site.
         for &c in &cut {
             let to =
-                cells.iter().copied().filter(|&(x, y)| reach[idx(x, y)]).min_by_key(|&(x, y)| ((x - c.0).pow(2) + (y - c.1).pow(2), x, y)).unwrap_or(gate_c);
+                must.iter().copied().filter(|&(x, y)| reach[idx(x, y)]).min_by_key(|&(x, y)| ((x - c.0).pow(2) + (y - c.1).pow(2), x, y)).unwrap_or(gate_c);
             g.disc(c.0, c.1, SITE_CLEAR, 0, WALL);
             g.line(c, to, REPAIR_R + round as i32 / 2, 0, WALL);
         }
@@ -282,9 +340,23 @@ pub fn build(field: u8, seed: u64) -> Terrain {
             g.map[c] = WALL;
         }
     }
+    // The quiet bit on the open cells of each zone's disc.
+    for z in &quiet {
+        let (cx, cy) = cell_xy((z.x, z.y));
+        for y in (cy - z.r).max(0)..=(cy + z.r).min(W - 1) {
+            for x in (cx - z.r).max(0)..=(cx + z.r).min(W - 1) {
+                let (dx, dy) = (x - cx, y - cy);
+                if dx * dx + dy * dy <= z.r * z.r + z.r && g.map[idx(x, y)] & WALL == 0 {
+                    g.map[idx(x, y)] |= QUIET;
+                }
+            }
+        }
+    }
     let hash = map_hash(&g.map);
-    Terrain { field, map: g.map, gate, waystones, altars, heart, hash }
+    let edges = edges_of(&g.map);
+    Terrain { field, map: g.map, gate, waystones, altars, heart, quiet, hash, edges }
 }
+
 
 /// A vault's arena (rules 10): a square of `VAULT_ARENA_PX` at the heart, walled all round, with a few pillars
 /// from the seed. No gate and no waystones (they sit in the walls, where nobody stands).
@@ -308,7 +380,8 @@ pub fn build_vault(field: u8, seed: u64) -> Terrain {
     }
     let hash = map_hash(&g.map);
     let heart = (FIELD / 2, FIELD / 2);
-    Terrain { field, map: g.map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, hash }
+    let edges = edges_of(&g.map);
+    Terrain { field, map: g.map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, quiet: Vec::new(), hash, edges }
 }
 
 /// The town's training yard (job R3): an open square of `YARD_PX` walled round, no sites (no gate, no waystones,
@@ -325,7 +398,8 @@ pub fn build_yard(seed: u64) -> Terrain {
     }
     let hash = map_hash(&map);
     let heart = (FIELD / 2, FIELD / 2);
-    Terrain { field: 0, map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, hash }
+    let edges = edges_of(&map);
+    Terrain { field: 0, map, gate: (0, 0), waystones: [(0, 0); 7], altars: [(0, 0); 6], heart, quiet: Vec::new(), hash, edges }
 }
 
 /// Pillars in a vault, their radius, the cells they keep from the walls and from the centre.
@@ -453,6 +527,12 @@ pub fn check(t: &Terrain) -> Result<(), String> {
         let (x, y) = cell_xy(*s);
         if !reach[idx(x, y)] {
             return Err(format!("site {k} at cell ({x}, {y}) unreachable"));
+        }
+    }
+    for (k, z) in t.quiet.iter().enumerate() {
+        let (x, y) = cell_xy((z.x, z.y));
+        if !reach[idx(x, y)] || t.map[idx(x, y)] & QUIET == 0 {
+            return Err(format!("quiet zone {k} at cell ({x}, {y}) unreachable or not quiet"));
         }
     }
     let n = narrow_count(&t.map);

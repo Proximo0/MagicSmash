@@ -23,6 +23,8 @@ pub(super) const NAV_W: i64 = GOAL_W / 3;
 /// The straight way to a target is open when no wall lies on it in steps of this many px, up to `NAV_SIGHT` px.
 const NAV_STEP: i32 = 16;
 const NAV_SIGHT: i32 = 320;
+/// A delving hero this close (px, along x plus y) to her detour's waypoint looks again.
+const NAV_REACHED: i32 = 56;
 
 /// The push (in the flee vector's units) out of every lobbed or bursting circle about to land on her (the lobbers of
 /// THE HANGED WOOD and THE MOON MARSH downed whole parties that never dodged), and aside from bolts about to hit.
@@ -73,6 +75,13 @@ impl Bot {
                 !t.wall(((ax as i64 + dx * s / full) * SUB as i64) as i32, ((ay as i64 + dy * s / full) * SUB as i64) as i32)
             })
         };
+        // A delving hero keeps her detour until she is on it or it runs out: the straight way is only looked at
+        // `NAV_SIGHT` px far, so it can seem open a step aside of where it seemed shut, and she would sway between.
+        if self.plan.delve {
+            if let Some(w) = self.nav.filter(|&(wx, wy)| f.tick() < self.nav_until && (wx - x).abs() + (wy - y).abs() > NAV_REACHED) {
+                return Some(w);
+            }
+        }
         if clear(x, y, gx, gy) {
             self.nav = None;
             return None;

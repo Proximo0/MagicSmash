@@ -4,8 +4,10 @@ extends SceneTree
 ## (keycode and physical keycode, the keys ShellSettings binds) and the mouse moved and clicked at window coordinates
 ## over the buttons the screens draw. It reads state (the screens, the town, the field client's hero and monsters) to
 ## decide, as a player reads the screen. Title -> login (types its name) -> heroes or the builder -> town (walks,
-## opens a panel or two, closes them) -> the field gates -> a field (hunts, kites, drinks, uses skills, picks cards,
-## banks at a waystone, leaves by the waystone, the gate or Esc) -> town again, until --secs runs out.
+## opens a panel or two, buys HEALING DRAUGHTS for her belt when it has none, closes them) -> the field gates -> a
+## field (delves from quiet zone to quiet zone, fights on the way, rests in the nearest quiet zone when hurt, kites,
+## drinks, uses skills, picks cards, banks at a waystone, leaves by the waystone, the gate or Esc) -> town again,
+## until --secs runs out.
 ##   godot --path realm/client -s res://tests/playbot.gd -- --gateway=IP:PORT [--dev-cert=PEM] --secs=N --out=DIR
 ##     [--name=NAME] [--seed=N]
 ## Writes DIR/summary.json and screenshots (one per screen change and one a minute, at most 40) and prints one line:
@@ -27,6 +29,14 @@ const KITE_UNTIL: float = 0.75
 const POTION_GAP_S: float = 4.0
 const FIGHT_PX: float = 150.0
 const STONE_PX: float = 24.0
+## The delve (rules 6.1): from the entrance through the QUIET zones' shrines to the deepest and back, fighting what
+## comes within ENGAGE_PX on the way; under RETREAT_UNDER health to the nearest quiet zone, resting there until
+## REST_UNTIL or REST_MAX_S. HEAL_STACK is the HEALING DRAUGHT's stack kind (100 + potion 0), bought before a field.
+const ENGAGE_PX: float = 260.0
+const RETREAT_UNDER: float = 0.4
+const REST_UNTIL: float = 0.8
+const REST_MAX_S: float = 12.0
+const HEAL_STACK: int = 100
 const MOVES: Array[String] = ["up", "down", "left", "right"]
 
 
@@ -540,6 +550,9 @@ func _town() -> void:
 			await _close_panel()
 	if _over() or not is_instance_valid(town) or _shell.base != town:
 		return
+	await _stock_belt(town)
+	if _over() or not is_instance_valid(town) or _shell.base != town:
+		return
 	await _visit_station(town, "gate")
 	if not await _until(func() -> bool: return _shell.panel_of("GatePanel") != null, 5.0):
 		_note("the gates did not open")
@@ -556,6 +569,49 @@ func _town() -> void:
 	if not await _until(func() -> bool: return _shell.in_field, 30.0):
 		_note("the gates did not let her through: %s" % (_shell.top().toast_text if _shell.top() != null else ""))
 		await _close_panel()
+
+
+## Draughts on the belt before a field, as a person would (a new hero's belt is empty, and the playbot that never
+## bought any never drank one): the merchant's BUY tab for HEALING DRAUGHTS, then his BELT tab to put them in slot 1.
+## Without the coin she goes without, and says so once.
+func _stock_belt(town: TownScreen) -> void:
+	var belt: Array = _shell.hero.get("belt", [0, 0, 0])
+	if belt.has(HEAL_STACK) and _shell.stack_count(GameNames.PLACE_BAG, HEAL_STACK) > 0:
+		return
+	await _visit_station(town, "merchants")
+	if not await _until(func() -> bool: return _shell.panel_of("MerchantPanel") != null, 3.0):
+		_note("the merchant did not open")
+		return
+	var mp: MerchantPanel = _shell.panel_of("MerchantPanel") as MerchantPanel
+	var mid: int = mp.get_instance_id()
+	await _until(func() -> bool: return not is_instance_id_valid(mid) or not (instance_from_id(mid) as MerchantPanel).offers.is_empty(), 5.0)
+	if not is_instance_valid(mp):
+		return
+	if _shell.stack_count(GameNames.PLACE_BAG, HEAL_STACK) == 0:
+		var oid: int = -1
+		for o in mp.offers:
+			if int(o["kind"]) != 2 and int(o["stack"]) == HEAL_STACK:
+				oid = int(o["id"])
+		await _think()
+		var bought: bool = false
+		if oid >= 0:
+			bought = await _click("buy:%d:5" % oid)
+			if not bought:
+				bought = await _click("buy:%d:1" % oid)
+		if not bought:
+			_note("no healing draughts bought (coin %d)" % _shell.coin())
+			await _close_panel()
+			return
+		await _until(func() -> bool: return _shell.stack_count(GameNames.PLACE_BAG, HEAL_STACK) > 0, 5.0)
+	await _think()
+	await _click("tab:3")
+	await _wait(0.3)
+	await _click("slot:0")
+	await _wait(0.2)
+	if await _click("pot:%d" % HEAL_STACK):
+		_note("healing draughts on the belt")
+	await _wait(0.5)
+	await _close_panel()
 
 
 func _top_id() -> int:
@@ -698,11 +754,9 @@ func _field() -> void:
 	b.side = float(RealmLink.field_size())
 	b.started = _elapsed()
 	b.bank_at = b.started + minf(_rng.randf_range(90.0, 200.0), maxf(20.0, _secs - _elapsed() - 70.0))
-	# Out from the gate first, north into the field, before she turns to the first pack.
+	# Out of the entrance's quiet zone along the delve: to the first intermission, fighting on the way.
 	var info0: Dictionary = c._info
-	b.roam_until = b.started + _rng.randf_range(10.0, 25.0)
-	b.goal = Vector2(_rng.randf_range(0.2, 0.8) * b.side, maxf(b.side * 0.1, float(info0.get("y", b.side)) - _rng.randf_range(600.0, 1200.0)))
-	b.explore_until = b.roam_until
+	b.goal = b._leg_goal()
 	var key: String = str(f)
 	if not _heat.has(key):
 		var g := PackedInt32Array()
@@ -768,6 +822,11 @@ class Brain extends RefCounted:
 	var deaths: int = 0
 	var avoid: Array[Vector2] = []
 	var kite_t: float = -100.0
+	## The delve: the shrine zone she walks to next (1-based, as the core's shrines), in or out, and her rest.
+	var leg: int = 1
+	var inward: bool = true
+	var resting: bool = false
+	var rest_t: float = -1.0
 
 	func now() -> float:
 		return bot._elapsed()
@@ -840,6 +899,48 @@ class Brain extends RefCounted:
 		var s: PackedFloat32Array = _sites()
 		return Vector2(s[i * 2], s[i * 2 + 1]) if s.size() > i * 2 + 1 else Vector2(-1, -1)
 
+	## The quiet zones: Vector3(x, y, radius px) a zone, with the shrine index in `shrines` (-1 a ward).
+	func _quiet() -> PackedFloat32Array:
+		return c._world_info.get("quiet", PackedFloat32Array())
+
+	func _in_quiet(p: Vector2) -> bool:
+		var q: PackedFloat32Array = _quiet()
+		for i in range(0, q.size() - 3, 4):
+			if p.distance_to(Vector2(q[i], q[i + 1])) < q[i + 2]:
+				return true
+		return false
+
+	func _nearest_quiet(p: Vector2) -> Vector3:
+		var q: PackedFloat32Array = _quiet()
+		var best := Vector3(-1, -1, 0)
+		for i in range(0, q.size() - 3, 4):
+			var z := Vector2(q[i], q[i + 1])
+			if best.z <= 0.0 or p.distance_to(z) < p.distance_to(Vector2(best.x, best.y)):
+				best = Vector3(z.x, z.y, q[i + 2])
+		return best
+
+	## The next zone of the delve (the intermissions in shrine order, there and back); it moves on once she is well
+	## inside the one she walked to. (-1, -1) when the field has none.
+	func _leg_goal() -> Vector2:
+		var q: PackedFloat32Array = _quiet()
+		var route: Array[Vector3] = []
+		for k in range(1, 8):
+			for i in range(0, q.size() - 3, 4):
+				if int(q[i + 3]) == k:
+					route.append(Vector3(q[i], q[i + 1], q[i + 2]))
+		if route.is_empty():
+			return Vector2(-1, -1)
+		leg = clampi(leg, 1, route.size())
+		var z: Vector3 = route[leg - 1]
+		if at.x >= 0.0 and at.distance_to(Vector2(z.x, z.y)) < z.z * 0.6:
+			if inward and leg >= route.size():
+				inward = false
+			elif not inward and leg <= 1:
+				inward = true
+			leg = mini(leg + 1, route.size()) if inward else maxi(leg - 1, 1)
+			z = route[leg - 1]
+		return Vector2(z.x, z.y)
+
 	func _nearest_stone() -> Vector2:
 		var best: Vector2 = Vector2(-1, -1)
 		for i in 7:
@@ -886,6 +987,21 @@ class Brain extends RefCounted:
 		if bot._elapsed() > bot._secs + 90.0 and mode != "esc":
 			mode = "esc"
 			bot._note("field %d: still in 90 s after time, Esc" % field)
+		# Hurt: to the nearest quiet zone, where no monster follows, and rest there (a draught is tapped on the way).
+		if mode == "hunt" and not resting and frac < RETREAT_UNDER:
+			resting = true
+			rest_t = -1.0
+			kiting = false
+			bot._note("field %d: hurt, back to a quiet zone" % field)
+		if resting:
+			var z: Vector3 = _nearest_quiet(at)
+			if mode != "hunt" or z.z <= 0.0 or frac >= REST_UNTIL or (rest_t >= 0.0 and t - rest_t > REST_MAX_S):
+				resting = false
+			else:
+				goal = Vector2(z.x, z.y)
+				if rest_t < 0.0 and at.distance_to(goal) < z.z * 0.7:
+					rest_t = t
+				return
 		# Kiting, whatever she is on her way to: hurt with monsters close, she backs off (at most 10 s at a time).
 		if not kiting and frac < KITE_UNDER and foes.x >= 0.0 and mode != "esc" and t - kite_t > 4.0:
 			kiting = true
@@ -902,6 +1018,11 @@ class Brain extends RefCounted:
 			return
 		match mode:
 			"hunt":
+				var lg: Vector2 = _leg_goal()
+				if lg.x >= 0.0 and (nearest.x < 0.0 or nd > ENGAGE_PX):
+					# Nothing close: on along the delve.
+					goal = lg
+					return
 				if t < roam_until and goal.x >= 0.0 and at.distance_to(goal) > 64.0:
 					return
 				if nearest.x >= 0.0:
@@ -998,6 +1119,10 @@ class Brain extends RefCounted:
 		hold_t = -1.0
 		if goal.x < 0.0:
 			bot._steer(0, 0)
+			return
+		if resting and rest_t >= 0.0 and at.distance_to(goal) < 40.0:
+			bot._steer(0, 0)
+			moved_t = t
 			return
 		var d: Vector2 = goal - at
 		# Never south near the gate unless leaving: a step south through it ends the outing.

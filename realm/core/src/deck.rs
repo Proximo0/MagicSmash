@@ -1,7 +1,7 @@
 //! The deck (rules section 5): draws from the field's seed, the hero's id and her draw count; a queue of
 //! nine offers; picks by input; and what the copies she picked add up to.
 
-use crate::Field;
+use crate::{Field, SUB};
 use crate::events::Event;
 use crate::tables::*;
 use crate::util::{mix, pct};
@@ -180,6 +180,32 @@ impl Field {
             }
             h.offers.push(cards);
             self.events.push(Event::Draw { hero: i as u16, cards, n });
+        }
+    }
+
+    /// One draw for hero `i`, through the queue as a level's draw goes (owed, then rolled while the queue has
+    /// room). The one door for draws that do not come from field XP: shrines (rules 6, quiet zones) and any later source.
+    pub(crate) fn grant_draw(&mut self, i: usize) {
+        let h = &mut self.heroes[i];
+        if !h.present {
+            return;
+        }
+        h.owed = h.owed.saturating_add(1);
+        self.fill_offers(i);
+    }
+
+    /// A shrine within `SHRINE_PX` of an up hero in a quiet zone that she has not touched this outing: one draw.
+    pub(crate) fn touch_shrines(&mut self, i: usize) {
+        let h = &self.heroes[i];
+        if !h.alive() || self.terrain.at(h.x, h.y) & QUIET == 0 {
+            return;
+        }
+        let r = (SHRINE_PX * SUB) as i64;
+        let (x, y, done) = (h.x, h.y, h.shrines);
+        let hit = self.terrain.shrines().find(|&(k, (sx, sy))| (k as usize) < SHRINES_MAX && done & (1 << k) == 0 && crate::util::d2(x, y, sx, sy) <= r * r);
+        if let Some((k, _)) = hit {
+            self.heroes[i].shrines |= 1 << k;
+            self.grant_draw(i);
         }
     }
 

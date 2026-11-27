@@ -241,3 +241,56 @@ Every number and the open questions are in `docs/realm/pvp.md`.
 - **Bots:** a bot never raises a hero the help ban forbids, and a hunter never raises her own prey.
 - **Budget:** 1,000 heroes, 500 of them marked hunters, among 20,000 monsters, with a tide and 4 threads. The worst
   field is THE WORLD'S EDGE at 6.19 ms mean and 13.17 ms p99. Hashes are equal on 1 to 4 threads and on a follower.
+
+## Quiet zones, fuller fields, routing in tight spaces, delving bots (27 Nov, Curtis)
+
+What is built (rules 4 "Routing", 6 "Terrain", 6.1):
+- **Quiet zones** (`core/src/quiet.rs`, placed in `terrain::build` from the field's own stream after its generator):
+  the entrance (10 cells, centred 6 cells north of the gate), 3 to 5 intermissions (8 cells, from 6,400 to 2,900
+  px from the heart, each within 30 degrees of the last and 70 of the gate's line, 30 cells from sites and each
+  other) and a 4-cell ward round each waystone. Each is cleared 6 cells beyond its edge (monsters walk round it)
+  and joined to the gate by the repair pass. Cells inside carry the `QUIET` bit (16), so the map hash covers them.
+  Over 12 seeds a field gets 3 to 5 intermissions (all six fields: 3, 4 and 5 each seen), so 4 to 6 shrines and
+  11 to 13 quiet zones a field.
+- **Inside a zone**: no births (`birth_ok`), closed to monster walking (`Terrain::mslide`) and to the flow field
+  (`MONSTER_BLOCK = WALL | QUIET`), a hero inside is not a flow source and takes no contact, bolt, lob or burst; a
+  monster inside walks out from the centre (`quiet_push`, at least 6 px a tick); pushes, pulls, leaps and
+  splitters' children use the monster slide. Monsters the flow cannot reach (every hero sheltered) are recycled
+  like those 64 cells behind when no hero is within 64 cells (before, an unreached monster was kept forever: a boss's
+  summons piled up while the party rose at the gate).
+- **Shrines**: at the centre of the entrance and each intermission; a hero up within 28 px gets one draw through
+  `Field::grant_draw` (deck.rs: `owed += 1`, then the usual queue), once a shrine an outing: `Hero::shrines` /
+  `Outing::shrines` (a bit each), saved (`STATE_VERSION` 4) and carried on the join record (server `wire.rs`, one
+  byte after `struck_ago`). Another job's level-free draws should call the same `grant_draw`.
+- **Client**: `world().quiet` (godot `frame.rs`/`lib.rs`: x, y, radius px, shrine or -1 per zone), drawn by
+  `field_world.gd` as a pale ring with a shrine stone and flame; fed by one line in `realm_client.gd`.
+- **Fuller fields** (`terrain_gen.rs`): rock outcrops, tree clusters, deep water (`WATER = WALL | MIRE`, drained to
+  dry ground when a path or site clears it) and wall runs with 6 to 9 cell gaps, per field's character (rules 6).
+  The road field has no open mire (its ponds are walls). Every walkable cell is reachable from the gate (the
+  existing fill of cut-off ground) over 12 seeds a field; monsters reach at least 98% of the walkable ground outside
+  the zones in one piece. Walkable ground at least: road 214k, wood 50k, marsh 231k, peaks 234k, tower 227k, edge
+  45k cells of 262k.
+- **Routing**: a monster never steps to a cell farther along the flow; goes straight at a hero within two cells only
+  with no closed cell on the line; and `off_walls` keeps its centre 8 px (`BODY_PX`) off any closed neighbour, read
+  from a per-cell bit table (`Terrain::edges`, eight bits a cell, built with the map). Measured by
+  `route_test.rs` (300 walkers, a corridor with two corners, 900 ticks; stuck = no progress on the flow in 40 ticks,
+  sampled every 10): one cell wide 2,767 stuck samples, 1,026 wall overlaps, 109 through before; 996, 0, 165 after.
+  Two cells 174, 5, 130 before; 124, 0, 127 after.
+- **Budget** (realm-server `--bench`, 1000 heroes x 20,000 monsters, 4 threads, 300 ticks, a machine shared with
+  other jobs, load 3 to 7): before 7.07/12.34 ms mean/p99 (move 1.73), after with the bit table 8.71/16.10 (move
+  2.99) against a same-minute baseline run of 10.68/25.02 (move 3.31): within noise of each other, and far inside 50
+  ms. The pvp crowd bench (MARSH, 1000 x 20,000, tide) 6.34/9.67 before, 7.09/12.83 after (before the bit table).
+- **Bots**: `Plan::delve` (core `bots/delve.rs`): from the entrance through the intermissions in shrine order to
+  the deepest and back, fighting on the way (a melee hero above 60% pulls through a crowd waiting at a zone's edge);
+  under 40% health to the nearest quiet zone, resting until 80% or 10 s; draughts under 45% as before. Its detours
+  round walls stay until reached (the straight way is only looked at 320 px, so it seemed open a step aside and she
+  swayed), and it walks round walls to a waystone. The host's driven heroes use it. In 4 minutes a knight from the
+  gate reaches the deepest zone on the ROAD and the TOWER and the third on the WOOD, within 600 px of the gate for
+  2 to 6% of the time. The playbot (`client/tests/playbot.gd`) buys HEALING DRAUGHTS at the merchant and puts them on
+  its belt (a new hero's belt is empty: why it never drank), delves zone to zone, engages only monsters within 260
+  px, and retreats to the nearest quiet zone under 40%.
+- **Test changed**: `vaults.rs` "the archlich not killed" uses a party of three (four left it at 2% health, and the
+  new routing tipped that over).
+- **Open**: the playbot changes are not run here (no Godot on this machine: run `realm/check_client.sh` and a
+  playbot soak); quiet zones are not PvP safe ground (pvp.rs is another job's); a hero resting with no draught and no
+  TEMPERANCE only waits 10 s (no field heals by itself); the zones' exact radii and counts are first guesses.

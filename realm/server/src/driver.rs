@@ -15,7 +15,8 @@ use realm_core::{Field, IN_DIR, IN_INTERACT, IN_SKILL1, IN_SKILL2, SUB};
 
 /// Ticks a driven hero has to reach a waystone and leave before she is recalled (60 s).
 pub const DRIVE_HOME_TICKS: u32 = 1_200;
-/// The ring a driven hero patrols in a field (px from the heart): the middle ring, where altars and the boss are.
+/// The ring a driven hero patrolled in a field (px from the heart) before she delved from quiet zone to quiet zone
+/// (`Plan::delve`, rules 6); kept for tools that still patrol.
 pub const DRIVE_RING_PX: i32 = 4_200;
 /// She walks straight at the stone; stuck this many ticks on a wall, she wanders a little.
 const STUCK_TICKS: u32 = 30;
@@ -54,7 +55,7 @@ impl Driver {
         Driver {
             id,
             seed: d.seed,
-            bot: Bot::new(id, d.seed, Plan::party(DRIVE_RING_PX)),
+            bot: Bot::new(id, d.seed, Plan::delve()),
             home_at,
             give_up_at: home_at.saturating_add(DRIVE_HOME_TICKS),
             vault,

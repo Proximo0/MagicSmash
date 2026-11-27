@@ -94,6 +94,8 @@ pub struct Hero {
     /// half the damage taken, never while she stands still.
     pub tide_contrib: u32,
     pub boss_contrib: u32,
+    /// Shrines touched this outing (rules 6, quiet zones): bit k is the shrine of index k.
+    pub shrines: u8,
     /// A wailer was near at the end of the last tick.
     pub wailed: bool,
     // ---- this tick only (output; not saved)
@@ -150,6 +152,7 @@ impl Default for Hero {
             idle: 0,
             tide_contrib: 0,
             boss_contrib: 0,
+            shrines: 0,
             wailed: false,
             hurt: false,
             fired: false,
@@ -246,6 +249,7 @@ impl Hero {
             marked: outing.marked,
             tide_contrib: outing.tide_contrib,
             boss_contrib: outing.boss_contrib,
+            shrines: outing.shrines,
             ..Hero::default()
         };
         if h.class_level < SKILL1_LEVEL {
@@ -286,6 +290,7 @@ impl Hero {
             struck_ago: if self.last_struck == NEVER { NEVER } else { tick.saturating_sub(self.last_struck) },
             tide_contrib: self.tide_contrib,
             boss_contrib: self.boss_contrib,
+            shrines: self.shrines,
         }
     }
 

@@ -128,7 +128,7 @@ impl Field {
         for (i, tx, ty) in s.pulls {
             let i = i as usize;
             if self.m.hp[i] > 0 && !self.m.immovable(i) {
-                let (x, y) = self.terrain.slide(self.m.x[i], self.m.y[i], tx, ty);
+                let (x, y) = self.terrain.mslide(self.m.x[i], self.m.y[i], tx, ty);
                 self.m.x[i] = x;
                 self.m.y[i] = y;
             }
@@ -167,7 +167,7 @@ impl Field {
                 let (x, y) = (m.x[i], m.y[i]);
                 let dl = crate::util::isqrt(d2(x, y, hit.sx, hit.sy)).max(1);
                 let (nx, ny) = (x + ((x - hit.sx) as i64 * hit.push as i64 / dl) as i32, y + ((y - hit.sy) as i64 * hit.push as i64 / dl) as i32);
-                let (nx, ny) = self.terrain.slide(x, y, nx, ny);
+                let (nx, ny) = self.terrain.mslide(x, y, nx, ny);
                 m.x[i] = nx;
                 m.y[i] = ny;
             }
@@ -398,7 +398,7 @@ impl Field {
                 for c in 0..SPLIT_INTO as i32 {
                     let Some(slot) = self.free.pop() else { break };
                     let (ox, oy) = clutch_offset(c + 1);
-                    let (cx, cy) = self.terrain.slide(x, y, x + ox * crate::monster::SPLIT_PX * SUB, y + oy * crate::monster::SPLIT_PX * SUB);
+                    let (cx, cy) = self.terrain.mslide(x, y, x + ox * crate::monster::SPLIT_PX * SUB, y + oy * crate::monster::SPLIT_PX * SUB);
                     self.birth(slot as usize, KINDS[kind as usize].split, level, 0, cx, cy);
                     self.spawned.push(slot);
                 }

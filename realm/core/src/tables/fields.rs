@@ -138,6 +138,37 @@ pub const WALL: u8 = 1;
 pub const MIRE: u8 = 2;
 pub const ROAD: u8 = 4;
 pub const DARK: u8 = 8;
+/// A cell of a QUIET zone (rules 6, quiet zones): no births, and closed to monsters (their walking and the flow field).
+pub const QUIET: u8 = 16;
+/// Deep water and other blocking ground drawn apart from rock: a wall cell with the mire bit (it blocks like any wall).
+pub const WATER: u8 = WALL | MIRE;
+/// What a monster may not stand on or walk through.
+pub const MONSTER_BLOCK: u8 = WALL | QUIET;
+// ---- quiet zones and shrines (rules 6, quiet zones)
+/// The entrance's quiet zone round the gate, an intermission's, and a waystone's ward: radius in cells.
+pub const QUIET_GATE_R: i32 = 10;
+pub const QUIET_MID_R: i32 = 8;
+pub const QUIET_WARD_R: i32 = 4;
+/// Open ground cleared round a quiet zone beyond its radius (cells), so monsters can walk round it.
+pub const QUIET_RING: i32 = 6;
+/// Intermissions: 3 to 5 a field, from this far from the heart (px) to that far, spread evenly in depth.
+pub const QUIET_MID_MIN: i32 = 3;
+pub const QUIET_MID_MAX: i32 = 5;
+pub const QUIET_DEPTH_OUT_PX: i32 = 6_400;
+pub const QUIET_DEPTH_IN_PX: i32 = 2_900;
+/// An intermission stands within this many degrees either side of the line from the gate to the heart, and at
+/// least this far (cells) from every site and from other zones.
+pub const QUIET_SPREAD_DEG: i32 = 70;
+/// Each intermission's angle from the heart is within this many degrees of the one before it (the first's of the
+/// gate's), so the way from zone to zone winds inward instead of crossing the field.
+pub const QUIET_STEP_DEG: i32 = 30;
+pub const QUIET_APART: i32 = 30;
+/// Most quiet zones with a shrine (the entrance and up to five intermissions): one bit each in `Hero::shrines`.
+pub const SHRINES_MAX: usize = 6;
+/// A hero within this of a shrine's centre touches it (px).
+pub const SHRINE_PX: i32 = 28;
+/// A monster found inside a quiet zone is pushed out at least this fast (px a tick).
+pub const QUIET_PUSH_PX: i32 = 6;
 /// No passage narrower than this many cells.
 pub const MIN_PASSAGE: i32 = 6;
 /// Open ground kept around every site (cells).

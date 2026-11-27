@@ -17,7 +17,7 @@ use crate::vault::VaultRun;
 use crate::{Config, Drop, Field, Shot, Zone, terrain};
 
 /// Format version of `to_bytes`.
-pub const STATE_VERSION: u32 = 3;
+pub const STATE_VERSION: u32 = 4;
 /// The vault byte of a field (not a vault).
 const NO_VAULT: u8 = u8::MAX;
 
@@ -360,6 +360,7 @@ impl W {
         self.u16(h.idle);
         self.u32(h.tide_contrib);
         self.u32(h.boss_contrib);
+        self.u8(h.shrines);
     }
     fn realm(&mut self, s: &Realm) {
         self.u64(s.clock);
@@ -542,6 +543,7 @@ impl R<'_> {
         h.idle = self.u16()?;
         h.tide_contrib = self.u32()?;
         h.boss_contrib = self.u32()?;
+        h.shrines = self.u8()?;
         Some(h)
     }
     fn realm(&mut self) -> Option<Realm> {

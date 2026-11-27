@@ -93,6 +93,8 @@ pub struct World {
     pub view: realm_server::world::WorldView,
     /// The gate, the heart, seven waystones and six altars in px: pairs.
     pub sites: Vec<f32>,
+    /// The quiet zones (rules 6.1): `x px, y px, radius px, shrine` (shrine -1: a waystone's ward), four a zone.
+    pub quiet: Vec<f32>,
     /// Zones, drops and shots in the field (all of them, not just in view).
     pub zones: i32,
     pub drops: i32,
@@ -347,12 +349,18 @@ pub fn build(c: &LockstepClient, view: SubRect, draw: &mut DrawState) -> Frame {
     for &(x, y) in t.waystones.iter().chain(t.altars.iter()) {
         sites.extend_from_slice(&[px(x), px(y)]);
     }
+    let quiet: Vec<f32> = t
+        .quiet
+        .iter()
+        .flat_map(|z| [px(z.x), px(z.y), (z.r * 32) as f32, if z.shrine == realm_core::NO_SHRINE { -1.0 } else { f32::from(z.shrine) }])
+        .collect();
     frame.world = World {
         field: i32::from(f.field_id()),
         tick: f.tick(),
         tide: f.tide(),
         view: realm_server::world::world_view(f),
         sites,
+        quiet,
         zones: f.zones().len() as i32,
         drops: f.drops().len() as i32,
         shots: f.shots().len() as i32,

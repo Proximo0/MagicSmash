@@ -1,5 +1,5 @@
 //! The flow field: distance (in tenths of a cell) from every hero monsters may chase, rebuilt in slices
-//! while monsters read the finished one. Walls are closed and corners are not cut. A hero's cell is
+//! while monsters read the finished one. Walls and quiet zones are closed and corners are not cut. A hero's cell is
 //! seeded with a head start by threat (rules section 3), so the horde bends toward the tanks.
 
 use crate::{CELLS, CELLS_W};
@@ -105,14 +105,14 @@ impl Flow {
                 continue;
             }
             let nc = ny as usize * CELLS_W + nx as usize;
-            if walls[nc] & crate::tables::WALL != 0 {
+            if walls[nc] & crate::tables::MONSTER_BLOCK != 0 {
                 continue;
             }
             if ox != 0 && oy != 0 {
                 // No cutting corners.
                 let a = cy as usize * CELLS_W + nx as usize;
                 let b = ny as usize * CELLS_W + cx as usize;
-                if walls[a] & crate::tables::WALL != 0 || walls[b] & crate::tables::WALL != 0 {
+                if walls[a] & crate::tables::MONSTER_BLOCK != 0 || walls[b] & crate::tables::MONSTER_BLOCK != 0 {
                     continue;
                 }
             }

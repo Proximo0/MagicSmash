@@ -52,7 +52,8 @@ fn each_generator_lays_its_own_ground() {
     let all = CELLS;
     // THE FOOL'S ROAD: open, a road, hedges.
     assert!(cells_with(&t[0], ROAD) > 0 && cells_with(&t[0], WALL) < all / 4);
-    assert_eq!(cells_with(&t[0], MIRE) + cells_with(&t[0], DARK), 0);
+    // No slowing ground and no dark on the road field (its ponds are deep water, `WATER`: wall with the mire bit).
+    assert_eq!(t[0].map.iter().filter(|&&c| c & MIRE != 0 && c & WALL == 0).count() + cells_with(&t[0], DARK), 0);
     // THE HANGED WOOD and THE TOWER: walls everywhere.
     assert!(cells_with(&t[1], WALL) > all / 5, "wood {}", cells_with(&t[1], WALL));
     assert!(cells_with(&t[4], WALL) > all / 10, "tower {}", cells_with(&t[4], WALL));

@@ -101,6 +101,7 @@ pub fn put_outing(w: &mut Vec<u8>, o: &Outing) {
     w.push(o.waystone);
     w.push(o.marked as u8);
     put_u32(w, o.struck_ago);
+    w.push(o.shrines);
 }
 
 pub fn read_outing(r: &mut Rd) -> Option<Outing> {
@@ -142,6 +143,7 @@ pub fn read_outing(r: &mut Rd) -> Option<Outing> {
     o.waystone = r.u8()?;
     o.marked = r.u8()? != 0;
     o.struck_ago = r.u32()?;
+    o.shrines = r.u8()?;
     Some(o)
 }
 

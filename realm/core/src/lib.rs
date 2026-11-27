@@ -22,6 +22,8 @@ pub mod pvp;
 #[cfg(test)]
 mod probe;
 #[cfg(test)]
+mod route_test;
+#[cfg(test)]
 mod wirefuzz;
 mod sheet;
 mod spawn;
@@ -29,6 +31,7 @@ mod state;
 pub mod tables;
 mod terrain;
 mod terrain_gen;
+mod quiet;
 mod tide;
 mod transfer;
 mod util;
@@ -47,7 +50,7 @@ pub use pvp::{Duel, IN_MARK, PHit, Pvp, War};
 pub use monster::{BOSS, CHAMPION, CLUTCH_PX, ELITE, Monsters, level_scale, max_hp};
 pub use sheet::{Outing, Sheet, line_points, owned_cards};
 pub use tables::{CLASSES, KINDS, Kind, TICK_HZ};
-pub use terrain::{Terrain, check as check_terrain, level_at, narrow_count, ring_of};
+pub use terrain::{NO_SHRINE, QuietZone, Terrain, check as check_terrain, flood, level_at, narrow_count, ring_of};
 pub use tide::{
     Altar, Realm, boss_due, coin_at, field_boss_window, next_field_boss, next_world_boss, tide_countdown, tide_last, tide_running, tide_start, world_ride,
 };
@@ -502,12 +505,12 @@ impl Field {
         }
     }
 
-    /// Heroes monsters chase (up, not downed) with their head start by threat.
+    /// Heroes monsters chase (up, not downed, not in a quiet zone) with their head start by threat.
     pub(crate) fn flow_sources(&self) -> Vec<Source> {
         self.heroes
             .iter()
             .enumerate()
-            .filter(|(_, p)| p.alive())
+            .filter(|(_, p)| p.alive() && !self.terrain.quiet(p.x, p.y))
             .map(|(i, p)| {
                 let d = if p.has_fx(FX_PROVOKE) { 0 } else { FLOW_LEAD + ((THREAT_TOP - p.threat()) * THREAT_HEAD_MUL).max(0) };
                 (cell_of(p.x, p.y) as u32, i as u16, d as u16)

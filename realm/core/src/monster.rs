@@ -26,6 +26,8 @@ pub const RECYCLE_CELLS: u16 = 64;
 pub const RECYCLE_BLOCK_SHIFT: u32 = CELL_SHIFT + 3;
 const RECYCLE_BLOCKS_W: i32 = (FIELD >> RECYCLE_BLOCK_SHIFT) as i32;
 const RECYCLE_REACH_BLOCKS: i32 = RECYCLE_CELLS as i32 / 8;
+/// A monster's body: its centre keeps this far (px) from walls and quiet zones (`off_walls`).
+pub const BODY_PX: i32 = 8;
 /// Clutch members stand this far apart (px).
 pub const CLUTCH_PX: i32 = 18;
 /// Splitter children land this far from their parent (px).
@@ -171,8 +173,10 @@ impl Field {
         // a straight line (across a wall).
         let bw = RECYCLE_BLOCKS_W;
         let mut near = vec![false; (bw * bw) as usize];
+        let mut anyone = false;
         for h in self.heroes.iter().filter(|h| h.present) {
             near[((h.y >> RECYCLE_BLOCK_SHIFT) * bw + (h.x >> RECYCLE_BLOCK_SHIFT)) as usize] = true;
+            anyone = true;
         }
         let hero_near = |x: i32, y: i32| {
             let (bx, by) = (x >> RECYCLE_BLOCK_SHIFT, y >> RECYCLE_BLOCK_SHIFT);
@@ -186,9 +190,10 @@ impl Field {
             }
             let c = cell_of(m.x[i], m.y[i]);
             let d = self.flow.dist[c];
-            if d != UNREACHED && m.flags[i] & BOSS == 0 {
+            if m.flags[i] & BOSS == 0 && (d != UNREACHED || anyone) {
+                // Unreached by the flow (every hero sheltered in a quiet zone, or none chased) counts as far.
                 let base = self.src_d0.get(self.flow.src[c] as usize).copied().unwrap_or(0);
-                if d.saturating_sub(base) > RECYCLE_CELLS * STEP && !hero_near(m.x[i], m.y[i]) {
+                if (d == UNREACHED || d.saturating_sub(base) > RECYCLE_CELLS * STEP) && !hero_near(m.x[i], m.y[i]) {
                     // Left far behind by every hero: free the slot so births put it back in play.
                     m.hp[i] = 0;
                     self.free.push(i as u32);
@@ -275,6 +280,11 @@ impl Field {
             return (x, y, t);
         }
         let c = cell_of(x, y);
+        if self.terrain.at_cell(c) & QUIET != 0 {
+            // Inside a quiet zone (placed there, or born before it formed): straight out from its centre.
+            let (nx, ny) = self.quiet_push(x, y, m.row(i).speed as i32);
+            return (nx, ny, t);
+        }
         let d = self.flow.dist[c];
         if d == UNREACHED {
             return (x, y, t);
@@ -329,7 +339,7 @@ impl Field {
                 let mut best: Option<(i32, u32)> = None;
                 grid_box(&self.hgrid, PCELLS_W, PCELL_SHIFT, x - r, y - r, x + r, y + r, |q| {
                     let qh = &self.heroes[q as usize];
-                    if qh.alive() && within(qh.x, qh.y, x, y, LEAP_NEAR_PX) {
+                    if qh.alive() && within(qh.x, qh.y, x, y, LEAP_NEAR_PX) && !self.terrain.quiet(qh.x, qh.y) {
                         let th = self.threat[q as usize];
                         if best.is_none_or(|(bt, bq)| th < bt || (th == bt && q < bq)) {
                             best = Some((th, q));
@@ -338,7 +348,7 @@ impl Field {
                 });
                 if let Some((_, q)) = best {
                     let qh = &self.heroes[q as usize];
-                    let (lx, ly) = self.terrain.slide(qh.x, qh.y, qh.x + (x - qh.x).signum() * STOP_PX * SUB, qh.y);
+                    let (lx, ly) = self.terrain.mslide(qh.x, qh.y, qh.x + (x - qh.x).signum() * STOP_PX * SUB, qh.y);
                     return (lx, ly, LEAP_EVERY - 1);
                 }
             }
@@ -355,7 +365,7 @@ impl Field {
             grid_box(&self.hgrid, PCELLS_W, PCELL_SHIFT, x - r, y - r, x + r, y + r, |q| {
                 let qh = &self.heroes[q as usize];
                 let dd = d2(qh.x, qh.y, x, y).max(1);
-                if qh.alive() && dd <= r as i64 * r as i64 {
+                if qh.alive() && dd <= r as i64 * r as i64 && !self.terrain.quiet(qh.x, qh.y) {
                     let th = self.threat[q as usize] as i64;
                     let t2 = th * th;
                     // threat / distance highest: t2 / dd highest.
@@ -366,7 +376,11 @@ impl Field {
             });
             if let Some((_, _, q)) = best {
                 let qh = &self.heroes[q as usize];
-                target = Some((qh.x, qh.y, STOP_PX * SUB));
+                // Straight at her only when no wall corner stands between (else the flow goes round it).
+                let open = (1..4).all(|k| !self.terrain.blocked(x + (qh.x - x) * k / 4, y + (qh.y - y) * k / 4));
+                if open {
+                    target = Some((qh.x, qh.y, STOP_PX * SUB));
+                }
             }
         }
         let (tx, ty, stop_at) = match target {
@@ -387,13 +401,15 @@ impl Field {
                     }
                     let nc = ny as usize * CELLS_W + nx as usize;
                     let nd = self.flow.dist[nc];
-                    if nd == UNREACHED {
+                    // Never a step back down the flow: in a corridor a crowd waits its turn instead of
+                    // swaying back and forth at the mouth.
+                    if nd == UNREACHED || nd > d {
                         continue;
                     }
                     if ox != 0 && oy != 0 {
                         let a = cy as usize * CELLS_W + nx as usize;
                         let b = ny as usize * CELLS_W + cx as usize;
-                        if self.terrain.at_cell(a) & WALL != 0 || self.terrain.at_cell(b) & WALL != 0 {
+                        if self.terrain.at_cell(a) & MONSTER_BLOCK != 0 || self.terrain.at_cell(b) & MONSTER_BLOCK != 0 {
                             continue;
                         }
                     }
@@ -421,8 +437,79 @@ impl Field {
             return (x, y, t);
         }
         let go = (len - stop_at as i64).min(speed);
-        let (nx, ny) = self.terrain.slide(x, y, x + (dx * go / len) as i32, y + (dy * go / len) as i32);
+        let (nx, ny) = self.terrain.mslide(x, y, x + (dx * go / len) as i32, y + (dy * go / len) as i32);
+        let (nx, ny) = self.off_walls(nx, ny);
         (nx, ny, t)
+    }
+
+    /// Keeps a monster's body (`BODY_PX`) off the closed cells beside its own: its centre is held that far in from
+    /// any side of its cell that faces a wall or a quiet zone, and from a closed diagonal corner. Four or five cell
+    /// reads; it never leaves the cell it is in.
+    #[inline]
+    pub(crate) fn off_walls(&self, x: i32, y: i32) -> (i32, i32) {
+        use crate::terrain::*;
+        let e = self.terrain.edges[cell_of(x, y)];
+        if e == 0 {
+            return (x, y);
+        }
+        let cell = 1 << CELL_SHIFT;
+        let b = BODY_PX * SUB;
+        let (cx, cy) = (x & !(cell - 1), y & !(cell - 1));
+        let (ox, oy) = (x - cx, y - cy);
+        let (lo_x, hi_x, lo_y, hi_y) = (ox < b, ox >= cell - b, oy < b, oy >= cell - b);
+        let (west, east, north, south) = (lo_x && e & EDGE_W != 0, hi_x && e & EDGE_E != 0, lo_y && e & EDGE_N != 0, hi_y && e & EDGE_S != 0);
+        let (mut nx, mut ny) = (x, y);
+        if west {
+            nx = cx + b;
+        } else if east {
+            nx = cx + cell - b - 1;
+        }
+        if north {
+            ny = cy + b;
+        } else if south {
+            ny = cy + cell - b - 1;
+        }
+        // A closed diagonal corner: out along the smaller way.
+        if !(west || east || north || south) && (lo_x || hi_x) && (lo_y || hi_y) {
+            let bit = match (lo_x, lo_y) {
+                (true, true) => EDGE_NW,
+                (false, true) => EDGE_NE,
+                (true, false) => EDGE_SW,
+                (false, false) => EDGE_SE,
+            };
+            if e & bit != 0 {
+                let (dx, dy) = (if lo_x { b - ox } else { ox - (cell - b - 1) }, if lo_y { b - oy } else { oy - (cell - b - 1) });
+                if dx <= dy {
+                    nx = if lo_x { cx + b } else { cx + cell - b - 1 };
+                } else {
+                    ny = if lo_y { cy + b } else { cy + cell - b - 1 };
+                }
+            }
+        }
+        (nx, ny)
+    }
+
+    /// One tick of a monster leaving a quiet zone: away from the zone's centre at its speed (at least
+    /// `QUIET_PUSH_PX`), sliding along walls; when walls hold it, to the nearest open ground outside.
+    pub(crate) fn quiet_push(&self, x: i32, y: i32, speed_px_s: i32) -> (i32, i32) {
+        let Some(z) = self.terrain.zone_at(x, y) else { return (x, y) };
+        let (mut dx, mut dy) = ((x - z.x) as i64, (y - z.y) as i64);
+        if dx == 0 && dy == 0 {
+            dy = 1;
+        }
+        let len = isqrt(dx * dx + dy * dy).max(1);
+        let go = ((speed_px_s * SUB / TICK_HZ as i32).max(QUIET_PUSH_PX * SUB)) as i64;
+        dx = dx * go / len;
+        dy = dy * go / len;
+        let (nx, ny) = self.terrain.slide(x, y, x + dx as i32, y + dy as i32);
+        if (nx, ny) != (x, y) {
+            return (nx, ny);
+        }
+        // Held by walls: the nearest open cell beyond the zone's edge along the way out, else stay.
+        let r = ((z.r + 1) << CELL_SHIFT) as i64;
+        let (ox, oy) = ((z.x as i64 + (x - z.x) as i64 * r / len.max(1)) as i32, (z.y as i64 + (y - z.y) as i64 * r / len.max(1)) as i32);
+        let (px, py) = self.terrain.nearest_open(ox, oy);
+        if self.terrain.blocked(px, py) { (x, y) } else { (px, py) }
     }
 
     /// Contact damage gathered per hero (on her cadence): raw damage and who dealt it.
@@ -431,7 +518,8 @@ impl Field {
         let mut out = Vec::new();
         for id in a..b {
             let p = &self.heroes[id];
-            if !p.alive() || (self.tick + id as u32) % CONTACT_EVERY != 0 {
+            // A hero in a quiet zone is out of reach.
+            if !p.alive() || (self.tick + id as u32) % CONTACT_EVERY != 0 || self.terrain.quiet(p.x, p.y) {
                 continue;
             }
             let r = CONTACT_PX * SUB + GRID_MARGIN;
@@ -457,7 +545,7 @@ impl Field {
             if s.px == 0 {
                 let (nx, ny) = (s.x + s.vx, s.y + s.vy);
                 s.left = s.left.saturating_sub(1);
-                if nx < 0 || ny < 0 || nx >= FIELD || ny >= FIELD || (!high && self.terrain.wall(nx, ny)) {
+                if nx < 0 || ny < 0 || nx >= FIELD || ny >= FIELD || (!high && self.terrain.wall(nx, ny)) || self.terrain.quiet(nx, ny) {
                     done = true;
                 } else {
                     s.x = nx;
@@ -466,7 +554,7 @@ impl Field {
                     let mut hit: Option<u32> = None;
                     grid_box(&self.hgrid, PCELLS_W, PCELL_SHIFT, nx - r, ny - r, nx + r, ny + r, |q| {
                         let qh = &self.heroes[q as usize];
-                        if qh.alive() && d2(qh.x, qh.y, nx, ny) <= r as i64 * r as i64 && hit.is_none_or(|b| q < b) {
+                        if qh.alive() && d2(qh.x, qh.y, nx, ny) <= r as i64 * r as i64 && !self.terrain.quiet(qh.x, qh.y) && hit.is_none_or(|b| q < b) {
                             hit = Some(q);
                         }
                     });
@@ -500,7 +588,7 @@ impl Field {
         let mut v = Vec::new();
         grid_box(&self.hgrid, PCELLS_W, PCELL_SHIFT, x - r, y - r, x + r, y + r, |q| {
             let qh = &self.heroes[q as usize];
-            if qh.alive() && d2(qh.x, qh.y, x, y) <= r as i64 * r as i64 {
+            if qh.alive() && d2(qh.x, qh.y, x, y) <= r as i64 * r as i64 && !self.terrain.quiet(qh.x, qh.y) {
                 v.push(q as u16);
             }
         });

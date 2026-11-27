@@ -153,6 +153,8 @@ pub struct Outing {
     /// Contribution so far to the running tide and to the running boss (rules 8), carried between copies.
     pub tide_contrib: u32,
     pub boss_contrib: u32,
+    /// Shrines touched this outing (rules 6, quiet zones), one bit each: each gives its draw once.
+    pub shrines: u8,
 }
 
 impl Outing {
@@ -176,6 +178,7 @@ impl Outing {
             struck_ago: NEVER,
             tide_contrib: 0,
             boss_contrib: 0,
+            shrines: 0,
         }
     }
 }

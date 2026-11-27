@@ -2,7 +2,9 @@ class_name FieldWorld
 extends Node2D
 ## The field's fixed features over the ground grid: the gate, the heart and its rings, seven waystones (stand
 ## within 48 px and hold interact to bank) and six war altars (they glow during a tide). Positions come from
-## `RealmLink.world().sites` (px pairs: gate, heart, waystones 0..6, altars 0..5).
+## `RealmLink.world().sites` (px pairs: gate, heart, waystones 0..6, altars 0..5). The QUIET zones (rules 6.1) come
+## from `RealmLink.world().quiet` (x, y, radius px, shrine or -1 a zone): a pale ring where monsters cannot go and,
+## at the centre of each but a waystone's ward, a SHRINE (touch it once an outing for a draw).
 
 const RING_HEART_PX: float = 2500.0
 const RING_EDGE_PX: float = 6000.0
@@ -11,8 +13,11 @@ const RING_COL: Color = Color(0.7, 0.55, 0.9, 0.14)
 const STONE_COL: Color = Color(0.7, 0.72, 0.8)
 const GLOW_COL: Color = Color(0.45, 0.8, 1.0)
 const ALTAR_COL: Color = Color(0.8, 0.5, 0.25)
+const QUIET_COL: Color = Color(0.75, 0.9, 0.8)
+const SHRINE_COL: Color = Color(0.95, 0.85, 0.5)
 
 var sites: PackedFloat32Array = PackedFloat32Array()
+var quiet: PackedFloat32Array = PackedFloat32Array()
 var tide: bool = false
 var view: Rect2 = Rect2()
 var px_scale: float = 1.0
@@ -56,6 +61,7 @@ func _draw() -> void:
 			var a0: float = (view.get_center() - heart).angle()
 			var span: float = clampf(view.size.length() / r, 0.05, PI)
 			draw_arc(heart, r, a0 - span, a0 + span, 64, RING_COL, 3.0 * w, true)
+	_draw_quiet(w, wall)
 	if view.grow(300).has_point(heart):
 		_stand("heart", heart)
 	var gate: Vector2 = _site(0)
@@ -99,3 +105,21 @@ func _draw() -> void:
 			draw_circle(p2 + Vector2(0, -16), 4.0, Color(ALTAR_COL.r, ALTAR_COL.g, ALTAR_COL.b, lit))
 		if tide:
 			draw_arc(p2, 150.0, 0.0, TAU, 40, Color(1.0, 0.5, 0.2, 0.25), 2.0 * w, true)
+
+
+## The quiet zones: a faint disc and ring at the border monsters cannot cross; a shrine is a small pale stone with a
+## flame on it.
+func _draw_quiet(w: float, wall: float) -> void:
+	for i in range(0, quiet.size() - 3, 4):
+		var c := Vector2(quiet[i], quiet[i + 1])
+		var r: float = quiet[i + 2]
+		if not view.grow(r + 20.0).has_point(c):
+			continue
+		draw_circle(c, r, Color(QUIET_COL.r, QUIET_COL.g, QUIET_COL.b, 0.05))
+		draw_arc(c, r, 0.0, TAU, 64, Color(QUIET_COL.r, QUIET_COL.g, QUIET_COL.b, 0.35), 2.0 * w, true)
+		if quiet[i + 3] < 0.0:
+			continue
+		var flick: float = 0.7 + 0.3 * sin(wall * 3.0 + quiet[i + 3])
+		draw_rect(Rect2(c + Vector2(-7, -16), Vector2(14, 16)), QUIET_COL.darkened(0.35))
+		draw_rect(Rect2(c + Vector2(-9, -3), Vector2(18, 3)), QUIET_COL.darkened(0.55))
+		draw_circle(c + Vector2(0, -20), 4.0, Color(SHRINE_COL.r, SHRINE_COL.g, SHRINE_COL.b, flick))

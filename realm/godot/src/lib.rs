@@ -262,7 +262,8 @@ impl RealmLink {
     }
 
     /// The field's own state: `field`, `tick`, `tide` (a tide is running), `sites` (px pairs: the gate, the
-    /// heart, seven waystones, six altars), `zones`, `drops`, `shots`; the realm clock's `clock`, `tide_in` and
+    /// heart, seven waystones, six altars), `quiet` (4 floats a quiet zone: x, y, radius px, shrine or -1),
+    /// `zones`, `drops`, `shots`; the realm clock's `clock`, `tide_in` and
     /// `tide_left` (ticks), `altars` (state, held, health per altar), `next_boss` and `next_boss_in`, `world_field`
     /// and `world_in`, and `boss` (`name`, `health`, `max_health`, `x`, `y` px, `world`, `leaves_in`) while one is up.
     #[func]
@@ -273,6 +274,7 @@ impl RealmLink {
         d.set("tick", i64::from(w.tick));
         d.set("tide", w.tide);
         d.set("sites", &(PackedFloat32Array::from(w.sites.as_slice())).to_variant());
+        d.set("quiet", &(PackedFloat32Array::from(w.quiet.as_slice())).to_variant());
         d.set("zones", w.zones);
         d.set("drops", w.drops);
         d.set("shots", w.shots);

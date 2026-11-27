@@ -5,6 +5,83 @@ use crate::CELLS_W;
 use crate::tables::*;
 use crate::terrain::{Gen, W, near_site};
 
+/// New obstacles keep this many cells from every site.
+const OBSTACLE_KEEP: i32 = 14;
+
+/// The blocking ground every generator lays in its own character (rules 6): rock, trees, water and wall runs.
+impl Gen {
+    /// A point of the map at least `keep` cells from every site (None after a few tries).
+    pub(crate) fn spot(&mut self, cells: &[(i32, i32)], margin: i32, keep: i32) -> Option<(i32, i32)> {
+        for _ in 0..8 {
+            let (x, y) = (self.range(margin, W - 1 - margin), self.range(margin, W - 1 - margin));
+            if !near_site(cells, x, y, keep) {
+                return Some((x, y));
+            }
+        }
+        None
+    }
+    /// Rock outcrops: two or three overlapping discs of radius `rmin..=rmax`, away from the sites.
+    pub(crate) fn rocks(&mut self, cells: &[(i32, i32)], n: i32, rmin: i32, rmax: i32) {
+        for _ in 0..n {
+            let Some((x, y)) = self.spot(cells, 4, OBSTACLE_KEEP) else { continue };
+            for _ in 0..self.range(2, 3) {
+                let (ox, oy, r) = (self.range(-rmax, rmax), self.range(-rmax, rmax), self.range(rmin, rmax));
+                self.disc(x + ox, y + oy, r, WALL, 0);
+            }
+        }
+    }
+    /// Tree clusters: four to eight trunks of radius 1 or 2 within six cells (thickets the horde must thread).
+    pub(crate) fn trees(&mut self, cells: &[(i32, i32)], n: i32) {
+        for _ in 0..n {
+            let Some((x, y)) = self.spot(cells, 6, OBSTACLE_KEEP) else { continue };
+            for _ in 0..self.range(4, 8) {
+                let (ox, oy, r) = (self.range(-6, 6), self.range(-6, 6), self.range(1, 2));
+                self.disc(x + ox, y + oy, r, WALL, 0);
+            }
+        }
+    }
+    /// Deep water: pools nobody walks through (`WATER`), ringed by mire when `rim`.
+    pub(crate) fn pools(&mut self, cells: &[(i32, i32)], n: i32, rmin: i32, rmax: i32, rim: bool) {
+        for _ in 0..n {
+            let Some((x, y)) = self.spot(cells, rmax + 2, OBSTACLE_KEEP + rmax) else { continue };
+            let r = self.range(rmin, rmax);
+            if rim {
+                self.disc(x, y, r + 2, MIRE, 0);
+            }
+            self.disc(x, y, r, WATER, 0);
+            let (ox, oy) = (self.range(-r, r), self.range(-r, r));
+            self.disc(x + ox, y + oy, r * 2 / 3, WATER, 0);
+        }
+    }
+    /// Long walls (field walls, spurs, shelves) of `lmin..=lmax` cells, two thick, with one or two gaps of
+    /// `MIN_PASSAGE` to `MIN_PASSAGE + 3` cells: the corridors and tight passages between open ground.
+    pub(crate) fn wall_runs(&mut self, cells: &[(i32, i32)], n: i32, lmin: i32, lmax: i32) {
+        for _ in 0..n {
+            let Some((x, y)) = self.spot(cells, 8, OBSTACLE_KEEP) else { continue };
+            let len = self.range(lmin, lmax);
+            let horizontal = self.r(2) == 0;
+            let gaps = [self.range(4, len / 2), self.range(len / 2, len - 4)];
+            let two = self.r(2) == 0;
+            let gw = MIN_PASSAGE + self.r(4);
+            for k in 0..=len {
+                if (k >= gaps[0] && k < gaps[0] + gw) || (two && k >= gaps[1] && k < gaps[1] + gw) {
+                    continue;
+                }
+                let (cx, cy) = if horizontal { (x + k, y) } else { (x, y + k) };
+                if near_site(cells, cx, cy, OBSTACLE_KEEP) {
+                    continue;
+                }
+                if horizontal {
+                    self.rect(cx, cy, cx, cy + 1, WALL, 0);
+                } else {
+                    self.rect(cx, cy, cx + 1, cy, WALL, 0);
+                }
+            }
+        }
+    }
+}
+
+
 fn road_line(g: &mut Gen, cells: &[(i32, i32)]) {
     let gate = cells[0];
     let heart = cells[cells.len() - 1];
@@ -24,10 +101,19 @@ pub(crate) fn gen_road(g: &mut Gen, cells: &[(i32, i32)]) {
     // The burnt chapel: a larger ruin near the heart's rim.
     let (hx, hy) = cells[cells.len() - 1];
     g.ruin(hx + 40, hy - 50, 22, 16);
+    // Field walls with gates between the farms, rock outcrops, copses and ponds: open ground still, but cut into
+    // plots the horde must stream between.
+    g.wall_runs(cells, 26, 30, 70);
+    g.rocks(cells, 50, 2, 5);
+    g.trees(cells, 70);
+    g.pools(cells, 16, 4, 9, false);
     road_line(g, cells);
-    // The road is clear of hedges.
+    // The road is clear of hedges, rock and water.
     for c in 0..CELLS {
         if g.map[c] & ROAD != 0 {
+            if g.map[c] & WALL != 0 {
+                g.map[c] &= !MIRE;
+            }
             g.map[c] &= !WALL;
         }
     }
@@ -66,6 +152,10 @@ pub(crate) fn gen_wood(g: &mut Gen, cells: &[(i32, i32)]) {
         let pr = g.range(WOOD_PATH_MIN, WOOD_PATH_MAX) / 2;
         g.path((x, y), to, pr, 20, 3, 0, WALL);
     }
+    // Thickets and black pools in the clearings, and fallen trunks across the paths: the paths pinch.
+    g.trees(cells, 40);
+    g.pools(cells, 10, 3, 6, false);
+    g.wall_runs(cells, 20, 10, 18);
 }
 
 pub(crate) fn gen_marsh(g: &mut Gen, cells: &[(i32, i32)]) {
@@ -77,6 +167,10 @@ pub(crate) fn gen_marsh(g: &mut Gen, cells: &[(i32, i32)]) {
             g.ruin(x, y, w, h);
         }
     }
+    // Deep pools (drowned ground nobody wades) with causeways between, and reed thickets.
+    g.pools(cells, 70, 4, 12, true);
+    g.trees(cells, 40);
+    g.wall_runs(cells, 12, 20, 40);
 }
 
 pub(crate) fn gen_peaks(g: &mut Gen, cells: &[(i32, i32)]) {
@@ -107,11 +201,15 @@ pub(crate) fn gen_peaks(g: &mut Gen, cells: &[(i32, i32)]) {
             g.disc(x, y, r, WALL, 0);
         }
     }
+    // Crags, and spurs running down from the ridges that make corridors between them.
+    g.rocks(cells, 70, 2, 4);
+    g.wall_runs(cells, 40, 16, 34);
+    g.pools(cells, 8, 3, 6, false);
 }
 
 const ROOM: i32 = 32;
 
-pub(crate) fn gen_tower(g: &mut Gen, _cells: &[(i32, i32)]) {
+pub(crate) fn gen_tower(g: &mut Gen, cells: &[(i32, i32)]) {
     g.map.fill(WALL);
     let n = W / ROOM;
     // Room interiors leave walls 2 thick between rooms.
@@ -157,6 +255,37 @@ pub(crate) fn gen_tower(g: &mut Gen, _cells: &[(i32, i32)]) {
             g.rect(a * ROOM + 4, k * ROOM + 12, b * ROOM + ROOM - 4, k * ROOM + 19, 0, WALL);
         } else {
             g.rect(k * ROOM + 12, a * ROOM + 4, k * ROOM + 19, b * ROOM + ROOM - 4, 0, WALL);
+        }
+    }
+    // Furnishing: pillars in a grid in some rooms, rows of shelves in others (the libraries), each leaving
+    // passages at least `MIN_PASSAGE` wide; rooms with a site stay bare.
+    for ry in 0..n {
+        for rx in 0..n {
+            let (x0, y0) = (rx * ROOM, ry * ROOM);
+            if near_site(cells, x0 + ROOM / 2, y0 + ROOM / 2, ROOM) {
+                continue;
+            }
+            match g.r(3) {
+                0 => {
+                    for py in [y0 + 9, y0 + 21] {
+                        for px in [x0 + 9, x0 + 21] {
+                            g.rect(px, py, px + 1, py + 1, WALL, 0);
+                        }
+                    }
+                }
+                1 => {
+                    let horizontal = g.r(2) == 0;
+                    for k in 0..2 {
+                        let o = 10 + k * 9;
+                        if horizontal {
+                            g.rect(x0 + 8, y0 + o, x0 + 22, y0 + o, WALL, 0);
+                        } else {
+                            g.rect(x0 + o, y0 + 8, x0 + o, y0 + 22, WALL, 0);
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
     }
 }
@@ -222,6 +351,15 @@ pub(crate) fn gen_edge(g: &mut Gen, cells: &[(i32, i32)]) {
         let c = open[g.r(open.len() as i32) as usize];
         let (x, y, r) = ((c % CELLS_W) as i32, (c / CELLS_W) as i32, g.range(8, 20));
         g.disc(x, y, r, DARK, 0);
+    }
+    // Rock spires and broken ground on the islands (never on a bridge).
+    for _ in 0..90 {
+        let c = open[g.r(open.len() as i32) as usize];
+        let (x, y) = ((c % CELLS_W) as i32, (c / CELLS_W) as i32);
+        let r = g.range(1, 3);
+        if !near_site(cells, x, y, 14) && g.map[c] & ROAD == 0 {
+            g.disc(x, y, r, WALL, 0);
+        }
     }
     for _ in 0..80 {
         let c = open[g.r(open.len() as i32) as usize];

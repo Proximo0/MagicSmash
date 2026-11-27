@@ -145,7 +145,15 @@ tuning gate that keeps 60 levels honest: a hero of the monster's level, in gear 
   damage x2, XP x20, always an item roll for every credited hero, announced to heroes within 600 px.
 - Density. A field's target count = `min(cap, 400 + sum over heroes of ring weight)`, ring weight 12 at the edge,
   20 in the middle, 32 at the heart; cap 20,000 (50,000 proven). Monsters are born 400 to 700 px from a hero
-  (250 to 450 in the dark), never on a wall, and one that has had no hero within 64 cells is recycled.
+  (250 to 450 in the dark), never on a wall or in a QUIET zone (6.1), and one that has had no hero within 64 cells
+  is recycled.
+- Routing. Monsters walk the flow field, which treats walls and quiet zones as closed and never cuts a corner. A
+  monster steps only to a neighbouring cell that is no farther along the flow (a crowd in a corridor waits its turn
+  instead of swaying back), it goes straight at a hero within two cells only when no wall stands on the line, and
+  its centre keeps 8 px (its body) from every closed cell beside it, so a horde streams through a passage one cell
+  wide and round its corners without rubbing into the walls. A monster that finds itself in a quiet zone walks
+  straight out from its centre (at least 6 px a tick); hero pushes and pulls and splitters' children never put one
+  in.
 
 **The kinds** (speed px/s, health, damage, XP at level 1). THE TOWER's eight are drawn with the pictures Curtis has
 made; every other kind has a flat stand-in until its picture arrives.
@@ -254,9 +262,32 @@ one on the heart's rim. Six WAR ALTAR sites in the middle ring. Sites are a tabl
 | THE TOWER | 40 to 50 | ruined halls, libraries | rooms and corridors, doors 6 cells wide | THE CHANDELIER and THE GHOSTWRITER, in turn |
 | THE WORLD'S EDGE | 50 to 60 | ash, broken ground over a void | islands joined by bridges 8 cells wide; all terrain rules at once | THE UNMADE KING |
 
-**Terrain** is one byte a cell: WALL (nobody passes, bolts stop), MIRE, ROAD, DARK. A field's map is made from its
-seed by a generator per terrain rule, then checked: every site reachable from the gate, no passage under 6 cells.
-The flow field treats walls as closed. The map is part of the field's state hash.
+**Terrain** is one byte a cell: WALL (nobody passes, bolts stop), MIRE, ROAD, DARK, QUIET (6.1). Deep WATER is a
+wall with the mire bit (it blocks like rock and is drawn as water). A field's map is made from its seed by a
+generator per terrain rule, then checked: every site and quiet zone reachable from the gate, no passage under 6
+cells, and ground nobody can reach from the gate is made wall, so every walkable cell is reachable. Every generator
+lays blocking ground as well as its own rule, keeping 14 cells from the sites, in the field's own character: THE
+FOOL'S ROAD field walls with gates between the farms, rock outcrops, copses and ponds (no mire); THE HANGED WOOD
+thickets, black pools and fallen trunks that pinch its paths; THE MOON MARSH deep pools ringed with mire, with
+causeways between, and reed thickets; THE HERMIT'S PEAKS crags and spurs off the ridges that make corridors; THE
+TOWER pillars and rows of library shelves in its rooms; THE WORLD'S EDGE rock spires on its islands. Every wall run
+has gaps of 6 to 9 cells: the tight passages between open ground. The flow field treats walls and quiet zones as
+closed. The map is part of the field's state hash.
+
+### 6.1 Quiet zones and shrines
+
+Every field has QUIET zones, placed by its map generator from the seed (so every client agrees) and drawn on the map:
+- the ENTRANCE, 10 cells round a point 6 cells north of the gate (the gate is inside it);
+- 3 to 5 INTERMISSIONS, 8 cells in radius, spread evenly in depth from 6,400 px to 2,900 px from the heart; the
+  first within 30 degrees of the line from the gate to the heart, each next within 30 degrees of the one before and
+  within 70 of that line, at least 30 cells from the sites and from each other: a winding way from the gate inward;
+- a WARD of 4 cells round every waystone, so banking is done on quiet ground.
+Each zone is cleared of walls 6 cells beyond its edge, so monsters walk round it. Inside a zone nothing is born, no
+monster walks in (its edge is a wall to monsters and to the flow field; a hero inside is not chased), no monster
+strikes a hero inside it (contact, bolts, lobbed and bursting circles), and a monster found inside walks out.
+The entrance and each intermission have a SHRINE at their centre: a hero up who comes within 28 px of one is given
+one card draw, once a shrine an outing (the touched shrines go with her to another copy of the field). The draw goes
+through the same queue as a level's draw (`grant_draw` in the core). Waystone wards have no shrine.
 
 **Level ceiling.** In a field, a hero counts as at most its top level + 2: class level for stat points and skill
 ranks, and gear above the ceiling scales down likewise, so a veteran helps without erasing the field.
