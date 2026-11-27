@@ -37,7 +37,8 @@ Setup:
 
 How the gate was measured:
 - Kill time = walker health / the hero's measured damage a second on it, over a 20 s window.
-- The hero is alone, at field level 1, with no cards.
+- The hero is alone, with no cards. (Measured at field level 1, before 27 Nov; her class level now adds 2% damage a
+  level: the times with it are at the end.)
 - Gear is assumed to be the bench sheet: six UNCOMMON items at her level (lines `1 + level / 4` points x 120%), with
   points spent half on MIGHT. The first job applies from level 40.
 - The walker is the field's own walker kind at that level. THE WORLD'S EDGE has none, so it uses THE TOWER's swords.
@@ -192,7 +193,7 @@ Built in `core/src/{tide,boss,vault,transfer,bots,gates}.rs` and `tables/realm.r
 7. **Leap, pull and push after the grid was built:** left as is and accepted. The grid is built once a tick; a monster moved by a leap (up to 200 px), pull or push after it can be missed by a contact or area check for that one tick (12 px of slack). Rebuilding the grid costs about 1.2 ms a tick at 20,000 monsters; the miss costs one tick (50 ms) of one monster's hit.
 8. **Effects checked with `has_fx` (MARTYR, DEADEYE, CRUSADE, PROVOKE) last N - 1 ticks** and the others N: accepted, one tick (50 ms) in a 2 to 10 s effect.
 9. **PROVOKE radius:** kept as the flow seed at the knight's cell, which pulls the horde within about 7 flow cells (224 px) rather than 200 px. The 24 px more is in the knight's favour and costs no extra pass.
-10. **CLASS_XP:** not retuned. A lone NOVICE kiting 10 minutes reaches field level 2 (mean of 10 seeds, 143 kills); a four-hero party gets level 4 on THE FOOL'S ROAD, 11 on the MARSH, 77 on the PEAKS and 185 on the EDGE in 5 minutes, which is a field level (not a class level) and is not what CLASS_XP gates. The curve stays a placeholder until the loot and the store's real progress exist.
+10. **CLASS_XP:** not retuned. (Field levels were removed on 27 Nov 2026, see the end.) A lone NOVICE kiting 10 minutes reaches field level 2 (mean of 10 seeds, 143 kills); a four-hero party gets level 4 on THE FOOL'S ROAD, 11 on the MARSH, 77 on the PEAKS and 185 on the EDGE in 5 minutes, which is a field level (not a class level) and is not what CLASS_XP gates. The curve stays a placeholder until the loot and the store's real progress exist.
 
 ### The bots and the gates
 - Class bots (`bots.rs`, whole numbers, seeded): flee from every monster within reach (110, 160 or 200 px by role) weighted by `FLEE_VEC_K / d^2`, score eight directions, skip those into walls or within 300 px of the rim (a second pass when all are shut), keep the last direction (a fifth of the vector as a bonus, so a wall does not make her dither), patrol a ring (a slow orbit, `PATROL_W = 8`), go to altars and the boss when `objectives`, raise downed allies when at most 3 monsters are within 60 px, bank at a waystone at 400 coin, pick cards from role lists, drink potions on a press edge, use skills when 3 or more monsters are within 150 px, the ultimate at 5. Parties of up to 8 stay close to each other (`PARTY_MAX`).
@@ -241,3 +242,43 @@ Every number and the open questions are in `docs/realm/pvp.md`.
 - **Bots:** a bot never raises a hero the help ban forbids, and a hunter never raises her own prey.
 - **Budget:** 1,000 heroes, 500 of them marked hunters, among 20,000 monsters, with a tide and 4 threads. The worst
   field is THE WORLD'S EDGE at 6.19 ms mean and 13.17 ms p99. Hashes are equal on 1 to 4 threads and on a follower.
+
+## Scope change (27 Nov 2026): no field level, class level is the progression
+
+Curtis: "remove per field xp system"; Horde & Hearth is an MMO with survivor horde and survivor elements. What the
+core does now (rules 2 and 5):
+- **Gone:** the hero's per-outing `level` and `xp`, `gain_field_xp`, `FIELD_XP_PER_LEVEL`, `FIELD_LEVEL_DMG_PCT/CAP`
+  and the field-level factor in `mods.rs`; the `Outing` no longer carries them (server wire and state codec follow,
+  `STATE_VERSION` 4). Event rank 0 `LEVEL` is now `GRANT(hero, source)`.
+- **Class XP** is what a kill pays, as before: kill XP x `FIELD_KILL_XP_PCT` (renamed from `FIELD_XP_PCT`, THE
+  TOWER 800%) x the class XP percent (THE HERMIT +8%, SCHOLAR'S INK +50%) x the race's, 200 px active share, none
+  from a monster more than 10 levels below; event XP as before. `Hero::class_xp` sums it for the HUD, and
+  `Sheet::class_xp` (the saved total, from the gateway's `sheet_of`) lets the client draw the class level bar
+  (`realm_core::class_progress`).
+- **Draws** (`Field::grant_draw(hero, source)`, `GRANT_ENTER/KILL/SHRINE`): one when she joins with a fresh outing
+  (a move between copies brings her draws: none), one to every sharer of an ELITE, CHAMPION or boss kill, and the
+  shrine job calls it once per shrine per outing. Queue of 9 and the pick rules unchanged. A join's GRANT and
+  DRAW events are cleared by the next step (joining is not a tick); the offer is state.
+- **Damage:** `CLASS_LEVEL_DMG_PCT` = 2: +2% a class level the field counts (its ceiling), +118% at 60.
+
+**Retune, `measure pace 3 5`** (one class bot alone on the ring of her level, KNIGHT MAGE ARCHER PRIEST PALADIN,
+3 seeds, 5 minutes; mean kills a run; before: the time-weighted field-level bonus she had):
+
+| field, class level | before: kills (field-level bonus) | after: kills (2% a class level) |
+|---|---|---|
+| FOOL'S ROAD 10 | 409 (+7%) | 423 (+18%) |
+| HANGED WOOD 10 / 15 | 764 (+24%) / 945 (+30%) | 754 / 994 (+18% / +28%) |
+| MOON MARSH 20 / 25 | 675 (+33%) / 482 (+23%) | 641 / 444 (+38% / +48%) |
+| HERMIT'S PEAKS 30 / 35 | 260 (+24%) / 426 (+36%) | 288 / 460 (+58% / +68%) |
+| THE TOWER 40 / 45 | 340 (+72%) / 1,030 (+93%) | 342 / 862 (+78% / +88%) |
+| WORLD'S EDGE 50 / 55 | 2,756 (+111%) / 2,175 (+95%) | 2,018 / 1,768 (+98% / +108%) |
+
+Within 11% from 10 to 40; 16% to 27% fewer kills at 45 to 55, where the old bonus snowballed with the kills (and
+kept growing past 5 minutes, to +160% at field level 41). Kept at 2 (whole numbers: 3 would make 20 to 35 half
+again faster). `measure killtime` (walker gate, now with the class term): mean of the five classes 0.73 s at 10,
+0.68 at 20, 0.59 at 30, 0.31 at 40, 0.26 at 50, 0.20 at 60.
+
+Open: the class XP an hour at 45 to 60 falls by about the kills' 16% to 27%, so `CLASS_XP` (fitted to kill rates,
+balance.md) wants a `balance probe`/`fit` rerun; the draws an outing are far fewer (an opening draw and the elites,
+where a 5-minute outing at 50 used to level 20 to 40 times), which the card-heavy builds feel most.
+

@@ -525,7 +525,7 @@ mod tests {
                 rec.leaves.push(5);
             }
             if t == 160 {
-                rec.joins.push({ let mut j = Join::bench(5, 1, 1, 30, FIELD / 3, FIELD / 3); j.outing.coin = 90; j.outing.level = 4; j });
+                rec.joins.push({ let mut j = Join::bench(5, 1, 1, 30, FIELD / 3, FIELD / 3); j.outing.coin = 90; j.outing.draws = 4; j });
             }
             // The realm clock moves the field into a tide, and later to a field boss's rising, on both sides.
             let fid = server.field_id();

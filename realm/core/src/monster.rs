@@ -113,7 +113,7 @@ impl Monsters {
     /// XP (and coin) a kill pays.
     pub fn xp(&self, i: usize) -> u32 {
         let row = self.row(i);
-        let x = level_scale(row.xp, self.level[i], POWER_PCT_PER_LEVEL) * FIELD_XP_PCT[row.field as usize % FIELD_XP_PCT.len()] / 100;
+        let x = level_scale(row.xp, self.level[i], POWER_PCT_PER_LEVEL) * FIELD_KILL_XP_PCT[row.field as usize % FIELD_KILL_XP_PCT.len()] / 100;
         if self.is_boss(i) {
             x * BOSS_XP_MUL
         } else if self.is_champion(i) {

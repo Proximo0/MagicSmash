@@ -305,6 +305,7 @@ impl Career {
             deck: (1..=realm_core::owned_cards(self.level).min(DECK_SIZE as u8)).collect(),
             belt,
             look: 0,
+            class_xp: self.xp,
         }
     }
 

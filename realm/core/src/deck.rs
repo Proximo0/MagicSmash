@@ -183,22 +183,21 @@ impl Field {
         }
     }
 
-    /// Field XP: levels up (LEVEL) and queues a draw per level (DRAW).
-    pub(crate) fn gain_field_xp(&mut self, i: usize, xp: u32) {
-        let h = &mut self.heroes[i];
-        h.xp += xp;
-        let mut up = false;
-        while h.xp >= FIELD_XP_PER_LEVEL * h.level as u32 {
-            h.xp -= FIELD_XP_PER_LEVEL * h.level as u32;
-            h.level += 1;
-            h.owed += 1;
-            up = true;
+    /// Grants hero `hero` one draw (rules 5) for `source` (`GRANT_ENTER`, `GRANT_KILL`, `GRANT_SHRINE`): queues
+    /// it (GRANT), and rolls it at once if the queue has room (DRAW); a draw over the queue's cap waits, never lost.
+    /// Returns false (nothing granted) for an absent or fallen slot. The caller keeps any once-per rule (a shrine
+    /// once per outing).
+    pub fn grant_draw(&mut self, hero: usize, source: u8) -> bool {
+        let Some(h) = self.heroes.get_mut(hero) else {
+            return false;
+        };
+        if !h.present {
+            return false;
         }
-        if up {
-            let level = h.level;
-            self.events.push(Event::Level { hero: i as u16, level });
-            self.fill_offers(i);
-        }
+        h.owed = h.owed.saturating_add(1);
+        self.events.push(Event::Grant { hero: hero as u16, source });
+        self.fill_offers(hero);
+        true
     }
 }
 

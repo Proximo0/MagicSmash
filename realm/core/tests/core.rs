@@ -133,7 +133,7 @@ fn an_outing_carries_to_another_copy() {
     let id = b.join(&sheet, &o, FIELD / 2, FIELD / 2);
     let h = &b.heroes()[id as usize];
     let ha = &a.heroes()[3];
-    assert_eq!((h.health, h.level, h.xp, h.coin, h.copies, h.belt), (ha.health, ha.level, ha.xp, ha.coin, ha.copies, ha.belt));
+    assert_eq!((h.health, h.draws, h.owed, h.coin, h.copies, h.belt), (ha.health, ha.draws, ha.owed, ha.coin, ha.copies, ha.belt));
     assert_eq!(b.outing(id).unwrap().offers, o.offers);
 }
 

@@ -3,9 +3,11 @@
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Event {
-    Level {
+    /// A draw was granted (rules 5): `source` is `GRANT_ENTER`, `GRANT_KILL` or `GRANT_SHRINE`. Its DRAW follows
+    /// at once while the queue has room.
+    Grant {
         hero: u16,
-        level: u16,
+        source: u8,
     },
     Draw {
         hero: u16,
@@ -138,7 +140,7 @@ impl Event {
     /// Position in the contract's list.
     pub fn rank(&self) -> u8 {
         match self {
-            Event::Level { .. } => 0,
+            Event::Grant { .. } => 0,
             Event::Draw { .. } => 1,
             Event::Pick { .. } => 2,
             Event::Skill { .. } => 3,

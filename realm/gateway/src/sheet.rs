@@ -46,6 +46,7 @@ pub fn sheet_of(store: &dyn Store, h: &Hero) -> Result<Sheet> {
         deck: p.deck.iter().map(|&c| (c as u8).saturating_add(CARD_BASE)).take(DECK_SIZE).collect(),
         belt,
         look: h.look,
+        class_xp: p.class_xp,
     })
 }
 

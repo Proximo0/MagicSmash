@@ -49,9 +49,8 @@ pub struct Hero {
     pub stats: [u16; 6],
     pub health: u32,
     pub max_health: u32,
-    /// Field level and XP (one outing).
-    pub level: u16,
-    pub xp: u32,
+    /// Class XP credited this outing (rules 2; the server books it from `Event::Xp`, this is for the HUD).
+    pub class_xp: u32,
     pub copies: [u8; NCARDS + 1],
     pub offers: Vec<[u8; DRAW_MAX as usize]>,
     pub owed: u16,
@@ -118,8 +117,7 @@ impl Default for Hero {
             stats: [0; 6],
             health: 0,
             max_health: 0,
-            level: 1,
-            xp: 0,
+            class_xp: 0,
             copies: [0; NCARDS + 1],
             offers: Vec::new(),
             owed: 0,
@@ -231,8 +229,6 @@ impl Hero {
             race: sheet.race % RACES.len() as u8,
             class_level: sheet.counted_level_top(top),
             stats: sheet.stats_top(top),
-            level: outing.level.max(1),
-            xp: outing.xp,
             copies: outing.copies,
             offers: outing.offers.clone(),
             owed: outing.owed,
@@ -269,8 +265,6 @@ impl Hero {
     pub fn outing(&self, tick: u32) -> Outing {
         Outing {
             health: Some(self.health.max(1)),
-            level: self.level,
-            xp: self.xp,
             copies: self.copies,
             offers: self.offers.clone(),
             owed: self.owed,

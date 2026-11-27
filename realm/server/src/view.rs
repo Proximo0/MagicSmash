@@ -36,6 +36,7 @@ pub struct View {
     pub me_x: u16,
     pub me_y: u16,
     pub health: u16,
+    /// Her class level (the field has no level of its own).
     pub level: u16,
     pub field_players: u32,
     pub field_monsters: u32,
@@ -85,7 +86,7 @@ pub fn build(f: &Field, id: u16, zoom: u8, tick_time: u16, s: &mut Scratch, out:
     out.me_x = (px - ox) as u16;
     out.me_y = (py - oy) as u16;
     out.health = p.health.min(u16::MAX as u32) as u16;
-    out.level = p.level;
+    out.level = p.sheet.class_level as u16;
     out.field_players = f.player_count();
     out.field_monsters = f.monster_count();
     out.tick_time = tick_time;

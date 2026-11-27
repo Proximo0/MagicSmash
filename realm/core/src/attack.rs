@@ -215,7 +215,7 @@ impl Field {
 }
 
 impl Ctx<'_> {
-    /// Damage of a base number for this hero: the weapon's item level, then MIGHT, field level, cards, effects.
+    /// Damage of a base number for this hero: the weapon's item level, then MIGHT, class level, cards, effects.
     fn power(&self, base: u32) -> u64 {
         let lvl = weapon_pct(self.h.sheet.weapon_level_top(self.f.top_level()));
         base as u64 * lvl / 100 * self.m.power / POWER_ONE

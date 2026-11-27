@@ -24,6 +24,29 @@ pub struct Sheet {
     /// Three slots: (potion id or `P_NONE`, charges).
     pub belt: [(u8, u8); BELT],
     pub look: u32,
+    /// The saved hero's class XP in all when she entered (the HUD's class XP bar; the field never changes it).
+    pub class_xp: u64,
+}
+
+/// Total class XP needed to reach `level` (1 needs none). `CLASS_XP[L - 1]` is the step from L to L + 1.
+pub fn class_xp_to_reach(level: u8) -> u64 {
+    CLASS_XP.iter().take(level.saturating_sub(1) as usize).map(|&x| x as u64).sum()
+}
+
+/// The class level a total of class XP is worth (at most 60), the XP into it and the XP its next level takes
+/// (0 at 60).
+pub fn class_progress(total: u64) -> (u8, u64, u64) {
+    let mut level = 1u8;
+    let mut base = 0u64;
+    while level < CLASS_LEVEL_MAX && (level as usize) <= CLASS_XP.len() {
+        let step = CLASS_XP[level as usize - 1] as u64;
+        if total < base + step {
+            return (level, total - base, step);
+        }
+        base += step;
+        level += 1;
+    }
+    (level, total - base, 0)
 }
 
 /// Line points of an item of a level: `1 + level / 4`.
@@ -72,6 +95,7 @@ impl Sheet {
             deck,
             belt: [(P_HEALING, 3), (P_WHETSTONE, 2), (P_PHOENIX, 1)],
             look: 0,
+            class_xp: class_xp_to_reach(level),
         }
     }
 
@@ -128,8 +152,6 @@ pub fn owned_cards(class_level: u8) -> u8 {
 pub struct Outing {
     /// None: full health.
     pub health: Option<u32>,
-    pub level: u16,
-    pub xp: u32,
     /// Copies picked of each card (index = card id).
     pub copies: [u8; NCARDS + 1],
     /// Offers waiting for a pick, oldest first.
@@ -159,8 +181,6 @@ impl Outing {
     pub fn new() -> Outing {
         Outing {
             health: None,
-            level: 1,
-            xp: 0,
             copies: [0; NCARDS + 1],
             offers: Vec::new(),
             owed: 0,

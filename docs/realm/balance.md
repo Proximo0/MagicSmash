@@ -226,7 +226,7 @@ Not yet in the careers' coin book (`realm-loadtest balance career`): a bot buys 
 ## Rule changes (numbers in `realm/core` beyond tables, each named)
 
 1. **The tide's doubling scales with the heroes up** (`TIDE_FULL_FROM` 4, `TIDE_FULL_AT` 40, `tide.rs`).
-2. **THE TOWER's kills pay 8 times the XP and coin** (`FIELD_XP_PCT`, `monster.rs`): its rooms let a hero kill a
+2. **THE TOWER's kills pay 8 times the XP and coin** (`FIELD_KILL_XP_PCT`, `monster.rs`): its rooms let a hero kill a
    tenth of what the open fields give, and the curve fell eightfold at level 40.
 3. **Contribution counts half of the hit drawn, before the hero's reductions** (`CONTRIB_DRAWN_PCT` 50,
    `combat.rs hurt_hero`; rules 8 say half of damage taken): a tank's mitigation no longer cuts her share.

@@ -6,7 +6,7 @@ use crate::attack::{Hit, Strikes};
 use crate::events::Event;
 use crate::hero::rise_up;
 use crate::mods::{CARD_KNIGHT_OF_WANDS, POWER_ONE};
-use crate::monster::{AURA_MEND, AURA_WAIL, BOSS, clutch_offset};
+use crate::monster::{AURA_MEND, AURA_WAIL, BOSS, CHAMPION, ELITE, clutch_offset};
 use crate::tables::*;
 use crate::util::{d2, grid_box, par_ranges, pct};
 use crate::{Drop, Field, PCELL_SHIFT, PCELLS_W, SUB, Shot, cell_of};
@@ -353,13 +353,18 @@ impl Field {
                 let q = q as usize;
                 let m = self.mods[q];
                 let gain = pct(xp, m.xp_pct as i64);
-                self.gain_field_xp(q, gain);
                 let h = &mut self.heroes[q];
                 if level as u32 + CLASS_XP_LEVELS_BELOW as u32 >= h.sheet.class_level as u32 {
-                    self.cxp[q] += pct(gain, RACES[h.race as usize].class_xp_pct as i64);
+                    let c = pct(gain, RACES[h.race as usize].class_xp_pct as i64);
+                    self.cxp[q] += c;
+                    h.class_xp = h.class_xp.saturating_add(c);
                 }
                 if flags & BOSS == 0 {
                     h.coin = h.coin.saturating_add(pct(xp, m.coin_pct as i64));
+                }
+                // An ELITE, CHAMPION or boss shared in pays a draw (rules 5).
+                if flags & (ELITE | CHAMPION | BOSS) != 0 {
+                    self.grant_draw(q, GRANT_KILL);
                 }
             }
             if let Some(h) = self.heroes.get_mut(killer as usize) {

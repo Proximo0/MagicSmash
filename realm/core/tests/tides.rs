@@ -265,7 +265,7 @@ fn monsters_at_an_altar_ruin_it() {
     let a = lit(&f)[0];
     let (ax, ay) = f.terrain().altars[a];
     let hp0 = f.altars()[a].hp;
-    // 8,000 at field level 10: 262% = 20,960.
+    // 8,000 at the field's top level 10: 262% = 20,960.
     assert_eq!(hp0, 20_960);
     let k = kind("gravedigger");
     for i in 0..40 {

@@ -37,7 +37,7 @@ const GEAR_VARIANTS: Array = [
 	["TALISMAN", "RING", "AMULET"]]
 const GEAR_TIERS: Array[String] = ["PILGRIM'S", "HANGED", "BOG", "HERMIT'S", "GILDED", "ASHEN"]
 const POTIONS: Array[String] = ["HEALING DRAUGHT", "VEIL OF ASH", "WHETSTONE OIL", "SCHOLAR'S INK", "GAMBLER'S COIN", "PHOENIX ASH"]
-const POTION_NOTES: Array[String] = ["heals 35%", "unseen for a while", "sharper blows", "more field XP", "more coin", "rise again at 30%"]
+const POTION_NOTES: Array[String] = ["heals 35%", "unseen for a while", "sharper blows", "more class XP", "more coin", "rise again at 30%"]
 ## What a merchant asks per potion (gateway.rs `potion_price`).
 const POTION_PRICES: Array[int] = [20, 60, 60, 120, 120, 400]
 const NO_JOB: int = 15
@@ -63,7 +63,7 @@ const MAX_COPIES: int = 5
 ## Card effects per copy (rules section 5), the deck card 0..29 (the core's card id is this + 1).
 const CARD_TEXT: Array[String] = [
 	"+10% damage", "+6% move speed", "+8% attack speed", "+10% health, heals that much", "regains 0.5% health a second",
-	"+12% attack size", "+10% weapon reach", "skill cooldowns 8% shorter", "+10% coin", "+8% field XP",
+	"+12% attack size", "+10% weapon reach", "skill cooldowns 8% shorter", "+10% coin", "+8% class XP",
 	"takes 5% less damage", "returns 20% of contact damage", "every 5th attack hits twice", "+25% damage under 30% health",
 	"+18% damage, takes 6% more", "5% of hits strike double", "allies within 100 px deal 3% more", "heals 1% of damage dealt",
 	"+15% damage to elites and bosses", "raises allies 25% faster", "+12% damage in a tide", "+1 pierce or target, else +8% damage",

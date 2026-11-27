@@ -19,7 +19,8 @@ const FX_RAISE: int = 9
 const STRIDE: int = 8
 const EV_STRIDE: int = 8
 ## Event ranks (the contract's order).
-const EV_LEVEL: int = 0
+## A draw granted (entering, an elite or boss shared, a shrine); `a` is its source. There is no field level.
+const EV_GRANT: int = 0
 const EV_DRAW: int = 1
 const EV_PICK: int = 2
 const EV_SKILL: int = 3
@@ -122,9 +123,9 @@ func events(ev: PackedInt32Array) -> void:
 					var n: int = 9 if flags & (ELITE | CHAMPION) else 4
 					var col: Color = Color(0.85, 0.45, 1.0) if flags & CHAMPION else (Color(1.0, 0.82, 0.3) if flags & ELITE else Color(0.9, 0.35, 0.3))
 					_add({"k": 20, "x": p.x, "y": p.y, "a": n, "b": float(ev[o + 2]), "c": col.to_html(false), "t": now, "life": 0.45})
-			EV_LEVEL:
+			EV_GRANT:
 				if mine:
-					_add({"k": 21, "x": p.x, "y": p.y, "a": 0.0, "b": 0.0, "c": "LEVEL %d" % ev[o + 2], "d": Color(1.0, 0.95, 0.5), "t": now, "life": TEXT_LIFE_S * 1.5})
+					_add({"k": 21, "x": p.x, "y": p.y, "a": 0.0, "b": 0.0, "c": "A DRAW", "d": Color(1.0, 0.95, 0.5), "t": now, "life": TEXT_LIFE_S * 1.5})
 				_add({"k": FX_RING, "x": p.x, "y": p.y, "a": 60.0, "b": -2.0, "c": 0.0, "d": 0.0, "t": now, "life": 0.5})
 			EV_DOWN:
 				_add({"k": 21, "x": p.x, "y": p.y - 14.0, "a": 0.0, "b": 0.0, "c": "DOWN", "d": Color(1.0, 0.35, 0.3), "t": now, "life": TEXT_LIFE_S})

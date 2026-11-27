@@ -117,9 +117,19 @@ fn wheel_of_fortune_adds_10_percent_coin() {
 }
 
 #[test]
-fn the_hermit_adds_8_percent_xp() {
-    let (_, _, b, m) = with(KNIGHT, 10, card("THE HERMIT"), 1);
+fn the_hermit_adds_8_percent_class_xp() {
+    let (mut f, id, b, m) = with(KNIGHT, 10, card("THE HERMIT"), 1);
     assert_eq!(m.xp_pct - b.xp_pct, 8);
+    let (x, y) = (f.heroes()[id as usize].x, f.heroes()[id as usize].y);
+    let k = mon(&mut f, DROWNED_K, 5, x + px(20), y);
+    let xp = f.monsters().xp(k as usize);
+    f.monsters_mut().hp[k as usize] = 1;
+    f.hero_mut(id).active = f.tick();
+    let c0 = f.heroes()[id as usize].class_xp;
+    f.hero_mut(id).charge = 1_000_000;
+    f.step::<u16>(&[]);
+    let race = RACES[f.heroes()[id as usize].race as usize].class_xp_pct;
+    assert_eq!(f.heroes()[id as usize].class_xp - c0, xp * m.xp_pct / 100 * race / 100);
 }
 
 #[test]
@@ -412,34 +422,60 @@ fn knight_of_wands_gives_15_percent_move_for_3_s_after_a_kill() {
 // ---- the deck
 
 #[test]
-fn a_level_queues_a_draw_of_three_from_the_deck() {
+fn entering_a_field_gives_her_opening_draw_of_three_from_the_deck() {
     let mut f = quiet(2);
     let (x, y) = spot(&f, 24);
     let s = Sheet::bench(KNIGHT, HUMAN, 30);
     let id = add(&mut f, &s, x, y);
-    f.hero_mut(id).xp = FIELD_XP_PER_LEVEL - 1;
-    let k = mon(&mut f, DROWNED_K, 1, x + px(30), y);
-    f.monsters_mut().hp[k as usize] = 1;
-    f.hero_mut(id).charge = 1_000_000;
-    f.hero_mut(id).active = f.tick();
-    f.step::<u16>(&[]);
-    assert_eq!(count(&f, LEVEL), 1);
-    assert_eq!(count(&f, DRAW), 1);
     let h = &f.heroes()[id as usize];
-    assert_eq!(h.offers.len(), 1);
+    assert_eq!((h.offers.len(), h.draws, h.owed), (1, 1, 0));
     let o = h.offers[0];
     assert!(o[..3].iter().all(|c| s.deck.contains(c)) && o[3] == 0);
     assert!(o[0] != o[1] && o[1] != o[2] && o[0] != o[2]);
+    // Once an outing: a hero moved to another copy brings her draws and gets no second opening draw.
+    let out = f.outing(id).unwrap();
+    let mut g = quiet(3);
+    let j = g.join(&s, &out, x, y);
+    assert_eq!((g.heroes()[j as usize].offers.len(), g.heroes()[j as usize].draws), (1, 1));
+}
+
+#[test]
+fn an_elite_kill_queues_a_draw_and_a_plain_kill_does_not() {
+    let mut f = quiet(2);
+    let (x, y) = spot(&f, 24);
+    let s = Sheet::bench(KNIGHT, HUMAN, 30);
+    let id = add(&mut f, &s, x, y);
+    f.hero_mut(id).offers.clear();
+    for (flags, grants) in [(0, 0), (ELITE, 1)] {
+        let k = f.place_monster(DROWNED_K, 25, flags, x + px(30), y).unwrap();
+        f.monsters_mut().hp[k as usize] = 1;
+        f.hero_mut(id).charge = 1_000_000;
+        f.hero_mut(id).active = f.tick();
+        f.step::<u16>(&[]);
+        assert_eq!(count(&f, KILL), 1);
+        assert_eq!((count(&f, GRANT), count(&f, DRAW)), (grants, grants));
+    }
+    assert!(f.events().contains(&Event::Grant { hero: id, source: GRANT_KILL }));
+    assert_eq!(f.heroes()[id as usize].offers.len(), 1);
+}
+
+#[test]
+fn a_shrine_grants_a_draw_through_grant_draw() {
+    let mut f = quiet(2);
+    let id = add(&mut f, &Sheet::bench(KNIGHT, HUMAN, 30), FIELD / 2, FIELD / 2);
+    idle(&mut f, 1);
+    let n = f.heroes()[id as usize].offers.len();
+    assert!(f.grant_draw(id as usize, GRANT_SHRINE));
+    assert_eq!(f.heroes()[id as usize].offers.len(), n + 1);
+    assert!(f.events().contains(&Event::Grant { hero: id, source: GRANT_SHRINE }));
+    assert_eq!(count(&f, DRAW), 1);
+    assert!(!f.grant_draw(99, GRANT_SHRINE), "no such hero");
 }
 
 #[test]
 fn the_mage_draws_four() {
     let mut f = quiet(2);
     let id = add(&mut f, &Sheet::bench(MAGE, HUMAN, 30), FIELD / 2, FIELD / 2);
-    f.hero_mut(id).owed = 1;
-    f.hero_mut(id).xp = 0;
-    let lvl = f.heroes()[id as usize].level;
-    let _ = lvl;
     let (o, n) = roll_offer(1, id, 0, &f.heroes()[id as usize].sheet.deck, &[0; NCARDS + 1], CLASSES[MAGE as usize].passive.draw_size);
     assert_eq!(n, 4);
     assert!(o.iter().all(|&c| c != 0));
@@ -449,14 +485,10 @@ fn the_mage_draws_four() {
 fn draws_wait_in_a_queue_of_nine_and_none_is_lost() {
     let mut f = quiet(2);
     let id = add(&mut f, &Sheet::bench(KNIGHT, HUMAN, 30), FIELD / 2, FIELD / 2);
+    f.hero_mut(id).offers.clear();
     f.hero_mut(id).owed = 12;
-    // Any level-up fills the queue from what is owed.
-    f.hero_mut(id).xp = FIELD_XP_PER_LEVEL - 1;
-    let k = mon(&mut f, DROWNED_K, 1, FIELD / 2 + px(30), FIELD / 2);
-    f.monsters_mut().hp[k as usize] = 1;
-    f.hero_mut(id).charge = 1_000_000;
-    f.hero_mut(id).active = f.tick();
-    f.step::<u16>(&[]);
+    // Any grant fills the queue from what is owed.
+    f.grant_draw(id as usize, GRANT_SHRINE);
     assert_eq!(f.heroes()[id as usize].offers.len(), DRAW_QUEUE);
     assert_eq!(f.heroes()[id as usize].owed, 4);
     // Each pick lets one more in.
@@ -482,7 +514,7 @@ fn five_copies_at_most_and_a_full_card_is_not_offered() {
         assert_eq!((n, o[0]), (1, s.deck[0]));
     }
     f.hero_mut(id).copies[s.deck[0] as usize] = MAX_COPIES;
-    f.hero_mut(id).offers.push([s.deck[0], 0, 0, 0]);
+    f.hero_mut(id).offers = vec![[s.deck[0], 0, 0, 0]];
     f.step(&[1u16 << IN_PICK_SHIFT]);
     assert_eq!(f.heroes()[id as usize].copies[s.deck[0] as usize], MAX_COPIES);
     assert_eq!(count(&f, PICK), 0);

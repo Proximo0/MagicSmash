@@ -647,10 +647,9 @@ fn inside_two_cells_a_monster_walks_at_the_highest_threat_over_distance() {
 }
 
 #[test]
-fn damage_is_weapon_x_might_x_field_level_x_cards_x_effects() {
+fn damage_is_weapon_x_might_x_class_level_x_cards_x_effects() {
     let (mut f, id, x, y) = arena(2, KNIGHT, 10);
     let h = f.hero_mut(id);
-    h.level = 11;
     h.copies[1] = 2;
     h.fx[FX_WHETSTONE as usize] = 100;
     idle(&mut f, 1);
@@ -659,6 +658,7 @@ fn damage_is_weapon_x_might_x_field_level_x_cards_x_effects() {
     let before = hp(&f, m);
     fire(&mut f, &[]);
     let wl = weapon_pct(10);
-    let want = 30 * wl / 100 * (100 + 2 * might) * 140 * 120 * 120 / 100_000_000;
+    let cl = 100 + CLASS_LEVEL_DMG_PCT as u64 * 9;
+    let want = 30 * wl / 100 * (100 + 2 * might) * cl * 120 * 120 / 100_000_000;
     assert_eq!((before - hp(&f, m)) as u64, want);
 }

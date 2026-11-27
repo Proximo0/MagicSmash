@@ -45,7 +45,7 @@ pub use hero::*;
 pub use mods::*;
 pub use pvp::{Duel, IN_MARK, PHit, Pvp, War};
 pub use monster::{BOSS, CHAMPION, CLUTCH_PX, ELITE, Monsters, level_scale, max_hp};
-pub use sheet::{Outing, Sheet, line_points, owned_cards};
+pub use sheet::{Outing, Sheet, class_progress, class_xp_to_reach, line_points, owned_cards};
 pub use tables::{CLASSES, KINDS, Kind, TICK_HZ};
 pub use terrain::{Terrain, check as check_terrain, level_at, narrow_count, ring_of};
 pub use tide::{
@@ -415,6 +415,11 @@ impl Field {
         // than her wait would otherwise read it as tick 0, a fresh strike.
         h.last_struck = if outing.struck_ago >= pvp::MARK_WAIT_TICKS { NEVER } else { self.tick.saturating_sub(outing.struck_ago) };
         self.heroes[id] = h;
+        // Her opening draw (rules 5), once an outing: a hero moved between copies (section 11) brings her draws.
+        // Joining is not a tick, so its GRANT and DRAW events are cleared by the next step; the offer is state.
+        if outing.draws == 0 && outing.owed == 0 && outing.offers.is_empty() {
+            self.grant_draw(id, GRANT_ENTER);
+        }
         self.pvp_join(id as u16);
         id as u16
     }

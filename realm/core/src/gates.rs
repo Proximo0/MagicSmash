@@ -20,8 +20,8 @@ pub struct Outcome {
     /// Tides won and lost.
     pub won: u32,
     pub lost: u32,
-    /// Field level reached by the first hero.
-    pub level: u32,
+    /// Draws the first hero was granted (rules 5).
+    pub draws: u32,
 }
 
 fn tally(f: &Field, o: &mut Outcome, t: u32) {
@@ -54,7 +54,7 @@ pub fn alone(class: u8, class_level: u8, seed: u64, minutes: u32) -> Outcome {
         tally(&f, &mut o, t);
     }
     o.kills = f.counters().0;
-    o.level = f.heroes()[id as usize].level as u32;
+    o.draws = f.heroes()[id as usize].draws + f.heroes()[id as usize].owed as u32;
     o
 }
 
@@ -82,7 +82,7 @@ pub fn party(field: u8, seed: u64, ticks: u32, lead: u32) -> Outcome {
         tally(&f, &mut o, t);
     }
     o.kills = f.counters().0;
-    o.level = f.heroes()[0].level as u32;
+    o.draws = f.heroes()[0].draws + f.heroes()[0].owed as u32;
     o
 }
 

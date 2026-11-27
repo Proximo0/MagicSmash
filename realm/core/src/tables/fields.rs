@@ -111,10 +111,10 @@ pub const FIELDS: [FieldRow; 6] = [
     },
 ];
 
-/// XP (and coin) of a kill by the kind's field, in percent (job B1, `balance.md`). THE TOWER's rooms and
+/// Class XP (and coin) of a kill by the kind's field, in percent (job B1, `balance.md`). THE TOWER's rooms and
 /// corridors let a hero kill about a tenth of what the open fields give an hour, so a kill there pays more;
 /// without it the curve fell eightfold at level 40 and a hero of 40 to 50 was better off in THE HERMIT'S PEAKS.
-pub const FIELD_XP_PCT: [u32; 6] = [100, 100, 100, 100, 800, 100];
+pub const FIELD_KILL_XP_PCT: [u32; 6] = [100, 100, 100, 100, 800, 100];
 
 // ---- rings
 pub const HEART_PX: i32 = 2_500;

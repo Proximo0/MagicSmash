@@ -63,7 +63,7 @@ func from_events(ev: PackedInt32Array, me: int) -> void:
 				if Vector2(ev[o + 5], ev[o + 6]).distance_to(listener) <= NEAR_PX:
 					kills += 1
 					big = big or (ev[o + 4] & (FieldFx.ELITE | FieldFx.CHAMPION)) != 0
-			FieldFx.EV_LEVEL:
+			FieldFx.EV_GRANT:
 				if mine:
 					hook("level")
 			FieldFx.EV_DOWN:

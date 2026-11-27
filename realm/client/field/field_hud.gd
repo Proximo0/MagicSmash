@@ -1,7 +1,7 @@
 class_name FieldHud
 extends Control
 ## The hero's HUD, drawn in the 480 x 270 canvas: health and XP bars, the three skills with cooldowns, the
-## three potions, the haul and field level, the draw on offer (the deck's picks), the tide's clock, a boss's
+## three potions, the haul and class level, the draw on offer (the deck's picks), the tide's clock, a boss's
 ## bar, and the downed and raising screens. It reads the dictionary `RealmLink.hero_view()` and `world()`.
 ## Cards offered are picked with Z X C V or a click; skills Space (1), E (2), R (the ultimate); F holds
 ## interact (banking), G the BLOOD MARK's rite at a waystone (both rebindable); potions 4 5 6. A hero who carries
@@ -132,9 +132,10 @@ func _draw_vitals() -> void:
 	_txt(Vector2(7, H - 39), title, DIM, FONT_SMALL)
 	_bar(Rect2(7, H - 32, 118, 8), frac, Color(0.75, 0.15, 0.15) if frac > 0.3 else Color(0.95, 0.35, 0.1))
 	_ctxt(66, H - 31.5, "%d / %d" % [hp, mx], TEXT, FONT_SMALL)
-	var need: int = maxi(int(hero["xp_need"]), 1)
-	_bar(Rect2(7, H - 22, 118, 5), float(hero["xp"]) / float(need), Color(0.35, 0.55, 0.9))
-	_txt(Vector2(7, H - 14), "FIELD LEVEL %d   XP %d/%d" % [int(hero["level"]), int(hero["xp"]), need], DIM, FONT_SMALL)
+	# Class level and class XP (the saved hero's, with this outing's); at 60 there is no next step.
+	var need: int = int(hero["xp_need"])
+	_bar(Rect2(7, H - 22, 118, 5), float(hero["xp"]) / float(need) if need > 0 else 1.0, Color(0.35, 0.55, 0.9))
+	_txt(Vector2(7, H - 14), ("LEVEL %d   XP %d/%d" % [int(hero["level"]), int(hero["xp"]), need]) if need > 0 else "LEVEL %d" % int(hero["level"]), DIM, FONT_SMALL)
 
 
 func _draw_skills() -> void:

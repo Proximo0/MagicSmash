@@ -20,7 +20,7 @@ in CAPITALS are on-screen names. The town, the bank, trade, the market, guilds a
 2. **One simulation.** `realm/core` is whole numbers only: no clock, no floats, no containers with random order, no
    thread-dependent result. The server, the client, the bots and the tests run the same code; a field's hash after
    tick N is the same everywhere.
-3. **What is public is simulated; what is secret is not.** Movement, fights, health, field levels, card draws,
+3. **What is public is simulated; what is secret is not.** Movement, fights, health, class XP, card draws,
    coin, tides and bosses are in the simulation, so every client computes them. Item drops are rolled by the
    server from a stream no client holds and are sent only to their owner.
 4. **Nothing kept is decided by a client.** The saved hero, the bag and the bank change only on the server, from
@@ -43,8 +43,8 @@ in CAPITALS are on-screen names. The town, the bank, trade, the market, guilds a
 The server keeps a hero's sheet and turns it into the numbers the field needs when she enters (`Sheet`, passed to
 `Field::join`; built by the gateway's `sheet_of` for every field, vault, duel and home, its gear the loot crate's
 `gear_stats`: item lines raised 3% a smith step, plus the runes and monster cards in their sockets): class, job, race, class level, the six stats after race, points, gear, cards and runes, the deck
-(card ids), the belt (three potion ids with counts), the look. The field keeps what lasts one outing: health, field
-level and XP, drawn cards, the haul's coin, cooldowns, effects. `join` also takes that outing state, so a hero moved
+(card ids), the belt (three potion ids with counts), the look, and her class XP in all (for the HUD's bar). The
+field keeps what lasts one outing: health, drawn cards and the draw queue, the haul's coin, cooldowns, effects. `join` also takes that outing state, so a hero moved
 between two copies of a field (section 11) arrives as she left.
 
 **Six stats.** One point is: MIGHT +2% damage; FOCUS +1% attack speed; SWIFT +1% move speed (cap +40%); VIGOR +2%
@@ -53,14 +53,17 @@ health; WARD 1% less damage taken (cap 60%); FORTUNE +3% coin and +1 luck (secti
 **Races.** HUMAN +1 to all six, +5% class XP. ELF SWIFT +4, FOCUS +3. DWARF VIGOR +4, WARD +3, pushed half as far.
 ORC MIGHT +5, VIGOR +2, +10% damage under 30% health.
 
-**Class level** (kept for good): 1 to 60. Class XP is the field XP a hero earns, counted by the server as it is
-earned and never lost. XP to the next level is a table; targets to tune with bots: level 10 after about 25
-minutes of field play, 20 after 4 hours, 40 after 25 hours, 60 after 80 hours. Each level pays one stat point.
+**Class level** (kept for good): 1 to 60, the only level a hero has: Horde & Hearth is an MMO first, with the
+survivor horde and the deck as its survivor elements. There is no field level and no field XP (removed 27 Nov
+2026). XP to the next level is a table; targets to tune with bots: level 10 after about 25 minutes of field play,
+20 after 4 hours, 40 after 25 hours, 60 after 80 hours. Each level pays one stat point, and each class level the
+field counts (its ceiling, the field's top level + 2) adds 2% damage (+118% at 60).
 
-**Field level** (one outing): starts at 1 on entering a field or a vault and is gone on leaving it. XP to the next:
-`50 x level`. Each field level adds 4% damage (cap +160% at 41) and queues one **draw** (section 5). XP for a kill
-is shared in full by every living hero within 200 px who is **active** (dealt damage, healed or was hit in the last
-10 seconds). A monster more than 10 levels below a hero's class level pays her no class XP.
+**Class XP from kills.** A kill pays its XP (by kind and level, x `FIELD_KILL_XP_PCT` of its field: THE TOWER 800%,
+the rest 100%) x the hero's class XP percent (THE HERMIT, SCHOLAR'S INK) x her race's (HUMAN 105%) as class XP,
+counted by the server as it is earned (event XP) and never lost. It is shared in full by every living hero within
+200 px who is **active** (dealt damage, healed or was hit in the last 10 seconds). A monster more than 10 levels
+below a hero's class level pays her no class XP.
 
 ## 3. Classes, skills and jobs
 
@@ -106,7 +109,7 @@ damage taken in percent, unhurt, cannot fall. Monster effects are three small ti
 | TEMPLAR (paladin) | tank | his aura's 8% becomes 14% and reaches 140 px | MARTYR: for 8 s allies within 200 px cannot fall below 1 health (120 s) |
 | CRUSADER (paladin) | damage | +2% damage per ally within 100 px, at most 20% | CRUSADE: 10 s in which SMITE strikes three targets and he moves 30% faster (90 s) |
 
-Damage dealt = weapon damage x (100 + 2 x MIGHT)% x field level bonus x cards x effects. Group effects (auras,
+Damage dealt = weapon damage x (100 + 2 x MIGHT)% x (100 + 2 x (class level - 1))% x cards x effects. Group effects (auras,
 BENEDICTION, THE SUN) do not stack with themselves: the strongest counts.
 
 **Threat.** Monsters follow one flow field toward the heroes (as in the crowd test). A hero's cell is seeded with a
@@ -195,7 +198,16 @@ made; every other kind has a flat stand-in until its picture arrives.
 | World's Edge | flesh choir | wailer, drainer | 35 | 110 | 8 | 5 |
 | World's Edge | the unmade | brute, splitter into ash legionaries | 22 | 260 | 14 | 8 |
 
-## 5. Field levels and the deck
+## 5. The deck and its draws
+
+The deck is the survivor element of an outing: picked cards last until she leaves. A hero is granted one **draw**
+(event GRANT, then DRAW while the queue has room) for each of:
+- **Entering** a field or a vault (or any place) with a fresh outing: her opening draw. A hero moved between two
+  copies of a field (section 11) brings her draws and gets none.
+- **An ELITE, CHAMPION or boss kill she shares in**: the class XP share rule of section 2 (living, within 200 px,
+  active), whether or not the kill pays her class XP.
+- **A shrine she touches**, once per shrine per outing (the shrines, quiet places in each field, are their own
+  job; the core's `Field::grant_draw(hero, GRANT_SHRINE)` is the hook).
 
 A draw offers three cards (the MAGE four) from the hero's deck, never one already at five copies, chosen with the
 field's seed, the hero's id and her draw count. Draws queue (at most 9); the hero picks with byte 1 while she
@@ -214,7 +226,7 @@ cards she owns. A NOVICE owns the first 12; each even class level to 24 adds one
 | 7 | THE STAR | +10% weapon reach |
 | 8 | THE HIGH PRIESTESS | skill cooldowns 8% shorter |
 | 9 | WHEEL OF FORTUNE | +10% coin |
-| 10 | THE HERMIT | +8% field XP |
+| 10 | THE HERMIT | +8% class XP |
 | 11 | THE HIEROPHANT | takes 5% less damage |
 | 12 | JUSTICE | returns 20% of contact damage to the attacker |
 | 13 | THE TOWER | every 5th attack hits twice |
@@ -272,7 +284,7 @@ ranks, and gear above the ceiling scales down likewise, so a veteran helps witho
 - **Downed.** At 0 health a hero is DOWNED for 15 seconds: she cannot act and monsters ignore her. An ally standing
   within 40 px for 2 seconds (a PRIEST 1 second), or SANCTUARY, raises her with 30% health and 2 seconds unhurt.
 - **Fallen.** Not raised in time, she loses half her haul's coin (rounded down) and half her haul's items (the
-  server picks which), and wakes at her waystone, or the gate, with full health and her field level.
+  server picks which), and wakes at her waystone, or the gate, with full health and her picked cards.
 - **Potions** (belt of three slots, filled from the bag when entering; charges leave the bag as they are drunk):
 
 | Potion | Effect | Charges carried | Rest between uses |
@@ -280,7 +292,7 @@ ranks, and gear above the ceiling scales down likewise, so a veteran helps witho
 | HEALING DRAUGHT | restores 35% | 3 | 10 s |
 | VEIL OF ASH | unhurt for 3 s | 2 | 30 s |
 | WHETSTONE OIL | +20% damage for 30 s | 2 | 30 s |
-| SCHOLAR'S INK | +50% field XP for 2 minutes | 1 | none |
+| SCHOLAR'S INK | +50% class XP for 2 minutes | 1 | none |
 | GAMBLER'S COIN | +20 luck for 2 minutes | 1 | none |
 | PHOENIX ASH | not drunk: when she would be FALLEN she rises instead with 30% health | 1 | once an outing |
 
@@ -350,8 +362,8 @@ ranks, and gear above the ceiling scales down likewise, so a veteran helps witho
 A vault is the Four of Wands run for a party of up to eight, on the same core with a `Vault` row instead of a
 field's: an arena of 2,048 px, 15 minutes, a timeline of what is born each minute, an act boss at minutes 5 and 10
 and THE ARCHLICH at 15. Entering costs the party leader a VAULT KEY. Five vaults by level (20, 30, 40, 50, 60), each
-with SEALS I to VIII: every seal adds 25% monster health and damage and one more reward roll. Heroes enter at
-field level 1 with their decks. There are no waystones: the downed are raised or the party fails when all eight are
+with SEALS I to VIII: every seal adds 25% monster health and damage and one more reward roll. Heroes enter with
+their decks and an opening draw. There are no waystones: the downed are raised or the party fails when all eight are
 down. A win pays each hero a VAULT CHEST (rolls starting at RARE, the Archlich's card roll, a trophy roll); a loss
 pays coin for the minutes survived. The class trial is a vault row for one hero.
 
@@ -364,7 +376,7 @@ are per field, not per copy, so every copy surges together.
 
 ## 12. Events (output of a tick, in order)
 
-`LEVEL(hero, field level)`, `DRAW(hero, cards)`, `PICK(hero, card, copies)`, `SKILL(hero, which)`, `POTION(hero,
+`GRANT(hero, source: enter, kill, shrine)`, `DRAW(hero, cards)`, `PICK(hero, card, copies)`, `SKILL(hero, which)`, `POTION(hero,
 slot, left)`, `DOWN(hero)`, `RAISE(hero, by)`, `FALLEN(hero, coin lost)`, `BANK(hero, coin, waystone)`,
 `LEAVE(hero)`, `KILL(kind, level, flags, x, y, credited heroes)`, `XP(hero, amount)` summed per tick, `TIDE(state)`,
 `ALTAR(index, state)`, `BOSS(which, state, health)`, `REWARD(kind, heroes past the floor, their contributions)`,

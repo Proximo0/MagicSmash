@@ -51,6 +51,8 @@ pub struct HeroView {
     pub class_level: i32,
     pub health: i32,
     pub max_health: i32,
+    /// Her class level (the saved hero's XP plus what this outing credited), the XP into it and its next step
+    /// (0 at 60). There is no field level.
     pub level: i32,
     pub xp: i32,
     pub xp_need: i32,
@@ -120,6 +122,8 @@ fn px(v: i32) -> f32 {
 }
 
 fn hero_view(h: &Hero, id: u16) -> HeroView {
+    let (level, into, need) = realm_core::class_progress(h.sheet.class_xp + u64::from(h.class_xp));
+    let level = level.max(h.sheet.class_level);
     let mut v = HeroView {
         id: i32::from(id),
         class: i32::from(h.class),
@@ -128,9 +132,9 @@ fn hero_view(h: &Hero, id: u16) -> HeroView {
         class_level: i32::from(h.class_level),
         health: h.health.min(i32::MAX as u32) as i32,
         max_health: h.max_health.min(i32::MAX as u32) as i32,
-        level: i32::from(h.level),
-        xp: h.xp.min(i32::MAX as u32) as i32,
-        xp_need: 50 * i32::from(h.level),
+        level: i32::from(level),
+        xp: into.min(i32::MAX as u64) as i32,
+        xp_need: need.min(i32::MAX as u64) as i32,
         alive: h.alive(),
         downed: i32::from(h.downed),
         raise_pct: (h.raise.saturating_mul(100) / RAISE_NEED.max(1)).min(100) as i32,
@@ -298,7 +302,7 @@ fn event_row(f: &Field, e: &Event) -> [i32; EV_STRIDE] {
     let at = |hero: u16| f.players().get(usize::from(hero)).map_or((0, 0), |p| (p.x / SUB, p.y / SUB));
     let rank = i32::from(e.rank());
     let (hero, a, b, c, (x, y)) = match *e {
-        Event::Level { hero, level } => (i32::from(hero), i32::from(level), 0, 0, at(hero)),
+        Event::Grant { hero, source } => (i32::from(hero), i32::from(source), 0, 0, at(hero)),
         Event::Draw { hero, n, .. } => (i32::from(hero), i32::from(n), 0, 0, at(hero)),
         Event::Pick { hero, card, copies } => (i32::from(hero), i32::from(card), i32::from(copies), 0, at(hero)),
         Event::Skill { hero, which } => {
@@ -439,7 +443,7 @@ mod tests {
         assert_eq!(v.class, 2);
         assert!(v.skills[0][0] >= 0 && v.skills[0][2] > 0, "a level 20 mage has skill 1");
         assert_eq!(v.skills[2][0], -1, "no job below 40");
-        assert_eq!(v.xp_need, 50);
+        assert_eq!((v.level, v.xp, v.xp_need), (20, 0, realm_core::tables::CLASS_XP[19] as i32), "class level, XP into it, its step");
         assert_eq!(v.belt.len(), 3);
     }
 
@@ -461,8 +465,8 @@ mod tests {
     #[test]
     fn events_become_rows_of_eight() {
         let f = hero_field();
-        let r = event_row(&f, &Event::Level { hero: 2, level: 7 });
-        assert_eq!((r[0], r[1], r[2]), (0, 2, 7));
+        let r = event_row(&f, &Event::Grant { hero: 2, source: 1 });
+        assert_eq!((r[0], r[1], r[2]), (0, 2, 1));
         let r = event_row(&f, &Event::Kill { kind: 3, level: 2, flags: 1, x: 5 * SUB, y: 6 * SUB, first: 0, count: 0 });
         assert_eq!((r[1], r[2], r[5], r[6]), (-1, 3, 5, 6));
     }

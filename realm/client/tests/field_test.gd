@@ -246,7 +246,7 @@ func _sound() -> void:
 	s.hook("level")
 	s.hook("nonsense")
 	_check(int(s.played.get("level", 0)) == 1 and not s.played.has("nonsense"), "known hooks play, unknown ones do not")
-	var ev := PackedInt32Array([FieldFx.EV_LEVEL, 3, 5, 0, 0, 10, 10, 0, FieldFx.EV_DOWN, 4, 0, 0, 0, 10, 10, 0, FieldFx.EV_BANK, 9, 40, 1, 0, 0, 0, 0])
+	var ev := PackedInt32Array([FieldFx.EV_GRANT, 3, 5, 0, 0, 10, 10, 0, FieldFx.EV_DOWN, 4, 0, 0, 0, 10, 10, 0, FieldFx.EV_BANK, 9, 40, 1, 0, 0, 0, 0])
 	s.from_events(ev, 3)
 	_check(int(s.played.get("down", 0)) == 1, "an ally's fall makes the down bleep")
 	_check(int(s.played.get("level", 0)) == 1, "the level bleep is rate limited")
@@ -294,11 +294,11 @@ func _fx() -> void:
 	_check(fx._items.size() == 3, "a swing, a ring and a bolt are transient effects, a zone and a status are state: %d" % fx._items.size())
 	var ev := PackedInt32Array([
 		FieldFx.EV_KILL, -1, 4, 2, 1, 50, 50, 0,
-		FieldFx.EV_LEVEL, 3, 7, 0, 0, 60, 60, 0,
-		FieldFx.EV_LEVEL, 8, 7, 0, 0, 60, 60, 0,
+		FieldFx.EV_GRANT, 3, 7, 0, 0, 60, 60, 0,
+		FieldFx.EV_GRANT, 8, 7, 0, 0, 60, 60, 0,
 		FieldFx.EV_DOWN, 8, 0, 0, 0, 70, 70, 0])
 	fx.events(ev)
-	# A burst, my level (words and a ring), another's level (a ring, no words), another's down (words).
+	# A burst, my draw granted (words and a ring), another's (a ring, no words), another's down (words).
 	_check(fx._items.size() == 3 + 1 + 2 + 1 + 1, "events add bursts and words: %d" % fx._items.size())
 	for i in 2000:
 		fx._add({"k": 20, "x": 0.0, "y": 0.0, "a": 3, "b": 0.0, "c": "ffffff", "t": 0.0, "life": 1.0})

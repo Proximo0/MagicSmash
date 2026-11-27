@@ -1,7 +1,7 @@
 class_name ReaderPanel
 extends PanelBase
 ## The card reader: her deck of up to twenty different cards (the store keeps each once), chosen from the cards she
-## owns. A field level draws three of them (the mage four) and she picks one; a card picked again in the field adds
+## owns. A draw (entering a field, an elite or boss she shares, a shrine) offers three (the mage four); she picks one; a card picked again in the field adds
 ## its effect again, up to five copies. A NOVICE owns the first twelve; each even class level to 24
 ## adds one; the rest are found as pages (bag) that she learns here. SET THE DECK saves it (the gateway's SET_DECK).
 

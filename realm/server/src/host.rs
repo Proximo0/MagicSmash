@@ -1339,7 +1339,7 @@ mod tests {
         let mut b2 = Field::open(1, 10, cfg.clone());
         let mut o = Outing::new();
         o.coin = 77;
-        o.level = 3;
+        o.draws = 3;
         let (x, y) = a.ring_point(realm_core::tables::RING_MIDDLE, 4);
         let ia = a.join(&Sheet::bench(2, 1, 30), &o, x, y);
         let ia2 = a2.join(&Sheet::bench(2, 1, 30), &o, x, y);

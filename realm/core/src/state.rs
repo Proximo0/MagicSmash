@@ -17,7 +17,7 @@ use crate::vault::VaultRun;
 use crate::{Config, Drop, Field, Shot, Zone, terrain};
 
 /// Format version of `to_bytes`.
-pub const STATE_VERSION: u32 = 3;
+pub const STATE_VERSION: u32 = 4;
 /// The vault byte of a field (not a vault).
 const NO_VAULT: u8 = u8::MAX;
 
@@ -294,6 +294,7 @@ impl W {
             self.u8(n);
         }
         self.u32(s.look);
+        self.u64(s.class_xp);
     }
     fn hero(&mut self, h: &Hero) {
         self.u8(h.present as u8);
@@ -311,8 +312,7 @@ impl W {
         }
         self.u32(h.health);
         self.u32(h.max_health);
-        self.u16(h.level);
-        self.u32(h.xp);
+        self.u32(h.class_xp);
         for c in h.copies {
             self.u8(c);
         }
@@ -471,7 +471,8 @@ impl R<'_> {
             *s = (self.u8()?, self.u8()?);
         }
         let look = self.u32()?;
-        Some(Sheet { class, job, race, class_level, points, gear, gear_level, deck, belt, look })
+        let class_xp = self.u64()?;
+        Some(Sheet { class, job, race, class_level, points, gear, gear_level, deck, belt, look, class_xp })
     }
     fn hero(&mut self) -> Option<Hero> {
         if self.u8()? == 0 {
@@ -490,8 +491,7 @@ impl R<'_> {
         }
         h.health = self.u32()?;
         h.max_health = self.u32()?;
-        h.level = self.u16()?;
-        h.xp = self.u32()?;
+        h.class_xp = self.u32()?;
         for c in h.copies.iter_mut() {
             *c = self.u8()?;
         }

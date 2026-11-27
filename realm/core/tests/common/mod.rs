@@ -92,7 +92,7 @@ pub fn count(f: &Field, rank: u8) -> usize {
     f.events().iter().filter(|e| e.rank() == rank).count()
 }
 
-pub const LEVEL: u8 = 0;
+pub const GRANT: u8 = 0;
 pub const DRAW: u8 = 1;
 pub const PICK: u8 = 2;
 pub const SKILL: u8 = 3;

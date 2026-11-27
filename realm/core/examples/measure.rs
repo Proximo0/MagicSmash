@@ -2,6 +2,7 @@
 //!   measure phases FIELD THREADS [TICKS] [WARMUP]   core tick cost per phase, 1,000 heroes, 20,000 monsters
 //!   measure killtime                                ticks for a hero of a walker's level to kill it, per class
 //!   measure kite CLASS_LEVEL SEEDS MINUTES          a kiting bot of each class alone at the edge of field 0
+//!   measure pace SEEDS MINUTES                      kills of a class bot alone at each field's bottom and middle
 use realm_core::tables::*;
 use realm_core::*;
 use std::time::Instant;
@@ -162,7 +163,7 @@ fn walker_for(level: u8) -> (u8, u8) {
 }
 
 fn killtime() {
-    println!("seconds = walker health / the hero's damage a second on it (one walker, alone, field level 1, no cards)");
+    println!("seconds = walker health / the hero's damage a second on it (one walker, alone, no cards)");
     println!("level | walker (field) hp | NOVICE KNIGHT MAGE ARCHER PRIEST PALADIN | mean of the five classes");
     let mut worst: (f64, f64) = (f64::MAX, 0.0);
     for level in [1u8, 10, 20, 30, 40, 50, 60] {
@@ -327,10 +328,10 @@ fn kite() {
                 first_down.push(down_at.unwrap() / TICK_HZ);
             }
             kills += f.counters().0;
-            levels += h.level as u32;
+            levels += h.draws + h.owed as u32;
         }
         println!(
-            "{:<8} never downed {survived}/{seeds}  never fallen (PHOENIX ASH) {unfallen}/{seeds}  kills/run {}  field level {}  first downs (s) {:?}",
+            "{:<8} never downed {survived}/{seeds}  never fallen (PHOENIX ASH) {unfallen}/{seeds}  kills/run {}  draws {}  first downs (s) {:?}",
             CLASSES[class as usize].name,
             kills / seeds,
             levels / seeds as u32,
@@ -339,11 +340,88 @@ fn kite() {
     }
 }
 
+// ---- pace: kills a class-level hero makes alone in each field
+
+/// One class bot of `class` at `level`, alone in `field` on the ring of her level, for `minutes`: (kills, the
+/// time-weighted damage percent of her field level).
+fn pace_run(field: u8, class: u8, level: u8, seed: u64, minutes: u32) -> (u64, u64) {
+    let row = &FIELDS[field as usize];
+    let span = (row.top - row.bottom).max(1) as i32;
+    let ring = ((row.top - level) as i32 * LEVEL_RIM_PX / span).clamp(1_500, 7_200);
+    let mut f = Field::open(field, 500 + seed, Config { monsters: 4_096, threads: 1 });
+    let mut s = Sheet::bench(class, HUMAN, level);
+    s.deck = (1..=owned_cards(level).min(DECK_SIZE as u8)).collect();
+    let c = FIELD / 2;
+    let r = |p: &(i32, i32)| ((((p.0 - c) as i64).pow(2) + ((p.1 - c) as i64).pow(2)) as f64).sqrt() / SUB as f64;
+    let w = *f.terrain().waystones.iter().min_by_key(|p| (r(p) - ring as f64).abs() as i64).unwrap();
+    let id = f.join(&s, &Outing::new(), w.0, w.1);
+    let mut bot = bots::Bot::new(id, seed, bots::Plan::alone(ring));
+    let ticks = minutes * 60 * TICK_HZ;
+    let mut dmg = 0u64;
+    for _ in 0..ticks {
+        let input = bot.act(&f);
+        f.step(&[input]);
+        dmg += field_dmg_pct(&f, id);
+    }
+    (f.counters().0, dmg / ticks as u64)
+}
+
+/// The damage percent of the outing (100: there is no field level since 27 Nov; the pre-change run printed
+/// `100 + 4 x (field level - 1)`, at most 260, here, see rules_built.md).
+fn field_dmg_pct(_f: &Field, _id: u16) -> u64 {
+    100
+}
+
+fn pace() {
+    let seeds = arg(2, 3);
+    let minutes = arg(3, 5) as u32;
+    println!("pace: one class bot alone on the ring of her level, {seeds} seeds, {minutes} min; kills/run (field-level dmg %)");
+    println!("field class-level | KNIGHT MAGE ARCHER PRIEST PALADIN | mean kills");
+    let mut jobs = Vec::new();
+    for field in 0..6u8 {
+        let row = &FIELDS[field as usize];
+        for level in [row.bottom.max(10), (row.bottom.max(10) + row.top) / 2] {
+            for class in 1..6u8 {
+                jobs.push((field, level, class));
+            }
+        }
+    }
+    let threads = std::env::var("THREADS").ok().and_then(|s| s.parse().ok()).unwrap_or(2usize);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let out = std::sync::Mutex::new(vec![(0u64, 0u64); jobs.len()]);
+    std::thread::scope(|sc| {
+        for _ in 0..threads {
+            sc.spawn(|| loop {
+                let j = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let Some(&(field, level, class)) = jobs.get(j) else { break };
+                let (mut k, mut d) = (0, 0);
+                for seed in 0..seeds {
+                    let (a, b) = pace_run(field, class, level, seed, minutes);
+                    k += a;
+                    d += b;
+                }
+                out.lock().unwrap()[j] = (k / seeds, d / seeds);
+            });
+        }
+    });
+    let out = out.into_inner().unwrap();
+    for (n, chunk) in out.chunks(5).enumerate() {
+        let (field, level, _) = jobs[n * 5];
+        let mut line = format!("{field} {level:>5} |");
+        for &(k, d) in chunk {
+            line += &format!(" {k:>5} ({d}%)");
+        }
+        line += &format!(" | {}", chunk.iter().map(|x| x.0).sum::<u64>() / 5);
+        println!("{line}");
+    }
+}
+
 fn main() {
     match std::env::args().nth(1).as_deref() {
         Some("phases") => phases(),
         Some("killtime") => killtime(),
         Some("kite") => kite(),
+        Some("pace") => pace(),
         _ => eprintln!("measure phases FIELD THREADS [TICKS] [WARMUP] | killtime | kite CLASS_LEVEL SEEDS MINUTES"),
     }
 }

@@ -412,11 +412,10 @@ pub const HERO_SPEED_PX_S: i32 = 60;
 pub const SWIFT_CAP_PCT: i32 = 40;
 /// WARD's damage reduction caps at 60%.
 pub const WARD_CAP_PCT: i32 = 60;
-/// Each field level adds 4% damage, capped at +160% (level 41).
-pub const FIELD_LEVEL_DMG_PCT: u32 = 4;
-pub const FIELD_LEVEL_DMG_CAP: u32 = 160;
-/// Field XP to the next level is `50 x level`.
-pub const FIELD_XP_PER_LEVEL: u32 = 50;
+/// Each class level the field counts adds 2% damage (+118% at 60). It replaced the per-outing field level (4% a
+/// field level, at most +160%) on 27 Nov 2026; 2 matches what that gave a lone hero over a 5-minute outing
+/// (rules_built.md, `measure pace`).
+pub const CLASS_LEVEL_DMG_PCT: u32 = 2;
 /// A bolt hits monsters this close to its line.
 pub const BOLT_HALF_WIDTH_PX: i32 = 10;
 /// A weapon's damage grows with its item level (the gear the bench sheet wears): `155 + 4 x (level - 1)`

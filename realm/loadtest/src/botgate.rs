@@ -43,12 +43,12 @@ fn summary(label: &str, runs: &[Outcome]) {
     let undowned = runs.iter().filter(|o| o.downs == 0).count();
     let unfallen = runs.iter().filter(|o| o.fallen == 0).count();
     let kills = runs.iter().map(|o| o.kills).sum::<u64>() / n as u64;
-    let lvl = runs.iter().map(|o| o.level).sum::<u32>() / n.max(1) as u32;
+    let draws = runs.iter().map(|o| o.draws).sum::<u32>() / n.max(1) as u32;
     let won: u32 = runs.iter().map(|o| o.won).sum();
     let lost: u32 = runs.iter().map(|o| o.lost).sum();
     let firsts: Vec<u32> = runs.iter().filter_map(|o| o.first_down.map(|t| t / TICK_HZ)).collect();
     println!(
-        "{label:<10} never downed {undowned}/{n}  never fallen {unfallen}/{n}  kills/run {kills}  mean hero level {lvl}  tides won {won} lost {lost}  first downs (s) {firsts:?}"
+        "{label:<10} never downed {undowned}/{n}  never fallen {unfallen}/{n}  kills/run {kills}  mean draws {draws}  tides won {won} lost {lost}  first downs (s) {firsts:?}"
     );
 }
 

@@ -5,7 +5,7 @@
 //! `3 x (u8 potion, u8 charges)`, `u32 look`. Outing: `u8 0` (a fresh entry) or `u8 1` and every field in the
 //! order of the struct (see `put_outing`).
 
-use crate::{put_u16, put_u32, Rd};
+use crate::{put_u16, put_u32, put_u64, Rd};
 use realm_core::tables::{BELT, DECK_SIZE, DRAW_MAX, NCARDS, NFX, RACES, CLASSES};
 use realm_core::{Outing, Sheet};
 
@@ -36,6 +36,7 @@ pub fn put_sheet(w: &mut Vec<u8>, s: &Sheet) {
         w.push(n);
     }
     put_u32(w, s.look);
+    put_u64(w, s.class_xp);
 }
 
 pub fn read_sheet(r: &mut Rd) -> Option<Sheet> {
@@ -58,7 +59,8 @@ pub fn read_sheet(r: &mut Rd) -> Option<Sheet> {
         *s = (r.u8()?, r.u8()?);
     }
     let look = r.u32()?;
-    Some(Sheet { class, job, race, class_level, points, gear, gear_level, deck, belt, look })
+    let class_xp = r.u64()?;
+    Some(Sheet { class, job, race, class_level, points, gear, gear_level, deck, belt, look, class_xp })
 }
 
 pub fn put_outing(w: &mut Vec<u8>, o: &Outing) {
@@ -68,8 +70,6 @@ pub fn put_outing(w: &mut Vec<u8>, o: &Outing) {
     }
     w.push(1);
     put_u32(w, o.health.map_or(u32::MAX, |h| h.min(u32::MAX - 1)));
-    put_u16(w, o.level);
-    put_u32(w, o.xp);
     w.extend_from_slice(&o.copies);
     w.push(o.offers.len() as u8);
     for off in &o.offers {
@@ -110,8 +110,6 @@ pub fn read_outing(r: &mut Rd) -> Option<Outing> {
     let mut o = Outing::new();
     let h = r.u32()?;
     o.health = (h != u32::MAX).then_some(h);
-    o.level = r.u16()?;
-    o.xp = r.u32()?;
     o.copies.copy_from_slice(r.bytes(NCARDS + 1)?);
     for _ in 0..r.u8()? {
         let mut off = [0u8; DRAW_MAX as usize];
@@ -165,8 +163,6 @@ mod tests {
         put_outing(&mut w, &o);
         assert_eq!(w, [0], "a fresh entry is one byte");
         o.health = Some(77);
-        o.level = 9;
-        o.xp = 1234;
         o.copies[3] = 2;
         o.offers.push([1, 2, 3, 4]);
         o.coin = 500;

@@ -1,4 +1,4 @@
-//! The haul (rules section 6), the six potions (section 7), field level and XP, and the events (section 12):
+//! The haul (rules section 6), the six potions (section 7), class XP and the draws a kill grants, and the events (section 12):
 //! each fires once and only once.
 mod common;
 use common::*;
@@ -330,7 +330,7 @@ fn phoenix_ash_is_not_drunk_but_rises_her_once_instead_of_falling() {
     assert_eq!(count(&f, FALLEN), 1);
 }
 
-// ---- field level, XP, kills
+// ---- class XP, kills, draws from kills
 
 #[test]
 fn a_kill_credits_every_active_hero_within_200_px_once() {
@@ -346,16 +346,16 @@ fn a_kill_credits_every_active_hero_within_200_px_once() {
         f.hero_mut(i).active = t;
     }
     f.hero_mut(idle_one).active = 0;
-    let xp0: Vec<u32> = f.heroes().iter().map(|h| h.xp).collect();
+    let xp0: Vec<u32> = f.heroes().iter().map(|h| h.class_xp).collect();
     kill_one(&mut f, a, DROWNED_K, 5);
     let kills: Vec<Event> = f.events().iter().copied().filter(|e| e.rank() == KILL).collect();
     assert_eq!(kills.len(), 1);
     let Event::Kill { kind, level, first, count: n, .. } = kills[0] else { unreachable!() };
     assert_eq!((kind, level), (DROWNED_K, 5));
     assert_eq!(f.credited(first, n), &[a, b]);
-    assert!(f.heroes()[a as usize].xp > xp0[a as usize] && f.heroes()[b as usize].xp > xp0[b as usize]);
-    assert_eq!(f.heroes()[c as usize].xp, xp0[c as usize]);
-    assert_eq!(f.heroes()[idle_one as usize].xp, xp0[idle_one as usize], "not active: no share");
+    assert!(f.heroes()[a as usize].class_xp > xp0[a as usize] && f.heroes()[b as usize].class_xp > xp0[b as usize]);
+    assert_eq!(f.heroes()[c as usize].class_xp, xp0[c as usize]);
+    assert_eq!(f.heroes()[idle_one as usize].class_xp, xp0[idle_one as usize], "not active: no share");
     f.step::<u16>(&[]);
     assert_eq!(count(&f, KILL), 0, "once");
 }
@@ -374,25 +374,57 @@ fn class_xp_only_from_monsters_at_most_10_levels_below() {
 }
 
 #[test]
-fn field_level_adds_4_percent_damage_and_levels_take_50_xp_a_level() {
+fn there_is_no_field_level_kills_leave_damage_alone_and_pay_class_xp() {
     let (mut f, id) = one(KNIGHT, 10);
     let p1 = f.mods(id).unwrap().power;
-    f.hero_mut(id).level = 6;
+    for _ in 0..30 {
+        f.hero_mut(id).active = f.tick();
+        kill_one(&mut f, id, DROWNED_K, 5);
+        assert_eq!(count(&f, GRANT), 0, "a plain kill grants no draw");
+    }
     idle(&mut f, 1);
-    assert_eq!(f.mods(id).unwrap().power * 100, p1 * 120);
-    f.hero_mut(id).level = 60;
-    idle(&mut f, 1);
-    assert_eq!(f.mods(id).unwrap().power * 100, p1 * (100 + FIELD_LEVEL_DMG_CAP as u64));
-    assert_eq!(FIELD_XP_PER_LEVEL, 50);
-    // A level costs 50 x level: one level from level 1 takes 50.
+    assert_eq!(f.mods(id).unwrap().power, p1, "damage = base x weapon x MIGHT x cards x effects, no outing term");
+    // Class XP: the kill's XP x the class XP percent x the race's (HUMAN 105%), booked on the hero and in XP.
     let (mut g, j) = one(KNIGHT, 10);
-    g.hero_mut(j).xp = 49;
     g.hero_mut(j).active = g.tick();
-    kill_one(&mut g, j, DROWNED_K, 1);
-    assert_eq!(g.heroes()[j as usize].level, 2);
-    assert!(g.events().contains(&Event::Level { hero: j, level: 2 }));
+    let (x, y) = at(&g, j);
+    let k = mon(&mut g, DROWNED_K, 5, x + px(30), y);
+    let xp = g.monsters().xp(k as usize);
+    g.monsters_mut().hp[k as usize] = 1;
+    g.hero_mut(j).charge = 1_000_000;
     g.step::<u16>(&[]);
-    assert_eq!(count(&g, LEVEL), 0, "once");
+    let want = xp * g.mods(j).unwrap().xp_pct / 100 * RACES[HUMAN as usize].class_xp_pct / 100;
+    assert_eq!(g.heroes()[j as usize].class_xp, want);
+    assert!(g.events().contains(&Event::Xp { hero: j, amount: want }));
+}
+
+#[test]
+fn an_elite_champion_or_boss_kill_grants_a_draw_to_every_active_sharer() {
+    for flags in [ELITE, CHAMPION, BOSS] {
+        let mut f = quiet(2);
+        let (x, y) = spot(&f, 30);
+        let a = add(&mut f, &Sheet::bench(KNIGHT, HUMAN, 10), x, y);
+        let b = add(&mut f, &Sheet::bench(MAGE, HUMAN, 10), x + px(150), y);
+        let c = add(&mut f, &Sheet::bench(MAGE, HUMAN, 10), x + px(260), y);
+        let idle_one = add(&mut f, &Sheet::bench(MAGE, HUMAN, 10), x - px(100), y);
+        idle(&mut f, 1);
+        let d0: Vec<u32> = f.heroes().iter().map(|h| h.draws + h.owed as u32).collect();
+        let t = f.tick();
+        for i in [a, b, c] {
+            f.hero_mut(i).active = t;
+        }
+        f.hero_mut(idle_one).active = 0;
+        let k = f.place_monster(DROWNED_K, 5, flags, x + px(30), y).expect("room");
+        f.monsters_mut().hp[k as usize] = 1;
+        f.hero_mut(a).charge = 1_000_000;
+        f.step::<u16>(&[]);
+        let d1: Vec<u32> = f.heroes().iter().map(|h| h.draws + h.owed as u32).collect();
+        assert_eq!([a, b, c, idle_one].map(|i| d1[i as usize] - d0[i as usize]), [1, 1, 0, 0], "flags {flags}");
+        let grants: Vec<Event> = f.events().iter().copied().filter(|e| e.rank() == GRANT).collect();
+        assert_eq!(grants, vec![Event::Grant { hero: a, source: GRANT_KILL }, Event::Grant { hero: b, source: GRANT_KILL }]);
+        f.step::<u16>(&[]);
+        assert_eq!(count(&f, GRANT), 0, "once");
+    }
 }
 
 #[test]
@@ -418,7 +450,9 @@ fn events_come_in_the_contracts_order() {
     for _ in 0..secs(20) {
         let (hx, hy) = at(&f, id);
         if f.tick() % 7 == 0 {
-            let k = mon(&mut f, DROWNED_K, 10, hx + px(30), hy);
+            // Every third an ELITE: its kill grants a draw (GRANT, DRAW) in the same tick as KILL and XP.
+            let flags = if f.tick() % 21 == 0 { ELITE } else { 0 };
+            let k = f.place_monster(DROWNED_K, 10, flags, hx + px(30), hy).expect("room");
             f.monsters_mut().hp[k as usize] = 1;
         }
         f.step(&[IN_SKILL1 | IN_POTION1]);

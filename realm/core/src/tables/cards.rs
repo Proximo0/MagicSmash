@@ -131,6 +131,11 @@ pub const DECK_SIZE: usize = 20;
 pub const DRAW_SIZE: u8 = 3;
 pub const DRAW_MAX: u8 = 4;
 pub const DRAW_QUEUE: usize = 9;
+/// Where a draw comes from (rules 5, `Event::Grant`): entering a place with a fresh outing (her opening draw), a
+/// share in an ELITE, CHAMPION or boss kill, a shrine touched.
+pub const GRANT_ENTER: u8 = 0;
+pub const GRANT_KILL: u8 = 1;
+pub const GRANT_SHRINE: u8 = 2;
 /// A NOVICE owns the first 12 cards; each even class level to 24 adds one.
 pub const NOVICE_CARDS: u8 = 12;
 pub const CARD_LEVEL_STEP: u8 = 2;

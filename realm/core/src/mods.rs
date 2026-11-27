@@ -10,7 +10,7 @@ use crate::{Field, PCELL_SHIFT, PCELLS_W, SUB};
 /// Numbers derived from a hero's state at the start of a tick (not state: rebuilt every tick).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Mods {
-    /// Damage multiplier, parts per `POWER_ONE` (MIGHT x field level x cards x effects).
+    /// Damage multiplier, parts per `POWER_ONE` (MIGHT x class level x cards x effects).
     pub power: u64,
     pub as_pct: i32,
     pub move_pct: i32,
@@ -23,6 +23,7 @@ pub struct Mods {
     pub cdr_pct: u32,
     pub ult_cdr_pct: u32,
     pub coin_pct: u32,
+    /// Class XP of a kill, percent (THE HERMIT, SCHOLAR'S INK).
     pub xp_pct: u32,
     pub luck: i32,
     pub pierce_add: u8,
@@ -133,8 +134,9 @@ pub fn mods_of(f: &Field, id: usize) -> Mods {
         card_dmg += (cards.company_pct * near150).min(cards.company_max) * cards.company_copies;
     }
     let might = 100 + MIGHT_PCT as u64 * h.stats[MIGHT] as u64;
-    let fl = 100 + (FIELD_LEVEL_DMG_PCT * (h.level as u32 - 1)).min(FIELD_LEVEL_DMG_CAP) as u64;
-    m.power = might * fl * (100 + card_dmg.max(-90)) as u64 * (100 + eff.max(-90)) as u64;
+    // The class level the field counts (rules 2): 2% a level, in place of the old per-outing field level.
+    let cl = 100 + CLASS_LEVEL_DMG_PCT as u64 * (h.class_level.max(1) as u64 - 1);
+    m.power = might * cl * (100 + card_dmg.max(-90)) as u64 * (100 + eff.max(-90)) as u64;
 
     m.as_pct = (FOCUS_PCT * h.stats[FOCUS] as i32 + cards.as_pct + fxs.1).max(MIN_SPEED_PCT - 100);
     let swift = (SWIFT_PCT * h.stats[SWIFT] as i32).min(SWIFT_CAP_PCT);

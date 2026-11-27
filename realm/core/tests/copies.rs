@@ -9,11 +9,9 @@ fn copy(seed: u64, clock: u64) -> Field {
     f
 }
 
-/// A veteran of an outing: cards, XP, coin, a draught drunk, effects, a banked waystone.
+/// A veteran of an outing: cards, draws, coin, a draught drunk, effects, a banked waystone.
 fn veteran(f: &mut Field, class: u8, x: i32, y: i32) -> u16 {
     let mut out = Outing::new();
-    out.level = 7;
-    out.xp = 31;
     out.coin = 940;
     out.copies[3] = 2;
     out.copies[9] = 1;
@@ -55,7 +53,7 @@ fn a_hero_moves_with_everything_she_carries_into_the_same_ring() {
         for (name, got, want) in [
             ("coin", h.coin as i64, before.coin as i64),
             ("health", h.health as i64, before.health as i64),
-            ("level", h.level as i64, 7),
+            ("draws", h.draws as i64, 12),
             ("tide", h.tide_contrib as i64, 1_234),
             ("boss", h.boss_contrib as i64, 99),
         ] {
