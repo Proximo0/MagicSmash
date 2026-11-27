@@ -242,6 +242,16 @@ LQ 'Q_NLANES=2; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/b3" 2>&
 check "after the build the lanes start them, and the build is not run again" 'grep -q "^started=2" "$T/b3" && ! grep -q building "$T/b3" && rd station-results work/$idF/alpha.txt | grep -q " PASS id=$idF "'
 cancel_all
 
+echo "== a queue of signed-program jobs only (Four of Wands jobs): nothing is built"
+rm -rf "$agd2/station_bin" "$agd2/station_build.state"
+idN=$(Q alpha add kind=shell args="script=selftest nobuild" needs=alpha | tail -1)
+LQ 'Q_NLANES=2; q_build_all; echo "snap=[${Q_SNAP:-}]"; lanes_fill; echo "started=$Q_STARTED"' >"$T/n1" 2>&1; waitlanes
+check "no build, no copy of the programs, and the job still runs in a lane" '! grep -q "building" "$T/n1" && grep -q "^snap=\[\]" "$T/n1" && [ ! -d "$agd2/station_bin" ] && grep -q "^started=1" "$T/n1" && rd station-results work/$idN/alpha.txt | grep -q "selftest ok"'
+idB=$(Q alpha add kind=fuzz args="seeds=5" needs=alpha | tail -1)
+LQ 'Q_NLANES=2; q_build_all; lanes_fill; q_build_all; lanes_fill; echo "started=$Q_STARTED"' >"$T/n2" 2>&1; waitlanes
+check "a job that runs our programs joins the queue: the build is back one loop later at the latest, and the job runs" 'grep -q "building" "$T/n2" && ls "$agd2"/station_bin/*/.ok >/dev/null 2>&1 && rd station-results work/$idB/alpha.txt | grep -q " PASS id=$idB "'
+cancel_all
+
 echo "== the real station loop: queue job first, deep only when the queue is empty"
 if command -v setsid >/dev/null 2>&1; then
   Q alpha list | awk '$1 ~ /^[0-9]/ { print $1 }' | while read -r i; do Q alpha cancel "$i" >/dev/null; done
@@ -370,5 +380,19 @@ bash -c 'sleep 30 & lane=$!; sleep 30 & loop=$!; echo "pid=$lane id=x kind=soak"
   wait $loop; echo "loop_rc=$?"; st=$(ps -o stat= -p $lane | tr -d " "); [ -n "$st" ] && [ "${st:0:1}" != Z ] && echo lane_alive; kill $lane' _ "$T/reap" "$REPO/tools/station/station.sh" >"$T/reap/out" 2>&1
 check "a station restart kills a leftover loop but spares a running lane (merges used to kill every job and park it)" 'grep -q "^loop_rc=143" "$T/reap/out" && grep -q "^lane_alive" "$T/reap/out"'
 echo "  (these checks took $((SECONDS - t_new)) s)"
+
+echo "== the stop line: a station it names ends; once the line is off main a start runs at once, however fresh the last stop"
+if command -v setsid >/dev/null 2>&1; then
+  ( cd "$T/seed" && git pull -q origin main 2>/dev/null; printf 'stopped: alpha\n' >>tools/station/roles.txt && git -c user.name=t -c user.email=t@t commit -qam stop-alpha && git push -q origin HEAD:main )
+  ( cd "$T/alpha" && git checkout -q main 2>/dev/null; git pull -q origin main )
+  ( cd "$T/alpha" && STATION_NAME=alpha STATION_POLL=1 timeout 90 bash tools/station/station.sh --watch idle >"$T/st1" 2>&1 ); rc1=$?
+  check "main names alpha on the stop line: the station publishes STOPPED and exits 0" '[ $rc1 = 0 ] && grep -q "roles.txt stops this station" "$T/st1" && rd station-results alpha.txt | grep -q "STATION STOPPED"'
+  ( cd "$T/seed" && sed -i '/^stopped:/d' tools/station/roles.txt && git -c user.name=t -c user.email=t@t commit -qam unstop-alpha && git push -q origin HEAD:main )
+  ( cd "$T/alpha" && STATION_NAME=alpha STATION_POLL=1 STATION_DEEP_GAP=1 setsid bash -c 'echo $$ >"$1"; exec bash tools/station/station.sh --watch idle' _ "$T/st.pid" >"$T/st2" 2>&1 & )
+  for _ in $(seq 1 40); do grep -q "origin/main does not: running\|stops this station" "$T/st2" 2>/dev/null && break; sleep 1; done
+  sleep 2; kill -- -"$(cat "$T/st.pid" 2>/dev/null)" 2>/dev/null; sleep 1
+  check "seconds later the line is off main while the checkout still has it: the station runs (27 Nov 2026: it stopped again for 30 minutes)" 'grep -q "origin/main does not: running" "$T/st2" && ! grep -q "stops this station" "$T/st2"'
+  ( cd "$T/alpha" && git checkout -q main 2>/dev/null; git pull -q origin main 2>/dev/null )
+else echo "  skip the stop-line test: no setsid here"; fi
 
 if [ $fails = 0 ]; then echo "QUEUE ok"; else echo "QUEUE FAILED $fails"; exit 1; fi

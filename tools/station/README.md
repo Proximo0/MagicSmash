@@ -38,6 +38,41 @@ which the store's bundled SQLite needs). A station without it reports `JOB realm
    `~/station_restarts.log`; name from `STATION_NAME` or `~/.station_name`). The queue job `script=stationstart` adds its
    `@reboot` crontab line (Windows: `start_station.cmd`); `frames` at boot has no desktop, so it runs under xvfb-run.
 
+## Four of Wands jobs
+Queue `shell` jobs that test the Four of Wands game (repo root), so the PCs have work between merges. They run Godot from "the tree", never
+from the work tree a merge is about to change: `<git dir>/station_wands/<key>/`, an imported copy of `git archive HEAD` of the game's paths
+(`project.godot export_presets.cfg icon.svg* game assets tools tests`, and `addons` once it exists; `tools/station/` left out). The key is 12 hex digits of
+their content, so a commit that only changes docs, `realm/`, `.github/` or `tools/station/` keeps the tree. A new key builds a new tree (one
+builder at a time, a `mkdir` lock; others wait up to 20 min; a lock over 45 min old is taken over; about a minute to import, about 130 MB a
+tree). Trees of other keys unused for 5 hours go (the longest job is 4). Helper: `wands_lib.sh` (`wands_key`, `wands_tree`, `wands_env` =
+private user data, never the PC's save; on Windows the graphics driver's own shader folder stays the PC's). The jobs start only Godot (each
+carries the line `# station-sac: ok`), so the Smart App Control laptop runs them and a queue of only these builds nothing (`q_build_all`).
+A merge no longer empties the lanes: `merge_job` keeps them filled while the merge's own jobs run. Quick test, no Godot:
+`bash tools/station/wands_test.sh` (`WANDS ok`).
+- `wandsrun runs=N wizards=1..4 seal=N persona=NAME limit=SECS`: N whole bot runs (`tools/full_run.gd`), seed `$STATION_JOB_SEED`+i, wizards `1 + seed % 4`
+  unless given. INFO with won/lost; FAIL on no `FULL_RUN` line, an engine script error or UNFINISHED. Rows in `wandsrun.csv`.
+- `wandscareer careers=N party=a.knight,b.mage hero=NAME maxruns=N minutes=N limit=SECS`: `tools/tool.gd career --until=win`; write `.` for `:` in a party.
+  Output in `career_<seed>.txt`; FAIL without a `CAREER` line. Its own `limit` (default 3000 s) must stay under the job's `timeout_s`.
+  Always give `minutes=25`: the tool's own 18-minute cap ends a run inside the Archlich fight and books a win as a loss (second read, 27 Nov 2026).
+- `wandsframes wave=N players=1..4 limit=SECS`: the real game drawn (`--autotest=N --players=P --perf`, under `xvfb-run` on Linux without a display):
+  GPU name and the `PERF frames=` fields; PERF lines in `frames_<seed>.txt`. A game window opens on that PC for about half a minute, and the
+  numbers are taken under whatever else the PC is doing, so name the PC (`needs=laptop`) and read them as an upper bound.
+```
+tools/station/queue.sh add kind=shell args="script=wandsrun runs=2" repeat=forever timeout_s=5400 priority=5 max_lanes=16 max_per_machine=8 needs_free_mb=600
+tools/station/queue.sh add kind=shell args="script=wandscareer careers=2 minutes=25 limit=6900" repeat=forever timeout_s=7200 priority=5 max_lanes=8 max_per_machine=3 needs_free_mb=600
+tools/station/queue.sh add kind=shell args="script=wandsframes wave=15 players=4" needs=laptop repeat=forever every_s=21600 timeout_s=1800 priority=6 needs_free_mb=1500 needs_gpu_idle=1
+```
+A new kind of job goes in once first (`repeat=once`), is read, and only then goes in as `forever`. Never `queue.sh fill-week`: it loads Horde & Hearth's jobs.
+
+## Taking a machine out of work
+A line in `roles.txt` that starts with `stopped:` and then names machines (or `all`) ends those stations: each ends the jobs still running
+in its lanes, publishes `STATION STOPPED`, ends its launcher (every `cmd.exe` whose command line holds `start_station` or `run_station`) and
+exits. To bring a machine back: take its name off that line (or delete the line), merge, then start its launcher once on the PC, or restart
+the PC. A started station whose checkout still has the line asks origin/main on every start and runs when main no longer names it (until
+27 Nov 2026 it asked only when its last stop was 30 minutes old, and three PCs started minutes after their last stop stopped again). A
+station started while main still names it ends itself and its launcher, so a helper that waits for the merge must not have `start_station`
+or `run_station` in its name or command line, and it must match the line only at the start of a line (`^stopped:`), never inside a comment.
+
 ## When a stage fails
 The fix happens on the machine that failed, where the failure reproduces: start one helper there with the failed
 report as its whole brief (agent type `worker`), let it push a branch, then stop it. One helper at a time.

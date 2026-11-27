@@ -719,6 +719,17 @@ lanes_busy() {  # how many lanes run a job now (files of live lanes; a dead lane
   done; echo $n
 }
 q_snap_dir() { printf %s "$(cd "$Q_GD" 2>/dev/null && pwd || echo "$Q_GD")/station_bin/$(git rev-parse --short=12 HEAD 2>/dev/null || echo none)"; }   # absolute: shell jobs cd into realm/ before running from it
+# q_any_ownbin: 0 when some queued job runs a program built here (q_load ok and q_ownbin). Reads the queue as lanes_fill last fetched it
+# (no fetch of its own: a job added since then gets its build one loop later). A subshell, so q_load's J_* stay out of the caller.
+# With no queue branch or no such job: 1.
+q_any_ownbin() (
+  tree=$(git ls-tree -r --name-only "refs/remotes/origin/$QBRANCH" 2>/dev/null) || exit 1
+  for f in $(grep '^queue/.*\.job$' <<<"$tree"); do
+    id=${f#queue/}; id=${id%.job}
+    q_load "$id" && q_ownbin && exit 0
+  done
+  exit 1
+)
 # q_build_all: the one build of a commit for every lane, run by the station between merge jobs and lane starts. Builds realm and the
 # store (the same command as the merge jobs and deep, so a build already done is a no-op), copies every realm-* program into
 # $Q_GD/station_bin/<commit>/ and starts one (realm-store --help) to see that this PC lets it run. While it builds it holds
@@ -727,6 +738,7 @@ q_snap_dir() { printf %s "$(cd "$Q_GD" 2>/dev/null && pwd || echo "$Q_GD")/stati
 q_build_all() {
   local snap head st tmp f rc; Q_SNAP=""; snap=$(q_snap_dir); head=$(git rev-parse -q --verify HEAD 2>/dev/null)
   [ -f "$snap/.ok" ] && { Q_SNAP=$snap; return 0; }
+  q_any_ownbin || return 1   # nothing queued runs a program built here (e.g. only Four of Wands jobs): build nothing, quietly
   q_sac && return 1
   st=$(tail -1 "$Q_GD/station_build.state" 2>/dev/null)
   [[ "$st" == "FAIL $head "* ]] && [ $(( $(q_now) - $(cut -d' ' -f3 <<<"$st") )) -lt "${STATION_BUILD_RETRY_S:-3600}" ] && return 1
