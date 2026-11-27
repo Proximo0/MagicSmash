@@ -16,3 +16,4 @@
 2026-11-26T13:12:30Z PASS id=261123161439-1636 kind=shell secs=2909 wirefuzz iters=6000000 seed=560607 8 tests in 2890 s
 2026-11-26T14:10:27Z PASS id=261123161439-1636 kind=shell secs=2886 wirefuzz iters=6000000 seed=360682 8 tests in 2873 s
 2026-11-26T18:48:53Z PASS id=261123161439-1636 kind=shell secs=2872 wirefuzz iters=6000000 seed=508724 8 tests in 2858 s
+2026-11-27T23:00:21Z INFO id=261123161439-1636 kind=shell secs=100426 wirefuzz iters=6000000 seed=470768 stopped at its budget of 3000 s: 7 tests ok, 0 failed, running: wirefuzz::a_join_state_round_trips_and_survives_hostile_bytes (fewer iters or more secs to finish)
