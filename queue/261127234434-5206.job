@@ -1,0 +1,10 @@
+kind=shell
+args=script=wandsframes wave=15 players=4
+needs=laptop
+priority=7
+repeat=once
+timeout_s=1800
+every_s=0
+added=2026-11-27T23:44:34Z
+needs_free_mb=1200
+needs_gpu_idle=1
