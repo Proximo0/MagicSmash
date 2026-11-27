@@ -9,9 +9,10 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Nightly: the whole Windows suite, including the slow determinism gates the push/PR Windows job skips.
-  schedule:
-    - cron: "17 3 * * *"
+  # Nightly (off since 27 Nov 2026, Horde & Hearth is shelved): the whole Windows suite, including the slow determinism
+  # gates the push/PR Windows job skips. Run it by hand (workflow_dispatch), or put the schedule back when work resumes:
+  #   schedule:
+  #     - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:

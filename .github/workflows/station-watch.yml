@@ -3,9 +3,11 @@
 # releases such a job so the stations pick it up again, and keeps ONE issue open while anything is wrong
 # (assigned to the owner, so GitHub mails him); the issue is closed by the first clean run.
 name: station-watch
+# STOPPED 27 Nov 2026: Horde & Hearth is shelved and every station is stopped (tools/station/roles.txt), so the schedule
+# is off; a silent PC is now expected and must not open an issue. To watch again, put back under `on:`
+#   schedule:
+#     - cron: "7,37 * * * *"
 on:
-  schedule:
-    - cron: "7,37 * * * *"
   workflow_dispatch:
 permissions:
   contents: write

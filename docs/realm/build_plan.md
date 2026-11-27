@@ -1,5 +1,8 @@
 # Horde & Hearth: who builds what (the full build)
 
+**SHELVED, 27 Nov 2026 (Curtis: "do a full stop"; saved for later in the year). No job below is in work. Read
+`docs/realm/SHELVED.md` first: what was stopped, where the work stands and how to start again.**
+
 Curtis, 21 Nov 2026: "i want you to build a plan that is a complete project ready to ship, beside the art. perfect
 coding everywhere else and placeholders where you need for everything", "no demos thats a waste of tokens", "edit
 the plan for a full build", "wait on renting a server until last minute. use one of my computers for test host".
