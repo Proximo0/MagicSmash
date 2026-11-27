@@ -1,1 +1,1 @@
-machine=msi time=1795734184 status=INFO passes=10 commit=73916410e815 fails=0
+machine=msi time=1795760012 status=FAIL passes=11 commit=73916410e815 fails=1
