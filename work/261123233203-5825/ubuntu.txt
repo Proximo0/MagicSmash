@@ -1,3 +1,4 @@
 2026-11-24T16:56:55Z INFO id=261123233203-5825 kind=balance secs=302 stopped for a merge after 302 s
 2026-11-24T20:58:59Z FAIL id=261123233203-5825 kind=balance secs=14401 balance cohorts=1 no BALANCE line: balance progress seed 0 round 39 below_60 7/20 lowest_level 57 fewest_hours 91.5 secs 14263 balance progress seed 0 round 40 below_60 7/20 lowest_level 57 fewest_hours 94.2 secs 14301 balance progress seed 0 round 41 below_60 4/20 lowest_level 57 fewest_hours 99.3 secs 14361 
 2026-11-26T00:36:53Z INFO id=261123233203-5825 kind=balance secs=246 stopped for a merge after 246 s
+2026-11-27T08:48:38Z FAIL id=261123233203-5825 kind=balance secs=14403 balance cohorts=1 no BALANCE line: balance progress seed 0 round 27 below_60 13/20 lowest_level 42 fewest_hours 62.0 secs 12964 balance progress seed 0 round 28 below_60 13/20 lowest_level 42 fewest_hours 64.7 secs 13635 balance progress seed 0 round 29 below_60 13/20 lowest_level 42 fewest_hours 67.3 secs 14245 
