@@ -2,543 +2,392 @@
 	"banks": 3,
 	"card_picks": [
 		{
-			"card": 8,
+			"card": 2,
 			"field": 0,
-			"slot": 1,
-			"t": 89.9
-		},
-		{
-			"card": 8,
-			"field": 0,
-			"slot": 1,
-			"t": 91.4
+			"slot": 2,
+			"t": 63.9
 		},
 		{
 			"card": 2,
 			"field": 0,
 			"slot": 2,
-			"t": 92.9
-		},
-		{
-			"card": 8,
-			"field": 0,
-			"slot": 1,
-			"t": 122.0
-		},
-		{
-			"card": 8,
-			"field": 0,
-			"slot": 1,
-			"t": 123.5
+			"t": 78.4
 		},
 		{
 			"card": 7,
 			"field": 0,
 			"slot": 1,
-			"t": 165.2
-		},
-		{
-			"card": 7,
-			"field": 0,
-			"slot": 1,
-			"t": 166.7
-		},
-		{
-			"card": 2,
-			"field": 0,
-			"slot": 2,
-			"t": 315.0
-		},
-		{
-			"card": 8,
-			"field": 0,
-			"slot": 1,
-			"t": 338.9
+			"t": 92.0
 		},
 		{
 			"card": 7,
 			"field": 0,
 			"slot": 3,
-			"t": 340.4
-		},
-		{
-			"card": 2,
-			"field": 0,
-			"slot": 2,
-			"t": 341.9
-		},
-		{
-			"card": 11,
-			"field": 0,
-			"slot": 2,
-			"t": 392.2
-		},
-		{
-			"card": 7,
-			"field": 0,
-			"slot": 1,
-			"t": 393.7
-		},
-		{
-			"card": 11,
-			"field": 0,
-			"slot": 2,
-			"t": 395.2
-		},
-		{
-			"card": 2,
-			"field": 0,
-			"slot": 3,
-			"t": 396.7
-		},
-		{
-			"card": 11,
-			"field": 0,
-			"slot": 2,
-			"t": 398.2
-		},
-		{
-			"card": 11,
-			"field": 0,
-			"slot": 2,
-			"t": 399.7
-		},
-		{
-			"card": 7,
-			"field": 0,
-			"slot": 1,
-			"t": 401.2
-		},
-		{
-			"card": 2,
-			"field": 0,
-			"slot": 3,
-			"t": 402.7
+			"t": 125.1
 		},
 		{
 			"card": 12,
 			"field": 0,
-			"slot": 2,
-			"t": 575.5
-		},
-		{
-			"card": 4,
-			"field": 0,
 			"slot": 1,
-			"t": 577.0
+			"t": 187.5
 		},
 		{
 			"card": 3,
 			"field": 0,
+			"slot": 1,
+			"t": 239.1
+		},
+		{
+			"card": 5,
+			"field": 0,
 			"slot": 3,
-			"t": 657.7
+			"t": 279.7
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 348.4
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 2,
+			"t": 349.9
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 418.6
+		},
+		{
+			"card": 8,
+			"field": 0,
+			"slot": 1,
+			"t": 428.2
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 444.1
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 445.6
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 447.1
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 448.6
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 450.1
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 451.6
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 453.1
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 454.6
+		},
+		{
+			"card": 11,
+			"field": 0,
+			"slot": 2,
+			"t": 456.1
+		},
+		{
+			"card": 7,
+			"field": 0,
+			"slot": 1,
+			"t": 457.6
 		},
 		{
 			"card": 2,
-			"field": 1,
+			"field": 0,
 			"slot": 3,
-			"t": 768.5
+			"t": 459.1
 		},
 		{
-			"card": 3,
-			"field": 1,
+			"card": 7,
+			"field": 0,
+			"slot": 3,
+			"t": 475.6
+		},
+		{
+			"card": 10,
+			"field": 0,
 			"slot": 2,
-			"t": 787.2
+			"t": 505.0
 		},
 		{
 			"card": 4,
-			"field": 1,
+			"field": 0,
 			"slot": 3,
-			"t": 788.7
+			"t": 562.1
+		},
+		{
+			"card": 5,
+			"field": 0,
+			"slot": 3,
+			"t": 601.4
+		},
+		{
+			"card": 3,
+			"field": 0,
+			"slot": 1,
+			"t": 652.7
 		},
 		{
 			"card": 12,
-			"field": 1,
+			"field": 0,
 			"slot": 1,
-			"t": 790.2
+			"t": 737.5
 		},
 		{
 			"card": 4,
-			"field": 1,
+			"field": 0,
 			"slot": 3,
-			"t": 791.7
+			"t": 825.0
 		},
 		{
-			"card": 3,
-			"field": 1,
+			"card": 2,
+			"field": 0,
+			"slot": 3,
+			"t": 884.8
+		},
+		{
+			"card": 10,
+			"field": 0,
 			"slot": 2,
-			"t": 793.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 795.2
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 796.7
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 798.2
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 799.7
-		},
-		{
-			"card": 8,
-			"field": 1,
-			"slot": 3,
-			"t": 801.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 2,
-			"t": 802.8
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 2,
-			"t": 806.7
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 1,
-			"t": 827.0
-		},
-		{
-			"card": 9,
-			"field": 1,
-			"slot": 2,
-			"t": 846.2
-		},
-		{
-			"card": 3,
-			"field": 1,
-			"slot": 1,
-			"t": 847.7
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 854.6
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 3,
-			"t": 894.9
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 901.7
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 903.2
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 904.7
-		},
-		{
-			"card": 7,
-			"field": 1,
-			"slot": 3,
-			"t": 906.2
-		},
-		{
-			"card": 5,
-			"field": 1,
-			"slot": 1,
-			"t": 907.7
+			"t": 935.6
 		}
 	],
-	"coin": 1070,
-	"dead_clicks": [],
-	"deaths": 11,
+	"coin": 2044,
+	"dead_clicks": [
+		"BagPanel:close under swallow",
+		"BagPanel did not close by close button"
+	],
+	"deaths": 7,
 	"display": "Windows",
 	"errors": 0,
-	"fields_entered": 3,
+	"fields_entered": 2,
 	"first_errors": [],
 	"frames": {
-		"count": 356007,
-		"fps_p50": 442.0,
+		"count": 726828,
+		"fps_p50": 804.5,
 		"hitches": [
 			{
-				"ms": 61.1,
-				"screen": "title",
-				"t": 1.18
-			},
-			{
-				"ms": 133.3,
-				"screen": "title",
-				"t": 1.18
-			},
-			{
-				"ms": 130.4,
-				"screen": "login",
-				"t": 1.62
-			},
-			{
-				"ms": 120.1,
-				"screen": "login",
-				"t": 1.65
-			},
-			{
-				"ms": 136.8,
+				"ms": 71.4,
 				"screen": "hero_list",
-				"t": 7.27
+				"t": 6.27
 			},
 			{
-				"ms": 135.2,
+				"ms": 128.9,
 				"screen": "town",
-				"t": 9.94
-			},
-			{
-				"ms": 127.4,
-				"screen": "town",
-				"t": 10.19
-			},
-			{
-				"ms": 140.1,
-				"screen": "BagPanel",
-				"t": 11.86
-			},
-			{
-				"ms": 139.0,
-				"screen": "town",
-				"t": 16.82
-			},
-			{
-				"ms": 73.7,
-				"screen": "ReaderPanel",
-				"t": 31.2
-			},
-			{
-				"ms": 148.6,
-				"screen": "town",
-				"t": 36.72
-			},
-			{
-				"ms": 64.9,
-				"screen": "GatePanel",
-				"t": 43.69
-			},
-			{
-				"ms": 136.5,
-				"screen": "field0",
-				"t": 54.22
-			},
-			{
-				"ms": 73.8,
-				"screen": "field0",
-				"t": 54.55
-			},
-			{
-				"ms": 100.8,
-				"screen": "field0",
-				"t": 57.85
-			},
-			{
-				"ms": 133.8,
-				"screen": "field0",
-				"t": 114.48
-			},
-			{
-				"ms": 56.8,
-				"screen": "field0",
-				"t": 145.65
-			},
-			{
-				"ms": 139.7,
-				"screen": "field0",
-				"t": 174.51
-			},
-			{
-				"ms": 142.0,
-				"screen": "field0",
-				"t": 189.58
-			},
-			{
-				"ms": 134.2,
-				"screen": "none",
-				"t": 240.0
-			},
-			{
-				"ms": 128.8,
-				"screen": "OutingPanel",
-				"t": 240.54
-			},
-			{
-				"ms": 138.5,
-				"screen": "town",
-				"t": 242.21
-			},
-			{
-				"ms": 73.2,
-				"screen": "SheetPanel",
-				"t": 243.51
-			},
-			{
-				"ms": 143.7,
-				"screen": "town",
-				"t": 245.95
-			},
-			{
-				"ms": 141.4,
-				"screen": "BankPanel",
-				"t": 252.32
-			},
-			{
-				"ms": 83.3,
-				"screen": "town",
-				"t": 252.4
-			},
-			{
-				"ms": 150.0,
-				"screen": "town",
-				"t": 252.66
-			},
-			{
-				"ms": 81.3,
-				"screen": "GatePanel",
-				"t": 269.59
-			},
-			{
-				"ms": 147.2,
-				"screen": "field0",
-				"t": 272.67
-			},
-			{
-				"ms": 128.4,
-				"screen": "field0",
-				"t": 332.87
-			},
-			{
-				"ms": 137.7,
-				"screen": "field0",
-				"t": 392.94
-			},
-			{
-				"ms": 147.0,
-				"screen": "field0",
-				"t": 453.04
-			},
-			{
-				"ms": 144.7,
-				"screen": "field0",
-				"t": 466.95
+				"t": 8.24
 			},
 			{
 				"ms": 129.4,
-				"screen": "field0",
-				"t": 526.98
-			},
-			{
-				"ms": 138.3,
-				"screen": "field0",
-				"t": 587.0
-			},
-			{
-				"ms": 136.9,
-				"screen": "field0",
-				"t": 646.95
-			},
-			{
-				"ms": 144.9,
-				"screen": "field0",
-				"t": 688.55
-			},
-			{
-				"ms": 146.0,
-				"screen": "OutingPanel",
-				"t": 731.74
-			},
-			{
-				"ms": 133.7,
 				"screen": "town",
-				"t": 733.58
+				"t": 8.47
 			},
 			{
-				"ms": 81.1,
-				"screen": "PostPanel",
-				"t": 744.21
+				"ms": 125.4,
+				"screen": "BagPanel",
+				"t": 10.85
+			},
+			{
+				"ms": 136.3,
+				"screen": "town",
+				"t": 15.47
+			},
+			{
+				"ms": 65.3,
+				"screen": "ReaderPanel",
+				"t": 29.69
+			},
+			{
+				"ms": 135.9,
+				"screen": "town",
+				"t": 33.87
+			},
+			{
+				"ms": 139.5,
+				"screen": "field0",
+				"t": 48.61
+			},
+			{
+				"ms": 120.2,
+				"screen": "field0",
+				"t": 48.82
+			},
+			{
+				"ms": 138.9,
+				"screen": "field0",
+				"t": 108.78
+			},
+			{
+				"ms": 135.7,
+				"screen": "field0",
+				"t": 142.27
 			},
 			{
 				"ms": 137.7,
-				"screen": "town",
-				"t": 744.47
+				"screen": "field0",
+				"t": 162.03
 			},
 			{
-				"ms": 89.3,
-				"screen": "GatePanel",
-				"t": 763.31
+				"ms": 131.9,
+				"screen": "field0",
+				"t": 222.01
 			},
 			{
-				"ms": 133.0,
-				"screen": "field1",
-				"t": 766.21
-			},
-			{
-				"ms": 130.9,
-				"screen": "field1",
-				"t": 766.76
+				"ms": 149.9,
+				"screen": "field0",
+				"t": 282.06
 			},
 			{
 				"ms": 138.8,
-				"screen": "field1",
-				"t": 778.37
+				"screen": "field0",
+				"t": 342.08
 			},
 			{
-				"ms": 136.7,
-				"screen": "field1",
-				"t": 787.19
+				"ms": 149.3,
+				"screen": "field0",
+				"t": 354.66
 			},
 			{
-				"ms": 133.4,
-				"screen": "field1",
-				"t": 814.26
+				"ms": 126.8,
+				"screen": "OutingPanel",
+				"t": 372.97
 			},
 			{
-				"ms": 134.3,
-				"screen": "field1",
-				"t": 824.81
+				"ms": 134.5,
+				"screen": "town",
+				"t": 373.94
 			},
 			{
-				"ms": 129.7,
-				"screen": "none",
-				"t": 908.21
+				"ms": 55.1,
+				"screen": "BagPanel",
+				"t": 374.78
+			},
+			{
+				"ms": 86.3,
+				"screen": "town",
+				"t": 381.59
+			},
+			{
+				"ms": 134.6,
+				"screen": "town",
+				"t": 381.86
+			},
+			{
+				"ms": 65.0,
+				"screen": "BagPanel",
+				"t": 382.86
+			},
+			{
+				"ms": 144.9,
+				"screen": "town",
+				"t": 387.96
+			},
+			{
+				"ms": 145.1,
+				"screen": "field0",
+				"t": 404.87
+			},
+			{
+				"ms": 141.1,
+				"screen": "field0",
+				"t": 444.01
+			},
+			{
+				"ms": 142.2,
+				"screen": "field0",
+				"t": 503.98
+			},
+			{
+				"ms": 136.4,
+				"screen": "field0",
+				"t": 537.49
+			},
+			{
+				"ms": 143.9,
+				"screen": "field0",
+				"t": 597.5
+			},
+			{
+				"ms": 138.0,
+				"screen": "field0",
+				"t": 632.05
+			},
+			{
+				"ms": 124.5,
+				"screen": "field0",
+				"t": 692.75
+			},
+			{
+				"ms": 143.9,
+				"screen": "field0",
+				"t": 752.05
+			},
+			{
+				"ms": 141.0,
+				"screen": "field0",
+				"t": 760.43
+			},
+			{
+				"ms": 141.3,
+				"screen": "field0",
+				"t": 812.05
+			},
+			{
+				"ms": 148.6,
+				"screen": "field0",
+				"t": 872.03
+			},
+			{
+				"ms": 137.5,
+				"screen": "field0",
+				"t": 932.01
 			}
 		],
-		"ms_max": 150.0,
-		"ms_p50": 2.26,
-		"ms_p99": 6.25,
-		"over_100ms": 39,
-		"over_50ms": 49
+		"ms_max": 149.86,
+		"ms_p50": 1.24,
+		"ms_p99": 3.7,
+		"over_100ms": 30,
+		"over_50ms": 35
 	},
 	"gateway": "192.168.12.22:7700",
 	"heat": {
 		"0": {
-			"cells_visited": 6,
+			"cells_visited": 19,
 			"grid": [
 				[
 					0,
@@ -710,11 +559,29 @@
 					0,
 					0,
 					0,
+					25,
+					14,
+					0,
+					26,
+					66,
+					0,
+					0,
+					0,
+					0
+				],
+				[
 					0,
 					0,
 					0,
 					0,
 					0,
+					0,
+					0,
+					95,
+					82,
+					185,
+					75,
+					27,
 					0,
 					0,
 					0,
@@ -730,9 +597,27 @@
 					0,
 					0,
 					0,
+					223,
+					245,
+					58,
 					0,
-					42,
-					228,
+					0,
+					0,
+					0
+				],
+				[
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					47,
+					86,
+					0,
+					78,
 					0,
 					0,
 					0,
@@ -747,9 +632,9 @@
 					0,
 					0,
 					0,
+					114,
 					0,
-					395,
-					290,
+					0,
 					0,
 					0,
 					0,
@@ -757,7 +642,6 @@
 					0
 				],
 				[
-					0,
 					0,
 					0,
 					0,
@@ -767,23 +651,6 @@
 					0,
 					0,
 					91,
-					236,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
 					0,
 					0,
 					0,
@@ -800,319 +667,8 @@
 					0,
 					0,
 					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				]
-			]
-		},
-		"1": {
-			"cells_visited": 2,
-			"grid": [
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0
-				],
-				[
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					174,
-					108,
+					56,
+					223,
 					0,
 					0,
 					0,
@@ -1124,30 +680,30 @@
 			]
 		}
 	},
-	"kills": 1209,
-	"kites": 32,
-	"km_walked": 0.545,
+	"kills": 2635,
+	"kites": 33,
+	"km_walked": 1.518,
 	"name": "PBMSI1",
 	"net": [
 		{
 			"bad_datagrams": 0,
-			"bytes_in_per_sec": 1076.58981927885,
-			"bytes_out_per_sec": 619.763869965543,
+			"bytes_in_per_sec": 358.945870962659,
+			"bytes_out_per_sec": 619.906518097071,
 			"field": 0,
-			"frame_build_ms": 0.0354,
-			"frame_build_ms_max": 0.3251,
+			"frame_build_ms": 0.0278,
+			"frame_build_ms_max": 0.2764,
 			"hash_checks_failed": 0,
-			"hash_checks_passed": 67,
-			"join_bytes": 16723,
-			"join_tick": 3799783,
-			"left_by": "waystone",
-			"mispredicts": 656,
-			"monsters": 296,
+			"hash_checks_passed": 324,
+			"join_bytes": 17019,
+			"join_tick": 4259373,
+			"left_by": "esc",
+			"mispredicts": 269,
+			"monsters": 303,
 			"players": 4,
-			"predictions_checked": 1331,
-			"sim_ms_last": 1.4709,
-			"sim_ms_per_tick": 1.84992903225806,
-			"sim_ms_per_tick_max": 2.735375,
+			"predictions_checked": 6111,
+			"sim_ms_last": 1.1201,
+			"sim_ms_per_tick": 1.18284615384615,
+			"sim_ms_per_tick_max": 1.38958095238095,
 			"sites": [
 				8192.0,
 				16288.0,
@@ -1180,33 +736,33 @@
 				12170.109375,
 				5892.0
 			],
-			"stall_ms_max": 328.5937,
+			"stall_ms_max": 193.5405,
 			"start": [
-				10287.0,
-				11799.1875
+				10292.0,
+				11804.1875
 			],
-			"ticks_applied": 1347,
-			"unconfirmed_inputs": 2
+			"ticks_applied": 6475,
+			"unconfirmed_inputs": 3
 		},
 		{
 			"bad_datagrams": 0,
-			"bytes_in_per_sec": 628.014456912767,
-			"bytes_out_per_sec": 619.028558483172,
+			"bytes_in_per_sec": 547.859638360652,
+			"bytes_out_per_sec": 619.841196685409,
 			"field": 0,
-			"frame_build_ms": 0.0587,
-			"frame_build_ms_max": 0.2829,
+			"frame_build_ms": 0.0343,
+			"frame_build_ms_max": 0.098,
 			"hash_checks_failed": 0,
-			"hash_checks_passed": 177,
-			"join_bytes": 16312,
-			"join_tick": 3801399,
-			"left_by": "waystone",
-			"mispredicts": 1949,
-			"monsters": 296,
+			"hash_checks_passed": 585,
+			"join_bytes": 16907,
+			"join_tick": 4266510,
+			"left_by": "esc",
+			"mispredicts": 338,
+			"monsters": 288,
 			"players": 4,
-			"predictions_checked": 3441,
-			"sim_ms_last": 1.6477,
-			"sim_ms_per_tick": 2.60222608695652,
-			"sim_ms_per_tick_max": 3.16682857142857,
+			"predictions_checked": 11222,
+			"sim_ms_last": 0.762,
+			"sim_ms_per_tick": 1.064605,
+			"sim_ms_per_tick_max": 1.82678,
 			"sites": [
 				8192.0,
 				16288.0,
@@ -1239,248 +795,147 @@
 				12170.109375,
 				5892.0
 			],
-			"stall_ms_max": 333.4682,
+			"stall_ms_max": 284.3039,
 			"start": [
-				10273.0,
-				11849.1875
+				10265.0,
+				11844.1875
 			],
-			"ticks_applied": 3526,
-			"unconfirmed_inputs": 0
-		},
-		{
-			"bad_datagrams": 0,
-			"bytes_in_per_sec": 944.318390985387,
-			"bytes_out_per_sec": 619.552806784063,
-			"field": 1,
-			"frame_build_ms": 0.0352,
-			"frame_build_ms_max": 0.1573,
-			"hash_checks_failed": 0,
-			"hash_checks_passed": 192,
-			"join_bytes": 14931,
-			"join_tick": 3814050,
-			"left_by": "gate",
-			"mispredicts": 119,
-			"monsters": 135,
-			"players": 1,
-			"predictions_checked": 2586,
-			"sim_ms_last": 2.8064,
-			"sim_ms_per_tick": 1.36751212121212,
-			"sim_ms_per_tick_max": 3.29236,
-			"sites": [
-				8192.0,
-				16288.0,
-				8192.0,
-				8192.0,
-				4692.0,
-				14245.6484375,
-				3699.5078125,
-				2839.4609375,
-				15083.90625,
-				6965.37890625,
-				11156.66015625,
-				11156.66015625,
-				4136.83984375,
-				9285.3203125,
-				9285.3203125,
-				4136.83984375,
-				8612.5546875,
-				10554.9375,
-				12633.3671875,
-				9389.4453125,
-				9389.4453125,
-				12633.3671875,
-				4944.9921875,
-				11439.0078125,
-				3750.6328125,
-				6994.5546875,
-				6994.5546875,
-				3750.6328125,
-				11439.0078125,
-				4944.9921875
-			],
-			"stall_ms_max": 173.5759,
-			"start": [
-				8206.0,
-				16187.0
-			],
-			"ticks_applied": 3844,
-			"unconfirmed_inputs": 2
+			"ticks_applied": 11695,
+			"unconfirmed_inputs": 1
 		}
 	],
 	"notes": [
-		"145.6 field 0: to a waystone to bank",
-		"189.1 died in field 0 at (9503.0, 12298.0)",
-		"234.9 banked at a waystone in field 0",
-		"239.8 outing over in field 0: { \"t\": 164, \"hero\": 51, \"coin\": 192, \"xp\": 377, \"levels\": 0, \"potions\": 0, \"left\": 1, \"field\": 0, \"at_s\": 239.8 }",
-		"457.1 field 0: to a waystone to bank",
-		"466.7 died in field 0 at (12112.0, 10526.0)",
-		"513.7 banked at a waystone in field 0",
-		"604.8 field 0: to a waystone to bank",
-		"688.3 died in field 0 at (10914.0, 12824.0)",
-		"728.4 banked at a waystone in field 0",
-		"731.4 outing over in field 0: { \"t\": 164, \"hero\": 51, \"coin\": 451, \"xp\": 893, \"levels\": 0, \"potions\": 0, \"left\": 1, \"field\": 0, \"at_s\": 731.4 }",
-		"778.0 died in field 1 at (8415.0, 16019.0)",
-		"786.8 died in field 1 at (8197.0, 16254.0)",
-		"794.5 died in field 1 at (8169.0, 16130.0)",
-		"814.0 died in field 1 at (8447.0, 16033.0)",
-		"824.7 field 1: to a waystone to bank",
-		"830.6 died in field 1 at (7807.0, 16000.0)",
-		"857.3 died in field 1 at (7995.0, 16000.0)",
-		"884.1 died in field 1 at (8131.0, 15938.0)",
-		"900.1 field 1: time is up, out by the gate",
-		"901.8 died in field 1 at (8006.0, 16000.0)",
-		"908.0 outing over in field 1: { \"t\": 164, \"hero\": 51, \"coin\": 427, \"xp\": 2274, \"levels\": 0, \"potions\": 0, \"left\": 0, \"field\": 1, \"at_s\": 908.0 }"
+		"142.1 field 0: to a waystone to bank",
+		"161.8 died in field 0 at (11351.0, 12747.0)",
+		"179.9 banked at a waystone in field 0",
+		"278.1 field 0: to a waystone to bank",
+		"354.2 died in field 0 at (7453.0, 10917.0)",
+		"372.3 banked at a waystone in field 0",
+		"372.3 Esc 1 in field 0",
+		"372.7 outing over in field 0: { \"t\": 164, \"hero\": 51, \"coin\": 944, \"xp\": 1888, \"levels\": 0, \"potions\": 0, \"left\": 2, \"field\": 0, \"at_s\": 372.7 }",
+		"379.3 covered button BagPanel:close under swallow",
+		"381.5 BagPanel did not close by close button",
+		"443.8 died in field 0 at (9442.0, 10988.0)",
+		"537.2 died in field 0 at (11616.0, 9377.0)",
+		"580.5 field 0: to a waystone to bank",
+		"631.8 died in field 0 at (10743.0, 12079.0)",
+		"650.0 banked at a waystone in field 0",
+		"760.3 died in field 0 at (8197.0, 15946.0)",
+		"901.8 died in field 0 at (8330.0, 16020.0)",
+		"990.1 field 0: still in 90 s after time, Esc",
+		"990.1 Esc 1 in field 0",
+		"990.5 outing over in field 0: { \"t\": 164, \"hero\": 51, \"coin\": 1100, \"xp\": 2776, \"levels\": 0, \"potions\": 0, \"left\": 2, \"field\": 0, \"at_s\": 990.5 }"
 	],
 	"ok": true,
 	"os": "Windows",
 	"outings": [
 		{
-			"at_s": 239.8,
-			"coin": 192,
+			"at_s": 372.7,
+			"coin": 944,
 			"field": 0,
 			"hero": 51,
-			"left": 1,
+			"left": 2,
 			"levels": 0,
 			"potions": 0,
 			"t": 164,
-			"xp": 377
+			"xp": 1888
 		},
 		{
-			"at_s": 731.4,
-			"coin": 451,
+			"at_s": 990.5,
+			"coin": 1100,
 			"field": 0,
 			"hero": 51,
-			"left": 1,
+			"left": 2,
 			"levels": 0,
 			"potions": 0,
 			"t": 164,
-			"xp": 893
-		},
-		{
-			"at_s": 908.0,
-			"coin": 427,
-			"field": 1,
-			"hero": 51,
-			"left": 0,
-			"levels": 0,
-			"potions": 0,
-			"t": 164,
-			"xp": 2274
+			"xp": 2776
 		}
 	],
 	"panels_opened": [
 		"BagPanel",
 		"ReaderPanel",
-		"SheetPanel",
-		"BankPanel",
-		"PostPanel"
+		"BagPanel",
+		"BagPanel"
 	],
 	"potions": 0,
 	"renderer": "NVIDIA GeForce RTX 5050 Laptop GPU",
 	"screens": {
 		"BagPanel": {
-			"frames": 396,
-			"hitches_50ms": 1,
-			"inputs": 1,
-			"secs": 4.9,
-			"visits": 1
-		},
-		"BankPanel": {
-			"frames": 1,
-			"hitches_50ms": 1,
-			"inputs": 1,
-			"secs": 0.1,
-			"visits": 1
-		},
-		"GatePanel": {
-			"frames": 441,
+			"frames": 1472,
 			"hitches_50ms": 3,
-			"inputs": 3,
-			"secs": 3.4,
+			"inputs": 4,
+			"secs": 16.2,
 			"visits": 3
 		},
-		"OutingPanel": {
-			"frames": 432,
-			"hitches_50ms": 2,
+		"GatePanel": {
+			"frames": 281,
+			"hitches_50ms": 0,
 			"inputs": 2,
-			"secs": 3.2,
+			"secs": 1.5,
 			"visits": 2
 		},
-		"PostPanel": {
-			"frames": 2,
+		"OutingPanel": {
+			"frames": 190,
 			"hitches_50ms": 1,
 			"inputs": 1,
-			"secs": 0.1,
+			"secs": 0.9,
 			"visits": 1
 		},
 		"ReaderPanel": {
-			"frames": 561,
+			"frames": 511,
 			"hitches_50ms": 1,
 			"inputs": 1,
-			"secs": 5.4,
-			"visits": 1
-		},
-		"SheetPanel": {
-			"frames": 248,
-			"hitches_50ms": 1,
-			"inputs": 1,
-			"secs": 2.2,
+			"secs": 4.1,
 			"visits": 1
 		},
 		"field0": {
-			"frames": 288953,
-			"hitches_50ms": 16,
-			"inputs": 1755,
-			"secs": 642.8,
+			"frames": 706912,
+			"hitches_50ms": 21,
+			"inputs": 1873,
+			"secs": 907.9,
 			"visits": 2
 		},
-		"field1": {
-			"frames": 44607,
-			"hitches_50ms": 6,
-			"inputs": 96,
-			"secs": 141.4,
-			"visits": 1
-		},
 		"hero_list": {
-			"frames": 1451,
+			"frames": 1180,
 			"hitches_50ms": 1,
 			"inputs": 2,
-			"secs": 2.7,
+			"secs": 1.9,
 			"visits": 1
 		},
 		"login": {
-			"frames": 3164,
-			"hitches_50ms": 2,
+			"frames": 4569,
+			"hitches_50ms": 0,
 			"inputs": 20,
-			"secs": 4.8,
+			"secs": 4.9,
 			"visits": 1
 		},
 		"none": {
-			"frames": 554,
-			"hitches_50ms": 2,
+			"frames": 272,
+			"hitches_50ms": 0,
 			"inputs": 0,
-			"secs": 0.6,
-			"visits": 4
+			"secs": 0.1,
+			"visits": 3
 		},
 		"title": {
-			"frames": 487,
-			"hitches_50ms": 2,
+			"frames": 1065,
+			"hitches_50ms": 0,
 			"inputs": 1,
-			"secs": 1.0,
+			"secs": 1.2,
 			"visits": 1
 		},
 		"town": {
-			"frames": 14710,
-			"hitches_50ms": 10,
-			"inputs": 19,
-			"secs": 77.3,
-			"visits": 8
+			"frames": 10376,
+			"hitches_50ms": 8,
+			"inputs": 12,
+			"secs": 39.4,
+			"visits": 6
 		}
 	},
-	"secs": 908.2,
-	"seed": 666291,
-	"shots": 40,
-	"unsticks": 2,
+	"secs": 990.5,
+	"seed": 756061,
+	"shots": 37,
+	"unsticks": 8,
 	"warnings": 0,
 	"why": "",
 	"window": "960x540"
