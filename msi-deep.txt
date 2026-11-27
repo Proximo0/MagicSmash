@@ -1,3 +1,3 @@
-STATION machine=msi time=2026-11-22T12:27Z commit=3d8feff took=48s
-JOB deep FAIL fuzz seed=23605 FAILED:   verify after child 122: ["a parcel holding nothing: 1", "a listing with more than one entry: 1"] STORE fuzz FAILED seed=23605 ops=27283 kills=121 (stmt=34 progress=35 commit=12 aftercommit=20 before | bench field=1 seed=23605 BENCH 1000x20000 threads=2 ticks=600 wall=5.8s kills=82703 spawns=102703 deaths=199 recycled=0 hash=248e36ac885a5ac8
-STATION FAIL deep pass
+STATION machine=msi time=2026-11-27T22:31Z commit=113c069 took=1050s
+JOB deep PASS fuzz seed=737544 STORE fuzz ok seed=737544 ops=50000 kills=200 (stmt=51 progress=39 commit=37 aftercommit=31 beforecommit=42) children=20 | bench field=5 seed=737544 BENCH 1000x20000 threads=2 ticks=600 wall=4.8s kills=143993 spawns=163993 deaths=10 recycled=0 hash=f4f926498fa42372 | soak seed=737544 SOAK ok secs=909 cycles=501 heroes=40 outings=501 banked=498 left_gate=0 left_waystone=459 timeouts=2 coin=10157315 xp=1 | ops PASS backups=3 restored_digest=cbf29ce484222325 sides=homes,epoch drill ok backup=20261128-023104 schema=4 items=0 stacks=0 ledger=146 digest=cbf29ce484222325 on 2026-11-28 release=v1->v2->v1 down
+STATION PASS deep pass passes=1 interrupted=0 seeds=737544
