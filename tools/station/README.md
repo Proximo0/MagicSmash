@@ -12,15 +12,15 @@ it shows OK/LATE/DOWN, lanes, free RAM, the last skip reason and the jobs held, 
 PASS, optional `--p95=<ms>` frame limit). Stations run side by side and restart themselves when that file changes, so
 a new role is a commit. Start every station as `station.sh --watch <any job>`; the file wins.
 
-| Machine | Job | Why |
+| Machine | Jobs | Why |
 |---|---|---|
-| Ubuntu HP ENVY | `realm` | Horde & Hearth: core, server and store checks, the crash fuzz |
-| MSI (fast, RTX 5050) | `realm` | the same on Windows; later the field client's frame time and the test host |
-| DESKTOP-BENMA68 laptop (Radeon 610M) | `realm` | the same checks; later the field client's frame test (low end) |
-| Heatherspc (Celeron N4100, UHD 600) | `realm` | the same checks on the slowest processor; later the frame test below minimum spec, recorded only |
+| Ubuntu HP ENVY | `checks boss golden queue` | Four of Wands on Linux: every check, five bot runs to the Archlich, and whether a merge changed how the game plays |
+| MSI (fast, RTX 5050) | `checks boss queue` | the same on Windows with cores to spare; ten lanes of queue jobs, and the art generation |
+| DESKTOP-BENMA68 laptop (Radeon 610M) | `checks queue` | the checks on a low-end graphics card |
+| Heatherspc (Celeron N4100, UHD 600) | `checks queue` | the checks on the slowest processor, below minimum spec |
 
-Four of Wands is stopped (21 Nov 2026), so no station runs `boss`, `checks`, `frames` or `golden`; the jobs remain for
-the day they are wanted. The `world` merge job is a short soak (STATION_WORLD_SECS, default 600); the 7200 s proof is the queue's shell job `script=worldlong` (`secs=` sets the length), so a merge never holds a station for hours. A station that was busy while several merges landed tests only the newest main once (it fetches `origin/main`, diffs against the last commit it tested, and so covers every merge in between); a running merge job is not cut short by a newer commit, which is why none runs for hours. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot
+Four of Wands is the game in work again (27 Nov 2026). Horde & Hearth is shelved (`docs/realm/SHELVED.md`), so no station
+runs `realm`, `frames`, `deep`, `soak`, `world`, `economy`, `ops` or `balance`; those jobs remain for the day they are wanted. The `world` merge job is a short soak (STATION_WORLD_SECS, default 600); the 7200 s proof is the queue's shell job `script=worldlong` (`secs=` sets the length), so a merge never holds a station for hours. A station that was busy while several merges landed tests only the newest main once (it fetches `origin/main`, diffs against the last commit it tested, and so covers every merge in between); a running merge job is not cut short by a newer commit, which is why none runs for hours. A job is skipped for a merge that changed nothing it tests (`realm` tests `realm/`; the Godot
 jobs test everything except `realm/`, `docs/`, `.github/` and the stations), so the stations do no work for docs or art.
 
 `realm` needs Rust on the station (`cargo` on PATH, from rustup; on Windows also the Visual Studio C++ build tools,
