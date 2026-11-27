@@ -1,8 +1,0 @@
-kind=fuzz
-args=seeds=900001-2000000 ops=400000 kills=1600
-needs=any
-priority=1
-repeat=forever
-timeout_s=14400
-every_s=21600
-added=2026-11-23T11:29:02Z

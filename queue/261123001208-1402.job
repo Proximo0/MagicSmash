@@ -1,8 +1,0 @@
-kind=shell
-args=script=charbody race=human
-needs=msi
-priority=8
-repeat=once
-timeout_s=900
-every_s=0
-added=2026-11-23T00:12:08Z

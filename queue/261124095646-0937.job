@@ -1,8 +1,0 @@
-kind=balance
-args=seeds=1 per=10 minutes=20
-needs=msi
-priority=6
-repeat=once
-timeout_s=14400
-every_s=0
-added=2026-11-24T09:56:46Z

@@ -1,8 +1,0 @@
-kind=shell
-args=script=worldlong secs=10800
-needs=linux
-priority=3
-repeat=forever
-timeout_s=12600
-every_s=86400
-added=2026-11-23T11:21:28Z

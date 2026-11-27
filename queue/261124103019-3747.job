@@ -1,8 +1,0 @@
-kind=shell
-args=script=render set=heroes only=human,mage step=3600
-needs=ubuntu
-priority=8
-repeat=once
-timeout_s=3600
-every_s=0
-added=2026-11-24T10:30:19Z

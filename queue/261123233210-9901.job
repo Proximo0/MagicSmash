@@ -1,9 +1,0 @@
-kind=shell
-args=script=render set=bosses only=boss_chandelier
-needs=ubuntu
-priority=9
-repeat=once
-timeout_s=3600
-every_s=0
-added=2026-11-23T23:32:10Z
-max_lanes=1

@@ -1,8 +1,0 @@
-kind=shell
-args=script=playbot secs=900 bots=1
-needs=ubuntu
-priority=9
-repeat=once
-timeout_s=1800
-every_s=0
-added=2026-11-25T23:40:05Z

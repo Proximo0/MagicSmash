@@ -1,8 +1,0 @@
-kind=shell
-args=script=fetchasset name=quaternius-horse
-needs=ubuntu
-priority=9
-repeat=once
-timeout_s=3600
-every_s=0
-added=2026-11-24T05:31:47Z

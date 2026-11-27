@@ -1,8 +1,0 @@
-kind=shell
-args=script=playbot secs=900 bots=1
-needs=laptop
-priority=8
-repeat=forever
-timeout_s=1800
-every_s=43200
-added=2026-11-26T01:12:43Z

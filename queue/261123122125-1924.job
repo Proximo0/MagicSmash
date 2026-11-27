@@ -1,8 +1,0 @@
-kind=balance
-args=seeds=3 per=2 minutes=10 fast=16 hours=160
-needs=any
-priority=1
-repeat=forever
-timeout_s=14400
-every_s=604800
-added=2026-11-23T12:21:25Z

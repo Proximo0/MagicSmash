@@ -1,8 +1,0 @@
-kind=package
-args=target=linux
-needs=linux
-priority=8
-repeat=forever
-timeout_s=7200
-every_s=86400
-added=2026-11-22T11:37:05Z

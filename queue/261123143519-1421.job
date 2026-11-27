@@ -1,8 +1,0 @@
-kind=shell
-args=script=runnerstart
-needs=laptop
-priority=9
-repeat=once
-timeout_s=3600
-every_s=0
-added=2026-11-23T14:35:19Z

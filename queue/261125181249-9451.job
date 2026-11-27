@@ -1,8 +1,0 @@
-kind=shell
-args=script=playkit
-needs=msi
-priority=9
-repeat=once
-timeout_s=3600
-every_s=0
-added=2026-11-25T18:12:49Z

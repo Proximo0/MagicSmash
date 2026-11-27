@@ -1,8 +1,0 @@
-kind=shell
-args=script=exediag
-needs=laptop
-priority=9
-repeat=once
-timeout_s=600
-every_s=0
-added=2026-11-23T22:35:26Z

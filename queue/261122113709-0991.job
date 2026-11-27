@@ -1,8 +1,0 @@
-kind=frames
-args=zooms=16,4 secs=60
-needs=gpu
-priority=8
-repeat=forever
-timeout_s=1800
-every_s=43200
-added=2026-11-22T11:37:09Z

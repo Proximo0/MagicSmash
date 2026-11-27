@@ -1,8 +1,0 @@
-kind=shell
-args=script=render set=field step=7200
-needs=ubuntu
-priority=7
-repeat=once
-timeout_s=30000
-every_s=0
-added=2026-11-24T13:18:22Z

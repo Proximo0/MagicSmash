@@ -1,8 +1,0 @@
-kind=economy
-args=bots=4000 days=365 seeds=400001-900000
-needs=any
-priority=2
-repeat=forever
-timeout_s=14400
-every_s=86400
-added=2026-11-23T11:21:24Z

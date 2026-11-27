@@ -1,8 +1,0 @@
-kind=shell
-args=script=sysinfo
-needs=msi
-priority=9
-repeat=forever
-timeout_s=300
-every_s=21600
-added=2026-11-22T20:45:42Z

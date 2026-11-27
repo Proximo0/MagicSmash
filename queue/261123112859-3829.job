@@ -1,8 +1,0 @@
-kind=bench
-args=fields=0,1,2,3,4,5 threads=1,2,4 monsters=20000,40000 bots=1000 seeds=400001-900000
-needs=any
-priority=2
-repeat=forever
-timeout_s=10800
-every_s=43200
-added=2026-11-23T11:28:59Z

@@ -1,8 +1,0 @@
-kind=shell
-args=script=wirefuzz iters=6000000
-needs=any
-priority=3
-repeat=forever
-timeout_s=10800
-every_s=0
-added=2026-11-23T16:14:39Z
