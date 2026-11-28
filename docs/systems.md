@@ -656,6 +656,47 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   spell she has evolved (`SmashBot._plan_open`).
 - `Sprites.SPELL_COLORS` and `SPELL_DARK` have one entry per spell (11).
 
+## The cast hooks (stage 3, job A4: THE STAR, THE EMPRESS, the damage hooks, the use counters)
+- Four hooks every cast and every hit reads (`docs/stage3_brief.md` § 4.5); a later card changes a hook, never a
+  caster. `WorldCasting._missiles(p) -> int`: THE STAR's value at her level (1 / 2), 0 without her or with no wizard.
+  `WorldCasting._area(p) -> float`: THE EMPRESS's (1.1 / 1.2 / 1.3), 1 without her. `WorldEnemies._dealt_mul(w,
+  src) -> float`: STRENGTH and WANDS (`Upgrades.damage_mul`) x (1 + might + the shop's damage + an ORC's fury) x an
+  apprentice's share, in the order of operations it always had; 1 with no wizard. `WorldEnemies._taken_mul(w, e)
+  -> float`: 1 today (HEX, PROVOKE's second effect later). `_damage_enemy` multiplies by both and by nothing else.
+- Missiles. `WorldCasting._cast` hands every caster the spell's count plus `_missiles` (an evolution's count too):
+  bolts (the fan's, the stars, the spears), the jumps of each chain (TEMPEST's two chains each), rune circles and
+  candle lights (each on a cluster no circle of the cast covers). A sweep sends none: half its arc grows by
+  `Tuning.star_sweep_arc` (0.5, group Casting) of itself per missile (`WorldCastSweep._sweep_half`). A caster
+  returns how many it sent in the units of its count (a chain: the most foes one chain struck; circles: those
+  placed; a sweep: its count), and a new caster must too.
+- Areas, read through `_area` at the cast or at the hit, never in `Spells` data: a blast's radius and the reach its
+  bonus fades over (FIREBALL, THUNDERFIRE; THUNDERFIRE's zap reach is not an area), COMET RAIN's frost burst, an
+  OSSUARY LANCE splinter's flight (`SPLINTER_LIFE` x area), a rune circle's and a candle light's radius (never their
+  life; the clusters they are placed on, the light's haste and heal and the Seal's pull follow the radius), a
+  sweep's reach (`_sweep_reach`, where it waits too). JUSTICE's burst is not one of them.
+- What is drawn follows the World: `EV_EXPLODE` carries the scaled radius (the arena's ring, flashes and scorch
+  `ArenaEvents.BLAST_SCORCH` follow it; the `fx_blast` ball is a fixed sprite), `EV_FROST` and `EV_RUNE` theirs, a
+  circle's snapshot row its `r`, and `EV_SWEEP`'s `a` is `Vector3(angle, reach, half arc)` as swung.
+- THE STAR and THE EMPRESS are off `Upgrades.UNBUILT` and dealt like any arcana; their evolutions (LODESTAR, DANSE
+  MACABRE) are not, so neither completes a pair yet. Bots: `SmashBot.PASSIVE_TASTE` star 36, empress 40 (both under
+  THE MAGICIAN: a slot filled early is one STRENGTH or a pair's arcana cannot have; THE EMPRESS first, for the
+  casual's FIREBALL and circles). Two casual bots on seeds 7-10 won 1, 1, 2 and 2 of 4 with star / empress 48 / 22,
+  24 / 14, 36 / 30 and 36 / 40 (main: 4 of 4; with the two cards back on the shelf the group plays exactly as main).
+  The novice takes either as a plain new card (no pair bonus), the veteran by taste once no open evolution needs
+  anything in the hand.
+- Use counters (`Results.use`, § 4.4), at the event, never at a hit or once an enemy in a step's loop: `quick` a
+  cast whose cooldown THE MAGICIAN shortened (not one the cast floor holds; `_auto_cast`), `lovers` a cast with an
+  ally near (`_lovers_near`), `star` a cast that sent more than the spell's own count, `empress` a cast of a spell
+  with an area (`_has_area`), `justice` a burst (`_update_bursts`), `power` a kill by her (`_kill_enemy`), `swift`
+  each game second she is moving at its turn (`WorldPlayers._update_player`), `regen` a heart TEMPERANCE gives back,
+  `magnet` a gem THE MOON starts to pull from beyond the reach she would have without it (`_update_pickups`: a gem
+  not yet flying at the magnet's speed; never in a lull or a gem rush, when every reach is the floor), `wisdom` a
+  gem whose rounded XP THE HERMIT raised (`_collect`; at x1.15 no gem under 4 XP is raised), `nova` and `life` the
+  pick of THE TOWER and JUDGEMENT (`WorldLevels._pick` and its twin `WorldGrants._grant_effect`).
+- The coverage robot credits all twelve (`tests/bot/bot_cover.gd` has no `PENDING` row); `tests/bot/cover/catalog.gd`
+  stages two: TEMPERANCE's wizard lacks a heart more than a potion gives back and holds it at its top, THE HERMIT's
+  holds it at its top. Tests: `tests/unit/test_cast_hooks.gd`.
+
 ## The Reading (stage 3, job R1: the rows and the values path)
 - `Readings` (`game/logic/readings.gd`, pure, the data file for the Reading's numbers): `ROWS` is the sixteen Minor Arcana of `docs/content_list.md` § 42 as `[key, name, words, party only, values]`. `deal(rng, open, seats, n)` draws n different open rows with its own rng (a PARTY card only for two seats or more, never a row of `UNBUILT`); `vote(votes, seats)` gives the hand index a table keeps (most votes, seat 1 breaks a tie, -1 abstains, nobody keeps 0).
 - `World.apply_reading(key)` runs once after `apply_seal` (`arena.gd` passes `Net.reading`, the host's; tools take `--reading=<key>`). A value named in `Readings.MERGE_MUL` (`hp`, `horde`, `boss`, `speed`, `potions`) multiplies the Seal's `seal_<key>`, `hearts` is added to every wizard, and any other value sets `World.read_<key>` for the row's rule (job R2). `World.reading` holds the key and the snapshot header carries its index (`W_READING`, -1 for none), so every seat can show the card.

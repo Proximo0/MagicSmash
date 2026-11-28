@@ -60,8 +60,7 @@ const E_HEX := 42
 const E_BLADES := 43
 ## Rows whose effect is not on main yet: never available (available), never counted in a pair (pairs_with);
 ## WorldGrants.give is the one path past it. Each job that builds a row takes it off this list.
-const UNBUILT: Array[int] = [PRIESTESS, EMPRESS, DEVIL, STAR, W_HEX, W_BLADES, E_LODESTAR, E_GREEK, E_VEIL, E_DIES,
-	E_HEX, E_BLADES]
+const UNBUILT: Array[int] = [PRIESTESS, DEVIL, W_HEX, W_BLADES, E_LODESTAR, E_GREEK, E_VEIL, E_DIES, E_HEX, E_BLADES]
 
 ## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE (an arcana she holds) a passive slot
 ## (World.slot_cap); an INSTANT acts once when taken (no row is one any more: THE TOWER and JUDGEMENT are held); an
@@ -141,11 +140,13 @@ const CATALOG: Array = [
 	["e_cleave", "WHIRLWIND", "A FULL CIRCLE", 40.0, [1.0], [[W_CLEAVE, 5], [POWER, 1]], EVOLUTION, 8],
 	# Stage 3 (unbuilt: UNBUILT). THE HIGH PRIESTESS: every values-th cast of each spell is cast twice.
 	["priestess", "THE HIGH PRIESTESS", "ECHOED CASTS", 6.0, [4.0, 3.0, 2.0], [], PASSIVE, -1],
-	# THE EMPRESS: every area multiplied.
+	# THE EMPRESS: every area of her spells multiplied by values (WorldCasting._area): blasts and their reach, frost
+	# bursts, splinters' flight, rune circles and candle lights, a sweep's reach. Her pair (DANSE MACABRE) is unbuilt.
 	["empress", "THE EMPRESS", "WIDER AREAS", 7.0, [1.1, 1.2, 1.3], [], PASSIVE, -1],
 	# THE DEVIL: damage added for each heart she is missing.
 	["devil", "THE DEVIL", "PAIN IS POWER", 6.0, [0.12, 0.18, 0.24], [], PASSIVE, -1],
-	# THE STAR: missiles added to every spell.
+	# THE STAR: values missiles added to every cast (WorldCasting._missiles): bolts, jumps of each chain, stars, spears,
+	# rune circles, candle lights; a sweep's arc instead (Tuning.star_sweep_arc). Her pair (LODESTAR) is unbuilt.
 	["star", "THE STAR", "MORE MISSILES", 5.0, [1.0, 2.0], [], PASSIVE, -1],
 	["w_hex", "HEX", "WEAKENS A FOE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 9],
 	["w_blades", "SPIRIT BLADES", "BLADES CIRCLE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 10],

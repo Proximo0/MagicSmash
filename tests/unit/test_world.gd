@@ -154,9 +154,10 @@ func test_a_pick_with_a_draw_queued_deals_the_next_offer_in_the_same_tick() -> v
 	w.step(DT, {})
 	var first_offer: int = p.offer
 	var first_hand: Array[int] = p.choices.duplicate()
+	var first_level := Upgrades.level_of(p.upgrades, first_hand[0]) # a card of the hand may be one she holds
 	assert_eq(p.pending, 1)
 	w.step(DT, {0: PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, p.offer])})
-	assert_eq(Upgrades.level_of(p.upgrades, first_hand[0]), 1, "the first card was not taken")
+	assert_eq(Upgrades.level_of(p.upgrades, first_hand[0]), first_level + 1, "the first card was not taken")
 	assert_eq(p.offer, first_offer + 1, "the second offer should open on the pick tick")
 	assert_false(p.choices.is_empty(), "no second hand")
 	assert_eq(p.pending, 0)

@@ -46,3 +46,4 @@ static func _grant_effect(w: World, p: World.Player, idx: int) -> void:
 			var gold: float = Upgrades.value(p.upgrades, idx, 0.0) * (1.0 + p.armor[Loot.ST_GREED] + w.meta_gold)
 			p.gold += gold
 			w.record.add(p.slot, "gold", gold)
+	if idx == Upgrades.NOVA or idx == Upgrades.LIFE: w.record.use(Upgrades.key(idx), p.slot)

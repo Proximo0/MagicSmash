@@ -4,27 +4,29 @@ extends RefCounted
 ## vigil candle's haste and the lights that heal. Static helpers; the first argument is the World.
 
 
-## "rune": circles inscribed on the floor.
-static func _cast_rune(w: World, p: World.Player, _sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
-	_inscribe_runes(w, p, lv, evo, dir, n, dmg)
+## "rune": circles inscribed on the floor. Returns the circles placed.
+static func _cast_rune(w: World, p: World.Player, _sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> int:
+	return _inscribe_runes(w, p, lv, evo, dir, n, dmg)
 
 
 ## "candle": `n` lights (circles of kind Spells.CIRCLE_CANDLE) on the densest clusters within Spells.CANDLE_RANGE.
-static func _cast_candle(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
-	_place_circles(w, p, sp, lv, evo, dir, n, dmg, Spells.CANDLE_RANGE, Spells.CANDLE_AIM_DIST, Spells.CIRCLE_CANDLE)
+## Returns the lights set.
+static func _cast_candle(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> int:
+	return _place_circles(w, p, sp, lv, evo, dir, n, dmg, Spells.CANDLE_RANGE, Spells.CANDLE_AIM_DIST, Spells.CIRCLE_CANDLE)
 
 
-## Inscribes `n` rune circles (see _place_circles) within Spells.RUNE_RANGE of the wizard.
-static func _inscribe_runes(w: World, p: World.Player, lv: int, evo: int, dir: Vector2, n: int, dmg: float) -> void:
-	_place_circles(w, p, World.SP_RUNE, lv, evo, dir, n, dmg, Spells.RUNE_RANGE, Spells.RUNE_AIM_DIST, Spells.CIRCLE_RUNE)
+## Inscribes `n` rune circles (see _place_circles) within Spells.RUNE_RANGE of the wizard; returns how many.
+static func _inscribe_runes(w: World, p: World.Player, lv: int, evo: int, dir: Vector2, n: int, dmg: float) -> int:
+	return _place_circles(w, p, World.SP_RUNE, lv, evo, dir, n, dmg, Spells.RUNE_RANGE, Spells.RUNE_AIM_DIST, Spells.CIRCLE_RUNE)
 
 
 ## Sets `n` circles of spell `sp` (kind `kind`), each on the densest cluster of enemies within `reach` of the
 ## wizard that no circle of this cast already covers; with no enemy in range, one circle goes `aim_dist` ahead
-## along `dir`.
+## along `dir`. Returns the circles set. A circle's radius is its row's times THE EMPRESS's area, read at the cast
+## (the clusters are measured with it too); its life is the row's.
 static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2, n: int, dmg: float,
-		reach: float, aim_dist: float, kind: int) -> void:
-	var radius := Spells.level_value(sp, "r", lv, evo)
+		reach: float, aim_dist: float, kind: int) -> int:
+	var radius := Spells.level_value(sp, "r", lv, evo) * WorldCasting._area(p)
 	var near: Array[World.Enemy] = []
 	for e: World.Enemy in w._query(p.pos, reach):
 		if not e.entering and not WorldEnemies._faded(w, e) and e.pos.distance_to(p.pos) <= reach:
@@ -72,6 +74,7 @@ static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: int
 		rn.kind = kind
 		w.runes.append(rn)
 		w.emit(World.EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + Spells.evo_bits(evo) + 16 * kind)
+	return centres.size()
 
 
 ## Rune circles age, tick damage on every enemy standing in them, and (the Seal of Solomon) pull enemies in.

@@ -55,6 +55,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 		if p.regen_t >= regen:
 			p.regen_t = 0.0
 			p.hp += 1
+			w.record.use("regen", p.slot)
 	else:
 		p.regen_t = 0.0
 	var move := Vector2.ZERO
@@ -68,6 +69,7 @@ static func _update_player(w: World, p: World.Player, dt: float, inp: PackedFloa
 		* (w.tune.haste_speed_mul if p.haste > 0.0 else 1.0) * p.walk_mul
 	p.vel = move * speed
 	p.moving = move.length() > 0.1
+	if p.moving and Upgrades.level_of(p.upgrades, Upgrades.SWIFT) > 0 and floori(w.time) > floori(w.time - dt): w.record.use("swift", p.slot)
 	p.pos += p.vel * dt
 	p.pos.x = clampf(p.pos.x, G.ARENA.position.x + 5, G.ARENA.end.x - 5)
 	p.pos.y = clampf(p.pos.y, G.ARENA.position.y + 6, G.ARENA.end.y - 2)

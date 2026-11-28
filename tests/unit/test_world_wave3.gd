@@ -258,7 +258,7 @@ func test_cleave_sweeps_the_arc_once_and_knocks_back() -> void:
 	assert_true(front.knock.x > 0.0, "no knock-back")
 	var sweeps := _codes(w.take_events(), World.EV_SWEEP)
 	assert_eq(sweeps.size(), 1)
-	assert_near(float(sweeps[0][3]), 0.0, 0.001)
+	assert_near((sweeps[0][3] as Vector3).x, 0.0, 0.001)
 	assert_eq(int(sweeps[0][4]), 0, "a plain CLEAVE's event is the slot alone")
 
 

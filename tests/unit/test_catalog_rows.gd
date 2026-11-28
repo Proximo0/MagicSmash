@@ -192,8 +192,9 @@ func test_an_arcana_of_two_spells_completes_either_pair() -> void:
 func test_unbuilt_rows_are_never_dealt() -> void:
 	var want: Array[int] = []
 	for i: int in range(32, 44):
-		want.append(i)
-	assert_eq(Upgrades.UNBUILT, want, "all twelve new rows are unbuilt")
+		if i != Upgrades.EMPRESS and i != Upgrades.STAR: # built on the cast hooks (docs/stage3_brief.md § 4.5)
+			want.append(i)
+	assert_eq(Upgrades.UNBUILT, want, "the ten new rows still unbuilt")
 	# Every requirement met, nothing banned, no cap: still refused.
 	var all := {}
 	for i: int in range(Upgrades.count()):
@@ -217,7 +218,7 @@ func test_unbuilt_rows_are_never_dealt() -> void:
 			assert_false(Upgrades.UNBUILT.has(c), "rolled %s" % Upgrades.key(c))
 
 
-## While THE STAR is unbuilt, an ARCANE BOLT wizard who holds THE MAGICIAN keeps no arcana slot for it.
+## While LODESTAR is unbuilt, an ARCANE BOLT wizard who holds THE MAGICIAN keeps no arcana slot for THE STAR.
 func test_an_unbuilt_row_keeps_no_slot() -> void:
 	var lv := {Upgrades.W_ARCANE: 1, Upgrades.QUICK: 1, Upgrades.SWIFT: 1}
 	assert_true(Upgrades.available(lv, Upgrades.WISDOM, Upgrades.SLOTS_EARLY), "the last arcana slot is kept for THE STAR")
