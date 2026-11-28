@@ -1,0 +1,5 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+casual:mage career 1: boss1 r2/20m  arch r2/20m  win r2/20m  urn -  runs 2  unfinished 0  min 20  crystals 530 earned 470 spent  level 3  ends 3:57/L1+fortune,might 16:03W/L3+wisdom,novas,vigor,fortune,might,wisdom,luck,novas,vigor
+casual:mage career 2: boss1 r1/17m  arch r1/17m  win r1/17m  urn -  runs 1  unfinished 0  min 17  crystals 468 earned 380 spent  level 3  ends 16:30W/L3+fortune,might,wisdom,novas,vigor,fortune,might,wisdom,luck,novas
+CAREER casual:mage seal=0 careers=2 | boss 2/2 run 2 min 18 | arch 2/2 run 2 min 18 | win 2/2 run 2 min 18 | unfinished 0/3 runs | urn 0/2 run - min -
