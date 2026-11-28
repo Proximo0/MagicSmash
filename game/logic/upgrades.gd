@@ -103,7 +103,7 @@ const CATALOG: Array = [
 	["e_star", "COMET RAIN", "ICY STARBURSTS", 40.0, [1.0], [[W_STAR, 5], [W_FROST, 1]], EVOLUTION, 4],
 	["e_rune", "SEAL OF SOLOMON", "SIGILS PULL IN", 40.0, [1.0], [[W_RUNE, 5], [W_STAR, 1]], EVOLUTION, 5],
 	# Minor Arcana: never rolled, only dealt into a short hand; taken any number of times (values[0] each time).
-	["cups", "CUPS", "+1 HEART", 1.0, [1.0], [], MINOR, -1],
+	["cups", "CUPS", "HEAL 1 HEART", 1.0, [1.0], [], MINOR, -1],
 	["pentacles", "PENTACLES", "+10 GOLD", 1.0, [10.0], [], MINOR, -1],
 	["swords", "SWORDS", "+1 NOVA", 1.0, [1.0], [], MINOR, -1],
 	["wands", "WANDS", "+3% DAMAGE", 1.0, [0.03], [], MINOR, -1],

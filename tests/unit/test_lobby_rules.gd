@@ -59,3 +59,23 @@ func test_nobody_seated_never_traps_back() -> void:
 	var none: Array[int] = []
 	assert_eq(_do(PAD0, none, false, false, LobbyRules.B_BACK), LobbyRules.LEAVE)
 	assert_eq(_do(PAD0, none, false, false, LobbyRules.B_CONFIRM), LobbyRules.JOIN)
+
+
+## P1's seat hints: an apprentice takes the lowest free seat, so only that empty seat shows how to add one.
+func test_the_add_hint_sits_on_the_lowest_free_seat() -> void:
+	assert_eq(LobbyRules.add_hint_slot([0] as Array[int], 4), 1)
+	assert_eq(LobbyRules.add_hint_slot([0, 2] as Array[int], 4), 1)
+	assert_eq(LobbyRules.add_hint_slot([0, 1, 3] as Array[int], 4), 2)
+	assert_eq(LobbyRules.add_hint_slot([0, 1, 2, 3] as Array[int], 4), -1, "a full lobby shows none")
+	assert_eq(LobbyRules.add_hint_slot([] as Array[int], 4), 0)
+
+
+## The hints name the key of P1's own device, and fit a seat (96 px wide, 6 px a letter).
+func test_the_seat_hints_name_p1s_own_key() -> void:
+	assert_eq(LobbyRules.add_hint(true), "Y: APPRENTICE")
+	assert_eq(LobbyRules.add_hint(false), "+: APPRENTICE")
+	assert_eq(LobbyRules.remove_hint(true), "X: REMOVE")
+	assert_eq(LobbyRules.remove_hint(false), "-: REMOVE")
+	for text: String in [LobbyRules.add_hint(true), LobbyRules.add_hint(false), LobbyRules.remove_hint(true), LobbyRules.remove_hint(false)]:
+		assert_true(PixelFont.text_width(text, 1) <= 92, text + " is wider than a seat")
+

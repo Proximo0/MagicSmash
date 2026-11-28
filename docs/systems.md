@@ -460,7 +460,10 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   (only player 1's device answers; back or NO closes it). Back from another seated device frees only its seat
   (`Net.remove_local_device`: nobody shifts, the next device takes the free slot). SELECT or I calls
   `Platform.invite_friends()` (Steam's Remote Play Together invite; a no-op without Steam). An apprentice's seat says
-  APPRENTICE over a dashed hem, an away seat AWAY. Shots: `--autotest --seats`.
+  APPRENTICE over a dashed hem, an away seat AWAY. Player 1's two hints name the key of its own device
+  (`LobbyRules.add_hint`, `remove_hint`): the lowest free seat, the one the next apprentice takes, shows
+  `+: APPRENTICE` (a pad: `Y:`), and the last apprentice's seat swaps its name with `-: REMOVE` (a pad: `X:`) every
+  `SEAT_HINT_SWAP` 2 s; a LAN client sees neither. Shots: `--autotest --seats`.
 - Sanctum hub: the device that walks it (`G.local_devices[0]`, else the keyboard) alone leaves it with back. It rides
   through the shopkeeper's UNLOCKS in `G.title_lobby_device` and is seated again on the way back, so the portal seats
   the same device as player 1.

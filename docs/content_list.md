@@ -702,7 +702,9 @@ chest and a party tome.
 The lead's notes on these rows (28 Nov 2026):
 - PRIEST, MIGHT 25: as designed (`docs/classes_design.md:35`, "MIGHT +25 points": her candle's ticks are small).
   Whether it is right is the tune stage's question, not a fault.
-- CUPS's "+1 HEART" and the JACKPOT deed's "rune altar" are wording faults: fixed with the stage 1 wording pass.
+- CUPS's "+1 HEART" is a wording fault (the cards use "+1 HEART" for one more heart to hold; CUPS heals one):
+  fixed with the stage 1 wording pass. The JACKPOT deed's "rune altar" is right: the game shows the solo shrine to
+  the player as RUNE ALTAR (`game/arena/events.gd:188`); "gamble shrine" is only the code's name for it.
 - `Bosses.VISITS` and the moment M_LICH (Morvane's visits at 7:00 and 12:00) are an idea left half built: part 2
   decides whether the visits are built or the rows go.
 - The cards and sprites with no painted file (five team fates, THE DROPLET, the eight Seal cards, the Archlich) are

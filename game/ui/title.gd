@@ -647,6 +647,8 @@ const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
 ## the seal row, and an apprentice seat's class mark at the seat's foot, px.
 const STEP_ICON := 12
 const SEAT_ICON := 8
+## Seconds an apprentice's seat shows its name before P1's hint for removing it takes the line, and back.
+const SEAT_HINT_SWAP := 2.0
 var leave_ask := false # the "LEAVE THE LOBBY?" question is open (only player 1's device answers)
 const NEWER_SAVE_LINE := "THIS SAVE IS FROM A NEWER VERSION. NOTHING WILL BE SAVED."
 var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
@@ -686,6 +688,17 @@ func _draw_seats(ci: CanvasItem) -> void:
 	if Platform.ready_ok and Net.mode != Net.Mode.CLIENT:
 		var inv := "I/SELECT: INVITE"
 		PixelFont.draw(ci, inv, Vector2(450 - PixelFont.text_width(inv, 1), 135), 1, Color("8bdcff"))
+	# P1's two hints (LobbyRules): on the one empty seat the next apprentice takes, and on the apprentice a removal
+	# takes. A LAN client cannot add or remove one and sees neither.
+	var seated := _lobby_seated()
+	var hints: bool = Net.mode != Net.Mode.CLIENT and not seated.is_empty()
+	var pad: bool = hints and seated[0] != G.DEV_KBM
+	var taken: Array[int] = []
+	for e in Net.roster:
+		taken.append(int(e.slot))
+	var add_slot: int = LobbyRules.add_hint_slot(taken, G.MAX_PLAYERS) if hints else -1
+	var aps: Array = Net.ai_slots()
+	var remove_slot: int = int(aps[aps.size() - 1].slot) if hints and not aps.is_empty() else -1
 	for slot in 4:
 		var r := Rect2(34 + slot * 106, 148, 96, LOBBY_SEAT_H)
 		var entry = null
@@ -718,6 +731,9 @@ func _draw_seats(ci: CanvasItem) -> void:
 			if ai:
 				who = "APPRENTICE"
 				who_col = Color("8bff9e")
+				if slot == remove_slot and int(t / SEAT_HINT_SWAP) % 2 == 1:
+					who = LobbyRules.remove_hint(pad)
+					who_col = Color(0.55, 1.0, 0.62)
 			elif bool(entry.get("away", false)):
 				who = "AWAY"
 				who_col = Color("ffb347")
@@ -730,8 +746,8 @@ func _draw_seats(ci: CanvasItem) -> void:
 			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
 			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
 			PixelFont.draw_centered(ci, "A/ENTER: JOIN", r.get_center().x, r.end.y - 16, 1, Color(1, 1, 1, blink))
-			if Net.mode != Net.Mode.CLIENT:
-				PixelFont.draw_centered(ci, "Y/+ APPRENTICE", r.get_center().x, r.end.y - 8, 1, Color(0.55, 1.0, 0.62, blink))
+			if slot == add_slot:
+				PixelFont.draw_centered(ci, LobbyRules.add_hint(pad), r.get_center().x, r.end.y - 8, 1, Color(0.55, 1.0, 0.62, blink))
 
 ## The hero list closed: the seats re-read their heroes (one may have been made or deleted), then the seat that
 ## opened it takes the one picked when no other local seat holds it.
