@@ -52,5 +52,5 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 - `docs/handoff.md` plan + decisions (L planning) · `docs/systems.md` 1 § per system, yours only
 - `docs/lessons_learned.md` shorthand, by §; W reads only a § its prompt names. Add a row when something breaks.
 - `docs/performance.md` · `docs/online.md` · `docs/android.md` · `docs/bots.md` on those topics
-- `docs/content_list.md` every content row as built, with source line and test (stage 2 freezes it) · `docs/asset_sources.md` who or what made each asset
+- `docs/content_list.md` part 1 every content row as built (source line, test); part 2 (§ 36-54) the frozen list stage 3 builds, by § · `docs/asset_sources.md` who or what made each asset
 - `docs/archive/` full long originals (lessons, brief, process docs); only when a prompt names one
