@@ -383,7 +383,11 @@ until the row is **credited** and a second more, or until 40 s of game time.
   held); every other row by its use counter, `w.record.use("<key>", slot)` where its effect lands (`Results.used`).
 - `PENDING` in the robot lists the rows nothing credits yet. A pending row is played for 12 s and not failed for the
   missing credit, but it **fails when it is credited**, so the list cannot rot: the job that credits a row takes its key
-  off the list.
+  off the list. It is empty since job A4 (every built row has its credit).
+- A row whose credit needs a state the first 40 s may never bring is staged at the deal, in the smallest way
+  (`catalog.gd` `_stage_state`): TEMPERANCE (`regen`) starts one heart more down than a potion heals, since the
+  play-bot runs for a potion as soon as she is hurt; THE HERMIT (`wisdom`) is dealt at its top level, since at its
+  first (x1.15) it raises no gem under 4 XP.
 - Families: `catalog.gd` (the level-up catalog), `readings.gd` (the sixteen Readings, dealt by
   `World.apply_reading`, unbuilt while in `Readings.UNBUILT`) and `shop.gd` (the shop rows whose Test letters hold a B,
   `start_level` and `favour`: dealt by `World.apply_meta` with the row at level 1 before the first step, a deal after

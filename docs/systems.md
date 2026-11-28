@@ -644,10 +644,11 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   evolution; `Spells.partner` and the `partner` key are gone.
 - Twelve new rows at catalogue indices 32 to 43 (`Upgrades.PRIESTESS` .. `E_BLADES`): four arcana, HEX and SPIRIT
   BLADES (`World.SP_HEX` 9, `SP_BLADES` 10, `Spells.COUNT` 11), the four schools' second evolutions
-  (`Spells.EVOS2`) and the two new spells' evolutions. All twelve are on `Upgrades.UNBUILT`: never available,
-  never counted in a pair, never planned for by a bot; a spell with no caster casts nothing
-  (`WorldCasting._cast`). `WorldGrants.give` is the one path past the list, and the job that builds a row takes
-  it off. An arcana of two spells (STRENGTH: WHIRLWIND and GREEK FIRE) completes either pair.
+  (`Spells.EVOS2`) and the two new spells' evolutions. Ten of the twelve are on `Upgrades.UNBUILT` (job A4 built
+  THE STAR and THE EMPRESS, § The cast hooks): never available, never counted in a pair, never planned for by a bot;
+  a spell with no caster casts nothing (`WorldCasting._cast`). `WorldGrants.give` is the one path past the list, and
+  the job that builds a row takes it off. An arcana of two spells (STRENGTH: WHIRLWIND and GREEK FIRE) completes
+  either pair.
 - THE TOWER (`nova`, 3 levels) and JUDGEMENT (`life`, 2 levels) are PASSIVE rows that take an arcana slot; a pick
   still gives the charge or the life at once, and no row is INSTANT any more. THE TOWER's refill, JUDGEMENT's
   blast and their new words come with job C5; until then both cards keep their old words.
@@ -664,6 +665,69 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   takes it as the shiniest card, and a veteran never plans for an unbuilt evolution or for the other road of a
   spell she has evolved (`SmashBot._plan_open`).
 - `Sprites.SPELL_COLORS` and `SPELL_DARK` have one entry per spell (11).
+
+## The cast hooks (stage 3, job A4: THE STAR, THE EMPRESS, the damage hooks, the use counters)
+- Four hooks every cast and every hit reads (`docs/stage3_brief.md` § 4.5); a later card changes a hook, never a
+  caster. `WorldCasting._missiles(p) -> int`: THE STAR's value at her level (1 / 2), 0 without her or with no wizard.
+  `WorldCasting._area(p) -> float`: THE EMPRESS's (1.1 / 1.2 / 1.3), 1 without her. `WorldEnemies._dealt_mul(w,
+  src) -> float`: STRENGTH and WANDS (`Upgrades.damage_mul`) x (1 + might + the shop's damage + an ORC's fury) x an
+  apprentice's share, in the order of operations it always had; 1 with no wizard. `WorldEnemies._taken_mul(w, e)
+  -> float`: 1 today (HEX, PROVOKE's second effect later). `_damage_enemy` multiplies by both and by nothing else.
+- Missiles. `WorldCasting._cast` hands every caster the spell's count plus `_missiles` (an evolution's count too):
+  bolts (the fan's, the stars, the spears), the jumps of each chain (TEMPEST's two chains each), rune circles and
+  candle lights (each on a cluster no circle of the cast covers). A sweep sends none: half its arc grows by
+  `Tuning.star_sweep_arc` (0.5, group Casting) of itself per missile (`WorldCastSweep._sweep_half`). A caster
+  returns how many it sent in the units of its count (a chain: the most foes one chain struck; circles: those
+  placed; a sweep: its count), and a new caster must too.
+- Areas, read through `_area` at the cast or at the hit, never in `Spells` data: a blast's radius and the reach its
+  bonus fades over (FIREBALL, THUNDERFIRE; THUNDERFIRE's zap reach is not an area), COMET RAIN's frost burst, an
+  OSSUARY LANCE splinter's flight (`SPLINTER_LIFE` x area), a rune circle's and a candle light's radius (never their
+  life; the clusters they are placed on, the light's haste and heal and the Seal's pull follow the radius), a
+  sweep's reach (`_sweep_reach`, where it waits too). JUSTICE's burst is not one of them.
+- What is drawn follows the World: `EV_EXPLODE` carries the scaled radius (the arena's ring and flashes follow it,
+  and the scorch is `ArenaEvents.BLAST_SCORCH` px times that radius over `Spells` FIREBALL's `blast`; the `fx_blast`
+  ball is a fixed sprite), `EV_FROST` and `EV_RUNE` theirs, a circle's snapshot row its `r`, and `EV_SWEEP`'s `a` is
+  `Vector3(angle, reach, half arc)` as swung. `test_the_arena_draws_the_sizes_the_world_used` feeds the arena those
+  events and checks what it draws.
+- THE STAR and THE EMPRESS are off `Upgrades.UNBUILT` and dealt like any arcana; their evolutions (LODESTAR, DANSE
+  MACABRE) are not, so neither completes a pair yet. Bots: `SmashBot.PASSIVE_TASTE` star 32, empress 22, by what each
+  adds in a crowd of 40 (the A4 balance review: THE STAR I adds ARCANE BOLT +34%, FIREBALL +49%, RUNE CIRCLE +28%;
+  THE EMPRESS I adds FIREBALL +16%, RUNE CIRCLE +13% and nothing to the bolts, chains and stars). Both under THE
+  MAGICIAN, since a slot filled early is one STRENGTH or a pair's arcana cannot have. Measured (two casual bots, 100
+  runs each on GitHub, seeds 1-100): main won 82; with both dealt and tastes star 36 / empress 40, 56; with both
+  dealt and never taken, 69. A card that completes no pair thins the hands, and the deck grows all through stage 3:
+  the balance pass tunes for it with the numbers in hand. Not built yet: their D rows, and THE STAR's S row
+  (`sim_horde` with four wizards holding THE STAR II went over the step budget on the bone and vigil loadouts in the
+  A4 cost review, because `_place_circles` searches every candidate's cluster again for each extra circle). Unlocks
+  (content list § 39) are not built: THE STAR opens with the deed LEVEL_5, which is not in `Achievements.LIST` yet,
+  so every profile has her; THE EMPRESS opens only with THE DUELLIST'S DECK (`Profile.OPENS` `deck_blades`, on
+  `Profile.UNBUILT`), so every real profile locks her (`locked_rows`, `World.apply_meta`) until the job that sells
+  the deck. Scripted runs, bots and tools have no mask (brief § 4.3) and deal both.
+- Use counters (`Results.use`, § 4.4), at the event, never at a hit or once an enemy in a step's loop: `quick` a
+  cast whose cooldown THE MAGICIAN shortened (not one the cast floor holds; `_auto_cast`), `lovers` a cast with an
+  ally near (`_lovers_near`), `star` a cast that sent more than the spell's own count, `empress` a cast of a spell
+  with an area (`_has_area`), `justice` a burst (`_update_bursts`), `power` a kill by her (`_kill_enemy`), `swift`
+  each game second in which she moved, credited at its turn (`WorldPlayers._update_player`; `Player.swift_moved`
+  holds it), `regen` a heart TEMPERANCE gives back, `magnet` a gem THE MOON starts to pull from beyond
+  the reach she would have without it (`_update_pickups`: a gem not yet flying at the magnet's speed; never in a lull
+  or a gem rush, when every reach is the floor; marked at the pull's start in `Pickup.moon`, credited when she takes
+  it in `_collect`, never when another wizard does), `wisdom` a gem whose rounded XP THE HERMIT raised (`_collect`; at x1.15 no gem under 4 XP is raised), `nova`
+  and `life` the pick of THE TOWER and JUDGEMENT (`WorldLevels._pick` and its twin `WorldGrants._grant_effect`). Each
+  credit goes to the seat whose card acted (`test_each_credit_goes_to_the_seat_whose_card_acted`).
+- Two credits sit on paths that run every step (Contract 6's cost clause). `swift`: for every wizard, `p.moving`;
+  for a moving one who has not moved yet this second (every moving step for one without the card) also
+  `Upgrades.level_of` (a call and a dictionary get), and two `floori` a step once `swift_moved` is set, about 0.27 us
+  at most (the A4 cost review), about 1 us a step for four. `magnet`: for a gem in someone's reach only (after
+  `best >= 0`), one `vel.length()`, about 0.06-0.09 us a pulled gem, and `Upgrades.magnet_mul` only when a pull starts
+  (once a gem), then one comparison when a gem is taken; about 11 us a step at worst (120 gems pulled at once in a lull), under 0.3% of the 4000 us budget. Both cost more
+  than a comparison because each must ask something the step does not keep for it: swift whether she holds the card
+  and whether a second turned, magnet whether this gem's pull is just starting. `length_squared` would save only the
+  square root, and `_magnets` works once a wizard, not once a gem, so the start test cannot move there.
+  `sim_horde`'s five rows run both lines every step and hold their budget, within noise of main (the cost review
+  found no row 8% slower).
+- The coverage robot credits all twelve (`tests/bot/bot_cover.gd` has no `PENDING` row); `tests/bot/cover/catalog.gd`
+  stages two: TEMPERANCE's wizard lacks a heart more than a potion gives back (the card as dealt), THE HERMIT's
+  holds it at its top. Tests: `tests/unit/test_cast_hooks.gd`.
 
 ## The Reading (stage 3, job R1: the rows and the values path)
 - `Readings` (`game/logic/readings.gd`, pure, the data file for the Reading's numbers): `ROWS` is the sixteen Minor Arcana of `docs/content_list.md` § 42 as `[key, name, words, party only, values]`. `deal(rng, open, seats, n)` draws n different open rows with its own rng (a PARTY card only for two seats or more, never a row of `UNBUILT`); `vote(votes, seats)` gives the hand index a table keeps (most votes, seat 1 breaks a tie, -1 abstains, nobody keeps 0).

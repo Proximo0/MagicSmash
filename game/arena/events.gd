@@ -4,6 +4,9 @@ extends RefCounted
 ## Static helpers: `a` is the Arena that owns the state.
 
 const HURT_PITCH := [1.0, 1.15, 0.87, 1.3] ## the hurt sound by seat: a table hears who was hit
+## The scorch a plain FIREBALL's blast (Spells.STATS "blast") leaves on the floor, px; a blast THE EMPRESS widens
+## leaves one as much wider (EV_EXPLODE carries the radius the World used).
+const BLAST_SCORCH := 10.0
 
 static func _handle_events(a: Arena, evs: Array) -> void:
 	for ev in evs:
@@ -23,12 +26,11 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					World.SP_CANDLE: Sfx.play("candle", -6.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
 					World.SP_CLEAVE: Sfx.play("hit", -3.0, 0.7, 0.08)
 			World.EV_SWEEP: # a CLEAVE: a steel arc flash toward the swing; WHIRLWIND (+8): the same flash all the way round
-				# The reach and arc are the evolution id's own; id 2 flashes as id 1 until a later job gives it a look.
+				# ev[3]: the arc's middle angle, its reach and half its width as the World swung it (THE EMPRESS and THE
+				# STAR widen them: WorldCastSweep); id 2 flashes as id 1 until a later job gives it a look.
 				var slot := int(ev[4]) & Spells.EVO_SLOT_MASK
-				var sw_evo := Spells.bits_evo(int(ev[4]))
-				var half := Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, sw_evo) * 0.5
-				a.fx.swing(pos, Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, sw_evo), float(ev[3]), half,
-					ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
+				var sw: Vector3 = ev[3]
+				a.fx.swing(pos, sw.y, sw.x, sw.z, ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
 			World.EV_BURST: # a JUSTICE burst: a pale ring the size of its reach and bone shards
 				var br := float(ev[3])
 				a.fx.ring(pos, br * 0.3, br, 0.25, Color("fff6e0"), 2.0)
@@ -61,11 +63,11 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				elif t == World.WRAITH:
 					Sfx.play("ghost", -8.0, a._fx_rng.randf_range(0.9, 1.3), 0.15)
 				a._decal(pos + Vector2(0, 4), gc[clampi(t, 0, gc.size() - 1)], 4.0 if t != World.ORC else 7.0)
-			World.EV_EXPLODE:
+			World.EV_EXPLODE: # ev[3]: the blast's radius as the World hit with it (THE EMPRESS widens it)
 				a.fx.explosion(pos, float(ev[3]))
 				Sfx.play("explode", -2.0, a._fx_rng.randf_range(0.9, 1.1), 0.05)
 				a._add_shake(3.0)
-				a._decal(pos, Color("1a1020"), 10.0)
+				a._decal(pos, Color("1a1020"), BLAST_SCORCH * float(ev[3]) / Spells.stat(World.SP_FIRE, "blast"))
 			World.EV_ZAP:
 				var pts: PackedVector2Array = ev[3]
 				a.fx.bolt(pts, a.SPELL_COLORS[World.SP_STORM])

@@ -9,7 +9,7 @@ constant); `none` if no file does. Part 2's Test column is explained in § 36.
 
 ## Part 1. As built on 28 Nov 2026
 
-Counts (table rows, each checked against the code): Spells 9 · Evolutions 9 · Passives 8 · Instant picks 2 · Minor
+Counts (table rows, each checked against the code): Spells 9 · Evolutions 9 · Passives 10 (THE EMPRESS and THE STAR added by job A4) · Instant picks 2 · Minor
 Arcana 4 · Wizards 4 · Classes 5 · Class weapon skins 5 · Skills 5 · Races 4 · Race traits 4 · Team fates 8 · Solo
 shrine outcomes 5 · Rarity tiers 5 · Chest items 10 · Pickups 16 · Monster cards 12 · Seal cards 8 · Enemy kinds 22 ·
 Horde rows 18 · Formations 3 · Omens 3 · Bosses 3 · Boss attack names 20 · Hazard kinds 9 · Difficulty steps 11 · Seal
@@ -71,6 +71,8 @@ A passive takes a passive slot (3 until the first boss falls, 4 after: `Upgrades
 | THE HERMIT (`wisdom`) | XP gained x1.15/1.3/1.5; card text "MORE XP" | Level-up card, weight 7, max level 3 | none | game/logic/upgrades.gd:90 | none |
 | JUSTICE (`justice`) | chance 0.06/0.12/0.18 that a slain foe bursts for 0.6 of its max health within 30 px (JUSTICE_SHARE, JUSTICE_RADIUS); card text "FOES BURST" | Level-up card, weight 7, max level 3 | evolution OSSUARY LANCE (with BONE SPEAR) | game/logic/upgrades.gd:113 | test_world_wave3.gd |
 | THE LOVERS (`lovers`) | cast speed +0.08/0.16/0.24 within 60 px of an ally (an apprentice counts); half of it when alone (LOVERS_ALONE 0.5); card text "HASTE TOGETHER" | Level-up card, weight 7, max level 3 | evolution CONSECRATION (with VIGIL CANDLE) | game/logic/upgrades.gd:115 | test_world_wave3.gd |
+| THE EMPRESS (`empress`) | areas x1.1/1.2/1.3 (`WorldCasting._area`): a blast's radius and its bonus reach, COMET RAIN's frost burst, a rune circle's and a candle light's radius, a sweep's reach, a splinter's flight; card text "WIDER AREAS" | Level-up card, weight 7, max level 3; opens with THE DUELLIST'S DECK (`deck_blades`, still on `Profile.UNBUILT`, so every real profile locks her; scripted runs deal her) | evolution DANSE MACABRE (with SPIRIT BLADES), not built yet | game/logic/upgrades.gd:145 | test_cast_hooks.gd, test_catalog_rows.gd, test_tarot_art.gd +1 |
+| THE STAR (`star`) | +1/+2 missiles for every spell (`WorldCasting._missiles`): bolts, the jumps of each chain, rune circles, candle lights; a sweep's half arc grows by `Tuning.star_sweep_arc` 0.5 of itself a missile instead; card text "MORE MISSILES" | Level-up card, weight 5, max level 2; opens with the deed LEVEL_5 (not in `Achievements.LIST` yet, so every profile has her) | evolution LODESTAR (with ARCANE BOLT), not built yet | game/logic/upgrades.gd:150 | test_cast_hooks.gd, test_catalog_rows.gd, test_tarot_art.gd +1 |
 
 ## 4. Instant picks (Major Arcana)
 

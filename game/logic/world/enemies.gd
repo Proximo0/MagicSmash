@@ -165,7 +165,25 @@ static func _faded(w: World, e: World.Enemy) -> bool:
 	return e.cloak or (e.type == World.WRAITH and e.state == 1)
 
 
-## `sure`: a hit that ignores facing and shields (the nova, hazards); see Brains.filter_damage.
+## Everything wizard `src` multiplies the damage she deals by (docs/stage3_brief.md § 4.5): STRENGTH and WANDS
+## (Upgrades.damage_mul), times 1 + her staff and armour's might, the shop's damage and an ORC's fury at
+## Races.FURY_HEARTS hearts or fewer (+ 0.0 for everyone else, exact), times an apprentice's share. 1 with no
+## wizard (a hazard's, or a seat that left).
+static func _dealt_mul(w: World, src: World.Player) -> float:
+	if src == null:
+		return 1.0
+	return Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage
+		+ (src.fury if src.hp <= Races.FURY_HEARTS else 0.0)) * (w.tune.apprentice_damage if src.ai else 1.0)
+
+
+## Everything foe `e` multiplies the damage it takes by (docs/stage3_brief.md § 4.5): 1 today; a hex and PROVOKE's
+## second effect come with their jobs.
+static func _taken_mul(w: World, e: World.Enemy) -> float:
+	return 1.0
+
+
+## `sure`: a hit that ignores facing and shields (the nova, hazards); see Brains.filter_damage. The damage is
+## multiplied by _dealt_mul and _taken_mul and by nothing else.
 static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock: Vector2, sure: bool = false) -> void:
 	if w.phase == World.PH_GAMEOVER:
 		return # the run is over: no kill may turn it into a victory or add to the score
@@ -174,11 +192,7 @@ static func _damage_enemy(w: World, e: World.Enemy, dmg: float, slot: int, knock
 	dmg = Brains.filter_damage(w, e, dmg, knock, sure)
 	if dmg < 0.0:
 		return
-	var src: World.Player = w.players.get(slot)
-	if src:
-		dmg *= Upgrades.damage_mul(src.upgrades) * (1.0 + src.armor[Loot.ST_MIGHT] + w.meta_damage
-			+ (src.fury if src.hp <= Races.FURY_HEARTS else 0.0)) \
-			* (w.tune.apprentice_damage if src.ai else 1.0) # ORC fury: + 0.0 for everyone else, exact
+	dmg *= _dealt_mul(w, w.players.get(slot)) * _taken_mul(w, e)
 	w.record.add(slot, "damage", minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_source(w.stat_src, minf(dmg, maxf(0.0, e.hp)))
 	w.record.add_slot_source(slot, w.stat_src, minf(dmg, maxf(0.0, e.hp)))
@@ -213,6 +227,8 @@ static func _kill_enemy(w: World, e: World.Enemy, slot: int) -> void:
 			w.record.note(w.wave_time, Results.M_COMBO, slot, p.combo)
 		if e.elite:
 			w.record.add(slot, "elites", 1)
+		if Upgrades.level_of(p.upgrades, Upgrades.POWER) > 0:
+			w.record.use("power", slot) # STRENGTH: credited at her kill, never at a hit
 	w.emit(World.EV_DIE, e.pos.x, e.pos.y - e.r, e.type, slot)
 	WorldCasting._justice(w, e, slot)
 	WorldDrops._drop_xp(w, e.pos, Vector2.from_angle(w.rng.randf() * TAU) * 25.0, Bestiary.KINDS[e.type][Bestiary.K_XP] * (World.ELITE_REWARD if e.elite else 1))

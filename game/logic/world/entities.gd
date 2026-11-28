@@ -73,6 +73,7 @@ class Player:
 	var skin := ""
 	var vigil := 0.0 # s left of a vigil candle's cast speed (she stood in a light)
 	var light_heal_t := 0.0 # s her lights have burned towards their next heal (HOLY LIGHT, CONSECRATION)
+	var swift_moved := false # THE CHARIOT's credit: she moved in this game second (WorldPlayers._update_player)
 
 class Enemy:
 	var id := 0
@@ -160,3 +161,4 @@ class Pickup:
 	var pos := Vector2.ZERO
 	var vel := Vector2.ZERO
 	var life := 10.0
+	var moon := -1 # the seat whose THE MOON began this gem's pull from beyond her plain reach (the magnet credit)
