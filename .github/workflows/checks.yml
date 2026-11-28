@@ -106,8 +106,9 @@ jobs:
           if-no-files-found: ignore
 
   # The land script, the guard and the versions rule test themselves: throwaway repositories, a stub gh, no engine,
-  # no network (docs/agent/land.md). So do the stations' skip rule (tools/station/skip_test.sh, a few seconds) and the
-  # reader of their reports (tools/station/read_test.sh, a second).
+  # no network (docs/agent/land.md). So do the stations' skip rule (tools/station/skip_test.sh, a few seconds), the
+  # reader of their reports (tools/station/read_test.sh, a second) and the comparison of two balance arms
+  # (tools/balance_compare_test.py, a second).
   tools:
     name: tools
     runs-on: ubuntu-latest
@@ -124,3 +125,6 @@ jobs:
         run: |
           bash tools/station/skip_test.sh
           bash tools/station/read_test.sh
+      - name: Self-test of the comparison of two balance arms (tools/balance_compare.py, no network)
+        shell: bash
+        run: python3 tools/balance_compare_test.py
