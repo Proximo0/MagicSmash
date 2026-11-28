@@ -1802,3 +1802,56 @@ func test_the_archlich_card_is_taken_when_the_run_is_won() -> void:
 	assert_true(order.has(World.EV_VICTORY))
 	for k: World.Pickup in w.pickups:
 		assert_true(k.kind != World.PK_CARD or k.life <= 0.0)
+
+
+## B2: once the run is over nothing on the floor is taken or broken: the results screen shows the floor as it was.
+func test_nothing_is_picked_up_or_broken_after_game_over() -> void:
+	var w := _fighting(null, 300.0)
+	var p := _player(w)
+	w.urns.clear()
+	w._end_run()
+	WorldDrops._drop(w, World.PK_COIN, p.pos, Vector2.ZERO)
+	w.urns.append(p.pos)
+	var gold := p.gold
+	for _i: int in range(30):
+		w.step(DT, {})
+	assert_eq(p.gold, gold, "no coin is collected after game over")
+	var coins := 0
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_COIN:
+			coins += 1
+	assert_eq(coins, 1, "the coin still lies there")
+	assert_eq(w.urns.size(), 1, "no urn is broken after game over")
+
+
+## B2: the Archlich drops no chest, potion or party tome (the run ends before anyone could use them); its gems and
+## coins still burst. An act boss still pays all of it.
+func test_the_final_boss_drops_only_gems_and_coins() -> void:
+	var w := _final_world([0, 1])
+	var arch: World.Enemy = w.spawn_enemy(World.LICH, 0, Vector2(240, 120))
+	w._make_final(arch)
+	w.pickups.clear()
+	w._kill_enemy(arch, 0)
+	var kinds := {}
+	for k: World.Pickup in w.pickups:
+		kinds[k.kind] = int(kinds.get(k.kind, 0)) + 1
+	assert_false(kinds.has(World.PK_CHEST), "no chest at the win")
+	assert_false(kinds.has(World.PK_POTION), "no potion at the win")
+	assert_false(kinds.has(WorldLevels.PARTY_TOME), "no party tome at the win")
+	assert_true(int(kinds.get(World.PK_GEM, 0)) > 0 and int(kinds.get(World.PK_COIN, 0)) > 0, "the burst stays")
+	var v := _fighting(null, 300.0)
+	var chand: World.Enemy = v._spawn_boss(Bestiary.CHANDELIER, false)
+	v.pickups.clear()
+	v._kill_enemy(chand, 0)
+	var chests := 0
+	for k: World.Pickup in v.pickups:
+		if k.kind == World.PK_CHEST:
+			chests += 1
+	assert_eq(chests, 1, "an act boss still drops a chest per wizard")
+
+
+## B2: the Ash Hounds' ring (KindsLibrary.HOUND_RING) passes beyond the screen's half-height, so a hound out of sight
+## gets the edge arrow like the other off-screen threats.
+func test_an_ash_hound_off_screen_is_marked() -> void:
+	assert_true(KindsLibrary.HOUND_RING > G.SCREEN.y * 0.5, "the ring reaches past half a screen")
+	assert_true(Bestiary.has_flag(Bestiary.HOUND, Bestiary.F_ARROW), "the hound carries the edge arrow")

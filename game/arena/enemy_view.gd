@@ -102,7 +102,8 @@ static func draw_state(a: Arena, ci: CanvasItem, e: Dictionary, feet: Vector2) -
 				ci.draw_arc(feet + Vector2(0, -top), r, -PI * 0.85, -PI * 0.15, 6, Color(HOWL, 1.0 - r / 14.0), 1.0)
 
 
-## On the wizards' layer: an arrow at the screen's edge toward each F_ARROW kind of job K out of sight (the coffin),
+## On the wizards' layer: an arrow at the screen's edge toward each F_ARROW kind of job K out of sight (the coffin;
+## a hound only while it hunts, in the eye's red),
 ## and a red eye over each wizard the hounds howl at or hunt.
 static func draw_marks(a: Arena, ci: CanvasItem) -> void:
 	var screen := Rect2(a.cam, G.SCREEN)
@@ -113,15 +114,18 @@ static func draw_marks(a: Arena, ci: CanvasItem) -> void:
 		if not Bestiary.is_new_kind(t):
 			continue
 		var mid: Vector2 = (e.pos as Vector2) - Vector2(0, float(SpritesEnemies.TOP[t]) * 0.5)
-		if Bestiary.has_flag(t, Bestiary.F_ARROW) and not screen.grow(-2.0).has_point(mid):
+		# A hound earns its arrow only while it hunts: the circling pack is no threat yet, and its arrows would be noise.
+		var hunting: bool = t == Bestiary.HOUND and int(e.state) % KindsLibrary.HOUND_SLOT_STEP != KindsLibrary.HS_CIRCLE
+		if Bestiary.has_flag(t, Bestiary.F_ARROW) and (t != Bestiary.HOUND or hunting) and not screen.grow(-2.0).has_point(mid):
 			var at: Vector2 = mid.clamp(view.position, view.end)
 			var d: Vector2 = (mid - at).normalized()
-			var col := Color(SEAM, 1.0 if int(e.state) == KindsCrypt.ST_SHUT or int(a.time * 8.0) % 2 == 0 else 0.35)
+			var solid: bool = (not hunting and int(e.state) == KindsCrypt.ST_SHUT) or int(a.time * 8.0) % 2 == 0
+			var col := Color(HOWL if hunting else SEAM, 1.0 if solid else 0.35)
 			var tri := PackedVector2Array([at + d * 7.0, at - d * 4.0 + d.orthogonal() * 6.0, at - d * 4.0 - d.orthogonal() * 6.0])
 			ci.draw_colored_polygon(tri, col)
 			tri.append(tri[0])
 			ci.draw_polyline(tri, Color.BLACK, 1.0)
-		elif t == Bestiary.HOUND and int(e.state) % KindsLibrary.HOUND_SLOT_STEP != KindsLibrary.HS_CIRCLE:
+		if hunting:
 			eyes[int(e.state) / KindsLibrary.HOUND_SLOT_STEP - 1] = true
 	for slot: int in eyes:
 		var p: Dictionary = a.vp.get(slot, {})

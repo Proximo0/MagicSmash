@@ -415,8 +415,8 @@ static func phase_turn(w: World, e: World.Enemy, secs: float) -> void:
 	w.emit(World.EV_PHASE, e.pos.x, e.pos.y, e.type, phase(e.type, e.hp / e.maxhp, e.final))
 
 
-## A boss died (Brains.on_death): the field clears, it pays out, the fallen rise, the lull starts (or the run is
-## won). Moved whole from the Lich branch of WorldEnemies._kill_enemy.
+## A boss died (Brains.on_death): the field clears, it pays out (the final boss only its burst of gems and coins),
+## the fallen rise, the lull starts (or the run is won). Moved whole from the Lich branch of WorldEnemies._kill_enemy.
 static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 	_clear_header(w)
 	w.boss = null
@@ -435,11 +435,12 @@ static func _boss_died(w: World, e: World.Enemy, slot: int) -> void:
 		s.dead = true
 	for i in 14:
 		WorldDrops._drop(w, World.PK_GEM if i % 2 == 0 else World.PK_COIN, e.pos, Vector2.from_angle(i * TAU / 14) * 90.0)
-	if w.no_potions <= 0.0: WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40)) # THE HIEROPHANT
-	WorldLevels._drop_party_tome(w, e.pos)
-	for i in w.players.size():
-		WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
-			w.tune.chest_life, int(w.tune.boss_chest_luck))
+	if not e.final: # the final boss ends the run: a chest, potion or tome would lie there unused
+		if w.no_potions <= 0.0: WorldDrops._drop(w, World.PK_POTION, e.pos, Vector2(0, 40)) # THE HIEROPHANT
+		WorldLevels._drop_party_tome(w, e.pos)
+		for i in w.players.size():
+			WorldDrops._drop(w, World.PK_CHEST, e.pos, Vector2.from_angle(PI * 0.5 + (i - (w.players.size() - 1) * 0.5) * 0.7) * 60.0,
+				w.tune.chest_life, int(w.tune.boss_chest_luck))
 	w.emit(World.EV_BOSSDIE, e.pos.x, e.pos.y - 14, slot, 1 if e.final else 0)
 	WorldPlayers.raise_fallen(w, slot)
 	if e.final:

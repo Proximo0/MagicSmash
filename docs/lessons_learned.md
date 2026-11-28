@@ -102,6 +102,8 @@ Story: kit `docs/lessons/ops_board.md`.
 - `check_all` beside 3 W: one unit test failed only on the 10 s limit (10.4 s) ⇒ re-run that test alone before believing it.
 - `T/run_tests.sh x | tail -1` showed exit-leak lines, not the result ⇒ `grep '^TESTS'`.
 - Celeron frame 134 ms: 8 physics ticks a frame, each with its own snapshot (world_step 67 + snapshot 23 ms) ⇒ compare machines per tick (section / ticks a frame); `docs/performance.md` pass 4.
+- "Skip if the last one is still here" guard on a timed event dropped it for good (act II boss never came if act I lived past 10:00) ⇒ consume every due row: replace or retire what stands, never skip; test with the earlier event kept alive.
+- Boss tuned for a one-screen room fired and teleported from out of sight in the 800x450 room ⇒ boss positions come from the party's middle, never the room's; an attack starts only in the party's sight; probe with the party held in a corner.
 
 ## Rendering and art
 - GPU glitch blamed on a guess ⇒ sample screenshot pixels, reproduce; else ship toggles.

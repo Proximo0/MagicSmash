@@ -3,8 +3,9 @@ extends RefCounted
 ## The horde for World: the run's minutes, omens, rifts, groups through the doors, elites and powerups. Static helpers; the first argument is the World.
 
 
-## A new minute: announce it. When a boss of w.schedule (Bosses) falls on this minute mark it comes, unless the
-## boss is still here; the final row's minute brings the final boss, or makes the standing one final.
+## A new minute: announce it. When a boss of w.schedule (Bosses) falls on this minute mark it comes, and a boss
+## still up leaves (Bosses._leave: no bounty, no deed), so every boss arrives at its minute; the final row's minute
+## brings the final boss, or makes a standing Lich final.
 static func _tick_minute(w: World) -> void:
 	var minute := int(w.wave_time / 60.0) + 1
 	if minute <= w.wave:
@@ -29,7 +30,9 @@ static func _tick_minute(w: World) -> void:
 	for i in World.OMENS.size():
 		if int(World.OMENS[i][0]) == w.wave:
 			_queue_omen(w, i)
-	if boss_minute and w.boss == null:
+	if boss_minute:
+		if w.boss != null and not w.boss.dead:
+			Bosses._leave(w, w.boss) # an act boss still up gives way to the next, as to the final one
 		w.spawn_queue.append({"t": w.wave_time + 2.5, "type": int(w.schedule[due][1]), "door": 0})
 		_sort_queue(w)
 
