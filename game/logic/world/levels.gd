@@ -14,6 +14,8 @@ const PARTY_TOME := World.PK_TOME_PARTY
 ## queued draw), so cards are ready whenever the player wants them. Nothing picks for a human player and nothing
 ## expires; an apprentice (Player.ai) takes the card pick_score likes best at once.
 static func _update_levelups(w: World, inputs: Dictionary) -> void:
+	if w._tick == 0:
+		_shop_start(w)
 	_update_slots(w)
 	for p: World.Player in w.players.values():
 		if not p.choices.is_empty():
@@ -37,7 +39,8 @@ static func _update_levelups(w: World, inputs: Dictionary) -> void:
 
 
 ## The slots every wizard has: Upgrades.SLOTS_EARLY until the first boss falls (the Bone Chandelier at 5:00), then SLOTS_LATE. The first call of
-## a run (before its first tick) also hands every wizard the run's redraws and banishes.
+## a run (World._init, before apply_meta) also hands every wizard the run's redraws and banishes; the shop's come on
+## the first step (_shop_start).
 static func _update_slots(w: World) -> void:
 	var cap := Upgrades.SLOTS_LATE if w.liches_slain > 0 else Upgrades.SLOTS_EARLY
 	if w.slots == cap:
@@ -48,6 +51,38 @@ static func _update_slots(w: World) -> void:
 			p.banishes = Upgrades.BANISHES
 	w.slots = cap
 	w.emit(World.EV_SLOTS, 0, 0, cap.x, cap.y)
+
+
+## The run's first step hands out what the table bought in the shop (World.apply_meta came before it; every wizard
+## gets the same): THE SECOND GLANCE's and THE BLACK RIBBON's redraws and banishes on top of those World._init's
+## _update_slots gave, and THE HEAD START: the party starts at level 1 + meta_start_level and every wizard has that
+## many hands to draw, the first dealt on this very step, while the intro holds (_intro_held). No XP, no stats; the
+## lead lasts, because xp_needed does not price those levels (World.head_start_levels).
+static func _shop_start(w: World) -> void:
+	for p: World.Player in w.players.values():
+		p.redraws += w.meta_redraws
+		p.banishes += w.meta_banishes
+	if w.meta_start_level <= 0:
+		return
+	w.party_level += w.meta_start_level
+	w.head_start_levels = w.meta_start_level
+	for p: World.Player in w.players.values():
+		p.level = w.party_level
+		p.pending += w.meta_start_level
+	w.record.use("shop_start_level")
+
+
+## True while THE HEAD START holds the intro (World.step): the run has one, fewer than tune.head_start_wait seconds
+## have passed, and a living wizard at her seat still has a card in hand or a draw queued. A fallen wizard, an away
+## human (her draws wait for her) or one who left holds nothing; whoever has not drawn when the door opens keeps
+## her draws. Without a head start it is always false, so the intro is as long as ever.
+static func _intro_held(w: World) -> bool:
+	if w.meta_start_level <= 0 or w.time >= w.tune.head_start_wait:
+		return false
+	for p: World.Player in w.players.values():
+		if p.alive and not p.away and (not p.choices.is_empty() or p.pending > 0):
+			return true
+	return false
 
 
 ## A new hand: up to tune.level_choices cards the wizard can learn, topped up with Minor Arcana when fewer are left.
