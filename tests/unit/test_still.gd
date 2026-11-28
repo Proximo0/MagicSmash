@@ -135,6 +135,21 @@ func test_icon_names_follow_the_upgrade_keys() -> void:
 		assert_true(names.has("race_" + Races.key(r)))
 
 
+## Godot mirrors a rect of negative width in place: its position stays the top-left corner. Until 28 Nov a figure
+## facing left was given the corner one width to the right, so a 23 px hero was drawn 23 px beside her own ring.
+func test_a_figure_facing_left_stands_on_the_same_feet() -> void:
+	for size: Vector2 in [Vector2(23, 28), Vector2(24, 30), Vector2(41, 52)]:
+		for pad: int in [0, Still.RIM_PAD]:
+			var right := Still.figure_rect(size, pad, 1)
+			var left := Still.figure_rect(size, pad, -1)
+			assert_eq(left.position, right.position, "the corner does not move when she turns")
+			assert_eq(left.size, Vector2(-right.size.x, right.size.y), "a negative width is the mirror")
+			assert_eq(right.size, size + Vector2.ONE * pad * 2.0)
+			# Bottom centre on the feet: the feet's column is inside the picture, the picture ends at the feet.
+			assert_eq(right.position.x, -floorf(size.x / 2.0) - pad)
+			assert_eq(right.position.y + right.size.y, float(pad))
+
+
 func test_walk_motion_bobs_and_leans_toward_the_facing() -> void:
 	var up := 0.0
 	for k: int in 100:

@@ -233,6 +233,15 @@ static func draw_rim(ci: CanvasItem, name: String, feet: Vector2, facing: int, t
 	return true
 
 
+## Where a figure of `size` px, grown by `pad` px on every side, is drawn around its feet: bottom centre on the feet.
+## Facing left its width is negative, and the corner is the same: Godot mirrors a rect of negative width in place
+## (its position stays the top-left corner), so a corner moved one width over draws her beside her own feet.
+static func figure_rect(size: Vector2, pad: int, facing: int) -> Rect2:
+	var at := Vector2(-floorf(size.x / 2.0) - pad, -size.y - pad)
+	var grown := size + Vector2.ONE * pad * 2.0
+	return Rect2(at, Vector2(-grown.x if facing < 0 else grown.x, grown.y))
+
+
 ## Draws `tex` as the picture of size `size` would be drawn, grown by `pad` px on every side.
 static func _put(ci: CanvasItem, tex: Texture2D, size: Vector2, pad: int, feet: Vector2, facing: int, t: float,
 		moving: bool, tint: Color) -> void:
@@ -242,13 +251,8 @@ static func _put(ci: CanvasItem, tex: Texture2D, size: Vector2, pad: int, feet: 
 	var h := roundf(size.y * sq.y)
 	var base := (feet + (m.off as Vector2)).round()
 	var lean: float = m.lean
-	var at := Vector2(-floorf(w / 2.0) - pad, -h - pad)
-	var gw := w + pad * 2
-	var gh := h + pad * 2
 	var src := Rect2(Vector2.ZERO, tex.get_size())
-	var dst := Rect2(at, Vector2(gw, gh))
-	if facing < 0:
-		dst = Rect2(Vector2(at.x + gw, at.y), Vector2(-gw, gh))
+	var dst := figure_rect(Vector2(w, h), pad, facing)
 	if absf(lean) < LEAN_MIN:
 		dst.position += base
 		ci.draw_texture_rect_region(tex, dst, src, tint)

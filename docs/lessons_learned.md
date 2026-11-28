@@ -121,6 +121,7 @@ Story: kit `docs/lessons/ops_board.md`.
 - Act change: overlays jumped while backdrop faded 2 s ⇒ overlays cross-fade with their picture; state-keyed shot per transition (`act_fade.png`).
 - PS5 JSON had a BOM ⇒ `[IO.File]::WriteAllText` with `UTF8Encoding($false)`.
 - Godot bump / Windows import rewrote every `.import` ⇒ never commit that churn; `git restore -- '*.import'`.
+- Painted figures facing left stood a body width right of their feet for 5 days (mirror corner moved by the width; Godot mirrors a negative-width rect in place); no picture review saw it ⇒ a drawn thing's rect comes from one pure tested function (`Still.figure_rect`); a picture review checks feet against ring in both facings.
 
 ## Online, Steam, Android
 - Closed ENet peer inside its own `poll()` signal → SIGSEGV ⇒ defer close to next idle frame.
