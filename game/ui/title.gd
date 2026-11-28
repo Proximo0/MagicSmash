@@ -603,24 +603,26 @@ func _draw_menu_mark(ci: CanvasItem, y: float, w: float, a: float) -> void:
 		ci.draw_rect(Rect2(tip, y + 2, 1, 3), Color(Color("fff6c0"), a * spark))
 		ci.draw_rect(Rect2(tip, y + 3, 1, 1), Color(1, 1, 1, a))
 
-## Meta unlocks: crystals earned in runs buy permanent head starts for every run (never sold for money).
+## Meta unlocks: crystals earned in runs buy permanent head starts for every run (never sold for money). Nine rows,
+## 11 px apart as on HOW TO PLAY's board, under the two near staffs' heads and between their shafts (TitleArt.STAFFS):
+## a name of 17 letters ends 5 px before its pips, the longest words (THE HEAD START's) 14 px before WIN SEAL VII.
 func _draw_unlocks(ci: CanvasItem) -> void:
 	var prof: Profile = Save.profile
-	_panel(ci, Rect2(40, 144, 400, 104))
-	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 150, 1, Color("8bdcff"))
+	_panel(ci, Rect2(32, 116, 416, 132))
+	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 122, 1, Color("8bdcff"))
 	menu_items.clear()
 	var shelf := Profile.shelf()
 	for pos in shelf.size():
 		var i: int = shelf[pos]
 		var row: Array = Profile.META[i]
-		var y := 163 + pos * 12
+		var y := 135 + pos * 11
 		var picked := pos == unlock_sel
-		menu_items.append(Rect2(46, y - 2, 388, 11))
+		menu_items.append(Rect2(38, y - 2, 404, 11))
 		if picked:
-			Occult.highlight(ci, Rect2(46, y - 2, 388, 11), t)
+			Occult.highlight(ci, Rect2(38, y - 2, 404, 11), t)
 		var lv := prof.level(row[0])
 		var mx := Profile.max_level(i)
-		PixelFont.draw(ci, row[1], Vector2(52, y), 1, Color("ffd94d") if picked else Color.WHITE)
+		PixelFont.draw(ci, row[1], Vector2(44, y), 1, Color("ffd94d") if picked else Color.WHITE)
 		for k in mx:
 			ci.draw_rect(Rect2(150 + k * 7, y + 1, 5, 5), Color("8bdcff") if k < lv else Color("3a2f55"))
 		PixelFont.draw(ci, row[2], Vector2(190, y), 1, Color("b8a8d8"))
@@ -629,7 +631,7 @@ func _draw_unlocks(ci: CanvasItem) -> void:
 		var price := why if why != "" else "%d" % cost
 		var pc := Color("8bff9e") if why == Profile.WHY_MAX else (Color("b8a8d8") if why != "" else
 			(Color("8bdcff") if cost <= prof.crystals else Color("ff7a8a")))
-		PixelFont.draw(ci, price, Vector2(410 - PixelFont.text_width(price, 1), y), 1, pc)
+		PixelFont.draw(ci, price, Vector2(436 - PixelFont.text_width(price, 1), y), 1, pc)
 	PixelFont.draw_centered(ci, "ENTER/A: BUY    ESC/B: BACK", 240, 236, 1, Color(1, 1, 1, 0.5))
 
 ## `pos` is a place on the shelf (Profile.shelf), as unlock_sel and menu_items count them.
@@ -641,7 +643,7 @@ func _buy_unlock(pos: int) -> void:
 	if Save.profile.buy(i):
 		Save.write()
 		Sfx.play("powerup")
-		fx.burst(Vector2(240, 163 + pos * 12), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
+		fx.burst(Vector2(240, 135 + pos * 11), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
 	else:
 		Sfx.play("hurt", -6.0)
 		var why := Save.profile.closed_why(i)

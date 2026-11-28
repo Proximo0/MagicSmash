@@ -59,13 +59,13 @@ func test_a_gated_level_cannot_be_bought() -> void:
 	assert_near(float(p.bonuses()["damage"]), 0.20)
 
 
-## The shelf: the six rows of today, in order; every unbuilt row is off it and says NOT YET.
+## The shelf: the nine rows of today, in order; every unbuilt row is off it and says NOT YET.
 func test_the_shelf_and_why_a_row_is_shut() -> void:
 	var p := _rich()
 	var keys: Array = []
 	for i: int in p.shelf():
 		keys.append(Profile.META[i][0])
-	assert_eq(keys, ["vigor", "might", "wisdom", "fortune", "novas", "luck"])
+	assert_eq(keys, ["vigor", "might", "wisdom", "fortune", "novas", "luck", "redraw", "banish", "start_level"])
 	for key: String in Profile.UNBUILT:
 		var i := Profile.meta_index(key)
 		assert_true(i >= 0, key + " is a META row")

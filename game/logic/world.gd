@@ -292,6 +292,12 @@ var meta_damage := 0.0
 var meta_xp := 0.0
 var meta_gold := 0.0
 var meta_luck := 0
+## The shop's run options (apply_meta's "redraws", "banishes", "start_level"), handed out on the run's first step
+## (WorldLevels._shop_start): redraws and banishes every wizard has on top of Upgrades.REDRAWS and BANISHES, and the
+## levels THE HEAD START gives the party, each a hand to draw before the first door opens (WorldLevels._intro_held).
+var meta_redraws := 0
+var meta_banishes := 0
+var meta_start_level := 0
 ## The table's locked rows (Upgrades index -> true): the host's profile has not opened them (apply_meta's "locked",
 ## Profile.locked_rows; docs/stage3_brief.md § 4.3). Each wizard's banned holds the mask, less her own class
 ## weapon, its arcana and its evolution (apply_hero). Empty in every scripted run. In the snapshot as "lk".
@@ -493,15 +499,20 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
 ## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
-## and damage, XP, gold and chest luck bonuses; "urn_card" (bool) makes the run a card run whose card waits in the
-## first urn broken at or after its moment (WorldDrops.card_due); "locked" (an Array of Upgrades indices) is the
-## table's mask (World.locked), put in every wizard's banned. Call once, before the first step.
+## and damage, XP, gold and chest luck bonuses; "redraws", "banishes" and "start_level" are the shop's run options
+## (meta_redraws, meta_banishes, meta_start_level), handed out on the first step; "urn_card" (bool) makes the run a
+## card run whose card waits in the first urn broken at or after its moment (WorldDrops.card_due); "locked" (an Array
+## of Upgrades indices) is the table's mask (World.locked), put in every wizard's banned. Call once, before the first
+## step.
 func apply_meta(b: Dictionary) -> void:
 	urn_card = bool(b.get("urn_card", false))
 	meta_damage = float(b.get("damage", 0.0))
 	meta_xp = float(b.get("xp", 0.0))
 	meta_gold = float(b.get("gold", 0.0))
 	meta_luck = int(b.get("luck", 0.0))
+	meta_redraws = int(b.get("redraws", 0.0))
+	meta_banishes = int(b.get("banishes", 0.0))
+	meta_start_level = int(b.get("start_level", 0.0))
 	locked.clear()
 	for r: Variant in b.get("locked", []):
 		locked[int(r)] = true
@@ -701,7 +712,7 @@ func step(dt: float, inputs: Dictionary) -> void:
 	match phase:
 		PH_INTRO:
 			phase_t -= dt
-			if phase_t <= 0.0:
+			if phase_t <= 0.0 and not WorldLevels._intro_held(self): # THE HEAD START's hands hold the door
 				phase = PH_FIGHT
 				WorldDrops._refill_urns(self)
 		PH_FIGHT:
