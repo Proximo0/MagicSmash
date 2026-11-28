@@ -109,9 +109,58 @@ func test_sealed_decks_draw_the_lich_rarely() -> void:
 	for _i: int in range(2000):
 		var idx := Sanctum.roll_card(r)
 		assert_true(idx >= 0 and idx < Cards.count())
-		if idx == World.LICH:
+		assert_true(Cards.enemy(idx) >= 0, "never a Seal card")
+		if idx == Cards.for_enemy(Bestiary.LICH):
 			lich += 1
-	assert_true(lich > 0 and lich < 60, "lich drawn %d of 2000" % lich)
+	# THE LICH weighs 5 against 10 for each other monster card: 5 / 115 of 2000 is about 87.
+	assert_true(lich > 50 and lich < 130, "lich drawn %d of 2000" % lich)
+
+
+## A sealed deck draws only cards the player does not own while any remain; once she owns every monster card it
+## draws by the plain weights, and it always takes one draw.
+func test_a_sealed_deck_draws_a_card_you_lack() -> void:
+	var lich := Cards.for_enemy(Bestiary.LICH)
+	var owned: Array[int] = []
+	for i: int in range(Cards.count()):
+		if i != lich:
+			owned.append(i) # every card but THE LICH, the Seal cards too
+	var r := RandomNumberGenerator.new()
+	r.seed = 8
+	for _i: int in range(200):
+		assert_eq(Sanctum.roll_card(r, owned), lich, "the one card left")
+	var two: Array[int] = owned.duplicate()
+	two.erase(Cards.for_enemy(Bestiary.GOBLIN))
+	var seen := {}
+	for _i: int in range(400):
+		seen[Sanctum.roll_card(r, two)] = true
+	assert_eq(seen.size(), 2, "the two cards left: %s" % [seen.keys()])
+	var full: Array[int] = []
+	for i: int in range(Cards.count()):
+		full.append(i)
+	for s: int in range(1, 300):
+		var a := RandomNumberGenerator.new()
+		a.seed = s
+		var b := RandomNumberGenerator.new()
+		b.seed = s
+		assert_eq(Sanctum.roll_card(a, full), Sanctum.roll_card(b), "every card owned: plain weights, seed %d" % s)
+		assert_eq(a.state, b.state, "one draw")
+	var c := RandomNumberGenerator.new()
+	c.seed = 4
+	var d := RandomNumberGenerator.new()
+	d.seed = 4
+	Sanctum.roll_card(c, owned)
+	d.randf()
+	assert_eq(c.state, d.state, "one draw with cards left")
+
+
+## The deck's list of owned cards comes from the profile's card counts.
+func test_owned_cards_come_from_the_profile() -> void:
+	var prof := Profile.new()
+	assert_eq(Sanctum.owned_cards(prof), [] as Array[int])
+	prof.add_card(3)
+	prof.add_card(3)
+	prof.add_card(Cards.count() - 1)
+	assert_eq(Sanctum.owned_cards(prof), [3, Cards.count() - 1] as Array[int])
 
 
 func test_texts_fit_the_screen() -> void:

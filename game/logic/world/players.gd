@@ -237,7 +237,7 @@ static func hurt_player(w: World, p: World.Player, dmg: int) -> void:
 		return
 	p.hp -= dmg
 	p.flash = 0.15
-	p.invuln = Classes.hurt_safe(p.cls)
+	p.invuln = Classes.hurt_safe(p.cls) * p.safe_mul # STURDY: a dwarf's lasts longer
 	w.emit(World.EV_HURT, p.pos.x, p.pos.y - 6, p.slot, 0)
 	if p.hp <= 0:
 		if w.players.size() >= 2:

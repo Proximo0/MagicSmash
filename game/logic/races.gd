@@ -11,7 +11,7 @@ const ORC := 3
 
 ## Traits: [key, name, value]. What each value means:
 ## SCHOLAR: share of class XP added (Hero.run_xp). FAR_SIGHT: share added to the XP magnet's reach.
-## STURDY: share of a push a hero still takes. FURY: share of damage added at FURY_HEARTS hearts or fewer.
+## STURDY: share added to the hurt safety after a hit (World.Player.safe_mul). FURY: share of damage added at FURY_HEARTS hearts or fewer.
 const TR_SCHOLAR := 0
 const TR_FAR_SIGHT := 1
 const TR_STURDY := 2
@@ -19,7 +19,7 @@ const TR_FURY := 3
 const TRAITS: Array = [
 	["scholar", "+5% CLASS XP", 0.05],
 	["far_sight", "XP FLIES IN FROM 25% FARTHER", 0.25],
-	["sturdy", "PUSHED BACK HALF AS FAR", 0.5],
+	["sturdy", "UNHURT 50% LONGER AFTER A HIT", 0.5],
 	["fury", "+10% DAMAGE AT 2 HEARTS OR FEWER", 0.10],
 ]
 const FURY_HEARTS := 2

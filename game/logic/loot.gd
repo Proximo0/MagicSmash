@@ -36,20 +36,23 @@ const FX_NOVAS := 1 # + novas
 const FX_TOME := 2 # levels a random owned spell weapon that is not maxed
 const FX_INSIGHT := 3 # XP worth this fraction of the current level
 
-## [key, name, kind, stat or effect, base value, weight]. Indices are sent in events, so append new items at the
-## end. An armor's value is base x RARITY_MUL[tier]; vigor rounds to whole hearts.
+## [key, name, kind, stat or effect, base value, weight, flat]. Indices are sent in events, so append new items at
+## the end. An armor's value is base x RARITY_MUL[tier]; vigor rounds to whole hearts. `flat`: the item does the
+## same at every tier (the ELIXIR heals to full), so a LEGENDARY or ULTRA RARE chest never rolls it (roll_item).
 const ITEMS: Array = [
-	["might", "GAUNTLETS OF TYR", KIND_ARMOR, ST_MIGHT, 0.08, 10.0],
-	["focus", "CIRCLET OF THOTH", KIND_ARMOR, ST_FOCUS, 0.05, 10.0],
-	["swift", "HERMES' SANDALS", KIND_ARMOR, ST_SWIFT, 0.05, 8.0],
-	["vigor", "TROLL HIDE", KIND_ARMOR, ST_VIGOR, 1.0, 6.0],
-	["ward", "AEGIS CLOAK", KIND_ARMOR, ST_WARD, 0.06, 7.0],
-	["greed", "MISER'S RING", KIND_ARMOR, ST_GREED, 0.15, 6.0],
-	["elixir", "ELIXIR", KIND_CONSUMABLE, FX_ELIXIR, 1.0, 8.0],
-	["novas", "NOVA FLASK", KIND_CONSUMABLE, FX_NOVAS, 1.0, 7.0],
-	["tome", "SIBYLLINE BOOK", KIND_CONSUMABLE, FX_TOME, 1.0, 7.0],
-	["insight", "EYE OF ODIN", KIND_CONSUMABLE, FX_INSIGHT, 0.5, 6.0],
+	["might", "GAUNTLETS OF TYR", KIND_ARMOR, ST_MIGHT, 0.08, 10.0, false],
+	["focus", "CIRCLET OF THOTH", KIND_ARMOR, ST_FOCUS, 0.05, 10.0, false],
+	["swift", "HERMES' SANDALS", KIND_ARMOR, ST_SWIFT, 0.05, 8.0, false],
+	["vigor", "TROLL HIDE", KIND_ARMOR, ST_VIGOR, 1.0, 6.0, false],
+	["ward", "AEGIS CLOAK", KIND_ARMOR, ST_WARD, 0.06, 7.0, false],
+	["greed", "MISER'S RING", KIND_ARMOR, ST_GREED, 0.15, 6.0, false],
+	["elixir", "ELIXIR", KIND_CONSUMABLE, FX_ELIXIR, 1.0, 8.0, true],
+	["novas", "NOVA FLASK", KIND_CONSUMABLE, FX_NOVAS, 1.0, 7.0, false],
+	["tome", "SIBYLLINE BOOK", KIND_CONSUMABLE, FX_TOME, 1.0, 7.0, false],
+	["insight", "EYE OF ODIN", KIND_CONSUMABLE, FX_INSIGHT, 0.5, 6.0, false],
 ]
+const I_WEIGHT := 5
+const I_FLAT := 6
 
 ## Caps so stacked armor stays sane: [might, focus, swift, vigor, ward, greed].
 const STAT_CAPS := [2.0, 0.5, 0.6, 5.0, 0.5, 3.0]
@@ -73,6 +76,11 @@ static func kind(idx: int) -> int:
 
 static func effect(idx: int) -> int:
 	return int(ITEMS[idx][3])
+
+
+## True for an item that does the same at every tier (ITEMS' flat column).
+static func flat(idx: int) -> bool:
+	return bool(ITEMS[idx][I_FLAT])
 
 
 ## The tier of a new chest, COMMON to LEGENDARY (never ULTRA). `luck` 0 is a plain chest; each point of luck
@@ -112,14 +120,17 @@ static func run_stream(seed_value: int) -> RandomNumberGenerator:
 ## The run's loot draws, decided once when the run starts from its own stream (run_stream): "ultra" and "card"
 ## are uniform draws that make the run an ULTRA RARE run or a card run when below that chance (ultra_run_chance,
 ## Cards.card_run_chance); "ultra_at" and "card_at" are uniform draws for each one's moment (moment); "card_urn" a
-## uniform draw for whether a card run's card waits in an urn (Tuning.card_run_urn). The same seed always gives the
-## same draws.
+## uniform draw for whether a card run's card waits in an urn (Tuning.card_run_urn); "card_kind" a uniform draw for
+## which card a card run gives (WorldDrops.run_card), drawn last so every other key keeps its value for every seed.
+## The same seed always gives the same draws.
 static func run_rolls(r: RandomNumberGenerator) -> Dictionary:
 	var ultra := r.randf()
 	var ultra_at := r.randf()
 	var card := r.randf()
 	var card_at := r.randf()
-	return {"ultra": ultra, "ultra_at": ultra_at, "card": card, "card_at": card_at, "card_urn": r.randf()}
+	var card_urn := r.randf()
+	return {"ultra": ultra, "ultra_at": ultra_at, "card": card, "card_at": card_at, "card_urn": card_urn,
+		"card_kind": r.randf()}
 
 
 ## The chance a run is an ULTRA RARE run: `base`, plus `per_luck` for each point of the run's chest luck (meta
@@ -134,17 +145,30 @@ static func moment(u: float, from: float, to: float, run_seconds: float) -> floa
 	return lerpf(from, to, clampf(u, 0.0, 1.0)) * run_seconds
 
 
-## A chest item index, drawn by weight.
-static func roll_item(rng: RandomNumberGenerator) -> int:
+## A chest item index for a chest of `tier`, drawn by weight with one draw. At LEGENDARY and above a flat item (the
+## same at every tier) has no weight; below it every item keeps its weight, so every seed rolls what it always did.
+static func roll_item(rng: RandomNumberGenerator, tier: int = COMMON) -> int:
 	var total: float = 0.0
-	for row: Array in ITEMS:
-		total += float(row[5])
-	var r: float = rng.randf() * total
 	for i: int in range(ITEMS.size()):
-		r -= float(ITEMS[i][5])
+		total += _item_weight(i, tier)
+	var r: float = rng.randf() * total
+	var last := ITEMS.size() - 1
+	for i: int in range(ITEMS.size()):
+		var wt := _item_weight(i, tier)
+		if wt <= 0.0:
+			continue
+		last = i
+		r -= wt
 		if r < 0.0:
 			return i
-	return ITEMS.size() - 1
+	return last
+
+
+## Item `idx`'s weight in a chest of `tier` (roll_item).
+static func _item_weight(idx: int, tier: int) -> float:
+	if tier >= LEGENDARY and flat(idx):
+		return 0.0
+	return float(ITEMS[idx][I_WEIGHT])
 
 
 ## The item's value at `tier`: an armor stat amount, or a consumable's strength.

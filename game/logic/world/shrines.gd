@@ -168,7 +168,7 @@ static func _apply_fate(w: World, fate: int, times: int, p: World.Player, pos: V
 				else:
 					w.fate_heal[q.slot] = int(w.fate_heal.get(q.slot, 0)) + hearts
 		Gamble.TO_EMPEROR:
-			for q: World.Player in w.humans():
+			for q: World.Player in WorldApprentices.human_seats(w): # an away human too
 				for i in times:
 					WorldDrops._drop(w, World.PK_CHEST, q.pos, Vector2.from_angle(w.rng.randf() * TAU) * 40.0, w.tune.chest_life,
 						int(w.tune.elite_chest_luck))

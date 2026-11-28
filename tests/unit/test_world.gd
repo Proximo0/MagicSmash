@@ -1053,8 +1053,16 @@ func _floor_count(w: World, kind: int) -> int:
 	return n
 
 
+## Sets the card run's kind roll so that its card is `idx` (one of WorldDrops.run_card_choices).
+func _card_kind(w: World, idx: int) -> void:
+	var choices := WorldDrops.run_card_choices(w)
+	assert_true(choices.has(idx), "%s can drop in this run" % Cards.card_name(idx))
+	w.run_loot.card_kind = (choices.find(idx) + 0.5) / choices.size()
+
+
 func test_a_card_run_drops_exactly_one_card_and_picking_it_up_announces_it() -> void:
 	var w := World.new([0], 3, _loot_tune(0.0, 1.0))
+	_card_kind(w, Cards.for_enemy(World.BAT))
 	var p := _player(w)
 	for i: int in range(40):
 		w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
@@ -1079,11 +1087,99 @@ func test_a_card_run_waits_for_its_moment() -> void:
 	t.loot_moment_from = 0.5
 	t.loot_moment_to = 0.5
 	var w := World.new([0], 3, t)
+	_card_kind(w, Cards.for_enemy(World.BAT))
 	w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
 	assert_eq(_floor_count(w, World.PK_CARD), 0, "too early")
 	w.wave_time = Bosses.final_time(w.schedule) * 0.5
 	w._kill_enemy(w.spawn_enemy(World.BAT, 0, Vector2(150, 120)), 0)
 	assert_eq(_floor_count(w, World.PK_CARD), 1, "at its moment")
+
+
+## Every monster card can be a card run's card: each kind the run's horde spawns (the late BONE PRIEST and
+## GARGOYLE too, the DROPLET with its slime) and the final boss's, THE LICH with no Seal.
+func test_every_monster_card_can_be_a_card_runs_card() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 1.0))
+	var want: Array[int] = []
+	for i: int in range(Cards.count()):
+		if Cards.enemy(i) >= 0:
+			want.append(i)
+	assert_eq(WorldDrops.run_card_choices(w), want, "the 12 monster cards, in card order")
+	var seen := {}
+	for s: int in range(1, 2001):
+		w.run_loot = Loot.run_rolls(Loot.run_stream(s))
+		var idx := WorldDrops.run_card(w)
+		seen[idx] = int(seen.get(idx, 0)) + 1
+	for idx: int in want:
+		assert_true(int(seen.get(idx, 0)) > 100, "%s rolled %d of 2000" % [Cards.card_name(idx), int(seen.get(idx, 0))])
+	assert_eq(seen.size(), want.size())
+
+
+## A card run's card drops from the first kill of its own kind at or after its moment, never from another kind;
+## THE LICH from the Archlich's kill. Each kill still takes its one draw from the main stream.
+func test_a_card_run_drops_from_its_own_kind() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 1.0))
+	_card_kind(w, Cards.for_enemy(World.GARGOYLE))
+	for i: int in range(40):
+		for type: int in [World.GOBLIN, World.BAT, World.SLIME]:
+			var e := w.spawn_enemy(type, 0, Vector2(150, 120))
+			var before := w.rng.state
+			WorldDrops._roll_card(w, e)
+			var ref := RandomNumberGenerator.new()
+			ref.state = before
+			ref.randf()
+			assert_eq(w.rng.state, ref.state, "one draw a kill")
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "no goblin, bat or slime card")
+	WorldDrops._roll_card(w, w.spawn_enemy(World.GARGOYLE, 0, Vector2(150, 120)))
+	WorldDrops._roll_card(w, w.spawn_enemy(World.GARGOYLE, 0, Vector2(150, 120)))
+	assert_eq(_floor_count(w, World.PK_CARD), 1, "the first gargoyle drops it, once")
+	assert_eq(w.pickups[-1].value, Cards.for_enemy(World.GARGOYLE))
+	var l := World.new([0], 3, _loot_tune(0.0, 1.0))
+	_card_kind(l, Cards.for_enemy(World.LICH))
+	var arch := l.spawn_enemy(World.LICH, 0, Vector2(150, 120))
+	WorldBosses._make_final(l, arch)
+	WorldDrops._roll_card(l, arch)
+	assert_eq(_floor_count(l, World.PK_CARD), 1, "THE LICH from the Archlich's kill")
+	assert_eq(l.pickups[-1].value, Cards.for_enemy(World.LICH))
+
+
+## An urn card run keeps its card in the first urn broken at or after its moment, of the rolled kind.
+func test_an_urn_card_run_waits_in_an_urn_with_its_kind() -> void:
+	var w := World.new([0], 3, _loot_tune(0.0, 1.0, 1.0))
+	_card_kind(w, Cards.for_enemy(World.PRIEST))
+	w._kill_enemy(w.spawn_enemy(World.PRIEST, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "no kill drops an urn run's card")
+	w._break_urn(Vector2(120, 120))
+	w._break_urn(Vector2(120, 120))
+	assert_eq(_floor_count(w, World.PK_CARD), 1)
+	for k: World.Pickup in w.pickups:
+		if k.kind == World.PK_CARD:
+			assert_eq(k.value, Cards.for_enemy(World.PRIEST) + World.URN_CARD)
+
+
+## apply_meta's "urn_card" makes the run a card run whose card waits in the first urn broken at or after its moment;
+## without the key nothing changes.
+func test_the_meta_urn_card_makes_an_urn_card_run() -> void:
+	var t := _loot_tune(0.0, 0.0)
+	t.loot_moment_from = 0.5
+	t.loot_moment_to = 0.5
+	var w := World.new([0], 3, t)
+	w.apply_meta({"urn_card": true})
+	_card_kind(w, Cards.for_enemy(World.ORC))
+	w._break_urn(Vector2(120, 120))
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "not before its moment")
+	w.wave_time = Bosses.final_time(w.schedule) * 0.5
+	w._kill_enemy(w.spawn_enemy(World.ORC, 0, Vector2(150, 120)), 0)
+	assert_eq(_floor_count(w, World.PK_CARD), 0, "never from a kill")
+	w._break_urn(Vector2(120, 120))
+	w._break_urn(Vector2(120, 120))
+	assert_eq(_floor_count(w, World.PK_CARD), 1, "the first urn at its moment")
+	var plain := World.new([0], 3, t)
+	plain.apply_meta({})
+	plain.wave_time = Bosses.final_time(plain.schedule) * 0.5
+	for i: int in range(20):
+		plain._break_urn(Vector2(120, 120))
+	assert_eq(_floor_count(plain, World.PK_CARD), 0, "no key, no card run")
+	assert_false(WorldDrops.card_due(plain))
 
 
 func test_out_of_a_loot_run_nothing_drops_a_card_or_opens_ultra_rare() -> void:

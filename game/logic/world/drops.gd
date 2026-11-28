@@ -3,17 +3,68 @@ extends RefCounted
 ## Drops for World: what kills and urns drop, pickups, magnet XP, collecting and chests. Static helpers; the first argument is the World.
 
 
-## The card run's card (WorldDrops.card_due): the first kill with a card (Cards.run_card) once its moment has
-## come drops it, a boss's kill too. Out of a card run, or once it has dropped, no kill drops a card.
+## Kinds that come into a run only from another kind (a slime splits into mini slimes): kind -> the kind it comes
+## from. A kind here spawns in a run when the kind it comes from does (run_card_choices).
+const SPAWNED_FROM := {Bestiary.MSLIME: Bestiary.SLIME}
+
+
+## The card run's card (WorldDrops.card_due, run_card): the first kill that stands for it (Cards.run_card) once its
+## moment has come drops it, the final boss's kill for its card. Out of a card run, once it has dropped, or when it
+## waits in an urn (_card_in_urn), no kill drops a card. Every kill takes its one draw all the same.
 static func _roll_card(w: World, e: World.Enemy) -> void:
 	w.rng.randf() # every kill drew for a card when cards were a per-kill chance: kept so the main stream stays as it was
-	if not card_due(w) or float(w.run_loot.card_urn) < w.tune.card_run_urn:
+	if not card_due(w) or _card_in_urn(w):
 		return
 	var idx := Cards.run_card(e.type, e.final, w.seal_card)
-	if idx < 0:
+	if idx < 0 or idx != run_card(w):
 		return
 	w.card_dropped = true
 	_drop(w, World.PK_CARD, e.pos, Vector2(0, -50), w.tune.chest_life, idx)
+
+
+## True when the card run's card waits in an urn (_break_urn) rather than in a kill: the run's urn draw is under
+## Tuning.card_run_urn, or the run was given an urn card (apply_meta's "urn_card").
+static func _card_in_urn(w: World) -> bool:
+	return w.urn_card or float(w.run_loot.get("card_urn", 1.0)) < w.tune.card_run_urn
+
+
+## The cards this run can give, in card order: every monster card whose kind the run's horde spawns before its final
+## boss (a HORDE row unlocked by then with weight in an act, or a kind that comes from one: SPAWNED_FROM), and the
+## card each of the schedule's bosses stands for (Cards.run_card: the Archlich's is the Seal's card under a Seal,
+## THE LICH otherwise; the act bosses have none).
+static func run_card_choices(w: World) -> Array[int]:
+	var end := Bosses.final_time(w.schedule)
+	var kinds := {}
+	for row: Array in Bestiary.HORDE:
+		var weight := 0
+		for col: int in range(Bestiary.H_W1, Bestiary.H_GMIN):
+			weight += int(row[col])
+		if weight > 0 and float(row[Bestiary.H_UNLOCK]) < end:
+			kinds[int(row[Bestiary.H_TYPE])] = true
+	for kind: int in SPAWNED_FROM:
+		if kinds.has(int(SPAWNED_FROM[kind])):
+			kinds[kind] = true
+	var out: Array[int] = []
+	for kind: int in kinds:
+		var idx := Cards.for_enemy(kind)
+		if idx >= 0 and not out.has(idx):
+			out.append(idx)
+	for row: Array in w.schedule:
+		var idx := Cards.run_card(int(row[1]), bool(row[2]), w.seal_card)
+		if idx >= 0 and not out.has(idx):
+			out.append(idx)
+	out.sort()
+	return out
+
+
+## The card run's card: the run's kind draw (Loot.run_rolls "card_kind") picks one of run_card_choices, each as
+## likely; -1 when the run can give none.
+static func run_card(w: World) -> int:
+	var choices := run_card_choices(w)
+	if choices.is_empty():
+		return -1
+	var u := clampf(float(w.run_loot.get("card_kind", 0.0)), 0.0, 1.0)
+	return choices[mini(int(u * choices.size()), choices.size() - 1)]
 
 
 ## Seconds into the run of a seeded moment (Loot.moment over the run up to the Archlich's arrival).
@@ -31,13 +82,14 @@ static func ultra_due(w: World) -> bool:
 	return float(w.run_loot.ultra) < chance and w.wave_time >= _loot_moment(w, float(w.run_loot.ultra_at))
 
 
-## True while this is a card run (Cards.card_run_chance with the Seal's card odds), its moment has come and its
-## one card has not dropped yet (from a kill, _roll_card, or an urn, _break_urn).
+## True while this is a card run (Cards.card_run_chance with the Seal's card odds, or an urn card the run was
+## given: World.urn_card), its moment has come and its one card has not dropped yet (from a kill, _roll_card, or an
+## urn, _break_urn).
 static func card_due(w: World) -> bool:
 	if w.card_dropped or w.run_loot.is_empty():
 		return false
-	return float(w.run_loot.card) < Cards.card_run_chance(w.tune.card_run_chance, w.seal_cards) \
-		and w.wave_time >= _loot_moment(w, float(w.run_loot.card_at))
+	var card_run := w.urn_card or float(w.run_loot.card) < Cards.card_run_chance(w.tune.card_run_chance, w.seal_cards)
+	return card_run and w.wave_time >= _loot_moment(w, float(w.run_loot.card_at))
 
 
 static func _roll_drop(w: World, e: World.Enemy) -> void:
@@ -122,15 +174,16 @@ static func _update_urns(w: World) -> void:
 
 
 ## What falls out of a broken urn: usually coins or nothing, sometimes a gem or potion, rarely a rare chest, and
-## very rarely a monster card of any kind.
+## very rarely the card run's card (run_card), when it waits in an urn.
 static func _break_urn(w: World, at: Vector2) -> void:
 	var r := w.rng.randf()
 	var pop := Vector2(0, 30)
 	var what := World.URN_DUST
-	if card_due(w) and float(w.run_loot.card_urn) < w.tune.card_run_urn: # the card run's card, waiting in an urn
+	var urn_card := run_card(w) if card_due(w) and _card_in_urn(w) else -1 # the card run's card, waiting in an urn
+	if urn_card >= 0:
 		what = World.URN_CARD_DROP
 		w.card_dropped = true
-		_drop(w, World.PK_CARD, at, Vector2(0, -50), w.tune.chest_life, Sanctum.roll_card(w.loot_rng) + World.URN_CARD)
+		_drop(w, World.PK_CARD, at, Vector2(0, -50), w.tune.chest_life, urn_card + World.URN_CARD)
 	elif r < w.tune.urn_rare_chance:
 		what = World.URN_CHEST
 		_drop(w, World.PK_CHEST_RARE, at, pop, w.tune.chest_life, 2)
@@ -302,7 +355,7 @@ static func _open_chest(w: World, p: World.Player, k: World.Pickup) -> void:
 		tier = maxi(tier, Loot.RARE)
 	elif k.kind == World.PK_CHEST_ULTRA: # the ULTRA RARE run's chest, the only way to ULTRA RARE (APPRENTICE: none)
 		tier = Loot.ULTRA if w.seal_ultra else Loot.LEGENDARY
-	var idx := Loot.roll_item(w.rng)
+	var idx := Loot.roll_item(w.rng, tier) # one draw; never a flat item at LEGENDARY or above
 	w.record.add(p.slot, "chests", 1)
 	w.record.best(p.slot, "best_tier", tier)
 	if tier >= Loot.LEGENDARY:

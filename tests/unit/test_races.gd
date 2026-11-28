@@ -45,13 +45,30 @@ func test_apply_hero_gives_the_race_traits() -> void:
 		w.apply_hero(w.players[r], Hero.make(r, Classes.MAGE).to_dict())
 	assert_near(w.players[Races.ELF].reach_mul, 1.25)
 	assert_near(w.players[Races.HUMAN].reach_mul, 1.0)
-	assert_near(w.players[Races.DWARF].knock_mul, 0.5)
-	assert_near(w.players[Races.ORC].knock_mul, 1.0)
+	assert_near(w.players[Races.DWARF].safe_mul, 1.5)
+	assert_near(w.players[Races.ORC].safe_mul, 1.0)
 	assert_near(w.players[Races.ORC].fury, 0.10)
 	assert_near(w.players[Races.ELF].fury, 0.0)
 	assert_near(float(w.players[Races.ELF].armor[Loot.ST_SWIFT]), 4 * float(Hero.POINT_VALUE[Loot.ST_SWIFT]))
 	assert_near(w.players[Races.HUMAN].luck, Hero.LUCK_PER_FORTUNE)
 	assert_eq(w.players[Races.DWARF].max_hp, World.BASE_HEARTS + 1, "4 VIGOR points are a heart")
+
+
+## STURDY: a hit DWARF stays unhurt 1.5 times as long as a HUMAN of the same class.
+func test_a_dwarf_stays_unhurt_longer_after_a_hit() -> void:
+	assert_eq(Races.trait_name(Races.TR_STURDY), "UNHURT 50% LONGER AFTER A HIT")
+	for cls: int in [Classes.MAGE, Classes.KNIGHT]:
+		var w := World.new([0, 1], 3, Tuning.new())
+		var hu: World.Player = w.players[0]
+		var dw: World.Player = w.players[1]
+		w.apply_hero(hu, Hero.make(Races.HUMAN, cls).to_dict())
+		w.apply_hero(dw, Hero.make(Races.DWARF, cls).to_dict())
+		for p: World.Player in [hu, dw]:
+			p.armor[Loot.ST_WARD] = 0.0 # no hit shrugged off
+			p.invuln = 0.0
+			w.hurt_player(p, 1)
+		assert_near(hu.invuln, Classes.hurt_safe(cls), 0.0001, "a human's safety is her class's")
+		assert_near(dw.invuln, hu.invuln * 1.5, 0.0001, "a dwarf's lasts half again as long")
 
 
 func test_orc_fury_at_two_hearts_or_fewer() -> void:

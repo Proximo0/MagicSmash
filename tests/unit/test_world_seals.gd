@@ -289,19 +289,19 @@ func test_luck_ultra_and_the_seal_card() -> void:
 	s4.tune.card_run_urn = 0.0
 	s4.tune.loot_moment_from = 0.0
 	s4.tune.loot_moment_to = 0.0
+	var choices := WorldDrops.run_card_choices(s4)
+	assert_true(choices.has(Seals.card(5)), "SEAL IV's card run can give its Seal card")
+	assert_false(choices.has(Cards.for_enemy(World.LICH)), "under a Seal the Archlich's card is the Seal's")
+	s4.run_loot.card_kind = (choices.find(Seals.card(5)) + 0.5) / choices.size()
+	assert_eq(WorldDrops.run_card(s4), Seals.card(5))
+	WorldDrops._roll_card(s4, WorldWaves.spawn_enemy(s4, World.LICH, 0))
+	assert_eq(_cards_on_floor(s4), [], "a plain Lich never drops a Seal card")
 	var arch := WorldWaves.spawn_enemy(s4, World.LICH, 0)
 	WorldBosses._make_final(s4, arch)
 	WorldDrops._roll_card(s4, arch)
 	assert_eq(_cards_on_floor(s4), [Seals.card(5)], "SEAL IV's Archlich drops its card in a card run")
 	WorldDrops._roll_card(s4, arch)
 	assert_eq(_cards_on_floor(s4).size(), 1, "a card run drops one card")
-	var s4b := _world(5)
-	s4b.tune.card_run_chance = 1.0
-	s4b.tune.card_run_urn = 0.0
-	s4b.tune.loot_moment_from = 0.0
-	s4b.tune.loot_moment_to = 0.0
-	WorldDrops._roll_card(s4b, WorldWaves.spawn_enemy(s4b, World.LICH, 0))
-	assert_eq(_cards_on_floor(s4b), [Cards.for_enemy(World.LICH)], "a plain Lich never drops a Seal card")
 	var w1 := _world(1)
 	var arch0 := WorldWaves.spawn_enemy(w1, World.LICH, 0)
 	WorldBosses._make_final(w1, arch0)
