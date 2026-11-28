@@ -1,0 +1,1 @@
+2026-11-28T01:46:38Z INFO id=261128000023-2491 kind=shell secs=312 wandsrun key=0a4fe68b461c runs=2 won=1 lost=1 wall_s=215 seeds=509311,509312
