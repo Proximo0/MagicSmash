@@ -3,8 +3,8 @@ The only game in work (Curtis, 27 Nov 2026: Horde & Hearth is saved for later in
 Horde & Hearth lives in `realm/` and `docs/realm/` (its notes: `docs/realm/claude_notes.md`): leave it buildable, do not work on it or read it.
 
 Co-op survivors-like wizard shooter, 1-4p (local+LAN, host-auth ENet). 480x270 pixel art, Compat renderer.
-Target: Steam Next Fest 22 Feb-1 Mar 2027 (register by 10 Jan 23:59 PST; build + store page in review by 18 Jan; full release after 1 Mar).
-C wants to see the finished game before 10 Jan. The Next Fest build is the full game, never a cut-down slice. Plan: `docs/release_plan.md`.
+Target (C, 27 Nov 2026): no date. Finish the full, professional game; a later Steam Next Fest (not Feb 2027) is marketing, planned when C says so.
+Seven stages closed by gates, never cuts for a date; C gets a playable build at each gate; never a cut-down slice. Plan: `docs/release_plan.md`.
 
 Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summary line · `⇒` rule · L lead · W worker
 · pure = `RefCounted` + `class_name`, no Node · § = doc section
@@ -22,7 +22,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 - Play `godot --path . [-- --seed=N]` · bots+shots `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir] [--perf]`
 
 ## Layout
-- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards
+- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards LobbyRules
 - Split scripts: `World` = `game/logic/world.gd` (fields, step, snapshot, forwarders) + `game/logic/world/*.gd` (`World*` static helpers, 1st arg `w: World`); `Arena` = `game/arena/arena.gd` + `view_sync seats events fate_view draw_world draw_fx draw_enemies hud tray results_view` (`Arena*` statics, 1st arg `a: Arena`). `test_world` covers the World helpers.
 - `game/debug/` Tuning (all gameplay numbers, `world.tune`), autotest · `game/autoload/` Flags Controls G Save Sfx Net Platform Crash
 - Sole owners: Save ↔ `user://profile.json` · Platform ↔ Steam (`docs/steam.md`) · Crash ↔ Sentry (`docs/sentry.md`)

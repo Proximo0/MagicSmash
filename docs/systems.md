@@ -237,11 +237,11 @@ How each system works: read only the section for the system you touch (`grep -n 
   - `--autotest --wizard=2` steps the first player two wizards right before the run.
 - Step 6 is done.
 
-## Steam (rework step 7)
+## Steam (stage 7 of the release plan)
 
 - See `docs/steam.md`: what the code does with Steam and the Steamworks checklist for Curtis.
 - 7a: the achievements (`Achievements`) and the `Platform` autoload, a no-op until GodotSteam and an App ID are
-  in. Asked Curtis on 19 Nov for the App ID and whether the app fee is paid (it was due 18 Nov for 18 Dec).
+  in. Nothing is due on Steam now: stage 7 of `docs/release_plan.md` starts when Curtis says the marketing starts.
 - 7b: `tools/capsules.gd` draws draft store and library capsules (see `docs/steam.md`).
 - Ask Curtis before any store action, payment or upload.
 

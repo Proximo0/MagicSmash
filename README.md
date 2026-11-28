@@ -1,8 +1,10 @@
-# Magic Smash
+# Four of Wands
+
+The repository, the class names and the save folder keep the working title, Magic Smash.
 
 **Hold the wizards' tower against Morvane's horde.** A co-op survivors-like for 1 to 4 wizards, on one
 machine or over LAN (and Steam Remote Play Together). Built with **Godot 4.7.2** (GDScript, Compatibility
-renderer) and launching on Steam on 18 December 2026.
+renderer) for a Steam release. There is no date yet: the game is finished first (`docs/release_plan.md`).
 
 > When the Black Comet split the sky above Aldermoor, the dead stopped sleeping. Morvane the scholar read the
 > ninth page of the Ashen Grimoire, and now his horde climbs the wizards' tower for the book that will make him

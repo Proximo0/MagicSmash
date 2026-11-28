@@ -170,3 +170,40 @@ returns).
 
 `sim_horde` now times its peak in three windows and takes the cheapest (`PEAK_WINDOWS`): the same code measured
 2483 to 3217 us on one idle machine with one 600-tick average, and 2500 both times with the windows.
+
+### Pass 4, 27 Nov 2026: real frame times on the two slow PCs (measured; nothing changed yet)
+
+Station job `wandsframes` (`tools/station/jobs/wandsframes.sh`): the real game in a window on the PC's own graphics,
+`--autotest=<wave> --players=<n> --perf`, 300 frames. Frame time in ms, p50 / p95.
+
+| scene | Celeron N4100, UHD 600 (Heatherspc) | Ryzen laptop, Radeon 610M |
+| --- | --- | --- |
+| Archlich (wave 15), 4 players | 133.6 / 217.5 | 18.4 / 28.1 |
+| Archlich, 2 players | 115.0 / 211.3 | 17.8 / 27.2 |
+| Archlich, 1 player | 72.4 / 170.8 | 16.6 / 18.6 |
+| wave 10, 4 players | 126.4 / 186.8 | 17.5 / 23.4 |
+| wave 5, 4 players | 67.2 / 152.3 | not run yet |
+
+Script time a frame at the Archlich with 4 players, in ms (`PERF` lines; about 280 enemies, about 100 draw calls):
+
+| section | Celeron | Ryzen laptop |
+| --- | --- | --- |
+| world_step | 66.86 | 3.55 |
+| snapshot | 22.82 | 1.37 |
+| draw_entities | 15.38 | 4.64 |
+| draw_hud | 4.49 | 1.54 |
+| total_script | 119.00 | 14.19 |
+
+What the numbers say, for the speed pass (stage 3 of `docs/release_plan.md`, skill `measure-fix-loop`):
+
+- The game is script-bound on both PCs.
+- `Arena._physics_process` runs `world.step`, `world.snapshot` and `_apply_snapshot` once a physics tick, 60 a
+  second. A frame slower than 16.7 ms runs several ticks (the engine's cap of 8 a frame is not changed in
+  `project.godot`), so the Celeron pays for about 8 steps and 8 snapshots a frame: about 8.4 ms a step and 2.9 ms a
+  snapshot, against about 3.2 and 1.2 on the laptop. Only the last snapshot of a frame is drawn. Read a section's
+  cost per tick (section / ticks a frame) before comparing two machines.
+- Candidates, in the order to measure them: apply the snapshot once a drawn frame when offline (the network keeps
+  its own rate); a lower cap on ticks a frame, so a slow PC slows down instead of spiralling; the step at the enemy
+  cap; `draw_entities`; `draw_hud` (4 to 5 ms on the Celeron for a mostly still picture).
+- The gate (stage 5): the worst moment of a four-player run holds 60 frames a second on the Ryzen laptop. Today its
+  script cost alone is 14.2 ms of the 16.7.
