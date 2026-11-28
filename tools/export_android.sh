@@ -7,8 +7,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_NAME="Four of Wands"
 PROJECT_SLUG="Four-of-Wands"  # no spaces: used for file names
-GODOT_VERSION="4.7.2"
-TEMPLATE_TAG="4.7.2-stable"
+# The engine version has one home: tools/versions.env (CR stripped so a Windows checkout reads the same).
+source <(tr -d '\r' <"${ROOT}/tools/versions.env")
+TEMPLATE_TAG="${GODOT_TEMPLATE_TAG}"
 TEMPLATE_DIR="${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
 TPZ_URL="https://github.com/godotengine/godot/releases/download/${TEMPLATE_TAG}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
 CACHE_DIR="${HOME}/.cache/godot-templates"

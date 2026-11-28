@@ -4,9 +4,9 @@ name: checks
 
 # The rule on main requires these jobs on every pull request: unit, lint, sims, sims-horde, bot-0..2 (and realm.yml's
 # linux, windows, same-hash, client-windows), so this workflow must run on all of them: with a paths filter here a
-# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win and bot-again run on every pull request
-# too but are not in the rule yet: adding them is the owner's step in the repository's rules. Until then read their
-# result before a merge; the stations' `checks` role runs them on every merge (tools/check_all.sh).
+# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win, bot-again and tools run on every pull
+# request too but are not in the rule yet: adding them is the owner's step in the repository's rules. Until then read
+# their result before a merge; the stations' `checks` role runs the four bot rows on every merge (tools/check_all.sh).
 on:
   push:
     branches: [main]
@@ -60,3 +60,17 @@ jobs:
           name: ${{ matrix.name }}
           path: out.log
           if-no-files-found: ignore
+
+  # The land script, the guard and the versions rule test themselves: throwaway repositories, a stub gh, no engine,
+  # no network (docs/agent/land.md).
+  tools:
+    name: tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-tests of the land tools
+        shell: bash
+        run: |
+          bash tools/land_test.sh
+          bash tools/lint_versions_test.sh
