@@ -5,11 +5,12 @@ extends TestCase
 const Career := preload("res://tools/career.gd")
 
 
-## The policy buys the cheapest affordable META level, list order on ties, until nothing is affordable.
+## The policy buys the cheapest affordable level on the shelf, list order on ties, until nothing is affordable;
+## a level a Seal win holds back is not bought.
 func test_spending_buys_the_cheapest_level_first() -> void:
 	var p := Profile.new()
 	var cheapest := -1
-	for i: int in range(Profile.META.size()):
+	for i: int in p.shelf():
 		if cheapest < 0 or p.next_cost(i) < p.next_cost(cheapest):
 			cheapest = i
 	p.crystals = p.next_cost(cheapest)
@@ -18,15 +19,20 @@ func test_spending_buys_the_cheapest_level_first() -> void:
 	assert_eq(p.crystals, 0)
 	p.crystals = 1000000
 	Career.spend_crystals(p)
-	for i: int in range(Profile.META.size()):
+	for i: int in p.shelf():
 		assert_eq(p.next_cost(i), -1, "a rich profile left %s unbought" % Profile.META[i][0])
+	assert_eq(p.level("might"), 3, "RUNED STAFF 4 waits for the SEAL IV win")
+	for key: String in Profile.UNBUILT:
+		assert_eq(p.level(key), 0, key + " is off the shelf")
+	p.seal_best = Seals.MAX
+	assert_eq(Career.spend_crystals(p), ["might", "might"] as Array[String])
 
 
 ## With too few crystals for any level nothing is bought.
 func test_spending_with_too_few_crystals_buys_nothing() -> void:
 	var p := Profile.new()
 	var least := 1 << 30
-	for i: int in range(Profile.META.size()):
+	for i: int in p.shelf():
 		least = mini(least, p.next_cost(i))
 	p.crystals = least - 1
 	assert_eq(Career.spend_crystals(p).size(), 0)

@@ -10,26 +10,96 @@ const VERSION := 2
 ## Saved heroes at most.
 const MAX_HEROES := 8
 
-## [key, name, description, crystal cost per level]. The number of costs is the max level. Effects per level
-## are in EFFECTS. Append new unlocks at the end; keys are what the save file stores.
+## [key, name, description, crystal cost per level] (docs/content_list.md § 45). The number of costs is the max
+## level. Effects per level are in EFFECTS. Append new unlocks at the end; keys are what the save file stores.
+## A CLEAN SLATE (`respec`) is bought each time and never gains a level (clean_slate).
 const META: Array = [
-	["vigor", "WARDED ROBES", "+1 HEART", [30, 90]],
-	["might", "RUNED STAFF", "+5% DAMAGE", [20, 50, 110]],
-	["wisdom", "FORBIDDEN LORE", "+6% XP", [20, 50, 110]],
-	["fortune", "MIDAS' PURSE", "+15% GOLD", [15, 40, 90]],
-	["novas", "BOTTLED STAR", "+1 NOVA", [25, 70]],
-	["luck", "FOUR-LEAF RUNE", "LUCKIER CHESTS", [60, 160]],
+	["vigor", "WARDED ROBES", "+1 HEART", [40, 160]],
+	["might", "RUNED STAFF", "+4% DAMAGE", [30, 70, 150, 300, 600]],
+	["wisdom", "FORBIDDEN LORE", "+6% XP", [30, 80, 200]],
+	["fortune", "MIDAS' PURSE", "+15% GOLD", [20, 60, 150]],
+	["novas", "BOTTLED STAR", "+1 NOVA", [40, 140]],
+	["luck", "FOUR-LEAF RUNE", "LUCKIER CHESTS", [80, 240]],
+	["redraw", "THE SECOND GLANCE", "+1 REDRAW EACH RUN", [60, 220]],
+	["banish", "THE BLACK RIBBON", "+1 BANISH EACH RUN", [60, 220]],
+	["start_level", "THE HEAD START", "THE PARTY STARTS A LEVEL UP", [120, 400]],
+	["satchel", "THE SATCHEL", "+1 POCKET FOR EVERY HERO", [300, 900]],
+	["favour", "THE READER'S FAVOUR", "DEAL THE READING AGAIN, THEN 4", [250, 750]],
+	["respec", "A CLEAN SLATE", "HER STAT POINTS BACK TO SPEND", [50]],
+	["deck_hex", "THE WITCH'S DECK", "OPENS HEX AND THE DEVIL", [150]],
+	["deck_blades", "THE DUELLIST'S DECK", "OPENS SPIRIT BLADES, THE EMPRESS", [150]],
+	["deck_priestess", "THE VEILED DECK", "OPENS THE HIGH PRIESTESS", [200]],
 ]
+const RESPEC := "respec"
 
-## Bonus per level for each META key, as World.apply_meta reads them.
+## Bonus per level for each META key, as World.apply_meta reads them. satchel, respec and the decks have no run
+## effect (the satchel's pockets live on the heroes; the decks open content: OPENS).
 const EFFECTS := {
 	"vigor": ["hearts", 1.0],
-	"might": ["damage", 0.05],
+	"might": ["damage", 0.04],
 	"wisdom": ["xp", 0.06],
 	"fortune": ["gold", 0.15],
 	"novas": ["novas", 1.0],
 	"luck": ["luck", 1.0],
+	"redraw": ["redraws", 1.0],
+	"banish": ["banishes", 1.0],
+	"start_level": ["start_level", 1.0],
+	"favour": ["favour", 1.0],
 }
+
+## The shop levels a Seal win holds back (CL § 43): META key -> {level -> the ladder step (Seals) whose win opens
+## it}. A step is won when seal_best is at least it. A level not named here is open on a new profile.
+const GATES := {
+	"might": {4: 5, 5: 5},
+	"redraw": {2: 6},
+	"banish": {2: 3},
+	"start_level": {2: 8},
+	"satchel": {2: 4},
+	"favour": {2: 7},
+}
+
+## META keys whose effect is not in the game yet: off the shelf (shelf, closed_why "NOT YET"). Each job that builds
+## a row takes its key off; respec stays until the shop screen can draw a row without levels.
+const UNBUILT: Array[String] = ["redraw", "banish", "start_level", "satchel", "favour", "respec", "deck_hex",
+	"deck_blades", "deck_priestess"]
+## closed_why's words: maxed, not built yet, a Seal win to come ("WIN " + Seals.title), no points to give back.
+const WHY_MAX := "MAX"
+const WHY_UNBUILT := "NOT YET"
+const WHY_WIN := "WIN "
+const WHY_NO_POINTS := "NO POINTS"
+
+## The unlock track (CL § 44): [kind, source, content keys]. kind "start": open on a new profile; "deed": open once
+## the deed (an Achievements api name) is earned, and for everyone while Achievements.LIST lacks it; "deck": open
+## once the META key is bought. Keys are Upgrades catalog keys, Reading keys, class and race names, "reading",
+## "overtime" and "daily". An evolution is never listed: it opens when every row its catalog `requires` names is
+## open (locked_rows). A saved hero's class and race are open too (opened).
+const OPENS: Array = [
+	["start", "", ["MAGE", "HUMAN", "ELF", "w_arcane", "w_fire", "w_frost", "w_storm", "w_star", "w_rune",
+		"quick", "power", "regen", "swift", "wisdom", "magnet"]],
+	["deed", "LEVEL_5", ["star"]],
+	["deed", "BOSS_CHANDELIER", ["reading", "r_wands_1", "r_cups_1", "r_swords_1", "r_pent_1", "r_wands_4"]],
+	["deed", "EVOLVE", ["nova"]],
+	["deed", "TEN_MINUTES", ["KNIGHT", "w_cleave", "DWARF"]],
+	["deed", "FALLS_5", ["life"]],
+	["deed", "BOSS_GHOSTWRITER", ["ARCHER", "w_bone", "justice"]],
+	["deed", "OMENS", ["PRIEST", "ORC", "w_candle", "lovers"]],
+	["deed", "ARCHLICH", ["PALADIN", "overtime", "daily", "r_pent_10"]],
+	["deed", "COMBO_200", ["r_wands_8"]],
+	["deed", "SEAL", ["r_wands_10"]],
+	["deed", "REVIVE_3", ["r_cups_2"]],
+	["deed", "BLESSED", ["r_cups_9"]],
+	["deed", "CURSED", ["r_swords_3"]],
+	["deed", "JACKPOT", ["r_pent_4"]],
+	["deed", "KILLS_10K", ["r_swords_7"]],
+	["deed", "KILLS_100K", ["r_pent_9"]],
+	["deed", "WIN_ARCHMAGE", ["r_cups_5"]],
+	["deed", "WIN_SEAL_1", ["r_swords_10"]],
+	["deck", "deck_hex", ["w_hex", "devil"]],
+	["deck", "deck_blades", ["w_blades", "empress"]],
+	["deck", "deck_priestess", ["priestess"]],
+]
+## The catalog kinds the unlock track can lock (locked_rows).
+const LOCKABLE_KINDS: Array[int] = [Upgrades.SPELL, Upgrades.PASSIVE, Upgrades.INSTANT, Upgrades.EVOLUTION]
 
 ## Crystals a run pays: one per CRYSTAL_SECONDS survived, one per CRYSTAL_KILLS kills, CRYSTAL_LICH per Lich slain
 ## (the Archlich counts as one) and CRYSTAL_WIN for a won run.
@@ -148,15 +218,64 @@ func level(key: String) -> int:
 	return int(unlocks.get(key, 0))
 
 
-## Crystal cost of the next level of META[i], or -1 when it is maxed.
+## The ladder step whose win opens level `lv` of META row `key`, or Seals.MIN - 1 when no win holds it back.
+static func gate_step(key: String, lv: int) -> int:
+	var g: Dictionary = GATES.get(key, {})
+	return int(g.get(lv, Seals.MIN - 1))
+
+
+## What a Seal gate says in the place of a price ("WIN SEAL IV"), "" for a level no win holds back.
+static func gate_why(key: String, lv: int) -> String:
+	var step := gate_step(key, lv)
+	return "" if step < Seals.MIN else WHY_WIN + Seals.title(step)
+
+
+## True when this profile's wins open level `lv` of META row `key` (CL § 43).
+func level_open(key: String, lv: int) -> bool:
+	return seal_best >= gate_step(key, lv)
+
+
+## Crystal cost of the next level of META[i], or -1 when it is maxed or a Seal win still holds that level back.
 func next_cost(i: int) -> int:
-	var lv: int = level(META[i][0])
+	var key: String = META[i][0]
+	var lv: int = level(key)
 	var costs: Array = META[i][3]
-	return int(costs[lv]) if lv < costs.size() else -1
+	if lv >= costs.size() or not level_open(key, lv + 1):
+		return -1
+	return int(costs[lv])
 
 
-## Spends crystals on the next level of META[i]. False if it is maxed or too dear.
+## The META rows on sale (indices, in order): every row whose effect is built (not on UNBUILT).
+static func shelf() -> Array[int]:
+	var out: Array[int] = []
+	for i: int in range(META.size()):
+		if not UNBUILT.has(META[i][0]):
+			out.append(i)
+	return out
+
+
+## Why META[i] cannot be bought now, in at most 12 letters: "" when it can (crystals aside), "NOT YET" for a row off
+## the shelf, "MAX", "WIN SEAL IV" and its kin for a gated level, "NO POINTS" for a clean slate with nothing to
+## give back.
+func closed_why(i: int) -> String:
+	var key: String = META[i][0]
+	if UNBUILT.has(key):
+		return WHY_UNBUILT
+	if key == RESPEC:
+		return "" if active_hero().points_spent() > 0 else WHY_NO_POINTS
+	var lv: int = level(key)
+	if lv >= max_level(i):
+		return WHY_MAX
+	return gate_why(key, lv + 1) if not level_open(key, lv + 1) else ""
+
+
+## Spends crystals on the next level of META[i]. False if it is off the shelf, maxed, held back or too dear.
+## A CLEAN SLATE goes through clean_slate.
 func buy(i: int) -> bool:
+	if i < 0 or i >= META.size() or UNBUILT.has(META[i][0]):
+		return false
+	if META[i][0] == RESPEC:
+		return clean_slate()
 	var c: int = next_cost(i)
 	if c < 0 or c > crystals:
 		return false
@@ -165,15 +284,81 @@ func buy(i: int) -> bool:
 	return true
 
 
-## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck} (zero when nothing is bought), the same
-## for every seat. No "armor": a hero's socketed cards reach the World only through her own hero
-## (World.apply_hero -> Hero.stats), so they count once and only for her.
+## A CLEAN SLATE: pays its price and gives the active hero her spent stat points back to spend again. The row
+## stays at level 0, so it can be bought again. False when she has spent none or it is too dear.
+func clean_slate() -> bool:
+	var c: int = int((META[meta_index(RESPEC)][3] as Array)[0])
+	if active_hero().points_spent() <= 0 or c > crystals:
+		return false
+	crystals -= c
+	active_hero().refund_points()
+	return true
+
+
+## Every content key open to this profile (key -> true; OPENS): the start list, the keys of its deeds (and of a
+## deed this build does not hold yet), of its decks, and the class and race name of every saved hero. Computed,
+## never stored, so an old save opens everything its record proves.
+func opened() -> Dictionary:
+	var out := {}
+	for row: Array in OPENS:
+		var src: String = row[1]
+		var open := false
+		match str(row[0]):
+			"start":
+				open = true
+			"deed":
+				open = has_deed(src) or Achievements.row_of(src).is_empty()
+			"deck":
+				open = level(src) >= 1
+		if open:
+			for k: String in row[2]:
+				out[k] = true
+	for h: Hero in heroes:
+		out[Classes.class_name_of(h.cls)] = true
+		out[Races.race_name(h.race)] = true
+	return out
+
+
+## The Upgrades.CATALOG rows (SPELL, PASSIVE, INSTANT, EVOLUTION) this profile has not opened, sorted. A row is
+## found by its key; an evolution is open when every row its `requires` names is open. The World takes a wizard's
+## own class weapon, its arcana and its evolution out of her mask (docs/stage3_brief.md § 4.3).
+func locked_rows() -> Array[int]:
+	var open := opened()
+	var out: Array[int] = []
+	for i: int in range(Upgrades.count()):
+		var kd := Upgrades.kind(i)
+		if not LOCKABLE_KINDS.has(kd):
+			continue
+		var ok := open.has(Upgrades.key(i))
+		if kd == Upgrades.EVOLUTION:
+			ok = true
+			for req: Array in Upgrades.CATALOG[i][Upgrades.C_REQUIRES]:
+				ok = ok and open.has(Upgrades.key(int(req[0])))
+		if not ok:
+			out.append(i)
+	return out
+
+
+## The hero builder's locks: a class or race is open when its name is (opened).
+func class_open(c: int) -> bool:
+	return opened().has(Classes.class_name_of(c))
+
+
+func race_open(r: int) -> bool:
+	return opened().has(Races.race_name(r))
+
+
+## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck, redraws, banishes, start_level, favour}
+## (zero when nothing is bought), the same for every seat, and "locked" (locked_rows: World.apply_meta's mask). No
+## "armor": a hero's socketed cards reach the World only through her own hero (World.apply_hero -> Hero.stats),
+## so they count once and only for her.
 func bonuses() -> Dictionary:
-	var out := {"hearts": 0.0, "damage": 0.0, "xp": 0.0, "gold": 0.0, "novas": 0.0, "luck": 0.0}
+	var out := {}
 	for key: String in EFFECTS:
 		var eff: Array = EFFECTS[key]
-		out[eff[0]] = float(out[eff[0]]) + float(eff[1]) * level(key)
+		out[eff[0]] = float(out.get(eff[0], 0.0)) + float(eff[1]) * level(key)
 	out["urn_card"] = urns >= URN_CARD_AFTER and not has_secret("urn_card") # a bool, World.apply_meta reads it
+	out["locked"] = locked_rows()
 	return out
 
 

@@ -2,17 +2,58 @@ extends TestCase
 ## Profile: crystals, meta unlocks and the saved form (game/logic/profile.gd), and the Save autoload's rules.
 
 
+## The rows that have no effect in a run: the satchel (pockets on the profile), a clean slate and the three decks.
+const NO_RUN_EFFECT := ["satchel", "respec", "deck_hex", "deck_blades", "deck_priestess"]
+
+
 func test_meta_rows_match_effects() -> void:
 	for i: int in range(Profile.META.size()):
 		var key: String = Profile.META[i][0]
-		assert_true(Profile.EFFECTS.has(key), key + " has no effect")
+		assert_true(Profile.EFFECTS.has(key) != NO_RUN_EFFECT.has(key), key + ": an effect, or named as having none")
 		assert_true(Profile.max_level(i) >= 1)
 		var costs: Array = Profile.META[i][3]
 		for k: int in range(1, costs.size()):
 			assert_true(int(costs[k]) > int(costs[k - 1]), key + " costs must rise")
-		# One unlock row: name, pips and description fit the 400 px panel.
-		assert_true(PixelFont.text_width(Profile.META[i][1], 1) <= 100, key + " name too wide")
+		# One unlock row: a name of at most 19 letters (113 px), a description of at most 33 (200 px).
+		assert_true(str(Profile.META[i][1]).length() <= 19, key + " name too long")
+		assert_true(PixelFont.text_width(Profile.META[i][1], 1) <= 113, key + " name too wide")
+		assert_true(str(Profile.META[i][2]).length() <= 33, key + " description too long")
 		assert_true(PixelFont.text_width(Profile.META[i][2], 1) <= 200, key + " description too wide")
+
+
+## CL § 45: the fifteen rows in order with their names and prices; the fourteen that stay bought cost 6,170.
+func test_the_shop_rows_and_prices() -> void:
+	var want := [
+		["vigor", "WARDED ROBES", [40, 160]],
+		["might", "RUNED STAFF", [30, 70, 150, 300, 600]],
+		["wisdom", "FORBIDDEN LORE", [30, 80, 200]],
+		["fortune", "MIDAS' PURSE", [20, 60, 150]],
+		["novas", "BOTTLED STAR", [40, 140]],
+		["luck", "FOUR-LEAF RUNE", [80, 240]],
+		["redraw", "THE SECOND GLANCE", [60, 220]],
+		["banish", "THE BLACK RIBBON", [60, 220]],
+		["start_level", "THE HEAD START", [120, 400]],
+		["satchel", "THE SATCHEL", [300, 900]],
+		["favour", "THE READER'S FAVOUR", [250, 750]],
+		["respec", "A CLEAN SLATE", [50]],
+		["deck_hex", "THE WITCH'S DECK", [150]],
+		["deck_blades", "THE DUELLIST'S DECK", [150]],
+		["deck_priestess", "THE VEILED DECK", [200]],
+	]
+	assert_eq(Profile.META.size(), want.size())
+	var kept := 0
+	for i: int in range(want.size()):
+		var row: Array = Profile.META[i]
+		assert_eq([row[0], row[1], row[3]], want[i])
+		if row[0] != "respec":
+			for c: int in row[3]:
+				kept += c
+	assert_eq(kept, 6170, "the fourteen rows that stay bought")
+	assert_near(float(Profile.EFFECTS["might"][1]), 0.04)
+	assert_eq(Profile.EFFECTS["redraw"], ["redraws", 1.0])
+	assert_eq(Profile.EFFECTS["banish"], ["banishes", 1.0])
+	assert_eq(Profile.EFFECTS["start_level"], ["start_level", 1.0])
+	assert_eq(Profile.EFFECTS["favour"], ["favour", 1.0])
 
 
 func test_buy_spends_crystals_up_to_max() -> void:

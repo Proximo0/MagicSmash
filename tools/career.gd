@@ -160,19 +160,20 @@ static func fresh_profile(party: Array[int], classes: Array) -> Profile:
 	return prof
 
 
-## The spending policy: buys the cheapest affordable META level (list order on ties) until none is affordable.
-## Returns the keys bought, in order.
+## The spending policy: buys the cheapest affordable level on the shelf (Profile.shelf, list order on ties) until
+## none is affordable; a level a Seal win holds back costs -1 and is passed over, and A CLEAN SLATE (no level) is
+## never bought. Returns the keys bought, in order.
 static func spend_crystals(prof: Profile) -> Array[String]:
 	var out: Array[String] = []
 	while true:
 		var best := -1
-		for i: int in range(Profile.META.size()):
+		for i: int in prof.shelf():
 			var c := prof.next_cost(i)
-			if c >= 0 and c <= prof.crystals and (best < 0 or c < prof.next_cost(best)):
+			if Profile.META[i][0] != Profile.RESPEC and c >= 0 and c <= prof.crystals \
+					and (best < 0 or c < prof.next_cost(best)):
 				best = i
-		if best < 0:
+		if best < 0 or not prof.buy(best):
 			return out
-		prof.buy(best)
 		out.append(str(Profile.META[best][0]))
 	return out
 

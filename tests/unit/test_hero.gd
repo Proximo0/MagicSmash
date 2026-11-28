@@ -133,3 +133,18 @@ func test_the_developer_flag() -> void:
 	assert_eq(Hero.from_flag("orc"), null)
 	assert_eq(Hero.from_flag("gnome,knight"), null)
 	assert_eq(Hero.from_flag("orc,9"), null)
+
+
+## A CLEAN SLATE's half: every spent point comes back to spend again; the level and its points stay.
+func test_refund_points_gives_every_spent_point_back() -> void:
+	var h := Hero.make(Races.DWARF, Classes.KNIGHT)
+	h.level = 6
+	assert_eq(h.refund_points(), 0, "nothing spent")
+	assert_true(h.spend_point(Loot.ST_MIGHT))
+	assert_true(h.spend_point(Loot.ST_MIGHT))
+	assert_true(h.spend_point(Loot.ST_GREED))
+	assert_eq(h.refund_points(), 3)
+	assert_eq(h.points, [0, 0, 0, 0, 0, 0] as Array[int])
+	assert_eq(h.points_left(), Hero.points_for(6))
+	assert_eq(h.level, 6)
+	assert_eq(h.sheet_points(), Hero.make(Races.DWARF, Classes.KNIGHT).sheet_points())

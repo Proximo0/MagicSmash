@@ -454,12 +454,16 @@ profile.gd:36-39).
 
 | Name (code key) | What it does | Obtained / unlocked | Pairs with | Source | Test |
 |---|---|---|---|---|---|
-| WARDED ROBES (`vigor`) | 1 per level (hearts += 1); text "+1 HEART" | Crystals: level 1 costs 30; level 2 costs 90 (total 120) | none | game/logic/profile.gd:16; effect game/logic/profile.gd:26 | bot/bot_heroes.gd, test_profile.gd |
-| RUNED STAFF (`might`) | 0.05 per level (damage += 0.05); text "+5% DAMAGE" | Crystals: level 1 costs 20; level 2 costs 50; level 3 costs 110 (total 180) | none | game/logic/profile.gd:17; effect game/logic/profile.gd:27 | bot/bot_heroes.gd, test_profile.gd |
-| FORBIDDEN LORE (`wisdom`) | 0.06 per level (xp += 0.06); text "+6% XP" | Crystals: level 1 costs 20; level 2 costs 50; level 3 costs 110 (total 180) | none | game/logic/profile.gd:18; effect game/logic/profile.gd:28 | none |
-| MIDAS' PURSE (`fortune`) | 0.15 per level (gold += 0.15); text "+15% GOLD" | Crystals: level 1 costs 15; level 2 costs 40; level 3 costs 90 (total 145) | none | game/logic/profile.gd:19; effect game/logic/profile.gd:29 | none |
-| BOTTLED STAR (`novas`) | 1 per level (novas += 1); text "+1 NOVA" | Crystals: level 1 costs 25; level 2 costs 70 (total 95) | none | game/logic/profile.gd:20; effect game/logic/profile.gd:30 | test_profile.gd |
-| FOUR-LEAF RUNE (`luck`) | 1 per level (luck += 1); text "LUCKIER CHESTS" | Crystals: level 1 costs 60; level 2 costs 160 (total 220) | none | game/logic/profile.gd:21; effect game/logic/profile.gd:31 | test_profile.gd, test_seals.gd |
+| WARDED ROBES (`vigor`) | 1 per level (hearts += 1); text "+1 HEART" | Crystals: level 1 costs 40; level 2 costs 160 (total 200) | none | game/logic/profile.gd:17; effect game/logic/profile.gd:38 | bot/bot_heroes.gd, test_profile.gd |
+| RUNED STAFF (`might`) | 0.04 per level (damage += 0.04), 5 levels; text "+4% DAMAGE"; levels 4 and 5 open at the SEAL IV win (`Profile.GATES`) | Crystals: 30, 70, 150, 300, 600 (total 1,150) | none | game/logic/profile.gd:18; effect game/logic/profile.gd:39; gate game/logic/profile.gd:53 | bot/bot_heroes.gd, test_profile.gd, test_unlocks.gd |
+| FORBIDDEN LORE (`wisdom`) | 0.06 per level (xp += 0.06); text "+6% XP" | Crystals: level 1 costs 30; level 2 costs 80; level 3 costs 200 (total 310) | none | game/logic/profile.gd:19; effect game/logic/profile.gd:40 | test_profile.gd |
+| MIDAS' PURSE (`fortune`) | 0.15 per level (gold += 0.15); text "+15% GOLD" | Crystals: level 1 costs 20; level 2 costs 60; level 3 costs 150 (total 230) | none | game/logic/profile.gd:20; effect game/logic/profile.gd:41 | test_profile.gd |
+| BOTTLED STAR (`novas`) | 1 per level (novas += 1); text "+1 NOVA" | Crystals: level 1 costs 40; level 2 costs 140 (total 180) | none | game/logic/profile.gd:21; effect game/logic/profile.gd:42 | test_profile.gd |
+| FOUR-LEAF RUNE (`luck`) | 1 per level (luck += 1); text "LUCKIER CHESTS" | Crystals: level 1 costs 80; level 2 costs 240 (total 320) | none | game/logic/profile.gd:22; effect game/logic/profile.gd:43 | test_profile.gd, test_seals.gd |
+
+Since 28 Nov the prices and RUNED STAFF's five levels are those of § 45. `Profile.META` also holds § 45's nine
+other rows (THE SECOND GLANCE to THE VEILED DECK); they stay off the shelf (`Profile.UNBUILT`, `Profile.shelf`)
+until the job that builds each one's effect takes its key off the list, so the screen shows these six.
 
 ## 26. Sanctum things
 
