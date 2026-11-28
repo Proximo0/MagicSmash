@@ -112,6 +112,43 @@ fresh; mk realm/a.gd; ( cd "$W" && git add realm/a.gd && git commit -qm r ) >/de
 fresh; mk docs/realm/z.md; ( cd "$W" && git add docs/realm/z.md ) >/dev/null 2>&1; ( cd "$W" && bash "$GUARD" ) >"$OUT" 2>&1; RC=$?; check guard-no-args-sees-staged eq "$RC" 1
 fresh; echo more >>"$W/realm_not.txt"; ( cd "$W" && echo q >>a.txt && bash "$GUARD" ) >"$OUT" 2>&1; RC=$?; check guard-no-args-unstaged-ok eq "$RC" 0
 
+# --- an asset's import file goes in with its asset and out with its asset; one already in git is never changed
+# withasset: a fresh clone whose origin/main already holds an asset and its import file
+withasset() {
+	fresh
+	( cd "$W" && mkdir -p assets && echo wav >assets/old.wav && echo imp >assets/old.wav.import && git add assets && git commit -qm asset \
+		&& git push -q origin HEAD:main && git fetch -q origin ) >/dev/null 2>&1
+}
+fresh; mk assets/a.wav; mk assets/a.wav.import
+( cd "$W" && bash "$GUARD" -- assets/a.wav assets/a.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-allows-new-asset-with-its-import eq "$RC" 0; check guard-new-import-ok-line has "GUARD problems=0" "$OUT"
+land --title t --body "$BODY" --hold -- game/x.gd assets/a.wav assets/a.wav.import
+check land-takes-new-asset-with-its-import eq "$RC" 0
+check land-commits-the-import-file has "assets/a.wav.import" <(cd "$W" && git show --name-only --format= HEAD)
+fresh; mk art/tex.png.import; ( cd "$W" && bash "$GUARD" -- art/tex.png.import ) >"$OUT" 2>&1
+check guard-import-alone-says-why has "without its asset" "$OUT"
+fresh; mk assets/a.wav; mk assets/a.wav.import
+( cd "$W" && bash "$GUARD" --base=no-such-ref -- assets/a.wav assets/a.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-refuses-import-without-a-base eq "$RC" 1; check guard-import-without-a-base-count has "GUARD problems=1" "$OUT"
+withasset; echo churn >>"$W/assets/old.wav.import"
+( cd "$W" && bash "$GUARD" -- assets/old.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-refuses-changed-import eq "$RC" 1; check guard-changed-import-says-churn has "import churn" "$OUT"
+land --title t --body "$BODY" -- game/x.gd assets/old.wav.import
+check land-refuses-changed-import fails; check land-refuses-changed-import-no-commit nocommit; check land-refuses-changed-import-no-pr nopr
+withasset; echo new >"$W/assets/old.wav"; echo churn >>"$W/assets/old.wav.import"
+( cd "$W" && bash "$GUARD" -- assets/old.wav assets/old.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-refuses-changed-import-beside-a-changed-asset eq "$RC" 1
+withasset; rm "$W/assets/old.wav" "$W/assets/old.wav.import"
+( cd "$W" && bash "$GUARD" -- assets/old.wav assets/old.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-allows-import-leaving-with-its-asset eq "$RC" 0
+withasset; rm "$W/assets/old.wav.import"
+( cd "$W" && bash "$GUARD" -- assets/old.wav.import ) >"$OUT" 2>&1; RC=$?
+check guard-refuses-import-removed-alone eq "$RC" 1
+fresh; mk assets/b.png; mk assets/b.png.import; ( cd "$W" && git add assets && git commit -qm b ) >/dev/null 2>&1
+( cd "$W" && bash "$GUARD" ) >"$OUT" 2>&1; RC=$?; check guard-no-args-allows-new-asset-import eq "$RC" 0
+fresh; mk assets/b.png; mk .godot/imported/b.png-1.ctex.import; ( cd "$W" && bash "$GUARD" -- .godot/imported/b.png-1.ctex.import ) >"$OUT" 2>&1; RC=$?
+check guard-still-refuses-the-import-cache eq "$RC" 1
+
 # --- dirty tree, failing checks
 fresh; echo edit >>"$W/a.txt"; std
 check refuse-unlisted-tracked-change fails; check refuse-unlisted-named has a.txt "$OUT"; check refuse-unlisted-no-commit nocommit

@@ -49,6 +49,7 @@ Add a row the day something breaks: `what (numbers) ⇒ rule`. At milestones cop
 - W tree stacked on an unmerged branch, parent then squash-merged ⇒ `git rebase --onto origin/main <parent> <branch>` (clean twice, 27 Nov); until then its golden base is the parent branch.
 - `git rev-parse origin/<branch>` failed after a good push; `origin/station-results` stayed stale after a plain fetch ⇒ check a push with `git ls-remote origin <branch>`; fetch station branches as `+refs/heads/X:refs/remotes/origin/X`.
 - W's save fix read a newer build's file with a changed field type as damage (put aside as `.bad`) ⇒ L reads each fix for the case next to the tested one; version before types, a newer save is never put aside or written.
+- Guard refused every `*.import`, so the first new assets after it (17 sounds, 28 Nov) could not land ⇒ a safety rule names what it protects (a *changed* import file is churn; a new asset's goes in beside it, `T/guard.sh` `import_reason`); its self-test has an allow case beside each refuse case.
 
 ## Dashboards
 Story: kit `docs/lessons/ops_board.md`.
