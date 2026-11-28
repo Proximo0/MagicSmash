@@ -1,0 +1,89 @@
+# Builds the game for Windows and Linux on every push to main (and by hand) and proves each build starts and plays.
+# Not a pull request check and not a required check. See docs/release_build.md.
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**.md', 'realm/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT: godot
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+      - name: Cache export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}-desktop-v1
+      - name: Install xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb zip
+      - name: Export Linux
+        run: tools/export_linux.sh
+      - name: Export Windows
+        run: tools/export_windows.sh
+      - name: Smoke the Linux build
+        # The result goes out as an annotation too, so it can be read without the log.
+        run: |
+          out="$(tools/smoke_build.sh build/linux/Four-of-Wands.x86_64)" && code=0 || code=$?
+          echo "$out"
+          if [ "$code" -eq 0 ]; then
+            echo "::notice title=smoke-linux::$(echo "$out" | head -n 1)"
+          else
+            echo "::error title=smoke-linux::$(echo "$out" | tail -n 1)"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: four-of-wands-linux
+          path: build/linux
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: four-of-wands-windows
+          path: build/windows
+          retention-days: 14
+
+  smoke-windows:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: four-of-wands-windows
+          path: game
+      - name: Run the smoke test
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "smoke.txt"
+          $p = Start-Process -FilePath "$PWD\game\Four-of-Wands.exe" -ArgumentList "--headless", "--", "--smoke", "--smoke-out=$out" -PassThru
+          $null = $p.Handle  # keeps the exit code readable after the process ends
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); Write-Host "::error title=smoke-windows::no exit within 180 s"; exit 1 }
+          if (Test-Path $out) { $line = (Get-Content $out -TotalCount 1); Write-Host $line } else { $line = "" }
+          $why = ""
+          if ($p.ExitCode -ne 0) { $why = "exit code $($p.ExitCode)" }
+          elseif (-not $line.StartsWith("SMOKE ok")) { $why = "no SMOKE ok line" }
+          elseif ($line -notmatch "kills=[1-9]") { $why = "kills is not above 0" }
+          else {
+            foreach ($k in "pack_tests=false", "pack_realm=false", "pack_docs=false") {
+              if (-not $line.Contains($k)) { $why = "$k is not in the SMOKE line" }
+            }
+          }
+          if ($why -ne "") { Write-Host "::error title=smoke-windows::$why $line"; exit 1 }
+          Write-Host "::notice title=smoke-windows::$line"
