@@ -57,6 +57,11 @@ const HUB_GROUND := Vector2(0, 2)
 const PLINTH_GROUND := Vector2(0, 3)
 
 static var _flash := {}
+static var _rims := {}
+## The rim of a figure lies this many px outside its alpha: the first the seat's colour, the second the dark line.
+const RIM_PAD := 2
+## A pixel at least this opaque is part of the figure's shape.
+const RIM_ALPHA := 0.35
 
 
 ## Every figure name the game can show.
@@ -211,25 +216,98 @@ static func draw(ci: CanvasItem, name: String, feet: Vector2, facing: int, t: fl
 		return false
 	if flash:
 		tex = _white(name, tex)
+	_put(ci, tex, tex.get_size(), 0, feet, facing, t, moving, tint)
+	return true
+
+
+## Draws the rim of figure `name` with the same place, mirror, squash and lean as `draw`: a 1 px line in `rim` round
+## her alpha and a 1 px line in `dark` outside it. Call it before `draw`. False when there is no picture.
+static func draw_rim(ci: CanvasItem, name: String, feet: Vector2, facing: int, t: float, moving: bool, rim: Color,
+		dark: Color) -> bool:
+	var tex := Art.tex(GROUP, name)
+	if tex == null:
+		return false
+	var pair := rim_textures(name, tex)
+	_put(ci, pair[1], tex.get_size(), RIM_PAD, feet, facing, t, moving, dark)
+	_put(ci, pair[0], tex.get_size(), RIM_PAD, feet, facing, t, moving, rim)
+	return true
+
+
+## Draws `tex` as the picture of size `size` would be drawn, grown by `pad` px on every side.
+static func _put(ci: CanvasItem, tex: Texture2D, size: Vector2, pad: int, feet: Vector2, facing: int, t: float,
+		moving: bool, tint: Color) -> void:
 	var m := motion(t, moving, facing)
 	var sq: Vector2 = m.squash
-	var w := roundf(tex.get_width() * sq.x)
-	var h := roundf(tex.get_height() * sq.y)
+	var w := roundf(size.x * sq.x)
+	var h := roundf(size.y * sq.y)
 	var base := (feet + (m.off as Vector2)).round()
 	var lean: float = m.lean
-	var at := Vector2(-floorf(w / 2.0), -h)
+	var at := Vector2(-floorf(w / 2.0) - pad, -h - pad)
+	var gw := w + pad * 2
+	var gh := h + pad * 2
 	var src := Rect2(Vector2.ZERO, tex.get_size())
-	var dst := Rect2(at, Vector2(w, h))
+	var dst := Rect2(at, Vector2(gw, gh))
 	if facing < 0:
-		dst = Rect2(Vector2(at.x + w, at.y), Vector2(-w, h))
+		dst = Rect2(Vector2(at.x + gw, at.y), Vector2(-gw, gh))
 	if absf(lean) < LEAN_MIN:
 		dst.position += base
 		ci.draw_texture_rect_region(tex, dst, src, tint)
-		return true
+		return
 	ci.draw_set_transform(base, lean, Vector2.ONE)
 	ci.draw_texture_rect_region(tex, dst, src, tint)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	return true
+
+
+## The two rim layers of a picture, built once from its alpha: [the pixels one step outside it (white), the pixels
+## a second step out (white)], each `RIM_PAD` px bigger on every side. Tint them when drawing.
+static func rim_textures(name: String, tex: Texture2D) -> Array:
+	var key := "%s#%d" % [name, tex.get_instance_id()]
+	if _rims.has(key):
+		return _rims[key]
+	var w := tex.get_width()
+	var h := tex.get_height()
+	var img := tex.get_image()
+	var solid := PackedByteArray()
+	solid.resize((w + RIM_PAD * 2) * (h + RIM_PAD * 2))
+	var gw := w + RIM_PAD * 2
+	if img != null and not img.is_empty():
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		for y: int in h:
+			for x: int in w:
+				if img.get_pixel(x, y).a >= RIM_ALPHA:
+					solid[(y + RIM_PAD) * gw + x + RIM_PAD] = 1
+	var gh := h + RIM_PAD * 2
+	var first := _grown(solid, gw, gh)
+	var second := _grown(first, gw, gh)
+	var a := Image.create(gw, gh, false, Image.FORMAT_RGBA8)
+	var b := Image.create(gw, gh, false, Image.FORMAT_RGBA8)
+	for y: int in gh:
+		for x: int in gw:
+			var i := y * gw + x
+			if solid[i] == 1:
+				continue
+			if first[i] == 1:
+				a.set_pixel(x, y, Color.WHITE)
+			elif second[i] == 1:
+				b.set_pixel(x, y, Color.WHITE)
+	var out: Array = [ImageTexture.create_from_image(a), ImageTexture.create_from_image(b)]
+	_rims[key] = out
+	return out
+
+
+## `mask` (1 = set) grown by one pixel in all eight directions.
+static func _grown(mask: PackedByteArray, gw: int, gh: int) -> PackedByteArray:
+	var out := mask.duplicate()
+	for y: int in gh:
+		for x: int in gw:
+			if mask[y * gw + x] == 0:
+				continue
+			for dy in range(maxi(y - 1, 0), mini(y + 2, gh)):
+				for dx in range(maxi(x - 1, 0), mini(x + 2, gw)):
+					out[dy * gw + dx] = 1
+	return out
 
 
 ## Draws a still object (a hub piece) unmoved at its own size, bottom centre on `ground`; false when no picture.

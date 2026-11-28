@@ -266,10 +266,27 @@ func _first_free_hero(device: int) -> int:
 			return i
 	return -1
 
-## The hero a seat index stands for: the saved one, or a guest (Hero.new()) for -1 or a stale index.
-func hero_at(idx: int) -> Hero:
+## The guest heroes by seat slot: a preset of [race, class] each (the four different heroes a fresh table shows),
+## slot 3 the last one repeating past slot 3.
+const GUEST_PRESETS: Array = [[Races.HUMAN, Classes.MAGE], [Races.ELF, Classes.ARCHER], [Races.DWARF, Classes.KNIGHT],
+	[Races.ORC, Classes.PRIEST]]
+
+## The guest hero of seat `slot`: level 1, no cards, named after its class. Never stored, earns nothing.
+func guest_hero(slot: int) -> Hero:
+	var pr: Array = GUEST_PRESETS[clampi(slot, 0, GUEST_PRESETS.size() - 1)]
+	return Hero.make(int(pr[0]), int(pr[1]), 0, Classes.class_name_of(int(pr[1])))
+
+## The hero a seat index stands for: the saved one, or seat `slot`'s guest for -1 or a stale index.
+func hero_at(idx: int, slot: int = 0) -> Hero:
 	var heroes: Array = Save.profile.heroes
-	return heroes[idx] if idx >= 0 and idx < heroes.size() else Hero.new()
+	return heroes[idx] if idx >= 0 and idx < heroes.size() else guest_hero(slot)
+
+## The slot of this machine's human seat on `device` (0 when it has none yet).
+func _slot_of_device(device: int) -> int:
+	for r: Dictionary in roster:
+		if int(r.peer) == my_peer and int(r.device) == device and not bool(r.get("ai", false)):
+			return int(r.slot)
+	return 0
 
 ## The saved hero index of a local device's seat (-1 a guest or none).
 func hero_of(device: int) -> int:
@@ -282,7 +299,7 @@ func _seat_local_hero(r: Dictionary) -> void:
 	var d := int(r.device)
 	if not seat_heroes.has(d):
 		seat_heroes[d] = _first_free_hero(d)
-	_fill_hero(r, hero_at(int(seat_heroes[d])).to_dict())
+	_fill_hero(r, hero_at(int(seat_heroes[d]), int(r.slot)).to_dict())
 
 ## Stores a hero on a row, cleaned (Hero.from_dict clamps whatever came in), with the extras copied from it. The
 ## wizard colour follows a mage's school when free, else stays or takes the first free one.
@@ -315,7 +332,7 @@ func set_seat_hero(device: int, idx: int) -> bool:
 	return true
 
 func _send_seat_hero(device: int) -> void:
-	var d: Dictionary = hero_at(hero_of(device)).to_dict()
+	var d: Dictionary = hero_at(hero_of(device), _slot_of_device(device)).to_dict()
 	if mode == Mode.CLIENT:
 		_submit_hero.rpc_id(1, device, d)
 		return

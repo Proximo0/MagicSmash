@@ -734,7 +734,7 @@ func _hero_roster_closed() -> void:
 ## scripted run, a LAN client not heard from yet) shows the guest.
 func _draw_seat_hero(ci: CanvasItem, r: Rect2, entry: Dictionary, wiz: int) -> void:
 	var hd: Dictionary = entry.get("hero", {})
-	var h := Hero.from_dict(hd) if not hd.is_empty() else Hero.new()
+	var h := Hero.from_dict(hd) if not hd.is_empty() else Net.guest_hero(int(entry.get("slot", 0)))
 	var fx: Color = Sprites.PLAYER_COLORS[wiz].fx
 	PixelFont.draw_centered(ci, h.name, r.position.x + 55, r.position.y + 4, 1, fx)
 	var pr := Rect2(r.position + Vector2(4, 13), LOBBY_PORTRAIT)

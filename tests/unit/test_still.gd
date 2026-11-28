@@ -263,3 +263,24 @@ func test_new_icons_show_only_where_a_file_exists() -> void:
 	assert_eq(Still.icon(Still.HUD_ICONS[0], 10), null)
 	assert_eq(Still.icon(Still.stat_icon(0), 8), null)
 	_clear()
+
+
+func test_the_rim_is_one_pixel_round_the_shape_then_a_dark_one() -> void:
+	_drop(["sprites/hero_test.png"])
+	var tex := Art.tex(Still.GROUP, "hero_test")
+	var pair := Still.rim_textures("hero_test", tex)
+	var w := tex.get_width() + Still.RIM_PAD * 2
+	var h := tex.get_height() + Still.RIM_PAD * 2
+	var rim: Image = (pair[0] as Texture2D).get_image()
+	var dark: Image = (pair[1] as Texture2D).get_image()
+	assert_eq(rim.get_width(), w)
+	assert_eq(dark.get_height(), h)
+	# the 6 x 9 block sits at (2, 2): the ring one step out, the dark ring one beyond it, nothing inside
+	assert_true(rim.get_pixel(1, 1).a > 0.5, "corner of the first ring")
+	assert_true(rim.get_pixel(5, 1).a > 0.5)
+	assert_true(rim.get_pixel(4, 4).a < 0.5, "nothing inside the figure")
+	assert_true(dark.get_pixel(0, 0).a > 0.5, "corner of the dark ring")
+	assert_true(dark.get_pixel(1, 1).a < 0.5, "the dark ring never overlaps the rim")
+	assert_true(rim.get_pixel(0, 0).a < 0.5)
+	assert_eq(Still.rim_textures("hero_test", tex)[0], pair[0], "built once")
+	_clear()

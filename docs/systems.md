@@ -422,6 +422,11 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   The roster row gets `hero` (the cleaned `Hero.to_dict`, `{}` for an apprentice) and race, cls, look, cls_level
   from it; a LAN client sends its seat's hero by reliable RPC (`_submit_hero`) and the host cleans it with
   `Hero.from_dict`. The seat's `wizard` is only its colour (a mage prefers her school's).
+- Guests differ by seat (`Net.GUEST_PRESETS`, `Net.guest_hero(slot)`, `Net.hero_at(idx, slot)`): slot 0 HUMAN MAGE, 1 ELF ARCHER, 2 DWARF KNIGHT,
+  3 ORC PRIEST, level 1, no cards, named after the class; a guest is still stored nowhere and earns nothing (index -1).
+  `--autotest --players=N --seat-heroes` seats heroes in a scripted run (`Net.force_heroes`); `--heroes` is the Sanctum's mirror shots.
+- Seat rim: a hero drawn from her picture gets `Still.draw_rim` under it (1 px in `G.player_color(slot)` lightened 0.3, 1 px
+  `Sprites.OUTLINE` outside, built once per picture from its alpha, `Still.rim_textures`); an apprentice's is `ArenaDrawWorld.RIM_AI_ALPHA`.
 - Scripted runs (`Flags.is_scripted_run()`) seat no heroes (`Net.force_heroes` is the test seam), so autotest, bot and
   sims play as before; `Arena._ready` applies each row's `hero` after `apply_meta`, `--hero=` still overrides local seats.
 - Class XP: `Net._start` sets `G.run_heroes` (`Net.played_heroes`: local human seats' saved heroes, once each);
