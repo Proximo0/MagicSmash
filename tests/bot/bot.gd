@@ -45,8 +45,9 @@ func _ready() -> void:
 	_heroes = _mode == "heroes"
 	var saved: bool = not _mode.is_empty()
 	_shard = int(Flags.get_arg("shard", "3" if saved else "0"))
-	if saved and OS.get_environment("XDG_DATA_HOME").is_empty():
-		print("BOT %s FAIL XDG_DATA_HOME is not set: the %s shard needs a private save folder" % [_mode, _mode])
+	if saved and not Heroes.save_is_private(OS.get_environment("PRIVATE_SAVE"), OS.get_user_data_dir()):
+		print("BOT %s FAIL user:// is %s, not a private save folder: start the %s shard with tools/private_save.sh" % [_mode,
+			OS.get_user_data_dir(), _mode])
 		get_tree().quit(1)
 		return
 	Flags.args["seed"] = str(101 + _shard)

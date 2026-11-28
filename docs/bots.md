@@ -282,8 +282,11 @@ local seats on saved heroes, so a bug in heroes, cards, unlock bonuses or run bo
   OOZE (+1 heart), the dwarf THE NIGHT WING and THE WARCHIEF, the unlocks vigor 1 and might 2. `Net.force_heroes` is set
   before the seats join. It is the only switch: `G.finish_run` books `run_heroes` and `Save.run_bonuses()` returns the
   profile's bonuses when it is set, even in a scripted run.
-- **Private save folder**: the shard refuses to start without `XDG_DATA_HOME` set (CI and `check_all` give it a
-  `mktemp -d`), and fails if `user://profile.json` exists at the end.
+- **Private save folder**: start the shard with `tools/private_save.sh <command>` (CI and `check_all` do). It makes a
+  folder, points the engine's `user://` into it (`XDG_DATA_HOME` on Linux, `APPDATA` on Windows, which is the only
+  place Godot reads there) and names it in `PRIVATE_SAVE`. The shard refuses to start unless `user://` lies inside
+  that folder (`save_is_private` in `tests/bot/bot_heroes.gd`, `test_private_save`), and fails if
+  `user://profile.json` exists at the end.
 - **At the start of the fight** each seat's class, race, hearts and every armour stat must equal what her hero gives
   (`Hero.stats()`, the class's hearts) plus the meta, each socketed card counted once. Mismatch: one
   `BOT heroes seat=n hero=NAME FAIL ... expected ... got ...` line per seat.
@@ -299,7 +302,7 @@ local seats on saved heroes, so a bug in heroes, cards, unlock bonuses or run bo
 ## The boss, win and again shards
 
 Three more shards of `tests/bot/bot.tscn` (shard 3's seed 104 and four seats, the hero shard's four saved heroes, the
-hero shard's refusal to start without `XDG_DATA_HOME`). CI rows `bot-boss`, `bot-win`, `bot-again`; `check_all` tasks
+hero shard's refusal to start outside a private save folder). CI rows `bot-boss`, `bot-win`, `bot-again`; `check_all` tasks
 `botboss`, `botwin`, `botagain`. Each prints `BOT <name> PASS ...` or one `BOT <name> FAIL <why>` line per fault, then
 the usual `BOT shard=...` and `BOT score=...` lines. Where the shard forces something it says so below.
 

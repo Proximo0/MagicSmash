@@ -20,6 +20,9 @@ heatherspc: checks queue
 # Lanes (station.sh, queue_lib.sh lanes_fill): how many queue jobs a machine runs at the same time, one line per machine
 # "lanes: <machine> N" (not a role word, so a station still running the code from before lanes reads this file without error).
 # STATION_LANES overrides; without a line: cores/2 capped at total RAM / 1.5 GB. Each lane still needs its job's free RAM to start.
+# The horde sims' time budget in `checks` on a slow machine (station.sh job_checks): one line "simscale: <machine> N" (without
+# one: 4). heatherspc (Celeron N4100): a four-wizard horde step takes 35 to 48 ms by the stopwatch beside its queue job (28 Nov 2026).
+simscale: heatherspc 20
 lanes: msi 10
 lanes: laptop 2
 lanes: heatherspc 1

@@ -15,7 +15,7 @@ OUT="${WORK}/smoke.txt"
 ARGS=(--audio-driver Dummy)
 RUN=(xvfb-run -a)
 if [[ "${MODE}" == "--headless" ]]; then ARGS+=(--headless); RUN=(); fi
-XDG_DATA_HOME="${WORK}/xdg" timeout 120 "${RUN[@]}" "${BIN}" "${ARGS[@]}" -- --smoke --smoke-out="${OUT}" >"${LOG}" 2>&1
+"${ROOT}/tools/private_save.sh" timeout 120 "${RUN[@]}" "${BIN}" "${ARGS[@]}" -- --smoke --smoke-out="${OUT}" >"${LOG}" 2>&1
 CODE=$?
 LINE="$(head -n 1 "${OUT}" 2>/dev/null || true)"
 [[ -n "${LINE}" ]] && echo "${LINE}"
