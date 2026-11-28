@@ -388,6 +388,222 @@ const EMBLEMS := {
 		"................",
 		"................",
 	],
+	"priestess": [ # II The High Priestess: a crescent crown over a veil between two pillars
+		"..w....yy....w..",
+		"..ww..yyyy..ww..",
+		"...ww.yyyy.ww...",
+		"....wwwyywww....",
+		"................",
+		".wwww......wwww.",
+		"..ww.vvvvvv.ww..",
+		"..ww.vpvvpv.ww..",
+		"..ww.vpvvpv.ww..",
+		"..ww.vpvvpv.ww..",
+		"..ww.vpvvpv.ww..",
+		"..ww.vpvvpv.ww..",
+		"..ww.vvvvvv.ww..",
+		"..ww.v.vv.v.ww..",
+		".wwww......wwww.",
+		"................",
+	],
+	"empress": [ # III The Empress: a crown of gold over the sign of Venus
+		"................",
+		"...y..y..y..y...",
+		"...y..y..y..y...",
+		"...yyyyyyyyyy...",
+		"...yyyyyyyyyy...",
+		"................",
+		".....gggggg.....",
+		"....g......g....",
+		"....g......g....",
+		"....g......g....",
+		"....g......g....",
+		".....gggggg.....",
+		".......gg.......",
+		".....gggggg.....",
+		".......gg.......",
+		".......gg.......",
+	],
+	"devil": [ # XV The Devil: a red horned head
+		"..o..........o..",
+		"..oo........oo..",
+		"..ooo.rrrr.ooo..",
+		"..oooorrrroooo..",
+		"...oorrrrrroo...",
+		"....rrrrrrrr....",
+		"....ryyrryyr....",
+		"....rrrrrrrr....",
+		".....rrrrrr.....",
+		".....rrrrrr.....",
+		"......rrrr......",
+		"......rrrr......",
+		".......rr.......",
+		".......rr.......",
+		"................",
+		"................",
+	],
+	"star": [ # XVII The Star: an eight-pointed star over the water
+		".......ww.......",
+		".......ww.......",
+		"..w....ww....w..",
+		"...w...ww...w...",
+		"....w.wwww.w....",
+		"wwwwwwwyywwwwwww",
+		"wwwwwwwyywwwwwww",
+		"....w.wwww.w....",
+		"...w...ww...w...",
+		"..w....ww....w..",
+		".......ww.......",
+		".......ww.......",
+		"................",
+		".bbb..bbbb..bbb.",
+		"b...bb....bb...b",
+		"................",
+	],
+	"w_hex": [ # HEX: the hex mark, a violet eye with a slit pupil and three lashes under it
+		"................",
+		"................",
+		".....pppppp.....",
+		"...pppvvvvppp...",
+		"..ppvvvwwvvvpp..",
+		".ppvvvvwwvvvvpp.",
+		".ppvvvvwwvvvvpp.",
+		"..ppvvvwwvvvpp..",
+		"...pppvvvvppp...",
+		".....pppppp.....",
+		"................",
+		"...p...pp...p...",
+		"..p....pp....p..",
+		".......pp.......",
+		"................",
+		"................",
+	],
+	"w_blades": [ # SPIRIT BLADES: four pale swords circling a spirit light
+		"....d...........",
+		"..dddwwwwwww....",
+		"..dddssssss..dd.",
+		"....d........dd.",
+		".w..........dddd",
+		".ws..........sw.",
+		".ws....cc....sw.",
+		".ws...cwwc...sw.",
+		".ws...cwwc...sw.",
+		".ws....cc....sw.",
+		".ws..........sw.",
+		"dddd..........w.",
+		".dd........d....",
+		".dd..ssssssddd..",
+		"....wwwwwwwddd..",
+		"...........d....",
+	],
+	"e_lodestar": [ # LODESTAR (ARCANE BOLT evolved): a guiding star in a hunter's frame, its north point white
+		"vvv..........vvv",
+		"v......ww......v",
+		"v......ww......v",
+		".......ww.......",
+		"......pwwp......",
+		"......pwwp......",
+		"....pppwwppp....",
+		".pppppwwwwppppp.",
+		".pppppwwwwppppp.",
+		"....pppvvppp....",
+		"......pvvp......",
+		"......pvvp......",
+		".......vv.......",
+		"v......vv......v",
+		"v......vv......v",
+		"vvv..........vvv",
+	],
+	"e_greek": [ # GREEK FIRE (FIREBALL evolved): a clay fire pot with flame rising from its mouth
+		".......rr.......",
+		"......rrrr......",
+		".....rroorr.....",
+		".....rroorr.....",
+		"....rroooorr....",
+		"....rroyyorr....",
+		"....rroyyorr....",
+		".....rroorr.....",
+		".....nnnnnn.....",
+		"......nnnn......",
+		"....nnnnnnnn....",
+		"...nnnnnnnnnn...",
+		"...noooooooon...",
+		"....nnnnnnnn....",
+		".....nnnnnn.....",
+		"................",
+	],
+	"e_veil": [ # WINTER VEIL (FROST FAN evolved): a snowflake inside a ring of mist
+		".....ssssss.....",
+		"...ss......ss...",
+		"..s....ww....s..",
+		".s..c..ww..c..s.",
+		".s...c.ww.c...s.",
+		"s.....cwwc.....s",
+		"s......cc......s",
+		"s..ccccwwcccc..s",
+		"s..ccccwwcccc..s",
+		"s......cc......s",
+		"s.....cwwc.....s",
+		".s...c.ww.c...s.",
+		".s..c..ww..c..s.",
+		"..s....ww....s..",
+		"...ss......ss...",
+		".....ssssss.....",
+	],
+	"e_dies": [ # DIES IRAE (CHAIN LIGHTNING evolved): a bolt of lightning striking a skull
+		"..........yyyy..",
+		".........yyyy...",
+		"........yyyy....",
+		".......yyyy.....",
+		"......yyyyyyyy..",
+		".........yyyy...",
+		"........yyyw....",
+		".......yyw......",
+		".......w........",
+		"..mmmmmm........",
+		".mmmmmmmm.......",
+		".mkkmmkkm.......",
+		".mkkmmkkm.......",
+		".mmmkkmmm.......",
+		"..mkmmkm........",
+		"..mmmmmm........",
+	],
+	"e_hex": [ # EVIL EYE (HEX evolved): an open eye with a violet iris and rays
+		"................",
+		"................",
+		".......pp.......",
+		"..p....pp....p..",
+		"...p...pp...p...",
+		"................",
+		"......vvvv......",
+		"...vvvwwwwvvv...",
+		".vvwwwppppwwwvv.",
+		"vvwwwppkkppwwwvv",
+		".vvwwwppppwwwvv.",
+		"...vvvwwwwvvv...",
+		"......vvvv......",
+		"................",
+		"................",
+		"................",
+	],
+	"e_blades": [ # DANSE MACABRE (SPIRIT BLADES evolved): the ring of swords with a second, violet ring inside
+		"....d...........",
+		"..dddwwwwwww....",
+		"..dddssssss..dd.",
+		"....d........dd.",
+		".w..........dddd",
+		".ws...mppp...sw.",
+		".ws..p....m..sw.",
+		".ws..p.cc.p..sw.",
+		".ws..p.cc.p..sw.",
+		".ws..m....p..sw.",
+		".ws...pppm...sw.",
+		"dddd..........w.",
+		".dd........d....",
+		".dd..ssssssddd..",
+		"....wwwwwwwddd..",
+		"...........d....",
+	],
 }
 
 ## [roman numeral, card title] for the Major Arcana passives.
@@ -398,6 +614,8 @@ const ARCANA := {
 	"world": ["XXI", "THE WORLD"], "emperor": ["IV", "THE EMPEROR"], "fool": ["0", "THE FOOL"],
 	"hanged": ["XII", "THE HANGED MAN"], "hierophant": ["V", "THE HIEROPHANT"], "wheel": ["X", "WHEEL OF FORTUNE"],
 	"justice": ["XI", "JUSTICE"], "lovers": ["VI", "THE LOVERS"],
+	"priestess": ["II", "THE HIGH PRIESTESS"], "empress": ["III", "THE EMPRESS"], "devil": ["XV", "THE DEVIL"],
+	"star": ["XVII", "THE STAR"],
 }
 
 const KIND_ARCANA := 0
@@ -421,22 +639,28 @@ static func kind(key: String) -> int:
 	return KIND_ARCANA
 
 
-## The emblem texture for an upgrade key; an evolution shows its spell's emblem.
+## The emblem texture for an upgrade key, the first that exists of: the key's icon file, the key's own EMBLEMS entry
+## (an evolution may have one), for an evolution its spell's icon file, then its spell's EMBLEMS entry, and STARFALL's.
 ## An icon file takes the place of the code emblem (`icons/spell_<key>`, `evo_<key>`, `passive_<key>`, reduced to
-## EMBLEM_ICON px; an evolution without its own file shows its spell's).
+## EMBLEM_ICON px).
 const EMBLEM_ICON := 16
 
 
 static func emblem(key: String) -> Texture2D:
 	var icon := Still.icon(Still.icon_of(key), EMBLEM_ICON)
-	if icon == null and key.begins_with("e_"):
-		icon = Still.icon("spell_" + key.substr(2), EMBLEM_ICON)
 	if icon != null:
 		return icon
-	var k := ("w_" + key.substr(2)) if key.begins_with("e_") else key
+	var k := key
+	if not EMBLEMS.has(k) and key.begins_with("e_"):
+		icon = Still.icon("spell_" + key.substr(2), EMBLEM_ICON)
+		if icon != null:
+			return icon
+		k = "w_" + key.substr(2)
+	if not EMBLEMS.has(k):
+		k = "w_star"
 	if _tex.has(k):
 		return _tex[k]
-	var rows: Array = EMBLEMS.get(k, EMBLEMS["w_star"])
+	var rows: Array = EMBLEMS[k]
 	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for y in rows.size():
