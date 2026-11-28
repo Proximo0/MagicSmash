@@ -110,6 +110,9 @@ Story: kit `docs/lessons/ops_board.md`.
 - Celeron frame 134 ms: 8 physics ticks a frame, each with its own snapshot (world_step 67 + snapshot 23 ms) ⇒ compare machines per tick (section / ticks a frame); `docs/performance.md` pass 4.
 - "Skip if the last one is still here" guard on a timed event dropped it for good (act II boss never came if act I lived past 10:00) ⇒ consume every due row: replace or retire what stands, never skip; test with the earlier event kept alive.
 - Boss tuned for a one-screen room fired and teleported from out of sight in the 800x450 room ⇒ boss positions come from the party's middle, never the room's; an attack starts only in the party's sight; probe with the party held in a corner.
+- "3 of its 4 runs" gated balance, but main's casual pair wins 0.59 (16/27): a no-effect change failed it about half the time, and an RNG placebo moved a group from 7/8 to 3/8 ⇒ judge a win rate by two 100-run arms on the same seeds (`balance.yml`, `T/balance_compare.py`), never by a 4-run group.
+- `balance.yml`'s first run: every play job that finished (24) failed after playing, no row written. GitHub's `shell: bash` is `bash -e -o pipefail`, so `err=$(grep SCRIPT ERROR ...)` finding nothing (the good case) ended the step ⇒ a step that greps for lines that may be absent starts with `set +e`; run every `run:` block locally under `bash --noprofile --norc -e -o pipefail` with fakes before the first dispatch.
+- `gh run download` from the cloud session: 403 on the artifact blob host (the proxy blocks it) ⇒ a workflow prints the rows a tool needs into a job's log (`BALROW`) and the tool reads them with `gh api .../jobs/<id>/logs`.
 - Bot shard stalled silently once the run's scene was swapped (no error, a core at 100%): a freed node reads as `null`, so its `if _arena == null: return` guard held forever ⇒ a shard that leaves the arena reads `G.main.current` each tick and keeps its own started flag.
 
 ## Rendering and art

@@ -5,8 +5,9 @@
 #   gh workflow run balance.yml -f ref=<branch, tag or commit> [-f runs=100] [-f seed0=1] [-f wizards=2]
 #     [-f persona=casual] [-f words="--meta=start_level:2"] [-f label=<a name for this arm>]
 # Each of runs/5 jobs plays five seeds with tools/playtest.gd from the ref's own tree; the job `sum` adds them up into
-# the run's summary and the artifact `balance` (balance.csv and summary.txt). The workflow file runs from main; only
-# the game and its tools come from the ref. Compare two arms with tools/balance_compare.py <run id> <run id>.
+# the run's summary, its own log (one BALROW line a row) and the artifact `balance` (balance.csv and summary.txt). The
+# workflow file runs from main; only the game and its tools come from the ref. Compare two arms with
+# tools/balance_compare.py <run id> <run id> (it reads the BALROW lines through the GitHub API).
 name: balance
 
 on:
@@ -105,6 +106,9 @@ jobs:
           WORDS: ${{ inputs.words }}
           LABEL: ${{ inputs.label }}
         run: |
+          # GitHub starts this shell with -e: a grep that finds nothing (no SCRIPT ERROR, the good case) would end the
+          # step before its row is written, so -e is off here and every failure is handled by hand.
+          set +e
           set -uo pipefail
           mkdir -p row
           tools/import.sh > row/import.log 2>&1 || { tail -20 row/import.log; exit 1; }
@@ -182,6 +186,9 @@ jobs:
                    won / n if n else 0.0, lo, hi, unf, want - n, broken))
           EOF
           cat out/summary.txt
+          # The rows again in this job's log, one `BALROW <csv row>` each: tools/balance_compare.py reads them through
+          # the GitHub API, so comparing two arms needs no artifact download.
+          tail -n +2 out/balance.csv | while IFS= read -r r; do echo "BALROW $r"; done
           { echo '```'; cat out/summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
