@@ -111,6 +111,20 @@ var pause_sel := 0
 var pause_options := false
 var options := OptionsPanel.new()
 const PAUSE_ITEMS := ["RESUME", "OPTIONS", "QUIT TO TITLE"]
+## QUIT TO TITLE asks first (pause_sel then picks NO or YES); NO is the default.
+const PAUSE_ASK_ITEMS := ["NO", "YES"]
+const PAUSE_QUIT := 2
+const PAUSE_ASK_YES := 1
+## How long "ONLY P1 CAN END THE RUN" shows after someone else chose QUIT TO TITLE.
+const PAUSE_NOTE_SECS := 1.6
+## No device: an automatic pause's, and PlayerInput.confirm_device's "no confirm".
+const NO_DEVICE := -99
+var pause_ask := false
+var pause_by := -1 # the seat that paused (its device or the keyboard); -1: an automatic pause or a seatless keyboard
+var pause_dev := NO_DEVICE # the device that paused; NO_DEVICE for an automatic pause
+var pause_note_t := -10.0 # when the "ONLY P1" note was last shown (time)
+## The run is in the profile (ArenaEvents.book_run_once): whatever ends it books it once.
+var run_booked := false
 var time := 0.0
 ## The camera: the world point at the screen's top-left. It follows the middle of the living party and stays
 ## inside the arena image; CAM_EASE is how fast it catches up (per second).
@@ -494,13 +508,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var start = (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ESCAPE, KEY_P]) \
 		or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START)
+	var dev := _pause_device(event)
+	if paused and not _pause_hears(dev):
+		return
 	if start and pause_options:
 		pause_options = false
 		Save.write_settings()
 		Sfx.play("menu_select")
 		return
+	if start and pause_ask:
+		_pause_ask_close()
+		return
 	if start:
-		_toggle_pause()
+		if paused:
+			_toggle_pause()
+		elif _pause_may_open(dev) and not victory:
+			_toggle_pause(dev, _seat_of_device(PlayerInput.key_device(event) if event is InputEventKey else dev))
 		return
 	if not paused and _tray_input(event):
 		get_viewport().set_input_as_handled()
@@ -510,34 +533,112 @@ func _unhandled_input(event: InputEvent) -> void:
 			if options.handle(event):
 				pause_options = false
 			return
+		if PlayerInput.back_pressed(event):
+			if pause_ask:
+				_pause_ask_close()
+			else:
+				_toggle_pause()
+			return
+		var rows := _pause_rows().size()
 		var d := PlayerInput.menu_dir(event)
 		if d != 0:
-			pause_sel = wrapi(pause_sel + d, 0, PAUSE_ITEMS.size())
+			pause_sel = wrapi(pause_sel + d, 0, rows)
 			Sfx.play("menu_move")
-		if PlayerInput.confirm_device(event) != -99:
-			_pause_choose(pause_sel)
+		if PlayerInput.confirm_device(event) != NO_DEVICE:
+			_pause_choose(pause_sel, dev)
 		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed):
 			var row := int(floorf((event.position.y - 127.0) / 16.0))
-			if row >= 0 and row < PAUSE_ITEMS.size() and absf(event.position.x - 240.0) < 70.0:
-				_pause_choose(row)
+			if row >= 0 and row < rows and absf(event.position.x - 240.0) < 70.0:
+				_pause_choose(row, dev)
 
-func _pause_choose(i: int) -> void:
+## Chooses a pause row, pressed on `dev` (the keyboard, a click and a touch are G.DEV_KBM).
+func _pause_choose(i: int, dev: int = G.DEV_KBM) -> void:
 	Sfx.play("menu_select")
 	pause_sel = i
+	if pause_ask:
+		if i == PAUSE_ASK_YES:
+			_end_run_and_leave()
+		else:
+			_pause_ask_close()
+		return
 	match i:
 		0:
 			_toggle_pause()
 		1:
 			options.open()
 			pause_options = true
-		2:
-			_quit_to_title()
+		PAUSE_QUIT:
+			if not _may_end_run(dev):
+				pause_note_t = time
+				return
+			pause_ask = true
+			pause_sel = 0
 
-func _toggle_pause() -> void:
+## The rows the pause panel shows: the menu, or the question's NO and YES.
+func _pause_rows() -> Array:
+	return PAUSE_ASK_ITEMS if pause_ask else PAUSE_ITEMS
+
+## QUIT TO TITLE is dimmed when the seat that paused may not end the run.
+func _pause_row_dim(i: int) -> bool:
+	return not pause_ask and i == PAUSE_QUIT and pause_dev != NO_DEVICE and not _may_end_run(pause_dev)
+
+func _pause_ask_close() -> void:
+	pause_ask = false
+	pause_sel = PAUSE_QUIT
+
+## The device a press came from, for the pause rules: a pad's id, or G.DEV_KBM for any key, click or touch
+## (the keyboard is the PC owner's).
+static func _pause_device(event: InputEvent) -> int:
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		return event.device
+	return G.DEV_KBM
+
+## The local seat played on `device`, or -1.
+func _seat_of_device(device: int) -> int:
+	for r in Net.my_slots():
+		if int(r.device) == device:
+			return int(r.slot)
+	return -1
+
+## The device of the lowest local seat (P1 on the host), or NO_DEVICE.
+func _first_seat_device() -> int:
+	var best := -1
+	var out := NO_DEVICE
+	for r in Net.my_slots():
+		if best < 0 or int(r.slot) < best:
+			best = int(r.slot)
+			out = int(r.device)
+	return out
+
+## The lowest local seat (0 = P1), or 0 with none.
+func _first_seat() -> int:
+	var best := -1
+	for r in Net.my_slots():
+		if best < 0 or int(r.slot) < best:
+			best = int(r.slot)
+	return maxi(best, 0)
+
+## Pause opens from the keyboard or from a pad that holds a seat.
+func _pause_may_open(dev: int) -> bool:
+	return dev == G.DEV_KBM or _seat_of_device(dev) >= 0
+
+## While paused the menu hears the keyboard, the device that paused and the first seat's device.
+func _pause_hears(dev: int) -> bool:
+	return dev == G.DEV_KBM or dev == pause_dev or dev == _first_seat_device()
+
+## Only the first seat's device or the keyboard may end the run.
+func _may_end_run(dev: int) -> bool:
+	return dev == G.DEV_KBM or dev == _first_seat_device()
+
+## Opens or closes the pause menu; `dev` and `slot` say who opened it (left out: an automatic pause).
+func _toggle_pause(dev: int = NO_DEVICE, slot: int = -1) -> void:
 	if game_over:
 		return
 	paused = not paused
 	pause_sel = 0
+	pause_ask = false
+	pause_dev = dev
+	pause_by = slot
 	if not paused:
 		for r in Net.my_slots(): # the button that chose Resume is still down: it is no Nova
 			PlayerInput.swallow_bomb(r.device)
@@ -565,12 +666,29 @@ func _on_overlay(active: bool) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not Flags.is_scripted_run():
 		_auto_pause()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_book_run_now() # the engine quits right after; the save is written synchronously
 
 func _local_tray_open() -> bool:
 	for r in Net.my_slots():
 		if ArenaTray._tray_shown(self, r.slot):
 			return true
 	return false
+
+## Books the run as it stands (QUIT TO TITLE, the window closing): a win in the victory countdown, otherwise a run
+## not won with what it earned so far. A game over books its own (ArenaEvents); a LAN client has no World and
+## books nothing here.
+func _book_run_now() -> void:
+	if run_booked or game_over or world == null:
+		return
+	var run: Dictionary = world.run_so_far()
+	run["results"] = Results.from_dict(run.results)
+	ArenaEvents.book_run_once(self, run)
+
+## The pause question's YES.
+func _end_run_and_leave() -> void:
+	_book_run_now()
+	_quit_to_title()
 
 func _quit_to_title() -> void:
 	Engine.time_scale = 1.0

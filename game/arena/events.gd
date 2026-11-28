@@ -305,11 +305,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.game_over_t = 0.0
 				a.final_score = int(ev[3])
 				a.run_t = float(ev[1])
-				var party := Achievements.party_of(a.vp.values(), a.seal)
-				a.crystals_earned = G.finish_run({"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]),
-					"liches": int(ev[4]), "won": a.victory, "seal": a.seal, "act": a.act, "results": a.results, "party": party})
-				if a.is_host:
-					Platform.finish_run(a.results, a.victory, float(ev[1]), party)
+				book_run_once(a, {"score": a.final_score, "seconds": float(ev[1]), "kills": int(ev[2]), "liches": int(ev[4]),
+					"won": a.victory, "results": a.results})
 				if not a.victory:
 					Sfx.music("music_gameover")
 			World.EV_LEVELUP:
@@ -343,3 +340,20 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.burst(pos, 6, 70.0, 0.35, 1.0, Color.WHITE, a.SPELL_COLORS[World.SP_FROST], true)
 				if float(ev[3]) > 0.0:
 					a.fx.ring(pos, 0.4, float(ev[3]), 0.3, a.SPELL_COLORS[World.SP_FROST], 2.0)
+
+
+## Books the run in the profile (and on Steam, on the host) with what it earned: the one path for a game over, a
+## confirmed QUIT TO TITLE and the window closing (Arena._book_run_now). `run` holds score, seconds, kills,
+## liches, won and results (a Results or null); the seal, act and party come from the arena. Once per run: a
+## second call does nothing.
+static func book_run_once(a: Arena, run: Dictionary) -> void:
+	if a.run_booked:
+		return
+	a.run_booked = true
+	var party := Achievements.party_of(a.vp.values(), a.seal)
+	var res: Variant = run.get("results")
+	a.crystals_earned = G.finish_run({"score": int(run.get("score", 0)), "seconds": float(run.get("seconds", 0.0)),
+		"kills": int(run.get("kills", 0)), "liches": int(run.get("liches", 0)), "won": bool(run.get("won", false)),
+		"seal": a.seal, "act": a.act, "results": res, "party": party})
+	if a.is_host:
+		Platform.finish_run(res as Results, bool(run.get("won", false)), float(run.get("seconds", 0.0)), party)
