@@ -94,12 +94,12 @@ as ??? in the Book until earned (and should be a hidden achievement on Steam). C
 ## Steamworks checklist (Curtis)
 
 1. The app: pay the Steam Direct fee and create the app. Steam asks for the fee at least 30 days before
-   release; for Friday 18 Dec 2026 that was 18 Nov 2026, so check what Steam says for the date.
+   release. Nothing is due now: Steam is stage 7 of `docs/release_plan.md`, and there is no release date yet.
 2. Send the App ID; it goes in `config/steam.cfg` and the GodotSteam setup follows.
 3. Turn on Remote Play Together (and Remote Play on TV if wanted) in the app's Steamworks settings.
 4. Add the achievements above, with icons: `docs/achievements/<api name>.png` (achieved) and
    `<api name>_locked.png` (unachieved), 64x64, drawn from the tarot emblems by
    `godot --headless --path . -s tools/achievement_icons.gd`.
 5. The store page: description, tags, price ($4.99 to $6.99), screenshots, trailer, capsule art. It must be
-   live at least 2 weeks before release (by 4 Dec 2026).
+   live at least 2 weeks before release.
 6. The build: a Windows depot from `tools/export_windows.sh`, uploaded with SteamPipe.

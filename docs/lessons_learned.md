@@ -44,6 +44,11 @@ Add a row the day something breaks: `what (numbers) ⇒ rule`. At milestones cop
 - W report claimed an unmade change ⇒ reports state only what was verified; L checks each claimed fix in the code.
 - Hours of guessing a render bug ⇒ cheap env-var/flag-gated "why" traces per subsystem before the 2nd guess.
 - Brief said "draw shots 7 px above position" without reading hit code ⇒ before a contract says where something is drawn, read the spawn/aim/hit code and quote its numbers.
+- Brief named a new autotest flag `--heroes`; one already ran the Sanctum shots ⇒ grep the flag in `game/debug/autotest.gd` + `tests/bot/` before a brief names one.
+- Brief put `sanctum_view.gd` under `game/ui/` (it is `game/sanctum/`) ⇒ `git ls-files | grep <name>` for every owned path before a brief goes out.
+- W tree stacked on an unmerged branch, parent then squash-merged ⇒ `git rebase --onto origin/main <parent> <branch>` (clean twice, 27 Nov); until then its golden base is the parent branch.
+- `git rev-parse origin/<branch>` failed after a good push; `origin/station-results` stayed stale after a plain fetch ⇒ check a push with `git ls-remote origin <branch>`; fetch station branches as `+refs/heads/X:refs/remotes/origin/X`.
+- W's save fix read a newer build's file with a changed field type as damage (put aside as `.bad`) ⇒ L reads each fix for the case next to the tested one; version before types, a newer save is never put aside or written.
 
 ## Dashboards
 Story: kit `docs/lessons/ops_board.md`.
@@ -88,6 +93,15 @@ Story: kit `docs/lessons/ops_board.md`.
 - Killing a horde left 1700 gems, step cost ×2 ⇒ `Tuning.xp_gem_cap` merges XP; watch pickups in cost probes.
 - Bot gate "wave 2 within 75 s" paused 1/3 on level-ups ⇒ gate on `World.wave_time`.
 - `--autotest` wrote profile.json ⇒ every new capture/bot flag goes into `Flags.is_scripted_run()` same day; check `user://` unchanged.
+- Headless runs are scripted: no heroes seated, no unlocks, nothing saved; a bug in heroes, cards or unlocks passed every check ⇒ `bot-heroes` shard builds that state (`Net.force_heroes`, own `XDG_DATA_HOME`); every bot row fails on `SCRIPT ERROR:` / `ERROR:` lines (`tests/bot/no_engine_errors.sh`).
+- Socketed card counted twice (`Profile.bonuses()` "armor" to every seat + each hero's own via `apply_hero`) ⇒ one path per stat into the World; test through the real chain with two seats.
+- "First kill after the moment gets the card" gave it to the commonest kind (goblins + bats 54% of card runs; PRIEST, GARGOYLE, LICH never) ⇒ roll the kind at run start from what the run can spawn, wait for that kind's kill; test the spread over seeds.
+- One pad's B emptied the lobby; the hub's device was lost through the shop ⇒ a button that ends something for the group is checked against the device that pressed it, in a pure rule (`LobbyRules.decide`).
+- Run booked only on EV_GAMEOVER: quit, window close, quit during the victory countdown lost it ⇒ every run end goes through one once-guarded booking (`ArenaEvents.book_run_once`). SIGTERM skips the close request in 4.7 (open).
+- Balance tools stopped runs at 16 / 18 min, mid-Archlich, and booked a loss ⇒ cap above a run's length (25 min); a capped run is `unfinished` ("U"), never a loss.
+- `check_all` beside 3 W: one unit test failed only on the 10 s limit (10.4 s) ⇒ re-run that test alone before believing it.
+- `T/run_tests.sh x | tail -1` showed exit-leak lines, not the result ⇒ `grep '^TESTS'`.
+- Celeron frame 134 ms: 8 physics ticks a frame, each with its own snapshot (world_step 67 + snapshot 23 ms) ⇒ compare machines per tick (section / ticks a frame); `docs/performance.md` pass 4.
 
 ## Rendering and art
 - GPU glitch blamed on a guess ⇒ sample screenshot pixels, reproduce; else ship toggles.
