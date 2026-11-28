@@ -338,3 +338,29 @@ the usual `BOT shard=...` and `BOT score=...` lines. Where the shard forces some
   Cannot prove: the Sanctum's walking and portal, a party that stays seated, LAN.
 - **A shard that frees the arena** must not guard on `_arena == null`: a freed node reads as null, so the again shard
   runs off `G.main.current` (the first version of it stalled silently at the results screen for that reason).
+
+## The coverage robot
+
+Stage 3's gate: robots finish runs that use every row of the content list (`docs/stage3_brief.md` § 1, § 4.4; the Test
+letter B of `docs/content_list.md` § 36). `tests/bot/bot_cover.gd` plays one fresh run of the real game per row
+(headless, two seats, the play-bots playing), deals the row by force to the first seat before the first step
+(`WorldGrants.give`: past every lock, ban, slot cap and `Upgrades.UNBUILT`, with what the row requires), and plays
+until the row is **credited** and a second more, or until 40 s of game time.
+
+- Run every shard: `tests/bot/cover.sh [nshards=2]` (`COVER_ALL shards= rows= ok= pending= failed= bad_shards=`; CI row
+  `bot-cover`, `check_all` tasks `botcover<i>`). One row: `godot --headless --fixed-fps 60 --path .
+  res://tests/bot/bot.tscn -- --cover --deal=<key>`. The plan without playing: `godot --headless --path . -s
+  tools/tool.gd -- coverage [--gate]` (`COVERAGE rows= cover= pending= unbuilt=`; `--gate` exits 1 unless pending and
+  unbuilt are both 0: the stage 3 gate).
+- Lines: `COVER <key> ok uses=N t=<game s>`, `COVER <key> pending`, `COVER <key> FAIL <why>`; a row also fails on an
+  engine error it caused. About 1.6 s of wall time a row plus 5 s to start a shard: keep a shard under about 18 rows.
+- Credit: a SPELL or EVOLUTION row by the damage the dealt seat does with it (an evolution only while that very row is
+  held); every other row by its use counter, `w.record.use("<key>", slot)` where its effect lands (`Results.used`).
+- `PENDING` in the robot lists the rows nothing credits yet. A pending row is played for 12 s and not failed for the
+  missing credit, but it **fails when it is credited**, so the list cannot rot: the job that credits a row takes its key
+  off the list.
+- A new family of rows (Readings, Seals, monster cards, shop rows) is one script in `tests/bot/cover/` that extends
+  `family.gd`: `family()`, `keys()`, `unbuilt(key)`, `deal(w, p, key)`, `credit(w, p, key)`. The robot and the plan find
+  it by its file. Keys are unique across families.
+- Cannot prove: that a row's effect is the right size or looks right (the damage table, the unit tests and the
+  pictures do that), or that a human would ever be offered it (the catalog's own tests).

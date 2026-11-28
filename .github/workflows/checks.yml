@@ -4,7 +4,7 @@ name: checks
 
 # The rule on main requires these jobs on every pull request: unit, lint, sims, sims-horde, bot-0..2 (and realm.yml's
 # linux, windows, same-hash, client-windows), so this workflow must run on all of them: with a paths filter here a
-# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win, bot-again, tools and checks-windows run
+# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win, bot-again, bot-cover, tools and checks-windows run
 # on every pull request too but are not in the rule yet: adding them is the owner's step in the repository's rules.
 # Until then read their result before a merge; the stations' `checks` role runs the four bot rows on every merge
 # (tools/check_all.sh).
@@ -47,6 +47,9 @@ jobs:
           - { name: bot-boss, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --boss | tee out.log; grep -q '^BOT boss PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
           - { name: bot-win, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --win | tee out.log; grep -q '^BOT win PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
           - { name: bot-again, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --again | tee out.log; grep -q '^BOT again PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          # The coverage robot (tests/bot/bot_cover.gd): every catalog row dealt by force and proven used. The script runs
+          # its shards one after another; give it rows of its own when the list of stage 3 makes that longer than the others.
+          - { name: bot-cover, cmd: "tests/bot/cover.sh 2 | tee out.log; grep -q '^COVER_ALL .* failed=0 bad_shards=0' out.log" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-godot
