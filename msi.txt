@@ -1,9 +1,9 @@
-STATION machine=msi time=2026-11-28T01:07Z commit=1f6478c took=1256s
+STATION machine=msi time=2026-11-28T01:31Z commit=94cb1e9 took=1073s
 JOB checks FAIL
-  unit       TESTS passed=713 failed=18
+  unit       TESTS passed=734 failed=18
   bot        shards=4 failed=2
   BOT heroes FAIL user://profile.json exists
   BOT shard=3 players=4 seed=104 clock=74s enemies=264 over=true FAIL 
   CHECK_ALL FAIL (see rows above)
-JOB boss PASS seed7=WON@16:27 seed21=WON@17:27 seed33=WON@17:10 seed101=WON@16:14 seed102=WON@16:16
+JOB boss PASS seed7=WON@15:43 seed21=WON@15:52 seed33=WON@16:10 seed101=WON@15:49 seed102=WON@16:04
 STATION FAIL jobs=2 failed=1 skipped=0
