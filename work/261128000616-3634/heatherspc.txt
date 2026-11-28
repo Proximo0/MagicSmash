@@ -1,0 +1,1 @@
+2026-11-28T00:28:11Z INFO id=261128000616-3634 kind=shell secs=137 wandsframes key=185ebeb8ab0d gpu="Intel - IntelR UHD Graphics 600" wave=10 players=4 frames=300 enemies_peak=269 particles=177 draw_calls=108 p50=126.4 p95=186.8
