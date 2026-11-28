@@ -48,28 +48,13 @@ static func on_call(a: Arena, ev: Array) -> void:
 	Sfx.play("ghost", -6.0, 1.5)
 
 
-## The HUD: an arrow at the screen's edge toward a seat that called in the last ARROW_LIFE s and is out of view.
-static func call_arrow(a: Arena, ci: CanvasItem, slot: int) -> void:
-	var at := Vector2.INF
+## The opacity of `slot`'s edge arrow (drawn by ArenaHud, one per wizard out of view): 1.0 while steady, a blink
+## between 0.3 and 1.0 for ARROW_LIFE s after her call for help.
+static func call_blink(a: Arena, slot: int) -> float:
 	for g: Array in _pings(a):
 		if int(g[0]) == slot and a.time - float(g[2]) < ARROW_LIFE:
-			at = g[1]
-	if not at.is_finite():
-		return
-	var view := Rect2(Vector2(6, G.HUD_H + 6), G.SCREEN - Vector2(12, G.HUD_H + 12))
-	var sp := a._on_screen(at)
-	if view.grow(4).has_point(sp):
-		return
-	var center := view.get_center()
-	var d := sp - center
-	var tip := center + d * minf((view.size.x / 2.0) / maxf(absf(d.x), 0.001), (view.size.y / 2.0) / maxf(absf(d.y), 0.001))
-	var dir := d.normalized()
-	var side := Vector2(-dir.y, dir.x)
-	var col := Color(G.player_color(slot), 0.65 + 0.35 * sin(a.time * 10.0))
-	var pts := PackedVector2Array([tip, tip - dir * 9.0 + side * 5.0, tip - dir * 9.0 - side * 5.0])
-	ci.draw_colored_polygon(pts, col)
-	ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), INK, 1.0)
-	PixelFont.draw(ci, "P%d" % (slot + 1), (tip - dir * 17.0 - Vector2(3, 2)).round(), 1, G.player_color(slot), INK)
+			return 0.65 + 0.35 * sin(a.time * 10.0)
+	return 1.0
 
 
 ## True while a spirit's own clock runs: she has one, and no standing wizard is inside her circle.

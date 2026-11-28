@@ -3,7 +3,7 @@ extends RefCounted
 ## Arena: the hand of cards under an open level-up tray, and a boss's arrival picture. Under each open tray the
 ## offered cards sit side by side, numbered like the tray's rows (buttons 1, 2, 3): the owner's painting when the
 ## card has one, else a plain card with its emblem. In the lull after a Lich the hand is drawn at double size
-## when it fits. The hand never covers the wizard whose tray it is.
+## when it fits. A hand never covers a wizard, her own or another: where it would, it is not drawn.
 ## Static helpers: `a` is the Arena that owns the state.
 
 const CARD := Vector2(31, 63)
@@ -11,6 +11,39 @@ const GAP := 2.0
 ## What a wizard's sprite covers around its position on screen.
 const WIZARD_BOX := Rect2(-14, -28, 28, 36)
 const SCREEN := Rect2(0, 0, 480, 270)
+## An open tray's opacity: solid, and see-through while a living wizard's body is under it; the change takes
+## TRAY_FADE seconds.
+const TRAY_SOLID := 1.0
+const TRAY_GLASS := 0.3
+const TRAY_FADE := 0.15
+
+
+## A wizard's body on screen, from her feet's screen position.
+static func wizard_body_at(feet: Vector2) -> Rect2:
+	return Rect2(feet + WIZARD_BOX.position, WIZARD_BOX.size)
+
+
+## True while any of these bodies (screen rects of living wizards) touches the tray, rim included: the tray then
+## turns see-through so she and the enemies around her stay plainly visible.
+static func tray_hides_wizard(tray: Rect2, bodies: Array[Rect2]) -> bool:
+	for b: Rect2 in bodies:
+		if tray.grow(1.0).intersects(b):
+			return true
+	return false
+
+
+## True when a hand drawn in `box` would cover any of these bodies. A hand is solid (painted cards), so it is not
+## drawn there at all.
+static func hand_hides_wizard(box: Rect2, bodies: Array[Rect2]) -> bool:
+	for b: Rect2 in bodies:
+		if box.intersects(b):
+			return true
+	return false
+
+
+## The tray's opacity `dt` s on, easing toward TRAY_GLASS (glass) or TRAY_SOLID.
+static func tray_alpha_toward(alpha: float, glass: bool, dt: float) -> float:
+	return move_toward(alpha, TRAY_GLASS if glass else TRAY_SOLID, dt * (TRAY_SOLID - TRAY_GLASS) / TRAY_FADE)
 
 
 ## Drawn last of the level-up cards, over the banners: a boss's arrival picture, then the hand under each open tray.
@@ -34,11 +67,11 @@ static func _hand(a: Arena, ci: CanvasItem, slot: int, dark: Color, used: Array[
 	var scale := 1.0
 	var at := Vector2(-1, -1)
 	if a.lull_left > 0.0:
-		at = _spot(a, slot, tray, _hand_size(n, 2.0), used, true)
+		at = _spot(a, tray, _hand_size(n, 2.0), used, true)
 		if at.x >= 0.0:
 			scale = 2.0
 	if at.x < 0.0:
-		at = _spot(a, slot, tray, _hand_size(n, 1.0), used, false)
+		at = _spot(a, tray, _hand_size(n, 1.0), used, false)
 	if at.x < 0.0:
 		return
 	used.append(Rect2(at, _hand_size(n, scale)))
@@ -71,21 +104,21 @@ static func _card(ci: CanvasItem, r: Rect2, key: String, dark: Color) -> void:
 	ci.draw_texture_rect(TarotArt.emblem(key), Rect2((r.get_center() - Vector2(es, es) / 2.0).floor(), Vector2(es, es)), false)
 
 
-## The top-left of the hand: under the tray, at its left edge or else its right edge (or, large, also centred on
-## the screen), clear of the wizard, the arrival picture and the hands already placed. (-1, -1) when none is.
-static func _spot(a: Arena, slot: int, tray: Rect2, size: Vector2, used: Array[Rect2], large: bool) -> Vector2:
+## The top-left of the hand: under the tray, at its left edge or else its right edge, clear of every wizard in the
+## run (her own and the others, standing or fallen), the arrival picture and the hands already placed. (-1, -1)
+## when none is: the tray's rows still name the cards.
+static func _spot(a: Arena, tray: Rect2, size: Vector2, used: Array[Rect2], large: bool) -> Vector2:
 	var y := tray.end.y + 3.0
-	var wiz := Rect2(a._on_screen((a.vp[slot] as Dictionary).pos as Vector2) + WIZARD_BOX.position, WIZARD_BOX.size)
+	var bodies: Array[Rect2] = []
+	for o: Dictionary in a.vp.values():
+		if ArenaDrawWorld.in_the_run(o):
+			bodies.append(wizard_body_at(a._on_screen(o.pos as Vector2)))
 	var arrival := ArenaFateView._arrival_rect(a)
 	for x: float in [tray.position.x, tray.end.x - size.x]:
 		var box := Rect2(Vector2(x, y), size).grow(1)
 		if large and not SCREEN.encloses(box):
 			continue
-		var covers := box.intersects(wiz)
-		if large: # the big hand must clear every wizard
-			for o: Dictionary in a.vp.values():
-				covers = covers or box.intersects(Rect2(a._on_screen(o.pos as Vector2) + WIZARD_BOX.position, WIZARD_BOX.size))
-		if covers or (arrival.size.x > 0.0 and box.intersects(arrival)):
+		if hand_hides_wizard(box, bodies) or (arrival.size.x > 0.0 and box.intersects(arrival)):
 			continue
 		var clash := false
 		for u: Rect2 in used:

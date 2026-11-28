@@ -69,6 +69,8 @@ static func _draw_hud(a: Arena) -> void:
 	# The level-up cards go over the banners and the act card, so a banner never hides a tray's last row.
 	if not a.game_over and not a.paused:
 		ArenaTray._draw_draws(a, ci, dark)
+	else:
+		ArenaTray.hide_trays(a) # an open tray sits on a layer of its own, over this band
 	# Screen flash
 	var flash_a: float = Save.settings.flash_alpha(a.screen_flash.a)
 	if flash_a > 0.0:
@@ -96,7 +98,6 @@ static func vitals(a: Arena, ci: CanvasItem, slot: int, x: float, p: Dictionary,
 		if prog > 0.0:
 			ci.draw_rect(Rect2(x, 16, 23, 1), Color(dark, 1.0).lightened(0.15))
 			ci.draw_rect(Rect2(x, 16, 23 * prog, 1), col.lerp(Color.WHITE, 0.4))
-		ArenaDrawFallen.call_arrow(a, ci, slot)
 	else:
 		var mh: int = p.get("max_hp", World.BASE_HEARTS)
 		var hstep := 7.0 if mh <= World.BASE_HEARTS else 35.0 / mh
@@ -256,7 +257,8 @@ static func _draw_party_bar(a: Arena, ci: CanvasItem, dark: Color) -> void:
 
 ## Arrows at the screen's edge pointing at what matters out of view: chests, cards and the Lich.
 static func _draw_offscreen(a: Arena, ci: CanvasItem) -> void:
-	var view := Rect2(Vector2(6, G.HUD_H + 6), G.SCREEN - Vector2(12, G.HUD_H + 12))
+	var view := arrow_view()
+	_draw_wizard_arrows(a, ci, view)
 	var marks: Array = []
 	for k: Array in a.vk:
 		var kind: int = k[0]
@@ -308,3 +310,83 @@ static func _star(a: Arena, ci: CanvasItem, p: Vector2) -> void:
 	ci.draw_rect(Rect2(p + Vector2(0, 2), Vector2(5, 1)), c)
 	ci.draw_rect(Rect2(p + Vector2(1, 1), Vector2(3, 3)), c)
 	ci.draw_rect(Rect2(p + Vector2(2, 2), Vector2(1, 1)), Color.WHITE)
+
+
+## Where the edge arrows' tips sit: the play window less ARROW_INSET.
+const ARROW_INSET := 6.0
+## The least distance between two wizards' arrow tips, px.
+const ARROW_SPREAD := 18.0
+
+
+static func arrow_view() -> Rect2:
+	return ArenaDrawWorld.PLAY_WINDOW.grow(-ARROW_INSET)
+
+
+## Who gets an edge arrow: every living wizard (human, spirit or apprentice) whose body is not wholly inside the play
+## window. `people` are view dictionaries plus `slot`; `cam` the camera. Returns [{slot, tag, at}] in slot order, `at`
+## the middle of her body on screen; the tag is P<n>, A<n> for an apprentice.
+static func edge_arrows(people: Array, cam: Vector2) -> Array:
+	var out: Array = []
+	var sorted := people.duplicate()
+	sorted.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return int(x.slot) < int(y.slot))
+	for p: Dictionary in sorted:
+		var body := ArenaTrayArt.wizard_body_at(p.pos - cam)
+		if not ArenaDrawWorld.in_the_run(p) or ArenaDrawWorld.PLAY_WINDOW.encloses(body):
+			continue
+		var tag := ("A%d" if p.get("ai", false) else "P%d") % (int(p.slot) + 1)
+		out.append({"slot": int(p.slot), "tag": tag, "at": body.get_center()})
+	return out
+
+
+## Moves tips that sit closer than ARROW_SPREAD to an earlier one along their edge of `view`, so no two arrows overlap.
+static func spread_tips(tips: Array[Vector2], view: Rect2) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for t: Vector2 in tips:
+		var along := 0 if (absf(t.x - view.position.x) < 0.5 or absf(t.x - view.end.x) < 0.5) else 1 # 0: the edge runs up and down
+		var axis := 1 if along == 0 else 0
+		var sign_dir := 1.0
+		var tries := 0
+		while tries < 12:
+			var clash := false
+			for o: Vector2 in out:
+				if o.distance_to(t) < ARROW_SPREAD:
+					clash = true
+					break
+			if not clash:
+				break
+			t[axis] += sign_dir * ARROW_SPREAD
+			if t[axis] > view.end[axis] or t[axis] < view.position[axis]:
+				sign_dir = -sign_dir
+				t[axis] = clampf(t[axis], view.position[axis], view.end[axis]) + sign_dir * ARROW_SPREAD
+			tries += 1
+		out.append(t)
+	return out
+
+
+## One steady arrow in the seat's colour with her tag at the edge of the view for every wizard out of view; the one
+## that just called for help blinks (ArenaDrawFallen.call_blink).
+static func _draw_wizard_arrows(a: Arena, ci: CanvasItem, view: Rect2) -> void:
+	var people: Array = []
+	for slot: int in a.vp.keys():
+		var p: Dictionary = a.vp[slot]
+		people.append({"slot": slot, "pos": p.pos, "alive": p.alive, "down": p.get("down", false), "ai": p.get("ai", false)})
+	var arrows := edge_arrows(people, a.cam)
+	var center := view.get_center()
+	var tips: Array[Vector2] = []
+	for r: Dictionary in arrows:
+		var d: Vector2 = (r.at as Vector2) - center
+		var tx := (view.size.x / 2.0) / maxf(absf(d.x), 0.001)
+		var ty := (view.size.y / 2.0) / maxf(absf(d.y), 0.001)
+		tips.append(center + d * minf(tx, ty))
+	tips = spread_tips(tips, view)
+	for i in arrows.size():
+		var slot: int = arrows[i].slot
+		var dir: Vector2 = ((arrows[i].at as Vector2) - center).normalized()
+		var side := Vector2(-dir.y, dir.x)
+		var tip := tips[i]
+		var col := G.player_color(slot)
+		var pts := PackedVector2Array([tip, tip - dir * 9.0 + side * 5.0, tip - dir * 9.0 - side * 5.0])
+		ci.draw_colored_polygon(pts, Color(col, ArenaDrawFallen.call_blink(a, slot)))
+		ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(Occult.INK, 0.9), 1.0)
+		var label_at := (tip - dir * 17.0 - Vector2(PixelFont.text_width(arrows[i].tag) / 2.0, 3.0)).round()
+		PixelFont.draw(ci, arrows[i].tag, label_at, 1, col, Occult.INK)

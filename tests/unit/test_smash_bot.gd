@@ -290,7 +290,7 @@ func test_a_fallen_bot_drifts_to_the_nearest_standing_mate() -> void:
 ## clock, the apprentice's input included): the pin was taken
 ## before the class play landed, so a seat with no class plays exactly as before. Refresh it only for a change
 ## that is meant to move classless bots (the world itself: spells, enemies).
-const CLASSLESS_PIN := 242283988
+const CLASSLESS_PIN := 337621597
 
 
 func test_a_seat_with_no_class_plays_as_before() -> void:

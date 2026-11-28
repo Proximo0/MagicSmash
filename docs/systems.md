@@ -31,6 +31,15 @@ How each system works: read only the section for the system you touch (`grep -n 
   their head; E / LB / LT opens the tray, 1 2 3 / X Y B takes a card (input fields 6 and 7, [card, offer id]),
   and taking a card pushes nearby enemies back. After a Lich (not the Archlich) falls, a 20 s lull
   (`World.lull_left`, `EV_LULL`) stops spawns and opens the trays.
+- One shared screen, every wizard in sight (`ArenaDrawWorld.wanted_camera`, `eased_camera`, `leash_room`;
+  `ArenaHud.edge_arrows`; `ArenaTrayArt.tray_hides_wizard`, `hand_hides_wizard`): the camera frames every living human,
+  standing or fallen (apprentices only when no human lives), centred, shifted just enough to keep each body
+  (`WIZARD_BOX`) 2 px inside the play window, and held there while it eases, so a running party never outruns it. The
+  leash (`leash_x/y`) may not exceed `leash_room()` (448 x 203). A living wizard not wholly in the window gets one
+  steady edge arrow (`P<n>`, apprentice `A<n>`) that blinks after her call. The four trays and tabs (`TRAY_X`, 120
+  apart) never share a pixel; a tray whose rect a living wizard's body touches fades to `TRAY_GLASS` over `TRAY_FADE` s
+  (a layer of its own per seat, hidden while the game is paused or over); the painted hand under a tray is not drawn
+  where it would cover any wizard.
 - Bots take their cards at once (`SmashBot.PICK_PRIORITY`); `--autotest` saves `levelup.png`, `tab.png`,
   `tray.png`, `lull.png`, `lull_end.png`.
 
