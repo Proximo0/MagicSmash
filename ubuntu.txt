@@ -1,5 +1,5 @@
-STATION machine=ubuntu time=2026-11-27T23:45Z commit=86c8a4e took=0s
-JOB checks SKIP nothing it tests changed since 2723699
-JOB boss SKIP nothing it tests changed since 2723699
-JOB golden SKIP nothing it tests changed since 2723699
-STATION PASS jobs=0 failed=0 skipped=3
+STATION machine=ubuntu time=2026-11-28T00:46Z commit=b905b1b took=2007s
+JOB checks PASS
+JOB boss PASS seed7=WON@16:18 seed21=WON@16:28 seed33=WON@16:46 seed101=WON@16:09 seed102=WON@16:48
+JOB golden INFO GOLDEN same seeds=2 against 86c8a4ea271afc1f7fbddf64afaf9792ac85fc24 since 86c8a4e
+STATION PASS jobs=3 failed=0 skipped=0
