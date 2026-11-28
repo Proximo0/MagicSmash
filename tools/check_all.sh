@@ -20,6 +20,7 @@ tools/import.sh || { echo "CHECK_ALL FAIL (import)"; exit 1; }
 
 # One command per line: name|command.
 BOT_SHARDS=3
+COVER_SHARDS=2
 TASKS=()
 HAVE_BOT=0; [[ -f tests/bot/bot.tscn ]] && HAVE_BOT=1
 HAVE_LAB=0; [[ -f tests/lab/lab.tscn ]] && HAVE_LAB=1
@@ -31,6 +32,11 @@ if (( HAVE_BOT )); then
   # save folder of its own (tools/private_save.sh: it works on Windows too; docs/bots.md).
   for m in heroes boss win again; do
     TASKS+=("bot$m|tools/private_save.sh timeout $BOT_LIMIT $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --$m")
+  done
+  # The coverage robot (tests/bot/bot_cover.gd): each shard deals its share of the rows one by one, about 1.6 s of wall
+  # time a row here plus 5 s to boot. Keep a shard under about 18 rows (90 s); the finished list (~110 rows) takes 6.
+  for ((i = 0; i < COVER_SHARDS; i++)); do
+    TASKS+=("botcover$i|timeout $BOT_LIMIT $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --cover --shard=$i --nshards=$COVER_SHARDS")
   done
 fi
 LAB_LIMIT=600

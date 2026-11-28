@@ -19,6 +19,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 - `T/golden.sh [base=origin/main]` `GOLDEN same|changed` · `T/import.sh` only import path, skips no-ops (`FORCE_IMPORT=1`)
 - L lands a branch with `T/land.sh` `LAND ok|FAIL` (guard `T/guard.sh` `GUARD problems=n`; `docs/agent/land.md`) · the engine version lives in `T/versions.env` (lint checks the other copies)
 - `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
+- `tests/bot/cover.sh` `COVER_ALL` every catalog row dealt by force and proven used (`docs/bots.md`) · `GD -s T/tool.gd -- coverage [--gate]` `COVERAGE` its plan
 - `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_linux.sh` [`--playtest`] / `T/export_android.sh` → `build/` · `T/smoke_build.sh <bin>` `SMOKE_BUILD` (`docs/release_build.md`) · `T/fetch_sentry.sh`
 - Play `godot --path . [-- --seed=N]` · bots+shots `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir] [--perf]`
 

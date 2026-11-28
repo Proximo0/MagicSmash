@@ -12,6 +12,8 @@ const Heroes := preload("res://tests/bot/bot_heroes.gd")
 ## `-- --boss` and `-- --win` (tests/bot/bot_boss.gd): the run's clock moves to just before a boss; `-- --again`: a
 ## second run after the results, the Sanctum and the lobby. All three seat the saved heroes like `--heroes` (shard 3).
 const BossRun := preload("res://tests/bot/bot_boss.gd")
+## `-- --cover` (tests/bot/bot_cover.gd): the coverage robot, one fresh run a row, the row dealt by force.
+const Cover := preload("res://tests/bot/bot_cover.gd")
 ## Longest game time the boss, win and again shards may take.
 const SHARD_LIMIT: float = 150.0
 ## Longest game time the hero shard may take to reach its end of run.
@@ -39,6 +41,10 @@ var _again_checked: bool = false
 
 
 func _ready() -> void:
+	if Flags.args.has("cover"):
+		set_physics_process(false)
+		add_child(Cover.new())
+		return
 	for m: String in ["heroes", "boss", "win", "again"]:
 		if Flags.args.has(m):
 			_mode = m
