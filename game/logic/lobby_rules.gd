@@ -46,3 +46,23 @@ static func decide(dev: int, seated: Array[int], other_human: bool, asking: bool
 		B_REMOVE:
 			return REMOVE_APPRENTICE if dev == p1 else NONE
 	return NONE
+
+
+## The empty seat that shows P1's hint for adding an apprentice: the lowest free slot (the seat Net gives the next
+## apprentice), or -1 when every seat is taken. `taken`: the slots in the roster.
+static func add_hint_slot(taken: Array[int], seats: int) -> int:
+	for s: int in range(seats):
+		if not taken.has(s):
+			return s
+	return -1
+
+
+## P1's hint on that seat, and on the apprentice a removal takes (the last one seated), by P1's device: a pad's
+## button or the keyboard's key (the title's lobby_button).
+static func add_hint(pad: bool) -> String:
+	return "Y: APPRENTICE" if pad else "+: APPRENTICE"
+
+
+static func remove_hint(pad: bool) -> String:
+	return "X: REMOVE" if pad else "-: REMOVE"
+

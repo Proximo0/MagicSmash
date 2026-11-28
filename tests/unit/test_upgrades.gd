@@ -115,3 +115,11 @@ func test_names_and_effects_fit_a_tray_row() -> void:
 	assert_true(11 + PixelFont.text_width(longest_name) + 1 <= 116, "%s does not fit a row" % longest_name)
 	assert_true(11 + PixelFont.text_width(longest_effect) + 4 + PixelFont.text_width("2/5") <= 116,
 		"%s does not fit beside the level" % longest_effect)
+
+
+## CUPS heals a heart (WorldLevels); "+1 HEART" is what the cards say for one more heart to hold.
+func test_cups_says_it_heals() -> void:
+	var row: Array = Upgrades.CATALOG[Upgrades.M_CUPS]
+	assert_eq(str(row[0]), "cups")
+	assert_true(str(row[2]).begins_with("HEAL"), "CUPS reads '%s'" % str(row[2]))
+
