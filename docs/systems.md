@@ -40,6 +40,13 @@ How each system works: read only the section for the system you touch (`grep -n 
   apart) never share a pixel; a tray whose rect a living wizard's body touches fades to `TRAY_GLASS` over `TRAY_FADE` s
   (a layer of its own per seat, hidden while the game is paused or over); the painted hand under a tray is not drawn
   where it would cover any wizard.
+- The shop's run options reach every wizard on the run's first step (`World.apply_meta`, `WorldLevels._shop_start`):
+  `Upgrades.REDRAWS` and `BANISHES` plus the bought THE SECOND GLANCE and THE BLACK RIBBON, and THE HEAD START's
+  `start_level` N: the party starts at level 1 + N (no XP, no stats) and keeps that lead all run, because
+  `World.xp_needed` never prices those N levels (`World.head_start_levels`); every wizard has N hands to draw, and a
+  local seat's tray opens by itself as in a lull (`ArenaViewSync`). While one
+  is undrawn the intro holds (`WorldLevels._intro_held`: no horde, no clock) for at most `Tuning.head_start_wait`
+  seconds; a fallen, away or departed wizard holds nothing, and whoever has not drawn keeps her draws.
 - Bots take their cards at once (`SmashBot.PICK_PRIORITY`); `--autotest` saves `levelup.png`, `tab.png`,
   `tray.png`, `lull.png`, `lull_end.png`.
 
@@ -61,7 +68,8 @@ How each system works: read only the section for the system you touch (`grep -n 
 
 ## Continuous horde (rework step 4)
 
-- No more wave clears. After a 2.5 s intro the run clock (`World.wave_time`) runs until game over, and
+- No more wave clears. After a 2.5 s intro (held longer while THE HEAD START's hands are drawn:
+  `WorldLevels._intro_held`, at most `Tuning.head_start_wait`) the run clock (`World.wave_time`) runs until game over, and
   `World.wave` is now the minute of the run (1 from 0:00). The HUD shows the clock; each new minute gets a
   short banner.
 - The horde earns spawn budget every second, `(horde_rate_base + horde_rate_per_min x minutes) x party scale`,
@@ -201,7 +209,8 @@ How each system works: read only the section for the system you touch (`grep -n 
     per level, `EFFECTS`).
   - A run pays 1 crystal per 30 s survived, 1 per 250 kills and 10 per Lich. Crystals are earned in play and
     never sold.
-  - The title menu's UNLOCKS screen spends crystals: hearts, damage, XP, gold, novas, chest luck.
+  - The title menu's UNLOCKS screen spends crystals on the rows of `Profile.shelf()` (the nine not on
+    `Profile.UNBUILT`): hearts, damage, XP, gold, novas, chest luck, redraws, banishes, THE HEAD START.
   - In co-op the host's unlocks apply to every wizard (`World.apply_meta`), so Remote Play guests get the same
     head start.
   - `game/autoload/save.gd` (`Save`) is the only module that reads or writes player data (`user://profile.json`;

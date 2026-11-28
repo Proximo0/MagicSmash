@@ -4,6 +4,10 @@ extends SceneTree
 ## Usage: godot --headless --path . -s tools/playtest.gd -- [--runs=6] [--wizards=1,2,4]
 ##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=25] [--tune=field:value,...] [--seal=N] [--reading=<key>]
 ##   [--json=/tmp/out.json] [--party=casual,apprentice,...] [--hero=knight,archer:elf,...] [--profile=FILE]
+##   [--meta=key:value,...]
+## --meta passes Profile.bonuses keys to World.apply_meta for every run (over --profile's), e.g.
+## --meta=start_level:2,redraws:1 (THE HEAD START 2, THE SECOND GLANCE 1); the PLAYTEST line names them. A key
+## apply_meta does not read is refused; a second --meta adds to the first.
 ## --profile plays every run from a saved profile (a tools/career.gd checkpoint): its unlocks for every seat, its
 ## heroes (levels, stat points) for the human seats in seat order.
 ## --party plays one party of the named seats instead of the persona x wizards groups: a persona name seats a
