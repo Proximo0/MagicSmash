@@ -1,1 +1,2 @@
 2026-11-28T00:34:59Z INFO id=261128000026-9154 kind=shell secs=580 wandscareer key=185ebeb8ab0d seed=635958 wall_s=542 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 2 min 19 | arch 2/2 run 2 min 19 | win 2/2 run 2 min 19
+2026-11-28T00:43:51Z INFO id=261128000026-9154 kind=shell secs=321 wandscareer key=185ebeb8ab0d seed=113239 wall_s=321 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 1 min 17 | arch 2/2 run 1 min 17 | win 2/2 run 1 min 17
