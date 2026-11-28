@@ -25,11 +25,11 @@ if (( HAVE_BOT )); then
   for ((i = 0; i < BOT_SHARDS; i++)); do
     TASKS+=("bot$i|timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=$i --nshards=$BOT_SHARDS")
   done
-  # The hero shard and its three kin (boss, win, again): saved heroes seated in an in-memory profile, in a private save folder (docs/bots.md).
-  TASKS+=("botheroes|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes")
-  TASKS+=("botboss|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --boss")
-  TASKS+=("botwin|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --win")
-  TASKS+=("botagain|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --again")
+  # The hero shard and its three kin (boss, win, again): saved heroes seated in an in-memory profile, each in a private
+  # save folder of its own (tools/private_save.sh: it works on Windows too; docs/bots.md).
+  for m in heroes boss win again; do
+    TASKS+=("bot$m|tools/private_save.sh timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --$m")
+  done
 fi
 (( HAVE_LAB )) && TASKS+=("lab|timeout 600 $GODOT --headless --fixed-fps 60 --path . res://tests/lab/lab.tscn")
 # The horde's step budget is doubled here: this script's other Godot processes slow it through shared caches even in
@@ -51,7 +51,13 @@ rc=0
 row() { printf '%-10s %s\n' "$1" "$2"; }
 echo "=== check_all ($(( $(date +%s) - start )) s, $JOBS jobs, logs $OUT) ==="
 u=$(grep -E '^TESTS passed=' "$OUT/unit.log" | tail -1); row unit "${u:-CRASH}"
-[[ "$u" == *"failed=0"* ]] || rc=1
+if [[ "$u" != *"failed=0"* ]]; then
+  rc=1
+  # Which test files fail and how often, then the first failures: a station's report has room for a few lines only.
+  files=$(grep -E '^FAIL ' "$OUT/unit.log" | sed -E 's/^FAIL ([^: ]+)::.*/\1/' | sort | uniq -c | awk '{ printf "%s(%s) ", $2, $1 }')
+  [[ -z "$files" ]] || echo "    unit FAIL in: ${files% }"
+  grep -E '^(LOAD )?FAIL ' "$OUT/unit.log" | head -3 | cut -c1-200 | sed 's/^/    /'
+fi
 s=$(grep -E '^SIMS passed=' "$OUT/sims.log" | tail -1); row sims "${s:-CRASH}"
 [[ "$s" == *"failed=0"* ]] || rc=1
 grep -E '^SIM .* FAIL ' "$OUT/sims.log" | sed 's/^/    /'

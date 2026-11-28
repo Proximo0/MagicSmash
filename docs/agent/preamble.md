@@ -19,7 +19,8 @@ Horde & Hearth (`realm/`, `docs/realm/`, `game/crowd/`) is another game, shelved
   suite: the lead does.
 - Pictures: `xvfb-run -a godot --path . -- --autotest --players=N --seed=S --out=/tmp/<job>/`; look at every PNG you
   make (the Read tool shows PNG files) and report the weak spots, not only the best frame.
-- Any run that could write player data uses a private save folder: prefix it with `XDG_DATA_HOME=/tmp/<job>/xdg`.
+- Any run that could write player data uses a private save folder: start it as `tools/private_save.sh <command>`
+  (it works on Windows too, where `XDG_DATA_HOME` does nothing).
 - Git: none, unless your job says otherwise. The lead stages files by name, commits and opens the pull request.
 - Never call an `mcp__` tool, never message the owner; report only to the lead. Steam, store, payment and upload
   actions are the owner's alone. No secrets in files (the Sentry DSN lives only in git-ignored `config/`).

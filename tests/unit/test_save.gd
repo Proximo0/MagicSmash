@@ -6,7 +6,8 @@ var _dir := ""
 
 
 func _fresh_dir(name: String) -> String:
-	_dir = "/tmp/ms_test_save_%s_%d" % [name, OS.get_process_id()]
+	# The system's own temp folder: "/tmp" is no folder on Windows, where all 18 tests here used to fail.
+	_dir = OS.get_temp_dir().path_join("ms_test_save_%s_%d" % [name, OS.get_process_id()])
 	DirAccess.make_dir_recursive_absolute(_dir)
 	for f: String in DirAccess.get_files_at(_dir):
 		DirAccess.remove_absolute(_dir + "/" + f)

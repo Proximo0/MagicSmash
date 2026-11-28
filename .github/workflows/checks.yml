@@ -4,9 +4,10 @@ name: checks
 
 # The rule on main requires these jobs on every pull request: unit, lint, sims, sims-horde, bot-0..2 (and realm.yml's
 # linux, windows, same-hash, client-windows), so this workflow must run on all of them: with a paths filter here a
-# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win, bot-again and tools run on every pull
-# request too but are not in the rule yet: adding them is the owner's step in the repository's rules. Until then read
-# their result before a merge; the stations' `checks` role runs the four bot rows on every merge (tools/check_all.sh).
+# change to realm/ alone could never be merged. bot-heroes, bot-boss, bot-win, bot-again, tools and checks-windows run
+# on every pull request too but are not in the rule yet: adding them is the owner's step in the repository's rules.
+# Until then read their result before a merge; the stations' `checks` role runs the four bot rows on every merge
+# (tools/check_all.sh).
 on:
   push:
     branches: [main]
@@ -36,15 +37,16 @@ jobs:
           - { name: sims, cmd: "tools/run_sims.sh --except=sim_horde" }
           - { name: sims-horde, cmd: "tools/run_sims.sh sim_horde" }
           # Play-bot fan-out: one runner per shard (shard n plays seed 101+n with 1+n%4 wizards). Keep --nshards
-          # equal to the number of rows of shards 0 to 2; bot-heroes, bot-boss, bot-win and bot-again (saved heroes, a private save folder) are rows of their own.
+          # equal to the number of rows of shards 0 to 2; bot-heroes, bot-boss, bot-win and bot-again (saved heroes, a private
+          # save folder from tools/private_save.sh) are rows of their own.
           # A bot row also fails on an engine error line (tests/bot/no_engine_errors.sh).
           - { name: bot-0, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
           - { name: bot-1, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=1 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
           - { name: bot-2, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=2 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
-          - { name: bot-heroes, cmd: "XDG_DATA_HOME=$(mktemp -d) timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes | tee out.log; grep -q '^BOT heroes PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
-          - { name: bot-boss, cmd: "XDG_DATA_HOME=$(mktemp -d) timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --boss | tee out.log; grep -q '^BOT boss PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
-          - { name: bot-win, cmd: "XDG_DATA_HOME=$(mktemp -d) timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --win | tee out.log; grep -q '^BOT win PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
-          - { name: bot-again, cmd: "XDG_DATA_HOME=$(mktemp -d) timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --again | tee out.log; grep -q '^BOT again PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-heroes, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes | tee out.log; grep -q '^BOT heroes PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-boss, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --boss | tee out.log; grep -q '^BOT boss PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-win, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --win | tee out.log; grep -q '^BOT win PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-again, cmd: "tools/private_save.sh timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --again | tee out.log; grep -q '^BOT again PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-godot
@@ -59,6 +61,45 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: out.log
+          if-no-files-found: ignore
+
+  # Everything a station's `checks` job runs (tools/check_all.sh in a private save folder), on Windows: the game ships
+  # there first, and three of the owner's four PCs run it. Before this row a Windows-only fault showed only after the
+  # merge, in the stations' reports (docs/lessons_learned.md, 28 Nov 2026).
+  checks-windows:
+    name: checks-windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Keep line endings as committed (the tools are bash scripts)
+        shell: bash
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-godot
+      - name: Make python3 a command (tools/lint.sh calls it)
+        shell: bash
+        run: |
+          if ! python3 --version >/dev/null 2>&1; then
+            mkdir -p "$HOME/shims" && printf '#!/usr/bin/env bash\nexec python "$@"\n' >"$HOME/shims/python3" && chmod +x "$HOME/shims/python3"
+            cygpath -w "$HOME/shims" >> "$GITHUB_PATH"
+          fi
+      - name: tools/check_all.sh, as a station runs it
+        shell: bash
+        env:
+          # The per-test time limit and the horde sims' budget are the Linux rows' to hold: this runner times a step
+          # with a stopwatch beside its other processes (only Linux counts CPU time).
+          SLOW_TEST_MS: 30000
+          SIM_BUDGET_SCALE: 16
+        run: tools/private_save.sh tools/check_all.sh
+      - name: Collect the logs
+        if: always()
+        shell: bash
+        run: mkdir -p check-logs && cp -r /tmp/check.*/. check-logs/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checks-windows
+          path: check-logs
           if-no-files-found: ignore
 
   # The land script, the guard and the versions rule test themselves: throwaway repositories, a stub gh, no engine,

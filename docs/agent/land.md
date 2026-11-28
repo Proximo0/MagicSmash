@@ -33,7 +33,8 @@ The last line is the answer: `LAND ok pr=<N> url=<url> merge=auto|held|done` (ex
 `LAND_PUSH_WAITS="0 0 0 0"`.
 
 What the script leaves to the lead: reading the diff and the pictures before the run, the rows the rule on main does
-not require (`bot-heroes`, `bot-boss`, `bot-win`, `bot-again`, `tools`: auto-merge does not wait for them), and
+not require (`bot-heroes`, `bot-boss`, `bot-win`, `bot-again`, `tools`, `checks-windows`: auto-merge does not wait
+for them; `--hold` keeps the merge in your hands until you have read them), and
 following the pull request afterwards (a session that can subscribe to its activity does so after `LAND ok`).
 
 ## guard.sh

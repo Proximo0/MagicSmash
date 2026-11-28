@@ -16,6 +16,14 @@ const ROWS: Array = [
 ]
 
 
+## True when `user_dir` (OS.get_user_data_dir()) lies inside `private_dir` (the folder tools/private_save.sh made and
+## named in PRIVATE_SAVE). False for an empty private folder. Slashes and case do not matter (Windows gives both).
+static func save_is_private(private_dir: String, user_dir: String) -> bool:
+	var priv := private_dir.replace("\\", "/").to_lower().trim_suffix("/")
+	var user := user_dir.replace("\\", "/").to_lower().trim_suffix("/")
+	return not priv.is_empty() and (user + "/").begins_with(priv + "/")
+
+
 ## Four heroes of four races and classes, two with cards in their sockets (slime +1 heart; bat +10% speed, orc +10%
 ## damage), and a few unlock levels. The ELF is the active hero, as in a real profile whose player last played her.
 static func make_profile() -> Profile:

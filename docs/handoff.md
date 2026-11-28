@@ -77,9 +77,12 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
 
 ## Checks and tools
 
-- `tools/check_all.sh`: unit, sims, lint, three bot shards and the saved-heroes shard. CI
-  (`.github/workflows/checks.yml`) runs them as separate rows on every push and PR. `tools/map.sh` maps every script;
-  `tools/outline.sh <file>` maps one.
+- `tools/check_all.sh`: unit, sims, lint, three bot shards and the four saved-heroes shards (heroes, boss, win,
+  again). CI (`.github/workflows/checks.yml`) runs them as separate rows on every push and PR, and the whole script
+  once more on Windows (row `checks-windows`), the way the three Windows stations run it. `tools/map.sh` maps every
+  script; `tools/outline.sh <file>` maps one.
+- After every merge read `tools/station/read.sh`: a station's `checks` can fail where CI passed (28 Nov: the
+  Windows PCs failed for a day and nobody read it).
 - Watch it play: `xvfb-run -a godot --path . -- --autotest --out=/tmp/shots` (`--autotest=5` starts at the Lich,
   `--autotest=15` at the Archlich; `--players=N`, `--perf`).
 - Music: `tools/music`; SFX: `tools/gen_audio.py`. A whole bot run:
@@ -100,7 +103,8 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
   forms wait for the same answer.
 - The notices file carries Sentry for Godot, sentry-native and Crashpad. What those two carry inside them in turn
   (Crashpad builds on mini_chromium, for one) has not been walked: walk it before the public release (stage 7).
-- The `tools` CI row (self-tests of `tools/land.sh` and the versions rule) is not a required check either.
+- The `tools` CI row (self-tests of `tools/land.sh` and the versions rule) and the `checks-windows` row are not
+  required checks either.
 - The kit's frame stamp and render toggles are sized for a 1080p 3D game, so they are not in the 480x270 main
   scene. Scale them down before use.
 - On 20 Nov most of `arena.gd`, `title.gd` and `net.gd` were untyped (only `game/logic` is strict in spirit);

@@ -100,11 +100,16 @@ job_boss() {  # one line: how each seed ended; FAIL on a crash, an engine error,
 }
 job_checks() {
   # The 10 s per-test limit is CI's to enforce; a slow station gets room (STATION_SLOW_TEST_MS, default 30000).
-  # Same for the horde sim's CPU budget, which is set for CI's processor (STATION_SIM_BUDGET_SCALE, default 4).
-  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-4}" tools/check_all.sh 2>&1)
+  # Same for the horde sims' budget, which is set for CI's processor: STATION_SIM_BUDGET_SCALE, else this machine's line
+  # "simscale: <machine> N" in roles.txt, else 4. Only Linux counts a step in CPU time: a Windows station times it with a
+  # stopwatch beside its queue jobs, so the slowest PC needs a wide budget.
+  local scale; scale=$(awk -v M="$(printf %s "$MACHINE" | tr 'A-Z' 'a-z')" '$1 == "simscale:" && tolower($2) == M { print $3; exit }' tools/station/roles.txt 2>/dev/null)
+  case "$scale" in ''|*[!0-9]*) scale=4 ;; esac
+  # In a private save folder (tools/private_save.sh): no robot run reads or writes this PC's own save.
+  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-$scale}" tools/private_save.sh tools/check_all.sh 2>&1)
   [[ "$(tail -1 <<<"$out")" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
   echo "JOB checks FAIL"
-  grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -6 | cut -c1-160 | sed 's/^ */  /'
+  grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -12 | cut -c1-200 | sed 's/^ */  /'
   return 1
 }
 job_frames() {  # one line: the realm client's frame times with a full horde on screen, on this machine's own graphics
