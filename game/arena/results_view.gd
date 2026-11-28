@@ -217,22 +217,41 @@ static func _draw_moments(a: Arena, ci: CanvasItem, dark: Color, y0: int) -> voi
 		y += 10
 
 
+const PAUSE_HEAD_Y := 60
+const PAUSE_HEAD_ASK_Y := 40
+
 static func _draw_pause(a: Arena, ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(0.03, 0.0, 0.08, 0.7))
-	var tw := PixelFont.text_width("PAUSED", 4)
-	PixelFont.draw_gradient(ci, "PAUSED", Vector2(240 - tw / 2.0, 60), 4, Color.WHITE, Color("b78cff"), a.time * 4.0, 1.0)
+	var head := "PAUSED" if a.pause_by < 0 else "PAUSED BY P%d" % (a.pause_by + 1)
+	var top := Color.WHITE if a.pause_by < 0 else G.player_color(a.pause_by).lightened(0.45)
+	var low := Color("b78cff") if a.pause_by < 0 else G.player_color(a.pause_by)
+	var tw := PixelFont.text_width(head, 4)
+	# The heading moves up while QUIT TO TITLE's question shows under it.
+	PixelFont.draw_gradient(ci, head, Vector2(240 - tw / 2.0, PAUSE_HEAD_ASK_Y if a.pause_ask else PAUSE_HEAD_Y), 4, top, low,
+		a.time * 4.0, 1.0)
 	if a.pause_options:
 		a.options.draw(ci, a.time)
 		return
-	var panel := Rect2(170, 118, 140, 66)
+	if a.pause_ask:
+		PixelFont.draw_centered(ci, "END THE RUN?", 240, 80, 2, Occult.GOLD, Occult.INK)
+		PixelFont.draw_centered(ci, "WHAT YOU EARNED IS KEPT", 240, 99, 1, Occult.DIM, Occult.INK)
+	var rows: Array = a._pause_rows()
+	var panel := Rect2(170, 118, 140, 18 + rows.size() * 16)
 	Occult.frame(ci, panel, a.time)
-	Occult.candle(ci, Vector2(158, 184), a.time, 0.0, 10)
-	Occult.candle(ci, Vector2(322, 184), a.time, 2.0, 10)
-	for i in a.PAUSE_ITEMS.size():
+	Occult.candle(ci, Vector2(158, panel.end.y), a.time, 0.0, 10)
+	Occult.candle(ci, Vector2(322, panel.end.y), a.time, 2.0, 10)
+	for i in rows.size():
 		var sel := i == a.pause_sel
 		var y := 130 + i * 16
+		var label: String = rows[i]
 		if sel:
-			var w := PixelFont.text_width(a.PAUSE_ITEMS[i])
+			var w := PixelFont.text_width(label)
 			Occult.highlight(ci, Rect2(240 - w / 2.0 - 16, y - 3, w + 32, 13), a.time)
 			Occult.cursor(ci, Vector2(240 - w / 2.0 - 9, y + 3), a.time)
-		PixelFont.draw_centered(ci, a.PAUSE_ITEMS[i], 240, y, 1, Occult.GOLD if sel else Occult.DIM, Occult.INK)
+		var col := Occult.GOLD if sel else Occult.DIM
+		if a._pause_row_dim(i):
+			col = col.darkened(0.55)
+		PixelFont.draw_centered(ci, label, 240, y, 1, col, Occult.INK)
+	if a.time - a.pause_note_t < a.PAUSE_NOTE_SECS:
+		PixelFont.draw_centered(ci, "ONLY P%d CAN END THE RUN" % (a._first_seat() + 1), 240, panel.end.y + 12, 1,
+			Color("ff8a8a"), Occult.INK)

@@ -217,6 +217,15 @@ How each system works: read only the section for the system you touch (`grep -n 
     only to a wizard who really leads its stat (MVP, SLAYER, HIGH ROLLER, LUCKY, GOLD DIGGER, UNTOUCHABLE); in a
     party anyone left without one is a TEAM PLAYER.
   - `--autotest --end=45` ends the run at 45 s and saves `results.png`; `--end=45:win` shows it as a victory.
+  - **Booking a run** has one path, `ArenaEvents.book_run_once` (once: `Arena.run_booked`): the `EV_GAMEOVER`
+    handler, QUIT TO TITLE's YES and `NOTIFICATION_WM_CLOSE_REQUEST` (`Arena._book_run_now`, host/offline only:
+    `World.run_so_far()` is the record and totals `_end_run` would report now, read-only). In the victory
+    countdown it books the win. A LAN client's mid-run quit books nothing. Tests: `test_run_booking`.
+  - **Pause** opens from the keyboard or a pad holding a seat, not in the victory countdown (the automatic
+    pauses still do). Paused, it hears the keyboard, the pausing pad and P1's pad; B / Escape resumes. Heading
+    PAUSED BY Pn in the seat's colour (plain PAUSED when automatic). QUIT TO TITLE asks END THE RUN? / WHAT YOU
+    EARNED IS KEPT (NO first); only P1's pad or the keyboard may choose it, anyone else sees it dimmed and a
+    short ONLY P1 CAN END THE RUN.
 - 6c, wizard select (`game/logic/wizards.gd`, `Wizards`):
   - In the lobby each player steps left or right through the four wizards with their own keyboard or pad. Two
     players can't pick the same one. Each wizard is one robe colour and starts with its own spell: Violet
