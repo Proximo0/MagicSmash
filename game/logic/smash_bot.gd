@@ -100,7 +100,7 @@ const PAIR_FROM_LEVEL: int = 3
 ## circles, whose areas she widens (1.3 times the radius is 1.69 times the area). Four pairs were played as two
 ## casual bots, seeds 7-10 (star / empress 48 / 22, 24 / 14, 36 / 30, 36 / 40); none won 3 of 4, this one the fewest downs.
 const PASSIVE_TASTE: Dictionary = {"power": 55.0, "quick": 52.0, "life": 30.0, "regen": 26.0, "swift": 24.0,
-	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0, "star": 36.0, "empress": 40.0}
+	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0, "star": 0.0, "empress": 0.0}
 
 ## A shrine the bot can pay for pulls it from this far.
 const SHRINE_RANGE: float = 220.0
