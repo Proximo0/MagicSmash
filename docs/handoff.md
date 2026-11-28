@@ -91,7 +91,10 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
 - A LAN guest's run is not booked when the host quits (goes with online play, stage 6).
 - Slow hardware: the game is script-bound. A Celeron N4100 runs four players at 7 to 15 frames a second; the Ryzen
   laptop holds 60 alone and slips to about 54 with four at the Archlich (`docs/performance.md`, pass 4).
-- The `bot-heroes` CI row is not in the repository's required checks (the owner's setting).
+- The `bot-heroes`, `bot-boss`, `bot-win` and `bot-again` CI rows are not in the repository's required checks (the
+  owner's setting): read their result before a merge.
+- The tool and licence behind the owner's 103 uploaded pictures are on no record (`docs/asset_sources.md`, open
+  questions 1 to 3; asked of the owner on 28 Nov). The credits screen and the store forms wait for it.
 - The kit's frame stamp and render toggles are sized for a 1080p 3D game, so they are not in the 480x270 main
   scene. Scale them down before use.
 - On 20 Nov most of `arena.gd`, `title.gd` and `net.gd` were untyped (only `game/logic` is strict in spirit);
