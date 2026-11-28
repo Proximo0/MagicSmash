@@ -46,6 +46,9 @@ var _close_gen := 0
 var closing := false
 ## The difficulty the host chose for the next run (World.SEAL_EASY..World.SEAL_MAX, 0 normal); travels with the roster.
 var seal := 0
+## The Reading the host's table kept for the next run (a Readings key, "" for none). The host's only: clients learn
+## the card from the snapshot header (World.W_READING).
+var reading := ""
 ## slot -> PackedFloat32Array input from remote clients (host only)
 var remote_inputs := {}
 var my_peer := 1

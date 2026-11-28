@@ -2,7 +2,7 @@ extends SceneTree
 ## Playtest: SmashBot personas play whole runs in the pure simulation and the tool reports where the game is too
 ## hard, too easy, dull or unfair. One compact table per persona and party size, then one line starting PLAYTEST.
 ## Usage: godot --headless --path . -s tools/playtest.gd -- [--runs=6] [--wizards=1,2,4]
-##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=25] [--tune=field:value,...] [--seal=N]
+##   [--persona=novice,casual,veteran] [--seed=1] [--minutes=25] [--tune=field:value,...] [--seal=N] [--reading=<key>]
 ##   [--json=/tmp/out.json] [--party=casual,apprentice,...] [--hero=knight,archer:elf,...] [--profile=FILE]
 ## --profile plays every run from a saved profile (a tools/career.gd checkpoint): its unlocks for every seat, its
 ## heroes (levels, stat points) for the human seats in seat order.

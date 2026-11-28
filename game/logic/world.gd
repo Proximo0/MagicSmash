@@ -181,7 +181,7 @@ const BASE_HEARTS := 5
 
 ## The header, snapshot()["w"]: minute, phase, phase s, boss health fraction (-1: none), the four doors' open s,
 ## run s, 1 if the boss is the Archlich, lull s left, seal level, slot cap (spells, passives), then the boss's
-## Bestiary type (-1: none), its Bosses.phase, boss_t, boss_arg and boss_meter.
+## Bestiary type (-1: none), its Bosses.phase, boss_t, boss_arg and boss_meter, then the Reading (Readings index, -1).
 const W_WAVE := 0
 const W_PHASE := 1
 const W_PHASE_T := 2
@@ -198,7 +198,8 @@ const W_BOSS_PHASE := 15
 const W_BOSS_T := 16
 const W_BOSS_ARG := 17
 const W_BOSS_METER := 18
-const W_FLOATS := 19
+const W_READING := 19
+const W_FLOATS := 20
 
 ## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolution id, kind.
 const RUNE_FLOATS := 8
@@ -308,6 +309,35 @@ var seal_escort := 0 # CHAMPIONS: plain enemies with each elite
 var seal_hand := 0 # SILENCE: cards a level-up deals (0: tune.level_choices)
 var seal_ritual := 1.0 # DARKNESS: ritual time
 var seal_card := -1 # the Seal's card, which the Archlich drops when it is a card run's kill (Cards.run_card), -1 none
+## The run's Reading (apply_reading, Net.reading): a Readings key, "" for none. Its hp, horde, boss, speed and
+## potions multiply the seal_* fields above and its hearts are added; its own values land in the read_* fields,
+## neutral without a Reading. Each comment names the rule (job R2) that will read it and credit the Reading.
+var reading := ""
+var read_spell2 := false # ACE OF WANDS: every wizard starts with a second open spell at level 1
+var read_apprentice := false # FOUR OF WANDS: an apprentice joins the table
+var read_full_hearts := 0 # FOUR OF WANDS: hearts every wizard gains when all four seats are taken
+var read_pace := 1.0 # EIGHT OF WANDS: the run's clock: step() plays this many seconds for each second given
+var read_xp := 1.0 # TEN OF SWORDS: XP gained, multiplied
+var read_slots: Array = [] # TEN OF WANDS: [spell slots, arcana slots] from the first second; [] as built
+var read_bond := false # TWO OF CUPS: a hit takes its heart from the wizard who holds the most
+var read_no_potions := false # FIVE OF CUPS: no potion drops at all (elites and bosses too)
+var read_boss_heal := false # FIVE OF CUPS: each boss phase and boss death heals every wizard to full
+var read_arcana_hands := 0 # NINE OF CUPS: a wizard's first level-up hands that hold only arcana
+var read_free_redraws := false # NINE OF CUPS: redraws cost nothing in those hands
+var read_novas := 0 # ACE OF SWORDS: nova charges every wizard starts with, added
+var read_nova_refill := false # ACE OF SWORDS: a boss's arrival fills charges back to the run's start
+var read_heart_cap := 0 # THREE OF SWORDS: the most hearts a wizard can hold, 0 for no cap
+var read_damage := 1.0 # THREE OF SWORDS: all damage the wizards deal, multiplied
+var read_elite_rate := 1.0 # SEVEN OF SWORDS: how often elites come, multiplied
+var read_elite_tome := false # SEVEN OF SWORDS: every elite drops a PARTY TOME
+var read_swords_from := 0.0 # TEN OF SWORDS: run seconds from which TEN OF SWORDS foes join the horde, 0 never
+var read_gold := 0 # ACE OF PENTACLES: gold every wizard starts with, added
+var read_door_shrine := false # ACE OF PENTACLES: a gamble shrine stands at the door
+var read_no_shrines := false # FOUR OF PENTACLES: no shrines appear
+var read_gold_heal := 0 # FOUR OF PENTACLES: each this much gold a wizard picks up heals her a heart, 0 never
+var read_chest_items := 0 # NINE OF PENTACLES: items every chest holds, 0 as built
+var read_next_step := false # TEN OF PENTACLES: the run plays at the next step's numbers and rule
+var read_crystals := 1.0 # TEN OF PENTACLES: crystals the run pays, multiplied
 ## Slots each wizard has: (spells, passives). Upgrades.UNCAPPED until the slots job lands.
 var slots := Upgrades.UNCAPPED
 ## The party's shared level and XP pool; every Player.level follows party_level.
@@ -555,6 +585,30 @@ func apply_seal(level: int) -> void:
 			p.lives = int(v.solo_lives) if players.size() == 1 else int(v.lives)
 		if not bool(v.judgement):
 			p.banned[Upgrades.LIFE] = true
+
+## Merges the run's Reading (Net.reading, a Readings key) after the Seal's: call once, after apply_seal and
+## before the first step. Readings.MERGE_MUL multiply the seal_* fields, hearts are given the way apply_seal gives
+## a Seal's, and every other value sets read_<key> for its rule. A Reading that is only merged numbers has landed
+## here and is credited here; one with a rule is credited where the rule fires (Results.use). "" or an unknown
+## key changes nothing.
+func apply_reading(key: String) -> void:
+	var v := Readings.values(key)
+	if v.is_empty():
+		return
+	reading = key
+	var rules := 0
+	for k: String in v:
+		if Readings.MERGE_MUL.has(k):
+			set("seal_" + k, float(get("seal_" + k)) * float(v[k]))
+		elif Readings.MERGE_ADD.has(k):
+			for p: Player in players.values():
+				p.max_hp += int(v[k])
+				p.hp += int(v[k])
+		else:
+			set("read_" + k, v[k])
+			rules += 1
+	if rules == 0:
+		record.use(key)
 
 func slot_cap() -> Vector2i:
 	return slots
@@ -923,7 +977,7 @@ func snapshot() -> Dictionary:
 		"hz": Hazards.pack(hazards),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
 			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y,
-			btype, bphase, boss_t, boss_arg, boss_meter]),
+			btype, bphase, boss_t, boss_arg, boss_meter, Readings.index_of(reading)]),
 	}
 	WorldShrines.snapshot_fates(self, snap)
 	return snap

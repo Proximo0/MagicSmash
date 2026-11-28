@@ -257,6 +257,7 @@ func _ready() -> void:
 					if world.players.has(r.slot):
 						world.apply_hero(world.players[r.slot], flag_hero.to_dict())
 		world.apply_seal(Net.seal)
+		world.apply_reading(Net.reading)
 		Crash.tag("seed", str(world.rng.seed))
 		Crash.tag("wizards", str(slots.size()))
 	Sfx.music(_act_music())

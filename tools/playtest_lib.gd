@@ -17,6 +17,7 @@ var _seed: int = 1
 var _minutes: float = 25.0
 var _tune_pairs: PackedStringArray = []
 var _seal: int = 0
+var _reading: String = "" # --reading=<key>: every run plays under that Reading (World.apply_reading)
 var _json: String = ""
 ## --party: one party of seats, each a SmashBot persona id or APPRENTICE (empty: the persona x wizards groups).
 var _party: Array[int] = []
@@ -107,6 +108,11 @@ func _parse_args() -> bool:
 			_tune_pairs = v.split(",")
 		elif arg.begins_with("--seal="):
 			_seal = int(v)
+		elif arg.begins_with("--reading="):
+			_reading = v
+			if Readings.index_of(_reading) < 0:
+				push_error("unknown reading " + arg)
+				return false
 		elif arg.begins_with("--json="):
 			_json = v
 		elif arg.begins_with("--profile="):
@@ -243,6 +249,7 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 			var p: World.Player = w.players[s]
 			w.apply_hero(p, Hero.make(int(hero[1]), int(hero[0]), p.wizard).to_dict())
 	w.apply_seal(_seal)
+	w.apply_reading(_reading)
 	var bots: Dictionary = {}
 	for s: int in slots:
 		if not seats.has(s): # an apprentice is played by the World itself
