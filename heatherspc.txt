@@ -1,3 +1,3 @@
-STATION machine=heatherspc time=2026-11-28T10:35Z commit=c8d1b27 took=1034s
-JOB checks PASS
-STATION PASS jobs=1 failed=0 skipped=0
+STATION machine=heatherspc time=2026-11-28T10:40Z commit=a76c2f5 took=1s
+JOB checks SKIP nothing it tests changed since c8d1b27
+STATION PASS jobs=0 failed=0 skipped=1
