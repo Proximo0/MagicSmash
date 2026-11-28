@@ -76,6 +76,38 @@ func test_round_trip_and_bad_data() -> void:
 	assert_eq(bad.moments.size(), 0)
 
 
+## Use counters (docs/stage3_brief.md § 4.4): a use counts for the run and, when it names a seat, for that seat; both
+## travel through to_dict / from_dict, and a damaged record counts nothing it cannot read.
+func test_use_counters_count_the_run_and_the_seat() -> void:
+	var r := Results.new([0, 2])
+	assert_eq(r.used("quick"), 0, "a row nobody used counts 0")
+	r.use("quick", 2)
+	r.use("quick", 2, 3)
+	r.use("quick", 0)
+	r.use("seal_3")
+	assert_eq(r.used("quick"), 5, "the run's count is every seat's")
+	assert_eq(r.used_by(2, "quick"), 4)
+	assert_eq(r.used_by(0, "quick"), 1)
+	assert_eq(r.used("seal_3"), 1)
+	assert_eq(r.used_by(2, "seal_3"), 0, "a use with no seat is the table's alone")
+	assert_eq(r.used_by(1, "quick"), 0, "a seat that used nothing counts 0")
+	var back := Results.from_dict(r.to_dict())
+	assert_eq(back.used("quick"), 5)
+	assert_eq(back.used_by(2, "quick"), 4)
+	assert_eq(back.used_by(0, "quick"), 1)
+	assert_eq(back.used("seal_3"), 1)
+	# A record that went through JSON holds its seats as text; a damaged one holds anything.
+	var text := Results.from_dict({"uses": {"quick": 2.0}, "uses_by": {"2": {"quick": 2.0}}})
+	assert_eq(text.used("quick"), 2)
+	assert_eq(text.used_by(2, "quick"), 2)
+	var bad := Results.from_dict({"uses": {"quick": "x", "swift": -4, 7: 1}, "uses_by": {"z": {"quick": 1}, 1: "y", 3: {"quick": []}}})
+	assert_eq(bad.used("quick"), 0, "a count that is not a number is dropped")
+	assert_eq(bad.used("swift"), 0, "a count below 0 is dropped")
+	assert_eq(bad.uses.size(), 0, "a key that is not text is dropped")
+	assert_eq(bad.uses_by.size(), 0, "a seat that is not a number, and a row that is not a table, are dropped")
+	assert_eq(Results.from_dict({}).used("quick"), 0, "an old record has no counters")
+
+
 ## Damage by spell per wizard: kept per slot and source, and it travels through to_dict / from_dict.
 func test_damage_by_spell_per_wizard() -> void:
 	var r := Results.new([0, 1])

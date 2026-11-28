@@ -63,6 +63,10 @@ var slot_source_damage := {}
 var ai := {}
 ## The party's fates in the order they landed (Gamble.TEAM_OUTCOMES ids). Data only: nothing shows it yet.
 var fates: Array[int] = []
+## How often each row of the content list was used this run (docs/stage3_brief.md § 4.4): key -> count for the table,
+## and seat -> key -> count. World credits a row where its effect lands; the coverage robot reads the counts.
+var uses := {}
+var uses_by := {}
 
 ## Damage sources that are not spells (spells use their World.SP_* index).
 const SRC_NOVA := 100
@@ -104,6 +108,27 @@ func add_slot_source(slot: int, src: int, amount: float) -> void:
 	var row: Dictionary = slot_source_damage.get(slot, {})
 	row[src] = float(row.get(src, 0.0)) + amount
 	slot_source_damage[slot] = row
+
+
+## Credits `n` uses of the row `key` to the run, and to seat `slot` when it names one (-1: the table's alone). Call it
+## at the event (a cast, a proc, a pick-up, a rule that fires), never once an enemy inside a step's loop.
+func use(key: String, slot: int = -1, n: int = 1) -> void:
+	uses[key] = int(uses.get(key, 0)) + n
+	if slot < 0:
+		return
+	var row: Dictionary = uses_by.get(slot, {})
+	row[key] = int(row.get(key, 0)) + n
+	uses_by[slot] = row
+
+
+## Uses of the row `key` this run, by every seat and by the table.
+func used(key: String) -> int:
+	return int(uses.get(key, 0))
+
+
+## Uses of the row `key` this run by seat `slot`.
+func used_by(slot: int, key: String) -> int:
+	return int((uses_by.get(slot, {}) as Dictionary).get(key, 0))
 
 
 ## The sources `slot` dealt damage with, most first: [source, damage, share] with the share in whole percent of her
@@ -231,7 +256,8 @@ func to_dict() -> Dictionary:
 	for s: int in stats:
 		st[s] = (stats[s] as Dictionary).duplicate()
 	return {"stats": st, "moments": moments.duplicate(true), "ai": ai.duplicate(), "source_damage": source_damage.duplicate(),
-		"slot_source_damage": slot_source_damage.duplicate(true), "fates": fates.duplicate()}
+		"slot_source_damage": slot_source_damage.duplicate(true), "fates": fates.duplicate(),
+		"uses": uses.duplicate(), "uses_by": uses_by.duplicate(true)}
 
 
 ## Times `slot` fell this run, and rituals it helped finish.
@@ -241,6 +267,16 @@ func downs(slot: int) -> int:
 
 func revives(slot: int) -> int:
 	return int(stat(slot, "revives"))
+
+
+## Whether `v` is a use count from_dict keeps: a whole or real number, 1 or more.
+static func use_count_ok(v: Variant) -> bool:
+	return (v is int or v is float) and float(v) >= 1.0
+
+
+## Whether `v` names a seat: a number, or the text of a whole number (a record that went through JSON).
+static func seat_key_ok(v: Variant) -> bool:
+	return v is int or v is float or (v is String and (v as String).is_valid_int())
 
 
 ## A record from to_dict() (or from the network): unknown moment kinds are dropped.
@@ -274,6 +310,23 @@ static func from_dict(d: Dictionary) -> Results:
 	if fd is Array:
 		for f: Variant in fd:
 			r.fates.append(int(f))
+	var ud: Variant = d.get("uses", {})
+	if ud is Dictionary:
+		for k: Variant in ud:
+			if k is String and use_count_ok(ud[k]):
+				r.uses[k] = int(ud[k])
+	var ubd: Variant = d.get("uses_by", {})
+	if ubd is Dictionary:
+		for s: Variant in ubd:
+			var row: Variant = ubd[s]
+			if not (row is Dictionary and seat_key_ok(s)):
+				continue
+			var kept := {}
+			for k: Variant in row:
+				if k is String and use_count_ok(row[k]):
+					kept[k] = int(row[k])
+			if not kept.is_empty():
+				r.uses_by[int(s)] = kept
 	var ms: Variant = d.get("moments", [])
 	if ms is Array:
 		for m: Variant in ms:
