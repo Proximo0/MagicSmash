@@ -1,0 +1,9 @@
+kind=shell
+args=script=wandscareer careers=1 party=novice.mage minutes=25 limit=3300
+needs=ubuntu
+priority=8
+repeat=once
+timeout_s=3600
+every_s=0
+added=2026-11-28T00:00:33Z
+needs_free_mb=600
