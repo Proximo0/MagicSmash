@@ -104,6 +104,7 @@ Story: kit `docs/lessons/ops_board.md`.
 - Celeron frame 134 ms: 8 physics ticks a frame, each with its own snapshot (world_step 67 + snapshot 23 ms) ⇒ compare machines per tick (section / ticks a frame); `docs/performance.md` pass 4.
 - "Skip if the last one is still here" guard on a timed event dropped it for good (act II boss never came if act I lived past 10:00) ⇒ consume every due row: replace or retire what stands, never skip; test with the earlier event kept alive.
 - Boss tuned for a one-screen room fired and teleported from out of sight in the 800x450 room ⇒ boss positions come from the party's middle, never the room's; an attack starts only in the party's sight; probe with the party held in a corner.
+- Bot shard stalled silently once the run's scene was swapped (no error, a core at 100%): a freed node reads as `null`, so its `if _arena == null: return` guard held forever ⇒ a shard that leaves the arena reads `G.main.current` each tick and keeps its own started flag.
 
 ## Rendering and art
 - GPU glitch blamed on a guess ⇒ sample screenshot pixels, reproduce; else ship toggles.
