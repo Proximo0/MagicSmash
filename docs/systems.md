@@ -283,7 +283,13 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
   skeletons), gargoyle (stone takes 25% damage, swoops). Omens (`World.OMENS`) at 3:00, 8:00 and 13:00.
 - **Names:** mythic loot (Gauntlets of Tyr, Hermes' Sandals, Eye of Odin...) and unlocks; achievement texts
   match. Version 0.9.0.
-- **Sound:** 41 SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
+- **Sound:** 58 SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`
+  (`--only=name,name` writes just those). Mixing (28 Nov, `Sfx`): buses Music, SFX and UI under Master with a
+  hard limiter at -1 dB; the options' two volumes set the buses. Twenty voices by priority (`Sfx.PRIORITY`,
+  `pick_voice`): a free voice first, else the lowest priority that has played longest, never a higher one, so
+  a crowd of hits cannot cut the boss's roar; a taken voice fades for 10 ms. `enemy_die` and `hit` play one of
+  four files. Every co-op moment has a voice (`ArenaEvents`): down, revive, boss phase, fate, redraw, banish,
+  level up, victory, the team shrine's result, one heart left; a hurt is pitched by seat.
 
 ## Economy retune (job E, 21 Nov): level-ups carry the power curve
 

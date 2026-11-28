@@ -3,6 +3,8 @@ extends RefCounted
 ## Arena: turns the tick's events into sound, particles, banners and reels.
 ## Static helpers: `a` is the Arena that owns the state.
 
+const HURT_PITCH := [1.0, 1.15, 0.87, 1.3] ## the hurt sound by seat: a table hears who was hit
+
 static func _handle_events(a: Arena, evs: Array) -> void:
 	for ev in evs:
 		var pos := Vector2(ev[1], ev[2])
@@ -91,10 +93,13 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					a.fx.text(pos + Vector2(0, -12), a.PICKUP_NAMES[k], ArenaDrawFx._pickup_color(a, k), 1.4)
 			World.EV_HURT:
 				a.fx.burst(pos, 14, 110.0, 0.4, 2.0, Color.WHITE, Color("ff2a4a"), true)
-				Sfx.play("hurt")
+				Sfx.play("hurt", 0.0, HURT_PITCH[posmod(int(ev[3]), HURT_PITCH.size())]) # four seats, four pitches
 				a._add_shake(4.0)
 				if a._is_local_slot(int(ev[3])):
 					a.screen_flash = Color(1, 0.1, 0.2, 0.35)
+					# The hurt that leaves one heart (hp is already this snapshot's, and a hurt only ever lowers it).
+					if int(a.vp.get(int(ev[3]), {}).get("hp", 99)) == 1:
+						Sfx.play("low_health", -2.0, 1.0, 1.5)
 			World.EV_PDIE:
 				var col := G.player_color(int(ev[3]))
 				a.fx.nova(pos, col)
@@ -106,6 +111,18 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._add_shake(7.0)
 				var left := int(ev[4])
 				a.fx.text(pos + Vector2(0, -16), "P%d DOWN!" % (int(ev[3]) + 1) if left > 0 else "P%d IS OUT!" % (int(ev[3]) + 1), col, 1.8, 1)
+			World.EV_DOWN:
+				Sfx.play("down", -2.0, 1.0, 0.3)
+			World.EV_REVIVE:
+				Sfx.play("revive", -2.0, 1.0, 0.3)
+			World.EV_PHASE:
+				Sfx.play("boss_phase", -1.0, 1.0, 0.5)
+			World.EV_FATE:
+				Sfx.play("fate", -3.0, 1.0, 0.3)
+			World.EV_REDRAW:
+				Sfx.play("redraw", -4.0, 1.0, 0.15)
+			World.EV_BANISH:
+				Sfx.play("banish", -3.0, 1.0, 0.15)
 			World.EV_CALL:
 				ArenaDrawFallen.on_call(a, ev)
 			World.EV_DOOR:
@@ -212,7 +229,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					a.screen_flash = Color(col.r, col.g, col.b, 0.35)
 					a._add_shake(6.0 if good else 10.0)
 					Sfx.play("gong")
-					Sfx.play("wave_clear" if good else "boss_roar", 0.0, 1.0)
+					Sfx.play("shrine_result", 0.0, 1.0 if good else 0.75)
 				else:
 					a.fx.burst(pos, 16, 90.0, 0.6, 1.5, Color.WHITE, col, true)
 					Sfx.play("rune_good" if good else "rune_bad", -2.0)
@@ -282,8 +299,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				for k in 6:
 					a.fx.explosion(pos + Vector2(a._fx_rng.randf_range(-26, 26), a._fx_rng.randf_range(-26, 20)), 30.0)
 				a.fx.nova(pos, Color("4dfff0"))
-				Sfx.play("nova")
-				Sfx.play("explode", 0.0, 0.7)
+				Sfx.play("boss_fall")
+				Sfx.play("explode", -3.0, 0.7)
 				a._add_shake(12.0)
 				a.screen_flash = Color(1, 1, 1, 0.8)
 				a._do_hitstop(0.25)
@@ -294,7 +311,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					Sfx.music(ArenaFateView._act_music(a))
 			World.EV_VICTORY:
 				a.victory = true
-				Sfx.play("wave_clear", 0.0, 0.8)
+				Sfx.play("victory")
 				Sfx.music("music_title")
 				for q: Dictionary in a.vp.values():
 					a.fx.burst(q.pos + Vector2(0, -8), 30, 140.0, 1.0, 2.0, Color.WHITE, Color("ffd94d"), true, 40.0, true)
@@ -314,14 +331,14 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a._lv_flash_t = a.time
 				a.fx.text(pos, "LEVEL UP!", col, 1.4, 1)
 				a.fx.level_up(pos + Vector2(0, 8), col)
-				Sfx.play("powerup", -2.0, 1.1)
+				Sfx.play("level_up", -2.0)
 			World.EV_PICK:
 				var col := G.player_fx(int(ev[3]))
 				a.fx.text(pos, Classes.card_name(int(a.vp.get(int(ev[3]), {}).get("cls", 0)), int(ev[4])) + "!", col, 1.4, 1)
 				a.fx.sparkle(pos + Vector2(0, 10), col, 16)
 				if a.time - a._pick_sfx_t > 0.12:
 					a._pick_sfx_t = a.time # four wizards picking at once play it once
-					Sfx.play("wave_clear", -6.0, 1.3, 0.2)
+					Sfx.play("card_pick", -6.0, 1.0, 0.2)
 			World.EV_SLOTS:
 				# The cap rises after the first boss (the first snapshot's cap is no news).
 				if int(ev[3]) > Upgrades.SLOTS_EARLY.x:
