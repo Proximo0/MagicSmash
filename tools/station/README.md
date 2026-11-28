@@ -2,7 +2,9 @@
 
 A station runs `tools/station/station.sh` with no Claude on it. On every new commit on main it runs its jobs and
 pushes a few lines to the branch `station-results` (`<machine>.txt`). `tools/station/read.sh` prints them all and
-ends with `STATIONS n= failed= stale=`; a session reads that instead of running the jobs.
+ends with `STATIONS n= failed= stale=`; a session reads that instead of running the jobs. `n` counts reports
+(`<machine>.txt`, `<machine>-deep.txt`); a machine's `-heartbeat`, `-failures` and `-hours` files are not reports.
+Test: `bash tools/station/read_test.sh` (`READ ok`, a second, in CI's `tools` row).
 
 To watch every PC live, run `tools/station/monitor.sh` (on Windows double-click `tools\station\monitor.cmd`): per PC
 it shows OK/LATE/DOWN, lanes, free RAM, the last skip reason and the jobs held, then recent failures. Read-only.

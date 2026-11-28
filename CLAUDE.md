@@ -20,12 +20,13 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 - L lands a branch with `T/land.sh` `LAND ok|FAIL` (guard `T/guard.sh` `GUARD problems=n`; `docs/agent/land.md`) · the engine version lives in `T/versions.env` (lint checks the other copies)
 - `.claude/hooks/lint-on-edit.sh` auto on .gd edit · new CLI tools: `T/<name>.gd` via `GD -s T/tool.gd -- <name>` (bare `-s` prints 8 bogus errors)
 - `tests/bot/cover.sh` `COVER_ALL` every catalog row dealt by force and proven used (`docs/bots.md`) · `GD -s T/tool.gd -- coverage [--gate]` `COVERAGE` its plan
-- `GD -s T/full_run.gd -- --wizards=4` bots to Archlich (balance) · `T/export_windows.sh` / `T/export_linux.sh` [`--playtest`] / `T/export_android.sh` → `build/` · `T/smoke_build.sh <bin>` `SMOKE_BUILD` (`docs/release_build.md`) · `T/fetch_sentry.sh`
+- `GD -s T/full_run.gd -- --wizards=4` one bot run to the Archlich · `GD -s T/playtest.gd -- --runs=4 --wizards=2 --persona=casual` a group (balance ⇒ groups, 1 run is noise; `docs/bots.md`)
+- `T/export_windows.sh` / `T/export_linux.sh` [`--playtest`] / `T/export_android.sh` → `build/` · `T/smoke_build.sh <bin>` `SMOKE_BUILD` (`docs/release_build.md`) · `T/fetch_sentry.sh`
 - Play `godot --path . [-- --seed=N]` · bots+shots `xvfb-run -a godot --path . -- --autotest[=wave] [--out=dir] [--perf]`
 
 ## Layout
-- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Loot Gamble Profile Results Wizards Achievements Cards LobbyRules
-- Split scripts: `World` = `game/logic/world.gd` (fields, step, snapshot, forwarders) + `game/logic/world/*.gd` (`World*` static helpers, 1st arg `w: World`); `Arena` = `game/arena/arena.gd` + `view_sync seats events fate_view draw_world draw_fx draw_enemies hud tray results_view` (`Arena*` statics, 1st arg `a: Arena`). `test_world` covers the World helpers.
+- `game/logic/` pure: World (authoritative sim) SmashBot Upgrades Spells Readings Seals Classes Loot Gamble Profile Results Wizards Achievements Cards LobbyRules
+- Split scripts: `World` = `game/logic/world.gd` (fields, step, snapshot, forwarders) + `game/logic/world/*.gd` (`World*` static helpers, 1st arg `w: World`; a kind of cast = `cast_<kind>.gd`); `Arena` = `game/arena/arena.gd` + `view_sync seats events fate_view draw_world draw_fallen draw_fx draw_enemies enemy_view hud tray tray_art results_view` (`Arena*` statics, 1st arg `a: Arena`). `test_world` covers the World helpers.
 - `game/debug/` Tuning (all gameplay numbers, `world.tune`), autotest · `game/autoload/` Flags Controls G Save Sfx Net Platform Crash
 - Sole owners: Save ↔ `user://profile.json` · Platform ↔ Steam (`docs/steam.md`) · Crash ↔ Sentry (`docs/sentry.md`)
 - `game/arena/` renders snapshots · `game/ui/` `game/input/` `game/art/` (ASCII sprites) · `assets/audio`
@@ -36,6 +37,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 - Logic pure: `delta` + seeded RNG; no wall clock, no `randf()`; in `game/logic/` (other dir ⇒ `PURE_PREFIXES` in `T/lint.py`).
 - Numbers ⇒ Tuning/data, never literals. Each logic module has a test.
 - Done = tests + lint; no-behaviour change also `GOLDEN same`.
+- Unbuilt rows sit on a shelf (`Upgrades.UNBUILT`, `Readings.UNBUILT`, `Profile.UNBUILT`) until the change that builds them; a rule a card adds ⇒ `SmashBot` learns it in the same change.
 - Shots key on game state (time fallback). Hash compare only when `Flags.commands == 0`. Scripted runs never write player data (`Flags.is_scripted_run()`).
 - No secrets in git (ignored `config/*credentials*`, injected at export). Never commit `.import` churn.
 - Repro first (test/sim/bot/replay); fix the traced mechanism.
