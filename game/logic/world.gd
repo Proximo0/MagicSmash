@@ -648,8 +648,9 @@ func step(dt: float, inputs: Dictionary) -> void:
 	WorldCasting._update_runes(self, dt)
 	WorldCasting._update_bursts(self)
 	WorldEnemies._update_eshots(self, dt)
-	WorldDrops._update_pickups(self, dt)
-	WorldDrops._update_urns(self)
+	if phase != PH_GAMEOVER: # the run is decided: nothing on the floor is taken or broken any more
+		WorldDrops._update_pickups(self, dt)
+		WorldDrops._update_urns(self)
 	enemies = enemies.filter(func(e): return not e.dead)
 	shots = shots.filter(func(s): return not s.dead)
 	runes = runes.filter(func(c: Rune) -> bool: return c.age < c.life)

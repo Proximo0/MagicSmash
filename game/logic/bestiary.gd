@@ -73,7 +73,7 @@ const KINDS: Array = [
 	["guard",       10.0,  26.0, 7.0,  150,  1, 3,  0.6,  0],
 	["cinderling",  4.0,   70.0, 5.0,  100,  1, 2,  1.0,  F_HAZARD],
 	["censor",      9.0,   24.0, 6.0,  200,  1, 4,  1.0,  F_HAZARD],
-	["hound",       4.0,   70.0, 5.0,  100,  1, 2,  1.0,  0],
+	["hound",       4.0,   70.0, 5.0,  100,  1, 2,  1.0,  F_ARROW], # its ring (KindsLibrary.HOUND_RING) passes beyond half a screen; the arrow shows only while it hunts
 	["shard",       22.0,  0.0,  8.0,  300,  1, 6,  0.0,  F_ANCHORED | F_HAZARD | F_FIXED_SPEED],
 	["swords",      16.0,  36.0, 6.0,  300,  1, 6,  1.0,  F_HAZARD],
 	# The act bosses come once each: hp is their health at their minute (5:00, 10:00) before boss_hp_mul and the

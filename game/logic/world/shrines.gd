@@ -145,8 +145,12 @@ static func _queue_gamble(w: World, g: Dictionary) -> void:
 	w._gambles.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.t < b.t)
 
 
-## One fate's effect, `times` over (THE FOOL doubles the next one).
+## One fate's effect, `times` over (THE FOOL doubles the next one). Once the run is won (the victory countdown) a
+## curse or THE EMPEROR does nothing: no elites walk into the banner, no hearts go through the win's invulnerability,
+## no chests fall that nobody can open. It is still drawn, shown and kept in Results.
 static func _apply_fate(w: World, fate: int, times: int, p: World.Player, pos: Vector2) -> void:
+	if w.won and (fate == Gamble.TO_CURSE or fate == Gamble.TO_EMPEROR):
+		return
 	match fate:
 		Gamble.TO_BLESSING:
 			var who: World.Player = p if p != null else w.players.values()[0]
@@ -201,7 +205,7 @@ static func _resolve_gamble(w: World, g: Dictionary) -> void:
 			Gamble.SO_DOUBLE:
 				p.gold += g.stake * 2
 			Gamble.SO_CURSE:
-				if p.alive:
+				if p.alive and not w.won: # like a team curse, it takes nothing once the run is won
 					p.hp = maxi(1, p.hp - 1)
 					p.flash = 0.3
 	if g.kind == Gamble.SOLO and g.outcome == Gamble.SO_JACKPOT:

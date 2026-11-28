@@ -64,6 +64,9 @@ How each system works: read only the section for the system you touch (`grep -n 
   at 5:00, THE GHOST WRITER at 10:00 (`Bosses.SCHEDULE`; any later visit is the Lich); killing one still clears
   the arena, starts the lull and resets the horde's budget. Each turns a phase at half health: the Chandelier's
   chain snaps (ALOFT to THE WHEEL), the Ghost Writer spells faster and adds GOODBYE (`docs/bestiary_design.md` 2, 6).
+  Every boss comes at its minute whatever the party did: one still up when the next row falls due leaves
+  (`Bosses._leave`: no bounty, no deed, no lull; `WorldWaves._tick_minute`), so a slow party meets the Ghost Writer
+  at 10:02 and the run keeps its 15-minute shape. The Lich's summons stop at `World.enemy_cap()` like the priest's.
 - Eight more kinds join from 1:30 (`docs/bestiary_design.md` 1, 6 "Job K as built"): the BLOAT, RESTLESS COFFIN
   and TOMB GUARD (act I), CINDERLING, THE CENSOR and ASH HOUND (act II), COMET SHARD and TEN OF SWORDS (act III).
   Their brains live in `game/logic/kinds_*.gd` (named by `Bestiary.BRAINS`), most of their danger is hazard rows,
@@ -202,7 +205,14 @@ How each system works: read only the section for the system you touch (`grep -n 
     wizards heal 2) and ASCENDANT (the enraged set, an elite with every summon, COMETFALL every third attack) to
     35%; THE NINTH PAGE (2.5 s turn) adds a NAME every fourth attack and LAST CANDLE every 30 s. A boss of another
     kind still standing at 15:00 leaves; a Lich ascends. No boss comes after it; the horde keeps the boss rate.
-  - Slaying it wins the run (`World.won`, `EV_VICTORY`): the clock and the horde stop, everyone is safe, and
+    The Lich and the Archlich drift between waypoints taken from the party's middle (`BossLich.DRIFT_*`: 140 px
+    to a side, 60 to 100 px above, below it at the top wall). They choose an attack only inside the screen the
+    party sees and stride three times as fast while outside it (`SIGHT_INSET`, `SIGHT_HASTE`), so a party low in
+    the room is not shot from the top door. The teleport lands 80 px from the party's middle, across it from the
+    wizard followed (`TELE_KEEP`, `_lich_landing`).
+  - Slaying it wins the run (`World.won`, `EV_VICTORY`; it drops only its gems and coins, no chest, potion or
+    tome; a curse (team or solo) or THE EMPEROR landing in the countdown does nothing, other fates land; once the phase is game
+    over nothing on the floor is picked up or broken): the clock and the horde stop, everyone is safe, and
     after `victory_delay` s the results screen says VICTORY. A win pays `Profile.CRYSTAL_WIN` (25) crystals
     and counts in `Profile.wins`. The Archlich pays 4x the Lich's score.
   - `tools/full_run.gd` plays a whole run with bots and prints a line per minute. Seed 11, final_hp_mul 12:

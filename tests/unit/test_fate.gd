@@ -425,3 +425,43 @@ func test_arena_team_reels_queue_one_after_another() -> void:
 	first.t = 4.0
 	second.t = 3.0
 	assert_true(ArenaFateView._last_team_reel(bets, second), "a solo cast does not hold the music")
+
+
+## B2: during the victory countdown a curse or THE EMPEROR is drawn but does nothing (no elites walk in, no hearts
+## go through invulnerability, no chests nobody can open); before the win they work as ever; other fates still land.
+func test_a_curse_or_the_emperor_after_the_win_is_skipped() -> void:
+	for won: bool in [false, true]:
+		var w := _world([0, 1])
+		w.won = won
+		w.victory_t = w.tune.victory_delay if won else 0.0
+		var p0: World.Player = w.players[0]
+		var hp := p0.hp
+		var n := w.enemies.size() + w.spawn_queue.size()
+		var pickups := w.pickups.size()
+		_land(w, Gamble.TO_CURSE)
+		_land(w, Gamble.TO_EMPEROR)
+		var tag := "won" if won else "fighting"
+		assert_eq(p0.hp, hp if won else maxi(1, hp - 1), "a curse's heart (%s)" % tag)
+		assert_eq(w.enemies.size() + w.spawn_queue.size(), n if won else n + 2, "a curse's elites (%s)" % tag)
+		assert_eq(w.pickups.size(), pickups if won else pickups + 2, "THE EMPEROR's chests (%s)" % tag)
+		assert_eq(w.record.fates.size(), 2, "both fates reach Results (%s)" % tag)
+
+
+func test_other_fates_still_land_after_the_win() -> void:
+	var w := _world([0, 1])
+	w.won = true
+	w.victory_t = w.tune.victory_delay
+	_land(w, Gamble.TO_HANGED)
+	assert_true(w.nova_sealed > 0.0, "THE HANGED MAN still lands after the win")
+
+
+## A paid solo reel that lands on a curse during the victory countdown takes no heart; before the win it takes one.
+func test_a_solo_curse_after_the_win_takes_no_heart() -> void:
+	for won: bool in [false, true]:
+		var w := _world([0, 1])
+		w.won = won
+		w.victory_t = w.tune.victory_delay if won else 0.0
+		var p0: World.Player = w.players[0]
+		var hp := p0.hp
+		w._resolve_gamble({"slot": 0, "kind": Gamble.SOLO, "outcome": Gamble.SO_CURSE, "stake": 40, "pos": AT})
+		assert_eq(p0.hp, hp if won else maxi(1, hp - 1), "a solo curse's heart (%s)" % ("won" if won else "fighting"))
