@@ -52,7 +52,7 @@ Stays out: paid boxes, a telemetry service, new hub minigames, any cut-down slic
 - [ ] Robot runs with four players, to a boss, to a win and into a second run.
 - [x] A robot-built Windows and Linux build with a smoke test, test files out of the pack, licence notices (#279;
   first robot run on main: both smoke tests passed).
-- [ ] ALL_SECRETS can be earned (the profile counts urns and sends `"urn_card"`).
+- [x] ALL_SECRETS can be earned (the profile counts urns and sends `"urn_card"`; #281).
 - [ ] Credits in the game; a record of which tool made each picture.
 
 ## Steam facts for later

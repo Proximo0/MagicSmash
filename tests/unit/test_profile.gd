@@ -515,3 +515,34 @@ func test_a_run_with_every_monster_card_earns_all_cards() -> void:
 	p.finish_run({"score": 10, "seconds": 30.0, "results": Results.new()})
 	assert_true(p.deeds.has("ALL_CARDS"), "every monster card is owned, the deed is not")
 
+
+
+## The lifetime urn count (Profile.urns) and the urn card it brings (bonuses' "urn_card", Profile.URN_CARD_AFTER).
+func test_urns_add_up_over_runs_and_send_the_urn_card() -> void:
+	var p := Profile.new()
+	p.urns = Profile.URN_CARD_AFTER - 1
+	assert_false(bool(p.bonuses().get("urn_card", true)))
+	p.urns = Profile.URN_CARD_AFTER
+	assert_true(bool(p.bonuses().get("urn_card", false)))
+	assert_true(p.find_secret("urn_card"))
+	assert_false(bool(p.bonuses().get("urn_card", true)), "the secret is found")
+	var q := Profile.new()
+	q.finish_run({"score": 1, "seconds": 10.0, "urns": 5})
+	assert_eq(q.urns, 5)
+	q.finish_run({"score": 1, "seconds": 10.0, "urns": -9})
+	assert_eq(q.urns, 5, "a negative count took urns away")
+	q.finish_run({"score": 1, "seconds": 10.0})
+	assert_eq(q.urns, 5, "a run with no count")
+
+
+func test_urns_survive_a_save_and_a_wrong_type_is_damage() -> void:
+	var p := Profile.new()
+	p.urns = 77
+	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
+	assert_eq(back.urns, 77)
+	assert_eq(Profile.from_dict({"runs": 2}).urns, 0, "an old save has no urns")
+	assert_eq(Profile.from_dict({"urns": -4}).urns, 0)
+	assert_true(Profile.NUMBER_KEYS.has("urns"))
+	assert_false(Profile.profile_types_ok({"urns": []}))
+	assert_eq(Profile.from_dict({"urns": {}}), null, "a damaged urn count loaded")
+	assert_eq(Profile.from_dict({"kills_total": {}}), null, "the other number keys behave the same")

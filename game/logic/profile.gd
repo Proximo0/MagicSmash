@@ -37,6 +37,9 @@ const CRYSTAL_SECONDS := 30.0
 const CRYSTAL_KILLS := 250
 const CRYSTAL_LICH := 10
 const CRYSTAL_WIN := 25
+## Urns broken over every run (Profile.urns) after which each run is given the urn card (bonuses' "urn_card"), until
+## the secret "urn_card" (a card found in an arena urn) is found.
+const URN_CARD_AFTER := 120
 
 var high_score := 0
 var crystals := 0
@@ -64,6 +67,7 @@ var seal_best := Seals.MIN - 1
 var seal_prizes := {}
 var kills_total := 0
 var revives_total := 0
+var urns := 0 # urns broken over every run (World.urns_broken, run_so_far's "urns"); see URN_CARD_AFTER
 ## The Book of Deeds: the api names (Achievements.LIST) of every deed earned, in the order earned (name -> true).
 ## A name this build does not know stays in the save. Each deed's crystals are paid once, when it is first earned.
 var deeds := {}
@@ -169,6 +173,7 @@ func bonuses() -> Dictionary:
 	for key: String in EFFECTS:
 		var eff: Array = EFFECTS[key]
 		out[eff[0]] = float(out[eff[0]]) + float(eff[1]) * level(key)
+	out["urn_card"] = urns >= URN_CARD_AFTER and not has_secret("urn_card") # a bool, World.apply_meta reads it
 	return out
 
 
@@ -301,6 +306,7 @@ func finish_run(run: Dictionary) -> int:
 	runs += 1
 	kills_total += maxi(0, kills)
 	revives_total += maxi(0, int(run.get("revives", 0)))
+	urns += maxi(0, int(run.get("urns", 0)))
 	var res: Variant = run.get("results")
 	if res is Results:
 		for slot: Variant in (res as Results).stats:
@@ -390,12 +396,12 @@ func to_dict() -> Dictionary:
 	return {"version": VERSION, "high_score": high_score, "crystals": crystals, "runs": runs, "wins": wins,
 		"best_time": best_time, "unlocks": unlocks.duplicate(), "cards": cards.duplicate(), "sockets": sockets.duplicate(), "secrets": secrets.keys(), "pots_run": pots_run, "pots_mask": pots_mask, "wishes": wishes,
 		"seal_unlocked": seal_unlocked, "seal_best": seal_best, "seal_prizes": seal_prizes.keys(), "kills_total": kills_total,
-		"revives_total": revives_total, "deeds": deeds.keys(), "talked": talked.keys(), "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
+		"revives_total": revives_total, "urns": urns, "deeds": deeds.keys(), "talked": talked.keys(), "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
 
 
 ## Saved keys from_dict reads with int() or float(), and the same in each saved hero (Hero.from_dict).
 const NUMBER_KEYS := ["version", "high_score", "crystals", "runs", "wins", "best_time", "pots_run", "pots_mask",
-	"wishes", "seal_unlocked", "seal_best", "kills_total", "revives_total", "hero"]
+	"wishes", "seal_unlocked", "seal_best", "kills_total", "revives_total", "hero", "urns"]
 const HERO_NUMBER_KEYS := ["school", "look", "level", "xp"]
 
 
@@ -488,6 +494,7 @@ static func from_dict(d: Dictionary) -> Profile:
 				p.seal_prizes[str(int(str(k)))] = true
 	p.kills_total = maxi(0, int(d.get("kills_total", 0)))
 	p.revives_total = maxi(0, int(d.get("revives_total", 0)))
+	p.urns = maxi(0, int(d.get("urns", 0)))
 	var dd: Variant = d.get("deeds", [])
 	if dd is Array:
 		for k: Variant in dd:

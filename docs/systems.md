@@ -136,7 +136,10 @@ How each system works: read only the section for the system you touch (`grep -n 
     card (the Seal's card under a Seal, THE LICH otherwise). It drops from the first kill of that kind at or after
     its moment (`Cards.run_card` maps a kill to the card it stands for; the Archlich's kill for its card), or, for
     `card_run_urn` 0.15 of card runs, waits in the first urn broken at or after it (the urn_card secret), with the
-    same kind. `World.apply_meta`'s "urn_card" (bool) makes the run such an urn card run. Each kill still takes its
+    same kind. `World.apply_meta`'s "urn_card" (bool) makes the run such an urn card run: `Profile.bonuses()` sends
+    it while the lifetime urn count (`Profile.urns`, each run's `World.urns_broken`, `run_so_far` "urns", booked by
+    `finish_run`) is at least `Profile.URN_CARD_AFTER` 120 and the urn_card secret is unfound, so ALL_SECRETS can be
+    earned; a run that breaks no urn after the moment leaves the secret for the next run. Each kill still takes its
     one `w.rng` draw in `_roll_card`. Moments fall between `loot_moment_from` 0.1 and `loot_moment_to` 0.4 of the run
     up to the Archlich. Out of a card run no kill, urn or boss drops a card; a first win at a Seal still pays its
     card (`Profile.finish_run`). The Sanctum: a pot holds a card at `Sanctum.POT_CARD` 0.001, a sealed deck costs

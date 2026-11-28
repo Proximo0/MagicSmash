@@ -344,8 +344,8 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 
 ## Books the run in the profile (and on Steam, on the host) with what it earned: the one path for a game over, a
 ## confirmed QUIT TO TITLE and the window closing (Arena._book_run_now). `run` holds score, seconds, kills,
-## liches, won and results (a Results or null); the seal, act and party come from the arena. Once per run: a
-## second call does nothing.
+## liches, won and results (a Results or null); the seal, act and party come from the arena, the urns broken
+## (Profile.urns) from its World (a LAN client has none and books 0). Once per run: a second call does nothing.
 static func book_run_once(a: Arena, run: Dictionary) -> void:
 	if a.run_booked:
 		return
@@ -354,6 +354,7 @@ static func book_run_once(a: Arena, run: Dictionary) -> void:
 	var res: Variant = run.get("results")
 	a.crystals_earned = G.finish_run({"score": int(run.get("score", 0)), "seconds": float(run.get("seconds", 0.0)),
 		"kills": int(run.get("kills", 0)), "liches": int(run.get("liches", 0)), "won": bool(run.get("won", false)),
-		"seal": a.seal, "act": a.act, "results": res, "party": party})
+		"seal": a.seal, "act": a.act, "results": res, "party": party,
+		"urns": a.world.urns_broken if a.world != null else 0})
 	if a.is_host:
 		Platform.finish_run(res as Results, bool(run.get("won", false)), float(run.get("seconds", 0.0)), party)

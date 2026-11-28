@@ -12,7 +12,8 @@ extends RefCounted
 ## leaves room past the Archlich's ~16:00 win); a run that reaches the cap is UNFINISHED (its own count and a "U"
 ## in ends), never a loss, though Profile.finish_run still books it as the game books any run that is not won. --checkpoints writes the profile (after that run's
 ## spending) as DIR/career<k>_<mark>.json the first time the career's play time passes each mark, in minutes; the
-## playtest's --profile=FILE plays seeds from one. Prints one line per career and a CAREER line of medians.
+## playtest's --profile=FILE plays seeds from one. Prints one line per career and a CAREER line of medians
+## ("urn": the run and minute a career found the urn_card secret, by luck or by Profile.URN_CARD_AFTER urns).
 ## How to read it: docs/bots.md "Careers".
 
 const PlaytestLib := preload("res://tools/playtest_lib.gd")
@@ -63,31 +64,25 @@ func run(args: PackedStringArray) -> int:
 	for k: int in range(_careers):
 		var row := _career(lib, k, party, classes)
 		rows.append(row)
-		print("%s career %d: boss1 %s  arch %s  win %s  runs %d  unfinished %d  min %.0f  crystals %d earned %d spent  level %s  ends %s" % [
-			name, k + 1, _at(row, "boss"), _at(row, "arch"), _at(row, "win"), row.runs, row.unfinished, row.minutes, row.earned,
-			row.spent, str(row.win_level) if int(row.win_level) > 0 else "-", " ".join(row.ends)])
+		print("%s career %d: boss1 %s  arch %s  win %s  urn %s  runs %d  unfinished %d  min %.0f  crystals %d earned %d spent  level %s  ends %s" % [
+			name, k + 1, _at(row, "boss"), _at(row, "arch"), _at(row, "win"), _at(row, "urn"), row.runs, row.unfinished, row.minutes,
+			row.earned, row.spent, str(row.win_level) if int(row.win_level) > 0 else "-", " ".join(row.ends)])
 	var summary: PackedStringArray = []
 	for key: String in ["boss", "arch", "win"]:
-		var rn: Array = []
-		var mn: Array = []
-		var got := 0
-		for row: Dictionary in rows:
-			if int(row[key + "_run"]) > 0:
-				got += 1
-				rn.append(float(row[key + "_run"]))
-				mn.append(float(row[key + "_min"]))
-		summary.append("%s %d/%d run %s min %s" % [key, got, rows.size(), _med_text(rn), _med_text(mn)])
+		summary.append(_reached_text(rows, key))
 	var unfinished := 0
 	var played := 0
 	for row: Dictionary in rows:
 		unfinished += int(row.unfinished)
 		played += int(row.runs)
 	summary.append("unfinished %d/%d runs" % [unfinished, played])
+	summary.append(_reached_text(rows, "urn")) # last: the station's INFO line keeps the line's first 180 characters
 	print("CAREER %s seal=%d careers=%d | %s" % [name, lib._seal, _careers, " | ".join(summary)])
 	return 0
 
 
-## One career from a fresh profile; returns its row (runs and minutes to the first boss kill, the Archlich, the win).
+## One career from a fresh profile; returns its row (runs and minutes to the first boss kill, the Archlich, the win
+## and the urn_card secret: Profile.URN_CARD_AFTER urns over the runs bring the urn card, as in the game).
 func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dictionary:
 	var prof := fresh_profile(party, classes)
 	var seat_hero := {} # slot -> profile hero index (human seats only)
@@ -97,7 +92,7 @@ func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dic
 			seat_hero[s] = n
 			n += 1
 	var row := {"runs": 0, "unfinished": 0, "minutes": 0.0, "earned": 0, "spent": 0, "win_level": 0, "ends": [],
-		"boss_run": 0, "boss_min": 0.0, "arch_run": 0, "arch_min": 0.0, "win_run": 0, "win_min": 0.0}
+		"boss_run": 0, "boss_min": 0.0, "arch_run": 0, "arch_min": 0.0, "win_run": 0, "win_min": 0.0, "urn_run": 0, "urn_min": 0.0}
 	var marks_left: Array[float] = _marks.duplicate()
 	for i: int in range(_max_runs):
 		lib._bonuses = prof.bonuses()
@@ -112,9 +107,13 @@ func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dic
 		var players: Array = []
 		for p: World.Player in w.players.values():
 			players.append({"ai": p.ai, "cls": p.cls, "race": p.race})
+		# The arena marks the urn_card secret when a card from an urn is picked up (ArenaEvents, EV_CARD). A run holds
+		# one card, so a run that saw it fall from an urn and found a card found that one.
+		if int((r.loot as Dictionary).get("card_urn", 0)) > 0 and not w.cards_found.is_empty():
+			prof.find_secret("urn_card")
 		prof.finish_run({"score": w.total_score(), "seconds": float(r.end), "kills": w.total_kills(),
 			"liches": w.liches_slain, "won": bool(r.won), "seal": lib._seal, "results": w.record,
-			"party": Achievements.party_of(players, lib._seal), "heroes": seat_hero.values()})
+			"party": Achievements.party_of(players, lib._seal), "heroes": seat_hero.values(), "urns": w.urns_broken})
 		row.earned = int(row.earned) + prof.crystals - before
 		var bought := spend_crystals(prof)
 		row.spent = _spent_total(prof)
@@ -136,6 +135,9 @@ func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dic
 			row.win_run = i + 1
 			row.win_min = row.minutes
 			row.win_level = (prof.heroes[0] as Hero).level
+		if int(row.urn_run) == 0 and prof.has_secret("urn_card"):
+			row.urn_run = i + 1
+			row.urn_min = row.minutes
 		while not marks_left.is_empty() and float(row.minutes) >= marks_left[0]:
 			_write_checkpoint(prof, "%s/career%d_%d.json" % [_out, k + 1, int(marks_left[0])])
 			marks_left.pop_front()
@@ -229,6 +231,17 @@ func _group_name(party: Array[int], classes: Array) -> String:
 
 func _at(row: Dictionary, key: String) -> String:
 	return "r%d/%.0fm" % [row[key + "_run"], row[key + "_min"]] if int(row[key + "_run"]) > 0 else "-"
+
+
+## "<key> got/all run <median> min <median>" over the careers that reached `key` (a row's <key>_run and <key>_min).
+func _reached_text(rows: Array, key: String) -> String:
+	var rn: Array = []
+	var mn: Array = []
+	for row: Dictionary in rows:
+		if int(row[key + "_run"]) > 0:
+			rn.append(float(row[key + "_run"]))
+			mn.append(float(row[key + "_min"]))
+	return "%s %d/%d run %s min %s" % [key, rn.size(), rows.size(), _med_text(rn), _med_text(mn)]
 
 
 static func _median(xs: Array) -> float:
