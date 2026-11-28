@@ -135,8 +135,8 @@ func test_the_trinity_needs_a_tank_a_healer_and_a_ranged_hero() -> void:
 func test_each_evolution_has_a_deed_and_earns_it() -> void:
 	var seen := 0
 	for sp: int in range(Spells.COUNT):
-		if not Spells.has_evolution(sp) or sp == World.SP_RUNE:
-			continue
+		if not Spells.has_evolution(sp) or sp == World.SP_RUNE or Upgrades.UNBUILT.has(Upgrades.evo_entry(sp)):
+			continue # an unbuilt evolution's deed comes with its row
 		var api := ""
 		for a: String in Achievements.RULES:
 			if Achievements.RULES[a][0] == "evo" and Achievements.RULES[a][1] == sp:

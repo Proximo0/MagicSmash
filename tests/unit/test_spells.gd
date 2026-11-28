@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_one_stat_row_and_evolution_per_spell() -> void:
-	assert_eq(Spells.COUNT, World.SP_CLEAVE + 1)
+	assert_eq(Spells.COUNT, World.SP_BLADES + 1)
 	assert_eq(Spells.STATS.size(), Spells.COUNT)
 	assert_eq(Spells.EVOS.size(), Spells.COUNT)
 
@@ -40,11 +40,16 @@ func test_catalog_matches_spells() -> void:
 		assert_true(Upgrades.is_evolution(e))
 		assert_eq(Upgrades.display_name(e), str(Spells.EVOS[sp]["name"]))
 		assert_eq(Upgrades.description(e), str(Spells.EVOS[sp]["desc"]))
-		assert_true(Spells.partner(sp) != sp, Spells.spell_name(sp) + " partners itself")
-		var partner: int = Upgrades.weapon_entry(Spells.partner(sp)) if Spells.partner(sp) >= 0 else _row_of(Spells.passive_partner(sp))
-		assert_true(partner >= 0, Spells.spell_name(sp) + " has no partner")
-		assert_eq(Upgrades.CATALOG[e][5], [[w, Spells.MAX_LEVEL], [partner, 1]],
-			Spells.spell_name(sp) + " evolution requirements do not match its partner")
+		for evo: int in range(1, Spells.evolutions(sp) + 1):
+			var ee: int = Upgrades.evo_entry(sp, evo)
+			var row := Spells.evo_row(sp, evo)
+			assert_eq(Upgrades.display_name(ee), str(row["name"]))
+			assert_eq(Upgrades.description(ee), str(row["desc"]))
+			var partner: int = _row_of(Spells.passive_partner(sp, evo))
+			assert_true(partner >= 0, Spells.spell_name(sp) + " has no partner")
+			assert_eq(Upgrades.kind(partner), Upgrades.PASSIVE, Spells.spell_name(sp) + " pairs with a spell")
+			assert_eq(Upgrades.CATALOG[ee][5], [[w, Spells.MAX_LEVEL], [partner, 1]],
+				Spells.spell_name(sp) + " evolution requirements do not match its partner")
 
 
 static func _row_of(key: String) -> int:
@@ -63,7 +68,7 @@ func test_rune_circle_grows_with_level_and_evolution() -> void:
 	assert_true(Spells.level_value(World.SP_RUNE, "r", 0, 1) > top_r, "the seal is not bigger")
 	assert_true(Spells.level_value(World.SP_RUNE, "life", 0, 1) > top_life, "the seal does not last longer")
 	assert_true(Spells.evo_value(World.SP_RUNE, "pull", 1, 0.0) > 0.0, "the seal does not pull")
-	assert_eq(Spells.partner(World.SP_RUNE), World.SP_STAR)
+	assert_eq(Spells.passive_partner(World.SP_RUNE), "magnet")
 	assert_eq(Spells.level_value(World.SP_STAR, "speed", 3, 0), Spells.stat(World.SP_STAR, "speed"))
 
 
@@ -80,7 +85,8 @@ func test_rune_circle_trades_focus_for_area() -> void:
 ## Every spell names a cast kind World can cast, and only bolts carry bolt behaviours.
 func test_every_spell_has_a_cast_kind() -> void:
 	for sp: int in range(Spells.COUNT):
-		assert_true(WorldCasting.CASTS.has(Spells.cast_kind(sp)), Spells.spell_name(sp) + " has no caster")
+		if not Upgrades.UNBUILT.has(Upgrades.weapon_entry(sp)): # an unbuilt spell's caster comes with its row
+			assert_true(WorldCasting.CASTS.has(Spells.cast_kind(sp)), Spells.spell_name(sp) + " has no caster")
 		if Spells.cast_kind(sp) != "bolt":
 			for key: String in ["jitter", "home", "blast", "slow"]:
 				assert_eq(Spells.bolt_value(sp, key, 0, 0.0), 0.0, "%s %s" % [Spells.spell_name(sp), key])

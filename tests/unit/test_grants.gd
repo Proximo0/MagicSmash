@@ -73,8 +73,8 @@ func test_instants_give_a_nova_and_a_life() -> void:
 func test_every_evolution_is_held_and_cast() -> void:
 	var n := 0
 	for idx: int in range(Upgrades.count()):
-		if Upgrades.kind(idx) != Upgrades.EVOLUTION:
-			continue
+		if Upgrades.kind(idx) != Upgrades.EVOLUTION or Upgrades.UNBUILT.has(idx):
+			continue # an unbuilt evolution casts nothing yet (test_catalog_rows)
 		n += 1
 		var key := Upgrades.key(idx)
 		var w := _world()

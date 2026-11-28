@@ -35,7 +35,7 @@ func test_catalogue_columns() -> void:
 	assert_eq(Upgrades.slots_used(p.upgrades), Vector2i(1, 0), "the starting spell takes one spell slot")
 	assert_eq(Upgrades.slot_ids(p.upgrades, Upgrades.SPELL), [Upgrades.weapon_entry(Wizards.start_spell(0))] as Array[int])
 	assert_eq(Upgrades.kind(Upgrades.POWER), Upgrades.PASSIVE)
-	assert_eq(Upgrades.kind(Upgrades.NOVA), Upgrades.INSTANT)
+	assert_eq(Upgrades.kind(Upgrades.NOVA), Upgrades.PASSIVE)
 	for sp: int in Spells.COUNT:
 		assert_eq(Upgrades.spell_of(Upgrades.weapon_entry(sp)), sp)
 		if not Spells.has_evolution(sp):
@@ -44,11 +44,9 @@ func test_catalogue_columns() -> void:
 			continue
 		assert_eq(Upgrades.kind(Upgrades.evo_entry(sp)), Upgrades.EVOLUTION)
 		assert_eq(Upgrades.evolves(Upgrades.evo_entry(sp)), Upgrades.weapon_entry(sp))
-		if Spells.partner(sp) >= 0:
-			assert_eq(Upgrades.partner_row(sp), Upgrades.weapon_entry(Spells.partner(sp)))
-		else:
-			assert_eq(Upgrades.kind(Upgrades.partner_row(sp)), Upgrades.PASSIVE)
-			assert_eq(Upgrades.key(Upgrades.partner_row(sp)), Spells.passive_partner(sp))
+		for evo: int in range(1, Spells.evolutions(sp) + 1):
+			assert_eq(Upgrades.kind(Upgrades.partner_row(sp, evo)), Upgrades.PASSIVE)
+			assert_eq(Upgrades.key(Upgrades.partner_row(sp, evo)), Spells.passive_partner(sp, evo))
 	for m: int in Upgrades.MINORS:
 		assert_eq(Upgrades.kind(m), Upgrades.MINOR)
 	assert_eq(Upgrades.evolves(Upgrades.POWER), -1)
@@ -84,35 +82,37 @@ func test_a_full_spell_slot_offers_no_new_spell() -> void:
 
 
 func test_the_last_slot_is_kept_for_a_partner() -> void:
-	# Fire's partner is Chain Lightning: with Fire and Frost owned, the third spell slot takes only a spell that
-	# completes a pair (Chain Lightning for Fire, or Arcane, Frost's partner).
-	var lv := {Upgrades.W_FIRE: 1, Upgrades.W_FROST: 1}
-	assert_true(Upgrades.pairs_with(lv, Upgrades.W_STORM))
+	# ARCANE BOLT's arcana is THE MAGICIAN: with FIREBALL and FROST FAN owned and THE MAGICIAN held, the third spell
+	# slot takes only a spell that completes a pair (ARCANE BOLT).
+	var lv := {Upgrades.W_FIRE: 1, Upgrades.W_FROST: 1, Upgrades.QUICK: 1}
 	assert_true(Upgrades.pairs_with(lv, Upgrades.W_ARCANE))
 	assert_false(Upgrades.pairs_with(lv, Upgrades.W_RUNE))
-	assert_true(Upgrades.available(lv, Upgrades.W_STORM, Upgrades.SLOTS_EARLY))
+	assert_true(Upgrades.available(lv, Upgrades.W_ARCANE, Upgrades.SLOTS_EARLY))
 	assert_false(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY), "a non-partner took the last slot")
 	assert_true(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_LATE), "with two slots free any spell goes")
-	# With both partners banished, nothing can complete a pair and the slot is free again.
-	var banned := {Upgrades.W_STORM: true, Upgrades.W_ARCANE: true, Upgrades.W_STAR: true}
+	# With ARCANE BOLT's evolutions banished, nothing can complete a pair and the slot is free again.
+	var banned := {Upgrades.E_ARCANE: true, Upgrades.E_LODESTAR: true}
 	assert_true(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY, banned))
-	# Passives have no partners today, so their last slot takes anything.
+	# The last arcana slot is kept the same way: FIREBALL wants THE TOWER (THUNDERFIRE).
 	var pa := {Upgrades.W_FIRE: 1, Upgrades.POWER: 1, Upgrades.QUICK: 1}
-	assert_true(Upgrades.available(pa, Upgrades.SWIFT, Upgrades.SLOTS_EARLY))
-	assert_false(Upgrades.available(pa.merged({Upgrades.SWIFT: 1}), Upgrades.REGEN, Upgrades.SLOTS_EARLY))
+	assert_true(Upgrades.available(pa, Upgrades.NOVA, Upgrades.SLOTS_EARLY))
+	assert_false(Upgrades.available(pa, Upgrades.SWIFT, Upgrades.SLOTS_EARLY), "a non-partner took the last arcana slot")
+	assert_true(Upgrades.available(pa, Upgrades.SWIFT, Upgrades.SLOTS_EARLY, {Upgrades.E_FIRE: true, Upgrades.E_GREEK: true}))
+	assert_false(Upgrades.available(pa.merged({Upgrades.NOVA: 1}), Upgrades.REGEN, Upgrades.SLOTS_EARLY))
 
 
 func test_a_partner_weighs_four_times_in_a_roll() -> void:
-	var lv := {Upgrades.W_FIRE: 1}
-	assert_eq(Upgrades.roll_weight(lv, Upgrades.W_STORM), Upgrades.PARTNER_WEIGHT * float(Upgrades.CATALOG[Upgrades.W_STORM][Upgrades.C_WEIGHT]))
+	var lv := {Upgrades.NOVA: 1} # THE TOWER held: FIREBALL completes THUNDERFIRE's pair
+	assert_eq(Upgrades.roll_weight(lv, Upgrades.W_FIRE), Upgrades.PARTNER_WEIGHT * float(Upgrades.CATALOG[Upgrades.W_FIRE][Upgrades.C_WEIGHT]))
 	assert_eq(Upgrades.roll_weight(lv, Upgrades.W_RUNE), float(Upgrades.CATALOG[Upgrades.W_RUNE][Upgrades.C_WEIGHT]))
-	var storm := 0
+	assert_eq(Upgrades.roll_weight({Upgrades.W_FIRE: 1}, Upgrades.NOVA), Upgrades.PARTNER_WEIGHT * float(Upgrades.CATALOG[Upgrades.NOVA][Upgrades.C_WEIGHT]))
+	var fire := 0
 	var rune := 0
 	for s: int in range(400):
 		var hand := Upgrades.roll(_rng(s), lv, 1, Upgrades.SLOTS_EARLY)
-		storm += int(hand[0] == Upgrades.W_STORM)
+		fire += int(hand[0] == Upgrades.W_FIRE)
 		rune += int(hand[0] == Upgrades.W_RUNE)
-	assert_true(storm > rune * 3, "partner drawn %d times, another spell %d" % [storm, rune])
+	assert_true(fire > rune * 3, "partner drawn %d times, another spell %d" % [fire, rune])
 
 
 func test_redraw_swaps_the_hand_and_counts_down() -> void:
@@ -301,14 +301,14 @@ func test_no_spell_tomes_fall_and_a_party_tome_levels_every_wizard() -> void:
 
 
 func test_pick_score_prefers_evolutions_then_pairs() -> void:
-	var lv := {Upgrades.W_FIRE: 5, Upgrades.W_STORM: 1}
+	var lv := {Upgrades.W_FIRE: 5, Upgrades.NOVA: 1}
 	assert_true(Upgrades.pick_score(lv, Upgrades.E_FIRE) > Upgrades.pick_score(lv, Upgrades.W_FIRE))
 	var lone := {Upgrades.W_FIRE: 2}
-	assert_true(Upgrades.pick_score(lone, Upgrades.W_STORM) > Upgrades.pick_score(lone, Upgrades.W_FIRE), "a partner beats a level")
+	assert_true(Upgrades.pick_score(lone, Upgrades.NOVA) > Upgrades.pick_score(lone, Upgrades.W_FIRE), "a partner beats a level")
 	assert_true(Upgrades.pick_score(lone, Upgrades.W_FIRE) > Upgrades.pick_score(lone, Upgrades.W_RUNE))
-	assert_true(Upgrades.pick_score(lone, Upgrades.W_RUNE) > Upgrades.pick_score(lone, Upgrades.POWER))
-	assert_true(Upgrades.pick_score(lone, Upgrades.POWER) > Upgrades.pick_score(lone, Upgrades.M_WANDS))
-	var hand: Array[int] = [Upgrades.POWER, Upgrades.W_STORM, Upgrades.M_CUPS]
+	assert_true(Upgrades.pick_score(lone, Upgrades.W_RUNE) > Upgrades.pick_score(lone, Upgrades.SWIFT))
+	assert_true(Upgrades.pick_score(lone, Upgrades.SWIFT) > Upgrades.pick_score(lone, Upgrades.M_WANDS))
+	var hand: Array[int] = [Upgrades.SWIFT, Upgrades.NOVA, Upgrades.M_CUPS]
 	assert_eq(Upgrades.best_pick(lone, hand), 1)
 
 
@@ -544,13 +544,14 @@ func test_a_card_that_went_stale_deals_a_fresh_hand() -> void:
 ## more.
 func test_a_banished_pair_does_not_count() -> void:
 	var lv := {Upgrades.W_ARCANE: 1, Upgrades.W_FIRE: 1}
-	assert_true(Upgrades.pairs_with(lv, Upgrades.W_STAR))
+	assert_true(Upgrades.pairs_with(lv, Upgrades.QUICK))
 	for ban: int in [Upgrades.E_ARCANE, Upgrades.W_ARCANE]:
 		var banned := {ban: true}
-		assert_false(Upgrades.pairs_with(lv, Upgrades.W_STAR, banned), "star pairs with a banished arcane")
-		assert_eq(Upgrades.roll_weight(lv, Upgrades.W_STAR, banned), float(Upgrades.CATALOG[Upgrades.W_STAR][Upgrades.C_WEIGHT]))
-	# Storm still pairs with Fire, so the last slot stays kept against Rune; with both pairs' evolutions banished
-	# it is free.
-	assert_false(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY))
-	var all := {Upgrades.E_ARCANE: true, Upgrades.E_FIRE: true, Upgrades.E_STORM: true, Upgrades.E_FROST: true}
-	assert_true(Upgrades.available(lv, Upgrades.W_RUNE, Upgrades.SLOTS_EARLY, all), "a banished pair kept the last slot")
+		assert_false(Upgrades.pairs_with(lv, Upgrades.QUICK, banned), "THE MAGICIAN pairs with a banished arcane")
+		assert_eq(Upgrades.roll_weight(lv, Upgrades.QUICK, banned), float(Upgrades.CATALOG[Upgrades.QUICK][Upgrades.C_WEIGHT]))
+	# THE TOWER still pairs with FIREBALL, so the last arcana slot stays kept against THE CHARIOT; with every pair's
+	# evolution banished it is free.
+	var lv2 := lv.merged({Upgrades.REGEN: 1, Upgrades.MAGNET: 1})
+	assert_false(Upgrades.available(lv2, Upgrades.SWIFT, Upgrades.SLOTS_EARLY))
+	var all := {Upgrades.E_ARCANE: true, Upgrades.E_FIRE: true, Upgrades.E_LODESTAR: true, Upgrades.E_GREEK: true}
+	assert_true(Upgrades.available(lv2, Upgrades.SWIFT, Upgrades.SLOTS_EARLY, all), "a banished pair kept the last slot")

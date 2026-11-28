@@ -29,6 +29,8 @@ const SP_RUNE := 5
 const SP_BONE := 6 # wave 3: bone spear (and the archer's LONGBOW)
 const SP_CANDLE := 7 # vigil candle (and the priest's HOLY LIGHT)
 const SP_CLEAVE := 8 # the knight's class weapon
+const SP_HEX := 9 # stage 3: a curse on the toughest foe (unbuilt: Upgrades.UNBUILT)
+const SP_BLADES := 10 # stage 3: spirit blades circling the wizard (unbuilt)
 
 # Pickups
 const PK_COIN := 0
@@ -290,6 +292,10 @@ var meta_damage := 0.0
 var meta_xp := 0.0
 var meta_gold := 0.0
 var meta_luck := 0
+## The table's locked rows (Upgrades index -> true): the host's profile has not opened them (apply_meta's "locked",
+## Profile.locked_rows; docs/stage3_brief.md § 4.3). Each wizard's banned holds the mask, less her own class
+## weapon, its arcana and its evolution (apply_hero). Empty in every scripted run. In the snapshot as "lk".
+var locked: Dictionary = {}
 ## The run's difficulty (apply_seal): SEAL_EASY (-1) easy, 0 normal, 1 hard, 2..SEAL_MAX the Seals I to VIII.
 const SEAL_EASY := -1
 const SEAL_MAX := 9
@@ -488,13 +494,17 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 
 ## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
 ## and damage, XP, gold and chest luck bonuses; "urn_card" (bool) makes the run a card run whose card waits in the
-## first urn broken at or after its moment (WorldDrops.card_due). Call once, before the first step.
+## first urn broken at or after its moment (WorldDrops.card_due); "locked" (an Array of Upgrades indices) is the
+## table's mask (World.locked), put in every wizard's banned. Call once, before the first step.
 func apply_meta(b: Dictionary) -> void:
 	urn_card = bool(b.get("urn_card", false))
 	meta_damage = float(b.get("damage", 0.0))
 	meta_xp = float(b.get("xp", 0.0))
 	meta_gold = float(b.get("gold", 0.0))
 	meta_luck = int(b.get("luck", 0.0))
+	locked.clear()
+	for r: Variant in b.get("locked", []):
+		locked[int(r)] = true
 	var armor: Array = b.get("armor", [])
 	for p: Player in players.values():
 		p.max_hp += int(b.get("hearts", 0.0))
@@ -503,6 +513,8 @@ func apply_meta(b: Dictionary) -> void:
 		p.max_hp += int(float(armor[Loot.ST_VIGOR])) if armor.size() > Loot.ST_VIGOR else 0
 		p.hp = p.max_hp
 		p.bombs += int(b.get("novas", 0.0))
+		for r: int in locked:
+			p.banned[r] = true
 
 ## Gives wizard `p` a saved hero (Hero.to_dict(); docs/classes_design.md). Call after apply_meta, before the first
 ## step. The class's hearts replace BASE_HEARTS; the hero's stats (race, class, points and its own sockets) add to
@@ -545,12 +557,22 @@ func apply_hero(p: Player, hero: Dictionary) -> void:
 		p.upgrades[Upgrades.weapon_entry(sp)] = 1
 		p.cds.fill(0.0)
 	WorldCasting._refresh_spell(self, p)
+	_open_own_rows(p)
 	var lo := INF
 	var hi := 0.0
 	for q: Player in players.values():
 		lo = minf(lo, q.threat)
 		hi = maxf(hi, q.threat)
 	threat_spread = maxf(1.0, hi / maxf(lo, 0.01))
+
+## A hero's own class weapon (Player.class_weapon), the arcana of its evolution and that evolution are open to her
+## whatever the table's mask says: they leave her banned when the mask put them there.
+func _open_own_rows(p: Player) -> void:
+	if p.class_weapon < 0:
+		return
+	for r: int in [Upgrades.weapon_entry(p.class_weapon), Upgrades.partner_row(p.class_weapon), Upgrades.evo_entry(p.class_weapon)]:
+		if r >= 0 and locked.has(r):
+			p.banned.erase(r)
 
 ## The live enemy cap: LEGION's seal_cap when a Seal sets one, else Tuning's enemy_cap.
 func enemy_cap() -> int:
@@ -977,13 +999,19 @@ func snapshot() -> Dictionary:
 		shr.append_array(r)
 	var snap := {
 		"p": pl, "e": en, "s": sh, "r": rn, "es": es, "k": pk, "sh": shr, "u": _snapshot_urns(), "o": PackedFloat32Array(),
-		"hz": Hazards.pack(hazards),
+		"hz": Hazards.pack(hazards), "lk": _snapshot_locked(),
 		"w": PackedFloat32Array([wave, phase, phase_t, bf, door_open[0], door_open[1], door_open[2], door_open[3], wave_time,
 			1.0 if boss != null and boss.final else 0.0, lull_left, seal, slots.x, slots.y,
 			btype, bphase, boss_t, boss_arg, boss_meter, Readings.index_of(reading)]),
 	}
 	WorldShrines.snapshot_fates(self, snap)
 	return snap
+
+## The table's locked rows (World.locked), sorted: every seat reads the same mask.
+func _snapshot_locked() -> PackedInt32Array:
+	var out := PackedInt32Array(locked.keys())
+	out.sort()
+	return out
 
 # =========================================================== FORWARDERS ===
 ## One line each, for callers outside game/logic/world/ (tests, sims, tools, the arena, bots). The bodies live

@@ -370,4 +370,7 @@ func test_solo_run_is_pinned() -> void:
 
 ## Re-pinned when wave 3 grew the catalogue (BONE SPEAR, VIGIL CANDLE, JUSTICE, THE LOVERS and their evolutions,
 ## CLEAVE): the level-up offers changed. With those rows banished the run still hashes 1036301149, the old pin.
-const SOLO_PIN := 3618684229
+## Re-pinned when stage 3 paired every evolution with an arcana and made THE TOWER and JUDGEMENT held (job A3): the
+## rolls' weights and slots changed, and this stretch's picks came out as they did before wave 3 (1036301149 again).
+## The casual's pair rule (SmashBot.PAIR_FROM_LEVEL) does not fire in it: no spell reaches level 3 in 40 s.
+const SOLO_PIN := 1036301149

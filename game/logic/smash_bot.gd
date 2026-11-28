@@ -91,6 +91,9 @@ const PICK_PRIORITY: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.
 	Upgrades.WISDOM, Upgrades.REGEN, Upgrades.LIFE, Upgrades.NOVA]
 
 ## How much a seasoned player likes a passive, by catalogue key (unknown keys: 10).
+## The casual takes the arcana that completes a pair ahead of everything but an evolution once the pair's spell is at
+## this level: sooner, the arcana costs her the spell levels that keep her alive in the first minutes.
+const PAIR_FROM_LEVEL: int = 3
 const PASSIVE_TASTE: Dictionary = {"power": 55.0, "quick": 52.0, "life": 30.0, "regen": 26.0, "swift": 24.0,
 	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0}
 
@@ -1227,16 +1230,35 @@ func _card_score(idx: int, levels: Dictionary) -> float:
 		PICK_SHINY:
 			if Upgrades.is_evolution(idx):
 				return 80.0 + rng.randf() * 10.0
+			if Upgrades.pairs_with(levels, idx):
+				return 72.0 + rng.randf() * 6.0 # the card that completes a pair: the shiniest new one
 			return (40.0 if lv == 0 else 10.0) + rng.randf() * 30.0
 		PICK_DAMAGE:
 			if Upgrades.is_evolution(idx):
 				return 100.0
+			if Upgrades.kind(idx) == Upgrades.PASSIVE and Upgrades.pairs_with(levels, idx):
+				# It opens an evolution, the most damage a card can bring, once its spell is near its top: from
+				# PAIR_FROM_LEVEL it outranks STRENGTH. Before that she takes it by its own worth, below.
+				var near: int = _pair_spell_level(levels, idx) - PAIR_FROM_LEVEL
+				if near >= 0:
+					return 62.0 + 4.0 * near
 			if Upgrades.key(idx) == "power":
 				return 60.0
 			if Upgrades.is_weapon(idx):
 				return 50.0 + lv if lv > 0 else 30.0
 			return float(PASSIVE_TASTE.get(Upgrades.key(idx), 10.0)) * 0.8 + rng.randf()
 	return _plan_score(idx, lv, levels)
+
+
+## The level of the spell the arcana `idx` would complete a pair with (the highest, when it pairs with two she
+## holds), 0 when it completes none.
+static func _pair_spell_level(levels: Dictionary, idx: int) -> int:
+	var best: int = 0
+	for sp: int in Spells.COUNT:
+		for evo: int in range(1, Upgrades.evo_rows(sp).size() + 1):
+			if Upgrades.partner_row(sp, evo) == idx and Upgrades._can_evolve(levels, sp, evo, {}):
+				best = maxi(best, Upgrades.weapon_level(levels, sp))
+	return best
 
 
 ## The veteran: choose an evolution whose requirements it can still meet (most progress first), take what it
@@ -1252,7 +1274,7 @@ func _plan_score(idx: int, lv: int, levels: Dictionary) -> float:
 				return 70.0 + float(lv) / float(maxi(1, int(r[1])))
 	# Anything another reachable evolution needs is the next plan.
 	for e: int in range(Upgrades.count()):
-		if not Upgrades.is_evolution(e) or Upgrades.level_of(levels, e) > 0:
+		if not _plan_open(levels, e):
 			continue
 		for r: Array in Upgrades.CATALOG[e][Upgrades.C_REQUIRES]:
 			if int(r[0]) == idx and lv < int(r[1]) and lv > 0:
@@ -1262,12 +1284,18 @@ func _plan_score(idx: int, lv: int, levels: Dictionary) -> float:
 	return float(PASSIVE_TASTE.get(Upgrades.key(idx), 10.0))
 
 
-## The evolution the veteran chases: not taken, every requirement reachable, most progress made.
+## True if row `e` is an evolution a wizard with `levels` may still plan for: built, and no evolution of its spell
+## taken (one taken shuts the other).
+static func _plan_open(levels: Dictionary, e: int) -> bool:
+	return Upgrades.is_evolution(e) and not Upgrades.UNBUILT.has(e) and not Upgrades.evolved(levels, Upgrades.spell_of(e))
+
+
+## The evolution the veteran chases: open to her (_plan_open), every requirement reachable, most progress made.
 func _plan_target(levels: Dictionary) -> int:
 	var best: int = -1
 	var bp: float = 0.0
 	for e: int in range(Upgrades.count()):
-		if not Upgrades.is_evolution(e) or Upgrades.level_of(levels, e) > 0:
+		if not _plan_open(levels, e):
 			continue
 		var progress: float = 0.0
 		var reachable: bool = true

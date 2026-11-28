@@ -2,24 +2,30 @@ class_name Spells
 extends RefCounted
 ## Spell weapons: per-level stats and the evolutions. Pure data plus lookups; World casts with these numbers.
 ## A wizard's weapon level lives in their upgrades Dictionary (Upgrades.weapon_entry(spell)); an evolution is
-## its own upgrade entry (Upgrades.evo_entry(spell)) that needs the weapon at MAX_LEVEL plus a partner (a spell
-## for the first six, a passive for BONE SPEAR, VIGIL CANDLE and CLEAVE). CLEAVE is the knight's class weapon: only
-## a knight holds it, so only a knight is offered WHIRLWIND.
+## its own upgrade entry (Upgrades.evo_entry(spell, evo)) that needs the weapon at MAX_LEVEL plus one arcana (a
+## PASSIVE row, never another spell: content list § 37). The four schools have a second evolution (EVOS2). CLEAVE
+## is the knight's class weapon: only a knight holds it, so only a knight is offered WHIRLWIND.
 
-const COUNT := 9
+const COUNT := 11
 const MAX_LEVEL := 5
 
 ## Per spell (World.SP_* order). Arrays are per level 1..MAX_LEVEL.
 ## cast: how the spell is cast (WorldCasting.CASTS has one function per kind): "bolt" flies projectiles,
 ## "chain" strikes lightning foe to foe, "rune" inscribes circles on the floor, "candle" sets a light (a circle of
 ## kind CIRCLE_CANDLE) on the densest cluster near the caster, "sweep" swings an arc `arc` radians wide reaching
-## `r` px. A new kind is one function there plus its rows here. cd: seconds between casts. dmg: damage per hit (per tick for a rune circle). n: bolts,
+## `r` px. A new kind is one function in a file of its own (world/cast_<kind>.gd), named in that table, plus its
+## rows here. cd: seconds between casts. dmg: damage per hit (per tick for a rune circle). n: bolts,
 ## fireballs, shards, chain jumps, stars or rune circles. speed px/s, r: hit radius px, life: seconds, spread:
 ## radians between projectiles. A rune circle's r and life are per level too (read them with level_value).
 ## What a "bolt" does in flight is data too (absent: it does not): jitter: radians of random aim per bolt.
 ## home: px within which it turns toward the nearest foe, turn: how fast (per second). blast: radius px of the
 ## burst when it hits or runs out, blast_reach: px over which the burst's bonus fades, blast_bonus: extra damage
 ## at the centre. slow: seconds a hit enemy stays slowed. pierce: enemies it passes through (PIERCE_ALL: every one).
+## "hex" (HEX, unbuilt: Upgrades.UNBUILT) curses the toughest foe within `range` px: dmg on the throw; the foe takes
+## `taken` (per level) more damage from every wizard for `life` s, `big_share` of that on an elite or a boss; when
+## it dies the hex jumps to the nearest foe within `jump` px, up to n times. "blades" (SPIRIT BLADES, unbuilt) keeps
+## n blades circling her at `r` px, one turn each `spin` s, always out: a touch deals dmg and pushes the foe back,
+## and one foe is cut at most every `cd` s. speed, life and spread are 0 where a kind has no use for them.
 const STATS: Array = [
 	{"name": "ARCANE BOLT", "cast": "bolt", "cd": [0.16, 0.15, 0.14, 0.13, 0.12], "dmg": [2.6, 2.75, 2.8, 2.9, 3.0],
 		"n": [1, 1, 2, 2, 3], "speed": 310.0, "r": 3.0, "life": 1.0, "spread": 0.12, "jitter": 0.04},
@@ -41,41 +47,67 @@ const STATS: Array = [
 		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 32.0, "life": 3.5, "spread": 0.0},
 	{"name": "CLEAVE", "cast": "sweep", "cd": [0.9, 0.85, 0.8, 0.75, 0.7], "dmg": [9.0, 11.0, 13.5, 16.5, 20.0],
 		"n": [1, 1, 1, 1, 1], "speed": 0.0, "r": 34.0, "life": 0.0, "spread": 0.0, "arc": 1.745},
+	{"name": "HEX", "cast": "hex", "cd": [1.6, 1.45, 1.3, 1.15, 1.0], "dmg": [5.0, 5.5, 6.0, 6.5, 7.0],
+		"n": [2, 3, 4, 5, 6], "speed": 0.0, "r": 0.0, "life": 4.0, "spread": 0.0, "range": 160.0,
+		"taken": [0.25, 0.30, 0.35, 0.40, 0.45], "big_share": 0.5, "jump": 70.0},
+	{"name": "SPIRIT BLADES", "cast": "blades", "cd": [0.5, 0.5, 0.5, 0.5, 0.5], "dmg": [1.2, 1.45, 1.7, 1.95, 2.2],
+		"n": [2, 2, 3, 3, 4], "speed": 0.0, "r": 30.0, "life": 0.0, "spread": 0.0, "spin": 1.6},
 ]
 
-## Evolutions, per base spell. partner: the other spell the wizard must own. The stats replace the level-5
-## numbers. pierce: extra enemies a projectile passes through. Specials (World reads them):
+## First evolutions (id 1), per base spell. passive: the Upgrades key of the arcana it pairs with (the catalog's
+## `requires` holds the pair; content list § 37). The stats replace the level-5 numbers. pierce: extra enemies a projectile passes through. Specials (World reads them):
 ## chain: lightning jumps from each fireball blast. chains: separate lightning chains per cast.
 ## slow: seconds an enemy stays slowed. burst: radius of a frost burst where a star hits.
 ## r, life: a rune circle's radius and seconds. pull: px/s a circle draws enemies toward its centre.
 ## splinter: splinters a hit throws sideways (Ossuary Lance). heal_every: s between the hearts the light gives the
 ## most hurt hero inside (Consecration). r, arc: a sweep's reach px and width radians (Whirlwind: TAU, a full
-## circle); most: the foes one swing strikes at most, the nearest first. A spell whose partner is a passive has partner -1 and names the passive's Upgrades key in `passive`. An
-## empty row: the spell has no evolution.
+## circle); most: the foes one swing strikes at most, the nearest first. EVIL EYE (unbuilt): `taken` the hex's
+## damage taken, n jumps; a hexed foe bursts when it dies for `burst_share` of its full health within `burst_r` px,
+## at most `burst_max`. DANSE MACABRE (unbuilt): n blades at `r` px and `n2` more at `r2` px turning the other way.
+## An empty row: the spell has no evolution.
 const EVOS: Array = [
-	{"name": "ASTRAL LANCE", "desc": "PIERCING BOLTS", "partner": 4,
+	{"name": "ASTRAL LANCE", "desc": "PIERCING BOLTS", "passive": "quick",
 		"cd": 0.11, "dmg": 3.0, "n": 3, "pierce": 2},
-	{"name": "THUNDERFIRE", "desc": "ZAPPING BLASTS", "partner": 3,
+	{"name": "THUNDERFIRE", "desc": "ZAPPING BLASTS", "passive": "nova",
 		"cd": 0.9, "dmg": 3.0, "n": 3, "chain": 3},
-	{"name": "BLIZZARD", "desc": "A STORM OF ICE", "partner": 0,
+	{"name": "BLIZZARD", "desc": "A STORM OF ICE", "passive": "regen",
 		"cd": 0.7, "dmg": 3.2, "n": 9, "pierce": 1, "slow": 3.5},
-	{"name": "TEMPEST", "desc": "TWIN CHAINS", "partner": 1,
+	{"name": "TEMPEST", "desc": "TWIN CHAINS", "passive": "swift",
 		"cd": 0.5, "dmg": 4.4, "n": 9, "chains": 2},
-	{"name": "COMET RAIN", "desc": "ICY STARBURSTS", "partner": 2,
+	{"name": "COMET RAIN", "desc": "ICY STARBURSTS", "passive": "wisdom",
 		"cd": 0.6, "dmg": 3.0, "n": 5, "burst": 30.0},
-	{"name": "SEAL OF SOLOMON", "desc": "SIGILS PULL IN", "partner": 4,
+	{"name": "SEAL OF SOLOMON", "desc": "SIGILS PULL IN", "passive": "magnet",
 		"cd": 1.4, "dmg": 1.0, "n": 3, "r": 32.0, "life": 3.5, "pull": 42.0},
-	{"name": "OSSUARY LANCE", "desc": "SPLINTER HITS", "partner": -1, "passive": "justice",
+	{"name": "OSSUARY LANCE", "desc": "SPLINTER HITS", "passive": "justice",
 		"cd": 0.9, "dmg": 5.5, "n": 3, "splinter": 2},
-	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "partner": -1, "passive": "lovers",
+	{"name": "CONSECRATION", "desc": "HEALING LIGHT", "passive": "lovers",
 		"cd": 1.8, "dmg": 1.8, "n": 2, "r": 32.0, "life": 3.5, "heal_every": 10.0},
-	{"name": "WHIRLWIND", "desc": "A FULL CIRCLE", "partner": -1, "passive": "power",
+	{"name": "WHIRLWIND", "desc": "A FULL CIRCLE", "passive": "power",
 		"cd": 0.55, "dmg": 36.0, "n": 1, "r": 60.0, "arc": TAU, "most": 3},
+	{"name": "EVIL EYE", "desc": "HEXED BURST", "passive": "devil",
+		"cd": 0.9, "dmg": 8.0, "n": 6, "taken": 0.5, "burst_share": 0.5, "burst_r": 26.0, "burst_max": 40.0},
+	{"name": "DANSE MACABRE", "desc": "A SECOND RING", "passive": "empress",
+		"cd": 0.5, "dmg": 3.0, "n": 4, "r": 30.0, "n2": 4, "r2": 52.0},
 ]
 
 ## Second evolutions, per base spell (evolution id 2; EVOS is id 1): the same row shape as EVOS, `{}` for a spell
-## that has none. Read a row of either through evo_row.
-const EVOS2: Array = [{}, {}, {}, {}, {}, {}, {}, {}, {}]
+## that has none. Read a row of either through evo_row. All four are unbuilt (Upgrades.UNBUILT). LODESTAR: bolts
+## turn after the toughest foe within `hunt` px and deal `big_mul` times to elites and bosses. GREEK FIRE: each
+## blast leaves a burning patch of `patch_r` px for `patch_life` s that ticks `patch_dmg` each `patch_tick` s.
+## WINTER VEIL: the fan keeps its level 5 numbers (cd, dmg, n copied from STATS), and a mist of `veil_r` px stays on
+## her: foes in it are slowed as by the fan and take `veil_dmg` each `veil_tick` s. DIES IRAE: jumps keep `falloff`
+## of their damage (no weakening), and a plain foe a jump leaves under `slay` of its health dies.
+const EVOS2: Array = [
+	{"name": "LODESTAR", "desc": "HUNTS BIG PREY", "passive": "star",
+		"cd": 0.12, "dmg": 3.0, "n": 3, "hunt": 160.0, "big_mul": 2.0},
+	{"name": "GREEK FIRE", "desc": "BURNING GROUND", "passive": "power",
+		"cd": 0.8, "dmg": 3.0, "n": 2, "patch_r": 28.0, "patch_life": 3.0, "patch_dmg": 1.2, "patch_tick": 0.5},
+	{"name": "WINTER VEIL", "desc": "CLOAK OF FROST", "passive": "priestess",
+		"cd": 0.8, "dmg": 3.5, "n": 7, "veil_r": 40.0, "veil_dmg": 1.6, "veil_tick": 0.5},
+	{"name": "DIES IRAE", "desc": "SLAYS THE WEAK", "passive": "life",
+		"cd": 0.6, "dmg": 5.0, "n": 7, "falloff": 1.0, "slay": 0.2},
+	{}, {}, {}, {}, {}, {}, {},
+]
 
 ## Slow applied by a frost shard that has not evolved (its row's "slow"), and by Comet Rain's burst, seconds.
 const FROST_SLOW := 1.8
@@ -139,7 +171,7 @@ static func spell_name(spell: int) -> String:
 	return STATS[spell]["name"]
 
 
-## How the spell is cast: "bolt", "chain" or "rune" (the keys of WorldCasting.CASTS).
+## How the spell is cast: a key of Spells.STATS "cast" (WorldCasting.CASTS; a kind with no caster yet casts nothing).
 static func cast_kind(spell: int) -> String:
 	return STATS[spell]["cast"]
 
@@ -219,18 +251,14 @@ static func evo_value(spell: int, key: String, evo: int, none: float) -> float:
 	return float(evo_row(spell, evo).get(key, none))
 
 
-## The partner spell of the evolution, or -1 when the partner is a passive (`passive_partner`) or there is none.
-static func partner(spell: int) -> int:
-	return int(EVOS[spell].get("partner", -1))
+## The Upgrades key of the arcana evolution `evo` of `spell` pairs with, or "" when it has no such evolution.
+static func passive_partner(spell: int, evo: int = 1) -> String:
+	return str(evo_row(spell, evo).get("passive", ""))
 
 
-## The Upgrades key of the passive the evolution pairs with, or "" when it pairs with a spell.
-static func passive_partner(spell: int) -> String:
-	return str(EVOS[spell].get("passive", ""))
-
-
+## True if `spell` has any evolution (id 1 or 2).
 static func has_evolution(spell: int) -> bool:
-	return EVOS[spell].has("name")
+	return evolutions(spell) > 0
 
 
 ## What a shot of `spell` with evolution `evo` is drawn as (see SHOT_BLOCK, SHOT_SECOND).

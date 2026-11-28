@@ -41,9 +41,8 @@ How each system works: read only the section for the system you touch (`grep -n 
   longer does anything; the nova button still does.
 - Stats per level and the evolutions are data in `game/logic/spells.gd`. Weapon levels and evolutions are
   entries in the `Upgrades` catalogue (`weapon_entry`, `evo_entry`); an evolution is offered once its weapon is
-  level 5 and its partner is owned. Pairs: Astral Lance (arcane + star, piercing), Thunderfire (fire + storm,
-  blasts fork lightning), Blizzard (frost + arcane), Tempest (storm + fire, twin chains), Comet Rain (star +
-  frost, ice bursts). `Tuning.spell_cd_mul` scales every cooldown.
+  level 5 and she holds its arcana at level 1 (a PASSIVE row, never another spell; since stage 3, see "The
+  catalog's stage 3 rows" below). `Tuning.spell_cd_mul` scales every cooldown.
 - Tomes now grant or level their spell weapon (points once it is maxed) and weapons are kept through death.
   Snapshots carry the 5 weapon levels (6 = evolved) and shot kinds are +5 when evolved; the HUD shows a pip per
   weapon.
@@ -309,7 +308,7 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
 
 `floor_tomes` is 0 by default: no spell tome falls from kills or powerups, and the party tome (pickup
 `World.PK_TOME_PARTY`, one random owned spell level for every wizard) drops instead: every Lich, every elite
-(`party_tome_elite` 1.0, a new Tuning row; was a 0.25 constant) and 2% of urns (`party_tome_urn`). Floor tomes used to
+(`party_tome_elite` 1.0, a new Tuning row; was a 0.25 constant; the frozen list's 0.35 is applied by stage 5's first tune job) and 2% of urns (`party_tome_urn`). Floor tomes used to
 evolve every spell by about 1:40; now the first evolution comes at about 4:00 to 5:00 from picks and party tomes.
 
 - XP: `xp_per_level` 90 -> 55, so level 11 to 12 at 6:00 (was 8.7 without floor tomes).
@@ -334,8 +333,8 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 
 ## Wave 3 spells and passives (BONE SPEAR, VIGIL CANDLE, JUSTICE, THE LOVERS)
 - Rows: `World.SP_BONE` 6, `SP_CANDLE` 7, `SP_CLEAVE` 8 (`Spells.STATS`, `Spells.EVOS`); catalogue rows 24 to 31
-  (`Upgrades.W_BONE`, `W_CANDLE`, `JUSTICE`, `LOVERS`, `E_BONE`, `E_CANDLE`, `W_CLEAVE`, `E_CLEAVE`). An evolution's partner may
-  be a passive: its `Spells.EVOS` row has `partner` -1 and `passive` (the key), the catalogue's `requires` is the truth.
+  (`Upgrades.W_BONE`, `W_CANDLE`, `JUSTICE`, `LOVERS`, `E_BONE`, `E_CANDLE`, `W_CLEAVE`, `E_CLEAVE`). Their evolutions pair
+  with a passive: the `Spells.EVOS` row names its key in `passive`, the catalogue's `requires` is the truth.
 - BONE SPEAR: a "bolt" row with `pierce` `Spells.PIERCE_ALL` (a shot with pierce -1 never runs out), 220 px (speed x
   life). OSSUARY LANCE (with JUSTICE): each hit throws `splinter` splinters square to the spear (`SPLINTER_DMG` of
   its damage, `SPLINTER_LIFE` s, never the foe it came from, never splintering again).
@@ -344,7 +343,7 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   stays under 60 dps; CONSECRATION's radius 28 -> 32) on the densest cluster within `CANDLE_RANGE` 60 px (else `CANDLE_AIM_DIST` along the aim); it burns on
   the rune circle's timer (`RUNE_TICK`). Every standing hero inside (the caster too) keeps `VIGIL_HASTE` cast speed
   for `VIGIL_AFTER` s (`Player.vigil`). CONSECRATION (with THE LOVERS): the light heals 1 heart every `heal_every` 10 s
-  to the most hurt hero inside (`WorldCasting._light_heals`, a timer per caster that runs while her light burns).
+  to the most hurt hero inside (`WorldCastCircles._light_heals`, a timer per caster that runs while her light burns).
 - Cast speed: THE LOVERS (8/16/24% within `LOVERS_RANGE` 60 px of a standing ally, an apprentice counts; alone
   `LOVERS_ALONE` of it) and the candle add up (`WorldCasting._cast_speed`) and divide the cooldown multiplier, which
   still never goes below `Spells.CAST_FLOOR`. Without them the divisor is exactly 1, so old runs are unchanged.
@@ -417,7 +416,7 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   weapon's damage and cooldown at every level, `knock_mul` on a sweep's knock-back; `WorldCasting._skin_mul` reads
   them for the class weapon only, so a BONE SPEAR or STARFALL from a card is the row as it is). `apply_hero` sets `Player.class_weapon`
   and `Player.skin` (-1 and "" without a hero, for a mage, and so for every spell picked up later); the logic reads
-  them (`WorldCasting._cast_bolts`, `_light_heals`), the arena reads the snapshot's `P_CLASS` through
+  them (`WorldCastBolts._cast_bolts`, `WorldCastCircles._light_heals`), the arena reads the snapshot's `P_CLASS` through
   `Classes.weapon_skin(cls, spell)` (`ArenaDrawFx._skin`), so no snapshot row changed. MAGE: the school's spell,
   unskinned. KNIGHT: CLEAVE, its own row (`SP_CLEAVE`, cast kind `sweep`: a `arc` 100 degree swing reaching `r`
   34 px along the aim when a foe stands in that arc, else toward the nearest foe it can reach, and it waits while
@@ -615,6 +614,38 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
 - The engine's third-party list is never typed: `CreditsView.open()` passes `Engine.get_copyright_info()` (one `NAME, LICENCE` line per component; the engine's own row is left out because BUILT WITH names it) and `Engine.has_singleton("SentrySDK")` (the test `Crash` uses) for the crash-report section.
 - `CreditsView` (`game/ui/credits_view.gd`, the title's CREDITS board): scrolls by itself, stops at the end; up/down/wheel scroll by hand and stop the automatic scroll (`scroll_to`); B, ESC or a click leaves. The title leaves its version label off the two boards whose frame reaches that corner (CARDS, CREDITS). Shots: `--autotest --credits` saves `credits.png`, `credits_licences.png`, `credits_end.png`.
 - The built game's full texts are `THIRD_PARTY_NOTICES.txt` (`tools/notices.gd`); the sentry-native and Crashpad texts come from `tools/notices/` (`SOURCES.md` lists URL, ref, date, sha256).
+
+## The catalog's stage 3 rows (job A3: spell + arcana pairs, held arcana, shut rows)
+
+- Pairs. Every evolution needs its spell at level 5 and one arcana (a PASSIVE row) at level 1, never another
+  spell; the chart is `docs/content_list.md` § 37 and the truth in code is the catalogue's `requires`. Today's
+  nine: ASTRAL LANCE with THE MAGICIAN (`quick`), THUNDERFIRE with THE TOWER (`nova`), BLIZZARD with TEMPERANCE
+  (`regen`), TEMPEST with THE CHARIOT (`swift`), COMET RAIN with THE HERMIT (`wisdom`), SEAL OF SOLOMON with THE
+  MOON (`magnet`), OSSUARY LANCE with JUSTICE, CONSECRATION with THE LOVERS, WHIRLWIND with STRENGTH.
+  `Spells.passive_partner(spell, evo)` and `Upgrades.partner_row(spell, evo)` name the arcana of either
+  evolution; `Spells.partner` and the `partner` key are gone.
+- Twelve new rows at catalogue indices 32 to 43 (`Upgrades.PRIESTESS` .. `E_BLADES`): four arcana, HEX and SPIRIT
+  BLADES (`World.SP_HEX` 9, `SP_BLADES` 10, `Spells.COUNT` 11), the four schools' second evolutions
+  (`Spells.EVOS2`) and the two new spells' evolutions. All twelve are on `Upgrades.UNBUILT`: never available,
+  never counted in a pair, never planned for by a bot; a spell with no caster casts nothing
+  (`WorldCasting._cast`). `WorldGrants.give` is the one path past the list, and the job that builds a row takes
+  it off. An arcana of two spells (STRENGTH: WHIRLWIND and GREEK FIRE) completes either pair.
+- THE TOWER (`nova`, 3 levels) and JUDGEMENT (`life`, 2 levels) are PASSIVE rows that take an arcana slot; a pick
+  still gives the charge or the life at once, and no row is INSTANT any more. THE TOWER's refill, JUDGEMENT's
+  blast and their new words come with job C5; until then both cards keep their old words.
+- Shut rows (`docs/stage3_brief.md` § 4.3). `World.locked` is the table's mask, from `apply_meta`'s `"locked"`
+  (`Profile.locked_rows` through `Save.run_bonuses()`); it goes into every wizard's `banned`, and `apply_hero`
+  takes a hero's own class weapon, that weapon's arcana and its evolution out again (`_open_own_rows`). The
+  snapshot carries the mask as `"lk"`. A scripted run has no mask.
+- `Upgrades.row_name(idx)` is the name a tray row writes: the full name, or without its leading `THE ` when
+  wider than `TarotArt.ROW_TITLE_CHARS` (HIGH PRIESTESS). A class skin's own name still wins.
+- Bots. A casual bot (damage first) takes the arcana that completes a pair ahead of everything but an evolution
+  once the pair's spell is at level 3 (`SmashBot.PAIR_FROM_LEVEL`, `_pair_spell_level`); before that the arcana
+  counts for what it does alone, because taken early it costs her the spell levels that carry the first minutes
+  (two casual bots: 1 of 4 runs won when they took it at once, 4 of 4 with the rule, as before the pairs). A novice
+  takes it as the shiniest card, and a veteran never plans for an unbuilt evolution or for the other road of a
+  spell she has evolved (`SmashBot._plan_open`).
+- `Sprites.SPELL_COLORS` and `SPELL_DARK` have one entry per spell (11).
 
 ## The Reading (stage 3, job R1: the rows and the values path)
 - `Readings` (`game/logic/readings.gd`, pure, the data file for the Reading's numbers): `ROWS` is the sixteen Minor Arcana of `docs/content_list.md` § 42 as `[key, name, words, party only, values]`. `deal(rng, open, seats, n)` draws n different open rows with its own rng (a PARTY card only for two seats or more, never a row of `UNBUILT`); `vote(votes, seats)` gives the hand index a table keeps (most votes, seat 1 breaks a tie, -1 abstains, nobody keeps 0).

@@ -180,7 +180,8 @@ func test_a_saved_hero_opens_her_class_and_race() -> void:
 func test_locked_rows_of_a_new_profile() -> void:
 	var p := Profile.new()
 	var want: Array[int] = []
-	for k: String in ["nova", "w_bone", "w_candle", "justice", "lovers", "e_bone", "e_candle", "w_cleave", "e_cleave"]:
+	for k: String in ["nova", "e_fire", "w_bone", "w_candle", "justice", "lovers", "e_bone", "e_candle", "w_cleave",
+			"e_cleave"] + DECK_ROWS:
 		want.append(_cat(k))
 	want.sort()
 	assert_eq(p.locked_rows(), want)
@@ -191,7 +192,15 @@ func test_locked_rows_of_a_new_profile() -> void:
 	p.deeds["BOSS_GHOSTWRITER"] = true
 	p.deeds["OMENS"] = true
 	p.deeds["EVOLVE"] = true
-	assert_eq(p.locked_rows(), [] as Array[int])
+	var decks: Array[int] = []
+	for k: String in DECK_ROWS:
+		decks.append(_cat(k))
+	decks.sort()
+	assert_eq(p.locked_rows(), decks, "only the shop's decks stay shut")
+
+
+## The rows the shopkeeper's decks open (Profile.OPENS "deck"), with the evolutions that need them.
+const DECK_ROWS: Array[String] = ["priestess", "empress", "devil", "w_hex", "w_blades", "e_veil", "e_hex", "e_blades"]
 
 
 func _cat(k: String) -> int:

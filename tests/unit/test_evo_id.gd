@@ -4,10 +4,15 @@ extends TestCase
 
 ## Today's evolution rows, one per spell (World.SP_* order).
 const TODAY_EVOS: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.E_FROST, Upgrades.E_STORM,
-	Upgrades.E_STAR, Upgrades.E_RUNE, Upgrades.E_BONE, Upgrades.E_CANDLE, Upgrades.E_CLEAVE]
-## Shot kinds as the code drew them before the id: plain, then evolved, per spell.
-const PLAIN_KINDS: Array[int] = [0, 1, 2, 3, 4, 5, 12, 13, 14]
-const EVOLVED_KINDS: Array[int] = [6, 7, 8, 9, 10, 11, 18, 19, 20]
+	Upgrades.E_STAR, Upgrades.E_RUNE, Upgrades.E_BONE, Upgrades.E_CANDLE, Upgrades.E_CLEAVE, Upgrades.E_HEX,
+	Upgrades.E_BLADES]
+## The second evolutions (evolution id 2), -1 for a spell with none (content list § 37).
+const SECOND_EVOS: Array[int] = [Upgrades.E_LODESTAR, Upgrades.E_GREEK, Upgrades.E_VEIL, Upgrades.E_DIES, -1, -1, -1,
+	-1, -1, -1, -1]
+## Shot kinds as the code drew them before the id: plain, then evolved, per spell (HEX and SPIRIT BLADES by the
+## same block rule).
+const PLAIN_KINDS: Array[int] = [0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16]
+const EVOLVED_KINDS: Array[int] = [6, 7, 8, 9, 10, 11, 18, 19, 20, 21, 22]
 
 
 func _world() -> World:
@@ -21,8 +26,8 @@ func test_evo_row_by_id() -> void:
 		assert_eq(Spells.evo_row(sp, 0), {}, "id 0 has no row")
 		assert_eq(Spells.evo_row(sp, 1), Spells.EVOS[sp])
 		assert_eq(Spells.evo_row(sp, 2), Spells.EVOS2[sp])
-		assert_eq(Spells.evo_row(sp, 2), {}, "no second evolution is filled in yet")
-		assert_eq(Spells.evolutions(sp), 1, "%s has one evolution today" % Spells.spell_name(sp))
+		assert_eq(Spells.evo_row(sp, 2).is_empty(), SECOND_EVOS[sp] < 0, "a second evolution for each school")
+		assert_eq(Spells.evolutions(sp), 1 if SECOND_EVOS[sp] < 0 else 2, Spells.spell_name(sp))
 	assert_eq(Spells.EVOS2.size(), Spells.COUNT)
 
 
@@ -61,7 +66,9 @@ func test_catalog_ids_today() -> void:
 		var e: int = TODAY_EVOS[sp]
 		assert_eq(Upgrades.evo_entry(sp), e)
 		assert_eq(Upgrades.evo_entry(sp, 1), e)
-		assert_eq(Upgrades.evo_entry(sp, 2), -1, "the catalog has no second evolution yet")
+		assert_eq(Upgrades.evo_entry(sp, 2), SECOND_EVOS[sp])
+		if SECOND_EVOS[sp] >= 0:
+			assert_eq(Upgrades.evo_id(SECOND_EVOS[sp]), 2)
 		assert_eq(Upgrades.evo_entry(sp, 0), -1)
 		assert_eq(Upgrades.evo_id(e), 1)
 		assert_eq(Upgrades.evo_id(Upgrades.weapon_entry(sp)), 0, "a spell row is no evolution")
@@ -82,9 +89,12 @@ func test_one_evolution_shuts_the_other() -> void:
 	assert_true(Upgrades.evo_shut({Upgrades.E_ARCANE: 1}, Upgrades.E_FIRE, rows), "the second is shut by the first")
 	assert_true(Upgrades.evo_shut({Upgrades.E_FIRE: 1}, Upgrades.E_ARCANE, rows), "the first is shut by the second")
 	assert_false(Upgrades.evo_shut({Upgrades.E_ARCANE: 1}, Upgrades.E_FROST, rows), "a row of another spell is open")
-	# On today's catalog each spell has one evolution: taking it shuts nothing else.
+	# Each school's two evolutions, in catalog order; a spell with one shuts nothing else.
 	for sp: int in range(Spells.COUNT):
-		assert_eq(Upgrades.evo_rows(sp), [TODAY_EVOS[sp]] as Array[int])
+		var want: Array[int] = [TODAY_EVOS[sp]]
+		if SECOND_EVOS[sp] >= 0:
+			want.append(SECOND_EVOS[sp])
+		assert_eq(Upgrades.evo_rows(sp), want)
 
 
 func test_snapshot_weapon_level() -> void:
