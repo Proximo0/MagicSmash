@@ -73,6 +73,9 @@ var deeds := {}
 var last_pay := {}
 ## Levels the last finish_run gave each saved hero (profile index -> levels gained; not saved).
 var last_hero_levels := {}
+## Loaded from a file a newer build wrote (its "version" above VERSION; not saved). Its extra data would be lost
+## on the next write, so Save never writes it back (Save.newer_save()).
+var newer := false
 
 
 ## The hero the next run plays.
@@ -158,14 +161,14 @@ func buy(i: int) -> bool:
 	return true
 
 
-## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck} (zero when nothing is bought) and
-## "armor": the socketed cards' stats in Loot.empty_stats layout.
+## What the unlocks add to a run: {hearts, damage, xp, gold, novas, luck} (zero when nothing is bought), the same
+## for every seat. No "armor": a hero's socketed cards reach the World only through her own hero
+## (World.apply_hero -> Hero.stats), so they count once and only for her.
 func bonuses() -> Dictionary:
 	var out := {"hearts": 0.0, "damage": 0.0, "xp": 0.0, "gold": 0.0, "novas": 0.0, "luck": 0.0}
 	for key: String in EFFECTS:
 		var eff: Array = EFFECTS[key]
 		out[eff[0]] = float(out[eff[0]]) + float(eff[1]) * level(key)
-	out["armor"] = Cards.socket_stats(socket_indices())
 	return out
 
 
@@ -381,10 +384,67 @@ func to_dict() -> Dictionary:
 		"revives_total": revives_total, "deeds": deeds.keys(), "talked": talked.keys(), "heroes": heroes.map(func(h: Hero) -> Dictionary: return h.to_dict()), "hero": hero}
 
 
+## Saved keys from_dict reads with int() or float(), and the same in each saved hero (Hero.from_dict).
+const NUMBER_KEYS := ["version", "high_score", "crystals", "runs", "wins", "best_time", "pots_run", "pots_mask",
+	"wishes", "seal_unlocked", "seal_best", "kills_total", "revives_total", "hero"]
+const HERO_NUMBER_KEYS := ["school", "look", "level", "xp"]
+
+
+## Whether int() and float() take `v` without a script error: a JSON number, bool or string (a list, a map or null
+## fails).
+static func profile_number_ok(v: Variant) -> bool:
+	return v is int or v is float or v is bool or v is String
+
+
+## Whether every value from_dict converts to a number is one profile_number_ok takes. A file that fails this
+## parsed as JSON but is damaged: from_dict returns null for it, and Save treats it like unparsable text.
+static func profile_types_ok(d: Dictionary) -> bool:
+	for k: String in NUMBER_KEYS:
+		if d.has(k) and not profile_number_ok(d[k]):
+			return false
+	for field: String in ["unlocks", "cards"]:
+		var m: Variant = d.get(field, {})
+		if m is Dictionary:
+			for v: Variant in (m as Dictionary).values():
+				if not profile_number_ok(v):
+					return false
+	var hs: Variant = d.get("heroes", [])
+	if hs is Array:
+		for hd: Variant in hs:
+			if not hd is Dictionary:
+				continue
+			for k: String in HERO_NUMBER_KEYS:
+				if (hd as Dictionary).has(k) and not profile_number_ok(hd[k]):
+					return false
+			var pt: Variant = (hd as Dictionary).get("points", [])
+			if pt is Array:
+				for v: Variant in pt:
+					if not profile_number_ok(v):
+						return false
+	return true
+
+
+## Whether a newer build wrote `d` (its "version" is a number above VERSION).
+static func profile_from_newer(d: Dictionary) -> bool:
+	var v: Variant = d.get("version", VERSION)
+	return profile_number_ok(v) and int(v) > VERSION
+
+
 ## A profile from saved data. Unknown keys are ignored, unknown unlocks dropped and levels clamped, so an old
-## or hand-edited file still loads.
+## or hand-edited file still loads. Null when a value has the wrong type (profile_types_ok). A file from a newer
+## build (version above VERSION) loads as well as it can and is marked `newer`; with a wrong type it is an empty
+## profile marked `newer`, never null.
 static func from_dict(d: Dictionary) -> Profile:
+	if not profile_types_ok(d):
+		if not profile_from_newer(d):
+			return null
+		# Not damage: a newer build may store a value another way. An empty profile marked `newer` plays, and Save
+		# neither writes it nor puts the file aside, so the newer build finds its save whole.
+		var blank := Profile.new()
+		blank.newer = true
+		return blank
 	var p := Profile.new()
+	p.newer = profile_from_newer(d)
 	p.high_score = maxi(0, int(d.get("high_score", 0)))
 	p.crystals = maxi(0, int(d.get("crystals", 0)))
 	p.runs = maxi(0, int(d.get("runs", 0)))

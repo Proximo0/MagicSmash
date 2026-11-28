@@ -159,3 +159,96 @@ func test_a_failed_rename_keeps_the_temporary_file_and_it_is_loaded() -> void:
 	var p := Save.read_profile(path, path + ".old", true)
 	assert_eq(p.crystals, 31, "the temporary file was not used when the main file is missing")
 	_cleanup()
+
+
+func test_a_wrong_typed_profile_loads_the_backup_and_is_kept_aside() -> void:
+	var path := _fresh_dir("wrongtype")
+	var good := Profile.new()
+	good.crystals = 77
+	_put(path + ".bak", JSON.stringify(good.to_dict()))
+	_put(path, "{\"crystals\": 40, \"runs\": [1, 2]}")
+	var p := Save.read_profile(path, path + ".old", true)
+	assert_eq(p.crystals, 77, "the backup was not loaded")
+	assert_eq(FileAccess.get_file_as_string(path + ".bad"), "{\"crystals\": 40, \"runs\": [1, 2]}")
+	assert_false(FileAccess.file_exists(path), "the wrong-typed file is still in place to be written over")
+	_cleanup()
+
+
+func test_a_wrong_typed_profile_without_backup_starts_fresh_and_is_kept() -> void:
+	var path := _fresh_dir("wrongnobak")
+	for text: String in ["{\"crystals\": {\"a\": 1}}", "{\"unlocks\": {\"vigor\": [2]}}", "{\"wins\": null}",
+			"{\"heroes\": [{\"level\": [3]}]}", "{\"heroes\": [{\"points\": [1, {}]}]}"]:
+		_put(path, text)
+		var p := Save.read_profile(path, path + ".old", true)
+		assert_true(p != null, text)
+		assert_eq(p.crystals, 0, text)
+		assert_eq(FileAccess.get_file_as_string(path + ".bad"), text, text)
+		DirAccess.remove_absolute(path + ".bad")
+	_cleanup()
+
+
+func test_a_wrong_typed_settings_file_loads_the_backup_or_the_defaults() -> void:
+	var path := _fresh_dir("wrongsettings").get_base_dir() + "/settings.json"
+	var good := Settings.new()
+	good.music = 2
+	_put(path + ".bak", JSON.stringify(good.to_dict()))
+	_put(path, "{\"music\": 3, \"shake\": \"no\"}")
+	assert_eq(Save.read_settings(path, true).music, 2, "the backup was not loaded")
+	assert_eq(FileAccess.get_file_as_string(path + ".bad"), "{\"music\": 3, \"shake\": \"no\"}")
+	DirAccess.remove_absolute(path + ".bak")
+	DirAccess.remove_absolute(path + ".bad")
+	_put(path, "{\"sound\": [1]}")
+	var s := Save.read_settings(path, true)
+	assert_true(s != null)
+	assert_eq(s.sound, Settings.new().sound, "not the defaults")
+	assert_eq(FileAccess.get_file_as_string(path + ".bad"), "{\"sound\": [1]}")
+	_cleanup()
+
+
+func test_a_newer_profile_loads_and_is_never_written_over() -> void:
+	var path := _fresh_dir("newer")
+	var text := "{\"version\": 3, \"crystals\": 50, \"runs\": 4, \"future\": {\"rune\": 9}}"
+	_put(path, text)
+	var p := Save.read_profile(path, path + ".old", true)
+	assert_eq(p.crystals, 50, "loaded as well as it can")
+	assert_true(p.newer)
+	assert_false(Save.write_profile(path, p), "wrote over a newer build's save")
+	var save: Node = (Save.get_script() as GDScript).new()
+	save.profile = p
+	assert_true(save.newer_save())
+	save.finish_run({"score": 10, "seconds": 120.0, "kills": 40, "liches": 0, "won": false})
+	assert_true(save.profile.newer, "finish_run cleared the mark")
+	assert_false(Save.write_profile(path, save.profile))
+	assert_eq(FileAccess.get_file_as_string(path), text, "the newer file's bytes changed")
+	assert_false(FileAccess.file_exists(path + ".bak"))
+	assert_false(FileAccess.file_exists(path + ".tmp"))
+	save.free()
+	_cleanup()
+
+
+func test_a_newer_profile_with_a_changed_type_is_not_damage() -> void:
+	var path := _fresh_dir("newertype")
+	var text := "{\"version\": 3, \"crystals\": {\"gold\": 50}}"
+	_put(path, text)
+	var p := Save.read_profile(path, path + ".old", true)
+	assert_true(p.newer, "a newer build's file was treated as damage")
+	assert_eq(p.crystals, 0, "an empty profile to play on")
+	assert_false(Save.write_profile(path, p), "wrote over a newer build's save")
+	assert_eq(FileAccess.get_file_as_string(path), text, "the newer file's bytes changed")
+	assert_false(FileAccess.file_exists(path + ".bad"), "the newer file was put aside")
+	_cleanup()
+
+
+func test_version_2_and_1_profiles_are_not_newer_and_still_save() -> void:
+	var path := _fresh_dir("older")
+	for v: int in [2, 1]:
+		_put(path, "{\"version\": %d, \"crystals\": 9}" % v)
+		var p := Save.read_profile(path, path + ".old", true)
+		assert_eq(p.crystals, 9)
+		assert_false(p.newer, "version %d marked newer" % v)
+		p.crystals = 10
+		assert_true(Save.write_profile(path, p))
+		assert_eq(Save.read_profile(path, path + ".old", true).crystals, 10)
+	var none := Save.read_profile(path + ".none", path + ".old", true)
+	assert_false(none.newer, "a fresh profile is not newer")
+	_cleanup()

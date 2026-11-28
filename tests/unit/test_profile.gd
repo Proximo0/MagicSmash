@@ -91,7 +91,8 @@ func test_cards_collect_socket_and_save() -> void:
 	assert_eq(p.cards_owned(), 1)
 	assert_true(p.socket_card(World.ORC))
 	assert_eq(p.socket_indices(), [-1, -1, World.ORC] as Array[int])
-	assert_near(float((p.bonuses()["armor"] as Array)[Loot.ST_MIGHT]), 0.10)
+	assert_near(float(Cards.socket_stats(p.socket_indices())[Loot.ST_MIGHT]), 0.10)
+	assert_false(p.bonuses().has("armor"), "cards reach a run only through their hero")
 	var back := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
 	assert_eq(back.card_count(World.ORC), 2)
 	assert_eq(back.socket_indices(), [-1, -1, World.ORC] as Array[int])
@@ -291,7 +292,8 @@ func test_heroes_round_trip_and_keep_their_own_sockets() -> void:
 	assert_eq(p.hero, 1, "a new hero is the active one")
 	assert_eq(p.socket_indices(), [-1, -1, -1] as Array[int], "each hero has its own sockets")
 	assert_true(p.socket_card(Cards.index_of("bat")))
-	assert_near(float((p.bonuses()["armor"] as Array)[Loot.ST_SWIFT]), 0.10, 0.0001, "the active hero's cards")
+	assert_near(float(Cards.socket_stats(p.socket_indices())[Loot.ST_SWIFT]), 0.10, 0.0001, "the active hero's cards")
+	assert_eq(p.socket_indices(), [Cards.index_of("bat"), -1, -1] as Array[int])
 	var q := Profile.from_dict(JSON.parse_string(JSON.stringify(p.to_dict())))
 	assert_eq(q.heroes.size(), 2)
 	assert_eq(q.hero, 1)
@@ -460,3 +462,26 @@ func test_run_gain_adds_the_deeds_pay() -> void:
 	assert_eq(p.run_gain(100), 130)
 	p.last_pay = {}
 	assert_eq(p.run_gain(100), 100, "no deeds booked")
+
+
+## The real chain a run takes (Arena: apply_meta(bonuses) for every seat, then apply_hero per seat): a socketed
+## +1 HEART card gives its own hero exactly +1 heart and the other seat none.
+func test_a_socketed_card_counts_once_and_only_for_its_hero() -> void:
+	var ooze := Cards.index_of("slime")
+	var p := Profile.new()
+	assert_true(p.add_card(ooze))
+	assert_true(p.socket_card(ooze))
+	var other := Hero.make(Races.HUMAN, Classes.MAGE, 0, "other")
+	assert_true(p.add_hero(other))
+	p.hero = 0
+	var bare := World.new([0, 1], 3, Tuning.new())
+	bare.apply_hero(bare.players[0], Hero.make(Races.HUMAN, Classes.MAGE).to_dict())
+	bare.apply_hero(bare.players[1], other.to_dict())
+	var w := World.new([0, 1], 3, Tuning.new())
+	w.apply_meta(p.bonuses())
+	w.apply_hero(w.players[0], (p.heroes[0] as Hero).to_dict())
+	w.apply_hero(w.players[1], (p.heroes[1] as Hero).to_dict())
+	var p0: World.Player = w.players[0]
+	var p1: World.Player = w.players[1]
+	assert_eq(p0.max_hp, (bare.players[0] as World.Player).max_hp + 1, "the card's own hero: +1 heart")
+	assert_eq(p1.max_hp, (bare.players[1] as World.Player).max_hp, "the other seat: no card heart")
