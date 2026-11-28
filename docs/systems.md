@@ -414,10 +414,17 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
 - Input: keyboard seat 2 (`G.DEV_KB2`): arrows move, right Ctrl fires the way it faces and confirms, Enter is its
   nova, I opens its tray (O redraws, 8, 9, 0 pick); while it is seated the arrows are its own (`PlayerInput.key_device`). Right Ctrl is told from the left by
   key events (`PlayerInput.note_key`, fed by `G._input`).
-- Lobby (`game/ui/title.gd`): Y or + adds an apprentice, X or - removes one, player 1's START (or Enter) begins the
-  run, A never starts it (an unseated device's A or fire joins), SELECT or I calls `Platform.invite_friends()`
-  (Steam's Remote Play Together invite; a no-op without Steam). An apprentice's seat says APPRENTICE over a dashed
-  hem, an away seat AWAY. Shots: `--autotest --seats`.
+- Lobby (`game/ui/title.gd`; what a press does is `LobbyRules.decide`, pure, tested in `test_lobby_rules`): player 1's
+  (the first seat's) Y or + adds an apprentice, X or - removes one, START (or Enter) begins the run, A never starts it.
+  An unseated device's A / fire / START joins ("A/ENTER: JOIN"); its back, X and Y do nothing. Back from player 1
+  leaves the lobby at once when no other human holds a seat, else asks "LEAVE THE LOBBY?  ENTER/A: YES  ESC/B: NO"
+  (only player 1's device answers; back or NO closes it). Back from another seated device frees only its seat
+  (`Net.remove_local_device`: nobody shifts, the next device takes the free slot). SELECT or I calls
+  `Platform.invite_friends()` (Steam's Remote Play Together invite; a no-op without Steam). An apprentice's seat says
+  APPRENTICE over a dashed hem, an away seat AWAY. Shots: `--autotest --seats`.
+- Sanctum hub: the device that walks it (`G.local_devices[0]`, else the keyboard) alone leaves it with back. It rides
+  through the shopkeeper's UNLOCKS in `G.title_lobby_device` and is seated again on the way back, so the portal seats
+  the same device as player 1.
 - LAN fixes: run-ending and saved-data events (`Net.RELIABLE_EVENTS`) go by reliable RPC (`Net.send_events`,
   channel 3), the rest stay on the snapshot; a client that sees the host's game-over phase for 1.5 s without them
   ends the run itself. The ENet throttle is off on connect. The host answers every join (`_refused`: version or

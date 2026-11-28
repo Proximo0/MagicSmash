@@ -284,6 +284,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if dlg.handle(event) and _after_talk == "shop":
 			_after_talk = ""
 			G.title_shop = true
+			G.title_lobby_device = device # carried through the shop; the title hands it back on its way out
 			G.goto_title()
 		elif not dlg.active:
 			_after_talk = ""
@@ -305,6 +306,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_deck = {}
 		return
 	if PlayerInput.back_pressed(event):
+		# Only the device that walks the hub may leave it (Esc is the keyboard's).
+		if PlayerInput.key_device(event) != device and not (event is InputEventKey and device == G.DEV_KB2):
+			return
 		Sfx.play("menu_select")
 		G.goto_title()
 		return

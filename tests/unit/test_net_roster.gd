@@ -345,3 +345,27 @@ func test_four_saved_heroes_seat_as_before() -> void:
 	assert_eq(int(Net.roster[3].cls), Classes.MAGE)
 	_heroes_teardown(was)
 	_restore()
+
+
+func test_a_seat_that_leaves_shifts_nobody() -> void:
+	_save()
+	var was := _heroes_setup()
+	Save.profile = Profile.new()
+	_four_seats()
+	var wiz := {}
+	var hero := {}
+	for r: Dictionary in Net.roster:
+		wiz[int(r.slot)] = int(r.wizard)
+		hero[int(r.slot)] = Net.hero_of(int(r.device))
+	Net.remove_local_device(0) # the second seat's pad
+	assert_eq(_slots(Net.roster), [0, 2, 3])
+	assert_false(G.local_devices.has(0))
+	for s: int in [0, 2, 3]:
+		var row: Dictionary = Net._row_of(s)
+		assert_eq(int(row.wizard), wiz[s], "seat %d keeps its colour" % s)
+		assert_eq(Net.hero_of(int(row.device)), hero[s], "seat %d keeps its hero" % s)
+	Net.add_local_device(5)
+	assert_eq(int(Net._row_of(1).device), 5, "the next device takes the freed seat")
+	assert_eq(_slots(Net.roster), [0, 1, 2, 3])
+	_heroes_teardown(was)
+	_restore()

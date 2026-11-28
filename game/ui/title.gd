@@ -90,6 +90,7 @@ func _ready() -> void:
 	if Net.mode != Net.Mode.OFFLINE and not Net.closing: # a host on its way out closes by itself in a moment
 		Net.shutdown()
 	G.local_devices.clear()
+	leave_ask = false
 	if G.title_shop:
 		# From the Sanctum's shopkeeper: straight to the unlocks; back returns to the Sanctum.
 		unlock_sel = 0
@@ -495,6 +496,10 @@ func _draw_front() -> void:
 		# The screen opens out of the dark.
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(TitleArt.INK, 1.0 - t / 0.5))
 	PixelFont.draw(ci, "V" + G.VERSION, Vector2(31, 262), 1, Color(1, 1, 1, 0.3))
+	if Save.newer_save():
+		# The save came from a newer build: it plays, but Save writes nothing back. Said on every title screen.
+		ci.draw_rect(Rect2(0, 250, G.SCREEN.x, 11), Color(TitleArt.INK, 0.85))
+		PixelFont.draw_centered(ci, NEWER_SAVE_LINE, 240, 252, 1, Color("ffb347"))
 	if G.high_score > 0:
 		var hs := "BEST %d" % G.high_score
 		PixelFont.draw(ci, hs, Vector2(449 - PixelFont.text_width(hs), 262), 1, Color(1, 0.9, 0.4, 0.6))
@@ -642,6 +647,8 @@ const LOBBY_SEAL_ROW := Rect2(34, 218, 412, 14)
 ## the seal row, and an apprentice seat's class mark at the seat's foot, px.
 const STEP_ICON := 12
 const SEAT_ICON := 8
+var leave_ask := false # the "LEAVE THE LOBBY?" question is open (only player 1's device answers)
+const NEWER_SAVE_LINE := "THIS SAVE IS FROM A NEWER VERSION. NOTHING WILL BE SAVED."
 var seal_focus := false # player 1 is on the Seal row (up/down), so left/right steps the ladder
 var seal_view := 0 # the step the row shows; Net.seal unless player 1 has browsed onto a locked one
 
@@ -660,9 +667,14 @@ func _draw_lobby(ci: CanvasItem) -> void:
 		foot = "WAITING FOR HOST TO START..."
 	elif G.touch_active:
 		foot = "TAP HERE TO START"
+	elif leave_ask:
+		foot = "LEAVE THE LOBBY?  ENTER/A: YES  ESC/B: NO"
 	else:
 		foot = "LEFT/RIGHT: HERO  H/RB: HEROES  UP/DOWN: SEAL  ENTER/START: BEGIN  ESC/B: BACK"
-	PixelFont.draw_centered(ci, foot, 240, 236, 1, Color("8bff9e") if int(t * 2) % 2 == 0 else Color.WHITE)
+	var foot_col := Color("8bff9e") if int(t * 2) % 2 == 0 else Color.WHITE
+	if leave_ask:
+		foot_col = Color("ffb347")
+	PixelFont.draw_centered(ci, foot, 240, 236, 1, foot_col)
 	if Net.mode == Net.Mode.HOST:
 		var ips := Net.local_ips()
 		var ip_text = "YOUR IP: " + (ips[0] if ips.size() > 0 else "?")
@@ -717,7 +729,7 @@ func _draw_seats(ci: CanvasItem) -> void:
 			Occult.candle(ci, seat + Vector2(-26, 0), t, slot * 3, 7)
 			Occult.candle(ci, seat + Vector2(26, 0), t, slot * 3 + 1, 9)
 			var blink := 0.35 + 0.25 * sin(t * 4.0 + slot)
-			PixelFont.draw_centered(ci, "FIRE TO JOIN", r.get_center().x, r.end.y - 16, 1, Color(1, 1, 1, blink))
+			PixelFont.draw_centered(ci, "A/ENTER: JOIN", r.get_center().x, r.end.y - 16, 1, Color(1, 1, 1, blink))
 			if Net.mode != Net.Mode.CLIENT:
 				PixelFont.draw_centered(ci, "Y/+ APPRENTICE", r.get_center().x, r.end.y - 8, 1, Color(0.55, 1.0, 0.62, blink))
 
@@ -818,6 +830,50 @@ func _p1_device() -> int:
 		if e.peer == Net.my_peer and not bool(e.get("ai", false)):
 			return int(e.device)
 	return -99
+
+
+## The local human devices in seat order (player 1 first), for LobbyRules.
+func _lobby_seated() -> Array[int]:
+	var out: Array[int] = []
+	for e in Net.roster:
+		if e.peer == Net.my_peer and not bool(e.get("ai", false)) and not out.has(int(e.device)):
+			out.append(int(e.device))
+	for d in G.local_devices:
+		if not out.has(d):
+			out.append(d) # asked for, the host has not answered yet
+	return out
+
+
+## Another human holds a seat besides player 1: a second local device, or (host / offline) a LAN client.
+func _lobby_other_human() -> bool:
+	var n := 0
+	for e in Net.roster:
+		if bool(e.get("ai", false)):
+			continue
+		if Net.mode != Net.Mode.CLIENT or e.peer == Net.my_peer:
+			n += 1
+	return n >= 2
+
+
+## The device a lobby press came from. A keyboard press that is not an arrow (Esc, +, -) belongs to the first
+## keyboard seated, so a keyboard 2 player 1 can still go back.
+func _lobby_actor(event: InputEvent, seated: Array[int]) -> int:
+	if event is InputEventKey:
+		if seated.has(G.DEV_KBM):
+			return G.DEV_KBM
+		if seated.has(G.DEV_KB2):
+			return G.DEV_KB2
+	return _event_device(event)
+
+
+## Player 1 leaves the lobby for the title: the party is gone, LAN closed.
+func _leave_lobby() -> void:
+	Sfx.play("menu_select")
+	Net.shutdown()
+	G.local_devices.clear()
+	seal_focus = false
+	leave_ask = false
+	state = S.MAIN
 
 
 ## The device a key or pad event came from (keyboard seat 2 for its keys while it is seated), or -99.
@@ -928,13 +984,58 @@ func _unhandled_input(event: InputEvent) -> void:
 				if hero_roster.handle(event):
 					_hero_roster_closed()
 				return
+			var button := lobby_button(event)
+			var host := Net.mode != Net.Mode.CLIENT
+			var seated := _lobby_seated()
+			var rb := LobbyRules.B_NONE
+			var actor := -99
 			if back:
-				Sfx.play("menu_select")
-				Net.shutdown()
-				G.local_devices.clear()
-				seal_focus = false
-				state = S.MAIN
+				rb = LobbyRules.B_BACK
+				actor = _lobby_actor(event, seated)
+			elif button == 1 or button == -1:
+				rb = LobbyRules.B_ADD if button == 1 else LobbyRules.B_REMOVE
+				actor = _lobby_actor(event, seated)
+			elif dev != -99:
+				rb = LobbyRules.B_CONFIRM
+				actor = dev
+				if event is InputEventKey and not seated.is_empty() and seated[0] == G.DEV_KB2 and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER]:
+					actor = G.DEV_KB2 # Enter is seat 2's key as well
+			var act := LobbyRules.decide(actor, seated, _lobby_other_human(), leave_ask, rb) if rb != LobbyRules.B_NONE else LobbyRules.NONE
+			if leave_ask:
+				if act == LobbyRules.LEAVE:
+					_leave_lobby()
+				elif act == LobbyRules.CLOSE:
+					leave_ask = false
+					Sfx.play("menu_select")
 				return
+			match act:
+				LobbyRules.LEAVE:
+					_leave_lobby()
+					return
+				LobbyRules.ASK:
+					leave_ask = true
+					Sfx.play("menu_select")
+					return
+				LobbyRules.LEAVE_SEAT:
+					Net.remove_local_device(actor)
+					if hero_roster_dev == actor:
+						hero_roster_dev = -99
+					Sfx.play("menu_select")
+					return
+				LobbyRules.ADD_APPRENTICE:
+					if host and Net.add_apprentice() >= 0:
+						Sfx.play("powerup")
+					return
+				LobbyRules.REMOVE_APPRENTICE:
+					if host and Net.remove_apprentice():
+						Sfx.play("menu_select")
+					return
+				LobbyRules.JOIN:
+					Net.add_local_device(actor)
+					Sfx.play("powerup")
+					return
+			if rb == LobbyRules.B_BACK or rb == LobbyRules.B_ADD or rb == LobbyRules.B_REMOVE:
+				return # a device that holds no seat, or a seat that may not
 			if tap:
 				# Touch steps the ladder on the row itself and never takes keyboard focus there.
 				var zone := lobby_tap_zone(tap_pos)
@@ -942,16 +1043,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					_step_seal(zone)
 				elif zone == 2 and Net.mode != Net.Mode.CLIENT:
 					_begin()
-				return
-			var button := lobby_button(event)
-			var host := Net.mode != Net.Mode.CLIENT
-			if button == 1 and host:
-				if Net.add_apprentice() >= 0:
-					Sfx.play("powerup")
-				return
-			if button == -1 and host:
-				if Net.remove_apprentice():
-					Sfx.play("menu_select")
 				return
 			if button == 3:
 				Platform.invite_friends()
@@ -986,9 +1077,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				Net.step_seat_hero(int(side[0]), int(side[1]))
 				Sfx.play("menu_move")
 				return
-			if dev != -99 and not G.local_devices.has(dev):
-				Net.add_local_device(dev)
-				Sfx.play("powerup")
 		S.JOIN:
 			var n := Net.found_games.size() + 1
 			if back:
@@ -1039,6 +1127,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_select")
 				if G.title_shop:
 					G.title_shop = false
+					if G.title_lobby_device != -99: # the hub's walking device, carried through the shop
+						G.local_devices = [G.title_lobby_device]
+						G.title_lobby_device = -99
 					G.goto_sanctum()
 					return
 				state = S.MAIN
@@ -1450,6 +1541,8 @@ func _draw_planchette(ci: CanvasItem, eye: Vector2) -> void:
 		PixelFont.draw_centered(ci, m, eye.x, eye.y - 7, 2, Color("fff0c8"), Color("1c0f06"))
 
 func _on_roster() -> void:
+	if leave_ask and not _lobby_other_human():
+		leave_ask = false # the other human left meanwhile: nobody is left to ask about
 	if state == S.JOINING and Net.mode == Net.Mode.CLIENT:
 		state = S.LOBBY
 		Sfx.play("powerup")
