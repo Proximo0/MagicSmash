@@ -47,6 +47,13 @@ monster cards, boss rewards, Overtime, the Daily Draw and eleven more deeds. Eve
 carries its test letters (§ 36); § 52 lists the mechanisms stage 3 builds first, § 53 the gates stage 5 tunes to.
 The lead's reasons are in `docs/handoff.md`. Numbers are starting values; rows change only with a line there.
 
+## Stage 3 (28 Nov: begun)
+The contract every job builds against, the order of the jobs and who owns which file: `docs/stage3_brief.md`. First
+the casting chain (the spell code split by cast kind, an id for a spell's two evolutions, the catalog's twelve new
+rows with shut rows, the hooks every cast reads), the use counters with the coverage robot, the profile's shop and
+unlock track, and the screens that need none of them. The gate is the coverage robot green for every row on the
+four PCs and an empty `Upgrades.UNBUILT`.
+
 ## Stage 1 list (28 Nov: all ticked; the gate build is the robot build of the last merge)
 - [x] A socketed card counts once (#273). [x] Damaged and newer saves are safe, and the title says so (#273, #274).
 - [x] Every monster card can drop, ALL_CARDS can be earned, no plain heal in a LEGENDARY chest, the DWARF's trait

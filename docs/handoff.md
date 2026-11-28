@@ -21,7 +21,8 @@ shrines, the party's fate card); a tower worth exploring (the Sanctum, secrets, 
 - The audit of 27 Nov walked every system, measured it and had every finding read a second time. Its document:
   https://claude.ai/artifact/BkrNpGpjuPZYjWeb5V7x7o. Its confirmed bugs are stage 1; the list with PR numbers is in
   the release plan.
-- Stage 1 is merged (14 lines, `docs/release_plan.md`). Stage 2's frozen content list is written: part 2 of
+- Stage 1 is merged (14 lines, `docs/release_plan.md`). Stage 3 has begun: its contract, the order of its jobs and
+  who owns which file are in `docs/stage3_brief.md`. Stage 2's frozen content list is written: part 2 of
   `docs/content_list.md` (§ 36 to 54). Part 1 of that file and the tables in the code (`Spells`, `Upgrades`,
   `Cards`, `Achievements`, `Tuning`) say what is built today; part 2 says what stage 3 builds. A row of part 2 is
   added, dropped or re-paired only with a line under "The frozen list" below.
@@ -77,6 +78,12 @@ The list is `docs/content_list.md` part 2. Why it is shaped the way it is:
 - **Morvane's two visits are not built** (§ 51): `Bosses.VISITS` goes. Three bosses, three acts.
 - **Numbers are not frozen.** Stage 5 tunes them against the gates of § 53, which are written before the rows are
   built so that every row is built to be measured.
+- **Card words shortened (28 Nov, before anything was built).** A row of the level-up tray holds a name of 15
+  letters and 14 letters of words. Five new evolutions' words were longer (LODESTAR now says HUNTS BIG PREY, GREEK
+  FIRE BURNING GROUND, WINTER VEIL CLOAK OF FROST, DIES IRAE SLAYS THE WEAK, EVIL EYE HEXED BURST), and the tray
+  writes THE HIGH PRIESTESS without her THE. No row, pair or effect changed. Three shop names are wider than
+  today's shop row (THE SECOND GLANCE, THE READER'S FAVOUR, THE DUELLIST'S DECK): the new shop screen is built to
+  hold 19 letters, the names stay.
 
 ## Loot and gambling rules (from the CursedPawn gacha / lawsuit research)
 

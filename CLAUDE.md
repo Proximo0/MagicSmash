@@ -50,6 +50,7 @@ Key: `T/` tools/ · `GD` `godot --headless --path .` · CAPS = the tool's 1 summ
 ## Read only when needed
 - This file starts most tasks; a W prompt is its whole contract.
 - `docs/handoff.md` plan + decisions (L planning) · `docs/systems.md` 1 § per system, yours only
+- `docs/stage3_brief.md` stage 3's contract: job order, file owners, shared ids (§ 4.x); W reads only the § its prompt names
 - `docs/lessons_learned.md` shorthand, by §; W reads only a § its prompt names. Add a row when something breaks.
 - `docs/performance.md` · `docs/online.md` · `docs/android.md` · `docs/bots.md` on those topics
 - `docs/content_list.md` part 1 every content row as built (source line, test); part 2 (§ 36-54) the frozen list stage 3 builds, by § · `docs/asset_sources.md` who or what made each asset
