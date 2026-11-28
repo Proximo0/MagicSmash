@@ -18,8 +18,8 @@
 - Crash reports: the build sends them only when `config/sentry_credentials.cfg` exists where it is built (it is
   git-ignored, so a CI build has none and reports nothing).
 - Notices: `godot --headless --path . -s tools/tool.gd -- notices [file]`, from the engine's own licence data.
-  With `addons/sentry` present it adds the addon's own licence text (MIT). Known gap: the Sentry files carry Crashpad
-  and sentry-native inside them, whose own notices are not in the file yet (they join with the credits work).
+  With `addons/sentry` present it adds the addon's own licence text (MIT), then the sentry-native and Crashpad
+  licence texts from `tools/notices/` (sources and hashes in `tools/notices/SOURCES.md`; refetch when the addon is updated).
 
 ## Smoke
 `tools/smoke_build.sh <binary> [--headless]` runs `<binary> -- --smoke[=seconds] --smoke-out=<file>`: the real title, one

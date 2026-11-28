@@ -1,11 +1,16 @@
 extends RefCounted
 ## Writes THIRD_PARTY_NOTICES.txt from the engine itself: Godot's licence, each third-party component with its
 ## copyright lines and licence name, then the full text of each licence named. Adds the Sentry addon when
-## addons/sentry is present (its licence read from the addon's own files). No licence text is written by hand.
+## addons/sentry is present (its licence read from the addon's own files, then the sentry-native and Crashpad texts from tools/notices/). No licence text is written by hand.
 ## Usage: godot --headless --path . -s tools/tool.gd -- notices [out-file]   (default THIRD_PARTY_NOTICES.txt)
 
 const RULE := "================================================================"
 const SENTRY_DIR := "res://addons/sentry"
+## The licence texts of what the Sentry addon bundles (tools/notices/SOURCES.md): [heading, file], read only when the addon is there.
+const SENTRY_PARTS: Array = [
+	["sentry-native (the Sentry Native SDK inside the addon)", "res://tools/notices/sentry-native.LICENSE"],
+	["Crashpad (Sentry's build, inside the addon)", "res://tools/notices/crashpad.LICENSE"],
+]
 const SENTRY_LICENCES: PackedStringArray = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"]
 
 
@@ -43,6 +48,15 @@ func run(args: PackedStringArray) -> int:
 		lines.append("Sentry for Godot (crash reports)")
 		lines.append(RULE)
 		lines.append(sentry)
+		for part: Array in SENTRY_PARTS:
+			if not FileAccess.file_exists(part[1]):
+				printerr("notices: missing %s" % part[1])
+				return 1
+			lines.append("")
+			lines.append(RULE)
+			lines.append(part[0])
+			lines.append(RULE)
+			lines.append(FileAccess.get_file_as_string(part[1]))
 	lines.append("")
 	lines.append(RULE)
 	lines.append("Licence texts")
