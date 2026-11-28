@@ -117,17 +117,33 @@ How each system works: read only the section for the system you touch (`grep -n 
   - A chest rolls common to legendary at 60 / 26 / 10 / 0.3 weight (`Loot.RARITY_WEIGHTS`; was 60 / 26 / 10 / 3.4
     / 0.6 with ULTRA): about 1 solo run in 6 opens a legendary. A chest's luck (elites 1, the Lich 3) moves common
     odds up the tiers.
+  - A chest's item is `Loot.roll_item(rng, tier)`, one draw by weight. Items whose effect does not grow with the
+    tier are marked flat in `Loot.ITEMS` (the ELIXIR, which heals to full at any tier) and have no weight at
+    `Loot.LEGENDARY` or above, so a LEGENDARY or ULTRA RARE chest is never a dud; below LEGENDARY every seed rolls the
+    item it always did.
   - ULTRA RARE and monster cards are a property of the run, not of each kill (job U): `Loot.run_rolls` draws once
     in `World._init` from the run's own stream (`Loot.run_stream`, the run's seed xor `Loot.RUN_SALT`; `w.rng` never
     feeds it). An ULTRA RARE run (`ultra_run_chance` 0.01, + `ultra_run_luck` per point of meta and Seal luck, at
     most `ultra_run_cap` 0.03; none under APPRENTICE) drops one prismatic chest (`PK_CHEST_ULTRA`, opens ULTRA RARE)
     from the first plain kill after its moment (`WorldDrops.ultra_due`); no other chest opens ULTRA RARE. A card run
-    (`card_run_chance` 0.01 x `seal_cards`) drops exactly one card, from the first kill with a card after its moment,
-    a boss's too (`Cards.run_card`; a Seal's Archlich drops its Seal card), or for `card_run_urn` 0.15 of card runs
-    from the first urn broken after it (any monster's card: the urn_card secret). Moments fall between
-    `loot_moment_from` 0.1 and `loot_moment_to` 0.4 of the run up to the Archlich. Out of a card run no kill, urn or
-    boss drops a card; a first win at a Seal still pays its card (`Profile.finish_run`). The Sanctum: a pot holds a
-    card at `Sanctum.POT_CARD` 0.001, a sealed deck costs `Sanctum.DECK_COST` 1500 crystals.
+    (`card_run_chance` 0.01 x `seal_cards`) drops exactly one card. Its kind is rolled at the start (`run_rolls`
+    "card_kind", drawn last so every older key keeps its value): `WorldDrops.run_card` picks uniformly from
+    `run_card_choices`, every monster card whose kind the run's horde spawns before the Archlich (a `Bestiary.HORDE`
+    row unlocked by then, or a kind in `WorldDrops.SPAWNED_FROM`: the DROPLET with its slime) plus the final boss's
+    card (the Seal's card under a Seal, THE LICH otherwise). It drops from the first kill of that kind at or after
+    its moment (`Cards.run_card` maps a kill to the card it stands for; the Archlich's kill for its card), or, for
+    `card_run_urn` 0.15 of card runs, waits in the first urn broken at or after it (the urn_card secret), with the
+    same kind. `World.apply_meta`'s "urn_card" (bool) makes the run such an urn card run. Each kill still takes its
+    one `w.rng` draw in `_roll_card`. Moments fall between `loot_moment_from` 0.1 and `loot_moment_to` 0.4 of the run
+    up to the Archlich. Out of a card run no kill, urn or boss drops a card; a first win at a Seal still pays its
+    card (`Profile.finish_run`). The Sanctum: a pot holds a card at `Sanctum.POT_CARD` 0.001, a sealed deck costs
+    `Sanctum.DECK_COST` 1500 crystals and draws only monster cards the player lacks while any remain
+    (`Sanctum.roll_card(r, Sanctum.owned_cards(prof))`; plain weights once she owns them all; pots never pass the
+    list). THE LICH weighs `Sanctum.LICH_WEIGHT` 5 against `CARD_WEIGHT` 10 for each other monster card. THE FULL
+    DECK (ALL_CARDS) counts monster cards only (`Cards.monster_count`, 12; the party's "monster_cards").
+  - An away human (her seat `ai` and `away`) keeps her loot: `WorldApprentices.may_take` and `payee` treat her seat
+    as a human's (`is_human_seat`) and THE EMPEROR pays every human seat (`human_seats`); `World.humans()` still
+    leaves her out, and her damage and XP shares stay an apprentice's.
   - A card found in a fight shows as a small notice under the HUD for `Arena.CARD_SHOW` s ("CARD FOUND: NAME" and
     the card's painting at 16x24 when it has one; no shake), then as a "CARD FOUND" line with the results' deeds.
     `--autotest --tune=card_run_chance:1,loot_moment_from:0,loot_moment_to:0.01` saves `card.png` with the notice.
@@ -325,7 +341,7 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   the keys, seats and the snapshot row carry the indices.
 - Row 0 is HUMAN and MAGE, and nothing happens without a hero: a wizard gets a class only from
   `World.apply_hero(p, hero_dict)` (after `apply_meta`). Every Player field it sets (`threat`, `threat_k`, `skill`,
-  `walk_mul`, `ritual_mul`, `aura_r`, `aura_ward`, `fury`, `reach_mul`, `knock_mul`, `luck`) is neutral by default,
+  `walk_mul`, `ritual_mul`, `aura_r`, `aura_ward`, `fury`, `reach_mul`, `safe_mul`, `luck`) is neutral by default,
   so a seat with no hero plays exactly as before (the pinned solo run and the golden sims are unchanged).
 - `Hero` (`game/logic/hero.gd`): name, race, cls, school, look (skin + 4 x (hair + 6 x style)), level 1 to 20 (100 x
   level XP each), xp, points[6] (one per level past the first, at most 10 in a stat), sockets[3]. `stats()` is
@@ -350,7 +366,8 @@ evolve every spell by about 1:40; now the first evolution comes at about 4:00 to
   (`ritual_mul`); a paladin's aura gives heroes within 50 px (her too) +8 WARD points (0.08, one aura, capped) in
   `hurt_player`. Traits: ORC +10% damage at 2 hearts or fewer (`_damage_enemy`); ELF magnet x1.25 (`reach_mul`: read
   by the spirit's magnet; the standing magnet in `WorldDrops._magnets` does not read it yet); DWARF
-  `knock_mul` 0.5 (nothing pushes a wizard yet); FORTUNE's `luck` is not read by chests yet (`WorldDrops`).
+  STURDY "UNHURT 50% LONGER AFTER A HIT": `safe_mul` 1.5 multiplies the hurt safety a hit sets
+  (`Classes.hurt_safe` in `WorldPlayers.hurt_player`; a WARD shrug keeps its own 0.5 s); FORTUNE's `luck` is not read by chests yet (`WorldDrops`).
 - Weapons (job C2): a class weapon is a skinned entry of a spell row. `Classes.C_WEAPON` names the row and the hero
   holds that row's own Upgrades entry, so it levels and evolves like the row; `Classes.C_SKIN` names a
   `Classes.SKINS` entry: its name (cards via `Classes.card_name`, screens via `Classes.weapon_name`) and overrides

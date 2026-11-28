@@ -195,6 +195,34 @@ func test_an_away_human_keeps_her_lives_and_her_cards() -> void:
 	assert_false(World.new([0], 3, null, {}, {0: {"away": true}}).players[0].away, "away means nothing on a played seat's own")
 
 
+## An away human (her seat ai and away) keeps her loot: chests, cards and tomes she touches are hers, her coins and
+## gems pay her, and an apprentice's coin goes to her when she is the nearest human.
+func test_an_away_human_keeps_her_loot() -> void:
+	var w := World.new([0, 1, 2], 3, null, {}, {1: {"ai": true, "away": true}, 2: {"ai": true}})
+	var c := G.ARENA.get_center()
+	var gone: World.Player = w.players[1]
+	w.players[0].pos = c + Vector2(-200, 0)
+	gone.pos = c
+	w.players[2].pos = c + Vector2(200, 0)
+	for kind: int in [World.PK_CHEST, World.PK_CARD, World.PK_TOME_FIRE, World.PK_COIN, World.PK_GEM]:
+		w._drop(kind, gone.pos, Vector2.ZERO, 9.0, 1)
+	WorldDrops._update_pickups(w, DT)
+	assert_true(w.pickups.is_empty(), "she takes all of it")
+	assert_eq(w.record.stat(1, "chests"), 1.0, "she opens her chest")
+	assert_eq(w.cards_found, [1] as Array[int], "and keeps her card")
+	assert_true(gone.gold > 0.0, "her coins pay her")
+	assert_near(w.players[0].gold, 0.0)
+	w.players[2].pos = c + Vector2(40, 0)
+	var before := gone.gold
+	w._drop(World.PK_COIN, w.players[2].pos, Vector2.ZERO, 9.0, 0)
+	WorldDrops._update_pickups(w, DT)
+	assert_true(gone.gold > before, "the apprentice's coin goes to the nearest human, away or not")
+	assert_true(WorldApprentices.is_human_seat(gone))
+	assert_false(WorldApprentices.is_human_seat(w.players[2]))
+	assert_eq(WorldApprentices.human_seats(w).size(), 2)
+	assert_eq(w.humans().size(), 1, "humans() keeps its meaning")
+
+
 func test_the_world_plays_an_apprentice_with_no_input() -> void:
 	var w := _pair(60.0)
 	w.phase_t = 100.0 # the intro holds: no horde

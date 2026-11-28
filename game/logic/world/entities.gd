@@ -65,7 +65,7 @@ class Player:
 	var aura_ward := 0.0
 	var fury := 0.0 # race trait: damage share added at Races.FURY_HEARTS hearts or fewer
 	var reach_mul := 1.0 # race trait: XP magnet reach
-	var knock_mul := 1.0 # race trait: share of a push taken (nothing pushes a wizard yet)
+	var safe_mul := 1.0 # race trait (STURDY): the hurt safety after a hit x this (WorldPlayers.hurt_player)
 	var luck := 0.0 # FORTUNE's chest luck (WorldDrops._open_chest)
 	## The class weapon (World.apply_hero): the World.SP_* spell the hero's class skin dresses (Classes.SKINS: its
 	## name, look and overrides such as range and the heal), -1 and "" for a wizard with no hero or a mage.

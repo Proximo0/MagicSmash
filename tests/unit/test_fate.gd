@@ -118,6 +118,17 @@ func test_the_emperor_gives_a_chest_to_each_human() -> void:
 	assert_eq(_chests(w), 3, "an apprentice gets no chest")
 
 
+## A human whose pad fell silent (her seat ai and away) still gets THE EMPEROR's chest; an apprentice does not.
+func test_the_emperor_pays_an_away_human() -> void:
+	var w := _world()
+	(w.players[2] as World.Player).ai = true
+	(w.players[2] as World.Player).away = true
+	(w.players[3] as World.Player).ai = true
+	_land(w, Gamble.TO_EMPEROR)
+	assert_eq(_chests(w), 3, "three human seats, one of them away")
+	assert_eq(w.humans().size(), 2, "humans() still leaves her out")
+
+
 func test_the_hanged_man_seals_novas_and_drops_the_press() -> void:
 	var w := _world([0, 1])
 	var p: World.Player = w.players[0]

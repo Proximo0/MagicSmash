@@ -191,12 +191,22 @@ func test_revive_deeds() -> void:
 func test_kill_hero_card_and_secret_totals() -> void:
 	var r := Results.new([0])
 	var cases := [["KILLS_1K", "kills_total", 1000], ["KILLS_10K", "kills_total", 10000], ["KILLS_100K", "kills_total", 100000],
-		["HERO_10", "hero_level", Achievements.HERO_LEVEL], ["ALL_CARDS", "cards", Cards.count()],
+		["HERO_10", "hero_level", Achievements.HERO_LEVEL], ["ALL_CARDS", "monster_cards", Cards.monster_count()],
 		["ALL_SECRETS", "secrets", Secrets.count()], ["FIRST_CARD", "cards", 1]]
 	for c: Array in cases:
 		assert_false(Achievements.earned(r, false, 10.0, {c[1]: int(c[2]) - 1}).has(c[0]), "one short of " + c[0])
 		assert_true(Achievements.earned(r, false, 10.0, {c[1]: int(c[2])}).has(c[0]), c[0])
 	assert_false(Achievements.earned(r, false, 10.0).has("KILLS_1K"), "no facts, no deed")
+
+
+## THE FULL DECK counts monster cards only: every monster card earns it, Seal cards add nothing to it.
+func test_all_cards_counts_monster_cards_only() -> void:
+	var r := Results.new([0])
+	var all := {"cards": Cards.monster_count(), "monster_cards": Cards.monster_count()}
+	assert_true(Achievements.earned(r, false, 10.0, all).has("ALL_CARDS"), "every monster card, no Seal card")
+	var seals := {"cards": Cards.count() - 1, "monster_cards": Cards.monster_count() - 1}
+	assert_false(Achievements.earned(r, false, 10.0, seals).has("ALL_CARDS"), "every Seal card does not stand in for one")
+	assert_false(Achievements.earned(r, false, 10.0, {"cards": Cards.count()}).has("ALL_CARDS"), "no monster count, no deed")
 
 
 func test_apprentices_deed_needs_a_win_with_a_human_and_only_apprentices() -> void:

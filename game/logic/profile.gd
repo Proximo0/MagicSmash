@@ -194,6 +194,15 @@ func cards_owned() -> int:
 	return n
 
 
+## Monster cards found, the Seal cards left out: what the ALL_CARDS deed counts (Achievements' "cards" rule).
+func monster_cards_owned() -> int:
+	var n := 0
+	for i: int in range(Cards.count()):
+		if Cards.enemy(i) >= 0 and card_count(i) > 0:
+			n += 1
+	return n
+
+
 ## Card index in each socket, -1 for empty.
 func socket_indices() -> Array[int]:
 	var out: Array[int] = []
@@ -361,7 +370,7 @@ func deed_facts() -> Dictionary:
 		if secrets.has(str(row[0])):
 			found += 1
 	return {"revives_total": revives_total, "kills_total": kills_total, "hero_level": top, "cards": cards_owned(),
-		"secrets": found}
+		"monster_cards": monster_cards_owned(), "secrets": found}
 
 
 func has_deed(api: String) -> bool:

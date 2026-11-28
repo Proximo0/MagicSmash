@@ -485,3 +485,33 @@ func test_a_socketed_card_counts_once_and_only_for_its_hero() -> void:
 	var p1: World.Player = w.players[1]
 	assert_eq(p0.max_hp, (bare.players[0] as World.Player).max_hp + 1, "the card's own hero: +1 heart")
 	assert_eq(p1.max_hp, (bare.players[1] as World.Player).max_hp, "the other seat: no card heart")
+
+
+## ALL_CARDS reads "monster_cards" (Achievements' "cards" rule): every monster card, the Seal cards left out.
+func test_deed_facts_count_monster_cards_apart_from_seal_cards() -> void:
+	var p := Profile.new()
+	var seal_cards := 0
+	for i: int in range(Cards.count()):
+		if Cards.enemy(i) < 0:
+			assert_true(p.add_card(i))
+			seal_cards += 1
+	assert_true(seal_cards > 0, "the deck has no Seal card to test with")
+	assert_eq(int(p.deed_facts().monster_cards), 0, "Seal cards counted as monster cards")
+	assert_eq(int(p.deed_facts().cards), seal_cards)
+	for i: int in range(Cards.count()):
+		if Cards.enemy(i) >= 0:
+			assert_true(p.add_card(i))
+	assert_eq(int(p.deed_facts().monster_cards), Cards.monster_count())
+	assert_eq(p.monster_cards_owned(), Cards.monster_count())
+	assert_eq(int(p.deed_facts().cards), Cards.count())
+
+
+## The whole chain: a run booked on a profile that holds every monster card (and no Seal card) earns ALL_CARDS.
+func test_a_run_with_every_monster_card_earns_all_cards() -> void:
+	var p := Profile.new()
+	for i: int in range(Cards.count()):
+		if Cards.enemy(i) >= 0:
+			assert_true(p.add_card(i))
+	p.finish_run({"score": 10, "seconds": 30.0, "results": Results.new()})
+	assert_true(p.deeds.has("ALL_CARDS"), "every monster card is owned, the deed is not")
+

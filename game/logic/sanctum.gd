@@ -55,9 +55,10 @@ const POT_CACHE := 0.06
 const POT_CACHE_CRYSTALS := 5
 const POT_CRYSTAL := 0.35
 
-## A sealed deck draws one card (a long saving goal: the sure way to a card); the Lich card is ten times rarer.
+## A sealed deck draws one card (a long saving goal: the sure way to a card), one the player lacks while any remain;
+## the Lich card is half as likely as each other monster card.
 const DECK_COST := 1500
-const LICH_WEIGHT := 1.0
+const LICH_WEIGHT := 5.0
 const CARD_WEIGHT := 10.0
 ## The wishing well: a crystal in, a fortune out, and now and then the well pays back.
 const WELL_PAYOUT := 0.08
@@ -191,17 +192,45 @@ func use() -> int:
 	return i
 
 
-## A card drawn from a sealed deck or found in a pot: any card, the Lich card far rarer.
-static func roll_card(r: RandomNumberGenerator) -> int:
+## A card drawn from a sealed deck or found in a pot, with one draw: any monster card by its weight, the Lich card
+## rarer. A sealed deck passes the cards the player owns (`owned`, owned_cards): it draws only from the monster
+## cards not among them while any remain, by the plain weights once she owns them all. A pot passes none.
+static func roll_card(r: RandomNumberGenerator, owned: Array[int] = []) -> int:
+	var lacking := false
+	for i: int in range(Cards.count()):
+		if _card_weight(i) > 0.0 and not owned.has(i):
+			lacking = true
 	var total := 0.0
 	for i: int in range(Cards.count()):
-		total += _card_weight(i)
+		total += _deck_weight(i, owned, lacking)
 	var x := r.randf() * total
+	var last := Cards.for_enemy(Bestiary.PRIEST)
 	for i: int in range(Cards.count()):
-		x -= _card_weight(i)
+		var wt := _deck_weight(i, owned, lacking)
+		if wt <= 0.0:
+			continue
+		last = i
+		x -= wt
 		if x < 0.0:
 			return i
-	return Cards.for_enemy(Bestiary.PRIEST)
+	return last
+
+
+## Card `i`'s weight in roll_card: its plain weight (_card_weight), none for an owned card while `lacking` (some
+## monster card is not owned).
+static func _deck_weight(i: int, owned: Array[int], lacking: bool) -> float:
+	if lacking and owned.has(i):
+		return 0.0
+	return _card_weight(i)
+
+
+## The card indices the profile owns at least one of (Profile.card_count), in card order: the sealed deck's `owned`.
+static func owned_cards(prof: Profile) -> Array[int]:
+	var out: Array[int] = []
+	for i: int in range(Cards.count()):
+		if prof.card_count(i) > 0:
+			out.append(i)
+	return out
 
 
 ## A card's weight in roll_card: none for a Seal card (no monster drops it), the Lich card far rarer.

@@ -170,7 +170,7 @@ func _use(i: int) -> void:
 		Sanctum.RELIQUARY:
 			if prof.spend(Sanctum.DECK_COST):
 				Save.write()
-				_open_card(Sanctum.roll_card(_rng), "THE SEALED DECK OPENS...")
+				_open_card(Sanctum.roll_card(_rng, Sanctum.owned_cards(prof)), "THE SEALED DECK OPENS...")
 			else:
 				Sfx.play("hurt", -6.0)
 				_say("A SEALED DECK COSTS %d CRYSTALS." % Sanctum.DECK_COST)

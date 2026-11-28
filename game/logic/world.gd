@@ -347,6 +347,7 @@ var loot_rng: RandomNumberGenerator
 var run_loot: Dictionary = {}
 var ultra_dropped := false # the ULTRA RARE run's prismatic chest has dropped
 var card_dropped := false # the card run's card has dropped
+var urn_card := false # this run was given an urn card (apply_meta's "urn_card"): a card run whose card waits in an urn
 var next_id := 1
 ## Minute of the run, from 1. Enemy scaling and the Lich's visits follow it.
 var wave := 1
@@ -452,8 +453,10 @@ func _init(slots: Array, seed_value: int = 0, tuning: Tuning = null, wizards: Di
 	events.append([EV_WAVE, 0, 0, wave, 0])
 
 ## Starts the run with the host's meta unlocks (Save.run_bonuses()): extra hearts and novas for every wizard,
-## and damage, XP, gold and chest luck bonuses. Call once, before the first step.
+## and damage, XP, gold and chest luck bonuses; "urn_card" (bool) makes the run a card run whose card waits in the
+## first urn broken at or after its moment (WorldDrops.card_due). Call once, before the first step.
 func apply_meta(b: Dictionary) -> void:
+	urn_card = bool(b.get("urn_card", false))
 	meta_damage = float(b.get("damage", 0.0))
 	meta_xp = float(b.get("xp", 0.0))
 	meta_gold = float(b.get("gold", 0.0))
@@ -472,8 +475,8 @@ func apply_meta(b: Dictionary) -> void:
 ## the armour array within Loot.STAT_CAPS; then threat, the nova button's skill, the class weapon in place of the
 ## starting spell (while it is still the only one, at level 1) with its skin (Player.class_weapon, Player.skin:
 ## Classes.SKINS), the class passive and the race trait. A wizard
-## with no hero applied keeps every neutral default, so it plays exactly as before. The meta's sockets
-## (apply_meta's "armor") are the profile's: a caller passes a hero's sockets in one place only.
+## with no hero applied keeps every neutral default, so it plays exactly as before. The game sends a hero's sockets
+## only here (Profile.bonuses carries none), so each card counts once and only for its hero.
 func apply_hero(p: Player, hero: Dictionary) -> void:
 	var h := Hero.from_dict(hero)
 	p.race = h.race
@@ -496,7 +499,7 @@ func apply_hero(p: Player, hero: Dictionary) -> void:
 	p.aura_ward = Classes.aura_ward(h.cls) * float(Hero.POINT_VALUE[Loot.ST_WARD])
 	p.fury = Races.trait_amount(h.race, Races.TR_FURY)
 	p.reach_mul = 1.0 + Races.trait_amount(h.race, Races.TR_FAR_SIGHT)
-	p.knock_mul = 1.0 - Races.trait_amount(h.race, Races.TR_STURDY)
+	p.safe_mul = 1.0 + Races.trait_amount(h.race, Races.TR_STURDY)
 	p.luck = h.luck()
 	var start := Wizards.start_spell(p.wizard)
 	var sp := h.weapon()

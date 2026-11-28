@@ -89,7 +89,8 @@ const RESULT_LINES := 3
 ## win_class: won with this Classes index in the party. win_race: the same for a Races index. trinity: won with a
 ## tank, a healer and a ranged hero. evo: the Spells index whose evolution was taken. boss: a Bestiary type slain
 ## (an act boss moment). seal: won at this Seals step or above. revives_run, revives_all, kills_all, hero_level:
-## at least the argument of that count. cards, secrets: every one found (argument unused). some_cards: at least the
+## at least the argument of that count. cards: every monster card found (party's monster_cards, the Seal cards left
+## out; argument unused). secrets: every one found (argument unused). some_cards: at least the
 ## argument of monster cards found. apprentices: won with
 ## one human and only apprentices beside them. fast: won with at least FAST_PARTY heroes in under the argument seconds.
 const RULES := {
@@ -196,7 +197,7 @@ static func result_lines(api_names_earned: Array, cards: Array = []) -> Array[St
 ## lasted. `party` says who played and what the profile holds; every key is optional and a deed whose fact is
 ## missing is not earned: classes and races (Array of ints, one per hero a person plays: an apprentice earns no class or race deed), seal (the run's
 ## step), and the totals after this run: revives_total, kills_total, hero_level (the highest class level), cards
-## (monster cards found), secrets (secrets found). Who is an apprentice comes from the record (`ai`).
+## (cards found), monster_cards (monster cards found, no Seal card: ALL_CARDS), secrets (secrets found). Who is an apprentice comes from the record (`ai`).
 static func earned(record: Results, won: bool, seconds: float, party: Dictionary = {}) -> Array:
 	var out: Array = []
 	var size: int = record.stats.size()
@@ -297,8 +298,8 @@ static func _rule_met(kind: String, arg: int, f: Dictionary) -> bool:
 			return int(party.get("kills_total", 0)) >= arg
 		"hero_level":
 			return int(party.get("hero_level", 0)) >= arg
-		"cards":
-			return int(party.get("cards", 0)) >= Cards.count()
+		"cards": # monster cards only (Profile's "monster_cards"; the Seal cards are paid by wins, not collected)
+			return int(party.get("monster_cards", 0)) >= Cards.monster_count()
 		"some_cards":
 			return int(party.get("cards", 0)) >= arg
 		"secrets":

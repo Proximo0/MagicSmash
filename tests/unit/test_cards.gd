@@ -128,3 +128,13 @@ func test_album_pages_fit_and_reach_every_card() -> void:
 	album.sel = 11
 	album._turn(1)
 	assert_eq(album.sel, 19, "a short page takes its last card")
+
+
+## The monster cards are the ones a kind of monster drops (12 today); the Seal cards are not among them.
+func test_monster_count_leaves_out_the_seal_cards() -> void:
+	var n := 0
+	for i: int in range(Cards.count()):
+		n += 1 if Cards.enemy(i) >= 0 else 0
+	assert_eq(Cards.monster_count(), n)
+	assert_eq(Cards.monster_count(), 12)
+	assert_true(Cards.monster_count() < Cards.count())

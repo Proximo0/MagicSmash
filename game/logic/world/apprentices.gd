@@ -7,7 +7,8 @@ extends RefCounted
 ## SmashBot (make_apprentice; all of them decide every SmashBot.APPRENTICE_TICKS ticks on one shared_senses), and
 ## takes its level-up card the moment the hand is dealt (WorldLevels, on main). Its damage is x apprentice_damage and
 ## it counts apprentice_scale toward the party size (World.pscale, World.xp_needed). It never takes chests, tomes, cards,
-## shrine bets or fate cards; the coins and gems it touches go to the nearest human; it takes a potion only at
+## shrine bets or fate cards; the coins and gems it touches go to the nearest human (an away human's seat keeps her
+## loot: is_human_seat); it takes a potion only at
 ## apprentice_potion_hp hearts or fewer and only while no standing human is hurt. Fallen, it gets up by itself
 ## after apprentice_up_time seconds without losing a life, except under DARKNESS. It answers a human's call.
 ## Seated with a class (Net.add_apprentice: the party's first missing role), it becomes a level 1 hero of it on the
@@ -52,9 +53,24 @@ static func take_class(w: World, p: World.Player) -> void:
 	w.apply_hero(p, h.to_dict())
 
 
-## True if wizard `p` may pick up a pickup of `kind` (always, for a human).
+## True for a human's seat, whether she plays it or is away (her pad fell silent and an apprentice AI moves her):
+## her loot stays hers. World.humans() leaves the away seats out.
+static func is_human_seat(p: World.Player) -> bool:
+	return not p.ai or p.away
+
+
+## Every human seat, away or not, in slot order (is_human_seat): who is paid loot (THE EMPEROR's chests).
+static func human_seats(w: World) -> Array[World.Player]:
+	var out: Array[World.Player] = []
+	for p: World.Player in w.players.values():
+		if is_human_seat(p):
+			out.append(p)
+	return out
+
+
+## True if wizard `p` may pick up a pickup of `kind` (always, for a human seat, away or not).
 static func may_take(w: World, p: World.Player, kind: int) -> bool:
-	if not p.ai:
+	if is_human_seat(p):
 		return true
 	if kind == World.PK_POTION:
 		return p.hp <= int(w.tune.apprentice_potion_hp) and not human_hurt(w)
@@ -69,14 +85,15 @@ static func human_hurt(w: World) -> bool:
 	return false
 
 
-## Who is paid for a coin or gem `p` touched: the nearest human (standing first), else `p` itself.
+## Who is paid for a coin or gem `p` touched: `p` on a human seat (away or not); for an apprentice the nearest human
+## seat (standing first), else the apprentice itself.
 static func payee(w: World, p: World.Player, kind: int) -> World.Player:
-	if not p.ai or (kind != World.PK_COIN and kind != World.PK_GEM):
+	if is_human_seat(p) or (kind != World.PK_COIN and kind != World.PK_GEM):
 		return p
 	var best: World.Player = null
 	var bd := INF
 	for q: World.Player in w._plist:
-		if q.ai:
+		if not is_human_seat(q):
 			continue
 		var d := q.pos.distance_to(p.pos) + (0.0 if q.alive else 1e6)
 		if d < bd:

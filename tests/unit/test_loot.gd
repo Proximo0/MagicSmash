@@ -44,6 +44,57 @@ func test_rolls_are_seeded() -> void:
 	assert_eq(Loot.roll_rarity(_rng(9), 1.0), Loot.roll_rarity(_rng(9), 1.0))
 
 
+## The item roll as it was before tiers mattered (one draw over every weight).
+func _plain_item(rng: RandomNumberGenerator) -> int:
+	var total: float = 0.0
+	for row: Array in Loot.ITEMS:
+		total += float(row[5])
+	var r: float = rng.randf() * total
+	for i: int in range(Loot.count()):
+		r -= float(Loot.ITEMS[i][5])
+		if r < 0.0:
+			return i
+	return Loot.count() - 1
+
+
+## A LEGENDARY or ULTRA RARE chest never rolls an item that does not grow with its tier (the ELIXIR heals to full at
+## every tier): 10 000 of each find none, and the others share its weight. Below LEGENDARY every seed rolls the item
+## it always did, so every share is unchanged.
+func test_no_flat_item_at_legendary_or_above() -> void:
+	var elixir := -1
+	var total := 0.0
+	var flat_w := 0.0
+	for i: int in range(Loot.count()):
+		total += float(Loot.ITEMS[i][5])
+		if Loot.flat(i):
+			flat_w += float(Loot.ITEMS[i][5])
+		if Loot.ITEMS[i][0] == "elixir":
+			elixir = i
+	assert_true(Loot.flat(elixir), "the ELIXIR is the same at every tier")
+	for i: int in range(Loot.count()):
+		if not Loot.flat(i):
+			assert_true(Loot.value(i, Loot.LEGENDARY) > Loot.value(i, Loot.COMMON), Loot.item_name(i) + " grows")
+	var n := 10000
+	var r := _rng(21)
+	for tier: int in [Loot.LEGENDARY, Loot.ULTRA]:
+		var seen: Array[int] = []
+		seen.resize(Loot.count())
+		for _i: int in range(n):
+			seen[Loot.roll_item(r, tier)] += 1
+		assert_eq(seen[elixir], 0, "no elixir at %s" % Loot.RARITY_NAMES[tier])
+		for i: int in range(Loot.count()):
+			var want := 0.0 if Loot.flat(i) else float(Loot.ITEMS[i][5]) / (total - flat_w)
+			assert_near(float(seen[i]) / n, want, 0.015, "%s at %s" % [Loot.item_name(i), Loot.RARITY_NAMES[tier]])
+	for tier: int in [Loot.COMMON, Loot.RARE, Loot.EPIC]:
+		for s: int in range(1, 2001):
+			assert_eq(Loot.roll_item(_rng(s), tier), _plain_item(_rng(s)), "seed %d at %s" % [s, Loot.RARITY_NAMES[tier]])
+	var one := _rng(3)
+	Loot.roll_item(one, Loot.ULTRA)
+	var ref := _rng(3)
+	ref.randf()
+	assert_eq(one.state, ref.state, "one draw at any tier")
+
+
 func test_armor_stacks_up_to_its_cap() -> void:
 	var stats: Array = Loot.empty_stats()
 	for _i: int in range(50):
@@ -59,8 +110,19 @@ func test_run_rolls_are_seeded_and_their_own_stream() -> void:
 	var main := _rng(77)
 	assert_false(Loot.run_stream(77).randf() == main.randf(), "the run's loot stream is not the main stream")
 	var d := Loot.run_rolls(Loot.run_stream(5))
-	for k: String in ["ultra", "ultra_at", "card", "card_at", "card_urn"]:
+	for k: String in ["ultra", "ultra_at", "card", "card_at", "card_urn", "card_kind"]:
 		assert_true(float(d[k]) >= 0.0 and float(d[k]) < 1.0, k)
+
+
+## The run's draws come off its stream in this order, the card's kind last, so every older draw keeps its value for
+## every seed.
+func test_run_rolls_keep_their_order() -> void:
+	for s: int in [1, 5, 77, 4242]:
+		var d := Loot.run_rolls(Loot.run_stream(s))
+		var r := Loot.run_stream(s)
+		for k: String in ["ultra", "ultra_at", "card", "card_at", "card_urn", "card_kind"]:
+			assert_eq(float(d[k]), r.randf(), "%s, seed %d" % [k, s])
+		assert_eq(d.size(), 6)
 
 
 ## Over 20 000 seeds about 1 run in 100 is an ULTRA RARE run and about 1 in 100 a card run (within a third), and the

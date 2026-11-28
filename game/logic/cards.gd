@@ -2,7 +2,8 @@ class_name Cards
 extends RefCounted
 ## Monster cards: one ultra-rare card per kind of monster, kept in the player's collection between runs (Profile)
 ## and socketed into the wizard's hat, robe or staff for a small lasting bonus. Earned only by play: about 1 run in
-## 100 is a card run (card_run_chance) and drops exactly one card, from a kill at a seeded moment (WorldDrops);
+## 100 is a card run (card_run_chance) and drops exactly one card of a kind rolled at its start, from that kind's
+## first kill at or after a seeded moment (WorldDrops.run_card);
 ## the Sanctum's pots and sealed decks and a first win at a Seal hand out the rest. Pure data plus lookups.
 
 ## Equipment sockets. A card fits only the socket its row names.
@@ -43,6 +44,14 @@ const C_ENEMY := 7
 
 static func count() -> int:
 	return CARDS.size()
+
+
+## The number of monster cards: the cards a kind of monster drops (enemy >= 0), the Seal cards left out.
+static func monster_count() -> int:
+	var n := 0
+	for i: int in range(CARDS.size()):
+		n += 1 if enemy(i) >= 0 else 0
+	return n
 
 
 static func key(idx: int) -> String:
@@ -93,8 +102,9 @@ static func card_run_chance(base: float, seal_cards: float) -> float:
 	return clampf(base * seal_cards, 0.0, 1.0)
 
 
-## The card a card run's kill drops: a Seal's Archlich (`final`) drops `seal_card` when there is one (-1: none),
-## any other kill its kind's card (for_enemy); -1 when the kill has no card (the next kill with one drops it).
+## The card a kill stands for in a card run: a Seal's Archlich (`final`) `seal_card` when there is one (-1: none),
+## any other kill its kind's card (for_enemy); -1 when the kill has no card. The run's card drops from the first
+## kill that stands for it (WorldDrops._roll_card).
 static func run_card(enemy_type: int, final: bool, seal_card: int) -> int:
 	if final and seal_card >= 0:
 		return seal_card
