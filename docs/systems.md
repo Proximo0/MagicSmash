@@ -168,11 +168,25 @@ How each system works: read only the section for the system you touch (`grep -n 
     once, a reel spins over the shrine, and the outcome lands when it stops: jackpot chest, chest, double gold
     back, nothing, or a curse (lose a heart, never the last).
   - The team shrine (the clip moment) appears every `team_shrine_interval` s, from 2:00, with a banner. It costs
-    `team_cost_mul` x a solo shrine, and one wizard pays it all. A 3 s reel spins in the middle of the screen
-    for everyone, with boss music. It lands on a coin flip:
-    - Blessed: every wizard gains 2 levels.
-    - Cursed: every wizard loses a heart (never the last), and an elite comes for each of them.
-  - Bots walk to shrines they can afford (`SmashBot.shrine_goal`); `sim_waves` checks they bet.
+    `team_cost_mul` x a solo shrine, and the table pays it into one pot (`WorldShrines._fill_pot`):
+    - The pot fills only while two living wizards stand in the shrine (one, when only one is left); an
+      apprentice neither pays nor counts. The altar says `2 WIZARDS`, then `1 MORE`, and the pot waits, never
+      drains, while too few stand in it.
+    - The whole price takes `team_pay_time` s, in equal parts from the wizards standing there who have gold. One
+      who runs dry pays what she has and the others cover the rest; a wizard with no gold still counts as the
+      second. The ring shows pot / price.
+    - A full pot bets for everybody, and the wizard who paid the most is the one who drew (a tie: the lowest
+      slot). `bets` are booked then, each wizard her own share. A shrine that fades before its pot is full gives
+      every wizard back exactly what she paid.
+    - A 3 s reel spins in the middle of the screen for everyone, with boss music, and a fate is turned from the
+      fate deck (`docs/content_list.md` § 10). A solo run's team shrine keeps the coin flip: every wizard gains
+      2 levels, or loses a heart (never the last) with an elite coming for each.
+  - The snapshot's shrine row is `World.SHRINE_FLOATS` wide: kind, x, y, life, charge fraction (a team shrine:
+    pot / price), cost, wizards still needed.
+  - Bots walk to shrines they can pay (`SmashBot.shrine_goal`: a solo shrine from her own gold, a team shrine
+    when she has gold and the living wizards' gold together covers what the pot lacks). A bot that has stood in
+    a team shrine for `SmashBot.SHRINE_PATIENCE` s without the pot growing gives it up, and takes it up again
+    once a partner stands in it (`SmashBot.shrine_pick`). `sim_waves` checks they bet.
   - `--autotest --tune=team_shrine_first:12,shrine_cost_base:2,shrine_cost_per_min:0` saves `team_shrine.png`.
 - 5c, meta unlocks and saves:
   - `game/logic/profile.gd` (`Profile`) holds the best score, crystals and the unlock catalogue (`META`, costs

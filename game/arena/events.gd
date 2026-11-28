@@ -201,7 +201,7 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.ring(pos, 2.0, 30.0, 0.6, a.SHRINE_COLORS[sk], 2.0)
 				a.fx.sparkle(pos, a.SHRINE_COLORS[sk], 14)
 				if sk == Gamble.TEAM:
-					ArenaFateView._banner(a, "THE FATE CARD", "ONE WIZARD DRAWS FOR THE WHOLE PARTY", a.SHRINE_COLORS[sk], 2.4)
+					ArenaFateView._banner(a, "THE FATE CARD", "THE TABLE PAYS, ONE FATE FOR ALL", a.SHRINE_COLORS[sk], 2.4)
 					Sfx.play("portal", -4.0)
 				else:
 					a.fx.text(pos + Vector2(0, -20), "RUNE ALTAR", a.SHRINE_COLORS[sk], 1.2, 1)

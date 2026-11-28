@@ -203,6 +203,9 @@ const W_FLOATS := 20
 
 ## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolution id, kind.
 const RUNE_FLOATS := 8
+## Floats per shrine in snapshot()["sh"] (WorldShrines.snapshot_shrines): kind, x, y, life s, charge fraction (a team
+## shrine: its pot / price), cost, wizards still needed.
+const SHRINE_FLOATS := 7
 const R_KIND := 7
 
 ## Floats per enemy in snapshot()["e"]: id, type, x, y, flash, state, hp fraction, slow, rank (1 elite, 2 Archlich),

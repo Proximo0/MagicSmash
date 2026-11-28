@@ -65,7 +65,8 @@ const FIELDS: Array = [
 	["team_shrine_first", 120.0, 0.0, 900.0, 5.0, "Shrines", "Seconds of fighting before the first team shrine."],
 	["team_shrine_interval", 150.0, 10.0, 900.0, 5.0, "Shrines", "Seconds between team shrines."],
 	["team_shrine_life_mul", 1.5, 1.0, 5.0, 0.1, "Shrines", "A team shrine waits this many times as long as a solo one."],
-	["team_cost_mul", 2.5, 1.0, 10.0, 0.1, "Shrines", "A team shrine costs this many times a solo one; one wizard pays it all."],
+	["team_cost_mul", 1.5, 1.0, 10.0, 0.1, "Shrines", "A team shrine costs this many times a solo one; the table shares it, paying into one pot."],
+	["team_pay_time", 2.0, 0.2, 10.0, 0.1, "Shrines", "Seconds the wizards standing in a team shrine take to pay its whole price into the pot (when they never run dry)."],
 	["team_reel", 3.0, 0.5, 8.0, 0.1, "Shrines", "Seconds the team shrine's reel spins while everyone watches."],
 	["boss_every_min", 5.0, 1.0, 20.0, 1.0, "Spawning", "The Lich arrives at the start of every this-many-th minute."],
 	["boss_rest_mul", 1.8, 0.25, 5.0, 0.05, "Spawning", "Multiplier on the seconds the Lich and the Archlich drift between attacks."],
@@ -185,6 +186,7 @@ var team_shrine_first: float
 var team_shrine_interval: float
 var team_shrine_life_mul: float
 var team_cost_mul: float
+var team_pay_time: float
 var team_reel: float
 var boss_every_min: float
 var boss_rest_mul: float

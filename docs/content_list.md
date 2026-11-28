@@ -154,10 +154,12 @@ heart, WARD +1% shrug chance, FORTUNE +3% gold. Look: 4 skins x 6 hairs x 3 styl
 
 ## 10. Team fates (the fate deck)
 
-A team shrine (party of 2 or more): one wizard pays tuning `team_cost_mul` 2.5 x the solo cost and a tarot card is
-turned. A fate is drawn from a side: the cruel side with chance `fate_cruel` (0.5; 0.6 from SEAL VI MISFORTUNE), then
-each fate of that side equally likely (WHEEL OF FORTUNE is left out of a chain it started). In a solo run a team
-shrine plays the old weighted roll: PARTY BLESSED 50, PARTY CURSED 50.
+A team shrine (party of 2 or more): the table pays tuning `team_cost_mul` 1.5 x the solo cost into one pot (two
+living wizards must stand in it, an apprentice never counts; the price takes `team_pay_time` 2 s in equal parts; a
+shrine that fades unpaid gives the gold back; test_team_shrine.gd) and a tarot card is turned. A fate is drawn
+from a side: the cruel side with chance `fate_cruel` (0.5; 0.6 from SEAL VI MISFORTUNE), then each fate of that
+side equally likely (WHEEL OF FORTUNE is left out of a chain it started). In a solo run a team shrine plays the old
+weighted roll: PARTY BLESSED 50, PARTY CURSED 50.
 
 | Name (code key) | What it does | Obtained / unlocked | Pairs with | Source | Test |
 |---|---|---|---|---|---|

@@ -139,10 +139,21 @@ static func _draw_shrines(a: Arena, ci: CanvasItem) -> void:
 				var ang := a.time * 1.4 + k * TAU / 3.0
 				var sp := at + Vector2(cos(ang) * 10.0, -13.0 + sin(ang) * 4.0)
 				_rune_stone(a, ci, sp.floor(), (k * 3 + int(a.time * 0.5)) % Occult.RUNES.size(), col, 1.0)
-		var charge: float = r[4]
+		var charge: float = r[4] # a solo shrine's hold, a team shrine's pot / price
 		if charge > 0.0:
 			ci.draw_arc(at, 16.0 * big, -PI / 2.0, -PI / 2.0 + TAU * clampf(charge, 0.0, 1.0), 32, Color.WHITE, 2.0)
-		PixelFont.draw_centered(ci, "%dG" % int(r[5]), at.x, at.y - (32.0 if kind == Gamble.SOLO else 50.0), 1, col, dark)
+		# The price, and over a team shrine while more wizards are needed how many; kept on the screen, clear of the HUD.
+		var lines: Array[String] = ["%dG" % int(r[5])]
+		var need: int = r[6]
+		if kind == Gamble.TEAM and need > 0:
+			lines.append("2 WIZARDS" if need >= 2 else "1 MORE")
+		var gap: float = 8.0 # one line of the pixel font and its outline
+		var label_top: float = at.y - (32.0 if kind == Gamble.SOLO else 50.0) - gap * (lines.size() - 1)
+		label_top = clampf(label_top, a.cam.y + G.HUD_H + 2.0, a.cam.y + G.SCREEN.y - gap * lines.size() - 1.0)
+		for i: int in range(lines.size()):
+			var half: float = PixelFont.text_width(lines[i]) / 2.0 + 2.0
+			var cx: float = clampf(at.x, a.cam.x + half, a.cam.x + G.SCREEN.x - half)
+			PixelFont.draw_centered(ci, lines[i], cx, label_top + gap * (lines.size() - 1 - i), 1, col, dark)
 
 
 ## A rune stone: a pale pebble with a rune cut into it (`rune` -1 for a blank stone).
