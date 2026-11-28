@@ -173,3 +173,4 @@
 2026-11-28T07:11:58Z INFO id=261128000021-0523 kind=shell secs=16 wandsrun key=949008e646dd runs=2 won=0 lost=2 wall_s=14 seeds=506828,506829
 2026-11-28T07:12:32Z INFO id=261128000021-0523 kind=shell secs=16 wandsrun key=949008e646dd runs=2 won=0 lost=2 wall_s=13 seeds=916344,916345
 2026-11-28T07:13:27Z INFO id=261128000021-0523 kind=shell secs=36 wandsrun key=949008e646dd runs=2 won=0 lost=2 wall_s=34 seeds=388490,388491
+2026-11-28T07:14:00Z INFO id=261128000021-0523 kind=shell secs=33 wandsrun key=949008e646dd runs=2 won=0 lost=2 wall_s=31 seeds=11198,11199
