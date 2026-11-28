@@ -21,11 +21,13 @@ shrines, the party's fate card); a tower worth exploring (the Sanctum, secrets, 
 - The audit of 27 Nov walked every system, measured it and had every finding read a second time. Its document:
   https://claude.ai/artifact/BkrNpGpjuPZYjWeb5V7x7o. Its confirmed bugs are stage 1; the list with PR numbers is in
   the release plan.
-- Stage 1 is merged (14 lines, `docs/release_plan.md`). Stage 3 has begun: its contract, the order of its jobs and
-  who owns which file are in `docs/stage3_brief.md`. Stage 2's frozen content list is written: part 2 of
-  `docs/content_list.md` (§ 36 to 54). Part 1 of that file and the tables in the code (`Spells`, `Upgrades`,
-  `Cards`, `Achievements`, `Tuning`) say what is built today; part 2 says what stage 3 builds. A row of part 2 is
-  added, dropped or re-paired only with a line under "The frozen list" below.
+- Stages 1 and 2 are closed (14 fixes, `docs/release_plan.md`; the frozen content list, part 2 of
+  `docs/content_list.md`, § 36 to 54). Stage 3 is running: its contract, the order of its jobs, who owns which
+  file and what is done are in `docs/stage3_brief.md` (§ 3 holds the Done line). Part 1 of the content list is the
+  snapshot of 28 Nov and is written again from the code at stage 3's gate; until then the tables in the code
+  (`Spells`, `Upgrades`, `Readings`, `Profile`, `Cards`, `Achievements`, `Tuning`) say what is built, and their
+  `UNBUILT` shelves say what is not. A row of part 2 is added, dropped or re-paired only with a line under "The
+  frozen list" below.
 
 ## Decisions already made by the owner
 
@@ -85,6 +87,33 @@ The list is `docs/content_list.md` part 2. Why it is shaped the way it is:
   today's shop row (THE SECOND GLANCE, THE READER'S FAVOUR, THE DUELLIST'S DECK): the new shop screen is built to
   hold 19 letters, the names stay.
 
+## Stage 3: what the lead decided while building (28 Nov)
+
+- **The tome cut waits for stage 5.** The list cuts an elite's party tome to 0.35 of the time (§ 41). With the cut
+  in, bots that know the new pairs won 2 of 6 runs where they win 4 of 6 without it, and every loss came before the
+  first boss: the free levels are the early game's power today, and what replaces them is built later in stage 3.
+  `party_tome_elite` stays 1.0 until stage 5's first tune job applies the cut with the numbers that go with it.
+- **A build is harder to bring together, and that is the point.** Since every evolution asks for an arcana, a
+  wizard's three arcana slots (four after the first boss) choose her evolutions. Two casual bots evolved in every
+  run before; a group of four runs now tells how many do (`tools/playtest.gd`). The lead's coarse pass before the
+  stage's gate build moves one knob until groups reach the Archlich again; stage 5 does the real tuning.
+- **Bots are taught every rule a card adds.** They lost every run with the new pairs until `SmashBot` knew them,
+  and lost again when the casual took a pair's arcana too early. Every job that changes how a build comes together
+  owns the bots' side and measures a group before and after (brief § 2.10).
+- **A card's words wait for its effect.** THE TOWER and JUDGEMENT take an arcana slot and keep the words `+1 NOVA
+  NOW` and `+1 LIFE NOW` until job C5 builds the refill and the blast.
+- **Locks are on.** Since the catalog job every real run is dealt from the host's profile (§ 44): a new profile
+  holds six spells and six arcana, and a deed opens each further row. A wizard's own class weapon is always open
+  with its first road. Until GREEK FIRE is built, a profile without THE TOWER has no road for FIREBALL.
+- **One screen, no compact tray.** The plan asked for compact trays. Built in their place: a tray keeps its rows
+  and turns see-through while it covers a wizard; the painted hand under it is not drawn over one; the camera
+  holds every living human's body in the window, and the leash is 440 x 200 so that it can; every wizard out of
+  view has an arrow at the edge in her seat's colour.
+- **The team shrine is one pot.** Every wizard standing in it pays her share while she stands, so the table bets
+  together and nobody pays for the rest. Bots wait a few seconds alone, leave, and come back for a partner.
+- **A boss is a foe, and EIGHT OF WANDS is the clock.** A Reading that says FOES changes bosses too; EIGHT OF
+  WANDS speeds the run's one clock, so XP, spawns and bosses all come a fifth sooner (built in job R2).
+
 ## Loot and gambling rules (from the CursedPawn gacha / lawsuit research)
 
 Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
@@ -110,7 +139,11 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
   robot careers and frame timing are queue jobs `wandsrun`, `wandscareer` and `wandsframes`. Never `fill-week`:
   that loads Horde & Hearth's work.
 - Numbers come from robots before opinions: `docs/bots.md` for the personas, `docs/performance.md` for frame
-  times (pass 4 holds the slow PCs' numbers).
+  times (pass 4 holds the slow PCs' numbers). Balance is read from groups: `tools/playtest.gd -- --runs=4
+  --wizards=2 --persona=casual --seed=7 --minutes=17` before and after a change, and the stations' forever jobs.
+  One `FULL_RUN` line is not a measurement: a single seed flips between a loss at 4:00 and a win at 17:00.
+- A picture review checks every figure's feet against her ring, facing both ways: painted figures facing left
+  stood a body width beside their feet for five days and no review saw it (`docs/lessons_learned.md`).
 
 ## Checks and tools
 
@@ -132,17 +165,23 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
 - A LAN guest's run is not booked when the host quits (goes with online play, stage 6).
 - Slow hardware: the game is script-bound. A Celeron N4100 runs four players at 7 to 15 frames a second; the Ryzen
   laptop holds 60 alone and slips to about 54 with four at the Archlich (`docs/performance.md`, pass 4).
-- The `bot-heroes`, `bot-boss`, `bot-win` and `bot-again` CI rows are not in the repository's required checks (the
-  owner's setting): read their result before a merge.
+- Seven CI rows are not in the repository's required checks (the owner's setting, asked of him on 28 Nov):
+  `bot-heroes`, `bot-boss`, `bot-win`, `bot-again`, `bot-cover`, `tools` and `checks-windows`. Read their result
+  before a merge.
 - The tool and licence behind the owner's 103 uploaded pictures are on no record (`docs/asset_sources.md`, open
   questions 1 to 3; asked of the owner on 28 Nov). The credits roll leaves its A GAME BY and PICTURES sections out
   until he answers (`Credits.MAKER`, `Credits.PICTURES_BY`); the exe's company and copyright fields and the store
   forms wait for the same answer.
 - The notices file carries Sentry for Godot, sentry-native and Crashpad. What those two carry inside them in turn
   (Crashpad builds on mini_chromium, for one) has not been walked: walk it before the public release (stage 7).
-- The `tools` CI row (self-tests of `tools/land.sh` and the versions rule) and the `checks-windows` row are not
-  required checks either.
 - The kit's frame stamp and render toggles are sized for a 1080p 3D game, so they are not in the 480x270 main
   scene. Scale them down before use.
+- Bots at a shrine step in and out of its circle as they dodge, so few shrines get paid (10 to 14 of 37 in a run);
+  job U8 of the brief. The LAN join check compares the version and the wizard row's width only; job U2.
+- The Archlich's fight is long for bots since the pairs (about two minutes for one or two wizards); stage 5.
+- `docs/bots.md` has no section on careers (`tools/career.gd`, the station job `wandscareer`).
+- The name HIGH PRIESTESS is 4 px wider than the plate of a 68 px painted card; job V1 of the brief. The exe's icon
+  is a stand-in (`docs/release_build.md`), and part 1 of `docs/content_list.md` marks every card that has no
+  painted card yet (`(!) no painted card`); both are stage 4's.
 - On 20 Nov most of `arena.gd`, `title.gd` and `net.gd` were untyped (only `game/logic` is strict in spirit);
   lint passes because its rules are narrow. Type things as you touch them.
