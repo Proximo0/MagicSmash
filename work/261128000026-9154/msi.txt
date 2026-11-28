@@ -4,3 +4,4 @@
 2026-11-28T00:08:06Z INFO id=261128000026-9154 kind=shell secs=125 wandscareer key=cfddd49611bb seed=535483 wall_s=123 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 2 min 19 | arch 2/2 run 2 min 19 | win 2/2 run 2 min 19
 2026-11-28T00:10:44Z INFO id=261128000026-9154 kind=shell secs=99 wandscareer key=cfddd49611bb seed=323323 wall_s=96 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 2 min 24 | arch 2/2 run 2 min 24 | win 2/2 run 2 min 24
 2026-11-28T00:11:42Z INFO id=261128000026-9154 kind=shell secs=127 wandscareer key=cfddd49611bb seed=256504 wall_s=125 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 1 min 15 | arch 2/2 run 2 min 23 | win 2/2 run 2 min 23
+2026-11-28T00:14:19Z INFO id=261128000026-9154 kind=shell secs=107 wandscareer key=cfddd49611bb seed=999611 wall_s=105 CAREER casual:mage seal=0 careers=2 | boss 2/2 run 2 min 19 | arch 2/2 run 2 min 19 | win 2/2 run 2 min 19
