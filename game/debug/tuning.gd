@@ -25,7 +25,7 @@ const FIELDS: Array = [
 	["rift_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of horde groups that open a rift in the arena instead of coming through a door."],
 	["rift_warning", 0.9, 0.2, 3.0, 0.05, "Spawning", "Seconds a rift's marker shows before its enemies appear."],
 	["leash_x", 440.0, 100.0, 700.0, 10.0, "Spawning", "Furthest two wizards may be apart across, px (they share one screen)."],
-	["leash_y", 210.0, 60.0, 400.0, 10.0, "Spawning", "Furthest two wizards may be apart up and down, px."],
+	["leash_y", 200.0, 60.0, 400.0, 10.0, "Spawning", "Furthest two wizards may be apart up and down, px (the play window has room for 203 with both bodies in view)."],
 	["rift_max_dist", 230.0, 60.0, 600.0, 10.0, "Spawning", "Rifts open at most this far from the middle of the party, px."],
 	["door_near_share", 0.6, 0.0, 1.0, 0.05, "Spawning", "Share of door groups that use the door nearest the party (the rest pick any door)."],
 	["rift_min_dist", 90.0, 30.0, 200.0, 5.0, "Spawning", "Rifts open at least this far from every wizard, px."],

@@ -5,8 +5,12 @@ extends RefCounted
 
 ## True while any wizard holds cards (the autotest keys shots on it).
 ## Left edge of each seat's tab and tray. The outer seats hang under their panel; the inner two lean into the
-## empty middle column of the HUD strip, so four 118 px trays never touch.
-const TRAY_X: Array[int] = [2, 120, 242, 360]
+## empty middle column of the HUD strip. Four 118 px trays with their 1 px rims fill the 480 px exactly: the
+## spacing is 120, so no two rims share a pixel.
+const TRAY_X: Array[int] = [1, 121, 241, 361]
+## Where each open tray is drawn: a Node2D per seat under the HUD, so its opacity can ease (Arena meta keys).
+const META_LAYERS := &"tray_layers"
+const META_ALPHAS := &"tray_alphas"
 ## Seconds a card's button is held to banish it.
 const BANISH_HOLD := 1.0
 ## A card button held down, per local slot: [card, time pressed, offer, the Arena's instance id]. Only while the wizard has banishes left
@@ -92,11 +96,14 @@ static func _tray_covered(a: Arena) -> bool:
 static func _draw_draws(a: Arena, ci: CanvasItem, dark: Color) -> void:
 	var covered := _tray_covered(a)
 	var marked: Array[int] = []
+	var live: Array[int] = []
+	hide_trays(a)
 	for slot: int in a.vp.keys():
 		if _draws(a, slot) <= 0:
 			continue
 		if _tray_shown(a, slot) and not covered:
-			_draw_tray(a, ci, slot, dark)
+			_show_tray(a, slot, dark)
+			live.append(slot)
 			continue
 		_draw_tab(a, ci, slot, dark)
 		# The marker waits out the LEVEL UP call-out, which rises from the same spot.
@@ -104,7 +111,49 @@ static func _draw_draws(a: Arena, ci: CanvasItem, dark: Color) -> void:
 			marked.append(slot)
 	for slot: int in marked:
 		_draw_draw_marker(a, ci, slot)
+	for slot: int in (a.get_meta(META_ALPHAS, {}) as Dictionary).keys():
+		if not live.has(slot):
+			(a.get_meta(META_ALPHAS) as Dictionary).erase(slot)
 	ArenaTrayArt.draw_over(a, ci, dark)
+
+
+static func _layers(a: Arena) -> Dictionary:
+	if not a.has_meta(META_LAYERS):
+		a.set_meta(META_LAYERS, {})
+	return a.get_meta(META_LAYERS)
+
+
+## Hides every open tray's layer. The HUD calls it while the game is paused or over, when it draws no tray: a layer
+## left visible would stay on top of the pause and results screens.
+static func hide_trays(a: Arena) -> void:
+	for n: Node2D in _layers(a).values():
+		if is_instance_valid(n):
+			n.visible = false
+
+
+## Draws seat `slot`'s open tray on its own layer, see-through while a living wizard's body is under it.
+static func _show_tray(a: Arena, slot: int, dark: Color) -> void:
+	var layers := _layers(a)
+	var n: Node2D = layers.get(slot)
+	if n == null or not is_instance_valid(n):
+		n = Node2D.new()
+		n.draw.connect(_draw_tray.bind(a, n, slot, dark))
+		a.hud.add_child(n)
+		layers[slot] = n
+	var bodies: Array[Rect2] = []
+	for p: Dictionary in a.vp.values():
+		if ArenaDrawWorld.in_the_run(p):
+			bodies.append(ArenaTrayArt.wizard_body_at(a._on_screen(p.pos)))
+	var glass := ArenaTrayArt.tray_hides_wizard(_tray_rect(a, slot), bodies)
+	if not a.has_meta(META_ALPHAS):
+		a.set_meta(META_ALPHAS, {})
+	var alphas: Dictionary = a.get_meta(META_ALPHAS)
+	var seen: Array = alphas.get(slot, [ArenaTrayArt.TRAY_GLASS if glass else ArenaTrayArt.TRAY_SOLID, a.time])
+	var alpha := ArenaTrayArt.tray_alpha_toward(float(seen[0]), glass, clampf(a.time - float(seen[1]), 0.0, 0.1))
+	alphas[slot] = [alpha, a.time]
+	n.modulate.a = alpha
+	n.visible = true
+	n.queue_redraw()
 
 
 ## The tab: a card back, DRAW, the number of draws past one, and the button that opens the tray.

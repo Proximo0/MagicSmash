@@ -3,30 +3,82 @@ extends RefCounted
 ## Arena: the floor, env, hint, runes, entities, wizards and staffs.
 ## Static helpers: `a` is the Arena that owns the state.
 
-## Eases the camera toward the middle of the living wizards (all of them when none is alive), keeping the view
-## inside the arena image. The HUD band covers the top of the screen, so the view may rise by the band's height:
-## near the top of the room the whole back wall and its door then show below the band.
+## The play window: what the HUD band leaves of the screen.
+const PLAY_WINDOW := Rect2(0, G.HUD_H, G.SCREEN.x, G.SCREEN.y - G.HUD_H)
+## Pixels of floor kept between a wizard's body and the window's edge.
+const VIEW_MARGIN := 2.0
+
+
+## Eases the camera toward the living humans (all living wizards when none is human, everyone when none lives).
+## It keeps today's centring, shifts only as far as needed to keep every body inside the window, and stays inside
+## the arena image. The HUD band covers the top of the screen, so the view may rise by the band's height.
 static func _follow_party(a: Arena, dt: float) -> void:
-	# The middle of the box around the standing humans; failing that, of every living wizard, then of everyone.
-	var box := Rect2()
-	var n := 0
-	for pass_i in 3:
-		for p: Dictionary in a.vp.values():
-			var stands: bool = p.alive and not p.get("down", false)
-			if pass_i == 0 and (not stands or p.get("ai", false)):
-				continue
-			if pass_i == 1 and not p.alive:
-				continue
-			box = Rect2(p.pos, Vector2.ZERO) if n == 0 else box.expand(p.pos)
-			n += 1
-		if n > 0:
-			break
-	if n == 0:
+	var members := camera_members(a.vp.values())
+	if members.is_empty():
 		return
-	var c := box.get_center()
-	var want := c - Vector2(G.SCREEN.x / 2.0, (G.SCREEN.y + G.HUD_H) / 2.0)
-	want = want.clamp(Vector2(0.0, -G.HUD_H), G.WORLD - G.SCREEN)
-	a.cam = want if a.cam == Vector2.ZERO and a.time < 0.2 else a.cam.lerp(want, minf(1.0, dt * a.CAM_EASE))
+	var first: bool = a.cam == Vector2.ZERO and a.time < 0.2
+	a.cam = wanted_camera(members) if first else eased_camera(a.cam, members, minf(1.0, dt * a.CAM_EASE))
+
+
+## True for a wizard who is still in the run: standing, or fallen and walking as a spirit (her view row says
+## alive = false while she is down).
+static func in_the_run(p: Dictionary) -> bool:
+	return p.alive or p.get("down", false)
+
+
+## Whose feet the camera frames, from view dictionaries (pos, alive, ai): every living human wizard, standing or
+## fallen (her spirit counts); failing that every living wizard; failing that everyone.
+static func camera_members(people: Array) -> Array[Vector2]:
+	for pass_i in 3:
+		var out: Array[Vector2] = []
+		for p: Dictionary in people:
+			if pass_i == 0 and (not in_the_run(p) or p.get("ai", false)):
+				continue
+			if pass_i == 1 and not in_the_run(p):
+				continue
+			out.append(p.pos)
+		if not out.is_empty():
+			return out
+	return []
+
+
+## The box around these feet.
+static func feet_box(feet: Array[Vector2]) -> Rect2:
+	var box := Rect2(feet[0], Vector2.ZERO)
+	for q: Vector2 in feet:
+		box = box.expand(q)
+	return box
+
+
+## The camera that shows these feet: their box centred in the play window, shifted only as far as needed to put every
+## body (ArenaTrayArt.WIZARD_BOX) inside the window with VIEW_MARGIN to spare, then clamped to the world.
+static func wanted_camera(feet: Array[Vector2]) -> Vector2:
+	return held_in_view(feet_box(feet).get_center() - Vector2(G.SCREEN.x / 2.0, (G.SCREEN.y + G.HUD_H) / 2.0), feet)
+
+
+## `cam` moved as little as it takes to show every body of these feet inside the window with VIEW_MARGIN to spare
+## (on an axis too short for them all: the middle), then kept inside the arena image.
+static func held_in_view(cam: Vector2, feet: Array[Vector2]) -> Vector2:
+	var box := feet_box(feet)
+	var body := ArenaTrayArt.WIZARD_BOX
+	var inner := PLAY_WINDOW.grow(-VIEW_MARGIN)
+	var lo := box.end + body.end - inner.end
+	var hi := box.position + body.position - inner.position
+	for k in 2:
+		cam[k] = (lo[k] + hi[k]) / 2.0 if lo[k] > hi[k] else clampf(cam[k], lo[k], hi[k])
+	return cam.clamp(Vector2(0.0, -G.HUD_H), G.WORLD - G.SCREEN)
+
+
+## The camera one frame on: eased by `k` (0 to 1) toward the wanted one, and never so far behind a running party
+## that a body leaves the window.
+static func eased_camera(cam: Vector2, feet: Array[Vector2], k: float) -> Vector2:
+	return held_in_view(cam.lerp(wanted_camera(feet), k), feet)
+
+
+## The largest leash (across, up and down between two wizards' feet) the play window has room for: the window less
+## the margins, less one body.
+static func leash_room() -> Vector2:
+	return PLAY_WINDOW.size - Vector2.ONE * 2.0 * VIEW_MARGIN - ArenaTrayArt.WIZARD_BOX.size
 
 
 static func _draw_decals(a: Arena) -> void:
