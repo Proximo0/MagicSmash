@@ -1,0 +1,1 @@
+2026-11-28T00:48:49Z INFO id=261128000028-0289 kind=shell secs=44 wandsframes key=185ebeb8ab0d gpu="ATI Technologies Inc. - AMD RadeonT 610M" wave=15 players=4 frames=300 enemies_peak=263 particles=252 draw_calls=100 p50=18.3 p95=25.4
