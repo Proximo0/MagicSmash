@@ -1,5 +1,5 @@
-STATION machine=laptop time=2026-11-28T00:37Z commit=b905b1b took=1330s
+STATION machine=laptop time=2026-11-28T01:10Z commit=1f6478c took=1275s
 JOB checks FAIL
-  unit       TESTS passed=681 failed=12
+  unit       TESTS passed=713 failed=18
   CHECK_ALL FAIL (see rows above)
 STATION FAIL jobs=1 failed=1 skipped=0
