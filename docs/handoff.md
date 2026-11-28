@@ -72,8 +72,8 @@ The list is `docs/content_list.md` part 2. Why it is shaped the way it is:
 - **The satchel is built** (§ 46). The 27 Nov scope draft left the owner's inventory bag out ("nothing in the loop
   needs it yet"). It is in: one pocket carries a piece of armour or a provision into the next run, and an ULTRA
   RARE piece is a keepsake for good, so the rarest find is always worth having.
-- **Seals with teeth** (§ 43): the step numbers are nearly tripled and two rules gain a second half. Stage 5 tunes
-  them until each step's win rate sits between its neighbours'.
+- **Seals with teeth** (§ 43): each Seal adds about twice what it added (nearly three times the enemy health), and
+  two rules gain a second half. Stage 5 tunes them until each step's win rate sits between its neighbours'.
 - **Morvane's two visits are not built** (§ 51): `Bosses.VISITS` goes. Three bosses, three acts.
 - **Numbers are not frozen.** Stage 5 tunes them against the gates of § 53, which are written before the rows are
   built so that every row is built to be measured.

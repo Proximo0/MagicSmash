@@ -109,7 +109,8 @@ and only the push is retried every poll; the jobs are not run again.
 Lanes (24 Nov 2026: "all four at max"): a watching station runs several queue jobs at once, one per lane. Lanes per machine: the line
 `lanes: <machine> N` in `roles.txt` (msi 10, laptop 4, heatherspc 3, ubuntu 3), else `STATION_LANES`, else cores/2 capped at RAM/1.5 GB.
 `simscale: <machine> N` in `roles.txt` widens the horde sims' time budget in that machine's `checks` (default 4; heatherspc 20: a Windows
-station times a step with a stopwatch beside its queue jobs). `checks` runs inside `tools/private_save.sh`, so no robot run reads the PC's own save.
+station times a step with a stopwatch beside its queue jobs). `botlimit: <machine> N` is the seconds one bot shard may run there (default 240;
+heatherspc 900); a shard stopped at the limit is named in the report (`botheroes FAIL stopped at its time limit`). `checks` runs inside `tools/private_save.sh`, so no robot run reads the PC's own save.
 The station loop stays free while lanes work: it tests each merge as it lands, then builds the commit ONCE (realm and the store, the same
 command as the merge jobs) and copies the programs to `.git/station_bin/<commit>/`; lanes run from that copy (`STATION_BIN` for shell
 scripts), so no lane builds and no build replaces a program a lane runs; while the build runs no job that needs our programs starts.

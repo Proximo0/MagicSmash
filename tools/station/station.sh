@@ -105,8 +105,12 @@ job_checks() {
   # stopwatch beside its queue jobs, so the slowest PC needs a wide budget.
   local scale; scale=$(awk -v M="$(printf %s "$MACHINE" | tr 'A-Z' 'a-z')" '$1 == "simscale:" && tolower($2) == M { print $3; exit }' tools/station/roles.txt 2>/dev/null)
   case "$scale" in ''|*[!0-9]*) scale=4 ;; esac
+  # And for the time one bot shard may take (check_all.sh BOT_LIMIT, 240 s): STATION_BOT_LIMIT, else this machine's line
+  # "botlimit: <machine> seconds" in roles.txt, else 240.
+  local limit; limit=$(awk -v M="$(printf %s "$MACHINE" | tr 'A-Z' 'a-z')" '$1 == "botlimit:" && tolower($2) == M { print $3; exit }' tools/station/roles.txt 2>/dev/null)
+  case "$limit" in ''|*[!0-9]*) limit=240 ;; esac
   # In a private save folder (tools/private_save.sh): no robot run reads or writes this PC's own save.
-  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-$scale}" tools/private_save.sh tools/check_all.sh 2>&1)
+  local out; out=$(SLOW_TEST_MS="${STATION_SLOW_TEST_MS:-30000}" SIM_BUDGET_SCALE="${STATION_SIM_BUDGET_SCALE:-$scale}" BOT_LIMIT="${STATION_BOT_LIMIT:-$limit}" tools/private_save.sh tools/check_all.sh 2>&1)
   [[ "$(tail -1 <<<"$out")" == "CHECK_ALL PASS" ]] && { echo "JOB checks PASS"; return 0; }
   echo "JOB checks FAIL"
   grep -E ' FAIL |failed=[1-9]|problems=[1-9]|CRASH' <<<"$out" | head -12 | cut -c1-200 | sed 's/^ */  /'

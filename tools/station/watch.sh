@@ -26,7 +26,7 @@ age() { local s=$1; printf '%dh%02dm' $((s / 3600)) $((s % 3600 / 60)); }
 gb_fetch "$BRANCH" || alert "the results branch $BRANCH cannot be fetched"
 gb_fetch "$QBRANCH" || alert "the queue branch $QBRANCH cannot be fetched"
 
-machines=$(sed -n 's/^\([A-Za-z0-9_-]\{1,\}\):.*/\1/p' tools/station/roles.txt | grep -vx -e lanes -e stopped -e simscale)   # "lanes:", "stopped:" and "simscale:" lines are not machines
+machines=$(sed -n 's/^\([A-Za-z0-9_-]\{1,\}\):.*/\1/p' tools/station/roles.txt | grep -vx -e lanes -e stopped -e simscale -e botlimit)   # "lanes:", "stopped:", "simscale:" and "botlimit:" lines are not machines
 # Machines the owner stopped (roles.txt "stopped: <machine> ..." or "stopped: all"): silence there is wanted, nothing is checked.
 stopped=" $(grep -i '^stopped:' tools/station/roles.txt | tr -d '\r' | cut -d: -f2- | tr ',A-Z\n' ' a-z ') "
 n=0
