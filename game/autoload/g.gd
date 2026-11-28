@@ -82,7 +82,7 @@ func finish_run(run: Dictionary) -> int:
 	last_run = {"result": "win" if bool(run.get("won", false)) else "loss", "act": int(run.get("act", -1)),
 		"seal": int(run.get("seal", 0))}
 	var booked := run.duplicate()
-	booked["heroes"] = [] if Flags.is_scripted_run() else run_heroes.duplicate()
+	booked["heroes"] = [] if Flags.is_scripted_run() and not Net.force_heroes else run_heroes.duplicate()
 	var earned := Save.finish_run(booked)
 	last_run["hero_levels"] = Save.profile.last_hero_levels.duplicate()
 	high_score = Save.profile.high_score

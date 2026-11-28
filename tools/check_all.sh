@@ -25,6 +25,8 @@ if (( HAVE_BOT )); then
   for ((i = 0; i < BOT_SHARDS; i++)); do
     TASKS+=("bot$i|timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=$i --nshards=$BOT_SHARDS")
   done
+  # The hero shard: saved heroes seated in an in-memory profile, in a private save folder (docs/bots.md).
+  TASKS+=("botheroes|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes")
 fi
 (( HAVE_LAB )) && TASKS+=("lab|timeout 600 $GODOT --headless --fixed-fps 60 --path . res://tests/lab/lab.tscn")
 # The horde's step budget is doubled here: this script's other Godot processes slow it through shared caches even in
@@ -58,6 +60,8 @@ hook() {  # hook <label> <log glob prefix> <line prefix>
     n=$((n + 1))
     [[ "$(cat "${f%.log}.rc" 2>/dev/null)" == "0" ]] || bad=$((bad + 1))
     grep -q "^$lp .* FAIL " "$f" && bad=$((bad + 1))
+    # An engine error line fails a bot run too (tests/bot/no_engine_errors.sh has the rule).
+    if [[ "$lp" == BOT ]] && ! tests/bot/no_engine_errors.sh "$f" >"$f.err"; then bad=$((bad + 1)); head -3 "$f.err" | sed 's/^/    /'; fi
   done
   row "$label" "shards=$n failed=$bad"
   grep -hE "^$lp .* FAIL " "$OUT/$pre"*.log 2>/dev/null | sed 's/^/    /'

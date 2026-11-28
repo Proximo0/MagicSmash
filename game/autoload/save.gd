@@ -197,9 +197,10 @@ func newer_save() -> bool:
 	return profile.newer
 
 
-## The unlock bonuses a new run starts with; none in scripted runs.
+## The unlock bonuses a new run starts with; none in scripted runs, except one that seats saved heroes on purpose
+## (Net.force_heroes: the bots' hero shard and --autotest --seat-heroes).
 func run_bonuses() -> Dictionary:
-	return {} if Flags.is_scripted_run() else profile.bonuses()
+	return {} if Flags.is_scripted_run() and not Net.force_heroes else profile.bonuses()
 
 
 ## Books a finished run and saves. Returns the crystals earned (shown on the game over screen).

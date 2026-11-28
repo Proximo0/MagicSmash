@@ -3,7 +3,7 @@
 name: checks
 
 # Four of Wands is stopped (21 Nov 2026) but the rule on main still requires every job below (unit, lint, sims,
-# sims-horde, bot-0..2) on every pull request, so this workflow must run on all of them: with a paths filter here a
+# sims-horde, bot-0..2, bot-heroes) on every pull request, so this workflow must run on all of them: with a paths filter here a
 # change to realm/ alone could never be merged. To stop spending runners on it, the required checks in the
 # repository's rules have to change first (the owner's decision); realm.yml tests realm/.
 on:
@@ -35,10 +35,12 @@ jobs:
           - { name: sims, cmd: "tools/run_sims.sh --except=sim_horde" }
           - { name: sims-horde, cmd: "tools/run_sims.sh sim_horde" }
           # Play-bot fan-out: one runner per shard (shard n plays seed 101+n with 1+n%4 wizards). Keep --nshards
-          # equal to the number of rows.
-          - { name: bot-0, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log" }
-          - { name: bot-1, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=1 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log" }
-          - { name: bot-2, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=2 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log" }
+          # equal to the number of rows of shards 0 to 2; bot-heroes (the saved-hero run, a private save folder) is its own row.
+          # A bot row also fails on an engine error line (tests/bot/no_engine_errors.sh).
+          - { name: bot-0, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=0 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-1, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=1 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-2, cmd: "timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=2 --nshards=3 | tee out.log; grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
+          - { name: bot-heroes, cmd: "XDG_DATA_HOME=$(mktemp -d) timeout 300 godot --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes | tee out.log; grep -q '^BOT heroes PASS ' out.log && grep -q '^BOT score=' out.log && ! grep -q '^BOT .* FAIL ' out.log && tests/bot/no_engine_errors.sh out.log" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-godot
