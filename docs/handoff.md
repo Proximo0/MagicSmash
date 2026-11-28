@@ -66,8 +66,9 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
 ## How the work runs
 
 - One lead at a time. Workers get a brief with owned files and never use git; the lead reviews each diff and its
-  pictures, runs tests, lint and golden, commits by file name and opens the PR (`CLAUDE.md`, skill
-  `agent-fanout-playbook`). A fix lands with a test that was red before it.
+  pictures, then lands it with `tools/land.sh` (guard, tests, lint, golden on request, commit by file name, pull
+  request, auto-merge; `docs/agent/land.md`; `CLAUDE.md`, skill `agent-fanout-playbook`). A fix lands with a test
+  that was red before it.
 - The owner's four PCs run every merge and take queue jobs between merges (`tools/station/README.md`). Robot runs,
   robot careers and frame timing are queue jobs `wandsrun`, `wandscareer` and `wandsframes`. Never `fill-week`:
   that loads Horde & Hearth's work.
@@ -94,7 +95,12 @@ Research doc: https://claude.ai/artifact/HeWHGkv8j31YYkXppPvAsR
 - The `bot-heroes`, `bot-boss`, `bot-win` and `bot-again` CI rows are not in the repository's required checks (the
   owner's setting): read their result before a merge.
 - The tool and licence behind the owner's 103 uploaded pictures are on no record (`docs/asset_sources.md`, open
-  questions 1 to 3; asked of the owner on 28 Nov). The credits screen and the store forms wait for it.
+  questions 1 to 3; asked of the owner on 28 Nov). The credits roll leaves its A GAME BY and PICTURES sections out
+  until he answers (`Credits.MAKER`, `Credits.PICTURES_BY`); the exe's company and copyright fields and the store
+  forms wait for the same answer.
+- The notices file carries Sentry for Godot, sentry-native and Crashpad. What those two carry inside them in turn
+  (Crashpad builds on mini_chromium, for one) has not been walked: walk it before the public release (stage 7).
+- The `tools` CI row (self-tests of `tools/land.sh` and the versions rule) is not a required check either.
 - The kit's frame stamp and render toggles are sized for a 1080p 3D game, so they are not in the 480x270 main
   scene. Scale them down before use.
 - On 20 Nov most of `arena.gd`, `title.gd` and `net.gd` were untyped (only `game/logic` is strict in spirit);

@@ -40,7 +40,7 @@ Stays out: paid boxes, a telemetry service, new hub minigames, any cut-down slic
   button pictures per pad, a sound for every co-op moment.
 - Four local seats on one screen stay; they are not the focus (owner, 27 Nov).
 
-## Stage 1 list (28 Nov)
+## Stage 1 list (28 Nov: all ticked; the gate build is the robot build of the last merge)
 - [x] A socketed card counts once (#273). [x] Damaged and newer saves are safe, and the title says so (#273, #274).
 - [x] Every monster card can drop, ALL_CARDS can be earned, no plain heal in a LEGENDARY chest, the DWARF's trait
   works, an away player keeps her loot (#276). [x] The balance tools stop booking wins as losses (#273).
@@ -53,7 +53,8 @@ Stays out: paid boxes, a telemetry service, new hub minigames, any cut-down slic
 - [x] A robot-built Windows and Linux build with a smoke test, test files out of the pack, licence notices (#279;
   first robot run on main: both smoke tests passed).
 - [x] ALL_SECRETS can be earned (the profile counts urns and sends `"urn_card"`; #281).
-- [ ] Credits in the game; a record of which tool made each picture.
+- [x] Credits in the game, and the two licence texts the crash reporter's parts need (#286). [x] A record of where
+  every asset came from (#283); the tool behind the owner's 103 uploaded pictures is his to name (asked 28 Nov).
 
 ## Steam facts for later
 Read on Valve's own pages on 27 Nov 2026 for the February 2027 fest and quoted word for word. They are not our

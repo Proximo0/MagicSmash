@@ -79,6 +79,8 @@ var _kinds_next := -1.0
 var _kinds_seen := {} # shot key -> frames its condition has held
 const KINDS_HOLD := 10 # frames a condition holds before its shot (the arena draws a snapshot behind the World)
 const KINDS_AT := 4.0
+## --credits: where in the roll the middle picture is taken (0 = start, 1 = end): inside the engine's licence list.
+const CREDITS_LIST_AT := 0.5
 const KINDS_RING := 95.0
 const KINDS_HP := 3.0
 const KINDS_EVERY := 12.0
@@ -222,6 +224,11 @@ func _ready() -> void:
 	if "--options" in OS.get_cmdline_user_args():
 		shots = [[3.0, "@options"], [3.4, "options"]]
 		quit_at = 3.8
+	# --credits: open the credits on the title and shoot the roll at its start, in the licence list and at its end.
+	if "--credits" in OS.get_cmdline_user_args():
+		shots = [[3.0, "@credits"], [3.4, "credits"], [3.5, "@credits_list"], [3.9, "credits_licences"],
+			[4.0, "@credits_end"], [4.4, "credits_end"]]
+		quit_at = 4.8
 	# --album: open the card album on the title (with a few cards found, in memory only) and shoot it.
 	if "--album" in OS.get_cmdline_user_args():
 		shots.insert(2, [4.1, "@album"])
@@ -380,6 +387,15 @@ func _process(delta: float) -> void:
 			album_title.album.open()
 			album_title.album.sel = 5
 			album_title.state = album_title.S.CARDS
+		elif name.begins_with("@credits"):
+			var credits_title = G.main.current
+			if name == "@credits":
+				credits_title.credits.open()
+				credits_title.credits.scroll_to(-CreditsView.LEAD_IN)  # the opening view, held still for the picture
+				credits_title.state = credits_title.S.CREDITS
+			else:
+				var end: float = credits_title.credits.max_scroll()
+				credits_title.credits.scroll_to(end if name == "@credits_end" else end * CREDITS_LIST_AT)
 		elif name == "@options":
 			var options_title = G.main.current
 			options_title.options.open()

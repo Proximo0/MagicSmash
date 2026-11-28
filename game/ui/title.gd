@@ -4,14 +4,14 @@ extends Node2D
 ## celebrating under it. `TitleArt` bakes everything that stands still; this draws the layers and what moves:
 ## the gems breathe, the lanterns sway, wisps cross the moon and the wizards send up fireworks.
 
-enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE, CARDS }
+enum S { INTRO, MAIN, LOBBY, JOIN, JOINING, HOWTO, UNLOCKS, OPTIONS, OUIJA, TALE, CARDS, CREDITS }
 
-const MENU := ["PLAY", "UNLOCKS", "CARDS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "QUIT"]
+const MENU := ["PLAY", "UNLOCKS", "CARDS", "HOST LAN GAME", "JOIN LAN GAME", "THE TALE", "HOW TO PLAY", "OPTIONS", "CREDITS", "QUIT"]
 
 ## The menu hangs in the first bay of the garland, under the logo: its centre line, first row and row pitch.
 const MENU_X := 104
 const MENU_Y := 141
-const MENU_STEP := 11
+const MENU_STEP := 10
 
 ## The intro, in seconds: the gems light one by one, the lanterns in a wave from the left, the logo is struck
 ## letter by letter and cools to gold, then its own four gems are set. The menu follows at 2.6 as it always has.
@@ -45,6 +45,7 @@ var message := ""
 var message_t := 0.0
 var options := OptionsPanel.new()
 var album := CardAlbum.new()
+var credits := CreditsView.new()
 var hero_roster := HeroRoster.new()
 var hero_roster_dev := -99 # the device whose seat the open hero list picks for
 var ouija := Ouija.new()
@@ -483,6 +484,8 @@ func _draw_front() -> void:
 			options.draw(ci, t)
 		S.CARDS:
 			album.draw(ci, t)
+		S.CREDITS:
+			credits.draw(ci, t)
 		S.TALE:
 			_draw_tale(ci)
 		S.OUIJA:
@@ -490,12 +493,14 @@ func _draw_front() -> void:
 			_draw_ouija(ci)
 	if message_t > 0.0:
 		# Beside the logo, in the open sky; over the full-screen boards, in the middle.
-		var mx := 240.0 if state in [S.OUIJA, S.TALE, S.CARDS] else 334.0
+		var mx := 240.0 if state in [S.OUIJA, S.TALE, S.CARDS, S.CREDITS] else 334.0
 		PixelFont.draw_centered(ci, message, mx, 6, 1, Color("ff7a8a"), Color("0b0716"))
 	if state == S.INTRO and t < 0.5:
 		# The screen opens out of the dark.
 		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(TitleArt.INK, 1.0 - t / 0.5))
-	PixelFont.draw(ci, "V" + G.VERSION, Vector2(31, 262), 1, Color(1, 1, 1, 0.3))
+	# The version sits in the corner of the open title. The two boards whose frame reaches that corner go without it.
+	if not state in [S.CARDS, S.CREDITS]:
+		PixelFont.draw(ci, "V" + G.VERSION, Vector2(31, 262), 1, Color(1, 1, 1, 0.3))
 	if Save.newer_save():
 		# The save came from a newer build: it plays, but Save writes nothing back. Said on every title screen.
 		ci.draw_rect(Rect2(0, 250, G.SCREEN.x, 11), Color(TitleArt.INK, 0.85))
@@ -1125,6 +1130,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		S.CARDS:
 			if album.handle(event):
 				state = S.MAIN
+		S.CREDITS:
+			if credits.handle(event):
+				state = S.MAIN
 		S.TALE:
 			if back:
 				_end_tale()
@@ -1224,6 +1232,9 @@ func _activate(item: String, dev: int) -> void:
 		"OPTIONS":
 			options.open()
 			state = S.OPTIONS
+		"CREDITS":
+			credits.open()
+			state = S.CREDITS
 		"QUIT":
 			get_tree().quit()
 
