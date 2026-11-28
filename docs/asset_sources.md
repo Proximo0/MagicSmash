@@ -111,8 +111,9 @@ I did not render the songs again to compare bytes.
 | Path or glob | Files | Made by | Evidence | Licence of the result | Confidence |
 |---|---|---|---|---|---|
 | `assets/audio/*.wav` except the six `music_*` (arrow, bell_toll, boss_roar, candle, card_deal, card_flip, card_pick, charge, coin, door, enemy_die, enemy_shot, explode, ghost, gong, heal, hit, hurt, menu_move, menu_select, nova, orbit, page_turn, pickup, planchette, player_die, portal, powerup, rune_bad, rune_cast, rune_good, shoot_arcane, shoot_fire, shoot_frost, slime, star, teleport, wave_clear, wave_start, whisper, zap) | 41 | made by `tools/gen_audio.py` (numpy synth: square, triangle, noise, filters) | `tools/gen_audio.py:2-8` ("Generates all Magic Smash sound effects ... Everything is synthesised ... no licensing questions"); the 41 `finish("<name>")` calls match the 41 file names exactly (checked by script) | the repo's own work; the script says nothing outside is used | sure (names match; bytes not regenerated) |
+| `assets/audio/*.wav` added 28 Nov 2026 (banish, boss_fall, boss_phase, down, enemy_die_2, enemy_die_3, enemy_die_4, fate, hit_2, hit_3, hit_4, level_up, low_health, redraw, revive, shrine_result, victory) | 17 | made by `tools/gen_audio.py` `sfx_new()` (the same numpy synth, its own seed) | the 17 `finish("<name>")` calls of `sfx_new()` match `NEW_SOUNDS` and the 17 file names; `tools/gen_audio.py --only=<the 17 names>` wrote the same bytes again on 28 Nov (md5 compared) | the repo's own work; nothing outside is used | sure (bytes regenerated) |
 
-`docs/systems.md:273` says "14 occult SFX ... from tools/gen_audio.py": the older count; the script has 41 now.
+`docs/systems.md` says "58 SFX" since 28 Nov (41 older ones and these 17).
 
 ## Store capsules and achievement icons
 

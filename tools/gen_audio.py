@@ -206,6 +206,8 @@ def finish(name, x, vol=0.9, drive=1.2, max_dur=None, fade=0.01):
 
 
 def write(name, data, vol=0.9):
+    if ONLY is not None and name not in ONLY:
+        return
     data = np.asarray(data, dtype=np.float64)
     peak = np.max(np.abs(data)) or 1.0
     data = data / peak * vol
@@ -607,14 +609,137 @@ def sfx_occult():
     finish("ghost", reverb((voice + breath) * swell(n, 0.25, 1.4), 0.35, 0.4, 2500), 0.5, 1.2, max_dur=0.9)
 
 
+def sfx_new():
+    """The voices the arena events lacked, and the enemy_die / hit variants. Own rng seed, so these files are the same
+    whether the whole set is written or only these (`--only`); the older sounds never depend on this function."""
+    global rng
+    rng = np.random.default_rng(1207)
+
+    # Down: a wizard falls. Low, final: a sinking sine and square, a dull thud, a hollow short tail.
+    d = 0.6
+    n = n_of(d)
+    sink = sine(expsweep(220, 45, d)) * env(n, 0.004, 1.2) * 0.8
+    sink += lp(square(expsweep(330, 60, d), 0.5), 900) * env(n, 0.004, 1.6) * 0.35
+    dust = lp(noise(n, 2), expsweep(1800, 150, d)) * edecay(n, 0.12) * 0.3
+    finish("down", reverb(mix(sink + dust, (thump(n_of(0.25), 140, 38, 0.07) * 0.9, 0.0)), 0.2, 0.3, 1500), 0.72, 1.6, max_dur=0.75)
+
+    # Revive: a warm rising arpeggio under a soft choir swell.
+    notes = [262, 330, 392, 523, 659]
+    rv = arp(notes, 0.09, 0.5, 0.9, 2600, sub=0.35)
+    rv += choir(392, rv.size, (700, 1150)) * swell(rv.size, 0.55, 1.2) * 0.35
+    rv = mix(rv, (bell(1047, n_of(0.5), CHIME, 0.2) * 0.25, 0.3))
+    finish("revive", reverb(rv, 0.3, 0.3, 2800), 0.55, max_dur=1.0)
+
+    # Boss phase: a hit of dread. Deep boom, a detuned low drone with a falling groan, a cracking noise burst.
+    d = 1.0
+    n = n_of(d)
+    boom = thump(n, 90, 28, 0.2) * 1.2
+    groan = lp(saw(expsweep(110, 48, d)) + saw(expsweep(116, 50, d)), 700) * swell(n, 0.06, 1.1) * 0.45
+    crack = bp(noise(n, 2), expsweep(2500, 300, d), 1.5) * edecay(n, 0.1) * 0.7
+    finish("boss_phase", reverb(boom + groan + crack, 0.4, 0.3, 1400), 0.85, 2.0, max_dur=1.2)
+
+    # Fate: a card's weight. A low bell stroke and a papery slap, then a thin whispering shimmer.
+    d = 0.8
+    n = n_of(d)
+    stroke = bell(147, n, CHURCH, 0.35) * 0.5
+    slap = bp(noise(n_of(0.1), 2), 1500, 1.2) * edecay(n_of(0.1), 0.02) * 0.7
+    fa = mix(stroke, (slap, 0.0), (bell(1175, n_of(0.5), CHIME, 0.2) * 0.2, 0.08))
+    finish("fate", reverb(fa, 0.3, 0.3, 2500), 0.6, max_dur=0.9)
+
+    # Redraw: a quick shuffle, five short paper flicks that rise a little.
+    sh = np.zeros(n_of(0.3))
+    for i in range(5):
+        m = n_of(0.045)
+        flick = bp(noise(m, 2), 2200 + 250 * i, 1.0) * edecay(m, 0.012) * (0.6 + 0.08 * i)
+        o = n_of(0.04 * i)
+        sh[o:o + m] += flick
+    finish("redraw", sh, 0.45, 1.4, max_dur=0.3)
+
+    # Banish: a card torn or burnt. A rip (noise sliding up) with a crackle and a fading ember hiss.
+    d = 0.5
+    n = n_of(d)
+    rip = bp(noise(n), expsweep(900, 3500, d), 1.2) * env(n, 0.005, 0.8) * 0.8
+    crackle = np.zeros(n)
+    for _ in range(14):
+        m = n_of(0.012)
+        o = int(rng.uniform(0, n - m))
+        crackle[o:o + m] += click(12, 5000)[:m] * rng.uniform(0.3, 0.9)
+    ember = lp(noise(n), 1800) * swell(n, 0.2, 2.0) * 0.25
+    finish("banish", reverb(rip + crackle * 0.7 + ember, 0.12, 0.2, 3000), 0.55, 1.6, max_dur=0.55)
+
+    # Low health: two heartbeats, lub-dub, low and soft.
+    beat = thump(n_of(0.18), 95, 42, 0.05) * 1.0 + lp(noise(n_of(0.18), 2), 400) * edecay(n_of(0.18), 0.03) * 0.25
+    hb = mix(beat, (beat * 0.75, 0.2), (beat * 0.95, 0.62), (beat * 0.7, 0.82))
+    finish("low_health", reverb(hb, 0.15, 0.15, 900), 0.7, 1.4, max_dur=1.1)
+
+    # Level up: a quick bright climb on pulse blips with a bell on top.
+    lu = arp([392, 523, 659, 784, 1047, 1319], 0.05, 0.25, 1.0, 5000, sub=0.3)
+    lu = mix(lu, (bell(1568, n_of(0.5), CHIME, 0.2) * 0.4, 0.22))
+    finish("level_up", reverb(lu, 0.25, 0.25, 4000), 0.5, max_dur=0.8)
+
+    # Victory: a fanfare that resolves on a held major chord with a choir.
+    notes = [392, 523, 659, 784, 1047, 784, 1047, 1319]
+    vf = arp(notes, 0.11, 0.5, 0.7, 3800, sub=0.3)
+    cn = n_of(1.0)
+    chord = sum(choir(f, cn, (700, 1150)) for f in (262, 330, 392)) * swell(cn, 0.3, 1.3) * 0.22
+    vf = mix(vf, (chord, 0.7), (bell(1047, n_of(1.0), CHIME, 0.4) * 0.35, 0.9), (thump(n_of(0.25), 150, 45, 0.07), 0.0))
+    finish("victory", reverb(vf, 0.4, 0.3, 3200), 0.7, 1.8, max_dur=1.95)
+
+    # Boss fall: the boss's death throes. A long falling growl, rumbling boom and a collapsing noise wash.
+    d = 1.4
+    n = n_of(d)
+    gr = lp(saw(expsweep(180, 38, d)) + square(expsweep(95, 30, d), 0.5), 1000) * env(n, 0.02, 0.9) * 0.55
+    bm = thump(n_of(0.6), 110, 26, 0.18) * 1.2
+    wash = lp(noise(n, 2), expsweep(3500, 150, d)) * edecay(n, 0.4) * 0.5
+    finish("boss_fall", reverb(mix(gr + wash, (bm, 0.0), (bm * 0.7, 0.55)), 0.4, 0.3, 1500), 0.85, 1.8, max_dur=1.8)
+
+    # Shrine result: a chime and a low sigh, a mystical resolve that neither cheers nor mourns.
+    sr = bell(659, n_of(0.9), CHIME, 0.3) * 0.5 + bell(988, n_of(0.9), CHIME, 0.25) * 0.3
+    sr = mix(sr, (choir(330, n_of(0.8), (600, 1000)) * swell(n_of(0.8), 0.4, 1.4) * 0.3, 0.05))
+    finish("shrine_result", reverb(sr, 0.35, 0.3, 3000), 0.5, 2.5, max_dur=1.1)
+
+    # enemy_die variants: the same bony crunch, a different pitch and texture each, so a swarm does not machine-gun.
+    for k, (f0, f1, hold, cutf, tone) in enumerate([(430, 60, 2, 1100, 0.3), (620, 85, 4, 800, 0.5), (360, 55, 3, 1500, 0.2)], 2):
+        d = 0.2
+        n = n_of(d)
+        crunch = bp(noise(n, hold), 900 * f0 / 520, 1.2) * edecay(n, 0.028 + 0.004 * k) * 0.9
+        fall = lp(square(expsweep(f0, f1, d), 0.5 if k != 3 else 0.25), 2200) * env(n, 0.002, 1.5) * 0.5
+        body = thump(n, 160 + 25 * k, 48, 0.05) * 0.8
+        dust = lp(noise(n), cutf) * swell(n, 0.25, 2) * tone * 0.8
+        finish("enemy_die_%d" % k, reverb(crunch + fall + body + dust, 0.04, 0.12, 1800), 0.65, 1.7, max_dur=0.23)
+
+    # hit variants: tight thud and crunch, each with its own centre frequency.
+    for k, (t0, t1, cf, tf) in enumerate([(280, 100, 1000, 650), (360, 125, 1400, 800), (300, 90, 1700, 550)], 2):
+        d = 0.07
+        n = n_of(d)
+        thud = thump(n, t0, t1, 0.022)
+        crunch = bp(noise(n, 2), cf, 1.4) * edecay(n, 0.012) * 0.8
+        tick = lp(square(expsweep(tf, tf * 0.43, d), 0.5), 2500) * edecay(n, 0.01) * 0.25
+        finish("hit_%d" % k, thud + crunch + tick, 0.5, 1.8, max_dur=0.08)
+
+
+NEW_SOUNDS = ["down", "revive", "boss_phase", "fate", "redraw", "banish", "low_health", "level_up", "victory",
+              "boss_fall", "shrine_result", "enemy_die_2", "enemy_die_3", "enemy_die_4", "hit_2", "hit_3", "hit_4"]
+ONLY = None  # set by --only: write() writes just these names
+
+
 def sfx():
+    if ONLY is not None and all(n in NEW_SOUNDS for n in ONLY):
+        sfx_new() # the older sounds take minutes to render and are not wanted
+        return
     sfx_combat()
     sfx_pickups_ui()
     sfx_world()
     sfx_occult()
+    sfx_new()
 
 
 if __name__ == "__main__":
+    import sys
+    # `gen_audio.py --only=down,revive` writes only the named sounds (the others stay byte for byte as they are).
+    for arg in sys.argv[1:]:
+        if arg.startswith("--only="):
+            ONLY = [x for x in arg[7:].split(",") if x]
     os.makedirs(OUT, exist_ok=True)
     sfx()
     print("sound effects written to", os.path.abspath(OUT))
