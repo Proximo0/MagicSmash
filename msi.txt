@@ -1,6 +1,6 @@
-STATION machine=msi time=2026-11-28T02:00Z commit=637103a took=1280s
+STATION machine=msi time=2026-11-28T02:29Z commit=cae41a6 took=1236s
 JOB checks FAIL
-  unit       TESTS passed=745 failed=18
+  unit       TESTS passed=762 failed=18
   bot        shards=7 failed=6
   BOT again FAIL run 1: user://profile.json exists
   BOT again FAIL user://profile.json exists
