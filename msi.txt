@@ -1,4 +1,4 @@
-STATION machine=msi time=2026-11-28T03:35Z commit=3b51eb2 took=1237s
-JOB checks PASS
-JOB boss PASS seed7=WON@15:43 seed21=WON@15:52 seed33=WON@16:10 seed101=WON@15:49 seed102=WON@16:04
-STATION PASS jobs=2 failed=0 skipped=0
+STATION machine=msi time=2026-11-28T03:42Z commit=a9fb5e5 took=0s
+JOB checks SKIP nothing it tests changed since 3b51eb2
+JOB boss SKIP nothing it tests changed since 3b51eb2
+STATION PASS jobs=0 failed=0 skipped=2
