@@ -49,10 +49,13 @@ static func make_profile() -> Profile:
 static func check_start(w: World, profile: Profile) -> Array[String]:
 	var out: Array[String] = []
 	var meta_hearts := 0
+	var meta_damage := 0.0
 	for key: String in META:
 		var eff: Array = Profile.EFFECTS[key]
 		if eff[0] == "hearts":
 			meta_hearts += int(float(eff[1]) * int(META[key]))
+		elif eff[0] == "damage":
+			meta_damage += float(eff[1]) * int(META[key])
 	for r: Dictionary in Net.roster:
 		var slot: int = int(r.slot)
 		var idx: int = Net.hero_of(int(r.device))
@@ -67,8 +70,8 @@ static func check_start(w: World, profile: Profile) -> Array[String]:
 		for i: int in range(Loot.STAT_COUNT):
 			want["armor%d" % i] = snappedf(float(st[i]), 0.0001)
 			got["armor%d" % i] = snappedf(float(p.armor[i]), 0.0001)
-		if not is_equal_approx(w.meta_damage, 0.05 * int(META["might"])):
-			want["meta_damage"] = 0.05 * int(META["might"])
+		if not is_equal_approx(w.meta_damage, meta_damage):
+			want["meta_damage"] = meta_damage
 			got["meta_damage"] = w.meta_damage
 		var bad: Array[String] = []
 		for k: String in want:

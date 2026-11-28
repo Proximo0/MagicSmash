@@ -108,6 +108,13 @@ func points_spent() -> int:
 	return n
 
 
+## A CLEAN SLATE (Profile.clean_slate): every spent stat point comes back to spend again. Returns how many.
+func refund_points() -> int:
+	var n := points_spent()
+	points.fill(0)
+	return n
+
+
 ## Stat points earned in all: POINTS_PER_LEVEL per level past the first.
 static func points_for(lv: int) -> int:
 	return POINTS_PER_LEVEL * (lv - 1)

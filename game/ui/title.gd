@@ -609,10 +609,12 @@ func _draw_unlocks(ci: CanvasItem) -> void:
 	_panel(ci, Rect2(40, 144, 400, 104))
 	PixelFont.draw_centered(ci, "UNLOCKS  -  %d CRYSTALS" % prof.crystals, 240, 150, 1, Color("8bdcff"))
 	menu_items.clear()
-	for i in Profile.META.size():
+	var shelf := Profile.shelf()
+	for pos in shelf.size():
+		var i: int = shelf[pos]
 		var row: Array = Profile.META[i]
-		var y := 163 + i * 12
-		var picked := i == unlock_sel
+		var y := 163 + pos * 12
+		var picked := pos == unlock_sel
 		menu_items.append(Rect2(46, y - 2, 388, 11))
 		if picked:
 			Occult.highlight(ci, Rect2(46, y - 2, 388, 11), t)
@@ -620,22 +622,30 @@ func _draw_unlocks(ci: CanvasItem) -> void:
 		var mx := Profile.max_level(i)
 		PixelFont.draw(ci, row[1], Vector2(52, y), 1, Color("ffd94d") if picked else Color.WHITE)
 		for k in mx:
-			ci.draw_rect(Rect2(158 + k * 7, y + 1, 5, 5), Color("8bdcff") if k < lv else Color("3a2f55"))
-		PixelFont.draw(ci, row[2], Vector2(186, y), 1, Color("b8a8d8"))
+			ci.draw_rect(Rect2(150 + k * 7, y + 1, 5, 5), Color("8bdcff") if k < lv else Color("3a2f55"))
+		PixelFont.draw(ci, row[2], Vector2(190, y), 1, Color("b8a8d8"))
+		var why := prof.closed_why(i)
 		var cost := prof.next_cost(i)
-		var price := "MAX" if cost < 0 else "%d" % cost
-		var pc := Color("8bff9e") if cost < 0 else (Color("8bdcff") if cost <= prof.crystals else Color("ff7a8a"))
+		var price := why if why != "" else "%d" % cost
+		var pc := Color("8bff9e") if why == Profile.WHY_MAX else (Color("b8a8d8") if why != "" else
+			(Color("8bdcff") if cost <= prof.crystals else Color("ff7a8a")))
 		PixelFont.draw(ci, price, Vector2(410 - PixelFont.text_width(price, 1), y), 1, pc)
 	PixelFont.draw_centered(ci, "ENTER/A: BUY    ESC/B: BACK", 240, 236, 1, Color(1, 1, 1, 0.5))
 
-func _buy_unlock(i: int) -> void:
+## `pos` is a place on the shelf (Profile.shelf), as unlock_sel and menu_items count them.
+func _buy_unlock(pos: int) -> void:
+	var shelf := Profile.shelf()
+	if pos < 0 or pos >= shelf.size():
+		return
+	var i: int = shelf[pos]
 	if Save.profile.buy(i):
 		Save.write()
 		Sfx.play("powerup")
-		fx.burst(Vector2(240, 163 + i * 12), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
+		fx.burst(Vector2(240, 163 + pos * 12), 20, 90.0, 0.5, 1.0, Color.WHITE, Color("8bdcff"), true)
 	else:
 		Sfx.play("hurt", -6.0)
-		_msg("MAXED" if Save.profile.next_cost(i) < 0 else "NOT ENOUGH CRYSTALS")
+		var why := Save.profile.closed_why(i)
+		_msg("MAXED" if why == Profile.WHY_MAX else (why if why != "" else "NOT ENOUGH CRYSTALS"))
 
 func _device_name(d: int) -> String:
 	if d == G.DEV_KBM:
@@ -1159,7 +1169,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				state = S.MAIN
 				return
 			if dir != 0:
-				unlock_sel = wrapi(unlock_sel + dir, 0, Profile.META.size())
+				unlock_sel = wrapi(unlock_sel + dir, 0, Profile.shelf().size())
 				Sfx.play("menu_move")
 			if tap:
 				for i in menu_items.size():
