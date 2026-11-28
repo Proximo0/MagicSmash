@@ -34,9 +34,13 @@ build the owner gets plays.
 9. A row whose effect is not on main stays on its shelf (`UNBUILT`) and leaves it in the change that builds the
    effect. A card's words say only what the card does on main today: the words for an effect land with the effect.
 10. A job that changes how a build comes together (what a card needs, what a slot holds, what a pick is worth)
-    teaches the bots in the same change (`SmashBot`: the novice, the casual and the veteran) and measures a group
-    before and after: `GD -s tools/playtest.gd -- --runs=4 --wizards=2 --persona=casual --seed=7 --minutes=17`. One
-    run is not a measurement: a single seed flips between a loss at 4:00 and a win at 17:00 after any change.
+    teaches the bots in the same change (`SmashBot`: the novice, the casual and the veteran) and records one group
+    after it: `GD -s tools/playtest.gd -- --runs=4 --wizards=2 --persona=casual --seed=7 --minutes=17`, the
+    deterministic record of its lines, compared with main's saved group. That group is not the verdict: main's casual
+    pair wins 0.59 of its runs (16 of 27 on the owner's PCs), so a group of four passes or fails on luck. The verdict
+    is the lead's, after the job hands back: two 100-run arms on the same seeds on GitHub's runners, the change
+    against the commit it sits on (`.github/workflows/balance.yml`, `tools/balance_compare.py`); the change does not
+    land while `COMPARE` says `verdict=lower`. A builder never pushes and never asks for "3 of 4".
 11. A job that adds a spell adds its two pip colours with its data row (`Sprites.SPELL_COLORS`, `SPELL_DARK`).
 12. A picture drawn mirrored gets its rect from a function with a test (`Still.figure_rect`, `Sprites.draw_at`):
     Godot mirrors a rect of negative width in place, so its corner never moves.
@@ -48,7 +52,8 @@ A job starts when the jobs it needs are on main. `O` is an opus job (game rules)
 **Done, on main:** the contract (#291) · the use counters (#292, § 4.4) · A1 the cast split (#293) · P1 the shop's
 rows and the unlock track (#295) · U4 sound (#296) · U3 options (#297) · A2 the evolution id (#298) · T1 the
 coverage robot (#299) · R1 the Readings as data (#300) · the twelve new cards' emblems (#301) · U6 the team shrine
-(#302) · A3 the catalog (#304) · U1 the shared screen (#305).
+(#302) · A3 the catalog (#304) · U1 the shared screen (#305) · T2 the damage chart by evolution and support spell
+(#307) · the 100-run balance arms on GitHub (#308, #310).
 
 **The casting chain, one after another:**
 
@@ -85,10 +90,17 @@ coverage robot (#299) · R1 the Readings as data (#300) · the twelve new cards'
 | U2 `O` | A party that stays seated between runs: the hub and "play again" for two to four. The LAN join check compares every row width of the snapshot (today the version and the wizard row only) | `game/ui/title.gd` before R3, `game/sanctum/sanctum_view.gd` before P3, `arena.gd`, `net.gd` |
 | U5 `S` | A first run that teaches: revive, redraw and banish, shrines, the first evolution. A tray row that completes a pair says so | `game/arena/fate_view.gd`, `game/arena/tray.gd`, new `game/logic/lessons.gd` |
 | U7 `S` | Button pictures for each kind of pad | `game/input/player_input.gd`, new `game/ui/glyphs.gd` |
+| T3 `S` | A highlights video of a seeded run in one command: `tools/film.sh` (the autotest's `--timeline` and `--draw=` windows, `tools/film_plan.py`); the sample heroes SYLVANAS and MORVANE become ISOLDE and HESPER | `tools/film.sh`, `tools/film_plan.py`, parts of `game/debug/autotest.gd`, new `game/debug/autotest_film.gd` |
+| T4 `S` | The owner's PCs play a pushed branch (`try/<name>`) as a 100-run arm beside GitHub's: `wandsrun ref= seed0=`, `queue.sh try`, `winrate.sh` reading the stations' rows through `tools/balance_compare.py --csv` | `tools/station/` |
 | U8 `O` | Bots at an altar: a bot holds her spot while she pays (today she steps in and out of the circle as she dodges, and 10 to 14 of 37 shrines get paid), and hurries to a shrine where a partner waits | the shrine part of `smash_bot.gd` |
 | S1 `O` | The speed pass: the step, the snapshot, drawing a crowd (skill `measure-fix-loop`); `tools/step_profile.gd` and `tests/sim/sim_horde.gd` learn the evolution id | named when it starts |
 
-"Before" and "after" in the Owns column are the order two jobs take one file. A job may add its own fields to
+"Before" and "after" in the Owns column are the order two jobs take one file. Three narrower shares, decided on
+28 Nov: U7 takes only the prompt lines of `game/ui/title.gd` (found by their text) and two prompt lines of
+`game/sanctum/sanctum_view.gd` (U2's files); U5 takes the old hint panel's lines in `arena.gd` and
+`draw_world.gd`; U2, R3 and P3 draw their new prompts with U7's `Glyphs` (`family_of(device)`, `seat_family(slot)`,
+`table_family()`, `width(action, family)`, `draw(ci, at, action, family) -> int`, `words(action, family)`), and
+U5's lessons name buttons by U7's action names. A job may add its own fields to
 `world.gd`, `entities.gd` and `tuning.gd` and its own tests; it changes nothing else there. `smash_bot.gd` is met by
 every job under rule 10: each adds its rule beside the rules of its kind and nothing else. The lead owns
 `project.godot`, CI and every line a report asks for in a file the job does not own.
@@ -316,8 +328,9 @@ required too), merges, reads the stations' reports for the merge, and moves the 
 - A job's folder moves onto a newer main with a throwaway commit: commit the files, `git rebase origin/main`,
   `git reset -q origin/main`, then `FORCE_IMPORT=1 tools/import.sh`. Never a bare `git stash`.
 - A bot proof that seats saved heroes runs through `tools/private_save.sh`, so it never meets a real profile.
-- Balance is read from groups (§ 2.10) and from the stations' forever jobs, never from one `FULL_RUN` line. The
-  pass before the gate build (§ 1) also settles which persona `tools/full_run.gd` and the stations' `boss` job play.
+- Balance is read from two 100-run arms (§ 2.10) and the stations' forever jobs, never from one `FULL_RUN` line
+  or one group of four. The pass before the gate build (§ 1) also settles which persona `tools/full_run.gd` and
+  the stations' `boss` job play.
 - A pin that moves (`SOLO_PIN`, `CLASSLESS_PIN`) is refreshed only after the one rule that moved it is named and
   shown: switch that rule off and see the old pin pass.
 - Part 1 of `docs/content_list.md` is the snapshot of 28 Nov; it is written again from the code at this stage's

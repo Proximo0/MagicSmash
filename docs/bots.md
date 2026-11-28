@@ -232,6 +232,31 @@ The tool reads `Spells.COUNT`, `Upgrades.CATALOG` and the `World` event stream, 
 evolutions show up without changes. It names enemies from a 12-entry list (`_enemy_name`; a 13th kind prints as
 `enemy12`) and shrine outcomes from `Gamble`'s constants.
 
+## Win rates: two 100-run arms
+
+A group of four is a record of lines, not a win rate. On main `9ea2f5b6` the stations' runs (28 Nov, 1,315 runs
+in every version of `wandsrun.csv` on `station-results`) gave the casual 17/24 solo, 16/27 with two wizards (0.59,
+95% 0.41 to 0.75), 25/26 with three and 22/23 with four; the veteran 0.73 to 0.82; the novice 1/254. With 0.59, a
+change with no effect fails "3 of its 4 runs" about half the time, and moving only the random stream (a placebo of
+twelve draws at the first step) took the seed 7 group from 7/8 to 3/8 wins.
+
+A win rate is two arms of 100 runs on the same seeds, the change and the commit it sits on:
+
+```
+git push origin <commit>:refs/heads/try/<name>          # no workflow fires on try/ branches
+gh workflow run balance.yml -f ref=try/<name> -f label=<name> [-f runs=100] [-f seed0=1] [-f wizards=2]
+    [-f persona=casual] [-f words="--meta=start_level:2"]
+python3 tools/balance_compare.py <run id A> <run id B>    # A the base, B the change
+```
+
+`.github/workflows/balance.yml` plays `runs`/5 jobs of five seeds each (`tools/playtest.gd` from the ref's own tree,
+`--minutes=30`, at most 12 jobs at once) and its job `sum` prints `BALANCE ... runs= won= rate= lo= hi=
+unfinished= missing= broken_jobs=` and one `BALROW` line a job. `tools/balance_compare.py` reads those lines through
+the GitHub API (no artifact download) and prints `COMPARE a= b= seeds= a_won= b_won= diff= lo= hi=
+verdict=lower|same|higher`, from Newcombe's 95% interval of the difference on the seeds both arms played. An arm of
+100 runs tells apart a difference of about 0.14 or more (at a rate near 0.6); `same` is not proof of no effect. Its self-test is
+`tools/balance_compare_test.py` (CI row `tools`).
+
 ## Baseline (19 Nov 2026, before shared XP)
 
 Command: `--runs=2 --wizards=1,4 --persona=novice,casual,veteran --seed=1 --minutes=6` (seeds 1 and 2; short runs that
