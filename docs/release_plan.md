@@ -49,7 +49,7 @@ Stays out: paid boxes, a telemetry service, new hub minigames, any cut-down slic
 - [x] Quitting asks first and books the run; closing the window books it too (#277).
 - [x] Frame times on the two slow PCs for one, two and four players (station job `wandsframes`).
 - [x] The second boss always comes; bosses stay on screen; nothing happens after the run is decided (#280).
-- [ ] Robot runs with four players, to a boss, to a win and into a second run.
+- [x] Robot runs with four players, to a boss, to a win and into a second run (#282).
 - [x] A robot-built Windows and Linux build with a smoke test, test files out of the pack, licence notices (#279;
   first robot run on main: both smoke tests passed).
 - [ ] ALL_SECRETS can be earned (the profile counts urns and sends `"urn_card"`).
