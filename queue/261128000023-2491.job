@@ -1,0 +1,11 @@
+kind=shell
+args=script=wandsrun runs=2 persona=veteran
+needs=any
+priority=5
+repeat=forever
+timeout_s=5400
+every_s=0
+added=2026-11-28T00:00:23Z
+needs_free_mb=600
+max_lanes=6
+max_per_machine=3
