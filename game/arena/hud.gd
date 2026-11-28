@@ -70,8 +70,9 @@ static func _draw_hud(a: Arena) -> void:
 	if not a.game_over and not a.paused:
 		ArenaTray._draw_draws(a, ci, dark)
 	# Screen flash
-	if a.screen_flash.a > 0.0:
-		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), a.screen_flash)
+	var flash_a: float = Save.settings.flash_alpha(a.screen_flash.a)
+	if flash_a > 0.0:
+		ci.draw_rect(Rect2(Vector2.ZERO, G.SCREEN), Color(a.screen_flash, flash_a))
 	if a.game_over:
 		ArenaResultsView._draw_game_over(a, ci)
 	elif a.paused:

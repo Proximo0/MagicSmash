@@ -11,6 +11,8 @@ extends Node
 const PATH := "user://profile.json"
 const OLD_PATH := "user://save.cfg"
 const SETTINGS_PATH := "user://settings.json"
+## RESET PROGRESS keeps the old profile beside the new one as profile.json.reset (a taken name gets the unix time added).
+const RESET_SUFFIX := ".reset"
 
 var profile := Profile.new()
 var settings := Settings.new()
@@ -139,8 +141,9 @@ func write_settings() -> bool:
 	return write_json(SETTINGS_PATH, settings.to_dict())
 
 
-## Puts the options into effect: the volumes always, the window only when the DISPLAY choice changed (so an
-## option like the music volume does not move the window back), and only in a real windowed run.
+## Puts the options into effect: the volumes always; the window only when the DISPLAY choice changed (so an
+## option like the music volume does not move the window back), vsync, the frame cap and the scaling every time;
+## and those only in a real windowed run.
 func apply_settings() -> void:
 	Sfx.set_volumes(settings.music_linear(), settings.sound_linear())
 	Crash.set_enabled(settings.crash_reports)
@@ -148,7 +151,15 @@ func apply_settings() -> void:
 		return
 	if _first_run:
 		_first_run = false
-		settings.display = Settings.best_display(DisplayServer.screen_get_usable_rect().size)
+		# Only the three window choices: anything the first frames already set (a seen prologue) stays.
+		var first := Settings.first_run(DisplayServer.screen_get_usable_rect().size)
+		settings.display = first.display
+		settings.scaling = first.scaling
+		settings.last_window = first.last_window
+		write_settings()
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if settings.vsync else DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = settings.max_fps()
+	get_tree().root.content_scale_stretch = settings.stretch_mode()
 	if settings.display == _applied_display:
 		return
 	_applied_display = settings.display
@@ -161,6 +172,34 @@ func apply_settings() -> void:
 	var size := Vector2i(480, 270) * settings.fit_scale(screen.size)
 	DisplayServer.window_set_size(size)
 	DisplayServer.window_set_position(screen.position + (screen.size - size) / 2)
+
+
+## RESET PROGRESS: keeps the profile (and its .bak) aside as backups, starts a fresh Profile and writes it. The
+## options are kept. Returns false, touching nothing, in a scripted run.
+func reset_progress() -> bool:
+	if Flags.is_scripted_run():
+		return false
+	if not reset_profile_at(PATH):
+		return false
+	profile = read_profile(PATH, OLD_PATH)
+	G.high_score = profile.high_score
+	return true
+
+
+## Renames the file at `path` (and its .bak) to `path + RESET_SUFFIX` (a taken name gets the unix time added, so
+## every backup is kept) and writes a fresh Profile there. Returns whether the fresh profile was written.
+static func reset_profile_at(path: String) -> bool:
+	for from: String in [path, path + ".bak"]:
+		if not FileAccess.file_exists(from):
+			continue
+		var to := from + RESET_SUFFIX
+		var n := 0
+		while FileAccess.file_exists(to):
+			n += 1
+			to = "%s%s.%d_%d" % [from, RESET_SUFFIX, int(Time.get_unix_time_from_system()), n]
+		if DirAccess.rename_absolute(from, to) != OK:
+			return false
+	return write_profile(path, Profile.new())
 
 
 ## The profile stored at `path` (or its backup; a damaged or wrong-typed file is kept aside), or a fresh one (with

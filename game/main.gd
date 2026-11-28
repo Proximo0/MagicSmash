@@ -8,6 +8,9 @@ func _ready() -> void:
 	if G.is_mobile:
 		# Phones come in odd sizes; fill the screen instead of integer steps.
 		get_tree().root.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	else:
+		# The SCALING option (Save.apply_settings keeps it up to date once the player changes it).
+		get_tree().root.content_scale_stretch = Save.settings.stretch_mode()
 	# Flags.args drops --autotest in a release export (Flags.debug_args_allowed); --smoke runs in every build.
 	if Flags.args.has("autotest"):
 		add_child(preload("res://game/debug/autotest.gd").new())
