@@ -109,6 +109,32 @@ func test_quit_books_the_run_once() -> void:
 	c.free()
 
 
+## The urns broken in the run (World.urns_broken) reach the profile's lifetime count (Profile.urns) by both ways a
+## run is booked: a quit (Arena._book_run_now) and a game over (ArenaEvents builds the run from EV_GAMEOVER's
+## numbers, which hold no urn count). A LAN client has no World and books none.
+func test_the_urns_broken_reach_the_profile() -> void:
+	var was: Profile = Save.profile
+	Save.profile = Profile.new()
+	var a := Arena.new()
+	a.world = _world(2.0)
+	a.world.urns_broken = 7
+	a._book_run_now()
+	assert_eq(Save.profile.urns, 7, "a quit books the urns")
+	var b := Arena.new()
+	b.world = _world(2.0)
+	b.world.urns_broken = 5
+	ArenaEvents.book_run_once(b, {"score": 1, "seconds": 1.0, "kills": 1, "liches": 0, "won": false, "results": null})
+	assert_eq(Save.profile.urns, 12, "a game over books the urns")
+	var c := Arena.new()
+	ArenaEvents.book_run_once(c, {"score": 1, "seconds": 1.0, "kills": 1, "liches": 0, "won": false, "results": null})
+	assert_eq(Save.profile.urns, 12, "a LAN client books none")
+	assert_eq(Save.profile.runs, 3)
+	Save.profile = was
+	a.free()
+	b.free()
+	c.free()
+
+
 ## QUIT TO TITLE asks first; NO is the default; who may pause, choose and end the run.
 func test_pause_rules() -> void:
 	var was_mode: Net.Mode = Net.mode

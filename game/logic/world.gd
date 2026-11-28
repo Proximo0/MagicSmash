@@ -277,6 +277,7 @@ var eshots: Array[EShot] = []
 var pickups: Array[Pickup] = []
 var cards_found: Array[int] = [] # Cards indices picked up this run, in order
 var urns: Array[Vector2] = [] # breakable urns along the walls (shots or a wizard walking in break them)
+var urns_broken := 0 # urns broken this run (run_so_far's "urns", Profile.urns); not in the snapshot or the hash
 var shrines: Array[Shrine] = []
 var shrine_t := 0.0
 var team_shrine_t := 0.0
@@ -681,7 +682,7 @@ func _end_run() -> void:
 
 ## The run as _end_run would report it now, for a run that ends without a game over (QUIT TO TITLE, the window
 ## closing): "results" is the EV_RESULTS record, the rest EV_GAMEOVER's numbers, "won" true in the victory
-## countdown. Read-only: it changes no state and draws no random number.
+## countdown, "urns" the urns broken (urns_broken). Read-only: it changes no state and draws no random number.
 func run_so_far() -> Dictionary:
 	var rec := record.to_dict()
 	var st: Dictionary = rec.stats
@@ -690,7 +691,7 @@ func run_so_far() -> Dictionary:
 			st[p.slot]["level"] = float(p.level)
 			st[p.slot]["kills"] = float(p.kills)
 	return {"score": total_score(), "seconds": wave_time, "kills": total_kills(), "liches": liches_slain, "won": won,
-		"results": rec}
+		"results": rec, "urns": urns_broken}
 
 ## One tick of the run proper: the clock, the horde, powerups and shrines. The lull counts down here; while it
 ## lasts the horde holds (see _direct_horde and _process_spawns) but the clock, minutes and shrines go on. Queued

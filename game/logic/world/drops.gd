@@ -176,6 +176,7 @@ static func _update_urns(w: World) -> void:
 ## What falls out of a broken urn: usually coins or nothing, sometimes a gem or potion, rarely a rare chest, and
 ## very rarely the card run's card (run_card), when it waits in an urn.
 static func _break_urn(w: World, at: Vector2) -> void:
+	w.urns_broken += 1
 	var r := w.rng.randf()
 	var pop := Vector2(0, 30)
 	var what := World.URN_DUST
