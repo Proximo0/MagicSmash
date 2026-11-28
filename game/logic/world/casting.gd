@@ -31,7 +31,7 @@ static func _auto_cast(w: World, p: World.Player, dt: float, aim: Vector2) -> vo
 			p.cds[sp] = maxf(0.0, left)
 			continue
 		var cast_dir := dir
-		var evo := Upgrades.evolved(p.upgrades, sp)
+		var evo := Upgrades.evo_of(p.upgrades, sp)
 		if Spells.cast_kind(sp) == "sweep":
 			# A sweep waits, ready, until a foe is within its reach, and swings at the nearest one (or along the aim).
 			cast_dir = WorldCastSweep._sweep_dir(w, p, sp, aim, evo)
@@ -84,7 +84,7 @@ static var CASTS := {
 }
 
 
-static func _cast(w: World, p: World.Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
+static func _cast(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2) -> void:
 	w.stat_src = sp
 	var tip := p.pos + Vector2(0, -7) + dir * STAFF_REACH
 	var caster: Callable = CASTS[Spells.cast_kind(sp)]
@@ -100,20 +100,21 @@ static func _skin_mul(p: World.Player, sp: int, field: String) -> float:
 	return Classes.skin_value(p.skin, field, 1.0) if sp == p.class_weapon else 1.0
 
 
-## The main spell is the highest weapon (an evolved one beats any level); ties go to the later spell.
+## The main spell is the highest weapon (an evolved one, of either id, beats any level); ties go to the later spell.
 static func _refresh_spell(w: World, p: World.Player) -> void:
 	var best := -1
 	for sp in Spells.COUNT:
-		var lv := _weapon_snap(w, p, sp)
+		var lv := mini(_weapon_snap(w, p, sp), Spells.MAX_LEVEL + 1)
 		if lv > 0 and lv >= best:
 			best = lv
 			p.spell = sp
 
 
-## Weapon level as sent in snapshots: 0 not owned, 1..MAX_LEVEL, MAX_LEVEL + 1 evolved.
+## Weapon level as sent in snapshots: 0 not owned, 1..MAX_LEVEL, MAX_LEVEL + evo when evolved (evolution id evo).
 static func _weapon_snap(w: World, p: World.Player, sp: int) -> int:
-	if Upgrades.evolved(p.upgrades, sp):
-		return Spells.MAX_LEVEL + 1
+	var evo := Upgrades.evo_of(p.upgrades, sp)
+	if evo > 0:
+		return Spells.MAX_LEVEL + evo
 	return Upgrades.weapon_level(p.upgrades, sp)
 
 

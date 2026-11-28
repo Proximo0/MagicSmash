@@ -5,24 +5,24 @@ extends RefCounted
 
 
 ## "rune": circles inscribed on the floor.
-static func _cast_rune(w: World, p: World.Player, _sp: int, lv: int, evo: bool, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
+static func _cast_rune(w: World, p: World.Player, _sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
 	_inscribe_runes(w, p, lv, evo, dir, n, dmg)
 
 
 ## "candle": `n` lights (circles of kind Spells.CIRCLE_CANDLE) on the densest clusters within Spells.CANDLE_RANGE.
-static func _cast_candle(w: World, p: World.Player, sp: int, lv: int, evo: bool, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
+static func _cast_candle(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2, _tip: Vector2, n: int, dmg: float) -> void:
 	_place_circles(w, p, sp, lv, evo, dir, n, dmg, Spells.CANDLE_RANGE, Spells.CANDLE_AIM_DIST, Spells.CIRCLE_CANDLE)
 
 
 ## Inscribes `n` rune circles (see _place_circles) within Spells.RUNE_RANGE of the wizard.
-static func _inscribe_runes(w: World, p: World.Player, lv: int, evo: bool, dir: Vector2, n: int, dmg: float) -> void:
+static func _inscribe_runes(w: World, p: World.Player, lv: int, evo: int, dir: Vector2, n: int, dmg: float) -> void:
 	_place_circles(w, p, World.SP_RUNE, lv, evo, dir, n, dmg, Spells.RUNE_RANGE, Spells.RUNE_AIM_DIST, Spells.CIRCLE_RUNE)
 
 
 ## Sets `n` circles of spell `sp` (kind `kind`), each on the densest cluster of enemies within `reach` of the
 ## wizard that no circle of this cast already covers; with no enemy in range, one circle goes `aim_dist` ahead
 ## along `dir`.
-static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: bool, dir: Vector2, n: int, dmg: float,
+static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2, n: int, dmg: float,
 		reach: float, aim_dist: float, kind: int) -> void:
 	var radius := Spells.level_value(sp, "r", lv, evo)
 	var near: Array[World.Enemy] = []
@@ -68,10 +68,10 @@ static func _place_circles(w: World, p: World.Player, sp: int, lv: int, evo: boo
 		rn.dmg = dmg
 		rn.owner = p.slot
 		rn.evo = evo
-		rn.pull = Spells.evo_value(sp, "pull", 0.0) if evo else 0.0
+		rn.pull = Spells.evo_value(sp, "pull", evo, 0.0)
 		rn.kind = kind
 		w.runes.append(rn)
-		w.emit(World.EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + (8 if evo else 0) + 16 * kind)
+		w.emit(World.EV_RUNE, rn.pos.x, rn.pos.y, rn.r, p.slot + Spells.evo_bits(evo) + 16 * kind)
 
 
 ## Rune circles age, tick damage on every enemy standing in them, and (the Seal of Solomon) pull enemies in.
@@ -118,8 +118,9 @@ static func _vigil(w: World, c: World.Rune) -> void:
 static func _heal_every(p: World.Player) -> float:
 	if p.class_weapon == World.SP_CANDLE and Classes.skin_value(p.skin, "heal_every") > 0.0:
 		return Classes.skin_value(p.skin, "heal_every")
-	if Upgrades.evolved(p.upgrades, World.SP_CANDLE):
-		return Spells.evo_value(World.SP_CANDLE, "heal_every", 0.0)
+	var evo := Upgrades.evo_of(p.upgrades, World.SP_CANDLE)
+	if evo > 0:
+		return Spells.evo_value(World.SP_CANDLE, "heal_every", evo, 0.0)
 	return 0.0
 
 

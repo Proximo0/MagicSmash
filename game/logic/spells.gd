@@ -73,6 +73,10 @@ const EVOS: Array = [
 		"cd": 0.55, "dmg": 36.0, "n": 1, "r": 60.0, "arc": TAU, "most": 3},
 ]
 
+## Second evolutions, per base spell (evolution id 2; EVOS is id 1): the same row shape as EVOS, `{}` for a spell
+## that has none. Read a row of either through evo_row.
+const EVOS2: Array = [{}, {}, {}, {}, {}, {}, {}, {}, {}]
+
 ## Slow applied by a frost shard that has not evolved (its row's "slow"), and by Comet Rain's burst, seconds.
 const FROST_SLOW := 1.8
 ## The least a wizard's cast-rate bonuses (THE MAGICIAN, haste, focus) leave of a cooldown.
@@ -121,7 +125,14 @@ const VIGIL_AFTER := 2.0
 const SWEEP_KNOCK := 120.0
 ## Shot kinds (World.Shot.kind, what clients draw) come in blocks of SHOT_BLOCK spells: a block's plain kinds, then
 ## the same spells evolved. The first six spells' kinds are what they always were (spell, spell + 6 evolved).
+## A second evolution's kind is SHOT_SECOND + spell, past every block of today.
 const SHOT_BLOCK := 6
+const SHOT_SECOND := 24
+## An event's b that carries a caster's slot (EV_RUNE, EV_SWEEP): the slot in the low bits (EVO_SLOT_MASK), plus
+## EVO_BIT_EVOLVED when evolved and EVO_BIT_SECOND more for evolution id 2 (evo_bits).
+const EVO_SLOT_MASK := 3
+const EVO_BIT_SECOND := 4
+const EVO_BIT_EVOLVED := 8
 
 
 static func spell_name(spell: int) -> String:
@@ -133,11 +144,28 @@ static func cast_kind(spell: int) -> String:
 	return STATS[spell]["cast"]
 
 
+## The row of evolution `evo` of `spell` (1: EVOS, 2: EVOS2), or `{}` for 0, an unknown id or no such evolution.
+static func evo_row(spell: int, evo: int) -> Dictionary:
+	match evo:
+		1:
+			return EVOS[spell]
+		2:
+			return EVOS2[spell]
+	return {}
+
+
+## How many evolutions `spell` has (its rows in EVOS and EVOS2 that are not empty).
+static func evolutions(spell: int) -> int:
+	return (1 if not EVOS[spell].is_empty() else 0) + (1 if not EVOS2[spell].is_empty() else 0)
+
+
 ## A bolt behaviour of the spell's row (jitter, home, turn, blast, blast_reach, blast_bonus, slow), or `none`
-## when its bolts do not do that. An evolution's own value wins when `evolved` and the evolution has one.
-static func bolt_value(spell: int, key: String, evolved: bool, none: float) -> float:
-	if evolved and EVOS[spell].has(key):
-		return float(EVOS[spell][key])
+## when its bolts do not do that. Evolution `evo`'s own value wins when it has one.
+static func bolt_value(spell: int, key: String, evo: int, none: float) -> float:
+	if evo > 0:
+		var row := evo_row(spell, evo)
+		if row.has(key):
+			return float(row[key])
 	return float(STATS[spell].get(key, none))
 
 
@@ -146,22 +174,22 @@ static func _at(spell: int, key: String, level: int) -> float:
 	return float(vals[clampi(level, 1, MAX_LEVEL) - 1])
 
 
-## Seconds between casts at `level` (1..MAX_LEVEL), or the evolution's when `evolved`.
-static func cooldown(spell: int, level: int, evolved: bool) -> float:
-	if evolved:
-		return float(EVOS[spell]["cd"])
+## Seconds between casts at `level` (1..MAX_LEVEL), or evolution `evo`'s (0: none). damage and count alike.
+static func cooldown(spell: int, level: int, evo: int) -> float:
+	if evo > 0:
+		return float(evo_row(spell, evo)["cd"])
 	return _at(spell, "cd", level)
 
 
-static func damage(spell: int, level: int, evolved: bool) -> float:
-	if evolved:
-		return float(EVOS[spell]["dmg"])
+static func damage(spell: int, level: int, evo: int) -> float:
+	if evo > 0:
+		return float(evo_row(spell, evo)["dmg"])
 	return _at(spell, "dmg", level)
 
 
-static func count(spell: int, level: int, evolved: bool) -> int:
-	if evolved:
-		return int(EVOS[spell]["n"])
+static func count(spell: int, level: int, evo: int) -> int:
+	if evo > 0:
+		return int(evo_row(spell, evo)["n"])
 	return int(_at(spell, "n", level))
 
 
@@ -171,19 +199,24 @@ static func stat(spell: int, key: String) -> float:
 	return float(STATS[spell][key])
 
 
-## A stat that may vary by level (an Array in STATS) or be one number; the evolution's own value when `evolved`
-## and the evolution has one.
-static func level_value(spell: int, key: String, level: int, evolved: bool) -> float:
-	if evolved and EVOS[spell].has(key):
-		return float(EVOS[spell][key])
+## A stat that may vary by level (an Array in STATS) or be one number; evolution `evo`'s own value when it has
+## one.
+static func level_value(spell: int, key: String, level: int, evo: int) -> float:
+	if evo > 0:
+		var row := evo_row(spell, evo)
+		if row.has(key):
+			return float(row[key])
 	if STATS[spell][key] is Array:
 		return _at(spell, key, level)
 	return float(STATS[spell][key])
 
 
-## An evolution special (pierce, chain, chains, slow, burst), or `none` when this spell has no such special.
-static func evo_value(spell: int, key: String, none: float) -> float:
-	return float(EVOS[spell].get(key, none))
+## A special of evolution `evo` (pierce, chain, chains, slow, burst), or `none` when it has no such special or
+## `evo` is 0.
+static func evo_value(spell: int, key: String, evo: int, none: float) -> float:
+	if evo <= 0:
+		return none
+	return float(evo_row(spell, evo).get(key, none))
 
 
 ## The partner spell of the evolution, or -1 when the partner is a passive (`passive_partner`) or there is none.
@@ -200,15 +233,34 @@ static func has_evolution(spell: int) -> bool:
 	return EVOS[spell].has("name")
 
 
-## What a shot of `spell` is drawn as (see SHOT_BLOCK).
-static func shot_kind(spell: int, evolved: bool) -> int:
-	return (spell / SHOT_BLOCK) * SHOT_BLOCK * 2 + spell % SHOT_BLOCK + (SHOT_BLOCK if evolved else 0)
+## What a shot of `spell` with evolution `evo` is drawn as (see SHOT_BLOCK, SHOT_SECOND).
+static func shot_kind(spell: int, evo: int) -> int:
+	if evo == 2:
+		return SHOT_SECOND + spell
+	return (spell / SHOT_BLOCK) * SHOT_BLOCK * 2 + spell % SHOT_BLOCK + (SHOT_BLOCK if evo > 0 else 0)
 
 
-## The spell of a shot kind, and whether it is evolved (shot_kind backwards).
+## The spell of a shot kind, and its evolution id (shot_kind backwards).
 static func shot_spell(kind: int) -> int:
+	if kind >= SHOT_SECOND:
+		return kind - SHOT_SECOND
 	return (kind / (SHOT_BLOCK * 2)) * SHOT_BLOCK + kind % SHOT_BLOCK
 
 
-static func shot_evolved(kind: int) -> bool:
-	return kind % (SHOT_BLOCK * 2) >= SHOT_BLOCK
+static func shot_evo(kind: int) -> int:
+	if kind >= SHOT_SECOND:
+		return 2
+	return 1 if kind % (SHOT_BLOCK * 2) >= SHOT_BLOCK else 0
+
+
+## The bits an event's b adds to the caster's slot for evolution `evo` (see EVO_BIT_EVOLVED), and back.
+static func evo_bits(evo: int) -> int:
+	if evo <= 0:
+		return 0
+	return EVO_BIT_EVOLVED + (EVO_BIT_SECOND if evo == 2 else 0)
+
+
+static func bits_evo(b: int) -> int:
+	if b & EVO_BIT_EVOLVED == 0:
+		return 0
+	return 2 if b & EVO_BIT_SECOND != 0 else 1

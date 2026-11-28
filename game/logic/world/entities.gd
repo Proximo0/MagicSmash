@@ -112,7 +112,7 @@ class Shot:
 	var vel := Vector2.ZERO
 	var kind := 0 # Spells.shot_kind(spell, evo): what clients draw
 	var spell := 0
-	var evo := false
+	var evo := 0 # evolution id (Spells.evo_row): 0 none
 	var pierce := 0 # enemies it may still pass through
 	var hits := {} # enemy ids already hit by a piercing shot
 	var dmg := 1.0
@@ -132,7 +132,7 @@ class Rune:
 	var tick := 0.0 # seconds to the next damage tick
 	var dmg := 1.0
 	var owner := 0
-	var evo := false
+	var evo := 0 # evolution id (Spells.evo_row): 0 none
 	var pull := 0.0
 	var kind := 0 # Spells.CIRCLE_*: the rune circle spell or a vigil candle's light
 

@@ -162,7 +162,7 @@ static func _volley(w: World, p: World.Player) -> void:
 	if Spells.cast_kind(sp) != "bolt":
 		sp = World.SP_ARCANE
 	var lv := maxi(1, Upgrades.weapon_level(p.upgrades, sp))
-	var dmg := Spells.damage(sp, lv, false)
+	var dmg := Spells.damage(sp, lv, 0)
 	var speed := Spells.stat(sp, "speed") * Classes.skill_value(sk, "speed_mul", 1.0)
 	var n := int(Classes.skill_value(sk, "arrows"))
 	var fan := Classes.skill_value(sk, "fan")

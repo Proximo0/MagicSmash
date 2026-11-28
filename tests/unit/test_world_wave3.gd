@@ -55,23 +55,23 @@ func _codes(evs: Array, code: int) -> Array:
 
 func test_shot_kinds_keep_the_first_six() -> void:
 	for sp: int in range(World.SP_RUNE + 1):
-		assert_eq(Spells.shot_kind(sp, false), sp)
-		assert_eq(Spells.shot_kind(sp, true), sp + 6, "an evolved shot of the first six is drawn as it always was")
+		assert_eq(Spells.shot_kind(sp, 0), sp)
+		assert_eq(Spells.shot_kind(sp, 1), sp + 6, "an evolved shot of the first six is drawn as it always was")
 	var seen := {}
 	for sp: int in range(Spells.COUNT):
-		for evo: bool in [false, true]:
+		for evo: int in [0, 1]:
 			var k := Spells.shot_kind(sp, evo)
 			assert_false(seen.has(k), "two shots share kind %d" % k)
 			seen[k] = true
 			assert_eq(Spells.shot_spell(k), sp)
-			assert_eq(Spells.shot_evolved(k), evo)
+			assert_eq(Spells.shot_evo(k), evo)
 
 
 func test_bone_spear_pierces_every_foe_on_its_line() -> void:
 	var w := _world()
 	var p: World.Player = w.players[0]
 	w._cast(p, World.SP_BONE, 1, false, Vector2.RIGHT)
-	assert_eq(w.shots.size(), Spells.count(World.SP_BONE, 1, false))
+	assert_eq(w.shots.size(), Spells.count(World.SP_BONE, 1, 0))
 	var s: World.Shot = w.shots[0]
 	assert_eq(s.pierce, Spells.PIERCE_ALL)
 	# Five orcs on the first spear's line (an orc is hit at its chest, r * 0.8 above its feet).
@@ -100,7 +100,7 @@ func test_bone_spear_flies_its_line_and_the_longbow_further() -> void:
 	w.shots.clear()
 	w._cast(archer, World.SP_BONE, 1, false, Vector2.RIGHT)
 	assert_near(w.shots[0].life * w.shots[0].vel.length(), Classes.skin_value("longbow", "range"), 0.5)
-	assert_eq(w.shots[0].kind, Spells.shot_kind(World.SP_BONE, false))
+	assert_eq(w.shots[0].kind, Spells.shot_kind(World.SP_BONE, 0))
 
 
 func test_ossuary_lance_splinters_sideways_once() -> void:
@@ -111,7 +111,7 @@ func test_ossuary_lance_splinters_sideways_once() -> void:
 	var s: World.Shot = WorldCastBolts._shot(w, 0, World.SP_BONE, true, p.pos + Vector2(30, -7), Vector2(275, 0), 5.0, Spells.PIERCE_ALL)
 	WorldCastBolts._shot_hit(w, s, e)
 	var splinters: Array = w.shots.filter(func(x: World.Shot) -> bool: return x.splinter)
-	assert_eq(splinters.size(), int(Spells.evo_value(World.SP_BONE, "splinter", 0.0)))
+	assert_eq(splinters.size(), int(Spells.evo_value(World.SP_BONE, "splinter", 1, 0.0)))
 	for x: World.Shot in splinters:
 		assert_near(absf(x.vel.normalized().dot(Vector2.RIGHT)), 0.0, 0.35, "a splinter flies along the spear")
 		assert_near(x.dmg, 5.0 * Spells.SPLINTER_DMG)
@@ -143,7 +143,7 @@ func test_vigil_candle_burns_on_a_timer_near_the_caster() -> void:
 	_burn(w, 1.0)
 	var ticks := 1 + int((1.0 - Spells.RUNE_ARM) / Spells.RUNE_TICK)
 	for e: World.Enemy in near:
-		assert_near(e.maxhp - e.hp, ticks * Spells.damage(World.SP_CANDLE, 1, false), 0.01)
+		assert_near(e.maxhp - e.hp, ticks * Spells.damage(World.SP_CANDLE, 1, 0), 0.01)
 	assert_eq(far.hp, far.maxhp, "the light reached past its radius")
 	assert_true(w.record.source_damage.has(World.SP_CANDLE), "the candle's damage is not its own source")
 
@@ -192,7 +192,7 @@ func test_cast_speed_adds_up_and_never_passes_the_floor() -> void:
 	var p: World.Player = w.players[0]
 	w._plist.assign(w.players.values())
 	w.players[1].pos = p.pos + Vector2(10, 0)
-	var cd := Spells.cooldown(World.SP_ARCANE, 1, false)
+	var cd := Spells.cooldown(World.SP_ARCANE, 1, 0)
 	p.upgrades[Upgrades.LOVERS] = 1
 	p.vigil = 1.0
 	WorldCasting._auto_cast(w, p, DT, Vector2.RIGHT)
@@ -311,7 +311,7 @@ func test_whirlwind_needs_cleave_at_its_top_and_strength() -> void:
 func test_whirlwind_strikes_only_its_nearest_few() -> void:
 	var w := _world()
 	var knight := _hero(w, 0, Classes.KNIGHT)
-	var most := int(Spells.evo_value(World.SP_CLEAVE, "most", 0.0))
+	var most := int(Spells.evo_value(World.SP_CLEAVE, "most", 1, 0.0))
 	assert_true(most > 0, "WHIRLWIND has no cap")
 	var from := knight.pos + Vector2(0, -4)
 	var orcs: Array[World.Enemy] = []
@@ -321,7 +321,7 @@ func test_whirlwind_strikes_only_its_nearest_few() -> void:
 	w._cast(knight, World.SP_CLEAVE, Spells.MAX_LEVEL, true, Vector2.RIGHT)
 	for i: int in range(orcs.size()):
 		assert_eq(orcs[i].hp < orcs[i].maxhp, i < most, "orc %d (nearest first)" % i)
-	assert_eq(Spells.evo_value(World.SP_CLEAVE, "most", 0.0), float(most))
+	assert_eq(Spells.evo_value(World.SP_CLEAVE, "most", 1, 0.0), float(most))
 	assert_false(Spells.STATS[World.SP_CLEAVE].has("most"), "CLEAVE itself is capped")
 
 
@@ -332,9 +332,9 @@ func test_whirlwind_sweeps_a_full_circle_further() -> void:
 	knight.upgrades[Upgrades.W_CLEAVE] = Spells.MAX_LEVEL
 	knight.upgrades[Upgrades.E_CLEAVE] = 1
 	var from := knight.pos + Vector2(0, -4)
-	var reach := Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, true)
+	var reach := Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, 1)
 	assert_true(reach > Spells.stat(World.SP_CLEAVE, "r"), "no longer reach")
-	assert_near(Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, true), TAU, 0.0001)
+	assert_near(Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, 1), TAU, 0.0001)
 	var front := _orc(w, from + Vector2(25, 0))
 	var behind := _orc(w, from + Vector2(-25, 0))
 	var far := _orc(w, from + Vector2(0, Spells.stat(World.SP_CLEAVE, "r") + 8.0 + 2.0))
@@ -342,13 +342,13 @@ func test_whirlwind_sweeps_a_full_circle_further() -> void:
 	w._build_grid()
 	w.take_events()
 	w._cast(knight, World.SP_CLEAVE, Spells.MAX_LEVEL, true, Vector2.RIGHT)
-	var want := Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, true) * Classes.skin_value("cleave", "dmg_mul", 1.0)
+	var want := Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, 1) * Classes.skin_value("cleave", "dmg_mul", 1.0)
 	assert_true(front.maxhp - front.hp > 0.0, "the foe in front was not hit")
 	assert_near(behind.maxhp - behind.hp, front.maxhp - front.hp, 0.001, "the foe behind was not hit alike")
 	assert_true(far.hp < far.maxhp, "the longer reach did not hit")
 	assert_eq(beyond.hp, beyond.maxhp, "it reached too far")
 	assert_true(behind.knock.x < 0.0, "the foe behind is not knocked away")
-	assert_true(want > Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, false) * Classes.skin_value("cleave", "dmg_mul", 1.0))
+	assert_true(want > Spells.damage(World.SP_CLEAVE, Spells.MAX_LEVEL, 0) * Classes.skin_value("cleave", "dmg_mul", 1.0))
 	var sweeps := _codes(w.take_events(), World.EV_SWEEP)
 	assert_eq(sweeps.size(), 1)
 	assert_eq(int(sweeps[0][4]) & 7, 0, "the slot")
@@ -399,7 +399,7 @@ func test_consecration_heals_every_ten_seconds() -> void:
 		c.life = 100.0
 	p.pos = w.runes[0].pos
 	p.hp = p.max_hp - 2
-	_burn(w, Spells.evo_value(World.SP_CANDLE, "heal_every", 0.0) - 0.5)
+	_burn(w, Spells.evo_value(World.SP_CANDLE, "heal_every", 1, 0.0) - 0.5)
 	assert_eq(p.hp, p.max_hp - 2)
 	_burn(w, 0.6)
 	assert_eq(p.hp, p.max_hp - 1)
@@ -441,7 +441,7 @@ func test_skin_numbers_scale_only_the_class_weapon() -> void:
 	w._cast(mage, World.SP_STAR, 1, false, Vector2.RIGHT)
 	w._cast(paladin, World.SP_BONE, 1, false, Vector2.RIGHT)
 	for s: World.Shot in w.shots:
-		var want := Spells.damage(s.spell, 1, false) * (mul if s.owner == 0 and s.spell == World.SP_STAR else 1.0)
+		var want := Spells.damage(s.spell, 1, 0) * (mul if s.owner == 0 and s.spell == World.SP_STAR else 1.0)
 		assert_near(s.dmg, want, 0.0001, "shot of spell %d by slot %d" % [s.spell, s.owner])
 
 

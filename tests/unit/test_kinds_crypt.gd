@@ -198,7 +198,7 @@ func test_a_coffin_brood_keeps_under_the_cap_with_the_queue() -> void:
 	assert_eq(_count(w, World.SKELETON), room, "only the room under the cap, the queue counted")
 
 
-func _frost_shot(spell: int, evo: bool, from: Vector2, to: Vector2) -> World.Shot:
+func _frost_shot(spell: int, evo: int, from: Vector2, to: Vector2) -> World.Shot:
 	var s := World.Shot.new()
 	s.spell = spell
 	s.evo = evo
@@ -215,10 +215,10 @@ func test_a_blocked_frost_bolt_does_not_slow_a_guard() -> void:
 	var e := w.spawn_enemy(Bestiary.GUARD, 0, p.pos + Vector2(100, 0))
 	e.hp = 500.0
 	_crypt_tick(w, 0.1)
-	WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, false, p.pos, e.pos), e)
+	WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, 0, p.pos, e.pos), e)
 	assert_eq(e.hp, 500.0, "blocked")
 	assert_near(e.slow, 0.0, 0.0001, "a blocked bolt does not slow")
-	WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, false, e.pos + Vector2(60, 0), e.pos), e)
+	WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, 0, e.pos + Vector2(60, 0), e.pos), e)
 	assert_true(e.hp < 500.0 and e.slow > 0.0, "a bolt in the back lands and slows")
 
 
@@ -232,9 +232,9 @@ func test_a_bloat_killed_by_frost_makes_no_blast() -> void:
 			var hit := w.spawn_enemy(World.ORC, 0, e.pos + Vector2(6, 0))
 			hit.hp = 999.0
 			w._build_grid()
-			WorldCastBolts._shot_hit(w, _frost_shot(World.SP_STAR, true, p.pos, hit.pos), hit)
+			WorldCastBolts._shot_hit(w, _frost_shot(World.SP_STAR, 1, p.pos, hit.pos), hit)
 		else:
-			WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, false, p.pos, e.pos), e)
+			WorldCastBolts._shot_hit(w, _frost_shot(World.SP_FROST, 0, p.pos, e.pos), e)
 		assert_true(e.dead, "the frost hit kills it")
 		assert_eq(w.hazards.size(), 0, "frosted: no blast (star burst %s)" % str(evo_star))
 

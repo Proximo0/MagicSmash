@@ -621,7 +621,7 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_melee_r = 0.0
 	if _class_play and p.class_weapon >= 0 and Spells.cast_kind(p.class_weapon) == "sweep":
 		# the reach it has now: WHIRLWIND's once CLEAVE has evolved
-		_melee_r = Spells.level_value(p.class_weapon, "r", Spells.MAX_LEVEL, Upgrades.evolved(p.upgrades, p.class_weapon))
+		_melee_r = Spells.level_value(p.class_weapon, "r", Spells.MAX_LEVEL, Upgrades.evo_of(p.upgrades, p.class_weapon))
 	_unhurt = p.invuln > 0.0
 	_mate_hp.clear()
 	_mate_max.clear()

@@ -21,8 +21,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 					World.SP_CANDLE: Sfx.play("candle", -6.0, a._fx_rng.randf_range(0.95, 1.1), 0.12)
 					World.SP_CLEAVE: Sfx.play("hit", -3.0, 0.7, 0.08)
 			World.EV_SWEEP: # a CLEAVE: a steel arc flash toward the swing; WHIRLWIND (+8): the same flash all the way round
-				var slot := int(ev[4]) & 7
-				var sw_evo := int(ev[4]) & 8 != 0
+				# The reach and arc are the evolution id's own; id 2 flashes as id 1 until a later job gives it a look.
+				var slot := int(ev[4]) & Spells.EVO_SLOT_MASK
+				var sw_evo := Spells.bits_evo(int(ev[4]))
 				var half := Spells.level_value(World.SP_CLEAVE, "arc", Spells.MAX_LEVEL, sw_evo) * 0.5
 				a.fx.swing(pos, Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, sw_evo), float(ev[3]), half,
 					ArenaDrawFx._spell_color(a, World.SP_CLEAVE, slot))
@@ -32,8 +33,9 @@ static func _handle_events(a: Arena, evs: Array) -> void:
 				a.fx.burst(pos, 8, 70.0, 0.35, 1.0, Color.WHITE, Color("ffd94d"), true)
 				Sfx.play("explode", -9.0, 1.4, 0.08)
 			World.EV_RUNE:
-				# ev[4]: the caster's slot, +8 when evolved, +16 x the circle's kind (a candle lights quietly).
-				var evo := int(ev[4]) & 8 != 0
+				# ev[4]: the caster's slot, + Spells.evo_bits(id), +16 x the circle's kind (a candle lights quietly).
+				# Id 2 rings and sounds as id 1 until a later job gives it a look of its own.
+				var evo := Spells.bits_evo(int(ev[4])) > 0
 				if int(ev[4]) >> 4 == Spells.CIRCLE_CANDLE:
 					a.fx.ring(pos, float(ev[3]) * 0.4, float(ev[3]), 0.3, ArenaDrawFx._spell_color(a, World.SP_CANDLE, 0), 1.0)
 				else:

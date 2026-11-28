@@ -430,7 +430,7 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 	for p: World.Player in w.players.values():
 		for sp: int in range(Spells.COUNT):
 			var key: String = Upgrades.key(Upgrades.weapon_entry(sp))
-			var lvl: int = Upgrades.weapon_level(p.upgrades, sp) + (1 if Upgrades.evolved(p.upgrades, sp) else 0)
+			var lvl: int = Upgrades.weapon_level(p.upgrades, sp) + Upgrades.evo_of(p.upgrades, sp)
 			r.spell_level[key] = maxi(int(r.spell_level.get(key, 0)), lvl)
 		r.gold += w.record.stat(p.slot, "gold")
 		r.spent += w.record.stat(p.slot, "bets")

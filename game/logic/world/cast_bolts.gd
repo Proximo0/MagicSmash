@@ -5,7 +5,7 @@ extends RefCounted
 
 
 ## "bolt": `n` projectiles fanned `spread` apart along `dir`, each nudged by the row's jitter.
-static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: bool, dir: Vector2, tip: Vector2, n: int, dmg: float) -> void:
+static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: int, dir: Vector2, tip: Vector2, n: int, dmg: float) -> void:
 	var spread := Spells.stat(sp, "spread")
 	var speed := Spells.stat(sp, "speed")
 	var jitter := Spells.bolt_value(sp, "jitter", evo, 0.0)
@@ -21,7 +21,7 @@ static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: bool,
 			s.life = reach / speed
 
 
-static func _shot(w: World, slot: int, sp: int, evo: bool, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> World.Shot:
+static func _shot(w: World, slot: int, sp: int, evo: int, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> World.Shot:
 	var s := World.Shot.new()
 	s.pos = pos
 	s.vel = vel
@@ -103,9 +103,9 @@ static func _shot_hit(w: World, s: World.Shot, e: World.Enemy) -> void:
 			w.emit(World.EV_FROST, s.pos.x, s.pos.y, 0, 0)
 	else:
 		WorldEnemies._damage_enemy(w, e, s.dmg, s.owner, s.vel.normalized() * Spells.BOLT_KNOCK)
-	if s.evo and Spells.evo_value(s.spell, "burst", 0.0) > 0.0:
+	if Spells.evo_value(s.spell, "burst", s.evo, 0.0) > 0.0:
 		_frost_burst(w, s, e)
-	if s.evo and not s.splinter and Spells.evo_value(s.spell, "splinter", 0.0) > 0.0:
+	if not s.splinter and Spells.evo_value(s.spell, "splinter", s.evo, 0.0) > 0.0:
 		_splinter(w, s, e)
 	if s.pierce != 0:
 		if s.pierce > 0:
@@ -118,12 +118,12 @@ static func _shot_hit(w: World, s: World.Shot, e: World.Enemy) -> void:
 ## Ossuary Lance: splinters fly sideways (square to the spear, both ways in turn) from the foe it hit, each a
 ## Spells.SPLINTER_DMG share of the spear's damage; they never hit that foe and never splinter again.
 static func _splinter(w: World, s: World.Shot, e: World.Enemy) -> void:
-	var n := int(Spells.evo_value(s.spell, "splinter", 0.0))
+	var n := int(Spells.evo_value(s.spell, "splinter", s.evo, 0.0))
 	var side := s.vel.orthogonal()
 	for i in n:
 		var v := side * (1.0 if i % 2 == 0 else -1.0)
 		var sp := _shot(w, s.owner, s.spell, s.evo, s.pos, v.rotated((i / 2) * 0.3), s.dmg * Spells.SPLINTER_DMG, 0)
-		sp.kind = Spells.shot_kind(s.spell, false)
+		sp.kind = Spells.shot_kind(s.spell, 0)
 		sp.splinter = true
 		sp.life = Spells.SPLINTER_LIFE
 		sp.hits[e.id] = true
@@ -131,7 +131,7 @@ static func _splinter(w: World, s: World.Shot, e: World.Enemy) -> void:
 
 ## Comet Rain: a star that hits bursts into ice, slowing and hurting every other enemy nearby.
 static func _frost_burst(w: World, s: World.Shot, center: World.Enemy) -> void:
-	var radius := Spells.evo_value(s.spell, "burst", 0.0)
+	var radius := Spells.evo_value(s.spell, "burst", s.evo, 0.0)
 	w.emit(World.EV_FROST, s.pos.x, s.pos.y, radius, 0)
 	for e in w._query(s.pos, radius + 8.0):
 		if e == center or e.dead or e.pos.distance_to(s.pos) > radius + e.r:
@@ -163,7 +163,7 @@ static func _explode(w: World, s: World.Shot) -> void:
 		var d = e.pos.distance_to(s.pos)
 		if d < radius + e.r:
 			WorldEnemies._damage_enemy(w, e, s.dmg + bonus * (1.0 - d / reach), s.owner, (e.pos - s.pos).normalized() * Spells.BLAST_KNOCK)
-	var jumps := int(Spells.evo_value(s.spell, "chain", 0.0)) if s.evo else 0
+	var jumps := int(Spells.evo_value(s.spell, "chain", s.evo, 0.0))
 	if jumps > 0:
 		var tgt := WorldCasting._nearest_enemy(w, s.pos, Spells.CHAIN_JUMP_RANGE)
 		if tgt:

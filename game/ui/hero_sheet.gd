@@ -137,8 +137,8 @@ static func num_text(v: float) -> String:
 ## class's weapon (Classes.SKINS dmg_mul, cd_mul; -1 or another spell: the row as it is).
 static func weapon_line(spell: int, cls: int = -1) -> String:
 	var sk := Classes.weapon_skin(cls, spell) if cls >= 0 else ""
-	return "DMG %s  CD %sS  SHOTS %d" % [num_text(Spells.damage(spell, 1, false) * Classes.skin_value(sk, "dmg_mul", 1.0)),
-		num_text(Spells.cooldown(spell, 1, false) * Classes.skin_value(sk, "cd_mul", 1.0)), Spells.count(spell, 1, false)]
+	return "DMG %s  CD %sS  SHOTS %d" % [num_text(Spells.damage(spell, 1, 0) * Classes.skin_value(sk, "dmg_mul", 1.0)),
+		num_text(Spells.cooldown(spell, 1, 0) * Classes.skin_value(sk, "cd_mul", 1.0)), Spells.count(spell, 1, 0)]
 
 
 ## The skill's numbers as a line (empty for the nova, which has none).

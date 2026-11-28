@@ -52,7 +52,7 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 				lv.append(int(pl[i + World.P_CHOICES + c * 2 + 1]))
 		p.choices = ch
 		p.choice_lv = lv
-		# Spells and passives in the order taken: [Upgrades index, level] each (a spell's level 6 = evolved).
+		# Spells and passives in the order taken: [Upgrades index, level] each (a spell's level above Spells.MAX_LEVEL = evolved, MAX_LEVEL + its evolution id).
 		var spells: Array = []
 		var passives: Array = []
 		for k in World.P_SLOTS:
@@ -124,16 +124,19 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	i = 0
 	while i + 6 <= sh.size():
 		var sk := int(sh[i])
+		# [4] evolved (either id: id 2 draws as id 1 until a later job gives it a look of its own), [5] the id.
+		var sk_evo := Spells.shot_evo(sk)
 		a.vs.append([Spells.shot_spell(sk), Vector2(sh[i + 1], sh[i + 2]), Vector2(sh[i + 3], sh[i + 4]), int(sh[i + 5]),
-			Spells.shot_evolved(sk)])
+			sk_evo > 0, sk_evo])
 		i += 6
 	a.vhz = snap.get("hz", PackedFloat32Array())
 	a.vr.clear()
 	var rn: PackedFloat32Array = snap.get("r", PackedFloat32Array())
 	i = 0
 	while i + World.RUNE_FLOATS <= rn.size():
+		# [5] evolved (either id: id 2 draws as id 1 until a later job gives it a look of its own), [7] the id.
 		a.vr.append([Vector2(rn[i], rn[i + 1]), rn[i + 2], rn[i + 3], rn[i + 4], int(rn[i + 5]), rn[i + 6] > 0.5,
-			int(rn[i + World.R_KIND])])
+			int(rn[i + World.R_KIND]), int(rn[i + 6])])
 		i += World.RUNE_FLOATS
 	a.vo.clear()
 	var ob: PackedFloat32Array = snap.get("o", PackedFloat32Array())

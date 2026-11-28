@@ -401,5 +401,5 @@ func test_a_knight_with_whirlwind_fights_at_its_longer_reach() -> void:
 		bot.decide_in_world(w, 0)
 		reaches.append(bot._melee_r)
 	assert_near(reaches[0], Spells.stat(World.SP_CLEAVE, "r"), 0.001)
-	assert_near(reaches[1], Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, true), 0.001)
+	assert_near(reaches[1], Spells.level_value(World.SP_CLEAVE, "r", Spells.MAX_LEVEL, 1), 0.001)
 	assert_true(reaches[1] > reaches[0], "WHIRLWIND reaches further than CLEAVE")

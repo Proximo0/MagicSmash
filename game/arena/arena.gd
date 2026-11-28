@@ -45,8 +45,8 @@ var pending_events: Array = []
 # View state (what gets drawn), filled from snapshots on every peer.
 var vp := {}  # slot -> Dictionary
 var ve := {}  # id -> Dictionary
-var vs: Array = []  # [spell, pos, vel, owner, evolved]
-var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved, kind]
+var vs: Array = []  # [spell, pos, vel, owner, evolved, evolution id]
+var vr: Array = []  # rune circles: [pos, radius, age, life, owner, evolved, kind, evolution id]
 var vhz := PackedFloat32Array() # hazard rows, Hazards.FLOATS each (snapshot "hz")
 var vo: Array = []  # spell objects, World.O_FLOATS floats each (none exist yet)
 var ves: Array = [] # [kind, pos, vel]
