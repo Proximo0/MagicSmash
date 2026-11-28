@@ -21,8 +21,10 @@ shrines, the party's fate card); a tower worth exploring (the Sanctum, secrets, 
 - The audit of 27 Nov walked every system, measured it and had every finding read a second time. Its document:
   https://claude.ai/artifact/BkrNpGpjuPZYjWeb5V7x7o. Its confirmed bugs are stage 1; the list with PR numbers is in
   the release plan.
-- The frozen content list (`docs/content_list.md`) is stage 2 and does not exist yet. Until it does, the tables in
-  the code are the truth (`Spells`, `Upgrades`, `Cards`, `Achievements`, `Tuning`).
+- Stage 1 is merged (14 lines, `docs/release_plan.md`). Stage 2's frozen content list is written: part 2 of
+  `docs/content_list.md` (§ 36 to 54). Part 1 of that file and the tables in the code (`Spells`, `Upgrades`,
+  `Cards`, `Achievements`, `Tuning`) say what is built today; part 2 says what stage 3 builds. A row of part 2 is
+  added, dropped or re-paired only with a line under "The frozen list" below.
 
 ## Decisions already made by the owner
 
@@ -47,6 +49,34 @@ shrines, the party's fate card); a tower worth exploring (the Sanctum, secrets, 
 - **Title:** FOUR OF WANDS is the tarot card of four staffs raised before a castle: four wizards, their home, a
   celebration. A web search found no game of that name; the check on Steam itself is the owner's.
 - **Steam:** only the owner acts there. Ask before any store action, payment or upload.
+
+## The frozen list: the lead's decisions (28 Nov)
+
+The list is `docs/content_list.md` part 2. Why it is shaped the way it is:
+
+- **One tarot deck, every card with a job** (§ 37). The 22 Major Arcana are the 14 arcana a wizard holds and the 8
+  fates of the team shrine; 16 Minor Arcana are the Reading; a reversed arcana is a Seal. Tarot is the game's one
+  idea, so every system is dealt from it and nothing needs a second vocabulary.
+- **Spell + arcana, never spell + spell** (§ 37, 40). Six evolutions asked for a second spell, which cost a spell
+  slot and made two pairs fight for the same slots. Every arcana now has a pair, so no card is a dead pick, and the
+  six spells and six arcana of a new profile pair one to one.
+- **Two roads for the four mage schools** (§ 40): a crowd road and a second road each. A build is a choice, and a
+  mage is not solved after one win.
+- **Fewer free spell levels** (§ 41): an elite's tome 0.35 of the time, where every elite dropped one and up to
+  twenty free levels a run chose the build for the player.
+- **Locks teach the game** (§ 44). A new profile holds six spells, six arcana, one class and two races; the rest
+  opens by deeds a player earns by playing further, about one every second run until the first win. Guest seats
+  play preset heroes of four classes, so a first night of co-op is not poorer for it.
+- **Crystals buy options** (§ 45): redraws, banishes, a head start, the Reading dealt again, three decks, satchel
+  pockets, provisions. The stat shelf stays and costs more.
+- **The satchel is built** (§ 46). The 27 Nov scope draft left the owner's inventory bag out ("nothing in the loop
+  needs it yet"). It is in: one pocket carries a piece of armour or a provision into the next run, and an ULTRA
+  RARE piece is a keepsake for good, so the rarest find is always worth having.
+- **Seals with teeth** (§ 43): the step numbers are nearly tripled and two rules gain a second half. Stage 5 tunes
+  them until each step's win rate sits between its neighbours'.
+- **Morvane's two visits are not built** (§ 51): `Bosses.VISITS` goes. Three bosses, three acts.
+- **Numbers are not frozen.** Stage 5 tunes them against the gates of § 53, which are written before the rows are
+  built so that every row is built to be measured.
 
 ## Loot and gambling rules (from the CursedPawn gacha / lawsuit research)
 

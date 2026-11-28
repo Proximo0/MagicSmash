@@ -40,6 +40,13 @@ Stays out: paid boxes, a telemetry service, new hub minigames, any cut-down slic
   button pictures per pad, a sound for every co-op moment.
 - Four local seats on one screen stay; they are not the focus (owner, 27 Nov).
 
+## Stage 2 (28 Nov: committed)
+The frozen list is part 2 of `docs/content_list.md` (§ 36 to 54): 11 spells, 14 arcana, 15 evolutions, 16
+Readings, the ladder and its eight reversed Seals, the unlock track, the shop, the satchel, class level 5, ten more
+monster cards, boss rewards, Overtime, the Daily Draw and eleven more deeds. Every row names what it pairs with and
+carries its test letters (§ 36); § 52 lists the mechanisms stage 3 builds first, § 53 the gates stage 5 tunes to.
+The lead's reasons are in `docs/handoff.md`. Numbers are starting values; rows change only with a line there.
+
 ## Stage 1 list (28 Nov: all ticked; the gate build is the robot build of the last merge)
 - [x] A socketed card counts once (#273). [x] Damaged and newer saves are safe, and the title says so (#273, #274).
 - [x] Every monster card can drop, ALL_CARDS can be earned, no plain heal in a LEGENDARY chest, the DWARF's trait

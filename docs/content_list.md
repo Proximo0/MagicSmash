@@ -1,9 +1,10 @@
 # Content list
 
-Part 1 is read from the code on 28 Nov 2026 at commit 64306bc0; part 2 (the frozen final list) is the lead's to add.
+Part 1 is read from the code on 28 Nov 2026 at commit 64306bc0. Part 2 (from § 36) is the frozen list the game is
+built to: what the finished game holds, what each row pairs with and how it is tested.
 Every number is copied from the file named in the Source column (`game/...:line`); nothing is taken from another doc.
-Test column: files in `tests/unit`, `tests/sim` and `tests/bot` that name the row (its key, name or constant); `none`
-if no file does.
+Test column of part 1: files in `tests/unit`, `tests/sim` and `tests/bot` that name the row (its key, name or
+constant); `none` if no file does. Part 2's Test column is explained in § 36.
 `(!)` marks a row that looks unfinished; the list of them is at the end.
 
 ## Part 1. As built on 28 Nov 2026
@@ -706,6 +707,476 @@ The lead's notes on these rows (28 Nov 2026):
   fixed with the stage 1 wording pass. The JACKPOT deed's "rune altar" is right: the game shows the solo shrine to
   the player as RUNE ALTAR (`game/arena/events.gd:188`); "gamble shrine" is only the code's name for it.
 - `Bosses.VISITS` and the moment M_LICH (Morvane's visits at 7:00 and 12:00) are an idea left half built: part 2
-  decides whether the visits are built or the rows go.
+  decides whether the visits are built or the rows go. Decided in § 51: the rows go.
 - The cards and sprites with no painted file (five team fates, THE DROPLET, the eight Seal cards, the Archlich) are
-  stage 4's list. The two painted cards with no `Cards.CARDS` row (cinderling, ten_of_swords) are part 2's.
+  stage 4's list. The two painted cards with no `Cards.CARDS` row (cinderling, ten_of_swords) are part 2's: they get
+  their rows in § 48.
+
+## Part 2. The frozen list (stage 2, 28 Nov 2026)
+
+## 36. How to read part 2
+
+Part 2 is the list the game is built to in stage 3. Part 1 says what the code holds today; part 2 says what the
+finished game holds. Where the two differ, part 2 is the plan and the Change column names the difference.
+
+Frozen: which rows exist, their names and code keys, what each one does, how it is got, what it pairs with and how it
+is tested. A row is added, dropped or re-paired only with a line in `docs/handoff.md` that says why.
+Not frozen: numbers. Every number in part 2 is a starting value. Stage 5 tunes them against the gates of § 53, and
+they live in `Tuning` or the data tables, never in this file after they are built.
+
+A part 1 section that part 2 does not name is frozen as built: the lobby robes (§ 6), weapon skins and skills (§ 8),
+races (§ 9), the fate deck (§ 10), the solo shrine (§ 11), rarity tiers (§ 12), chest items (§ 13), pickups (§ 14,
+but ORBIT changes: § 38), enemy kinds and the horde (§ 17 to 20), bosses and their attacks (§ 21, 22), hazards (§ 23),
+the Sanctum (§ 26), secrets, ouija words, moments, awards, talk lines and acts (§ 28 to 33; the talk lines that name
+pairs are rewritten: § 51).
+
+Change column: `as built` (part 1 holds the numbers), `changed` (what changes), `new`.
+
+Test column, one letter per kind of proof. A row is built only when every letter it carries is green.
+- **U** a unit test that names the row's key and proves its rule with numbers. Written first and seen red.
+- **D** a row of the damage table (`GD -s T/tool.gd -- spell_dps --gate`) held against the gates of § 53.
+- **S** a `sim_horde` row with four wizards holding it, inside the step budget.
+- **B** the coverage robot: a robot run that is dealt the row by force, ends with no engine error, and credits the row
+  (damage by source for a spell or an evolution; the row's use counter for anything else: § 52). Stage 3's gate is
+  every B green on the four PCs.
+- **C** a career or win-rate measure in stage 5 (robot careers on the four PCs).
+
+Counts (part 2): Spells 11 (10 shared, 1 class) · Arcana a wizard holds 14 · Evolutions 15 · Minor Arcana fillers 4 ·
+Fate cards 8 · Readings 16 · Ladder steps 11 · Seal rules 8 · Boss rewards 7 · Shop rows 15 · Provisions 3 · Monster
+cards 22 · Seal cards 8 · Deeds 65 · Classes 5 · Class level 5 effects 5 · Catalog rows 44 (32 today).
+
+## 37. The frame: one tarot deck, every card with a job
+
+The game is dealt from one tarot deck. A player who knows tarot can guess what a card does, and a player who does
+not learns the deck by playing it.
+
+- **The 22 Major Arcana** are split in two. Fourteen are the arcana a wizard holds (§ 39). Eight are the fate deck of
+  the team shrine (§ 10, as built): THE FOOL, THE EMPEROR, THE HIEROPHANT, WHEEL OF FORTUNE, THE HANGED MAN, DEATH,
+  THE SUN, THE WORLD. Upright, no Major Arcana is left without a job and none has two.
+- **The Minor Arcana** are the Reading (§ 42): sixteen numbered cards, four of each suit, one kept before each run.
+  The four plain suit cards stay the fillers of a short level-up hand (§ 5, as built). The title card, FOUR OF
+  WANDS, is a Reading.
+- **Reversed cards** are the Seals (§ 43): each of the eight Seals is a Major Arcana turned upside down.
+- **One rule for every evolution:** the spell at level 5 and its arcana at level 1 or more. No spell needs another
+  spell. Each arcana pairs with at least one spell, so no card in the deck is a dead pick.
+
+The chart every pair is read from (the game draws it as THE SPREAD, § 41):
+
+| Spell | + arcana | = evolution | + second arcana | = second evolution |
+|---|---|---|---|---|
+| ARCANE BOLT | THE MAGICIAN | ASTRAL LANCE | THE STAR | LODESTAR |
+| FIREBALL | STRENGTH | GREEK FIRE | THE TOWER | THUNDERFIRE |
+| FROST FAN | TEMPERANCE | BLIZZARD | THE HIGH PRIESTESS | WINTER VEIL |
+| CHAIN LIGHTNING | THE CHARIOT | TEMPEST | JUDGEMENT | DIES IRAE |
+| STARFALL | THE HERMIT | COMET RAIN | | |
+| RUNE CIRCLE | THE MOON | SEAL OF SOLOMON | | |
+| BONE SPEAR | JUSTICE | OSSUARY LANCE | | |
+| VIGIL CANDLE | THE LOVERS | CONSECRATION | | |
+| HEX | THE DEVIL | EVIL EYE | | |
+| SPIRIT BLADES | THE EMPRESS | DANSE MACABRE | | |
+| CLEAVE (knight) | STRENGTH | WHIRLWIND | | |
+
+The six spells and six arcana a new profile starts with (§ 44) pair one to one, down the first three columns of the
+first six rows: a first-night player can evolve every spell she is dealt. The four mage schools have a second road
+each; taking one evolution closes the other for that run.
+
+## 38. Spells
+
+Eleven rows: ten any wizard can learn and the knight's CLEAVE. Each has one job, said in the first words of the row.
+`n` is bolts, jumps, stars, circles or blades. New spells take the next `World.SP_*` index (HEX 9, SPIRIT BLADES 10)
+and new rows go at the end of `Upgrades.CATALOG` (it is append-only).
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| ARCANE BOLT (`w_arcane`) | ONE TARGET. Fast auto-aimed bolts. Numbers as built | Open on a new profile; a MAGE school | ASTRAL LANCE (THE MAGICIAN) · LODESTAR (THE STAR) | changed: its pair was STARFALL | U D S B |
+| FIREBALL (`w_fire`) | CROWD. A slow bolt that bursts. Numbers as built | Open on a new profile; a MAGE school | GREEK FIRE (STRENGTH) · THUNDERFIRE (THE TOWER) | changed: its pair was CHAIN LIGHTNING | U D S B |
+| FROST FAN (`w_frost`) | CROWD CONTROL. A fan of short bolts that slow. Numbers as built | Open on a new profile; a MAGE school | BLIZZARD (TEMPERANCE) · WINTER VEIL (THE HIGH PRIESTESS) | changed: its pair was ARCANE BOLT | U D S B |
+| CHAIN LIGHTNING (`w_storm`) | CROWD. Jumps from foe to foe, weaker each jump. Numbers as built | Open on a new profile; a MAGE school | TEMPEST (THE CHARIOT) · DIES IRAE (JUDGEMENT) | changed: its pair was FIREBALL | U D S B |
+| STARFALL (`w_star`) | ONE TARGET, HOMING. Slow stars that turn after their foe. Numbers as built | Open on a new profile; the PALADIN's weapon | COMET RAIN (THE HERMIT) | changed: its pair was FROST FAN | U D S B |
+| RUNE CIRCLE (`w_rune`) | ZONE. Sigils on the floor that burn what stands in them. Numbers as built | Open on a new profile | SEAL OF SOLOMON (THE MOON) | changed: its pair was STARFALL | U D S B |
+| BONE SPEAR (`w_bone`) | LINE. Two spears that pierce everything in their path. Numbers as built | Deed THE LAST WORD; always open to an ARCHER (her weapon) | OSSUARY LANCE (JUSTICE) | changed: locked on a new profile | U D S B |
+| VIGIL CANDLE (`w_candle`) | SUPPORT. A light that burns foes a little and hastes the wizards in it. Numbers as built | Deed OMEN-PROOF; always open to a PRIEST (her weapon) | CONSECRATION (THE LOVERS) | changed: locked on a new profile | U D S B |
+| HEX (`w_hex`) | SUPPORT. A curse thrown at the toughest foe within 160 px: cd 1.6/1.45/1.3/1.15/1.0 s; dmg 5/5.5/6/6.5/7. The hexed foe takes +25/30/35/40/45% damage from every wizard for 4 s (half of that on an elite or a boss). When it dies the hex jumps to the nearest foe within 70 px, up to 2/3/4/5/6 times. A hexed foe wears a violet mark every player can read | THE WITCH'S DECK at the shopkeeper (§ 45) | EVIL EYE (THE DEVIL) | new | U D S B |
+| SPIRIT BLADES (`w_blades`) | CLOSE DEFENCE. 2/2/3/3/4 blades circle her at 30 px, one turn each 1.6 s, always out. A touch deals 1.2/1.45/1.7/1.95/2.2 and pushes the foe back; one foe is cut at most every 0.5 s. The ORBIT pickup lends any wizard 3 more blades for 12 s (its count and time today) | THE DUELLIST'S DECK at the shopkeeper (§ 45) | DANSE MACABRE (THE EMPRESS) | new; the ORBIT pickup's own damage source goes | U D S B |
+| CLEAVE (`w_cleave`) | MELEE ARC, the knight's. Numbers as built | Comes with the KNIGHT (deed HOLD THE TOWER); only a knight is offered it | WHIRLWIND (STRENGTH) | changed: the KNIGHT is locked on a new profile | U D S B |
+
+How the arcana change a spell that is not a bolt: THE MAGICIAN turns SPIRIT BLADES faster. THE STAR adds bolts,
+jumps, stars, circles, lights or blades, and widens a sweep's arc by a half for each missile. THE HIGH PRIESTESS
+echoes a cast, or makes every fourth, third or second touch of a blade cut twice. THE EMPRESS widens every area named
+in her row.
+
+## 39. Arcana a wizard holds (passives)
+
+Fourteen rows. Each takes an arcana slot and each is one half of a pair. THE TOWER and JUDGEMENT were instant picks
+that took no slot (§ 4): they become held arcana with a second effect, and the kind INSTANT has no rows left.
+Lesson kept from wave 3: an effect nobody can see is cut, so every new arcana shows on screen.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| I THE MAGICIAN (`quick`) | Cast faster. Numbers as built (5 levels, weight 10) | Open on a new profile | ASTRAL LANCE (ARCANE BOLT) | changed: gains a pair | U B |
+| II THE HIGH PRIESTESS (`priestess`) | Every 4th / 3rd / 2nd cast of each spell is cast twice: the echo follows 0.15 s later at the same aim, drawn pale. 3 levels, weight 6 | THE VEILED DECK at the shopkeeper (§ 45) | WINTER VEIL (FROST FAN) | new (her painted card is in the repo) | U D S B |
+| III THE EMPRESS (`empress`) | Every area is 10 / 20 / 30% wider: blasts, bursts and splinters, rune and candle circles, a sweep's reach, the blades' ring, the hex's jump, the veil. 3 levels, weight 7 | THE DUELLIST'S DECK at the shopkeeper (§ 45) | DANSE MACABRE (SPIRIT BLADES) | new | U D B |
+| VI THE LOVERS (`lovers`) | Cast faster near an ally. Numbers as built (3 levels, weight 7) | Deed OMEN-PROOF; always open to a PRIEST | CONSECRATION (VIGIL CANDLE) | changed: locked on a new profile | U B |
+| VII THE CHARIOT (`swift`) | Move faster. Numbers as built (5 levels, weight 10) | Open on a new profile | TEMPEST (CHAIN LIGHTNING) | changed: gains a pair | U B |
+| VIII STRENGTH (`power`) | More damage. Numbers as built (5 levels, weight 10) | Open on a new profile | GREEK FIRE (FIREBALL) · WHIRLWIND (CLEAVE) | changed: gains a second pair | U B |
+| IX THE HERMIT (`wisdom`) | More XP. Numbers as built (3 levels, weight 7) | Open on a new profile | COMET RAIN (STARFALL) | changed: gains a pair | U B |
+| XI JUSTICE (`justice`) | A slain foe may burst. Numbers as built (3 levels, weight 7) | Deed THE LAST WORD; always open to an ARCHER | OSSUARY LANCE (BONE SPEAR) | changed: locked on a new profile | U B |
+| XIV TEMPERANCE (`regen`) | A heart back every 18 / 12 / 8 s. Numbers as built (3 levels, weight 6) | Open on a new profile | BLIZZARD (FROST FAN) | changed: gains a pair | U B |
+| XV THE DEVIL (`devil`) | +12 / 18 / 24% damage for each heart she is missing, at most 4 hearts counted. Her staff burns red while it holds. 3 levels, weight 6 | THE WITCH'S DECK at the shopkeeper (§ 45) | EVIL EYE (HEX) | new | U D B |
+| XVI THE TOWER (`nova`) | +1 nova charge at once, each level. Then a charge comes back every 75 / 60 / 45 s while she holds fewer than 3. 3 levels, weight 5. The build of a hero who lives by her class skill | Deed EVOLUTION | THUNDERFIRE (FIREBALL) | changed: was an instant pick of 5 levels with no slot and no refill | U B |
+| XVII THE STAR (`star`) | +1 / +2 missiles for every spell (§ 38 says what a missile is for each). 2 levels, weight 5 | Deed THE FIRST PAGE | LODESTAR (ARCANE BOLT) | new (its painted card is in the repo) | U D S B |
+| XVIII THE MOON (`magnet`) | Wider XP pull. Numbers as built (3 levels, weight 7) | Open on a new profile | SEAL OF SOLOMON (RUNE CIRCLE) | changed: gains a pair | U B |
+| XX JUDGEMENT (`life`) | +1 life at once, each level. When she spends a life she rises with a nova's blast that costs no charge. 2 levels, weight 4. SEAL VIII still bans it | Deed THE TOWER REMEMBERS | DIES IRAE (CHAIN LIGHTNING) | changed: was an instant pick with no slot and no blast | U B |
+
+## 40. Evolutions
+
+Fifteen rows. An evolution replaces its spell's level 5 numbers and adds one new behaviour, said in its card's three
+or four words. The card weighs 40, and a row that completes a pair weighs four times more in the roll (as built).
+Two evolutions of one spell are told apart by an id where the code holds a flag today (§ 52).
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| ASTRAL LANCE (`e_arcane`) | PIERCING BOLTS. Numbers as built. The crowd road for ARCANE BOLT | ARCANE BOLT 5 + THE MAGICIAN | THE MAGICIAN | changed: its partner was STARFALL | U D S B |
+| LODESTAR (`e_lodestar`) | BOLTS HUNT THE STRONG. cd 0.12 s; dmg 3; n 3. Bolts turn after the toughest foe within 160 px and deal double to elites and bosses. The boss road for ARCANE BOLT | ARCANE BOLT 5 + THE STAR | THE STAR | new | U D S B |
+| GREEK FIRE (`e_greek`) | FIRE THAT STAYS. cd 0.8 s; dmg 3; n 2. Each blast leaves a burning patch of 28 px for 3 s that ticks 1.2 each 0.5 s | FIREBALL 5 + STRENGTH | STRENGTH | new | U D S B |
+| THUNDERFIRE (`e_fire`) | ZAPPING BLASTS. Numbers as built | FIREBALL 5 + THE TOWER | THE TOWER | changed: its partner was CHAIN LIGHTNING | U D S B |
+| BLIZZARD (`e_frost`) | A STORM OF ICE. Numbers as built | FROST FAN 5 + TEMPERANCE | TEMPERANCE | changed: its partner was ARCANE BOLT | U D S B |
+| WINTER VEIL (`e_veil`) | A MIST THAT FOLLOWS. The fan keeps its level 5 numbers, and a mist of 40 px stays on her: foes in it are slowed as by the fan and take 1.6 each 0.5 s | FROST FAN 5 + THE HIGH PRIESTESS | THE HIGH PRIESTESS | new | U D S B |
+| TEMPEST (`e_storm`) | TWIN CHAINS. Numbers as built | CHAIN LIGHTNING 5 + THE CHARIOT | THE CHARIOT | changed: its partner was FIREBALL | U D S B |
+| DIES IRAE (`e_dies`) | THE WEAK ARE STRUCK DEAD. cd 0.6 s; dmg 5; n 7. Jumps do not weaken. A plain foe left under a fifth of its health by a jump dies; never an elite or a boss | CHAIN LIGHTNING 5 + JUDGEMENT | JUDGEMENT | new | U D S B |
+| COMET RAIN (`e_star`) | ICY STARBURSTS. Numbers as built | STARFALL 5 + THE HERMIT | THE HERMIT | changed: its partner was FROST FAN | U D S B |
+| SEAL OF SOLOMON (`e_rune`) | SIGILS PULL IN. Numbers as built | RUNE CIRCLE 5 + THE MOON | THE MOON | changed: its partner was STARFALL | U D S B |
+| OSSUARY LANCE (`e_bone`) | SPLINTER HITS. Numbers as built | BONE SPEAR 5 + JUSTICE | JUSTICE | as built | U D S B |
+| CONSECRATION (`e_candle`) | HEALING LIGHT. Numbers as built | VIGIL CANDLE 5 + THE LOVERS | THE LOVERS | as built | U D S B |
+| EVIL EYE (`e_hex`) | THE HEXED BURST. cd 0.9 s; dmg 8; +50% damage taken; 6 jumps. A hexed foe bursts when it dies: half of its full health within 26 px, at most 40 a burst | HEX 5 + THE DEVIL | THE DEVIL | new | U D S B |
+| DANSE MACABRE (`e_blades`) | A SECOND RING. 4 blades at 30 px and 4 more at 52 px turning the other way; 3 a touch | SPIRIT BLADES 5 + THE EMPRESS | THE EMPRESS | new | U D S B |
+| WHIRLWIND (`e_cleave`) | A FULL CIRCLE. It strikes every foe in reach: the cap of 3 goes, and dmg starts at 24 (was 36) | CLEAVE 5 + STRENGTH; knight only | STRENGTH | changed: today it is weaker than CLEAVE 5 in a crowd (§ 53) | U D S B |
+
+## 41. Level-up rules, the fillers and the chart
+
+| Rule (code key) | What it is | Change | Test |
+|---|---|---|---|
+| The hand (`level_choices`) | Three cards; two under SEAL VII. Each wizard draws her own and nothing pauses (as built) | as built | U |
+| Slots (`Upgrades.SLOTS_EARLY`, `SLOTS_LATE`) | 3 spells and 3 arcana until the first boss falls, then 4 and 4. TEN OF WANDS makes it 5 and 2 from the start | as built; the Reading is new | U B |
+| Evolution rule (`requires`) | The spell at level 5 and its arcana at level 1 or more. A school spell's two evolutions shut each other out for the run | changed: six partners were spells | U |
+| Redraws and banishes (`REDRAWS`, `BANISHES`) | 2 and 2 for each wizard each run, plus the shop's THE SECOND GLANCE and THE BLACK RIBBON, plus the card THE GHOST WRITER | changed: three sources add to them | U |
+| Free spell levels (`party_tome_elite`) | An elite drops a PARTY TOME 0.35 of the time (was every time: up to twenty free levels a run, which chose the build for her). Each of the first two bosses still drops one; an urn holds one at 0.02 | changed | U C |
+| Locked rows (the profile's mask) | A row the profile has not opened (§ 44) is never dealt: the path SEAL VIII uses to ban JUDGEMENT. A hero's class weapon, its arcana and its evolution are always open to her. The host's profile sets the mask for the table | new | U B |
+| Fillers (`cups`, `pentacles`, `swords`, `wands`) | The four Minor Arcana that fill a short hand, as built (§ 5) | as built | U |
+| THE SPREAD (the chart) | A page in the pause menu and at the card reader's table: every spell with its arcana and its evolutions, read from the catalog's `requires` and never typed twice. A locked row lies face down and says how it opens. The rows a wizard holds are lit | new | U |
+
+## 42. The Reading
+
+Before each run the table is dealt three Minor Arcana from the run's seed and keeps one; it changes that run's rules.
+Every seat votes, seat 1 breaks a tie, and a seat that does not vote in 15 s abstains. A card marked PARTY is dealt
+only to a table of two or more (an apprentice counts). The Reading opens for a profile when THE BONE CHANDELIER first
+falls, with the four aces and FOUR OF WANDS; the other eleven are opened by deeds (§ 44). The five opening cards are
+gifts, so the first Readings teach the idea kindly; each of the other eleven takes something or raises the danger for
+what it gives. A Reading's values merge into the run after the Seal's (the path `Seals.values` uses), so a Reading
+and a Seal that touch the same number multiply.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| ACE OF WANDS (`r_wands_1`) | Every wizard starts with a second spell at level 1, drawn from the seed among the open spells she does not hold | With the Reading (deed BRING DOWN THE HOUSE) | Any build: a head start on a second evolution | new | U B C |
+| FOUR OF WANDS (`r_wands_4`) | The title card. An apprentice joins the table for this run. With all four seats taken, every wizard has +1 heart | With the Reading | The solo and two-player table; THE LOVERS | new | U S B C |
+| EIGHT OF WANDS (`r_wands_8`) | Everything is a fifth faster: wizards, foes, bolts, the horde's clock, and XP comes a fifth faster too | Deed TOTAL SORCERY | THE CHARIOT; a table that wants a shorter, harder run | new | U S B C |
+| TEN OF WANDS (`r_wands_10`) | The burden: 5 spell slots and 2 arcana slots from the first second | Deed THE KEY OF SOLOMON | STRENGTH (the one arcana with two pairs) | new; the tray must hold 5 and 2 | U B C |
+| ACE OF CUPS (`r_cups_1`) | Every wizard has +2 hearts | With the Reading | THE DEVIL (more hearts to be missing) | new | U B C |
+| TWO OF CUPS (`r_cups_2`) PARTY | The bond: a hit takes its heart from the wizard who holds the most | Deed SECOND WIND | A table with a KNIGHT or a PRIEST | new | U B C |
+| FIVE OF CUPS (`r_cups_5`) | No potions drop. Every boss phase and every boss death heals every wizard to full | Deed THE UPPER SHELF | TEMPERANCE; CONSECRATION | new | U B C |
+| NINE OF CUPS (`r_cups_9`) | The wish: each wizard's first two hands hold only arcana, and their redraws are free. Her second spell comes later for it | Deed BLESSED BE | The pair she plans to evolve | new | U B C |
+| ACE OF SWORDS (`r_swords_1`) | Every wizard has +2 nova charges, and each time a boss arrives her charges are filled back to what she started the run with | With the Reading | THE TOWER; class skills | new | U B C |
+| THREE OF SWORDS (`r_swords_3`) | Hearts are capped at 3. All damage is x1.6 | Deed WORTH IT | THE DEVIL; JUDGEMENT | new | U B C |
+| SEVEN OF SWORDS (`r_swords_7`) | Elites come twice as often and each one drops a PARTY TOME | Deed MASS GRAVE | Any evolution plan: more free spell levels for more danger | new | U S B C |
+| TEN OF SWORDS (`r_swords_10`) | TEN OF SWORDS foes join the horde from 1:00; the horde is a fifth bigger; XP is x1.3 | Deed FIRST SEAL BROKEN | THE HERMIT; crowd spells | new | U S B C |
+| ACE OF PENTACLES (`r_pent_1`) | Every wizard starts with 150 gold and a gamble shrine stands at the door | With the Reading | The team shrine and the fate deck | new | U B C |
+| FOUR OF PENTACLES (`r_pent_4`) | The miser: no shrines appear. Every 100 gold a wizard picks up heals her a heart | Deed JACKPOT | The card THE CUTPURSE; MIDAS' PURSE | new | U B C |
+| NINE OF PENTACLES (`r_pent_9`) | Every chest holds two items. Foes have a fifth more health | Deed THE LONG HARVEST | FOUR-LEAF RUNE; the satchel | new | U B C |
+| TEN OF PENTACLES (`r_pent_10`) | The run is played at the next step's numbers and rule, and pays double crystals | Deed THE LAST LICH (the first win) | The ladder: a look at the next step before it is open | new | U B C |
+
+THE READER'S FAVOUR (§ 45) deals the three again once a run, then deals four. The Daily Draw (§ 49) deals one card
+and nobody chooses.
+
+## 43. The ladder and the reversed Seals
+
+Eleven steps, as built, with more weight on each. ARCHMAGE is no longer open on a new profile: the WIZARD win opens
+it (`START_UNLOCKED` 0; an old profile keeps what it has). Starting numbers: ARCHMAGE enemy health x1.20 and boss
+health x1.25 (today x1.08 and x1.15); each Seal adds +0.08 enemy health, +0.05 horde and +0.10 boss health on the
+step below (today +0.03, +0.03, +0.06). The crystal bounty, chest luck and first-win prize of each step are as built
+(§ 24). Each Seal is a Major Arcana reversed: its card is that arcana upside down under a red seal, its rule is that
+arcana's gift turned against the table. Rules pile up: SEAL V is played under the rules of I to V.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| APPRENTICE (step -1) | As built: gentler foes, +2 hearts, twice the potions, half the crystals | Open on a new profile | none | as built | U C |
+| WIZARD (step 0) | The game as tuned | Open on a new profile | The Daily Draw is always played here | as built | U C |
+| ARCHMAGE (step 1) | Enemy health x1.20, boss health x1.25 | A win at WIZARD | Its first win opens FIVE OF CUPS | changed: locked on a new profile; numbers up | U C |
+| SEAL I, HUNGER (step 2) | THE EMPRESS REVERSED. Potions from kills x0.6. Health x1.28, horde x1.05, boss x1.35 | A win at ARCHMAGE | Card THE HUNGER; its first win opens TEN OF SWORDS | changed: numbers up | U B C |
+| SEAL II, AMBUSH (step 3) | THE HIGH PRIESTESS REVERSED. Rifts warn half as long, and so do the three omens (`omen` 0.5). Health x1.36, horde x1.10, boss x1.45 | A win at SEAL I | Card THE AMBUSH; opens THE BLACK RIBBON level 2 | changed: the omen half is new; numbers up | U B C |
+| SEAL III, FAMINE (step 4) | TEMPERANCE REVERSED. A potion heals one heart. Health x1.44, horde x1.15, boss x1.55 | A win at SEAL II | Card THE FAMINE; opens THE SATCHEL level 2 | changed: numbers up | U B C |
+| SEAL IV, LEGION (step 5) | THE EMPEROR REVERSED. Groups a quarter bigger, cap 325. Health x1.52, horde x1.20, boss x1.65 | A win at SEAL III | Card THE LEGION; opens RUNED STAFF levels 4 and 5 | changed: numbers up | U S B C |
+| SEAL V, CHAMPIONS (step 6) | STRENGTH REVERSED. Elites have half again the health and an escort of 4. Health x1.60, horde x1.25, boss x1.75 | A win at SEAL IV | Card THE CHAMPION; opens THE SECOND GLANCE level 2 | changed: numbers up | U B C |
+| SEAL VI, MISFORTUNE (step 7) | WHEEL OF FORTUNE REVERSED. The cruel side comes up 0.6 of the time, and a cruel fate is drawn on the table as each act boss arrives (`boss_fate`), solo too. Health x1.68, horde x1.30, boss x1.85 | A win at SEAL V | Card MISFORTUNE; opens THE READER'S FAVOUR level 2 | changed: the boss fate is new; numbers up | U B C |
+| SEAL VII, SILENCE (step 8) | THE HIEROPHANT REVERSED. Hands of two cards. Health x1.76, horde x1.35, boss x1.95 | A win at SEAL VI | Card THE SILENCE; opens THE HEAD START level 2 | changed: numbers up | U B C |
+| SEAL VIII, DARKNESS (step 9) | THE SUN REVERSED. One life (two alone), no JUDGEMENT, rituals take twice as long. Health x1.84, horde x1.40, boss x2.05 | A win at SEAL VII | Card THE DARKNESS; a gold rim on her seat and name | changed: numbers up; the rim is new | U S B C |
+
+## 44. The unlock track
+
+What a new profile holds, and the deed that opens each thing after it. The aim is one new thing about every second
+run up to the first win, then one for each step of the ladder. A guest seat always plays one of the four preset
+heroes (`Net.GUEST_PRESETS`: a HUMAN MAGE, an ELF ARCHER, a DWARF KNIGHT, an ORC PRIEST), so a first night with four
+on the couch already shows four classes; the locks are on the heroes a profile may build and on the deck it is dealt.
+An old profile opens everything its record proves: the deeds it holds, and the class and race of every hero saved.
+
+Open on a new profile:
+- the MAGE with her four schools; HUMAN and ELF;
+- ARCANE BOLT, FIREBALL, FROST FAN, CHAIN LIGHTNING, STARFALL, RUNE CIRCLE;
+- THE MAGICIAN, STRENGTH, TEMPERANCE, THE CHARIOT, THE HERMIT, THE MOON;
+- APPRENTICE and WIZARD; every shop level that § 43 does not hold back for a Seal; one satchel pocket.
+
+| Deed that opens it (code key) | What opens | About when | Change | Test |
+|---|---|---|---|---|
+| THE FIRST PAGE (`LEVEL_5`) | THE STAR | The first run | new deed | U B C |
+| BRING DOWN THE HOUSE (`BOSS_CHANDELIER`) | The Reading, with ACE OF WANDS, ACE OF CUPS, ACE OF SWORDS, ACE OF PENTACLES and FOUR OF WANDS | Run 2 or 3 | new unlock | U B C |
+| EVOLUTION (`EVOLVE`) | THE TOWER | Run 2 to 4 | new unlock | U C |
+| HOLD THE TOWER (`TEN_MINUTES`) | The KNIGHT (with CLEAVE and WHIRLWIND) and the DWARF | Run 4 to 6 | new unlock | U C |
+| THE TOWER REMEMBERS (`FALLS_5`) | JUDGEMENT | The fifth run lost | new deed | U C |
+| THE LAST WORD (`BOSS_GHOSTWRITER`) | The ARCHER, BONE SPEAR and JUSTICE | Run 5 to 8 | new unlock | U C |
+| OMEN-PROOF (`OMENS`) | The PRIEST, the ORC, VIGIL CANDLE and THE LOVERS | Run 6 to 10 | new unlock | U C |
+| THE LAST LICH (`ARCHLICH`) | The PALADIN, Overtime, the Daily Draw and TEN OF PENTACLES | The first win | new unlock | U C |
+| A win at WIZARD | ARCHMAGE | The first win, or the one after an APPRENTICE win | changed | U C |
+| TOTAL SORCERY (`COMBO_200`) | EIGHT OF WANDS | By play | new unlock | U |
+| THE KEY OF SOLOMON (`SEAL`) | TEN OF WANDS | By play | new unlock | U |
+| SECOND WIND (`REVIVE_3`) | TWO OF CUPS | By play at a table of two or more | new unlock | U |
+| BLESSED BE (`BLESSED`) | NINE OF CUPS | By play at a team shrine | new unlock | U |
+| WORTH IT (`CURSED`) | THREE OF SWORDS | By play at a team shrine | new unlock | U |
+| JACKPOT (`JACKPOT`) | FOUR OF PENTACLES | By play at a rune altar | new unlock | U |
+| MASS GRAVE (`KILLS_10K`) | SEVEN OF SWORDS | About the first win | new unlock | U |
+| THE LONG HARVEST (`KILLS_100K`) | NINE OF PENTACLES | Deep in the ladder | new unlock | U |
+| THE UPPER SHELF (`WIN_ARCHMAGE`) | FIVE OF CUPS | The ARCHMAGE win | new unlock | U |
+| FIRST SEAL BROKEN (`WIN_SEAL_1`) | TEN OF SWORDS | The SEAL I win | new unlock | U |
+| The wins at SEAL II to VIII | The shop levels and the rim named in § 43 | One a step | new unlock | U |
+| Crystals at the shopkeeper | HEX with THE DEVIL · SPIRIT BLADES with THE EMPRESS · THE HIGH PRIESTESS (§ 45) | When she chooses | new | U |
+
+## 45. The shop
+
+Crystals are earned only (§ 25, as built). The shopkeeper has three shelves and a counter: fourteen rows that stay
+bought (6,170 crystals to own them all; 940 today), A CLEAN SLATE, and three provisions that are used up. An old
+profile keeps the levels it bought; RUNED STAFF's three old levels are worth 12% in place of 15%.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| WARDED ROBES (`vigor`) | +1 heart a level, 2 levels | 40, 160 crystals | none | changed: prices (were 30, 90) | U |
+| RUNED STAFF (`might`) | +4% damage a level, 5 levels; levels 4 and 5 open at the SEAL IV win | 30, 70, 150, 300, 600 | none | changed: was +5% for 3 levels (20, 50, 110) | U |
+| FORBIDDEN LORE (`wisdom`) | +6% XP a level, 3 levels | 30, 80, 200 | none | changed: prices (were 20, 50, 110) | U |
+| MIDAS' PURSE (`fortune`) | +15% gold a level, 3 levels | 20, 60, 150 | none | changed: prices (were 15, 40, 90) | U |
+| BOTTLED STAR (`novas`) | +1 nova a level, 2 levels | 40, 140 | none | changed: prices (were 25, 70) | U |
+| FOUR-LEAF RUNE (`luck`) | +1 chest luck a level, 2 levels | 80, 240 | none | changed: prices (were 60, 160) | U |
+| THE SECOND GLANCE (`redraw`) | +1 redraw each run a level, 2 levels; level 2 opens at the SEAL V win | 60, 220 | The level-up hand | new | U |
+| THE BLACK RIBBON (`banish`) | +1 banish each run a level, 2 levels; level 2 opens at the SEAL II win | 60, 220 | The level-up hand | new | U |
+| THE HEAD START (`start_level`) | The party starts at level 2, then 3: each wizard draws those hands before the first door opens. Level 2 opens at the SEAL VII win | 120, 400 | The pair she plans | new | U B |
+| THE SATCHEL (`satchel`) | One more pocket a level, 2 levels (§ 46); level 2 opens at the SEAL III win | 300, 900 | The satchel | new | U |
+| THE READER'S FAVOUR (`favour`) | Level 1: the table may have the Reading dealt again once. Level 2: the Reading deals four cards. Level 2 opens at the SEAL VI win | 250, 750 | The Reading | new | U B |
+| A CLEAN SLATE (`respec`) | Gives the active hero her stat points back to spend again | 50, each time | Hero stat points (§ 9) | new | U |
+| THE WITCH'S DECK (`deck_hex`) | Opens HEX and THE DEVIL, and with them EVIL EYE | 150, once | § 38 to 40 | new | U |
+| THE DUELLIST'S DECK (`deck_blades`) | Opens SPIRIT BLADES and THE EMPRESS, and with them DANSE MACABRE | 150, once | § 38 to 40 | new | U |
+| THE VEILED DECK (`deck_priestess`) | Opens THE HIGH PRIESTESS, and with her WINTER VEIL | 200, once | § 39, 40 | new | U |
+
+Provisions are sold at the counter into a satchel pocket and are used up by the next run (§ 46). Their keys are the
+chest items' (§ 13).
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| ELIXIR (`elixir`) | The first time her hearts would reach none, she drinks it and stands at full hearts | 40 crystals | A step she has not won yet | new use of the chest item | U B |
+| NOVA FLASK (`novas`) | She starts the run with 2 more nova charges | 25 | THE TOWER; class skills | new use of the chest item | U B |
+| SIBYLLINE BOOK (`tome`) | Her class weapon starts the run at level 2 | 60 | Her first evolution | new use of the chest item | U B |
+
+The reliquary's sealed deck stays 1,500 crystals for one monster card she lacks (§ 26); with 22 monster cards its
+price is one of stage 5's numbers.
+
+## 46. The satchel and keepsakes
+
+The inventory bag the owner asked for on 21 Nov ("for consumable items and socketable collectables"). One small
+screen among the mirror's hero screens shows everything the active hero carries into a run: her three sockets with
+their cards (§ 15), her pockets, and her keepsake.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| Pocket (`satchel.pockets`) | Holds one item for her next run and is emptied by that run. Either a piece of armour she found in the run that just ended, picked on the results screen and worn from the first second at the tier it was found; or a provision from the counter (§ 45). A kept piece cannot be kept a second time | Every saved hero has one; THE SATCHEL gives each of the profile's heroes two more | Chest armour (§ 13); provisions | new | U B |
+| Keepsake (`satchel.keepsake`) | An ULTRA RARE piece of armour is never lost: when its run ends it joins the profile's keepsakes for good. A hero wears one keepsake at a time; in later runs it counts at the EPIC value (twice the base). The prismatic chest always holds armour, so every ULTRA RARE find is a keepsake | The prismatic chest of an ULTRA RARE run (1 run in 100, as built); never under APPRENTICE | The six armour rows of § 13 | new; the prismatic chest no longer rolls a consumable | U B |
+| The satchel screen | Sockets, pockets and keepsake on one page; a card, a piece or a provision is moved with one press | The mirror, from the first run | The album (§ 15) stays the collection | new | U |
+
+A guest seat and an apprentice have no satchel. A scripted run never reads or writes one.
+
+## 47. Heroes: class level 5
+
+A hero's skill gains a second effect when she reaches class level 5 (`docs/classes_design.md`): about six to eight
+runs with one hero at today's class XP (§ 9), so it lands near her first win. Levels 10 and 15 are not built in
+stages 1 to 5.
+The classes, races, skins and skills themselves are as built (§ 7 to 9); which of them a new profile may build is in
+§ 44.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| NOVA, second effect (`nova`) | A foe the blast does not slay is slowed for 3 s | A MAGE at class level 5 | FROST FAN; THE TOWER | new | U B |
+| PROVOKE, second effect (`provoke`) | A provoked foe takes a quarter more damage from every wizard while it is provoked | A KNIGHT at class level 5 | HEX; a table that focuses one foe | new | U B |
+| VOLLEY, second effect (`volley`) | Her arrows pierce | An ARCHER at class level 5 | BONE SPEAR; JUSTICE | new | U B |
+| SANCTUARY, second effect (`sanctuary`) | The fallen rise wherever they lie, not only within 80 px | A PRIEST at class level 5 | TWO OF CUPS; JUDGEMENT | new | U B |
+| AEGIS, second effect (`aegis`) | When the shield ends it bursts like a nova | A PALADIN at class level 5 | THE TOWER; ACE OF SWORDS | new | U B |
+
+## 48. Monster cards
+
+Ten new rows, so each of the 22 enemy kinds has a card and the album has no gap that play cannot fill. How a card
+drops is as built (§ 15): a card run, a Sanctum pot, a sealed deck. A boss's card drops from that boss in a card run
+that names it. Sockets after the ten: ROBE 7, HAT 8, STAFF 7. Four cards carry a stat no card had (nova, XP, chest
+luck, redraw). The eight Seal cards (§ 16) are as built.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| THE POWDER KEG (`bloat`, index 20) | STAFF socket; +1 nova each run; lore "DO NOT STAND SO CLOSE." | BLOAT in a card run; pots, sealed deck | monster BLOAT | new | U |
+| THE LIGHT SLEEPER (`coffin`, index 21) | HAT socket; +8% XP; lore "KNOCK ONCE. IT WAS NEVER ASLEEP." | RESTLESS COFFIN in a card run; pots, sealed deck | monster RESTLESS COFFIN | new | U |
+| THE SHIELD-BEARER (`guard`, index 22) | ROBE socket; 8% ward; lore "IT ONLY EVER FACED ONE WAY." | TOMB GUARD in a card run; pots, sealed deck | monster TOMB GUARD | new | U |
+| THE FIRESTARTER (`cinderling`, index 23) | HAT socket; +8% speed; lore "IT RUNS BECAUSE IT BURNS." | CINDERLING in a card run; pots, sealed deck | monster CINDERLING | new (its painted card is in the repo) | U |
+| THE CENSOR (`censor`, index 24) | HAT socket; -10% cooldown; lore "WHAT IT CANNOT READ, IT BURNS." | THE CENSOR in a card run; pots, sealed deck | monster THE CENSOR | new | U |
+| THE PACK (`hound`, index 25) | STAFF socket; +12% damage; lore "ONE HOWLS. THE REST ARE ALREADY BEHIND YOU." | ASH HOUND in a card run; pots, sealed deck | monster ASH HOUND | new | U |
+| THE FALLEN STAR (`shard`, index 26) | STAFF socket; +1 chest luck; lore "IT REMEMBERS THE SKY AND HOLDS A GRUDGE." | COMET SHARD in a card run; pots, sealed deck | monster COMET SHARD | new | U |
+| THE TENTH BLADE (`ten_of_swords`, index 27) | STAFF socket; +15% damage; lore "NINE WERE ENOUGH. IT CAME ANYWAY." | TEN OF SWORDS in a card run; pots, sealed deck | monster TEN OF SWORDS | new (its painted card is in the repo) | U |
+| THE CHANDELIER (`chandelier`, index 28) | ROBE socket; +3 hearts; lore "A THOUSAND CANDLES, NONE OF THEM KIND." | THE BONE CHANDELIER in a card run; pots and sealed deck at half the odds, as THE LICH | boss THE BONE CHANDELIER | new | U |
+| THE GHOST WRITER (`ghostwriter`, index 29) | HAT socket; +1 redraw each run; lore "EVERY WORD OF THIS WAS ITS IDEA." | THE GHOST WRITER in a card run; pots and sealed deck at half the odds, as THE LICH | boss THE GHOST WRITER | new | U |
+
+## 49. Boss rewards, Overtime and the Daily Draw
+
+Every boss phase hands the table something, so a long fight has steps and a party that is losing gets one more
+chance.
+
+| Moment | What the table gets | Change | Test |
+|---|---|---|---|
+| THE BONE CHANDELIER turns to THE WHEEL (half health) | A potion for each wizard (none while THE HIEROPHANT holds) | new | U B |
+| THE BONE CHANDELIER falls | As built: gems and coins, a potion, a PARTY TOME, a chest for each wizard, the fallen rise, a lull of 20 s. The fourth spell slot and arcana slot open, and the screen says so | as built; the words are new | U B |
+| THE GHOST WRITER turns its page (half health) | A nova charge for each wizard | new | U B |
+| THE GHOST WRITER falls | As built, the same as the first boss | as built | U B |
+| THE ARCHLICH ascends (75% health) | As built: the field clears and every wizard heals 2 hearts | as built | U B |
+| THE ARCHLICH turns THE NINTH PAGE (35% health) | A nova charge for each wizard, and the fallen rise | new | U B |
+| THE ARCHLICH falls | The run is won and booked. Then Overtime is offered, once it is open | changed: Overtime | U B |
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| Overtime (`overtime`) | Offered on the victory banner; seat 1 decides. The win is booked before it starts, so a fall in Overtime loses nothing. The horde returns at the mix of act III with an elite every 20 s and no boss. Each minute plays one ladder step harder (+0.08 enemy health, +0.05 horde). It ends at +10:00 with THE TOWER HOLDS. Time and kills go on paying crystals. The best time at each step is kept on the profile and shown on that step's card | Deed THE LAST LICH (the first win) | Deed AFTER HOURS; a finished build with nothing left to fight | new | U S B C |
+| The Daily Draw (`daily`) | One run a day that is the same for everyone: the date (UTC) gives the seed, the step is WIZARD, and the day's Reading is dealt, not chosen. A hero plays it as she is. The profile keeps the day's best score and its best ever. The first Daily Draw finished each day pays crystals x1.5. No leaderboard before stage 6. The date is read by the menu and handed in as the seed: the logic stays pure | Deed THE LAST LICH (the first win) | Deed CARD OF THE DAY | new | U B |
+
+## 50. Deeds
+
+The 54 deeds of § 27 stay as built; twenty-three of them now open something (§ 44). Eleven are new, 65 in all. Each
+evolution has its deed. The new ones live in the Book of Deeds; which deeds go to Steam is stage 7's list.
+
+| Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
+|---|---|---|---|---|---|
+| THE FIRST PAGE (`LEVEL_5`) | "Reach party level 5 in a run." Pays 5 crystals | End of a run | Opens THE STAR | new | U |
+| THE TOWER REMEMBERS (`FALLS_5`) | "Fall in five runs." Rule: 5 runs lost over all runs. Pays 10 | End of a run | Opens JUDGEMENT | new | U |
+| TRUE NORTH (`EVO_LODESTAR`) | "Evolve Arcane Bolt into Lodestar." Pays 15 | End of a run | LODESTAR | new | U |
+| IT BURNS ON WATER (`EVO_GREEK`) | "Evolve Fireball into Greek Fire." Pays 15 | End of a run | GREEK FIRE | new | U |
+| COLD COMFORT (`EVO_VEIL`) | "Evolve Frost Fan into Winter Veil." Pays 15 | End of a run | WINTER VEIL | new | U |
+| DAY OF WRATH (`EVO_DIES`) | "Evolve Chain Lightning into Dies Irae." Pays 15 | End of a run | DIES IRAE | new | U |
+| THE LONG STARE (`EVO_HEX`) | "Evolve Hex into Evil Eye." Pays 15 | End of a run | EVIL EYE | new | U |
+| SHALL WE DANCE (`EVO_BLADES`) | "Evolve Spirit Blades into Danse Macabre." Pays 15 | End of a run | DANSE MACABRE | new | U |
+| TWO ROADS (`TWO_ROADS`) | "Evolve one spell both ways." Rule: both evolutions of one school spell taken, over all runs. Pays 25 | End of a run | The four school spells | new | U |
+| AFTER HOURS (`OVERTIME`) | "Last the whole of Overtime." Rule: reached +10:00. Pays 30 | End of a run | Overtime | new | U |
+| CARD OF THE DAY (`DAILY`) | "Win a Daily Draw." Pays 20 | End of a run | The Daily Draw | new | U |
+
+## 51. Rows that go, rows that change, and part 1's open notes
+
+- `Bosses.VISITS` goes (§ 35: two rows no code reads). Morvane's visits at 7:00 and 12:00 are not built in the first
+  five stages; the idea is kept for stage 6. The moment `M_LICH` keeps its index, and the deed LICH BANE stays earned
+  by the Archlich.
+- The kind INSTANT keeps its number in the code and has no rows (§ 39).
+- The ORBIT pickup lends SPIRIT BLADES (§ 38); its own damage source goes.
+- The five floor spell tomes stay as built: off (`floor_tomes` 0).
+- ARCHMAGE is locked on a new profile (§ 43). Six evolutions change partner (§ 40). Of today's rows, four classes,
+  two races, three spells (BONE SPEAR, VIGIL CANDLE and the knight's CLEAVE) and four arcana (THE LOVERS, JUSTICE,
+  THE TOWER, JUDGEMENT) are locked on a new profile (§ 44).
+- The two painted monster cards with no row get theirs: `cinderling` is THE FIRESTARTER, `ten_of_swords` is THE
+  TENTH BLADE (§ 48). The two painted Major Arcana with no row get theirs: `the_star`, `the_high_priestess` (§ 39).
+- The card reader's talk lines that name pairs (§ 32) are rewritten to the chart of § 37 when the pairs are built.
+
+## 52. What stage 3 must build that is not a row
+
+The rows above need these mechanisms. Each is built once, with its own unit test, before the rows that use it.
+
+| Mechanism | Rows that need it |
+|---|---|
+| An enemy status bit HEXED (the reserved `status` field), with who set it and how long it lasts | HEX, EVIL EYE; PROVOKE's second effect |
+| The spell objects list (the reserved `"o"` of the snapshot): things that orbit an owner | SPIRIT BLADES, DANSE MACABRE, the ORBIT pickup |
+| Two circle kinds beside rune and candle: FIRE (a patch that burns) and VEIL (a circle that follows its owner) | GREEK FIRE, WINTER VEIL |
+| An evolution id for each spell (0 none, 1 first, 2 second) where a flag is today | The four school spells |
+| An echo queue: a cast repeated after a delay at the same aim | THE HIGH PRIESTESS |
+| A missile bonus and an area multiplier read by every cast | THE STAR, THE EMPRESS |
+| Aim at the toughest foe in range; a damage multiplier against elites and bosses | LODESTAR, HEX |
+| An execute rule: a plain foe under a share of its health dies | DIES IRAE |
+| A locked-rows mask built from the profile at the start of a run and sent to every seat | § 41, 44 |
+| A nova refill timer; a blast when a life is spent | THE TOWER, JUDGEMENT |
+| A missing-hearts damage bonus, with its look | THE DEVIL |
+| `Readings`: the sixteen rows, the deal, the vote, and the values merge after the Seal's | § 42 |
+| Seal keys `omen` and `boss_fate`; Overtime's per-minute step | § 43, 49 |
+| The satchel in the hero row, the keepsakes in the profile, the results screen's KEEP, provisions at run start | § 45, 46 |
+| The start level: hands drawn before the first door opens | THE HEAD START |
+| Card stats nova, XP, chest luck and redraw | § 48 |
+| A use counter for every row in the run's record, shown on the results screen and read by the coverage robot | Every B in part 2 |
+| The coverage robot: deals a named row by force, plays, and fails unless the row was credited | Stage 3's gate |
+| The damage table measures a support spell beside ARCANE BOLT 3 and credits it the damage it added | HEX, VIGIL CANDLE in § 53 |
+| THE SPREAD drawn from the catalog | § 41 |
+
+## 53. The gates the rows are tested against
+
+Stage 5 moves numbers until these hold. They are written now so that every row is built to be measured.
+
+1. **Level 1.** A spell deals at least 3 a second to one target or 5 in a sparse crowd, so a first pick is felt.
+2. **Level 5.** Each spell's dense-crowd number sits within 0.6 to 1.6 times the middle spell's (the release
+   plan's stage 5 gate). A support spell is measured with the damage it adds.
+3. **Evolutions.** An evolution deals at least 1.25 times its level 5 spell on the row that is the spell's job, is
+   never weaker on the other row, and its dense number sits within 0.6 to 1.6 times the middle evolution's.
+4. **Two roads.** Where a spell has two evolutions, robots that take each win at rates within 10 points of each other.
+5. **Arcana.** In twin runs (the same seed with and without it) every arcana changes the result it is for: damage
+   dealt, hearts kept, XP gained or the time to the first evolution. None decides a run alone: holding any one
+   arcana moves the WIZARD win rate by no more than 15 points.
+6. **Readings.** At WIZARD, the win rate with each Reading is within 15 points of the rate with none.
+7. **Seals.** Each step's win rate sits between its neighbours', and a career that wins SEAL VIII has lost at every
+   Seal at least once.
+8. **The climb.** Half of solo robot careers reach the first win between 2 and 3 hours, and four players never in
+   under 1.5 (the release plan). Something opens about every second run until that win.
+9. **Speed.** Every S row holds the step budget, and the worst moment of a four-player run holds 60 frames a second
+   on the Ryzen laptop.
+
+Where the game stands against gates 1 to 3 today (measured 28 Nov 2026 at commit cae41a6a with `spell_dps --gate`;
+damage a second; `one` is a single tough target):
+
+| Spell | Level 1 one / sparse | Level 5 dense / one | Evolution | dense / one | Against the gates |
+|---|---|---|---|---|---|
+| ARCANE BOLT | 15.3 / 15.8 | 75.1 / 41.6 | ASTRAL LANCE | 234.1 / 43.4 | holds |
+| FIREBALL | 3.0 / 5.9 | 149.7 / 9.7 | THUNDERFIRE | 220.5 / 15.1 | level 5 is over the band |
+| FROST FAN | 5.0 / 6.6 | 31.9 / 15.5 | BLIZZARD | 85.6 / 15.3 | level 5 and BLIZZARD are under the band |
+| CHAIN LIGHTNING | 3.7 / 8.9 | 38.5 / 8.1 | TEMPEST | 90.2 / 8.4 | TEMPEST is under the band |
+| STARFALL | 6.1 / 6.6 | 25.2 / 23.1 | COMET RAIN | 154.0 / 22.9 | level 5 is under the band; COMET RAIN adds nothing on one target, its job |
+| RUNE CIRCLE | 0.3 / 0.7 | 76.9 / 1.1 | SEAL OF SOLOMON | 200.7 / 2.5 | level 1 fails |
+| BONE SPEAR | 3.4 / 4.5 | 46.0 / 7.7 | OSSUARY LANCE | 180.6 / 9.9 | holds |
+| VIGIL CANDLE | 1.0 / 4.2 | 57.0 / 1.3 | CONSECRATION | 203.2 / 2.9 | a support: to be measured with what it adds |
+| CLEAVE | 4.5 / 13.5 | 197.2 / 11.6 | WHIRLWIND | 168.5 / 25.1 | level 5 is over the band; WHIRLWIND is weaker than CLEAVE in a crowd |
+
+The middle spell at level 5 is 57.0 in a dense crowd (band 34.2 to 91.2); the middle evolution is 180.6 (band 108
+to 289).
+
+## 54. Art and words the list asks of stages 3 and 4
+
+Added to stage 4's list of pictures (`docs/asset_sources.md` gets a row for each when it is made):
+- Major Arcana cards. Of the fourteen held arcana five are painted (THE MAGICIAN, THE HIGH PRIESTESS, THE TOWER, THE
+  STAR, THE MOON) and nine are to paint; two of the nine are new to the list (THE EMPRESS, THE DEVIL). Of the eight
+  fates DEATH and THE FOOL are painted.
+- The sixteen Reading cards. Until they are painted a Reading is drawn from its suit's painted card (in the repo)
+  with its number.
+- The eight Seal cards as their arcana reversed under a red seal.
+- Eight monster cards (bloat, coffin, guard, censor, hound, shard, chandelier, ghostwriter) beside THE DROPLET.
+- Spell emblems for HEX, SPIRIT BLADES and the six new evolutions; the hex mark, the blades, the burning patch, the
+  veil, the pale echo, the red staff of THE DEVIL.
+- THE SPREAD, the satchel screen, the Reading table in the lobby, the results screen's KEEP row.
+
+Words: the three or four words on each new card (in the tables above), sixteen Reading texts, eleven deeds, ten
+card lores, the card reader's lines on pairs. All of it in the pixel font's letters (`PixelFont.GLYPHS`).
