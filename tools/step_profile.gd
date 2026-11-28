@@ -104,10 +104,10 @@ func _profile(loadout: Array, ticks: int) -> void:
 		WorldHazards._update_hazards(w, DT)
 		a = _lap(acc, k, a, on)
 		k += 1
-		WorldCasting._update_shots(w, DT)
+		WorldCastBolts._update_shots(w, DT)
 		a = _lap(acc, k, a, on)
 		k += 1
-		WorldCasting._update_runes(w, DT)
+		WorldCastCircles._update_runes(w, DT)
 		a = _lap(acc, k, a, on)
 		k += 1
 		WorldCasting._update_bursts(w)

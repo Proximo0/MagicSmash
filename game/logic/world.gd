@@ -645,8 +645,8 @@ func step(dt: float, inputs: Dictionary) -> void:
 		if not e.dead:
 			WorldEnemies._update_enemy(self, e, dt)
 	WorldHazards._update_hazards(self, dt)
-	WorldCasting._update_shots(self, dt)
-	WorldCasting._update_runes(self, dt)
+	WorldCastBolts._update_shots(self, dt)
+	WorldCastCircles._update_runes(self, dt)
 	WorldCasting._update_bursts(self)
 	WorldEnemies._update_eshots(self, dt)
 	if phase != PH_GAMEOVER: # the run is decided: nothing on the floor is taken or broken any more
@@ -965,7 +965,7 @@ func _cast(p: Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
 	WorldCasting._cast(self, p, sp, lv, evo, dir)
 
 func _shot(slot: int, sp: int, evo: bool, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> void:
-	WorldCasting._shot(self, slot, sp, evo, pos, vel, dmg, pierce)
+	WorldCastBolts._shot(self, slot, sp, evo, pos, vel, dmg, pierce)
 
 func _refresh_spell(p: Player) -> void:
 	WorldCasting._refresh_spell(self, p)
@@ -1027,16 +1027,16 @@ func _drop(kind: int, pos: Vector2, vel: Vector2, life: float = 9.0, value: int 
 	WorldDrops._drop(self, kind, pos, vel, life, value)
 
 func _update_shots(dt: float) -> void:
-	WorldCasting._update_shots(self, dt)
+	WorldCastBolts._update_shots(self, dt)
 
 func _shot_hit(s: Shot, e: Enemy) -> void:
-	WorldCasting._shot_hit(self, s, e)
+	WorldCastBolts._shot_hit(self, s, e)
 
 func _explode(s: Shot) -> void:
-	WorldCasting._explode(self, s)
+	WorldCastBolts._explode(self, s)
 
 func _update_runes(dt: float) -> void:
-	WorldCasting._update_runes(self, dt)
+	WorldCastCircles._update_runes(self, dt)
 
 func _collect(p: Player, k: Pickup) -> void:
 	WorldDrops._collect(self, p, k)

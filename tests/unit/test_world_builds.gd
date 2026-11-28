@@ -355,7 +355,7 @@ func test_targeting_skips_a_faded_wraith() -> void:
 	var gob := _still(w, World.GOBLIN, p.pos + Vector2(60, 0))
 	var hp := gob.hp
 	var tip := p.pos + Vector2(9, -7)
-	WorldCasting._chain_lightning(w, 0, tip, Vector2.RIGHT, 3, 0.5, 1.0, {})
+	WorldCastChain._chain_lightning(w, 0, tip, Vector2.RIGHT, 3, 0.5, 1.0, {})
 	assert_true(gob.hp < hp, "the chain stopped on a faded wraith")
 	gob.dead = true
 	w._build_grid()
@@ -365,11 +365,11 @@ func test_targeting_skips_a_faded_wraith() -> void:
 	s.vel = Vector2(0, 175)
 	s.life = 2.0
 	w.shots.append(s)
-	WorldCasting._update_shots(w, DT)
+	WorldCastBolts._update_shots(w, DT)
 	assert_eq(s.vel, Vector2(0, 175), "a star turned toward a faded wraith")
 
 
-## A homing star looks near first (WorldCasting._homing_target): in crowds thin and thick, from anywhere in the
+## A homing star looks near first (WorldCastBolts._homing_target): in crowds thin and thick, from anywhere in the
 ## arena, it picks the foe one wide search of its whole reach would, and nobody when nobody is in reach.
 func test_a_homing_shot_finds_the_foe_a_wide_search_would() -> void:
 	var home := Spells.bolt_value(World.SP_STAR, "home", false, 0.0)
@@ -399,7 +399,7 @@ func test_a_homing_shot_finds_the_foe_a_wide_search_would() -> void:
 				if d < bd:
 					bd = d
 					want = e
-			assert_eq(WorldCasting._homing_target(w, s, home), want, "a crowd of %d: another foe than the wide search's" % crowd)
+			assert_eq(WorldCastBolts._homing_target(w, s, home), want, "a crowd of %d: another foe than the wide search's" % crowd)
 
 
 ## One wizard alone for as long as a test wants: the intro never ends, so no horde, powerup or shrine comes.

@@ -108,8 +108,8 @@ func test_ossuary_lance_splinters_sideways_once() -> void:
 	var p: World.Player = w.players[0]
 	var e := _orc(w, p.pos + Vector2(40, -7))
 	w._build_grid()
-	var s: World.Shot = WorldCasting._shot(w, 0, World.SP_BONE, true, p.pos + Vector2(30, -7), Vector2(275, 0), 5.0, Spells.PIERCE_ALL)
-	WorldCasting._shot_hit(w, s, e)
+	var s: World.Shot = WorldCastBolts._shot(w, 0, World.SP_BONE, true, p.pos + Vector2(30, -7), Vector2(275, 0), 5.0, Spells.PIERCE_ALL)
+	WorldCastBolts._shot_hit(w, s, e)
 	var splinters: Array = w.shots.filter(func(x: World.Shot) -> bool: return x.splinter)
 	assert_eq(splinters.size(), int(Spells.evo_value(World.SP_BONE, "splinter", 0.0)))
 	for x: World.Shot in splinters:
@@ -117,7 +117,7 @@ func test_ossuary_lance_splinters_sideways_once() -> void:
 		assert_near(x.dmg, 5.0 * Spells.SPLINTER_DMG)
 		assert_true(x.hits.has(e.id), "a splinter may hit the foe it came from")
 		var before := w.shots.size()
-		WorldCasting._shot_hit(w, x, _orc(w, x.pos))
+		WorldCastBolts._shot_hit(w, x, _orc(w, x.pos))
 		assert_eq(w.shots.size(), before, "a splinter splintered")
 	assert_false(s.dead, "the lance stopped at its first foe")
 
@@ -269,15 +269,15 @@ func test_cleave_waits_for_a_foe_it_can_reach_and_turns_to_it() -> void:
 	var reach := Spells.stat(World.SP_CLEAVE, "r")
 	var orc := _orc(w, from + Vector2(reach + 12.0 + 8.0, 0))
 	w._build_grid()
-	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO), Vector2.ZERO,
+	assert_eq(WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO), Vector2.ZERO,
 		"it swung at a foe just out of reach")
 	orc.pos = from + Vector2(-20, 0)
 	w._build_grid()
-	var free := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO)
+	var free := WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO)
 	assert_near(free.x, -1.0, 0.001, "it did not turn to the foe")
-	var away := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT)
+	var away := WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT)
 	assert_near(away.x, -1.0, 0.001, "aiming away, it swung at the air and not at the foe behind")
-	var onto := WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2(-1, 0.5))
+	var onto := WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2(-1, 0.5))
 	assert_near(onto.angle(), Vector2(-1, 0.5).angle(), 0.001, "a foe in the aimed arc: it swings along the aim")
 
 
@@ -357,10 +357,10 @@ func test_whirlwind_sweeps_a_full_circle_further() -> void:
 		e.pos = from + Vector2(400, 0)
 	behind.pos = from + Vector2(-(reach + behind.r - 2.0), 0)
 	w._build_grid()
-	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, false), Vector2.ZERO, "CLEAVE reaches it")
-	assert_near(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, true).x, -1.0, 0.001,
+	assert_eq(WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, false), Vector2.ZERO, "CLEAVE reaches it")
+	assert_near(WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.ZERO, true).x, -1.0, 0.001,
 		"WHIRLWIND does not turn to a foe in its reach")
-	assert_eq(WorldCasting._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT, true), Vector2.RIGHT,
+	assert_eq(WorldCastSweep._sweep_dir(w, knight, World.SP_CLEAVE, Vector2.RIGHT, true), Vector2.RIGHT,
 		"a full circle swings along the aim with a foe anywhere in reach")
 
 
