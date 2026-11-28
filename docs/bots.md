@@ -270,3 +270,28 @@ Findings for the designer:
    solo it is 2 to 4 a minute.
 5. A lot of XP rots on the floor (14 to 31% of motes fade) and gold piles up unspent (solo 750 to 1100 gold earned
    per 6-minute run, 0 to 248 spent): shrines appear too rarely, too far away or too briefly to matter.
+
+## The hero shard
+
+Every headless run is scripted, so the shards 0 to 2, the sims and golden seat no heroes and use no unlock bonuses.
+`res://tests/bot/bot.tscn -- --heroes` (CI row `bot-heroes`, `check_all` task `botheroes`) plays seed 104 with four
+local seats on saved heroes, so a bug in heroes, cards, unlock bonuses or run booking can turn a check red.
+
+- **Setup** (`tests/bot/bot_heroes.gd`): an in-memory `Profile` (never written: `Save.write` still refuses in a scripted
+  run) with HUMAN MAGE, ELF ARCHER, DWARF KNIGHT and ORC PRIEST at different levels with spent points, the elf holding THE
+  OOZE (+1 heart), the dwarf THE NIGHT WING and THE WARCHIEF, the unlocks vigor 1 and might 2. `Net.force_heroes` is set
+  before the seats join. It is the only switch: `G.finish_run` books `run_heroes` and `Save.run_bonuses()` returns the
+  profile's bonuses when it is set, even in a scripted run.
+- **Private save folder**: the shard refuses to start without `XDG_DATA_HOME` set (CI and `check_all` give it a
+  `mktemp -d`), and fails if `user://profile.json` exists at the end.
+- **At the start of the fight** each seat's class, race, hearts and every armour stat must equal what her hero gives
+  (`Hero.stats()`, the class's hearts) plus the meta, each socketed card counted once. Mismatch: one
+  `BOT heroes seat=n hero=NAME FAIL ... expected ... got ...` line per seat.
+- **The end**: at 62 s of fight (class XP pays per whole minute) the bot hurts every standing wizard through
+  `World.hurt_player` until the party is down; the World ends the run, the arena books it through `G.finish_run`, and
+  the bot checks the profile: one run counted, crystals earned, `last_hero_levels` names the four seated heroes, each
+  hero's class XP grew. It prints `BOT heroes PASS ...` or a ` FAIL ` line, then the usual `BOT shard=3 ...` and
+  `BOT score=...` lines. About 30 s.
+- **Every bot row fails on an engine error**: `tests/bot/no_engine_errors.sh <log>` fails a run whose output has a
+  `SCRIPT ERROR:` or `ERROR:` line (the rule of `tools/run_tests.sh`: any engine error but a warning), except the
+  engine's own exit report `ERROR: n resources still in use at exit`, printed after the game has quit.
