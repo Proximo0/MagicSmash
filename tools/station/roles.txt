@@ -23,6 +23,9 @@ heatherspc: checks queue
 # The horde sims' time budget in `checks` on a slow machine (station.sh job_checks): one line "simscale: <machine> N" (without
 # one: 4). heatherspc (Celeron N4100): a four-wizard horde step takes 35 to 48 ms by the stopwatch beside its queue job (28 Nov 2026).
 simscale: heatherspc 20
+# The longest one bot shard may run in `checks` (check_all.sh BOT_LIMIT), seconds: one line "botlimit: <machine> N" (without one:
+# 240). heatherspc: the two 30-second shards (heroes, again) did not finish in 240 s beside three other Godot processes (28 Nov 2026).
+botlimit: heatherspc 900
 lanes: msi 10
 lanes: laptop 2
 lanes: heatherspc 1
