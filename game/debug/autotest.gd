@@ -252,7 +252,14 @@ func _process(delta: float) -> void:
 		for p: World.Player in cur.world.players.values():
 			if not p.choices.is_empty() and _hand_offer.get(p.slot, -1) != p.offer:
 				_hand_offer[p.slot] = p.offer
-				p.choices = hand.duplicate()
+				# Only the listed cards she can still take: a maxed card, or one the slots refuse, would be picked,
+				# refused and dealt again on every step, and the tray would stay open for the rest of the run.
+				var can: Array[int] = []
+				for c: int in hand:
+					if Upgrades.available(p.upgrades, c, cur.world.slot_cap(), p.banned):
+						can.append(c)
+				if not can.is_empty():
+					p.choices = can
 	# State-keyed shots of the level-up cards and the lull (_level_shot below).
 	if cur and "lull_left" in cur:
 		_level_shot("levelup", delta, _any_tray(cur, false), false)
