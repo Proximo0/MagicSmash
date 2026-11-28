@@ -568,3 +568,8 @@ the deeds parts of `profile.gd`, `Sanctum.DEEDS` and `sanctum_view.gd`, `results
   tray, results awards), the builder's class and race rows, the Book of Deeds marks. Scenes: builder, sheet, album,
   deeds (drawn again inside the frame, `Still.SCENE_INNER`) and the lobby (`Title._draw_front`).
 - Tests: `tests/unit/test_still.gd`. Shots: any autotest mode with `--art=<dir>`.
+
+## Release builds and debug flags (B4)
+- `Flags.args` drops `--autotest`, `--capture`, `--scripted`, `--dev` and `--hero` (`Flags.DEBUG_ARGS`) unless the engine is the editor, a debug build or the export has the feature tag `playtest` (`Flags.debug_args_allowed`, `without_debug_args`). `--smoke` works in every build and counts as a scripted run (no player data written). `game/main.gd` starts the autotest and `game/debug/smoke.gd` from `Flags.args`, so a release ignores `--autotest`.
+- Desktop packs hold the game only (`exclude_filter` in all four desktop presets: tests, realm, docs, tools, .github, build, game/crowd, *.md/*.py/*.sh). `game/debug/` stays: Tuning and the autotest preload live there. Pack is beside the binary (`embed_pck=false`).
+- Presets: "Windows Desktop", "Linux" (release) and "Windows Desktop Playtest", "Linux Playtest" (tag `playtest`). The Windows version fields are `G.VERSION + ".0"`; `test_flags` fails when they drift. How to build and read the smoke line: `docs/release_build.md`.
