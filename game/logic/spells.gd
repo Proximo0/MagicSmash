@@ -98,7 +98,7 @@ const RUNE_AIM_DIST := 48.0
 const RUNE_SPACING := 1.5
 const SEAL_REACH := 1.6
 ## A homing shot looks for its target within HOME_RING px first, then HOME_RING_GROW times as far a try up to its
-## `home` reach; a ring's last HOME_RING_SLACK px do not count (WorldCasting._homing_target).
+## `home` reach; a ring's last HOME_RING_SLACK px do not count (WorldCastBolts._homing_target).
 const HOME_RING := 48.0
 const HOME_RING_GROW := 2.0
 const HOME_RING_SLACK := 16.0
