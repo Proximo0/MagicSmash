@@ -103,7 +103,7 @@ jobs:
           if-no-files-found: ignore
 
   # The land script, the guard and the versions rule test themselves: throwaway repositories, a stub gh, no engine,
-  # no network (docs/agent/land.md).
+  # no network (docs/agent/land.md). So does the stations' skip rule (tools/station/skip_test.sh, a few seconds).
   tools:
     name: tools
     runs-on: ubuntu-latest
@@ -115,3 +115,6 @@ jobs:
         run: |
           bash tools/land_test.sh
           bash tools/lint_versions_test.sh
+      - name: Self-test of the stations' skip rule and report
+        shell: bash
+        run: bash tools/station/skip_test.sh

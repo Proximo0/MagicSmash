@@ -57,4 +57,5 @@ version. To bump the engine: edit the file, then fix what lint names.
 `bash tools/land_test.sh` (`LAND_TEST passed=N failed=0`, throwaway repos under `${TMPDIR:-/tmp}/l1/`, a stub `gh`, no
 network, no engine, about 7 s; `--list` names the cases) and `bash tools/lint_versions_test.sh`
 (`LINT_VERSIONS passed=N failed=0`). Both run on every pull request in the `tools` row of
-`.github/workflows/checks.yml`. They are not in `tools/check_all.sh`: the stations' Windows shells have not run them.
+`.github/workflows/checks.yml`, beside the stations' `bash tools/station/skip_test.sh` (`SKIPRULE ok`). They are not
+in `tools/check_all.sh`: the stations' Windows shells have not run them.
