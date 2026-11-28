@@ -5,9 +5,9 @@ extends RefCounted
 
 
 ## "chain": lightning foe to foe, `n` jumps; Tempest casts several chains with a longer reach.
-static func _cast_chain(w: World, p: World.Player, sp: int, _lv: int, evo: bool, dir: Vector2, tip: Vector2, n: int, dmg: float) -> void:
-	var chains := int(Spells.evo_value(sp, "chains", 1.0)) if evo else 1
-	var range_mul := Spells.TEMPEST_RANGE_MUL if evo else 1.0
+static func _cast_chain(w: World, p: World.Player, sp: int, _lv: int, evo: int, dir: Vector2, tip: Vector2, n: int, dmg: float) -> void:
+	var chains := int(Spells.evo_value(sp, "chains", evo, 1.0))
+	var range_mul := Spells.TEMPEST_RANGE_MUL if evo > 0 else 1.0
 	var hit := {}
 	for c in chains:
 		_chain_lightning(w, p.slot, tip, dir.rotated((c - (chains - 1) * 0.5) * 0.5), n, dmg, range_mul, hit)

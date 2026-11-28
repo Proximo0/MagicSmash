@@ -372,7 +372,7 @@ func test_targeting_skips_a_faded_wraith() -> void:
 ## A homing star looks near first (WorldCastBolts._homing_target): in crowds thin and thick, from anywhere in the
 ## arena, it picks the foe one wide search of its whole reach would, and nobody when nobody is in reach.
 func test_a_homing_shot_finds_the_foe_a_wide_search_would() -> void:
-	var home := Spells.bolt_value(World.SP_STAR, "home", false, 0.0)
+	var home := Spells.bolt_value(World.SP_STAR, "home", 0, 0.0)
 	assert_true(home > Spells.HOME_RING, "STARFALL no longer homes past the first ring: nothing is tested")
 	var rng := _rng(11)
 	for crowd: int in [0, 1, 3, 12, 60, 240]:
@@ -425,7 +425,7 @@ func _cast_ticks(w: World, ticks: int, aim: bool) -> Array[int]:
 ## first cast after waiting is on time, and the one after it a full cooldown later.
 func test_cooldowns_keep_their_fractions() -> void:
 	var w := _quiet({Upgrades.W_ARCANE: 4})
-	var cd := Spells.cooldown(World.SP_ARCANE, 4, false)
+	var cd := Spells.cooldown(World.SP_ARCANE, 4, 0)
 	var n := _cast_ticks(w, 600, true).size()
 	assert_true(n >= int(10.0 / cd) and n <= int(10.0 / cd) + 1, "%d casts in 10 s at a %.2f s cooldown" % [n, cd])
 	assert_true(_cast_ticks(_quiet({Upgrades.W_ARCANE: 3}), 600, true).size() < n, "level 4 casts no more often than level 3")
@@ -442,7 +442,7 @@ func test_cast_rate_bonuses_stop_at_the_floor() -> void:
 	t.spell_cd_mul = 1.5
 	var w := _quiet({Upgrades.W_FIRE: 1}, t)
 	_player(w).armor[Loot.ST_FOCUS] = 0.95
-	var cd := Spells.cooldown(World.SP_FIRE, 1, false) * Spells.CAST_FLOOR * t.spell_cd_mul
+	var cd := Spells.cooldown(World.SP_FIRE, 1, 0) * Spells.CAST_FLOOR * t.spell_cd_mul
 	var n := _cast_ticks(w, 600, true).size()
 	assert_true(n >= int(10.0 / cd), "%d casts: slower than the floor times spell_cd_mul" % n)
 	assert_true(n <= int(10.0 / cd) + 1, "%d casts: below the cast floor" % n)

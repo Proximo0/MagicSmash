@@ -157,6 +157,7 @@ static func build(a: Arena, ci: CanvasItem, _slot: int, x: float, p: Dictionary,
 			ci.draw_rect(Rect2(px, 3, step - 1, 4), Color("2a2140")) # a free slot: a dim frame
 			ci.draw_rect(Rect2(px + 1, 4, step - 3, 2), Color("0b0716"))
 			continue
+		# Either evolution id (level MAX_LEVEL + id): id 2 shows as id 1 until a later job gives it a look of its own.
 		var evolved := wlv > Spells.MAX_LEVEL
 		if _slot_icon(ci, Upgrades.key(int(spells[k][0])), evolved, Vector2(px, 1), SLOT_ICON, Still.weapon_icon(int(p.get("cls", 0)), sp)):
 			# The picture over a one pixel level bar (white at the rim once evolved).

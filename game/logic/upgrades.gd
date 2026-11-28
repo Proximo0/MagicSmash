@@ -162,16 +162,23 @@ static func evolves(idx: int) -> int:
 	return weapon_entry(spell_of(idx))
 
 
-## The SPELL and EVOLUTION row of each World.SP_* spell, built once from the kind and spell columns.
+## The SPELL row and the EVOLUTION rows (in catalog order: evolution id 1, then 2) of each World.SP_* spell, and
+## the evolution id of every catalog row (0 for a row that is no evolution), built once from the kind and spell
+## columns.
 static var _weapon_rows: Array[int] = []
-static var _evo_rows: Array[int] = []
+static var _evo_rows: Array = []
+static var _row_evo_ids: Array[int] = []
 
 
 static func _index_rows() -> void:
 	_weapon_rows.resize(Spells.COUNT)
 	_weapon_rows.fill(-1)
-	_evo_rows.resize(Spells.COUNT)
-	_evo_rows.fill(-1)
+	_evo_rows.clear()
+	for sp: int in range(Spells.COUNT):
+		var none: Array[int] = []
+		_evo_rows.append(none)
+	_row_evo_ids.resize(CATALOG.size())
+	_row_evo_ids.fill(0)
 	for i: int in range(CATALOG.size()):
 		var sp: int = spell_of(i)
 		if sp < 0 or sp >= Spells.COUNT:
@@ -179,7 +186,8 @@ static func _index_rows() -> void:
 		if kind(i) == SPELL:
 			_weapon_rows[sp] = i
 		elif kind(i) == EVOLUTION:
-			_evo_rows[sp] = i
+			(_evo_rows[sp] as Array[int]).append(i)
+			_row_evo_ids[i] = (_evo_rows[sp] as Array[int]).size()
 
 
 static func weapon_entry(spell: int) -> int:
@@ -188,10 +196,50 @@ static func weapon_entry(spell: int) -> int:
 	return _weapon_rows[spell]
 
 
-static func evo_entry(spell: int) -> int:
+## The catalog row of evolution `evo` (1 or 2) of `spell`, or -1 when the catalog has no such row.
+static func evo_entry(spell: int, evo: int = 1) -> int:
+	var rows := evo_rows(spell)
+	if evo < 1 or evo > rows.size():
+		return -1
+	return rows[evo - 1]
+
+
+## The EVOLUTION rows of `spell` in catalog order (evolution id 1 first). Shared: never change it.
+static func evo_rows(spell: int) -> Array[int]:
 	if _evo_rows.is_empty():
 		_index_rows()
 	return _evo_rows[spell]
+
+
+## Which evolution of its spell the row `idx` is: 1 the first EVOLUTION row in catalog order, 2 the second; 0 for
+## a row that is no evolution.
+static func evo_id(idx: int) -> int:
+	if _row_evo_ids.is_empty():
+		_index_rows()
+	if idx < 0 or idx >= _row_evo_ids.size():
+		return 0
+	return _row_evo_ids[idx]
+
+
+## The evolution a wizard has taken of `spell`: 0 none, else its id.
+static func evo_of(levels: Dictionary, spell: int) -> int:
+	var rows := evo_rows(spell)
+	for k: int in range(rows.size()):
+		if level_of(levels, rows[k]) > 0:
+			return k + 1
+	return 0
+
+
+## True if `idx` is one of a spell's evolution rows `rows` and the wizard owns another of them: one evolution
+## taken shuts the other for the run. `rows` is data so a test can show it without a second evolution in the
+## catalog (available passes evo_rows).
+static func evo_shut(levels: Dictionary, idx: int, rows: Array[int]) -> bool:
+	if not rows.has(idx):
+		return false
+	for r: int in rows:
+		if r != idx and level_of(levels, r) > 0:
+			return true
+	return false
 
 
 static func is_weapon(idx: int) -> bool:
@@ -207,8 +255,9 @@ static func weapon_level(levels: Dictionary, spell: int) -> int:
 	return level_of(levels, weapon_entry(spell))
 
 
+## True if the wizard has taken an evolution of `spell` (evo_of > 0).
 static func evolved(levels: Dictionary, spell: int) -> bool:
-	return level_of(levels, evo_entry(spell)) > 0
+	return evo_of(levels, spell) > 0
 
 
 ## Slots in use: (SPELL rows owned, PASSIVE rows owned). Evolutions share their spell's slot; instants and minor
@@ -289,7 +338,8 @@ static func _requirements_met(levels: Dictionary, idx: int) -> bool:
 
 ## True if `idx` can be offered: below its max level, every requirement holds, it is not banished, and a new
 ## SPELL or PASSIVE row still has a free slot under `cap` (spell slots, passive slots). The last free slot of a
-## kind is kept for a row that completes a pair (pairs_with) while one is still to be had. Minor Arcana are never
+## kind is kept for a row that completes a pair (pairs_with) while one is still to be had. One evolution of a
+## spell taken shuts its other (evo_shut). Minor Arcana are never
 ## available: they only fill a short hand (minor_fill).
 static func available(levels: Dictionary, idx: int, cap: Vector2i = UNCAPPED, banned: Dictionary = {}) -> bool:
 	if idx < 0 or idx >= CATALOG.size() or kind(idx) == MINOR or level_of(levels, idx) >= max_level(idx):
@@ -297,6 +347,8 @@ static func available(levels: Dictionary, idx: int, cap: Vector2i = UNCAPPED, ba
 	if not _requirements_met(levels, idx):
 		return false
 	if banned.has(idx):
+		return false
+	if kind(idx) == EVOLUTION and evo_shut(levels, idx, evo_rows(spell_of(idx))):
 		return false
 	if level_of(levels, idx) == 0 and cap != UNCAPPED and (kind(idx) == SPELL or kind(idx) == PASSIVE):
 		var used := slots_used(levels)

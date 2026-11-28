@@ -13,17 +13,17 @@ func test_levels_get_stronger() -> void:
 		for key: String in ["cd", "dmg", "n"]:
 			assert_eq((Spells.STATS[sp][key] as Array).size(), Spells.MAX_LEVEL, "%s %s" % [Spells.spell_name(sp), key])
 		for lv: int in range(2, Spells.MAX_LEVEL + 1):
-			assert_true(Spells.cooldown(sp, lv, false) <= Spells.cooldown(sp, lv - 1, false), "%s cd rises at %d" % [Spells.spell_name(sp), lv])
-			assert_true(Spells.damage(sp, lv, false) >= Spells.damage(sp, lv - 1, false), "%s dmg drops at %d" % [Spells.spell_name(sp), lv])
-			assert_true(Spells.count(sp, lv, false) >= Spells.count(sp, lv - 1, false), "%s count drops at %d" % [Spells.spell_name(sp), lv])
+			assert_true(Spells.cooldown(sp, lv, 0) <= Spells.cooldown(sp, lv - 1, 0), "%s cd rises at %d" % [Spells.spell_name(sp), lv])
+			assert_true(Spells.damage(sp, lv, 0) >= Spells.damage(sp, lv - 1, 0), "%s dmg drops at %d" % [Spells.spell_name(sp), lv])
+			assert_true(Spells.count(sp, lv, 0) >= Spells.count(sp, lv - 1, 0), "%s count drops at %d" % [Spells.spell_name(sp), lv])
 
 
 func test_evolution_beats_max_level() -> void:
 	for sp: int in range(Spells.COUNT):
 		if not Spells.has_evolution(sp):
 			continue
-		var top: float = Spells.damage(sp, Spells.MAX_LEVEL, false) * Spells.count(sp, Spells.MAX_LEVEL, false) / Spells.cooldown(sp, Spells.MAX_LEVEL, false)
-		var evo: float = Spells.damage(sp, 0, true) * Spells.count(sp, 0, true) / Spells.cooldown(sp, 0, true)
+		var top: float = Spells.damage(sp, Spells.MAX_LEVEL, 0) * Spells.count(sp, Spells.MAX_LEVEL, 0) / Spells.cooldown(sp, Spells.MAX_LEVEL, 0)
+		var evo: float = Spells.damage(sp, 0, 1) * Spells.count(sp, 0, 1) / Spells.cooldown(sp, 0, 1)
 		assert_true(evo > top, "%s evolution %.1f dps-ish is not above level 5's %.1f" % [Spells.spell_name(sp), evo, top])
 
 
@@ -56,24 +56,24 @@ static func _row_of(key: String) -> int:
 
 func test_rune_circle_grows_with_level_and_evolution() -> void:
 	for lv: int in range(2, Spells.MAX_LEVEL + 1):
-		assert_true(Spells.level_value(World.SP_RUNE, "r", lv, false) >= Spells.level_value(World.SP_RUNE, "r", lv - 1, false))
-		assert_true(Spells.level_value(World.SP_RUNE, "life", lv, false) >= Spells.level_value(World.SP_RUNE, "life", lv - 1, false))
-	var top_r: float = Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, false)
-	var top_life: float = Spells.level_value(World.SP_RUNE, "life", Spells.MAX_LEVEL, false)
-	assert_true(Spells.level_value(World.SP_RUNE, "r", 0, true) > top_r, "the seal is not bigger")
-	assert_true(Spells.level_value(World.SP_RUNE, "life", 0, true) > top_life, "the seal does not last longer")
-	assert_true(Spells.evo_value(World.SP_RUNE, "pull", 0.0) > 0.0, "the seal does not pull")
+		assert_true(Spells.level_value(World.SP_RUNE, "r", lv, 0) >= Spells.level_value(World.SP_RUNE, "r", lv - 1, 0))
+		assert_true(Spells.level_value(World.SP_RUNE, "life", lv, 0) >= Spells.level_value(World.SP_RUNE, "life", lv - 1, 0))
+	var top_r: float = Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, 0)
+	var top_life: float = Spells.level_value(World.SP_RUNE, "life", Spells.MAX_LEVEL, 0)
+	assert_true(Spells.level_value(World.SP_RUNE, "r", 0, 1) > top_r, "the seal is not bigger")
+	assert_true(Spells.level_value(World.SP_RUNE, "life", 0, 1) > top_life, "the seal does not last longer")
+	assert_true(Spells.evo_value(World.SP_RUNE, "pull", 1, 0.0) > 0.0, "the seal does not pull")
 	assert_eq(Spells.partner(World.SP_RUNE), World.SP_STAR)
-	assert_eq(Spells.level_value(World.SP_STAR, "speed", 3, false), Spells.stat(World.SP_STAR, "speed"))
+	assert_eq(Spells.level_value(World.SP_STAR, "speed", 3, 0), Spells.stat(World.SP_STAR, "speed"))
 
 
 ## A rune circle trades single-target damage for area: what one circle deals to one enemy standing in it, per
 ## second of cooldown, stays under Starfall's at every level (the horde-level balance is checked in sims).
 func test_rune_circle_trades_focus_for_area() -> void:
 	for lv: int in range(1, Spells.MAX_LEVEL + 1):
-		var ticks: float = 1.0 + floorf((Spells.level_value(World.SP_RUNE, "life", lv, false) - Spells.RUNE_ARM) / Spells.RUNE_TICK)
-		var rune: float = Spells.damage(World.SP_RUNE, lv, false) * ticks / Spells.cooldown(World.SP_RUNE, lv, false)
-		var star: float = Spells.damage(World.SP_STAR, lv, false) * Spells.count(World.SP_STAR, lv, false) / Spells.cooldown(World.SP_STAR, lv, false)
+		var ticks: float = 1.0 + floorf((Spells.level_value(World.SP_RUNE, "life", lv, 0) - Spells.RUNE_ARM) / Spells.RUNE_TICK)
+		var rune: float = Spells.damage(World.SP_RUNE, lv, 0) * ticks / Spells.cooldown(World.SP_RUNE, lv, 0)
+		var star: float = Spells.damage(World.SP_STAR, lv, 0) * Spells.count(World.SP_STAR, lv, 0) / Spells.cooldown(World.SP_STAR, lv, 0)
 		assert_true(rune < star, "level %d: rune %.2f vs starfall %.2f" % [lv, rune, star])
 
 
@@ -83,8 +83,8 @@ func test_every_spell_has_a_cast_kind() -> void:
 		assert_true(WorldCasting.CASTS.has(Spells.cast_kind(sp)), Spells.spell_name(sp) + " has no caster")
 		if Spells.cast_kind(sp) != "bolt":
 			for key: String in ["jitter", "home", "blast", "slow"]:
-				assert_eq(Spells.bolt_value(sp, key, false, 0.0), 0.0, "%s %s" % [Spells.spell_name(sp), key])
-	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", false, 0.0), Spells.FROST_SLOW)
-	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", true, 0.0), float(Spells.EVOS[World.SP_FROST]["slow"]))
-	assert_true(Spells.bolt_value(World.SP_STAR, "home", false, 0.0) > 0.0)
-	assert_true(Spells.bolt_value(World.SP_FIRE, "blast", false, 0.0) > 0.0)
+				assert_eq(Spells.bolt_value(sp, key, 0, 0.0), 0.0, "%s %s" % [Spells.spell_name(sp), key])
+	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", 0, 0.0), Spells.FROST_SLOW)
+	assert_eq(Spells.bolt_value(World.SP_FROST, "slow", 1, 0.0), float(Spells.EVOS[World.SP_FROST]["slow"]))
+	assert_true(Spells.bolt_value(World.SP_STAR, "home", 0, 0.0) > 0.0)
+	assert_true(Spells.bolt_value(World.SP_FIRE, "blast", 0, 0.0) > 0.0)

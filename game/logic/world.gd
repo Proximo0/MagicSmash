@@ -97,7 +97,7 @@ const EV_VICTORY := 33 # the Archlich fell and the run is won: a = slot of the w
 const EV_RESULTS := 34 # just before EV_GAMEOVER: a = the run's Results.to_dict() for the results screen
 const EV_RAISE := 35 # a bone priest raises the dead: at its position, a = how many
 const EV_OMEN := 36 # a horde omen begins (Lore.OMENS): at its centre, a = omen index, b = ring radius (0: from the doors)
-const EV_RUNE := 37 # a circle is laid: at its centre, a = radius, b = slot, + 8 when evolved, + 16 x Spells.CIRCLE_* kind
+const EV_RUNE := 37 # a circle is laid: at its centre, a = radius, b = slot + Spells.evo_bits(evolution id) + 16 x Spells.CIRCLE_* kind (+ 8 evolved, + 4 more for id 2)
 const EV_CARD := 38 # a wizard picked up a monster card: a = Cards index, b = slot (+ 8 if it came from an urn)
 const EV_URN := 39 # an urn shattered: at its position, a = what fell out (URN_* below)
 const EV_LULL := 40 # a Lich fell and the lull begins: at the party's centre, a = its seconds
@@ -114,7 +114,7 @@ const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a 
 const EV_SKILL := 50 # a hero's class skill (not the NOVA, which is EV_NOVA): at the hero, a = slot, b = Classes.SK_*
 const EV_HEAL := 51 # a hero is healed by a skill or a light: at the hero, a = slot, b = hearts
 const EV_BURST := 52 # a JUSTICE burst: at the slain foe, a = radius, b = slot
-const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot, + 8 when evolved (WHIRLWIND)
+const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot + Spells.evo_bits(evolution id) (+ 8 evolved: WHIRLWIND)
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
@@ -129,7 +129,7 @@ const URN_R := 5.0
 
 ## The player row in snapshot()["p"], final for waves 2 and 3: read it only through these P_* indices.
 ## Choices: 3 x (offered Upgrades index or -1, the level it would reach). Spells: P_SLOTS x (SPELL row or -1,
-## level; Spells.MAX_LEVEL + 1 = evolved), in the order taken. Passives: P_SLOTS x (PASSIVE row or -1, level),
+## level; Spells.MAX_LEVEL + evolution id = evolved), in the order taken. Passives: P_SLOTS x (PASSIVE row or -1, level),
 ## in the order taken. xp, xp needed and level are the party's (the same for every wizard); draws are queued
 ## level-up offers plus 1 while the wizard holds cards; down_left is s (-1 = a ritual only); race, class, look and
 ## class level are the seat's (0: HUMAN MAGE) until World.apply_hero sets the hero's.
@@ -200,7 +200,7 @@ const W_BOSS_ARG := 17
 const W_BOSS_METER := 18
 const W_FLOATS := 19
 
-## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolved, kind.
+## Floats per rune circle in snapshot()["r"]: x, y, radius, age s, lifetime s, owner slot, evolution id, kind.
 const RUNE_FLOATS := 8
 const R_KIND := 7
 
@@ -901,7 +901,7 @@ func snapshot() -> Dictionary:
 		sh.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y, s.owner])
 	var rn := PackedFloat32Array()
 	for c: Rune in runes:
-		rn.append_array([c.pos.x, c.pos.y, c.r, c.age, c.life, c.owner, 1.0 if c.evo else 0.0, c.kind])
+		rn.append_array([c.pos.x, c.pos.y, c.r, c.age, c.life, c.owner, float(c.evo), c.kind])
 	var es := PackedFloat32Array()
 	for s in eshots:
 		es.append_array([s.kind, s.pos.x, s.pos.y, s.vel.x, s.vel.y])
@@ -961,10 +961,10 @@ func spawn_enemy(type: int, door: int, at: Variant = null) -> Enemy:
 func _update_player(p: Player, dt: float, inp: PackedFloat32Array) -> void:
 	WorldPlayers._update_player(self, p, dt, inp)
 
-func _cast(p: Player, sp: int, lv: int, evo: bool, dir: Vector2) -> void:
+func _cast(p: Player, sp: int, lv: int, evo: int, dir: Vector2) -> void:
 	WorldCasting._cast(self, p, sp, lv, evo, dir)
 
-func _shot(slot: int, sp: int, evo: bool, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> void:
+func _shot(slot: int, sp: int, evo: int, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> void:
 	WorldCastBolts._shot(self, slot, sp, evo, pos, vel, dmg, pierce)
 
 func _refresh_spell(p: Player) -> void:

@@ -293,12 +293,12 @@ func test_weapons_survive_death() -> void:
 	assert_eq(Upgrades.weapon_level(p.upgrades, World.SP_STAR), 3)
 
 
-func _orcs_hit(evo: bool) -> int:
+func _orcs_hit(evo: int) -> int:
 	var w := World.new([0], 3)
 	var orcs: Array[World.Enemy] = []
 	for i: int in range(3):
 		orcs.append(w.spawn_enemy(World.ORC, 0, Vector2(200 + i * 18, 120)))
-	var pierce: int = int(Spells.evo_value(World.SP_ARCANE, "pierce", 0.0)) if evo else 0
+	var pierce: int = int(Spells.evo_value(World.SP_ARCANE, "pierce", evo, 0.0))
 	w._shot(0, World.SP_ARCANE, evo, Vector2(170, 113), Vector2(310, 0), 1.0, pierce)
 	for _i: int in range(30):
 		w._build_grid()
@@ -311,11 +311,11 @@ func _orcs_hit(evo: bool) -> int:
 
 
 func test_astral_lance_pierces() -> void:
-	assert_eq(_orcs_hit(false), 1)
-	assert_eq(_orcs_hit(true), 3)
+	assert_eq(_orcs_hit(0), 1)
+	assert_eq(_orcs_hit(1), 3)
 
 
-func _blast_zaps(evo: bool) -> bool:
+func _blast_zaps(evo: int) -> bool:
 	var w := World.new([0], 3)
 	w.spawn_enemy(World.ORC, 0, Vector2(200, 120))
 	var far: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(255, 120))
@@ -335,8 +335,8 @@ func _blast_zaps(evo: bool) -> bool:
 
 
 func test_thunderfire_blasts_fork_lightning() -> void:
-	assert_false(_blast_zaps(false))
-	assert_true(_blast_zaps(true))
+	assert_false(_blast_zaps(0))
+	assert_true(_blast_zaps(1))
 
 
 func test_tempest_casts_two_chains() -> void:
@@ -385,7 +385,7 @@ func test_snapshot_sends_weapon_levels() -> void:
 
 
 ## A world with one wizard and a rune circle inscribed at `at` (Rune Circle at `lv`, or the Seal when `evo`).
-func _rune_world(at: Vector2, lv: int, evo: bool) -> World:
+func _rune_world(at: Vector2, lv: int, evo: int) -> World:
 	var w := World.new([0], 3)
 	var c := World.Rune.new()
 	c.pos = at
@@ -394,7 +394,7 @@ func _rune_world(at: Vector2, lv: int, evo: bool) -> World:
 	c.tick = Spells.RUNE_ARM
 	c.dmg = Spells.damage(World.SP_RUNE, lv, evo)
 	c.evo = evo
-	c.pull = Spells.evo_value(World.SP_RUNE, "pull", 0.0) if evo else 0.0
+	c.pull = Spells.evo_value(World.SP_RUNE, "pull", evo, 0.0)
 	w.runes.append(c)
 	return w
 
@@ -407,7 +407,7 @@ func _tick_runes(w: World, seconds: float) -> void:
 
 
 func test_rune_circle_hurts_only_what_stands_in_it() -> void:
-	var w := _rune_world(Vector2(200, 140), 1, false)
+	var w := _rune_world(Vector2(200, 140), 1, 0)
 	var inside: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(205, 142))
 	var outside: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(260, 140))
 	inside.entering = false
@@ -419,21 +419,21 @@ func test_rune_circle_hurts_only_what_stands_in_it() -> void:
 
 
 func test_rune_circle_ticks_then_expires() -> void:
-	var w := _rune_world(Vector2(200, 140), 1, false)
+	var w := _rune_world(Vector2(200, 140), 1, 0)
 	var orc: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200, 140))
 	orc.entering = false
 	var life: float = w.runes[0].life
 	_tick_runes(w, life + 0.2)
 	assert_true(w.runes.is_empty(), "the circle outlived its life")
 	var ticks: int = 1 + int((life - Spells.RUNE_ARM) / Spells.RUNE_TICK)
-	assert_near(orc.maxhp - orc.hp, ticks * Spells.damage(World.SP_RUNE, 1, false), 0.01)
+	assert_near(orc.maxhp - orc.hp, ticks * Spells.damage(World.SP_RUNE, 1, 0), 0.01)
 	var hp: float = orc.hp
 	_tick_runes(w, 1.0)
 	assert_eq(orc.hp, hp, "an expired circle still hurts")
 
 
 func test_seal_of_solomon_pulls_enemies_in() -> void:
-	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, true)
+	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, 1)
 	var r: float = w.runes[0].r
 	var near: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200 + r * 1.3, 140))
 	var far: World.Enemy = w.spawn_enemy(World.ORC, 0, Vector2(200 + r * Spells.SEAL_REACH + 20.0, 140))
@@ -444,7 +444,7 @@ func test_seal_of_solomon_pulls_enemies_in() -> void:
 	_tick_runes(w, 0.5)
 	assert_true(near.pos.distance_to(Vector2(200, 140)) < d0 - 1.0, "the seal did not pull the orc in")
 	assert_eq(far.pos, far0, "the seal pulled an orc out of its reach")
-	var plain := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, false)
+	var plain := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, 0)
 	var still: World.Enemy = plain.spawn_enemy(World.ORC, 0, Vector2(200 + r * 1.3, 140))
 	still.entering = false
 	_tick_runes(plain, 0.5)
@@ -481,7 +481,7 @@ func test_rune_circles_of_one_cast_spread_out() -> void:
 			e.entering = false
 	w._build_grid()
 	w._cast(p, World.SP_RUNE, Spells.MAX_LEVEL, false, Vector2.RIGHT)
-	assert_eq(w.runes.size(), Spells.count(World.SP_RUNE, Spells.MAX_LEVEL, false))
+	assert_eq(w.runes.size(), Spells.count(World.SP_RUNE, Spells.MAX_LEVEL, 0))
 	for a: int in range(w.runes.size()):
 		for b: int in range(a + 1, w.runes.size()):
 			assert_true(w.runes[a].pos.distance_to(w.runes[b].pos) > w.runes[a].r, "two circles of one cast overlap")
@@ -497,11 +497,11 @@ func test_rune_circle_with_nothing_in_range_goes_ahead() -> void:
 
 
 func test_snapshot_sends_rune_circles() -> void:
-	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, true)
+	var w := _rune_world(Vector2(200, 140), Spells.MAX_LEVEL, 1)
 	var rn: PackedFloat32Array = w.snapshot()["r"]
 	assert_eq(rn.size(), World.RUNE_FLOATS)
 	assert_eq(Vector2(rn[0], rn[1]), Vector2(200, 140))
-	assert_eq(rn[2], Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, true))
+	assert_eq(rn[2], Spells.level_value(World.SP_RUNE, "r", Spells.MAX_LEVEL, 1))
 	assert_true(rn[6] > 0.5, "the seal is not marked evolved")
 	assert_eq(int(rn[World.R_KIND]), 0)
 
