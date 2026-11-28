@@ -1,0 +1,1 @@
+2026-11-28T00:10:13Z INFO id=261128000033-7472 kind=shell secs=572 wandscareer key=cfddd49611bb seed=934912 wall_s=571 CAREER novice:mage seal=0 careers=1 | boss 1/1 run 13 min 44 | arch 1/1 run 34 min 123 | win 1/1 run 34 min 123
