@@ -438,12 +438,18 @@ self_ok() {  # the new tree must parse before it is exec'd; on a bad tree keep t
 self_sum() { cat tools/station/station.sh tools/station/queue_lib.sh tools/station/roles.txt tools/station/jobs/*.sh 2>/dev/null | cksum; }
 started=$(self_sum)
 deep_has_room() { q_free_mb_set; [ -z "$Q_FREE_MB" ] || [ "$Q_FREE_MB" -ge "${STATION_DEEP_FREE_MB:-2048}" ]; }  # the same RAM gate the queue has
+# What makes a report news: its commit and its lines, without the times. stdin = a report. A new commit's report is always
+# published, even with the same lines as the last one, so a station's file names the newest commit it tested.
+report_sig() {
+  local t; t=$(cat)
+  { sed -nE '1s/.* commit=([^ ]+).*/\1/p' <<<"$t"; tail -n +2 <<<"$t" | sed -E 's/[0-9.]+ ?(ms|s)\b//g'; } | cksum
+}
 # A finished report whose push failed is kept in $STATE.unpushed and only the push is retried (at the start of every run_once);
 # the jobs are not run again. A newer report replaces it.
 retry_unpushed() {
   [ -s "$STATE.unpushed" ] || return 0
   if publish "$(cat "$STATE.unpushed")"; then
-    tail -n +2 "$STATE.unpushed" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum >"$STATE.report"; rm -f "$STATE.unpushed"; echo "station: the kept report was pushed"
+    report_sig <"$STATE.unpushed" >"$STATE.report"; rm -f "$STATE.unpushed"; echo "station: the kept report was pushed"
   fi
 }
 # merge_job J: runs job_J (its report on stdout, its status returned) and, while it runs, keeps the queue's free lanes filled
@@ -483,8 +489,11 @@ run_once() {
   local start=$SECONDS failed=0 body="${SELF_WARN:+$SELF_WARN$'\n'}" skipped=0 run=() j
   local base changed="" known=0; base=$(cat "$STATE" 2>/dev/null)
   if [ -n "$base" ] && changed=$(git diff --name-only "$base" "$head" 2>/dev/null); then known=1; fi
+  # A job that failed its last run here is never skipped: the next commit runs it again whatever it changed, so a docs-only
+  # merge cannot turn a FAIL into a PASS and a cure under tools/station/ (a roles.txt limit) is tested ($STATE.failed).
+  local redo bad=""; redo=" $(cat "$STATE.failed" 2>/dev/null | tr '\n' ' ')"
   for j in "${jobs[@]}"; do
-    if [ $known = 1 ] && ! touched "$j" <<<"$changed"; then
+    if [ $known = 1 ] && [[ "$redo" != *" $j "* ]] && ! touched "$j" <<<"$changed"; then
       body+="JOB $j SKIP nothing it tests changed since ${base:0:7}"$'\n'; skipped=$((skipped + 1))
     elif [ "$j" != idle ] && [ "$j" != boss ] && [ "$j" != checks ] && [ "$j" != golden ] && q_sac; then   # every realm merge job runs programs built here
       body+="JOB $j SKIP Smart App Control refuses programs built on this PC (security settings untouched)"$'\n'; skipped=$((skipped + 1))
@@ -494,21 +503,22 @@ run_once() {
   done
   local verdict
   if [ -n "$held" ]; then
-    verdict="STATION HELD $held"
+    verdict="STATION HELD $held"; bad=${redo# }
   else
     if grep -qE '(^| )(boss|checks|golden)( |$)' <<<"${run[*]:-}"; then  # only Godot jobs need the import
       tools/import.sh >/dev/null 2>&1 || { echo "station: import failed" >&2; return 2; }
     fi
     for j in "${run[@]:+${run[@]}}"; do
-      body+="$(merge_job "$j")"$'\n' || failed=$((failed + 1))
+      body+="$(merge_job "$j")"$'\n' || { failed=$((failed + 1)); bad+="$j "; }
     done
+    for j in $redo; do [[ " ${run[*]:-} " == *" $j "* ]] || bad+="$j "; done  # marked earlier and not run this time: still marked
     verdict="STATION $([ $failed -eq 0 ] && echo PASS || echo FAIL) jobs=${#run[@]} failed=$failed skipped=$skipped"
   fi
   local report="STATION machine=$MACHINE time=$(date -u +%Y-%m-%dT%H:%MZ) commit=${head:0:7} took=$((SECONDS - start))s"$'\n'"$body$verdict"
   if [ $failed -gt 0 ] && [ -n "${STATION_ON_FAIL:-}" ]; then bash -c "$STATION_ON_FAIL" <<<"$report" >/dev/null 2>&1 || true; fi
   if [ "$push" = 1 ]; then
-    # Push only a report that differs from the last one pushed (ignoring time and took). The commit counts as tested once its jobs ran; a failed push keeps the report ($STATE.unpushed) and only the push is retried.
-    local sig; sig=$(tail -n +2 <<<"$report" | sed -E 's/[0-9.]+ ?(ms|s)\b//g' | cksum)
+    # Push only a report that differs from the last one pushed in its commit or its lines (time and took do not count). The commit counts as tested once its jobs ran; a failed push keeps the report ($STATE.unpushed) and only the push is retried.
+    local sig; sig=$(report_sig <<<"$report")
     if [ "$sig" != "$(cat "$STATE.report" 2>/dev/null)" ]; then
       printf '%s\n' "$report" >"$STATE.unpushed"
       if publish "$report"; then echo "$sig" >"$STATE.report"; rm -f "$STATE.unpushed"
@@ -517,8 +527,8 @@ run_once() {
     if [ $failed -gt 0 ]; then  # the failed jobs' lines (test names, first panics) stay in the history too
       publish_append "$(date -u +%Y-%m-%dT%H:%MZ) $MACHINE ${head:0:7} $(grep '^JOB .* FAIL' <<<"$body" | tr '\n' ' ' | cut -c1-1500)" "$MACHINE-failures.txt" || true
     fi
-    echo "$head" >"$STATE"; tail -1 <<<"$report"
-  else echo "$head" >"$STATE"; echo "$report"; fi
+    echo "$head" >"$STATE"; tr ' ' '\n' <<<"${bad% }" >"$STATE.failed"; tail -1 <<<"$report"
+  else echo "$head" >"$STATE"; tr ' ' '\n' <<<"${bad% }" >"$STATE.failed"; echo "$report"; fi
   [ $failed -eq 0 ]
 }
 
