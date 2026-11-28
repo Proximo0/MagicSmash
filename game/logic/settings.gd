@@ -113,13 +113,32 @@ static func best_display(usable: Vector2i) -> int:
 	return clampi(mini(usable.x / 480, usable.y / 270) - 2, 0, FULLSCREEN - 1)
 
 
+## Saved keys read with int() (a JSON number, bool or string converts) and with bool() (only a bool or number).
+const INT_KEYS := ["music", "sound", "display"]
+const BOOL_KEYS := ["shake", "crash_reports", "seen_prologue", "seen_tutorial"]
+
+
+## Whether from_dict converts every value of `d` without a script error.
+static func settings_types_ok(d: Dictionary) -> bool:
+	for k: String in INT_KEYS:
+		if d.has(k) and not (d[k] is int or d[k] is float or d[k] is bool or d[k] is String):
+			return false
+	for k: String in BOOL_KEYS:
+		if d.has(k) and not (d[k] is bool or d[k] is int or d[k] is float):
+			return false
+	return true
+
+
 func to_dict() -> Dictionary:
 	return {"music": music, "sound": sound, "display": display, "shake": shake, "crash_reports": crash_reports,
 		"seen_prologue": seen_prologue, "seen_tutorial": seen_tutorial}
 
 
-## Settings from a saved dictionary. Missing or broken values keep their defaults; numbers are clamped.
+## Settings from a saved dictionary. Missing values keep their defaults; numbers are clamped. Null when a value has
+## a type its conversion cannot take (settings_types_ok): Save treats that file like unparsable text.
 static func from_dict(d: Dictionary) -> Settings:
+	if not settings_types_ok(d):
+		return null
 	var s := Settings.new()
 	s.music = clampi(int(d.get("music", s.music)), 0, VOL_MAX)
 	s.sound = clampi(int(d.get("sound", s.sound)), 0, VOL_MAX)

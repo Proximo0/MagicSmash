@@ -163,6 +163,18 @@ How each system works: read only the section for the system you touch (`grep -n 
   - `game/autoload/save.gd` (`Save`) is the only module that reads or writes player data (`user://profile.json`;
     the old `save.cfg` high score is carried over once). `Save.write()` refuses in scripted runs, and scripted
     runs start with no unlocks so bots and sims do not depend on the machine.
+  - Socketed cards count once (job A1): `Profile.bonuses()` has no "armor"; a hero's sockets reach a run only
+    through her own `World.apply_hero` (`Hero.stats`), so a +1 HEART card gives its hero +1 and other seats none.
+    The career tool and the playtest's `--profile` seat the same way.
+  - Damaged saves (job A1): a file that parses but holds a wrong type (a list, map or null where a number is read,
+    a non-bool where a bool is read: `Profile.profile_types_ok`, `Settings.settings_types_ok`) makes `from_dict`
+    return null, and `Save.read_converted` treats that like text that does not parse: kept aside as .bad, the
+    .bak tried, else a fresh profile or the default settings.
+  - Newer saves (job A1): a profile whose "version" is above `Profile.VERSION` loads as well as it can and is
+    marked `Profile.newer` (not saved); `Save.write_profile` (every profile write: `write`, `finish_run`,
+    `add_card`) then returns false without touching the disk, and `Save.newer_save()` is true for the title.
+  - The balance tools (career, playtest) cap runs at 25 minutes of run clock; a run that reaches the cap is
+    counted UNFINISHED (its own count in the summary line), never a loss.
   - The game over screen shows the crystals earned.
 - Step 5 is done.
 

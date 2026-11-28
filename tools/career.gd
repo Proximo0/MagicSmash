@@ -2,13 +2,15 @@ extends RefCounted
 ## Career: a bot plays run after run on one in-memory Profile (never saved) from a fresh start, the way a player climbs:
 ## after each run the real Profile.finish_run books it (crystals, deeds, class XP), crystals buy the cheapest
 ## affordable META level (list order on ties) until none is affordable, and each hero spends its stat points
-## alternating MIGHT and VIGOR. The next run starts with World.apply_meta(profile.bonuses()) and the heroes.
+## alternating MIGHT and VIGOR. The next run starts with World.apply_meta(profile.bonuses()) and the heroes (their
+## own sockets only through apply_hero: bonuses() has no cards, so each counts once).
 ## Usage: godot --headless --path . -s tools/tool.gd -- career [--careers=6] [--seed=1] [--persona=casual]
 ##   [--hero=mage] | [--party=casual:knight,casual:priest,apprentice:archer,...] [--seal=0] [--max-runs=40]
-##   [--until=win] [--minutes=18] [--checkpoints=60,120,180 --out=DIR] [--tune=field:value,...]
+##   [--until=win] [--minutes=25] [--checkpoints=60,120,180 --out=DIR] [--tune=field:value,...]
 ## Each human seat plays its own hero on the one profile (a fresh level 1 HUMAN of its class); an apprentice seat is
-## seated as the game seats it (World makes it a hero of its class). Runs are capped at --minutes of run clock (18
-## covers the Archlich; a fight past the cap is a loss). --checkpoints writes the profile (after that run's
+## seated as the game seats it (World makes it a hero of its class). Runs are capped at --minutes of run clock (25
+## leaves room past the Archlich's ~16:00 win); a run that reaches the cap is UNFINISHED (its own count and a "U"
+## in ends), never a loss, though Profile.finish_run still books it as the game books any run that is not won. --checkpoints writes the profile (after that run's
 ## spending) as DIR/career<k>_<mark>.json the first time the career's play time passes each mark, in minutes; the
 ## playtest's --profile=FILE plays seeds from one. Prints one line per career and a CAREER line of medians.
 ## How to read it: docs/bots.md "Careers".
@@ -28,7 +30,7 @@ var _out := ""
 
 func run(args: PackedStringArray) -> int:
 	var lib: PlaytestLib = PlaytestLib.new()
-	lib._minutes = 18.0
+	lib._minutes = 25.0
 	lib._heroes = [[Classes.MAGE, Races.HUMAN]]
 	lib._personas = [SmashBot.CASUAL]
 	if not lib._parse_args():
@@ -61,8 +63,8 @@ func run(args: PackedStringArray) -> int:
 	for k: int in range(_careers):
 		var row := _career(lib, k, party, classes)
 		rows.append(row)
-		print("%s career %d: boss1 %s  arch %s  win %s  runs %d  min %.0f  crystals %d earned %d spent  level %s  ends %s" % [
-			name, k + 1, _at(row, "boss"), _at(row, "arch"), _at(row, "win"), row.runs, row.minutes, row.earned,
+		print("%s career %d: boss1 %s  arch %s  win %s  runs %d  unfinished %d  min %.0f  crystals %d earned %d spent  level %s  ends %s" % [
+			name, k + 1, _at(row, "boss"), _at(row, "arch"), _at(row, "win"), row.runs, row.unfinished, row.minutes, row.earned,
 			row.spent, str(row.win_level) if int(row.win_level) > 0 else "-", " ".join(row.ends)])
 	var summary: PackedStringArray = []
 	for key: String in ["boss", "arch", "win"]:
@@ -75,6 +77,12 @@ func run(args: PackedStringArray) -> int:
 				rn.append(float(row[key + "_run"]))
 				mn.append(float(row[key + "_min"]))
 		summary.append("%s %d/%d run %s min %s" % [key, got, rows.size(), _med_text(rn), _med_text(mn)])
+	var unfinished := 0
+	var played := 0
+	for row: Dictionary in rows:
+		unfinished += int(row.unfinished)
+		played += int(row.runs)
+	summary.append("unfinished %d/%d runs" % [unfinished, played])
 	print("CAREER %s seal=%d careers=%d | %s" % [name, lib._seal, _careers, " | ".join(summary)])
 	return 0
 
@@ -88,7 +96,7 @@ func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dic
 		if party[s] != PlaytestLib.APPRENTICE:
 			seat_hero[s] = n
 			n += 1
-	var row := {"runs": 0, "minutes": 0.0, "earned": 0, "spent": 0, "win_level": 0, "ends": [],
+	var row := {"runs": 0, "unfinished": 0, "minutes": 0.0, "earned": 0, "spent": 0, "win_level": 0, "ends": [],
 		"boss_run": 0, "boss_min": 0.0, "arch_run": 0, "arch_min": 0.0, "win_run": 0, "win_min": 0.0}
 	var marks_left: Array[float] = _marks.duplicate()
 	for i: int in range(_max_runs):
@@ -113,8 +121,10 @@ func _career(lib: PlaytestLib, k: int, party: Array[int], classes: Array) -> Dic
 		for h: Hero in prof.heroes:
 			spend_points(h)
 		row.runs = i + 1
+		if bool(r.unfinished):
+			row.unfinished = int(row.unfinished) + 1
 		row.minutes = float(row.minutes) + float(r.end) / 60.0
-		(row.ends as Array).append("%s%s/L%d%s" % [_clock(float(r.end)), "W" if bool(r.won) else "", (prof.heroes[0] as Hero).level,
+		(row.ends as Array).append("%s%s/L%d%s" % [_clock(float(r.end)), "W" if bool(r.won) else ("U" if bool(r.unfinished) else ""), (prof.heroes[0] as Hero).level,
 			"+" + ",".join(bought) if not bought.is_empty() else ""])
 		if int(row.boss_run) == 0 and w.liches_slain > 0:
 			row.boss_run = i + 1

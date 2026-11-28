@@ -5,6 +5,8 @@ extends Node
 ## The player's options (Settings) live beside it in user://settings.json; scripted runs use the defaults.
 ## Files are written safely: to a .tmp file, the last good one kept as .bak, then renamed into place. A file that
 ## cannot be read is kept aside as .bad (never overwriting an earlier one) and the .bak is loaded, so a bad save never wipes the player's data.
+## A file that parses but holds a wrong type (from_dict returns null) is damaged the same way. A profile a newer build
+## wrote (Profile.newer) is loaded but never written back, so its newer data is not lost (newer_save()).
 
 const PATH := "user://profile.json"
 const OLD_PATH := "user://save.cfg"
@@ -65,23 +67,37 @@ static func _keep_aside(path: String, suffix: String) -> void:
 ## renamed to .bad (or .bak.bad; a name already taken gets the unix time added) so nothing can write over it;
 ## scripted runs leave files alone.
 static func read_json(path: String, aside: bool = false) -> Variant:
+	return read_converted(path, aside, Callable())
+
+
+## read_json, but each dictionary found passes through `convert` (dictionary -> object, or null when it is damaged,
+## e.g. Profile.from_dict on a wrong type) and the first non-null result is returned. A null result counts as damage
+## exactly like text that does not parse: that file is kept aside and the next one is tried. An empty `convert`
+## returns the dictionary itself.
+static func read_converted(path: String, aside: bool, convert: Callable) -> Variant:
 	if FileAccess.file_exists(path):
-		var parsed: Variant = _read(path)
-		if parsed is Dictionary:
-			return parsed
+		var got: Variant = _convert_read(_read(path), convert)
+		if got != null:
+			return got
 		if aside:
 			_keep_aside(path, ".bad")
 	if not FileAccess.file_exists(path) and FileAccess.file_exists(path + ".tmp"):
-		var newest: Variant = _read(path + ".tmp")
-		if newest is Dictionary:
+		var newest: Variant = _convert_read(_read(path + ".tmp"), convert)
+		if newest != null:
 			return newest
 	if FileAccess.file_exists(path + ".bak"):
-		var old: Variant = _read(path + ".bak")
-		if old is Dictionary:
+		var old: Variant = _convert_read(_read(path + ".bak"), convert)
+		if old != null:
 			return old
 		if aside:
 			_keep_aside(path + ".bak", ".bad")
 	return null
+
+
+static func _convert_read(parsed: Variant, convert: Callable) -> Variant:
+	if not parsed is Dictionary:
+		return null
+	return convert.call(parsed) if convert.is_valid() else parsed
 
 
 ## Test seam: when set, the text bound for the .tmp file passes through it (to inject a bad write).
@@ -110,9 +126,10 @@ static func write_json(path: String, data: Dictionary) -> bool:
 	return DirAccess.rename_absolute(tmp, path) == OK
 
 
+## The options stored at `path` (or its backup; a damaged or wrong-typed file is kept aside), else the defaults.
 static func read_settings(path: String, aside: bool = false) -> Settings:
-	var d: Variant = read_json(path, aside)
-	return Settings.from_dict(d) if d is Dictionary else Settings.new()
+	var s: Variant = read_converted(path, aside, Settings.from_dict)
+	return s if s is Settings else Settings.new()
 
 
 ## Saves the options. Returns false without touching the disk in a scripted run.
@@ -146,11 +163,12 @@ func apply_settings() -> void:
 	DisplayServer.window_set_position(screen.position + (screen.size - size) / 2)
 
 
-## The profile stored at `path` (or its backup), or a fresh one (with the old save's high score) when there is none.
+## The profile stored at `path` (or its backup; a damaged or wrong-typed file is kept aside), or a fresh one (with
+## the old save's high score) when there is none.
 static func read_profile(path: String, old_path: String, aside: bool = false) -> Profile:
-	var d: Variant = read_json(path, aside)
-	if d is Dictionary:
-		return Profile.from_dict(d)
+	var got: Variant = read_converted(path, aside, Profile.from_dict)
+	if got is Profile:
+		return got
 	var p := Profile.new()
 	if FileAccess.file_exists(old_path):
 		var f := FileAccess.open(old_path, FileAccess.READ)
@@ -159,11 +177,24 @@ static func read_profile(path: String, old_path: String, aside: bool = false) ->
 	return p
 
 
-## Writes the profile. Returns false without touching the disk in a scripted run.
+## Writes the profile. Returns false without touching the disk in a scripted run or when the profile came from a
+## newer build (newer_save()). Every profile write (finish_run, add_card, the menus) goes through here.
 func write() -> bool:
 	if Flags.is_scripted_run():
 		return false
-	return write_json(PATH, profile.to_dict())
+	return write_profile(PATH, profile)
+
+
+## Writes `prof` to `path` safely, unless it came from a newer build (Profile.newer): then false, the disk untouched.
+static func write_profile(path: String, prof: Profile) -> bool:
+	if prof.newer:
+		return false
+	return write_json(path, prof.to_dict())
+
+
+## True when the profile was written by a newer build: it plays, but nothing is saved (the title says so).
+func newer_save() -> bool:
+	return profile.newer
 
 
 ## The unlock bonuses a new run starts with; none in scripted runs.

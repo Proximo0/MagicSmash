@@ -12,7 +12,9 @@ var _runs: int = 6
 var _wizards: Array[int] = [1, 2, 4]
 var _personas: Array[int] = [SmashBot.NOVICE, SmashBot.CASUAL, SmashBot.VETERAN]
 var _seed: int = 1
-var _minutes: float = 16.0
+## The run clock cap. A win on the Archlich comes at about 15:50 and later, so the cap leaves room; a run that
+## reaches it is UNFINISHED (r.unfinished, its own count), never a loss.
+var _minutes: float = 25.0
 var _tune_pairs: PackedStringArray = []
 var _seal: int = 0
 var _json: String = ""
@@ -24,11 +26,12 @@ var _party_heroes: Array = []
 var _heroes: Array = [[]]
 const APPRENTICE := -1
 ## --profile: a saved profile (a career checkpoint, tools/career.gd) every run starts from: World.apply_meta of its
-## bonuses for every seat, and each human seat (in seat order) plays one of its heroes (the last one again when
+## bonuses for every seat (no cards: Profile.bonuses has none), and each human seat (in seat order) plays one of its heroes (the last one again when
 ## there are more seats than heroes). Null: no meta, level 1 heroes as before.
 var _profile: Profile = null
 ## Set by the career tool for each run (or by --profile): the meta bonuses applied to every seat ({}: none) and
-## slot -> a saved hero's Hero.to_dict() for human seats (in place of a level 1 Hero.make of the seat's class).
+## slot -> a saved hero's Hero.to_dict() for human seats (in place of a level 1 Hero.make of the seat's class). A
+## hero's socketed cards reach the run only through apply_hero of her own dict, so they count once, as in play.
 var _bonuses: Dictionary = {}
 var _seat_heroes: Dictionary = {}
 ## The World of the last _play, for the career tool's booking (Profile.finish_run).
@@ -49,7 +52,8 @@ func run() -> int:
 		g.persona = _party_name()
 		_print_group(g)
 		groups.append(g)
-		summary.append("%s win %d/%d end %s first down %s human %s lv6 %s" % [g.persona, g.wins, _runs, _clock(g.end.med),
+		summary.append("%s win %d/%d unfinished %d end %s first down %s human %s lv6 %s" % [g.persona, g.wins, _runs,
+			g.unfinished, _clock(g.end.med),
 			_clock(float(g.first_down.get("med", -1.0))), _clock(float(g.human_down.get("med", -1.0))), _level_at(g, 6)])
 	for persona: int in (_personas if _party.is_empty() else [] as Array[int]):
 		for hero: Array in _heroes:
@@ -64,8 +68,8 @@ func run() -> int:
 				g.persona = SmashBot.persona_name(persona) + _hero_name(hero)
 				_print_group(g)
 				groups.append(g)
-				summary.append("%s x%d win %d/%d end %s arch %s first down %s lv6 %s" % [g.persona, wz,
-					g.wins, _runs, _clock(g.end.med), _clock(float(g.arch.med)), _clock(float(g.first_down.get("med", -1.0))),
+				summary.append("%s x%d win %d/%d unfinished %d end %s arch %s first down %s lv6 %s" % [g.persona, wz,
+					g.wins, _runs, g.unfinished, _clock(g.end.med), _clock(float(g.arch.med)), _clock(float(g.first_down.get("med", -1.0))),
 					_level_at(g, 6)])
 	if _json != "":
 		var f := FileAccess.open(_json, FileAccess.WRITE)
@@ -249,7 +253,7 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 		"offered": {}, "taken": {}, "spell_level": {}, "evolutions": [], "xp_expired": 0, "xp_expired_value": 0,
 		"xp_dropped": 0, "gold": 0.0, "spent": 0.0, "bets": {}, "bosses": [], "damage": {}, "damage_total": 0.0,
 		"kills": [], "shrines": 0, "arch": -1.0, "arch_slain": false, "wiz_hits": [], "wiz_pressure": [],
-		"human_down": -1.0, "skills": {}, "loot": {},
+		"human_down": -1.0, "skills": {}, "loot": {}, "unfinished": false,
 	}
 	var cards_seen: Dictionary = {} # Pickup -> true, for the monster cards that dropped (by source, _card_source)
 	var offers: Dictionary = {}
@@ -413,6 +417,7 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 	r.won = r.won or w.won
 	if w.phase == World.PH_GAMEOVER and not w.won:
 		r.wipe = w.wave_time
+	r.unfinished = not r.won and w.phase != World.PH_GAMEOVER
 	r.picks = picks_min
 	for m: int in range(press_sum.size()):
 		(r.pressure as Array).append(press_sum[m] / maxi(1, press_n[m]))
@@ -563,6 +568,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 	var hfirsts: Array = []
 	var outs: Array = []
 	var wins: int = 0
+	var unfinished: int = 0
 	var downs: float = 0.0
 	var hits: float = 0.0
 	var dmg: float = 0.0
@@ -594,6 +600,8 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 		ends.append(r.end)
 		if r.won:
 			wins += 1
+		if r.unfinished:
+			unfinished += 1
 		if float(r.wipe) >= 0.0:
 			wipes.append(r.wipe)
 		if float(r.first_down) >= 0.0:
@@ -638,7 +646,7 @@ func _aggregate(persona: int, wizards: int, runs: Array) -> Dictionary:
 			visits.append({"n": at.size(), "final": final, "kind": kind, "at": _stats(at), "fight": _stats(fight),
 				"downs": _stats(bd), "slain": slain})
 	return {
-		"persona": SmashBot.persona_name(persona), "wizards": wizards, "runs": runs, "wins": wins,
+		"persona": SmashBot.persona_name(persona), "wizards": wizards, "runs": runs, "wins": wins, "unfinished": unfinished,
 		"end": _stats(ends), "wipe": _stats(wipes), "first_down": _stats(firsts), "out": _stats(outs),
 		"human_down": _stats(hfirsts),
 		"downs_per_min": downs / mins, "hits_per_min": hits / mins, "picks_per_min": picks / mins,
@@ -668,7 +676,7 @@ func _loot_runs(runs: Array) -> Dictionary:
 func _print_group(g: Dictionary) -> void:
 	var n: int = (g.runs as Array).size()
 	print("== %s x%d: %d runs, seeds %d-%d, %s ==" % [g.persona, g.wizards, n, _seed, _seed + n - 1, Seals.title(_seal)])
-	print("win %d/%d  end %s  wipe %s  first down %s  human down %s  out %s" % [g.wins, n, _span(g.end), _span(g.wipe),
+	print("win %d/%d  unfinished %d  end %s  wipe %s  first down %s  human down %s  out %s" % [g.wins, n, g.unfinished, _span(g.end), _span(g.wipe),
 		_span(g.first_down), _span(g.human_down), _span(g.out)])
 	print("per min: downs %.2f  hits %.2f  picks %.2f  damage %.0f" % [g.downs_per_min, g.hits_per_min,
 		g.picks_per_min, g.damage_per_min])
