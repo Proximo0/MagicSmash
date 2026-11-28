@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compares two arms of the balance workflow (.github/workflows/balance.yml): how often the bots won in each, the
-difference and its 95% interval, and a verdict. Standard library only; it calls `gh` to fetch the artifacts.
+difference and its 95% interval, and a verdict. Standard library only; it calls `gh api` (run it inside the repo) to
+read each run's rows from the log of its job `sum` (one `BALROW <csv row>` line a row), so no artifact is downloaded.
 
 Usage:
   python3 tools/balance_compare.py <run id A> <run id B>     two runs of the workflow (A the base, B the change)
@@ -13,8 +14,10 @@ Prints one line per arm, then
 Wilson intervals). Exit 0 after a comparison, 2 on a usage error, 1 when an arm has no usable row.
 """
 import csv
+import json
 import math
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -55,14 +58,39 @@ def read_rows(path):
     return rows
 
 
+HEADER = "label,ref,commit,seed,wizards,persona,runs,won,unfinished,state"
+# A row as the job `sum` prints it: the log's time stamp, BALROW, the row (no spaces: every input is checked for them).
+BALROW = re.compile(r"^\S*\s?BALROW (\S+)$")
+
+
+def rows_from_log(text):
+    """The balance.csv rows a `sum` job printed, in order; the echo of the step's own script never matches."""
+    rows = []
+    for line in text.splitlines():
+        m = BALROW.match(line.rstrip("\r"))
+        if m and m.group(1).count(",") == HEADER.count(","):
+            rows.append(m.group(1))
+    return rows
+
+
+def gh_api(path):
+    """`gh api <path>` inside the repo ({owner}/{repo} are the repo's own); its output as text."""
+    return subprocess.run(["gh", "api", path], check=True, capture_output=True, text=True).stdout
+
+
 def fetch(run_id, into):
-    """Downloads the `balance` artifact of one workflow run; returns its balance.csv path."""
+    """Writes one workflow run's rows (its job `sum`'s BALROW lines) as a balance.csv; returns the path."""
     if not run_id.isdigit():
         raise SystemExit("FAIL run id must be a number: " + run_id)
-    d = os.path.join(into, run_id)
-    subprocess.run(["gh", "run", "download", run_id, "-n", "balance", "-D", d], check=True,
-                   stdout=subprocess.DEVNULL)
-    return os.path.join(d, "balance.csv")
+    jobs = json.loads(gh_api("repos/{owner}/{repo}/actions/runs/%s/jobs?per_page=100" % run_id))["jobs"]
+    done = [j for j in jobs if j["name"] == "sum" and j["status"] == "completed"]
+    if not done:
+        raise SystemExit("FAIL run %s has no finished job sum yet" % run_id)
+    rows = rows_from_log(gh_api("repos/{owner}/{repo}/actions/jobs/%d/logs" % done[0]["id"]))
+    path = os.path.join(into, run_id + ".csv")
+    with open(path, "w") as f:
+        f.write(HEADER + "\n" + "".join(r + "\n" for r in rows))
+    return path
 
 
 def compare(rows_a, rows_b):

@@ -3,6 +3,7 @@
 BALANCE_COMPARE_TESTS passed=N failed=M, and exits 1 on a failure. Run: python3 tools/balance_compare_test.py"""
 import contextlib
 import io
+import json
 import os
 import sys
 import tempfile
@@ -38,6 +39,51 @@ class Newcombe(unittest.TestCase):
         self.assertAlmostEqual(d, 0.2, places=6)
         self.assertAlmostEqual(lo, 0.0524, places=3)
         self.assertAlmostEqual(hi, 0.3339, places=3)
+
+
+class FromLog(unittest.TestCase):
+    """The rows of a run come from its job `sum`'s log through the API (no artifact host)."""
+
+    def test_rows_come_from_balrow_lines_only(self):
+        log = "\n".join([
+            "﻿2026-11-28T10:00:00.1Z ##[group]Run set -euo pipefail",
+            "2026-11-28T10:00:00.2Z \x1b[36;1mtail -n +2 out/balance.csv | while IFS= read -r r; do echo \"BALROW $r\"; done\x1b[0m",
+            "2026-11-28T10:00:01.0Z BALANCE label=a ref=try/x commit=abc wizards=2 persona=casual runs=5 won=3",
+            "2026-11-28T10:00:01.1Z BALROW a,try/x,abc,1,2,casual,5,3,0,ok\r",
+            "2026-11-28T10:00:01.2Z BALROW a,try/x,abc,6,2,casual,0,0,0,broken",
+            "2026-11-28T10:00:01.3Z BALROW not,a,row",
+        ])
+        self.assertEqual(bc.rows_from_log(log), ["a,try/x,abc,1,2,casual,5,3,0,ok", "a,try/x,abc,6,2,casual,0,0,0,broken"])
+        self.assertEqual(bc.HEADER + "\n", HEAD)
+
+    def fetch_with(self, jobs, log):
+        calls = []
+
+        def fake(path):
+            calls.append(path)
+            return json.dumps({"jobs": jobs}) if "/runs/" in path else log
+
+        real = bc.gh_api
+        bc.gh_api = fake
+        try:
+            return bc.fetch("123", tempfile.mkdtemp(prefix="balance_test.")), calls
+        finally:
+            bc.gh_api = real
+
+    def test_fetch_reads_the_finished_sum_job(self):
+        jobs = [{"name": "plan", "id": 1, "status": "completed"}, {"name": "sum", "id": 9, "status": "completed"}]
+        path, calls = self.fetch_with(jobs, "2026-11-28T10:00:01.1Z BALROW a,try/x,abc,1,2,casual,5,3,0,ok\n")
+        self.assertEqual(calls, ["repos/{owner}/{repo}/actions/runs/123/jobs?per_page=100",
+                                 "repos/{owner}/{repo}/actions/jobs/9/logs"])
+        rows = bc.read_rows(path)
+        self.assertEqual(list(rows), [1])
+        self.assertEqual((rows[1]["runs"], rows[1]["won"]), ("5", "3"))
+
+    def test_a_run_still_going_is_refused(self):
+        with self.assertRaises(SystemExit):
+            self.fetch_with([{"name": "sum", "id": 9, "status": "in_progress"}], "")
+        with self.assertRaises(SystemExit):
+            bc.fetch("12a", tempfile.mkdtemp(prefix="balance_test."))
 
 
 class Compare(unittest.TestCase):
