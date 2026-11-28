@@ -81,8 +81,8 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 		var draws := int(pl[i + World.P_DRAWS])
 		if draws > int(p.get("draws", 0)):
 			a._tab_flash[slot] = a.time
-			if a.lull_left > 0.0 and int(p.get("draws", 0)) == 0 and a._is_local_slot(slot):
-				a._tray_open[slot] = true # in the quiet the cards come out by themselves
+			if (a.lull_left > 0.0 or a.phase == World.PH_INTRO) and int(p.get("draws", 0)) == 0 and a._is_local_slot(slot):
+				a._tray_open[slot] = true # in the quiet (a lull, THE HEAD START's held intro) the cards come out by themselves
 				if not ch.is_empty():
 					ArenaTray._deal_tray(a, slot, offer, true) # the hand came with the draw (a merged snapshot): it turns over too
 		p.draws = draws

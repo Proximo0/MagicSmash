@@ -462,10 +462,13 @@ profile.gd:36-39).
 | MIDAS' PURSE (`fortune`) | 0.15 per level (gold += 0.15); text "+15% GOLD" | Crystals: level 1 costs 20; level 2 costs 60; level 3 costs 150 (total 230) | none | game/logic/profile.gd:20; effect game/logic/profile.gd:41 | test_profile.gd |
 | BOTTLED STAR (`novas`) | 1 per level (novas += 1); text "+1 NOVA" | Crystals: level 1 costs 40; level 2 costs 140 (total 180) | none | game/logic/profile.gd:21; effect game/logic/profile.gd:42 | test_profile.gd |
 | FOUR-LEAF RUNE (`luck`) | 1 per level (luck += 1); text "LUCKIER CHESTS" | Crystals: level 1 costs 80; level 2 costs 240 (total 320) | none | game/logic/profile.gd:22; effect game/logic/profile.gd:43 | test_profile.gd, test_seals.gd |
+| THE SECOND GLANCE (`redraw`) | 1 per level (redraws += 1): every wizard starts the run with Upgrades.REDRAWS + its level (WorldLevels._shop_start, the first step); text "+1 REDRAW EACH RUN"; level 2 opens at the SEAL V win | Crystals: 60, 220 (total 280) | The level-up hand | game/logic/profile.gd:23; effect game/logic/world/levels.gd:61 | test_shop_options.gd, test_unlocks.gd |
+| THE BLACK RIBBON (`banish`) | 1 per level (banishes += 1), as THE SECOND GLANCE; text "+1 BANISH EACH RUN"; level 2 opens at the SEAL II win | Crystals: 60, 220 (total 280) | The level-up hand | game/logic/profile.gd:24; effect game/logic/world/levels.gd:61 | test_shop_options.gd, test_unlocks.gd |
+| THE HEAD START (`start_level`) | 1 per level: the party starts at level 1 + its level and keeps the lead all run (World.xp_needed never prices those levels: World.head_start_levels); each wizard draws that many hands while the intro holds (at most Tuning.head_start_wait, 12 s; WorldLevels._intro_held) and a local seat's tray opens by itself; use counter shop_start_level; text "THE PARTY STARTS A LEVEL UP"; level 2 opens at the SEAL VII win | Crystals: 120, 400 (total 520) | The pair she plans | game/logic/profile.gd:25; effect game/logic/world/levels.gd:61, game/logic/world.gd:718 | test_shop_options.gd, test_unlocks.gd, cover robot family shop |
 
-Since 28 Nov the prices and RUNED STAFF's five levels are those of § 45. `Profile.META` also holds § 45's nine
-other rows (THE SECOND GLANCE to THE VEILED DECK); they stay off the shelf (`Profile.UNBUILT`, `Profile.shelf`)
-until the job that builds each one's effect takes its key off the list, so the screen shows these six.
+Since 28 Nov the prices and RUNED STAFF's five levels are those of § 45. `Profile.META` also holds § 45's six
+other rows (THE SATCHEL to THE VEILED DECK); they stay off the shelf (`Profile.UNBUILT`, `Profile.shelf`)
+until the job that builds each one's effect takes its key off the list, so the screen shows these nine.
 
 ## 26. Sanctum things
 
@@ -982,7 +985,7 @@ profile keeps the levels it bought; RUNED STAFF's three old levels are worth 12%
 | FOUR-LEAF RUNE (`luck`) | +1 chest luck a level, 2 levels | 80, 240 | none | changed: prices (were 60, 160) | U |
 | THE SECOND GLANCE (`redraw`) | +1 redraw each run a level, 2 levels; level 2 opens at the SEAL V win | 60, 220 | The level-up hand | new | U |
 | THE BLACK RIBBON (`banish`) | +1 banish each run a level, 2 levels; level 2 opens at the SEAL II win | 60, 220 | The level-up hand | new | U |
-| THE HEAD START (`start_level`) | The party starts at level 2, then 3: each wizard draws those hands before the first door opens. Level 2 opens at the SEAL VII win | 120, 400 | The pair she plans | new | U B |
+| THE HEAD START (`start_level`) | The party starts at level 2, then 3, and keeps the lead all run (each later level costs what it would without it): each wizard draws those hands before the first door opens. Level 2 opens at the SEAL VII win | 120, 400 | The pair she plans | new | U B |
 | THE SATCHEL (`satchel`) | One more pocket a level, 2 levels (§ 46); level 2 opens at the SEAL III win | 300, 900 | The satchel | new | U |
 | THE READER'S FAVOUR (`favour`) | Level 1: the table may have the Reading dealt again once. Level 2: the Reading deals four cards. Level 2 opens at the SEAL VI win | 250, 750 | The Reading | new | U B |
 | A CLEAN SLATE (`respec`) | Gives the active hero her stat points back to spend again | 50, each time | Hero stat points (§ 9) | new | U |

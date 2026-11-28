@@ -25,7 +25,8 @@ func test_spending_buys_the_cheapest_level_first() -> void:
 	for key: String in Profile.UNBUILT:
 		assert_eq(p.level(key), 0, key + " is off the shelf")
 	p.seal_best = Seals.MAX
-	assert_eq(Career.spend_crystals(p), ["might", "might"] as Array[String])
+	# Every Seal won: the levels they held back, cheapest first (220, 220, 300, 400, 600).
+	assert_eq(Career.spend_crystals(p), ["redraw", "banish", "might", "start_level", "might"] as Array[String])
 
 
 ## With too few crystals for any level nothing is bought.

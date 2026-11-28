@@ -18,6 +18,10 @@ var _minutes: float = 25.0
 var _tune_pairs: PackedStringArray = []
 var _seal: int = 0
 var _reading: String = "" # --reading=<key>: every run plays under that Reading (World.apply_reading)
+## --meta=key:value,...: Profile.bonuses keys ("start_level", "redraws", "banishes", "hearts"...) every run's
+## World.apply_meta gets, over --profile's ({}: none, no apply_meta of its own), as meta_from_arg reads them (a second
+## --meta adds to the first); the PLAYTEST line names them (_meta_text).
+var _meta: Dictionary = {}
 var _json: String = ""
 ## --party: one party of seats, each a SmashBot persona id or APPRENTICE (empty: the persona x wizards groups).
 var _party: Array[int] = []
@@ -78,13 +82,46 @@ func run() -> int:
 			push_error("cannot write " + _json)
 		else:
 			f.store_string(JSON.stringify({"args": OS.get_cmdline_user_args(), "groups": groups}, " "))
-	print("PLAYTEST runs=%d minutes=%.0f seed=%d seal=%d %s | %s" % [_runs * groups.size(), _minutes, _seed, _seal,
-		Seals.title(_seal), " | ".join(summary)])
+	print(_playtest_line(groups.size(), summary))
 	return 0
 
 
-func _parse_args() -> bool:
-	for arg: String in OS.get_cmdline_user_args():
+## The last line of run(): its settings, --meta's values when given (_meta_text), then each group's summary.
+func _playtest_line(groups: int, summary: PackedStringArray) -> String:
+	return "PLAYTEST runs=%d minutes=%.0f seed=%d seal=%d %s%s | %s" % [_runs * groups, _minutes, _seed, _seal,
+		Seals.title(_seal), " meta=" + _meta_text() if not _meta.is_empty() else "", " | ".join(summary)]
+
+
+## The --meta values as the PLAYTEST line names them: key:value in the order first given ("start_level:2,redraws:1").
+func _meta_text() -> String:
+	var parts: PackedStringArray = []
+	for key: String in _meta:
+		var v: float = float(_meta[key])
+		parts.append("%s:%s" % [key, str(int(v)) if v == roundf(v) else str(v)])
+	return ",".join(parts)
+
+
+## Adds --meta's "key:value[,key:value]" to `into` (a key given again takes its last value). A key is a number
+## World.apply_meta reads: the Profile.bonuses key of a built Profile.EFFECTS row ("hearts" ... "start_level"; one
+## whose row is on Profile.UNBUILT would be ignored, so it is refused too). Returns "" or what is wrong, in one line.
+static func meta_from_arg(spec: String, into: Dictionary) -> String:
+	var known: PackedStringArray = []
+	for row: String in Profile.EFFECTS:
+		if not Profile.UNBUILT.has(row):
+			known.append(String((Profile.EFFECTS[row] as Array)[0]))
+	for x: String in spec.split(","):
+		if x.get_slice_count(":") != 2 or not x.get_slice(":", 1).is_valid_float():
+			return "--meta takes key:value[,key:value] (Profile.bonuses keys), not " + x
+		var key: String = x.get_slice(":", 0)
+		if not known.has(key):
+			return "unknown --meta key %s (one of %s)" % [key, ",".join(known)]
+		into[key] = float(x.get_slice(":", 1))
+	return ""
+
+
+## Reads the tool's arguments (the command line's, or `args` as a test gives them) into the fields; false on a bad one.
+func _parse_args(args: PackedStringArray = OS.get_cmdline_user_args()) -> bool:
+	for arg: String in args:
 		var v: String = arg.get_slice("=", 1)
 		if arg.begins_with("--runs="):
 			_runs = maxi(1, int(v))
@@ -115,6 +152,11 @@ func _parse_args() -> bool:
 				return false
 		elif arg.begins_with("--json="):
 			_json = v
+		elif arg.begins_with("--meta="):
+			var why: String = meta_from_arg(v, _meta)
+			if why != "":
+				push_error(why)
+				return false
 		elif arg.begins_with("--profile="):
 			_profile = load_profile(v)
 			if _profile == null:
@@ -227,7 +269,7 @@ func _profile_setup(wizards: int, party: Array[int]) -> void:
 ## One run. `classes` holds each seat's hero [Classes index, Races index] or [] (no class: as before). A human seat
 ## with a class gets a level 1 Hero.make of it after World.new (where Arena would apply_meta first; the playtest
 ## applies no meta); an apprentice seat with one is seated with that class and the World makes it the hero. With
-## _bonuses (the career tool, --profile) every seat gets World.apply_meta of them first, and a human seat in
+## _bonuses (the career tool, --profile) or --meta every seat gets World.apply_meta of them first, and a human seat in
 ## _seat_heroes plays that saved hero instead.
 func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], classes: Array = []) -> Dictionary:
 	var slots: Array = range(wizards)
@@ -239,8 +281,8 @@ func _play(persona: int, wizards: int, seed_value: int, party: Array[int] = [], 
 	var w := World.new(slots, seed_value, _make_tune(), {}, seats)
 	_last_world = w
 	_profile_setup(wizards, party)
-	if not _bonuses.is_empty():
-		w.apply_meta(_bonuses)
+	if not _bonuses.is_empty() or not _meta.is_empty():
+		w.apply_meta(_bonuses.merged(_meta, true))
 	for s: int in slots:
 		var hero: Array = classes[s] if s < classes.size() else []
 		if not seats.has(s) and _seat_heroes.has(s):

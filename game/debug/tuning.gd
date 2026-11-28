@@ -98,6 +98,7 @@ const FIELDS: Array = [
 	["pick_shock_radius", 44.0, 0.0, 120.0, 2.0, "XP", "Taking a card pushes every enemy this close to the wizard away, px (no damage). 0 = off."],
 	["pick_shock_push", 220.0, 0.0, 600.0, 10.0, "XP", "Knockback of a card's shock, px/s, scaled like other knockback (the Nova's is 260)."],
 	["level_choices", 3.0, 1.0, 3.0, 1.0, "XP", "Upgrades offered at each level-up (snapshots and the card tray hold 3)."],
+	["head_start_wait", 12.0, 0.0, 60.0, 0.5, "XP", "THE HEAD START holds the intro (no horde, no clock) while a living wizard has a hand to draw, for at most this many seconds of intro (World.time); a wizard who has not drawn by then keeps her draws, as after any level-up."],
 	["maxed_level_score", 1000.0, 0.0, 10000.0, 50.0, "XP", "Score given instead of a pick when every upgrade is maxed."],
 	["spirit_speed", 45.0, 10.0, 120.0, 1.0, "Fallen", "A fallen wizard's spirit walks this fast, px/s (party of 2+)."],
 	["ritual_radius", 30.0, 10.0, 80.0, 1.0, "Fallen", "Radius of the ritual circle on a spirit, px: allies inside raise her."],
@@ -218,6 +219,7 @@ var xp_party_scale: float
 var pick_shock_radius: float
 var pick_shock_push: float
 var level_choices: float
+var head_start_wait: float
 var maxed_level_score: float
 var spirit_speed: float
 var ritual_radius: float

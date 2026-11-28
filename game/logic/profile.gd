@@ -59,9 +59,9 @@ const GATES := {
 }
 
 ## META keys whose effect is not in the game yet: off the shelf (shelf, closed_why "NOT YET"). Each job that builds
-## a row takes its key off; respec stays until the shop screen can draw a row without levels.
-const UNBUILT: Array[String] = ["redraw", "banish", "start_level", "satchel", "favour", "respec", "deck_hex",
-	"deck_blades", "deck_priestess"]
+## a row takes its key off (redraw, banish and start_level are built: WorldLevels._shop_start); respec stays until the
+## shop screen can draw a row without levels.
+const UNBUILT: Array[String] = ["satchel", "favour", "respec", "deck_hex", "deck_blades", "deck_priestess"]
 ## closed_why's words: maxed, not built yet, a Seal win to come ("WIN " + Seals.title), no points to give back.
 const WHY_MAX := "MAX"
 const WHY_UNBUILT := "NOT YET"

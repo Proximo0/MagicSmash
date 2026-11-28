@@ -384,9 +384,12 @@ until the row is **credited** and a second more, or until 40 s of game time.
 - `PENDING` in the robot lists the rows nothing credits yet. A pending row is played for 12 s and not failed for the
   missing credit, but it **fails when it is credited**, so the list cannot rot: the job that credits a row takes its key
   off the list.
-- Families: `catalog.gd` (the level-up catalog) and `readings.gd` (the sixteen Readings, dealt by
-  `World.apply_reading`, unbuilt while in `Readings.UNBUILT`). A new family of rows (Seals, monster cards, shop rows)
-  is one script in `tests/bot/cover/` that extends `family.gd`: `family()`, `keys()`, `unbuilt(key)`,
-  `deal(w, p, key)`, `credit(w, p, key)`. The robot and the plan find it by its file. Keys are unique across families.
+- Families: `catalog.gd` (the level-up catalog), `readings.gd` (the sixteen Readings, dealt by
+  `World.apply_reading`, unbuilt while in `Readings.UNBUILT`) and `shop.gd` (the shop rows whose Test letters hold a B,
+  `start_level` and `favour`: dealt by `World.apply_meta` with the row at level 1 before the first step, a deal after
+  it is an engine error; credited by `shop_<key>`; unbuilt while in `Profile.UNBUILT`). A new family of rows (Seals,
+  monster cards, provisions) is one script in `tests/bot/cover/` that extends `family.gd`: `family()`, `keys()`,
+  `unbuilt(key)`, `deal(w, p, key)`, `credit(w, p, key)`. The robot and the plan find it by its file. Keys are unique
+  across families.
 - Cannot prove: that a row's effect is the right size or looks right (the damage table, the unit tests and the
   pictures do that), or that a human would ever be offered it (the catalog's own tests).
