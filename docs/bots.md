@@ -295,3 +295,43 @@ local seats on saved heroes, so a bug in heroes, cards, unlock bonuses or run bo
 - **Every bot row fails on an engine error**: `tests/bot/no_engine_errors.sh <log>` fails a run whose output has a
   `SCRIPT ERROR:` or `ERROR:` line (the rule of `tools/run_tests.sh`: any engine error but a warning), except the
   engine's own exit report `ERROR: n resources still in use at exit`, printed after the game has quit.
+
+## The boss, win and again shards
+
+Three more shards of `tests/bot/bot.tscn` (shard 3's seed 104 and four seats, the hero shard's four saved heroes, the
+hero shard's refusal to start without `XDG_DATA_HOME`). CI rows `bot-boss`, `bot-win`, `bot-again`; `check_all` tasks
+`botboss`, `botwin`, `botagain`. Each prints `BOT <name> PASS ...` or one `BOT <name> FAIL <why>` line per fault, then
+the usual `BOT shard=...` and `BOT score=...` lines. Where the shard forces something it says so below.
+
+- **`-- --boss`** (`tests/bot/bot_boss.gd`, about 16 s). The run's clock is moved to 0.5 s before the first act boss's
+  minute with the two assignments `--autotest=<wave>` makes (`World.wave`, `World.wave_time`), then the bots play.
+  Checks: the boss came between its scheduled second and 4 s later (the spawn queue's 2.5 s), at the scheduled
+  minute, of the scheduled type; its health fell in 20 s of fight; at 20 s the shard fells it through
+  `World.damage_enemy` and reads the events that call adds: one `EV_BOSSDIE` (final flag 0), one `EV_LULL`, no
+  `EV_VICTORY`, `liches_slain` 1, one `M_ACT_BOSS` moment naming the type, one chest per wizard and 14 or more gems and
+  coins on the floor, `World.boss` cleared; four wizards still in the World and the roster; the hero shard's start
+  check on every seat. Cannot prove: `EV_BOSS` (the arrival event; the arena takes it before the shard can look, the
+  shard sees `World.boss` instead), anything about how the boss fight is won (the kill is forced), the second act boss.
+- **`-- --win`** (about 20 s). The same, with the clock moved to just before the Archlich's minute and the run played at
+  the ARCHMAGE step (`Net.seal = 1`, a lobby choice: a first win at WIZARD opens no new step). After the forced kill:
+  `EV_BOSSDIE` (final flag 1) before `EV_VICTORY`, no lull, `World.won`, and its death adds no chest (the final boss
+  pays only its burst of gems and coins; both shards count the chests the death itself added); then the shard waits
+  through the victory countdown for the arena's results. Checks on the profile in memory: the arena reports a
+  victory; runs +1, wins +1; crystals up by at least the win bounty, the step's first-win prize and the deeds' pay;
+  `seal_best` and
+  `seal_unlocked` moved, the prize is claimed; the deeds ARCHLICH, PARTY_WIN, LICH, TEN_MINUTES, WIN_MAGE, WIN_ARCHER,
+  WIN_KNIGHT, WIN_PRIEST and WIN_ARCHMAGE are in `Profile.deeds` and SOLO_WIN is not; each seated hero gained class
+  XP, `last_hero_levels` names them; `user://profile.json` does not exist. Cannot prove: a won run that was played to
+  the end (the clock is moved 14 minutes, the party has no upgrades from those minutes), FLAWLESS and the deeds that
+  depend on how the bots fared.
+- **`-- --again`** (in `bot.gd`, about 30 s). Run 1 ends in a defeat as in the hero shard (hurt at 62 s). Then, as a
+  player: the results screen takes the confirm key (SPACE; the first press turns the results page, the next leaves),
+  the scene is the Sanctum, the net is offline; the shard calls `G.goto_title_lobby(G.DEV_KBM)` (what the portal
+  calls: walking to it is the Sanctum's own business) and, once the title shows its lobby, presses ENTER (player 1's
+  START). Checks: the second run's World has a new clock (under 2 s, minute 1), every wizard at full hearts, player 1 on
+  the same saved hero, the hero shard's start check (stats, hearts incl. the unlock bonuses, `meta_damage`), as many
+  wizards as the lobby seated; then run 2 is felled at 5 s and the profile's `runs` must be the start value + 2; no
+  profile file. It prints the seats of both runs: players 2 to 4 join again after a run (known, not a fault).
+  Cannot prove: the Sanctum's walking and portal, a party that stays seated, LAN.
+- **A shard that frees the arena** must not guard on `_arena == null`: a freed node reads as null, so the again shard
+  runs off `G.main.current` (the first version of it stalled silently at the results screen for that reason).

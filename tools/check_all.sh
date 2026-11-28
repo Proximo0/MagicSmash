@@ -25,8 +25,11 @@ if (( HAVE_BOT )); then
   for ((i = 0; i < BOT_SHARDS; i++)); do
     TASKS+=("bot$i|timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --shard=$i --nshards=$BOT_SHARDS")
   done
-  # The hero shard: saved heroes seated in an in-memory profile, in a private save folder (docs/bots.md).
+  # The hero shard and its three kin (boss, win, again): saved heroes seated in an in-memory profile, in a private save folder (docs/bots.md).
   TASKS+=("botheroes|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --heroes")
+  TASKS+=("botboss|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --boss")
+  TASKS+=("botwin|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --win")
+  TASKS+=("botagain|XDG_DATA_HOME=\$(mktemp -d) timeout 240 $GODOT --headless --fixed-fps 60 --path . res://tests/bot/bot.tscn -- --again")
 fi
 (( HAVE_LAB )) && TASKS+=("lab|timeout 600 $GODOT --headless --fixed-fps 60 --path . res://tests/lab/lab.tscn")
 # The horde's step budget is doubled here: this script's other Godot processes slow it through shared caches even in
