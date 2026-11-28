@@ -60,7 +60,7 @@ const E_HEX := 42
 const E_BLADES := 43
 ## Rows whose effect is not on main yet: never available (available), never counted in a pair (pairs_with);
 ## WorldGrants.give is the one path past it. Each job that builds a row takes it off this list.
-const UNBUILT: Array[int] = [PRIESTESS, DEVIL, W_HEX, W_BLADES, E_LODESTAR, E_GREEK, E_VEIL, E_DIES, E_HEX, E_BLADES]
+const UNBUILT: Array[int] = [PRIESTESS, EMPRESS, DEVIL, STAR, W_HEX, W_BLADES, E_LODESTAR, E_GREEK, E_VEIL, E_DIES, E_HEX, E_BLADES]
 
 ## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE (an arcana she holds) a passive slot
 ## (World.slot_cap); an INSTANT acts once when taken (no row is one any more: THE TOWER and JUDGEMENT are held); an
