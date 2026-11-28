@@ -94,8 +94,13 @@ const PICK_PRIORITY: Array[int] = [Upgrades.E_ARCANE, Upgrades.E_FIRE, Upgrades.
 ## The casual takes the arcana that completes a pair ahead of everything but an evolution once the pair's spell is at
 ## this level: sooner, the arcana costs her the spell levels that keep her alive in the first minutes.
 const PAIR_FROM_LEVEL: int = 3
+## THE STAR (+1 / +2 missiles for every spell) and THE EMPRESS (10 / 20 / 30% wider areas) complete no pair yet, and an
+## arcana slot filled in the first minutes is one STRENGTH or a pair's arcana cannot have: both under THE MAGICIAN.
+## THE STAR before THE EMPRESS, by what each adds in a crowd of 40 (the A4 balance review: THE STAR I adds ARCANE BOLT
+## +34%, FIREBALL +49%, RUNE CIRCLE +28%; THE EMPRESS I adds FIREBALL +16%, RUNE CIRCLE +13% and nothing to the
+## bolts, chains and stars): THE STAR over a lone arcana, THE EMPRESS only over the weakest.
 const PASSIVE_TASTE: Dictionary = {"power": 55.0, "quick": 52.0, "life": 30.0, "regen": 26.0, "swift": 24.0,
-	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0}
+	"magnet": 20.0, "wisdom": 15.0, "nova": 14.0, "justice": 30.0, "lovers": 28.0, "star": 32.0, "empress": 22.0}
 
 ## A shrine the bot can pay for pulls it from this far.
 const SHRINE_RANGE: float = 220.0

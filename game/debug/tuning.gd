@@ -15,6 +15,7 @@ const FIELDS: Array = [
 	["haste_rate_mul", 0.72, 0.3, 1.0, 0.02, "Player", "Cast cooldown multiplier while hasted (lower casts faster)."],
 	["spell_cd_mul", 1.0, 0.2, 3.0, 0.05, "Casting", "Multiplier on every spell's cooldown (Spells.STATS); lower casts faster."],
 	["auto_aim_range", 200.0, 40.0, 480.0, 10.0, "Casting", "Spells auto-aim at the nearest enemy within this range, px, unless the player aims."],
+	["star_sweep_arc", 0.5, 0.0, 2.0, 0.05, "Casting", "THE STAR: a sweep (CLEAVE) sends no missiles; its arc grows by this share of itself for each one instead."],
 	["horde_start_budget", 0.0, 0.0, 100.0, 1.0, "Spawning", "Spawn budget the horde starts with, so the first enemies come at once."],
 	["horde_rate_base", 1.5, 0.0, 40.0, 0.1, "Spawning", "Spawn budget earned per second at the start of a run (a goblin costs 1, an orc 9)."],
 	["horde_rate_per_min", 5.0, 0.0, 20.0, 0.1, "Spawning", "Spawn budget per second added for each minute survived."],
@@ -132,6 +133,7 @@ var haste_speed_mul: float
 var haste_rate_mul: float
 var spell_cd_mul: float
 var auto_aim_range: float
+var star_sweep_arc: float
 var horde_start_budget: float
 var horde_rate_base: float
 var horde_rate_per_min: float

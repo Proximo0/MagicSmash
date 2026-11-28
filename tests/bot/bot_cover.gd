@@ -15,8 +15,7 @@ const FAMILY_DIR := "res://tests/bot/cover"
 const FAMILY_BASE := "family.gd"
 ## Rows dealt and played but not failed for a missing credit: nothing credits them yet (a later job does). A pending row
 ## that is credited fails, so the list cannot rot; an engine error fails it as any row.
-const PENDING: Array[String] = ["swift", "quick", "power", "regen", "magnet", "wisdom", "nova", "life", "justice",
-	"lovers"]
+const PENDING: Array[String] = []
 ## Wizards in each run (the first seat is dealt the row; the others are play-bots as in the other shards).
 const PLAYERS := 2
 ## The first row's seed; row n of the plan plays SEED_BASE + n.

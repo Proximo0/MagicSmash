@@ -4,8 +4,9 @@ extends RefCounted
 ## (frost, splinters, blasts). Static helpers; the first argument is the World.
 
 
-## "bolt": `n` projectiles fanned `spread` apart along `dir`, each nudged by the row's jitter.
-static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: int, dir: Vector2, tip: Vector2, n: int, dmg: float) -> void:
+## "bolt": `n` projectiles fanned `spread` apart along `dir`, each nudged by the row's jitter (THE STAR's missiles are
+## more of them: a wider fan). Returns `n`, every one sent.
+static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: int, dir: Vector2, tip: Vector2, n: int, dmg: float) -> int:
 	var spread := Spells.stat(sp, "spread")
 	var speed := Spells.stat(sp, "speed")
 	var jitter := Spells.bolt_value(sp, "jitter", evo, 0.0)
@@ -19,6 +20,7 @@ static func _cast_bolts(w: World, p: World.Player, sp: int, _lv: int, evo: int, 
 		var s := _shot(w, p.slot, sp, evo, tip, dir.rotated(a) * speed, dmg, pierce)
 		if reach > 0.0:
 			s.life = reach / speed
+	return n
 
 
 static func _shot(w: World, slot: int, sp: int, evo: int, pos: Vector2, vel: Vector2, dmg: float, pierce: int) -> World.Shot:
@@ -116,7 +118,8 @@ static func _shot_hit(w: World, s: World.Shot, e: World.Enemy) -> void:
 
 
 ## Ossuary Lance: splinters fly sideways (square to the spear, both ways in turn) from the foe it hit, each a
-## Spells.SPLINTER_DMG share of the spear's damage; they never hit that foe and never splinter again.
+## Spells.SPLINTER_DMG share of the spear's damage; they never hit that foe and never splinter again. Their flight
+## (Spells.SPLINTER_LIFE at the spear's speed) is an area THE EMPRESS widens, read at the hit.
 static func _splinter(w: World, s: World.Shot, e: World.Enemy) -> void:
 	var n := int(Spells.evo_value(s.spell, "splinter", s.evo, 0.0))
 	var side := s.vel.orthogonal()
@@ -125,13 +128,14 @@ static func _splinter(w: World, s: World.Shot, e: World.Enemy) -> void:
 		var sp := _shot(w, s.owner, s.spell, s.evo, s.pos, v.rotated((i / 2) * 0.3), s.dmg * Spells.SPLINTER_DMG, 0)
 		sp.kind = Spells.shot_kind(s.spell, 0)
 		sp.splinter = true
-		sp.life = Spells.SPLINTER_LIFE
+		sp.life = Spells.SPLINTER_LIFE * WorldCasting._area(w.players.get(s.owner))
 		sp.hits[e.id] = true
 
 
-## Comet Rain: a star that hits bursts into ice, slowing and hurting every other enemy nearby.
+## Comet Rain: a star that hits bursts into ice, slowing and hurting every other enemy nearby (the burst's radius
+## times THE EMPRESS's area, read at the hit; EV_FROST carries it to the view).
 static func _frost_burst(w: World, s: World.Shot, center: World.Enemy) -> void:
-	var radius := Spells.evo_value(s.spell, "burst", s.evo, 0.0)
+	var radius := Spells.evo_value(s.spell, "burst", s.evo, 0.0) * WorldCasting._area(w.players.get(s.owner))
 	w.emit(World.EV_FROST, s.pos.x, s.pos.y, radius, 0)
 	for e in w._query(s.pos, radius + 8.0):
 		if e == center or e.dead or e.pos.distance_to(s.pos) > radius + e.r:
@@ -153,10 +157,13 @@ static func _frost_hit(w: World, e: World.Enemy, slow: float, dmg: float, slot: 
 
 
 ## A blast: every enemy within the row's blast radius takes the bolt's damage plus a bonus that fades over
-## blast_reach. An evolution with "chain" (Thunderfire) forks lightning from it to the nearest survivor.
+## blast_reach; THE EMPRESS's area widens both, read at the hit (EV_EXPLODE carries the radius to the view). An
+## evolution with "chain" (Thunderfire) forks lightning from it to the nearest survivor: that reach is not an area.
 static func _explode(w: World, s: World.Shot) -> void:
+	var area := WorldCasting._area(w.players.get(s.owner))
 	var radius := Spells.bolt_value(s.spell, "blast", s.evo, 0.0)
-	var reach := Spells.bolt_value(s.spell, "blast_reach", s.evo, radius)
+	var reach := Spells.bolt_value(s.spell, "blast_reach", s.evo, radius) * area
+	radius *= area
 	var bonus := Spells.bolt_value(s.spell, "blast_bonus", s.evo, 0.0)
 	w.emit(World.EV_EXPLODE, s.pos.x, s.pos.y, int(radius), s.owner)
 	for e in w._query(s.pos, reach):

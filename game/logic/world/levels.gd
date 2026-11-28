@@ -153,6 +153,7 @@ static func _pick(w: World, p: World.Player, idx: int) -> void:
 			var gold: float = Upgrades.value(p.upgrades, idx, 0.0) * (1.0 + p.armor[Loot.ST_GREED] + w.meta_gold)
 			p.gold += gold
 			w.record.add(p.slot, "gold", gold)
+	if idx == Upgrades.NOVA or idx == Upgrades.LIFE: w.record.use(Upgrades.key(idx), p.slot)
 	WorldCasting._refresh_spell(w, p)
 	w.emit(World.EV_PICK, p.pos.x, p.pos.y - 14, p.slot, idx)
 	if Upgrades.is_evolution(idx):

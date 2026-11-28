@@ -262,6 +262,7 @@ static func _update_pickups(w: World, dt: float) -> void:
 				if d < reach[i] and d < bd:
 					bd = d
 					best = i
+			if best >= 0 and vel.length() < pull - drag - drag and bd * Upgrades.magnet_mul(who[best].upgrades) >= reach[best]: k.moon = who[best].slot
 			if best >= 0:
 				vel = (who[best].pos - pos).normalized() * pull
 		if vel != Vector2.ZERO:
@@ -299,6 +300,8 @@ static func _magnets(w: World, who: Array[World.Player], reach: PackedFloat64Arr
 
 static func _collect(w: World, p: World.Player, k: World.Pickup) -> void:
 	if k.kind == World.PK_XP:
+		if k.moon == p.slot: w.record.use("magnet", p.slot)
+		if int(round(k.value * Upgrades.xp_mul(p.upgrades) * (1.0 + w.meta_xp))) > int(round(k.value * (1.0 + w.meta_xp))): w.record.use("wisdom", p.slot)
 		w.gain_xp(p, int(round(k.value * Upgrades.xp_mul(p.upgrades) * (1.0 + w.meta_xp))))
 		w.emit(World.EV_PICKUP, k.pos.x, k.pos.y, k.kind, p.slot)
 		return

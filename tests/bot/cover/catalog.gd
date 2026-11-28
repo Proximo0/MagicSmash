@@ -26,6 +26,25 @@ func unbuilt(key: String) -> bool:
 
 func deal(w: World, p: World.Player, key: String) -> void:
 	WorldGrants.give(w, p, _index(key))
+	_stage_state(w, p, _index(key))
+
+
+## The state a row needs before it can be credited that a run's first CEILING seconds may never bring, staged at the
+## deal in the smallest way. TEMPERANCE gives back only a heart she lacks, and the play-bot runs for a potion as soon
+## as she is hurt: she lacks one heart more than a potion gives back, so the card as dealt (a heart every 18 s) still
+## has one to give. THE HERMIT is credited for a gem whose XP it raised, and at its first level (x1.15) it raises none
+## under 4 XP (the first minutes drop 1 and 2): she holds it at its top (x1.5, a 1 XP gem gives 2).
+func _stage_state(w: World, p: World.Player, idx: int) -> void:
+	match idx:
+		Upgrades.REGEN:
+			p.hp = maxi(1, p.max_hp - 1 - w.seal_potion_heal)
+		Upgrades.WISDOM:
+			_deal_to_top(w, p, idx)
+
+
+func _deal_to_top(w: World, p: World.Player, idx: int) -> void:
+	while Upgrades.level_of(p.upgrades, idx) < Upgrades.max_level(idx):
+		WorldGrants.give(w, p, idx)
 
 
 func credit(w: World, p: World.Player, key: String) -> int:

@@ -66,7 +66,7 @@ const PH_GAMEOVER := 3
 const EV_CAST := 0
 const EV_HIT := 1
 const EV_DIE := 2
-const EV_EXPLODE := 3
+const EV_EXPLODE := 3 # a blast: a = its radius in px as the World hit with it (THE EMPRESS widens it), b = slot
 const EV_ZAP := 4
 const EV_NOVA := 5
 const EV_PICKUP := 6
@@ -84,7 +84,7 @@ const EV_SPAWN := 18
 const EV_POWERUP := 19
 const EV_BOSSDIE := 20
 const EV_GAMEOVER := 21
-const EV_FROST := 22
+const EV_FROST := 22 # a frost hit: a = 0 for a shard that slowed a foe, else a frost burst's radius in px (COMET RAIN; THE EMPRESS widens it)
 const EV_SCORE := 23
 const EV_LEVELUP := 24
 const EV_PICK := 25
@@ -116,7 +116,7 @@ const EV_PHASE := 49 # a boss turns a phase (Bosses.phase_turn): at the boss, a 
 const EV_SKILL := 50 # a hero's class skill (not the NOVA, which is EV_NOVA): at the hero, a = slot, b = Classes.SK_*
 const EV_HEAL := 51 # a hero is healed by a skill or a light: at the hero, a = slot, b = hearts
 const EV_BURST := 52 # a JUSTICE burst: at the slain foe, a = radius, b = slot
-const EV_SWEEP := 53 # a CLEAVE: at the hero, a = the arc's middle angle (radians), b = slot + Spells.evo_bits(evolution id) (+ 8 evolved: WHIRLWIND)
+const EV_SWEEP := 53 # a CLEAVE: at the hero, a = Vector3(the arc's middle angle in rad, its reach in px, half its arc in rad) as swung (THE EMPRESS, THE STAR), b = slot + Spells.evo_bits(evolution id) (+ 8 evolved: WHIRLWIND)
 ## What an urn held. A card from an urn is a PK_CARD whose value is the Cards index + URN_CARD.
 const URN_DUST := 0
 const URN_COIN := 1
