@@ -1,3 +1,5 @@
-STATION machine=laptop time=2026-11-27T23:45Z commit=86c8a4e took=2s
-JOB checks SKIP nothing it tests changed since 2723699
-STATION PASS jobs=0 failed=0 skipped=1
+STATION machine=laptop time=2026-11-28T00:37Z commit=b905b1b took=1330s
+JOB checks FAIL
+  unit       TESTS passed=681 failed=12
+  CHECK_ALL FAIL (see rows above)
+STATION FAIL jobs=1 failed=1 skipped=0
