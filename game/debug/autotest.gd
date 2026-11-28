@@ -28,6 +28,7 @@ var wizard_steps := 0 # --wizard=N steps the first player N wizards to the right
 var class_pick := -1 # --class=archer: every human seat's roster row takes that class (class icon shots)
 var novas_given := 0 # --novas=N: every wizard starts the run with N nova charges (skill mark shots)
 var sheet_hero := 0 # --sheet=N: the --heroes shots end on the sheet of the Nth hero (0 mage, 1 knight, 2 archer, 3 priest)
+var seat_heroes := false # --seat-heroes: the seats hold their heroes (Net.force_heroes), the guests their presets
 var players := 2 # --players=N local players (keyboard plus pads 0..N-2), 1 to 4
 var _results_shot := false
 var _damage_shot := false
@@ -178,6 +179,10 @@ func _ready() -> void:
 	shots = [[1.2, "title_intro"], [4.0, "title_menu"], [4.5, "@lobby"], [5.0, "lobby"], [5.5, "@play"],
 		[7.0, "game_wave_banner"], [12.0, "game_a"], [16.0, "game_b"], [22.0, "game_c"], [28.0, "game_d"],
 		[36.0, "game_e"], [44.0, "game_f"], [52.0, "game_g"], [58.0, "game_h"]]
+	# --seat-heroes: the seats hold their heroes as in a real run (a scripted run seats none otherwise).
+	seat_heroes = "--seat-heroes" in OS.get_cmdline_user_args()
+	if seat_heroes:
+		Net.force_heroes = true
 	# --sanctum: walk into the Sanctum from the title, shoot the room, then the opened alcove, then stop.
 	if "--sanctum" in OS.get_cmdline_user_args():
 		shots = [[1.2, "title_intro"], [3.0, "@sanctum"], [4.5, "sanctum"], [4.6, "@alcove"], [5.6, "sanctum_alcove"]]

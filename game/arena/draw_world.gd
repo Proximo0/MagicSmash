@@ -279,6 +279,8 @@ static func _draw_entities(a: Arena) -> void:
 ## How far below the old P-tag's top a wizard's pip sits, and how far apart two pips must be.
 const PIP_DROP := 4.0
 const PIP_GAP := 8.0
+## The rim round a wizard drawn from her picture: an apprentice's (and its dark line) is this opaque, so humans stand out.
+const RIM_AI_ALPHA := 0.5
 ## The dark disc behind a wizard (see `_draw_player`).
 const WIZ_BACKING := Color(0.03, 0.02, 0.08, 0.5)
 
@@ -380,6 +382,9 @@ static func _draw_player_still(a: Arena, ci: CanvasItem, p: Dictionary, still: S
 			Still.draw(ci, still, p.ghosts[gi] + Vector2(0, 1), facing, t, true, Color(0.56, 0.89, 1.0, 0.35 - gi * 0.035))
 	Sprites.glow(ci, p.pos + Vector2(0, -10), 15.0, WIZ_BACKING)
 	Sprites.draw_mid(ci, "wiz_ring", feet + Vector2(0, -1), Color(G.player_color(slot).lerp(Color.WHITE, 0.3), Still.RING_ALPHA))
+	var rim := G.player_color(slot).lerp(Color.WHITE, 0.3)
+	var fade := RIM_AI_ALPHA if bool(p.get("ai", false)) else 1.0
+	Still.draw_rim(ci, still, feet, facing, t, bool(p.moving), Color(rim, fade), Color(Sprites.OUTLINE, fade))
 	Still.draw(ci, still, feet, facing, t, bool(p.moving), Color.WHITE, p.flash > 0.0)
 
 

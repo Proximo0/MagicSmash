@@ -279,3 +279,69 @@ func test_deleting_a_hero_keeps_every_seat_on_her_own_hero() -> void:
 	assert_eq(Net.hero_of(0), -1, "the seat that held the deleted hero finds none free: a guest")
 	_heroes_teardown(was)
 	_restore()
+
+
+func _four_seats() -> void:
+	Net.seat_heroes.clear()
+	G.local_devices.assign([G.DEV_KBM, 0, 1, 2])
+	Net.start_offline()
+	for d: int in [0, 1, 2]:
+		Net.add_local_device(d)
+
+
+func test_four_guest_seats_are_four_different_heroes() -> void:
+	_save()
+	var was := _heroes_setup()
+	var p := Profile.new()
+	Save.profile = p
+	_four_seats()
+	assert_eq(Net.roster.size(), 4)
+	var seen := {}
+	for r: Dictionary in Net.roster:
+		seen["%d_%d" % [int(r.race), int(r.cls)]] = true
+		assert_eq(int(r.cls_level), 1)
+	assert_eq(seen.size(), 4, "four race and class pairs")
+	assert_eq(Net.hero_of(G.DEV_KBM), 0, "seat 1 plays the profile's hero")
+	assert_eq(int(Net.roster[1].cls), Classes.ARCHER)
+	assert_eq(int(Net.roster[2].race), Races.DWARF)
+	assert_eq(String(Net.roster[3].hero.name), Classes.class_name_of(Classes.PRIEST))
+	assert_eq(Net.hero_of(2), -1)
+	_heroes_teardown(was)
+	_restore()
+
+
+func test_a_seat_stepping_back_to_guest_gets_its_own_preset() -> void:
+	_save()
+	var was := _heroes_setup()
+	Save.profile = Profile.new()
+	_four_seats()
+	Net.set_seat_hero(1, -1)
+	assert_true(Net.set_seat_hero(0, -1))
+	assert_eq(int(Net.roster[2].cls), Classes.KNIGHT)
+	var row: Dictionary = Net.roster[2]
+	assert_eq(row.hero, Net.guest_hero(2).to_dict())
+	assert_eq(int(Net.roster[1].cls), Classes.ARCHER)
+	Net.set_seat_hero(G.DEV_KBM, 0)
+	assert_eq(int(Net.roster[0].cls), Classes.MAGE)
+	Net.set_seat_hero(G.DEV_KBM, -1)
+	assert_eq(Net.roster[0].hero, Net.guest_hero(0).to_dict(), "seat 1 back on guest is its preset again")
+	_heroes_teardown(was)
+	_restore()
+
+
+func test_four_saved_heroes_seat_as_before() -> void:
+	_save()
+	var was := _heroes_setup()
+	var p := Profile.new()
+	p.heroes.clear()
+	for c: int in [Classes.PRIEST, Classes.KNIGHT, Classes.ARCHER, Classes.MAGE]:
+		p.add_hero(Hero.make(Races.ORC, c, 0, "H%d" % c))
+	p.hero = 0
+	Save.profile = p
+	_four_seats()
+	for i in 4:
+		assert_eq(Net.hero_of(Net.roster[i].device), i)
+		assert_eq(int(Net.roster[i].race), Races.ORC)
+	assert_eq(int(Net.roster[3].cls), Classes.MAGE)
+	_heroes_teardown(was)
+	_restore()
