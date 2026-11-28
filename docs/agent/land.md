@@ -39,13 +39,18 @@ following the pull request afterwards (a session that can subscribe to its activ
 
 ## guard.sh
 `tools/guard.sh [--base=origin/main] [file ...]`. Without files it checks the diff against the base plus staged and
-unstaged changes. Refuses `realm/`, `docs/realm/`, `game/crowd/`, `.godot/`, `*.import`, `config/*credentials*`,
+unstaged changes. Refuses `realm/`, `docs/realm/`, `game/crowd/`, `.godot/`, `config/*credentials*`,
 `addons/sentry/`; file names that are a key, a signing store or an env file (`*.pem`, `*.key`, `*.p12`, `*.pfx`,
 `*.keystore`, `*.jks`, `id_rsa*`, `id_ed25519*`, `.env`, `.env.*`, `*.env`, except `tools/versions.env`); a name with
 `secret` in it when it is a data or config file (`.json .cfg .ini .txt .yml .yaml .toml .xml`; the game's own
 `secrets.gd` passes); and any file over 25 MB (a music track is 14 to 17 MB). Names are compared without case. Prints
 each path with its reason, then `GUARD problems=N`; exit 1 when N > 0. The lists are arrays at the top of the script.
 It reads names and sizes, never file contents: it does not replace reading the diff.
+
+An asset's `*.import` file passes only with its asset: a new one must lie beside its asset (list both; a new
+asset without its import file gets a fresh id on every PC), and one in the base may only leave when its asset is
+gone too. A change to one that is already in the base is import churn and is refused, as is any import file when
+the base does not resolve. To change import settings on purpose, say so in the pull request and land it by hand.
 
 ## versions.env
 `GODOT_VERSION` and `GODOT_TEMPLATE_TAG` live in `tools/versions.env` (`KEY=value`, shell-sourceable, a workflow can
