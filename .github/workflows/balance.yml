@@ -1,0 +1,189 @@
+# Many bot runs of one build on GitHub's runners, to measure how often the bots win (docs/bots.md). One run is noise,
+# and so is a group of four: on main 9ea2f5b6 the casual pair won 16 of 27 runs on the stations (0.59), so a change
+# with no effect at all fails "3 of 4" about half the time. Two arms on the same seeds (a change and its base) are a
+# measurement. Start one from the Actions tab or with
+#   gh workflow run balance.yml -f ref=<branch, tag or commit> [-f runs=100] [-f seed0=1] [-f wizards=2]
+#     [-f persona=casual] [-f words="--meta=start_level:2"] [-f label=<a name for this arm>]
+# Each of runs/5 jobs plays five seeds with tools/playtest.gd from the ref's own tree; the job `sum` adds them up into
+# the run's summary and the artifact `balance` (balance.csv and summary.txt). The workflow file runs from main; only
+# the game and its tools come from the ref. Compare two arms with tools/balance_compare.py <run id> <run id>.
+name: balance
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit to play"
+        required: true
+        type: string
+      runs:
+        description: "Runs in all: a multiple of 5, from 5 to 200"
+        default: "100"
+        type: string
+      seed0:
+        description: "First seed (the runs play seed0 to seed0 + runs - 1)"
+        default: "1"
+        type: string
+      wizards:
+        description: "Wizards in each run, 1 to 4"
+        default: "2"
+        type: string
+      persona:
+        description: "novice, casual or veteran"
+        default: "casual"
+        type: string
+      words:
+        description: "More tools/playtest.gd words (letters, digits, = : , . _ - and spaces), e.g. --meta=start_level:2"
+        default: ""
+        type: string
+      label:
+        description: "A name for this arm (letters, digits, . _ -)"
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7.2
+  GODOT: godot
+  CHUNK: 5
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      seeds: ${{ steps.p.outputs.seeds }}
+    steps:
+      - id: p
+        shell: bash
+        env:
+          REF: ${{ inputs.ref }}
+          RUNS: ${{ inputs.runs }}
+          SEED0: ${{ inputs.seed0 }}
+          WIZ: ${{ inputs.wizards }}
+          PERSONA: ${{ inputs.persona }}
+          WORDS: ${{ inputs.words }}
+          LABEL: ${{ inputs.label }}
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          [[ "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9/._-]*$ ]] || fail "ref: letters, digits and / . _ - only"
+          [[ "$RUNS" =~ ^[0-9]+$ ]] && [ "$RUNS" -ge "$CHUNK" ] && [ "$RUNS" -le 200 ] && [ $((RUNS % CHUNK)) -eq 0 ] \
+            || fail "runs must be a multiple of $CHUNK from $CHUNK to 200"
+          [[ "$SEED0" =~ ^[0-9]+$ ]] || fail "seed0 must be a whole number"
+          [[ "$WIZ" =~ ^[1-4]$ ]] || fail "wizards must be 1 to 4"
+          [[ "$PERSONA" =~ ^(novice|casual|veteran)$ ]] || fail "persona must be novice, casual or veteran"
+          [[ "$WORDS" =~ ^[A-Za-z0-9=:,._\ -]*$ ]] || fail "words: letters, digits, = : , . _ - and spaces only"
+          [[ "$LABEL" =~ ^[A-Za-z0-9._-]*$ ]] || fail "label: letters, digits and . _ - only"
+          seeds=$(python3 -c 'import json, sys; s, n, c = map(int, sys.argv[1:]); print(json.dumps(list(range(s, s + n, c))))' "$SEED0" "$RUNS" "$CHUNK")
+          echo "seeds=$seeds" >> "$GITHUB_OUTPUT"
+          echo "Plays $RUNS runs of $REF from seed $SEED0: $WIZ wizards, $PERSONA, words '$WORDS', label '$LABEL'" >> "$GITHUB_STEP_SUMMARY"
+
+  play:
+    needs: plan
+    name: seeds ${{ matrix.seed }}+
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 12  # leaves runners for the checks of open pull requests
+      matrix:
+        seed: ${{ fromJSON(needs.plan.outputs.seeds) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: ./.github/actions/setup-godot
+      - name: Play five seeds
+        shell: bash
+        env:
+          SEED: ${{ matrix.seed }}
+          REF: ${{ inputs.ref }}
+          WIZ: ${{ inputs.wizards }}
+          PERSONA: ${{ inputs.persona }}
+          WORDS: ${{ inputs.words }}
+          LABEL: ${{ inputs.label }}
+        run: |
+          set -uo pipefail
+          mkdir -p row
+          tools/import.sh > row/import.log 2>&1 || { tail -20 row/import.log; exit 1; }
+          read -r -a extra <<< "$WORDS"
+          timeout 2400 godot --headless --path . -s tools/playtest.gd -- --runs="$CHUNK" --seed="$SEED" --wizards="$WIZ" \
+            --persona="$PERSONA" --minutes=30 "${extra[@]}" > row/out.log 2>&1
+          rc=$?
+          line=$(grep '^PLAYTEST ' row/out.log | tail -1)
+          err=$(grep -E '^SCRIPT ERROR:' row/out.log | grep -v 'Compile Error' | head -1)
+          echo "$line"
+          commit=$(git rev-parse --short=12 HEAD)
+          if [[ "$line" =~ \ x${WIZ}\ win\ ([0-9]+)/([0-9]+)\ unfinished\ ([0-9]+) ]] && [ -z "$err" ]; then
+            echo "$LABEL,$REF,$commit,$SEED,$WIZ,$PERSONA,${BASH_REMATCH[2]},${BASH_REMATCH[1]},${BASH_REMATCH[3]},ok" > row/row.csv
+          else
+            echo "$LABEL,$REF,$commit,$SEED,$WIZ,$PERSONA,0,0,0,broken" > row/row.csv
+            tail -40 row/out.log
+            echo "::error::seeds $SEED: no PLAYTEST line or a script error (exit $rc): ${err:-see out.log}"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: row-${{ matrix.seed }}
+          path: row/
+          if-no-files-found: ignore
+
+  sum:
+    needs: play
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: row-*
+          path: rows
+      - name: Add up
+        shell: bash
+        env:
+          RUNS: ${{ inputs.runs }}
+          LABEL: ${{ inputs.label }}
+          REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          python3 - "$RUNS" > out/summary.txt <<'EOF'
+          import glob, math, sys
+          want = int(sys.argv[1])
+          rows = []
+          for f in sorted(glob.glob("rows/*/row.csv")):
+              for line in open(f):
+                  if line.strip():
+                      rows.append(line.strip().split(","))
+          with open("out/balance.csv", "w") as out:
+              out.write("label,ref,commit,seed,wizards,persona,runs,won,unfinished,state\n")
+              for r in sorted(rows, key=lambda r: int(r[3])):
+                  out.write(",".join(r) + "\n")
+          ok = [r for r in rows if r[9] == "ok"]
+          n = sum(int(r[6]) for r in ok)
+          won = sum(int(r[7]) for r in ok)
+          unf = sum(int(r[8]) for r in ok)
+          broken = len(rows) - len(ok)
+          def wilson(k, m, z=1.959964):
+              if m == 0:
+                  return (0.0, 0.0)
+              p = k / m
+              d = 1 + z * z / m
+              c = p + z * z / (2 * m)
+              s = z * math.sqrt(p * (1 - p) / m + z * z / (4 * m * m))
+              return ((c - s) / d, (c + s) / d)
+          lo, hi = wilson(won, n)
+          first = rows[0] if rows else ["", "", "", "", "", ""]
+          commits = sorted(set(r[2] for r in rows))
+          print("BALANCE label=%s ref=%s commit=%s wizards=%s persona=%s runs=%d won=%d rate=%.3f lo=%.3f hi=%.3f unfinished=%d missing=%d broken_jobs=%d"
+                % (first[0] or "-", first[1] or "-", "+".join(commits) or "-", first[4] or "-", first[5] or "-", n, won,
+                   won / n if n else 0.0, lo, hi, unf, want - n, broken))
+          EOF
+          cat out/summary.txt
+          { echo '```'; cat out/summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: balance
+          path: out/
