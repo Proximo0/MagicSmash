@@ -73,12 +73,12 @@ func test_evolution_needs_max_weapon_and_partner() -> void:
 	var levels: Dictionary = {}
 	var evo: int = Upgrades.evo_entry(World.SP_FIRE)
 	levels[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL - 1
-	levels[Upgrades.weapon_entry(World.SP_STORM)] = 1
+	levels[Upgrades.NOVA] = 1
 	assert_false(Upgrades.available(levels, evo), "offered before fireball is maxed")
 	levels[Upgrades.weapon_entry(World.SP_FIRE)] = Spells.MAX_LEVEL
-	levels.erase(Upgrades.weapon_entry(World.SP_STORM))
-	assert_false(Upgrades.available(levels, evo), "offered without chain lightning")
-	levels[Upgrades.weapon_entry(World.SP_STORM)] = 1
+	levels.erase(Upgrades.NOVA)
+	assert_false(Upgrades.available(levels, evo), "offered without THE TOWER")
+	levels[Upgrades.NOVA] = 1
 	assert_true(Upgrades.available(levels, evo))
 	assert_true(Upgrades.take(levels, evo))
 	assert_true(Upgrades.evolved(levels, World.SP_FIRE))
@@ -92,17 +92,23 @@ func test_new_weapons_are_offered() -> void:
 			if Upgrades.is_weapon(idx):
 				seen[idx] = true
 			assert_false(Upgrades.is_evolution(idx), "evolution offered from nothing")
-	# Every spell but CLEAVE, a class weapon only a knight starts with (its row requires itself).
-	assert_eq(seen.size(), Spells.COUNT - 1, "weapons offered: %s" % [seen.keys()])
+	# Every built spell but CLEAVE, a class weapon only a knight starts with (its row requires itself).
+	var unbuilt := 0
+	for sp: int in range(Spells.COUNT):
+		if Upgrades.UNBUILT.has(Upgrades.weapon_entry(sp)):
+			unbuilt += 1
+			assert_false(seen.has(Upgrades.weapon_entry(sp)), "an unbuilt spell offered")
+	assert_eq(seen.size(), Spells.COUNT - 1 - unbuilt, "weapons offered: %s" % [seen.keys()])
 	assert_false(seen.has(Upgrades.W_CLEAVE), "CLEAVE offered to a wizard who does not hold it")
 
 
 func test_names_and_effects_fit_a_tray_row() -> void:
-	# The level-up tray shows each card as one row: the title on one line, the effect beside the level on the next.
+	# The level-up tray shows each card as one row: the title (Upgrades.row_name) on one line, the effect beside the
+	# level on the next.
 	var longest_name := ""
 	var longest_effect := ""
 	for i: int in Upgrades.count():
-		var name := Upgrades.display_name(i)
+		var name := Upgrades.row_name(i)
 		var effect := Upgrades.description(i)
 		assert_true(name.length() <= TarotArt.ROW_TITLE_CHARS, "%s: name longer than %d" % [name, TarotArt.ROW_TITLE_CHARS])
 		assert_true(effect.length() <= TarotArt.ROW_EFFECT_CHARS, "%s: effect '%s' longer than %d" % [name, effect, TarotArt.ROW_EFFECT_CHARS])

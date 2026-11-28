@@ -34,8 +34,8 @@ const M_WANDS := 23
 const MINORS: Array[int] = [M_CUPS, M_PENTACLES, M_SWORDS, M_WANDS]
 ## Wave 3: two spells, their partner passives and their evolutions, then the knight's CLEAVE (a class weapon: it
 ## requires itself, so only a hero who starts with it is ever offered it), then its evolution WHIRLWIND
-## (CLEAVE at its top level and STRENGTH, a passive no other spell pairs with: requiring CLEAVE, it is a knight's
-## alone).
+## (CLEAVE at its top level and STRENGTH, which also pairs with FIREBALL for GREEK FIRE: requiring CLEAVE, WHIRLWIND
+## is a knight's alone).
 const W_BONE := 24
 const W_CANDLE := 25
 const JUSTICE := 26
@@ -44,10 +44,28 @@ const E_BONE := 28
 const E_CANDLE := 29
 const W_CLEAVE := 30
 const E_CLEAVE := 31
+## Stage 3 (docs/stage3_brief.md § 4.2): four arcana a wizard holds, HEX and SPIRIT BLADES, the second evolutions of
+## the four schools, and the new spells' evolutions.
+const PRIESTESS := 32
+const EMPRESS := 33
+const DEVIL := 34
+const STAR := 35
+const W_HEX := 36
+const W_BLADES := 37
+const E_LODESTAR := 38
+const E_GREEK := 39
+const E_VEIL := 40
+const E_DIES := 41
+const E_HEX := 42
+const E_BLADES := 43
+## Rows whose effect is not on main yet: never available (available), never counted in a pair (pairs_with);
+## WorldGrants.give is the one path past it. Each job that builds a row takes it off this list.
+const UNBUILT: Array[int] = [PRIESTESS, EMPRESS, DEVIL, STAR, W_HEX, W_BLADES, E_LODESTAR, E_GREEK, E_VEIL, E_DIES,
+	E_HEX, E_BLADES]
 
-## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE a passive slot (World.slot_cap); an
-## INSTANT acts once when taken; an EVOLUTION replaces its spell in the same slot; a MINOR arcana card fills a
-## short hand.
+## Row kinds (the `kind` column). A SPELL takes a spell slot and a PASSIVE (an arcana she holds) a passive slot
+## (World.slot_cap); an INSTANT acts once when taken (no row is one any more: THE TOWER and JUDGEMENT are held); an
+## EVOLUTION replaces its spell in the same slot; a MINOR arcana card fills a short hand.
 const PASSIVE := 0
 const INSTANT := 1
 const SPELL := 2
@@ -79,7 +97,8 @@ const BANISH_INPUT := 10
 ## Major Arcana tarot card they are drawn as (TarotArt). Indices are the constants above and are sent in
 ## snapshots. The catalogue is append-only: a new row goes at the end and no row ever moves (nothing saved holds
 ## an id, but both sides of a LAN game must agree). `requires` is a list of [entry, minimum level] that must all
-## hold before the entry can be offered. `kind` is one of the kinds above; `spell` is the World.SP_* spell of a
+## hold before the entry can be offered: an EVOLUTION requires its spell at its top level and one PASSIVE (its
+## arcana) at 1, never another spell (content list § 37); a class weapon requires itself. `kind` is one of the kinds above; `spell` is the World.SP_* spell of a
 ## SPELL or EVOLUTION row, -1 otherwise. Spell names and evolution names match Spells.
 const CATALOG: Array = [
 	["swift", "THE CHARIOT", "MOVE FASTER", 10.0, [1.08, 1.16, 1.24, 1.32, 1.40], [], PASSIVE, -1],
@@ -88,20 +107,23 @@ const CATALOG: Array = [
 	["regen", "TEMPERANCE", "HEAL OVER TIME", 6.0, [18.0, 12.0, 8.0], [], PASSIVE, -1],
 	["magnet", "THE MOON", "WIDER XP PULL", 7.0, [1.6, 2.2, 3.0], [], PASSIVE, -1],
 	["wisdom", "THE HERMIT", "MORE XP", 7.0, [1.15, 1.30, 1.50], [], PASSIVE, -1],
-	["nova", "THE TOWER", "+1 NOVA NOW", 5.0, [1.0, 1.0, 1.0, 1.0, 1.0], [], INSTANT, -1],
-	["life", "JUDGEMENT", "+1 LIFE NOW", 3.0, [1.0, 1.0], [], INSTANT, -1],
+	# THE TOWER: +1 nova charge at each pick (WorldLevels._pick); values are the seconds a charge will take to come
+	# back. The refill and its words NOVAS REFILL come with the job that builds it (docs/stage3_brief.md, C5).
+	["nova", "THE TOWER", "+1 NOVA NOW", 5.0, [75.0, 60.0, 45.0], [], PASSIVE, -1],
+	# JUDGEMENT: +1 life at each pick (WorldLevels._pick). Its blast and its words +1 LIFE, BLAST come with C5.
+	["life", "JUDGEMENT", "+1 LIFE NOW", 4.0, [1.0, 1.0], [], PASSIVE, -1],
 	["w_arcane", "ARCANE BOLT", "AUTO-AIM BOLTS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 0],
 	["w_fire", "FIREBALL", "BURSTS ON HIT", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 1],
 	["w_frost", "FROST FAN", "SLOWS ENEMIES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 2],
 	["w_storm", "CHAIN LIGHTNING", "CHAINS TO FOES", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 3],
 	["w_star", "STARFALL", "HOMING STARS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 4],
 	["w_rune", "RUNE CIRCLE", "BURNING SIGILS", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 5],
-	["e_arcane", "ASTRAL LANCE", "PIERCING BOLTS", 40.0, [1.0], [[W_ARCANE, 5], [W_STAR, 1]], EVOLUTION, 0],
-	["e_fire", "THUNDERFIRE", "ZAPPING BLASTS", 40.0, [1.0], [[W_FIRE, 5], [W_STORM, 1]], EVOLUTION, 1],
-	["e_frost", "BLIZZARD", "A STORM OF ICE", 40.0, [1.0], [[W_FROST, 5], [W_ARCANE, 1]], EVOLUTION, 2],
-	["e_storm", "TEMPEST", "TWIN CHAINS", 40.0, [1.0], [[W_STORM, 5], [W_FIRE, 1]], EVOLUTION, 3],
-	["e_star", "COMET RAIN", "ICY STARBURSTS", 40.0, [1.0], [[W_STAR, 5], [W_FROST, 1]], EVOLUTION, 4],
-	["e_rune", "SEAL OF SOLOMON", "SIGILS PULL IN", 40.0, [1.0], [[W_RUNE, 5], [W_STAR, 1]], EVOLUTION, 5],
+	["e_arcane", "ASTRAL LANCE", "PIERCING BOLTS", 40.0, [1.0], [[W_ARCANE, 5], [QUICK, 1]], EVOLUTION, 0],
+	["e_fire", "THUNDERFIRE", "ZAPPING BLASTS", 40.0, [1.0], [[W_FIRE, 5], [NOVA, 1]], EVOLUTION, 1],
+	["e_frost", "BLIZZARD", "A STORM OF ICE", 40.0, [1.0], [[W_FROST, 5], [REGEN, 1]], EVOLUTION, 2],
+	["e_storm", "TEMPEST", "TWIN CHAINS", 40.0, [1.0], [[W_STORM, 5], [SWIFT, 1]], EVOLUTION, 3],
+	["e_star", "COMET RAIN", "ICY STARBURSTS", 40.0, [1.0], [[W_STAR, 5], [WISDOM, 1]], EVOLUTION, 4],
+	["e_rune", "SEAL OF SOLOMON", "SIGILS PULL IN", 40.0, [1.0], [[W_RUNE, 5], [MAGNET, 1]], EVOLUTION, 5],
 	# Minor Arcana: never rolled, only dealt into a short hand; taken any number of times (values[0] each time).
 	["cups", "CUPS", "HEAL 1 HEART", 1.0, [1.0], [], MINOR, -1],
 	["pentacles", "PENTACLES", "+10 GOLD", 1.0, [10.0], [], MINOR, -1],
@@ -117,7 +139,25 @@ const CATALOG: Array = [
 	["e_candle", "CONSECRATION", "HEALING LIGHT", 40.0, [1.0], [[W_CANDLE, 5], [LOVERS, 1]], EVOLUTION, 7],
 	["w_cleave", "CLEAVE", "A SWEEPING ARC", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [[W_CLEAVE, 1]], SPELL, 8],
 	["e_cleave", "WHIRLWIND", "A FULL CIRCLE", 40.0, [1.0], [[W_CLEAVE, 5], [POWER, 1]], EVOLUTION, 8],
+	# Stage 3 (unbuilt: UNBUILT). THE HIGH PRIESTESS: every values-th cast of each spell is cast twice.
+	["priestess", "THE HIGH PRIESTESS", "ECHOED CASTS", 6.0, [4.0, 3.0, 2.0], [], PASSIVE, -1],
+	# THE EMPRESS: every area multiplied.
+	["empress", "THE EMPRESS", "WIDER AREAS", 7.0, [1.1, 1.2, 1.3], [], PASSIVE, -1],
+	# THE DEVIL: damage added for each heart she is missing.
+	["devil", "THE DEVIL", "PAIN IS POWER", 6.0, [0.12, 0.18, 0.24], [], PASSIVE, -1],
+	# THE STAR: missiles added to every spell.
+	["star", "THE STAR", "MORE MISSILES", 5.0, [1.0, 2.0], [], PASSIVE, -1],
+	["w_hex", "HEX", "WEAKENS A FOE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 9],
+	["w_blades", "SPIRIT BLADES", "BLADES CIRCLE", 9.0, [1.0, 2.0, 3.0, 4.0, 5.0], [], SPELL, 10],
+	["e_lodestar", "LODESTAR", "HUNTS BIG PREY", 40.0, [1.0], [[W_ARCANE, 5], [STAR, 1]], EVOLUTION, 0],
+	["e_greek", "GREEK FIRE", "BURNING GROUND", 40.0, [1.0], [[W_FIRE, 5], [POWER, 1]], EVOLUTION, 1],
+	["e_veil", "WINTER VEIL", "CLOAK OF FROST", 40.0, [1.0], [[W_FROST, 5], [PRIESTESS, 1]], EVOLUTION, 2],
+	["e_dies", "DIES IRAE", "SLAYS THE WEAK", 40.0, [1.0], [[W_STORM, 5], [LIFE, 1]], EVOLUTION, 3],
+	["e_hex", "EVIL EYE", "HEXED BURST", 40.0, [1.0], [[W_HEX, 5], [DEVIL, 1]], EVOLUTION, 9],
+	["e_blades", "DANSE MACABRE", "A SECOND RING", 40.0, [1.0], [[W_BLADES, 5], [EMPRESS, 1]], EVOLUTION, 10],
 ]
+## What row_name drops from a name too wide for a tray row.
+const ROW_NAME_DROP := "THE "
 ## JUSTICE's burst: the share of the slain foe's max health it deals, and its radius, px.
 const JUSTICE_SHARE := 0.6
 const JUSTICE_RADIUS := 30.0
@@ -136,6 +176,15 @@ static func max_level(idx: int) -> int:
 
 static func display_name(idx: int) -> String:
 	return CATALOG[idx][1]
+
+
+## The name a tray row writes: without its leading "THE " when the full name is wider than TarotArt.ROW_TITLE_CHARS
+## (THE HIGH PRIESTESS reads HIGH PRIESTESS), the full name otherwise. Every other screen writes display_name.
+static func row_name(idx: int) -> String:
+	var nm := display_name(idx)
+	if nm.length() > TarotArt.ROW_TITLE_CHARS and nm.begins_with(ROW_NAME_DROP):
+		return nm.substr(ROW_NAME_DROP.length())
+	return nm
 
 
 static func key(idx: int) -> String:
@@ -286,10 +335,10 @@ static func slot_ids(levels: Dictionary, of_kind: int) -> Array[int]:
 	return out
 
 
-## The row that pairs with `spell` for its evolution: the evolution's requirement other than the spell itself
-## (a SPELL row today; a PASSIVE row for later spells), or -1.
-static func partner_row(spell: int) -> int:
-	var e := evo_entry(spell)
+## The arcana (PASSIVE row) that pairs with `spell` for its evolution `evo` (1 or 2): the evolution's requirement
+## other than the spell itself, or -1 when it has no such evolution.
+static func partner_row(spell: int, evo: int = 1) -> int:
+	var e := evo_entry(spell, evo)
 	var own := weapon_entry(spell)
 	if e < 0:
 		return -1
@@ -299,32 +348,43 @@ static func partner_row(spell: int) -> int:
 	return -1
 
 
-## True if `spell` can still evolve for a wizard: not evolved yet, its evolution not banished, and its own row
-## either maxed or not banished.
-static func _can_evolve(levels: Dictionary, spell: int, banned: Dictionary) -> bool:
-	if evolved(levels, spell) or banned.has(evo_entry(spell)):
+## True if a wizard can still take evolution `evo` of `spell`: no evolution of that spell taken, the evolution row
+## neither banned (banished or locked) nor unbuilt, and the spell's own row either maxed or not banned.
+static func _can_evolve(levels: Dictionary, spell: int, evo: int, banned: Dictionary) -> bool:
+	var e := evo_entry(spell, evo)
+	if e < 0 or evolved(levels, spell) or banned.has(e) or UNBUILT.has(e):
 		return false
 	return weapon_level(levels, spell) >= max_level(weapon_entry(spell)) or not banned.has(weapon_entry(spell))
 
 
-## True if taking `idx` (not owned yet) completes a pair: it is the partner of an owned spell that can still
-## evolve, or it is a spell whose partner is owned (and whose evolution is not banished). Banishes in `banned`.
+## True if taking `idx` (not owned yet, not unbuilt) completes a pair: it is the arcana of an evolution the wizard
+## can still take of a spell she holds, or it is a spell one of whose evolutions' arcana she holds (and that
+## evolution she can still take). An arcana of two spells (STRENGTH) completes either. Banishes and locks in
+## `banned`.
 static func pairs_with(levels: Dictionary, idx: int, banned: Dictionary = {}) -> bool:
-	if idx < 0 or idx >= CATALOG.size() or level_of(levels, idx) > 0:
+	if idx < 0 or idx >= CATALOG.size() or level_of(levels, idx) > 0 or UNBUILT.has(idx):
 		return false
-	if kind(idx) == SPELL and level_of(levels, partner_row(spell_of(idx))) > 0 and _can_evolve(levels, spell_of(idx), banned):
-		return true
+	if kind(idx) == SPELL:
+		var own := spell_of(idx)
+		for evo: int in range(1, evo_rows(own).size() + 1):
+			if level_of(levels, partner_row(own, evo)) > 0 and _can_evolve(levels, own, evo, banned):
+				return true
+		return false
 	for sp: int in Spells.COUNT:
-		if partner_row(sp) == idx and weapon_level(levels, sp) > 0 and _can_evolve(levels, sp, banned):
-			return true
+		if weapon_level(levels, sp) <= 0:
+			continue
+		for evo: int in range(1, evo_rows(sp).size() + 1):
+			if partner_row(sp, evo) == idx and _can_evolve(levels, sp, evo, banned):
+				return true
 	return false
 
 
-## True if some row of `of_kind` that the wizard does not own, has not banished and could take would complete a
-## pair: then the last free slot of that kind is kept for one.
+## True if some row of `of_kind` that the wizard does not own, has not banished, is built and could take would
+## complete a pair: then the last free slot of that kind is kept for one.
 static func _pair_wanted(levels: Dictionary, of_kind: int, banned: Dictionary) -> bool:
 	for i: int in range(CATALOG.size()):
-		if kind(i) == of_kind and not banned.has(i) and _requirements_met(levels, i) and pairs_with(levels, i, banned):
+		if kind(i) == of_kind and not banned.has(i) and not UNBUILT.has(i) and _requirements_met(levels, i) \
+				and pairs_with(levels, i, banned):
 			return true
 	return false
 
@@ -336,13 +396,16 @@ static func _requirements_met(levels: Dictionary, idx: int) -> bool:
 	return true
 
 
-## True if `idx` can be offered: below its max level, every requirement holds, it is not banished, and a new
+## True if `idx` can be offered: built (not on UNBUILT), below its max level, every requirement holds, it is not
+## banned (banished, or locked for the table: World.locked), and a new
 ## SPELL or PASSIVE row still has a free slot under `cap` (spell slots, passive slots). The last free slot of a
 ## kind is kept for a row that completes a pair (pairs_with) while one is still to be had. One evolution of a
 ## spell taken shuts its other (evo_shut). Minor Arcana are never
 ## available: they only fill a short hand (minor_fill).
 static func available(levels: Dictionary, idx: int, cap: Vector2i = UNCAPPED, banned: Dictionary = {}) -> bool:
 	if idx < 0 or idx >= CATALOG.size() or kind(idx) == MINOR or level_of(levels, idx) >= max_level(idx):
+		return false
+	if UNBUILT.has(idx):
 		return false
 	if not _requirements_met(levels, idx):
 		return false

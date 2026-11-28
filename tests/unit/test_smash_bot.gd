@@ -140,6 +140,45 @@ func test_casual_takes_damage_first() -> void:
 	assert_eq(bot.pick_card(offer, {}), 2)
 
 
+## The arcana that completes a pair opens an evolution: the casual (damage first) and the novice (what is shiny)
+## both take it over a plain card, and the evolution over it.
+func test_casual_and_novice_take_the_arcana_that_completes_a_pair() -> void:
+	var lv := {Upgrades.W_STORM: 3}
+	var offer: Array[int] = [Upgrades.POWER, Upgrades.SWIFT, Upgrades.W_STORM]
+	for id: int in [SmashBot.CASUAL, SmashBot.NOVICE]:
+		for seed_value: int in 8:
+			assert_eq(SmashBot.new(seed_value, id).pick_card(offer, lv), 1, "THE CHARIOT pairs with CHAIN LIGHTNING")
+	var casual := SmashBot.new(1, SmashBot.CASUAL)
+	assert_eq(casual.pick_card(offer, {Upgrades.W_STORM: 3, Upgrades.SWIFT: 1}), 0, "held already, it is a plain level: STRENGTH first")
+	assert_eq(casual.pick_card(offer, {Upgrades.W_STORM: 1}), 0, "her spell is far from its top: damage now comes first")
+	var no_power: Array[int] = [Upgrades.W_FIRE, Upgrades.SWIFT, Upgrades.W_STORM]
+	for early: int in range(1, SmashBot.PAIR_FROM_LEVEL):
+		assert_eq(casual.pick_card(no_power, {Upgrades.W_STORM: early}), 2, "a spell level before the arcana, at level %d" % early)
+	assert_eq(casual.pick_card(no_power, {Upgrades.W_STORM: SmashBot.PAIR_FROM_LEVEL}), 1, "the arcana from PAIR_FROM_LEVEL")
+	assert_eq(SmashBot._pair_spell_level({Upgrades.W_STORM: 4, Upgrades.W_FIRE: 2}, Upgrades.SWIFT), 4)
+	assert_eq(SmashBot._pair_spell_level({Upgrades.W_FIRE: 2}, Upgrades.SWIFT), 0, "THE CHARIOT pairs with no spell she holds")
+	var evo: Array[int] = [Upgrades.SWIFT, Upgrades.E_STORM, Upgrades.POWER]
+	for id: int in [SmashBot.CASUAL, SmashBot.NOVICE]:
+		assert_eq(SmashBot.new(1, id).pick_card(evo, {Upgrades.W_STORM: 5, Upgrades.REGEN: 1}), 1, "the evolution first")
+
+
+## A veteran plans only for an evolution she can still take: never an unbuilt one, never the other road of a
+## spell she has evolved.
+func test_veteran_never_plans_an_unbuilt_or_shut_evolution() -> void:
+	var bot := SmashBot.new(1, SmashBot.VETERAN)
+	assert_false(SmashBot._plan_open({Upgrades.W_ARCANE: 5, Upgrades.QUICK: 1, Upgrades.E_ARCANE: 1}, Upgrades.E_LODESTAR),
+		"ASTRAL LANCE taken shuts LODESTAR")
+	assert_false(SmashBot._plan_open({Upgrades.W_ARCANE: 5, Upgrades.E_ARCANE: 1}, Upgrades.E_ARCANE), "taken already")
+	assert_true(SmashBot._plan_open({Upgrades.W_ARCANE: 5}, Upgrades.E_ARCANE))
+	for e: int in Upgrades.UNBUILT:
+		if not Upgrades.is_evolution(e):
+			continue
+		var lv := {}
+		for r: Array in Upgrades.CATALOG[e][Upgrades.C_REQUIRES]:
+			lv[int(r[0])] = int(r[1])
+		assert_true(bot._plan_target(lv) != e, "%s is unbuilt" % Upgrades.key(e))
+
+
 func _world_inputs(seed_value: int, persona: int) -> Array:
 	var w := World.new([0, 1], seed_value)
 	var bots: Array[SmashBot] = [SmashBot.new(seed_value, persona), SmashBot.new(seed_value + 1, persona)]

@@ -43,6 +43,8 @@ func run(args: PackedStringArray) -> int:
 	for sp: int in range(Spells.COUNT):
 		if only >= 0 and sp != only:
 			continue
+		if Upgrades.UNBUILT.has(Upgrades.weapon_entry(sp)):
+			continue # it casts nothing until its job builds it
 		var label: String = Spells.spell_name(sp)
 		if clear:
 			var t := 0.0

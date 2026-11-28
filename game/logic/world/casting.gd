@@ -70,11 +70,12 @@ static func _nearest_enemy(w: World, pos: Vector2, radius: float) -> World.Enemy
 	return best
 
 
-## One caster per Spells.STATS "cast" kind. Each takes (w, p, sp, lv, evo, dir, tip, n, dmg); a new kind is one
-## function here plus its row in this table and in Spells.STATS.
 ## How far the staff's tip is from its base (the wizard's hand, 7 px above the feet) along the aim, px.
 const STAFF_REACH := 9.0
 
+## One caster per Spells.STATS "cast" kind, each in the file of its kind (world/cast_<kind>.gd). Each takes
+## (w, p, sp, lv, evo, dir, tip, n, dmg); a new kind is one function in a file of its own plus its row in this table
+## and in Spells.STATS.
 static var CASTS := {
 	"bolt": WorldCastBolts._cast_bolts,
 	"chain": WorldCastChain._cast_chain,
@@ -84,7 +85,10 @@ static var CASTS := {
 }
 
 
+## A cast kind with no caster in CASTS yet (a row on Upgrades.UNBUILT, given by force) casts nothing.
 static func _cast(w: World, p: World.Player, sp: int, lv: int, evo: int, dir: Vector2) -> void:
+	if not CASTS.has(Spells.cast_kind(sp)):
+		return
 	w.stat_src = sp
 	var tip := p.pos + Vector2(0, -7) + dir * STAFF_REACH
 	var caster: Callable = CASTS[Spells.cast_kind(sp)]
