@@ -1,9 +1,9 @@
-STATION machine=heatherspc time=2026-11-28T00:28Z commit=b905b1b took=846s
+STATION machine=heatherspc time=2026-11-28T00:55Z commit=312e972 took=1359s
 JOB checks FAIL
-  unit       TESTS passed=681 failed=12
+  unit       TESTS passed=707 failed=18
   sims       SIMS passed=9 failed=5 total=14
-  SIM horde_peak_cost_4p FAIL us_per_step=31494 stopwatch (budget 16000, stopwatch 31494) enemies>=260 of cap 260
-  SIM horde_mixed_cost_4p FAIL us_per_step=36549 stopwatch (budget 16000, stopwatch 36549) enemies>=219 hazard rows>=48 with 12 kinds
-  SIM horde_bone_spear_4p FAIL us_per_step=39830 stopwatch (budget 16000, stopwatch 39830) enemies>=260 of cap 260
-  SIM horde_vigil_candle_4p FAIL us_per_step=45364 stopwatch (budget 16000, stopwatch 45364) enemies>=260 of cap 260
+  SIM horde_peak_cost_4p FAIL us_per_step=34172 stopwatch (budget 16000, stopwatch 34172) enemies>=260 of cap 260
+  SIM horde_mixed_cost_4p FAIL us_per_step=40887 stopwatch (budget 16000, stopwatch 40887) enemies>=219 hazard rows>=48 with 12 kinds
+  SIM horde_bone_spear_4p FAIL us_per_step=49669 stopwatch (budget 16000, stopwatch 49669) enemies>=260 of cap 260
+  SIM horde_vigil_candle_4p FAIL us_per_step=47133 stopwatch (budget 16000, stopwatch 47133) enemies>=260 of cap 260
 STATION FAIL jobs=1 failed=1 skipped=0
