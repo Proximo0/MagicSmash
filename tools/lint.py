@@ -11,6 +11,8 @@ Rules:
   func-return-type  named func without "-> type"
   func-param-type   named func parameter without a ": type"
   class-var-type    class-level var without a type or ":="
+  versions          an engine version (build.yml, checks.yml, CLAUDE.md line 1, docs/agent/preamble.md line 2,
+                    project.godot config/features) that differs from GODOT_VERSION in tools/versions.env
 
 Prints "path:line rule message" per problem, then "LINT problems=<n>".
 Exits 1 when n > 0.
@@ -126,8 +128,55 @@ def check_file(rel: str, source: str, problems: list) -> None:
             problems.append((rel, lineno, "func-return-type", "func %s has no return type" % name))
 
 
+def read_lines(rel: str) -> list:
+    try:
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as fh:
+            return fh.read().splitlines()
+    except OSError:
+        return []
+
+
+def check_versions(problems: list) -> None:
+    """One problem per place that names an engine version other than tools/versions.env (realm.yml is not checked)."""
+    env_rel = "tools/versions.env"
+    want = ""
+    for line in read_lines(env_rel):
+        m = re.match(r"\s*GODOT_VERSION\s*=\s*(\S+)", line.replace("\r", ""))
+        if m:
+            want = m.group(1).strip("\"'")
+    if not want:
+        problems.append((env_rel, 1, "versions", "missing or has no GODOT_VERSION=<x.y.z>"))
+        return
+    minor = ".".join(want.split(".")[:2])
+    num = r"(\d+\.\d+(?:\.\d+)?)"
+    for rel in (".github/workflows/build.yml", ".github/workflows/checks.yml"):
+        found = ""
+        lineno = 1
+        for i, line in enumerate(read_lines(rel), 1):
+            m = re.match(r"\s*GODOT_VERSION:\s*[\"']?" + num, line)
+            if m:
+                found, lineno = m.group(1), i
+                break
+        if found != want:
+            problems.append((rel, lineno, "versions", "GODOT_VERSION is '%s', tools/versions.env says %s" % (found or "absent", want)))
+    for rel, idx, pat in (("CLAUDE.md", 0, r"Godot\s+" + num), ("docs/agent/preamble.md", 1, r"Godot\s+" + num)):
+        lines = read_lines(rel)
+        m = re.search(pat, lines[idx]) if len(lines) > idx else None
+        if not m or m.group(1) != want:
+            problems.append((rel, idx + 1, "versions", "names Godot '%s', tools/versions.env says %s" % (m.group(1) if m else "absent", want)))
+    found, lineno = "", 1
+    for i, line in enumerate(read_lines("project.godot"), 1):
+        m = re.match(r"config/features=PackedStringArray\(\"(\d+\.\d+)\"", line)
+        if m:
+            found, lineno = m.group(1), i
+            break
+    if found != minor:
+        problems.append(("project.godot", lineno, "versions", "config/features has '%s', tools/versions.env says %s" % (found or "absent", minor)))
+
+
 def main() -> int:
     problems = []
+    check_versions(problems)
     game_root = os.path.join(ROOT, GAME)
     files = []
     for dirpath, dirnames, filenames in os.walk(game_root):

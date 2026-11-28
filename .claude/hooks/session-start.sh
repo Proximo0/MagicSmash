@@ -5,7 +5,8 @@ set -euo pipefail
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
-GODOT_VERSION="4.7.2"
+# The engine version has one home: tools/versions.env.
+source <(tr -d '\r' <"$(cd "$(dirname "$0")" && pwd)/../../tools/versions.env")
 cd "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 # Godot editor binary (headless-capable), pinned to the project's version.
