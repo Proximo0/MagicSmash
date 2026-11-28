@@ -2,9 +2,14 @@ class_name WorldShrines
 extends RefCounted
 ## Gamble shrines for World: placing them, paying in and resolving the reel. Static helpers; the first argument is the World.
 
+## Gold short of the price a pot may be and count as full (float sums of the steps' parts).
+const POT_FULL_EPS: float = 0.0001
 
-## Shrines appear on timers. A wizard who can pay stands on one for tune.shrine_hold seconds to bet; the gold
-## goes at once, the reel plays, and the outcome lands when it stops. The team shrine bets for everybody.
+
+## Shrines appear on timers. A wizard who can pay stands on a solo shrine for tune.shrine_hold seconds to bet; the
+## gold goes at once, the reel plays, and the outcome lands when it stops. A team shrine is paid by the table: the
+## wizards standing in it fill its pot together (_fill_pot), and a full pot bets for everybody. One that fades
+## before its pot is full gives every wizard back what she paid.
 static func _update_shrines(w: World, dt: float) -> void:
 	_tick_fates(w, dt)
 	w.shrine_t -= dt
@@ -17,6 +22,12 @@ static func _update_shrines(w: World, dt: float) -> void:
 		_place_shrine(w, Gamble.TEAM)
 	for sh: World.Shrine in w.shrines:
 		sh.life -= dt
+		if sh.kind == Gamble.TEAM:
+			if sh.life > 0.0:
+				_fill_pot(w, sh, dt)
+			if sh.life <= 0.0 and not sh.paid.is_empty():
+				_refund_pot(w, sh)
+			continue
 		var payer: World.Player = null
 		for p: World.Player in w.players.values():
 			if p.alive and not p.ai and p.gold >= sh.cost and p.pos.distance_to(sh.pos) < w.tune.shrine_radius:
@@ -36,12 +47,94 @@ static func _update_shrines(w: World, dt: float) -> void:
 		_resolve_gamble(w, w._gambles.pop_front())
 
 
-## Shrine rows as the snapshot sends them: [kind, x, y, life, charge fraction, cost].
+## Shrine rows as the snapshot sends them: [kind, x, y, life, charge fraction, cost, wizards still needed]. A team
+## shrine's fraction is its pot / price; "still needed" is how many more wizards must step in before its pot may
+## fill (always 0 for a solo shrine).
 static func snapshot_shrines(w: World) -> Array:
 	var out: Array = []
 	for x: World.Shrine in w.shrines:
-		out.append([x.kind, x.pos.x, x.pos.y, x.life, x.charge / w.tune.shrine_hold, x.cost])
+		if x.kind == Gamble.TEAM:
+			out.append([x.kind, x.pos.x, x.pos.y, x.life, x.pot / maxf(1.0, float(x.cost)), x.cost, _pot_need(w, x)])
+		else:
+			out.append([x.kind, x.pos.x, x.pos.y, x.life, x.charge / w.tune.shrine_hold, x.cost, 0])
 	return out
+
+
+## The living human wizards of the party (an apprentice neither pays nor counts as a partner).
+static func _pot_humans(w: World) -> Array[World.Player]:
+	var out: Array[World.Player] = []
+	for p: World.Player in w.players.values():
+		if p.alive and not p.ai:
+			out.append(p)
+	return out
+
+
+## The living humans standing in `sh`, in slot order.
+static func _pot_payers(w: World, sh: World.Shrine) -> Array[World.Player]:
+	var out: Array[World.Player] = []
+	for p: World.Player in _pot_humans(w):
+		if p.pos.distance_to(sh.pos) < w.tune.shrine_radius:
+			out.append(p)
+	out.sort_custom(func(a: World.Player, b: World.Player) -> bool: return a.slot < b.slot)
+	return out
+
+
+## How many more wizards must step into a team shrine before its pot may fill: two of the party while two or more
+## humans live, one when only one does.
+static func _pot_need(w: World, sh: World.Shrine) -> int:
+	var need: int = mini(2, _pot_humans(w).size())
+	return maxi(0, need - _pot_payers(w, sh).size())
+
+
+## One step of the table paying into a team shrine: the whole price takes tune.team_pay_time seconds, split in equal
+## parts among the standing wizards who still have gold; one who runs dry pays what she has and the others cover
+## the rest in the same step. The pot only waits, never drains, while too few stand in it.
+static func _fill_pot(w: World, sh: World.Shrine, dt: float) -> void:
+	if _pot_need(w, sh) > 0:
+		return
+	var payers: Array[World.Player] = []
+	for p: World.Player in _pot_payers(w, sh):
+		if p.gold > 0.0:
+			payers.append(p)
+	if payers.is_empty():
+		return
+	# The poorest pay first, so whatever one cannot pay is shared by those after her (ties in slot order).
+	payers.sort_custom(func(a: World.Player, b: World.Player) -> bool:
+		return a.gold < b.gold or (a.gold == b.gold and a.slot < b.slot))
+	var due: float = minf(float(sh.cost) * dt / w.tune.team_pay_time, float(sh.cost) - sh.pot)
+	for i: int in range(payers.size()):
+		var p: World.Player = payers[i]
+		var part: float = minf(p.gold, due / float(payers.size() - i))
+		p.gold -= part
+		due -= part
+		sh.pot += part
+		sh.paid[p.slot] = float(sh.paid.get(p.slot, 0.0)) + part
+	if float(sh.cost) - sh.pot <= POT_FULL_EPS:
+		_bet_pot(w, sh)
+
+
+## A full pot bets for the table: `who` is the wizard who paid the most (ties: the lowest slot), and each payer's
+## "bets" are booked now, each her own share.
+static func _bet_pot(w: World, sh: World.Shrine) -> void:
+	var slots: Array = sh.paid.keys()
+	slots.sort()
+	var who: int = int(slots[0])
+	for s: Variant in slots:
+		w.record.add(int(s), "bets", float(sh.paid[s]))
+		if float(sh.paid[s]) > float(sh.paid[who]):
+			who = int(s)
+	sh.paid.clear()
+	_draw_bet(w, sh, who)
+
+
+## A team shrine that fades before its pot is full gives each wizard back exactly what she paid.
+static func _refund_pot(w: World, sh: World.Shrine) -> void:
+	for s: Variant in sh.paid.keys():
+		var p: World.Player = w.players.get(s)
+		if p != null:
+			p.gold += float(sh.paid[s])
+	sh.paid.clear()
+	sh.pot = 0.0
 
 
 static func _place_shrine(w: World, kind: int) -> void:
@@ -54,14 +147,20 @@ static func _place_shrine(w: World, kind: int) -> void:
 	w.emit(World.EV_SHRINE_UP, sh.pos.x, sh.pos.y, kind, sh.cost)
 
 
+## One wizard pays a shrine's whole price and bets (a solo shrine).
 static func _bet(w: World, sh: World.Shrine, p: World.Player) -> void:
-	sh.life = 0.0
 	p.gold -= sh.cost
 	w.record.add(p.slot, "bets", sh.cost)
+	_draw_bet(w, sh, p.slot)
+
+
+## A paid shrine is spent: its outcome is drawn, the reel queued and shown, for `slot`.
+static func _draw_bet(w: World, sh: World.Shrine, slot: int) -> void:
+	sh.life = 0.0
 	var outcome := _first_draw(w, sh.kind)
 	var reel := w.tune.team_reel if sh.kind == Gamble.TEAM else w.tune.shrine_reel
-	_queue_gamble(w, {"t": w.wave_time + reel, "slot": p.slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
-	w.emit(World.EV_SHRINE, sh.pos.x, sh.pos.y, p.slot, sh.kind * 16 + outcome)
+	_queue_gamble(w, {"t": w.wave_time + reel, "slot": slot, "kind": sh.kind, "outcome": outcome, "stake": sh.cost, "pos": sh.pos})
+	w.emit(World.EV_SHRINE, sh.pos.x, sh.pos.y, slot, sh.kind * 16 + outcome)
 
 
 ## What a shrine of `kind` turns up when paid. A party's team shrine draws from the fate deck; a solo run's team
@@ -127,6 +226,7 @@ static func _land_fate(w: World, g: Dictionary) -> void:
 		times = 2
 	_apply_fate(w, fate, times, w.players.get(g.slot), g.pos)
 	w.record.fates.append(fate)
+	w.record.use(Gamble.TEAM_OUTCOMES[fate][0], int(g.slot))
 	if fate == Gamble.TO_BLESSING or fate == Gamble.TO_CURSE:
 		w.record.note(w.wave_time, Results.M_BLESSING if fate == Gamble.TO_BLESSING else Results.M_CURSE, g.slot)
 	w.emit(World.EV_FATE, g.pos.x, g.pos.y, fate, g.slot)

@@ -113,5 +113,5 @@ static func _bot_input(a: Arena, slot: int) -> PackedFloat32Array:
 		"arena": Rect2(G.ARENA.position + Vector2(5, 6), G.ARENA.size - Vector2(10, 8)),
 		"leash": Rect2(lo, hi - lo), "boss": boss, "fallen": fallen, "hz": a.vhz,
 	}
-	var goal := SmashBot.shrine_goal(at, float(me.get("gold", 0)), a.vsh)
+	var goal := bot.shrine_pick(at, float(me.get("gold", 0)), SmashBot.table_gold_of_views(a.vp.values()), a.vsh, a.time)
 	return bot.decide(slot, at, G.ARENA.get_center(), a.time, en, es, pk, goal, ctx)

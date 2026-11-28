@@ -99,6 +99,8 @@ const SHRINE_RANGE: float = 220.0
 const SHRINE_VALUE: float = 2.5
 ## On a shrine this close (World counts tune.shrine_radius, 14 px by default) the bot stands still to bet.
 const SHRINE_STAND: float = 12.0
+## Seconds a bot stands in a team shrine whose pot does not grow (no partner came) before she gives it up for good.
+const SHRINE_PATIENCE: float = 4.0
 
 ## Apprentices (computer wizards that fill a seat; WorldApprentices drives them inside World.step): they decide
 ## every APPRENTICE_TICKS ticks of 60 Hz, all of a World's apprentices on one shared sensing context
@@ -218,6 +220,11 @@ var _boss := Vector2.INF
 var _hz := PackedFloat32Array() # hazard rows, Hazards.pack layout (empty: none)
 var _goal := Vector2.INF
 var _goal_stand: bool = false # a shrine: stand on it
+var _shrine_quit: Array[Vector2] = [] # team shrines she gave up waiting at, until a partner stands in one (shrine_pick)
+var _wait_at := Vector2.INF # the team shrine she is waiting at
+var _wait_frac: float = -1.0 # its pot when it last grew
+var _wait_stood: float = 0.0 # seconds stood there since it last grew
+var _wait_last: float = 0.0 # the time of the last shrine_pick
 var _arena := Rect2(25, 44, 750, 392) # G.ARENA shrunk to where a wizard's feet may go
 var _leash := Rect2(-1e6, -1e6, 2e6, 2e6)
 var _anchor := Vector2.ZERO
@@ -449,16 +456,65 @@ func pick_card(choices: Array[int], levels: Dictionary) -> int:
 	return best
 
 
-## The nearest shrine in reach that `gold` pays for, from shrine rows [kind, x, y, life, charge, cost], or INF.
-static func shrine_goal(me: Vector2, gold: float, rows: Array) -> Vector2:
+## The nearest shrine in reach the bot may pay, from shrine rows [kind, x, y, life, charge, cost, still needed], or
+## INF. A solo shrine: her `gold` pays it all. A team shrine: she has gold and the living human wizards' gold
+## together (`table_gold`, hers in it) covers what the pot still lacks. Rows at a position in `skip` are left out.
+static func shrine_goal(me: Vector2, gold: float, rows: Array, table_gold: float, skip: Array[Vector2] = []) -> Vector2:
 	var best := Vector2.INF
 	var bd: float = SHRINE_RANGE
 	for r: Array in rows:
 		var at := Vector2(r[1], r[2])
-		if gold >= float(r[5]) and at.distance_to(me) < bd:
+		var can: bool = gold >= float(r[5])
+		if int(r[0]) == Gamble.TEAM:
+			can = gold > 0.0 and table_gold >= float(r[5]) * (1.0 - float(r[4]))
+		if can and at.distance_to(me) < bd and not skip.has(at):
 			bd = at.distance_to(me)
 			best = at
 	return best
+
+
+## shrine_goal with her patience: standing in a team shrine whose pot has not grown for SHRINE_PATIENCE seconds (of
+## her standing there), she gives that shrine up, so she never waits forever for a partner. She takes it up again
+## once the row says a partner stands in it (or she is the last wizard left): it needs nobody more while she stands
+## there, at most one more while she is away. `time` is the clock the decisions run on (World.time, or the view's).
+func shrine_pick(me: Vector2, gold: float, table_gold: float, rows: Array, time: float) -> Vector2:
+	var dt: float = maxf(0.0, time - _wait_last)
+	_wait_last = time
+	var live: Array[Vector2] = []
+	for r: Array in rows:
+		var at := Vector2(r[1], r[2])
+		live.append(at)
+		if int(r[0]) != Gamble.TEAM:
+			continue
+		var standing: bool = me.distance_to(at) < SHRINE_STAND
+		if _shrine_quit.has(at):
+			if int(r[6]) + int(standing) > 1:
+				continue
+			_shrine_quit.erase(at)
+			if _wait_at == at:
+				_wait_at = Vector2.INF # her patience there starts over
+		if not standing:
+			continue
+		var frac: float = r[4]
+		if at != _wait_at or frac > _wait_frac:
+			_wait_at = at
+			_wait_frac = frac
+			_wait_stood = 0.0
+		else:
+			_wait_stood += dt
+			if _wait_stood >= SHRINE_PATIENCE:
+				_shrine_quit.append(at)
+	_shrine_quit.assign(_shrine_quit.filter(func(q: Vector2) -> bool: return live.has(q)))
+	return shrine_goal(me, gold, rows, table_gold, _shrine_quit)
+
+
+## The gold of the living human wizards together, from the view's player dictionaries (Arena.vp values).
+static func table_gold_of_views(views: Array) -> float:
+	var sum: float = 0.0
+	for q: Dictionary in views:
+		if q.get("alive", true) and not q.get("ai", false):
+			sum += float(q.get("gold", 0))
+	return sum
 
 
 # ============================================================== SENSES ===
@@ -635,9 +691,12 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 	_mates.clear()
 	var party := Vector2.ZERO
 	var alive: int = 0
+	var table_gold: float = 0.0
 	for q: World.Player in ctx.alive:
 		party += q.pos
 		alive += 1
+		if not q.ai:
+			table_gold += q.gold
 		if q == p:
 			continue
 		_mates.append(q.pos)
@@ -678,7 +737,7 @@ func _sense_from(w: World, p: World.Player, ctx: Dictionary) -> void:
 		_consider_pickup(me, k.pos, k.kind)
 	if not apprentice:
 		var rows: Array = ctx.shrines
-		var shrine := shrine_goal(me, p.gold, rows) if not rows.is_empty() else Vector2.INF
+		var shrine := shrine_pick(me, p.gold, table_gold, rows, w.time) if not rows.is_empty() else Vector2.INF
 		if shrine.is_finite():
 			_consider_shrine(me, shrine)
 	_consider_rescue(me, ctx.fallen)

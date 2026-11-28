@@ -159,9 +159,9 @@ static func _apply_snapshot(a: Arena, snap: Dictionary, instant: bool) -> void:
 	a.vsh.clear()
 	var shp: PackedFloat32Array = snap.get("sh", PackedFloat32Array())
 	i = 0
-	while i + 6 <= shp.size():
-		a.vsh.append([int(shp[i]), shp[i + 1], shp[i + 2], shp[i + 3], shp[i + 4], int(shp[i + 5])])
-		i += 6
+	while i + World.SHRINE_FLOATS <= shp.size():
+		a.vsh.append([int(shp[i]), shp[i + 1], shp[i + 2], shp[i + 3], shp[i + 4], int(shp[i + 5]), int(shp[i + 6])])
+		i += World.SHRINE_FLOATS
 	a.vk.clear()
 	var pk: PackedFloat32Array = snap.k
 	i = 0

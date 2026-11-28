@@ -52,7 +52,7 @@ var vo: Array = []  # spell objects, World.O_FLOATS floats each (none exist yet)
 var ves: Array = [] # [kind, pos, vel]
 var vk: Array = []  # [kind, pos, life]
 var vu: Array[Vector2] = [] # urns from the snapshot
-var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction, cost]
+var vsh: Array = [] # shrine rows from the snapshot: [kind, x, y, life, charge fraction (team: pot / price), cost, wizards still needed]
 var _bets: Array = [] # shrine reels: {slot, pos, kind, outcome, t, spin, shown}
 const SHRINE_COLORS := [Color("ffd23d"), Color("ff4df2")]
 ## The rune a solo altar's cast lands on, per Gamble.SOLO_OUTCOMES (-1: a blank stone).

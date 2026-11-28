@@ -149,8 +149,10 @@ class Shrine:
 	var pos := Vector2.ZERO
 	var life := 30.0
 	var cost := 0
-	var charge := 0.0 # seconds a wizard who can pay has stood on it
+	var charge := 0.0 # seconds a wizard who can pay has stood on it (SOLO)
 	var who := -1
+	var pot := 0.0 # gold the table has paid in so far (TEAM)
+	var paid: Dictionary = {} # slot -> gold she has paid into the pot (TEAM)
 
 class Pickup:
 	var kind := 0
