@@ -101,6 +101,19 @@ The careers (2 a job) need the station's run to confirm.
 The jobs gate: a MAGE that stands and shoots made HEXER's own contribution 60% over ARCHMAGE's (gap 38%, bound 25; the
 curse is not the cause: `CURSE_TAKEN_PCT` 100 left it unchanged), so ARCHMAGE's `second_burst_pct` went 50 to 100.
 
+### Third step of `CAREER_PCT` (2026-11-24, from the station's cohort 1)
+
+Station runs (20 careers): `h10=0.60 h20=4.4 h40=31.4 h60=80.7 worst_class=-30% sunk=79%` (msi/laptop, older tables) and
+`h10=0.38 h20=3.7 h40=29.5 h60=70.6 worst_class=-37% sunk=91%` (run 3 above). Misses of the second: h40 +18% (target 25),
+h60 -12% (target 80), worst class -37% (ARCHER 40-49 and 50-59, MAGE 20-29 and 50-59), sunk 91% (see the coin book).
+Change: `CAREER_PCT` 81, 52, 180, 92, 115, 110 -> 89, 56, 150, 74, 143, 155 (each times curve band hours / run 3's band
+hours, 0.38, 3.31, 9.21, 16.58, 17.99, 23.17 h), `CLASS_XP` refitted (`balance fit`): steps 30-39 about 20% lower,
+40-59 about 20 to 40% higher. Class gaps were not touched: 2 careers a job cannot show which class lever works.
+Local check (4 cores, `balance career 1 1 10 16 100`, 10 careers, so noisy): before `h10=0.36 h20=4.5 h40=37.6 h60=inf
+worst_class=-52% sunk=97%`; after `h10=0.43 h20=5.8 h40=28.2 h60=inf worst_class=-59% sunk=95%`. h40 moved toward the
+target; h60 is still beyond 100 h for the ARCHER (slowest class), so the class gap, not the median, now decides the
+top. A station run of `PER` 10 is needed to confirm.
+
 ## The party gate (rules 13)
 
 `realm-loadtest bots party 10 6000` (`realm_core::gates::party`: KNIGHT, PRIEST, ARCHER, MAGE at the field's
