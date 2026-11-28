@@ -46,6 +46,14 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	PlayerInput.note_key(event) # keyboard seat 2's right-hand keys
+	# F11 and Alt+Enter: fullscreen or the last window size, from anywhere (not on a phone or in a scripted run).
+	if event is InputEventKey and event.pressed and not event.echo and not is_mobile and not Flags.is_scripted_run():
+		if event.physical_keycode == KEY_F11 or (event.alt_pressed and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER]):
+			Save.settings.toggle_fullscreen()
+			Save.apply_settings()
+			Save.write_settings()
+			get_viewport().set_input_as_handled()
+			return
 	# Switch the on-screen sticks on as soon as a finger touches the screen.
 	if event is InputEventScreenTouch and not touch_active:
 		touch_active = true
