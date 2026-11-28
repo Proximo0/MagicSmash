@@ -830,25 +830,27 @@ Lesson kept from wave 3: an effect nobody can see is cut, so every new arcana sh
 
 ## 40. Evolutions
 
-Fifteen rows. An evolution replaces its spell's level 5 numbers and adds one new behaviour, said in its card's three
-or four words. The card weighs 40, and a row that completes a pair weighs four times more in the roll (as built).
-Two evolutions of one spell are told apart by an id where the code holds a flag today (§ 52).
+Fifteen rows. An evolution replaces its spell's level 5 numbers and adds one new behaviour, said in its card's two
+or three words: at most 14 letters, what a row of the level-up tray holds (a name holds 15; the tray writes THE HIGH
+PRIESTESS as HIGH PRIESTESS). The card weighs 40, and a row that completes a pair weighs four times more in the roll
+(as built). Two evolutions of one spell are told apart by an id where the code holds a flag today (§ 52). The words
+on the new spells' and arcana's cards are in `docs/stage3_brief.md` § 4.2.
 
 | Name (code key) | What it does | Obtained / unlocked | Pairs with | Change | Test |
 |---|---|---|---|---|---|
 | ASTRAL LANCE (`e_arcane`) | PIERCING BOLTS. Numbers as built. The crowd road for ARCANE BOLT | ARCANE BOLT 5 + THE MAGICIAN | THE MAGICIAN | changed: its partner was STARFALL | U D S B |
-| LODESTAR (`e_lodestar`) | BOLTS HUNT THE STRONG. cd 0.12 s; dmg 3; n 3. Bolts turn after the toughest foe within 160 px and deal double to elites and bosses. The boss road for ARCANE BOLT | ARCANE BOLT 5 + THE STAR | THE STAR | new | U D S B |
-| GREEK FIRE (`e_greek`) | FIRE THAT STAYS. cd 0.8 s; dmg 3; n 2. Each blast leaves a burning patch of 28 px for 3 s that ticks 1.2 each 0.5 s | FIREBALL 5 + STRENGTH | STRENGTH | new | U D S B |
+| LODESTAR (`e_lodestar`) | HUNTS BIG PREY. cd 0.12 s; dmg 3; n 3. Bolts turn after the toughest foe within 160 px and deal double to elites and bosses. The boss road for ARCANE BOLT | ARCANE BOLT 5 + THE STAR | THE STAR | new | U D S B |
+| GREEK FIRE (`e_greek`) | BURNING GROUND. cd 0.8 s; dmg 3; n 2. Each blast leaves a burning patch of 28 px for 3 s that ticks 1.2 each 0.5 s | FIREBALL 5 + STRENGTH | STRENGTH | new | U D S B |
 | THUNDERFIRE (`e_fire`) | ZAPPING BLASTS. Numbers as built | FIREBALL 5 + THE TOWER | THE TOWER | changed: its partner was CHAIN LIGHTNING | U D S B |
 | BLIZZARD (`e_frost`) | A STORM OF ICE. Numbers as built | FROST FAN 5 + TEMPERANCE | TEMPERANCE | changed: its partner was ARCANE BOLT | U D S B |
-| WINTER VEIL (`e_veil`) | A MIST THAT FOLLOWS. The fan keeps its level 5 numbers, and a mist of 40 px stays on her: foes in it are slowed as by the fan and take 1.6 each 0.5 s | FROST FAN 5 + THE HIGH PRIESTESS | THE HIGH PRIESTESS | new | U D S B |
+| WINTER VEIL (`e_veil`) | CLOAK OF FROST. The fan keeps its level 5 numbers, and a mist of 40 px stays on her: foes in it are slowed as by the fan and take 1.6 each 0.5 s | FROST FAN 5 + THE HIGH PRIESTESS | THE HIGH PRIESTESS | new | U D S B |
 | TEMPEST (`e_storm`) | TWIN CHAINS. Numbers as built | CHAIN LIGHTNING 5 + THE CHARIOT | THE CHARIOT | changed: its partner was FIREBALL | U D S B |
-| DIES IRAE (`e_dies`) | THE WEAK ARE STRUCK DEAD. cd 0.6 s; dmg 5; n 7. Jumps do not weaken. A plain foe left under a fifth of its health by a jump dies; never an elite or a boss | CHAIN LIGHTNING 5 + JUDGEMENT | JUDGEMENT | new | U D S B |
+| DIES IRAE (`e_dies`) | SLAYS THE WEAK. cd 0.6 s; dmg 5; n 7. Jumps do not weaken. A plain foe left under a fifth of its health by a jump dies; never an elite or a boss | CHAIN LIGHTNING 5 + JUDGEMENT | JUDGEMENT | new | U D S B |
 | COMET RAIN (`e_star`) | ICY STARBURSTS. Numbers as built | STARFALL 5 + THE HERMIT | THE HERMIT | changed: its partner was FROST FAN | U D S B |
 | SEAL OF SOLOMON (`e_rune`) | SIGILS PULL IN. Numbers as built | RUNE CIRCLE 5 + THE MOON | THE MOON | changed: its partner was STARFALL | U D S B |
 | OSSUARY LANCE (`e_bone`) | SPLINTER HITS. Numbers as built | BONE SPEAR 5 + JUSTICE | JUSTICE | as built | U D S B |
 | CONSECRATION (`e_candle`) | HEALING LIGHT. Numbers as built | VIGIL CANDLE 5 + THE LOVERS | THE LOVERS | as built | U D S B |
-| EVIL EYE (`e_hex`) | THE HEXED BURST. cd 0.9 s; dmg 8; +50% damage taken; 6 jumps. A hexed foe bursts when it dies: half of its full health within 26 px, at most 40 a burst | HEX 5 + THE DEVIL | THE DEVIL | new | U D S B |
+| EVIL EYE (`e_hex`) | HEXED BURST. cd 0.9 s; dmg 8; +50% damage taken; 6 jumps. A hexed foe bursts when it dies: half of its full health within 26 px, at most 40 a burst | HEX 5 + THE DEVIL | THE DEVIL | new | U D S B |
 | DANSE MACABRE (`e_blades`) | A SECOND RING. 4 blades at 30 px and 4 more at 52 px turning the other way; 3 a touch | SPIRIT BLADES 5 + THE EMPRESS | THE EMPRESS | new | U D S B |
 | WHIRLWIND (`e_cleave`) | A FULL CIRCLE. It strikes every foe in reach: the cap of 3 goes, and dmg starts at 24 (was 36) | CLEAVE 5 + STRENGTH; knight only | STRENGTH | changed: today it is weaker than CLEAVE 5 in a crowd (§ 53) | U D S B |
 
