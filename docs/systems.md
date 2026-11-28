@@ -280,7 +280,7 @@ runes and magic books, fantasy mixed with history and myth, and no placeholder t
   skeletons), gargoyle (stone takes 25% damage, swoops). Omens (`World.OMENS`) at 3:00, 8:00 and 13:00.
 - **Names:** mythic loot (Gauntlets of Tyr, Hermes' Sandals, Eye of Odin...) and unlocks; achievement texts
   match. Version 0.9.0.
-- **Sound:** 14 occult SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
+- **Sound:** 41 SFX (`card_deal`, `rune_cast`, `bell_toll`, `ghost`...) from `tools/gen_audio.py`.
 
 ## Economy retune (job E, 21 Nov): level-ups carry the power curve
 
