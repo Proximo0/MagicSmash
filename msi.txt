@@ -1,4 +1,6 @@
-STATION machine=msi time=2026-11-27T23:45Z commit=86c8a4e took=0s
-JOB checks SKIP nothing it tests changed since 2723699
-JOB boss SKIP nothing it tests changed since 2723699
-STATION PASS jobs=0 failed=0 skipped=2
+STATION machine=msi time=2026-11-28T00:37Z commit=b905b1b took=1265s
+JOB checks FAIL
+  unit       TESTS passed=681 failed=12
+  CHECK_ALL FAIL (see rows above)
+JOB boss PASS seed7=WON@16:27 seed21=WON@17:27 seed33=WON@17:10 seed101=WON@16:15 seed102=WON@16:16
+STATION FAIL jobs=2 failed=1 skipped=0
